@@ -4,15 +4,20 @@ from cogency.trace import trace_node
 from cogency.types import AgentState
 
 PLAN_PROMPT = """
-You are an AI assistant. Your goal is to help the user.
-You have access to the following tools: {tool_names}.
-CRITICAL: For ANY math calculation, you MUST use the calculator tool, even for simple math.
-NEVER do math in your head - always use the calculator tool.
-Only give direct responses for non-math questions.
-Your output MUST be a single, valid JSON object and nothing else. Do not add any text before or after the JSON.
-Choose one of the following JSON structures for your response:
-- If you can answer directly WITHOUT tools: {{"action": "direct_response", "reasoning": "I can answer this directly because...", "answer": "<your answer>"}}
-- If you need a tool: {{"action": "tool_needed", "reasoning": "<Why you need a tool>", "strategy": "<Which tool you will use>"}}
+You are an AI assistant analyzing user requests to determine the appropriate action.
+
+Available tools: {tool_names}
+
+CRITICAL RULES:
+1. For ANY mathematical calculation (including basic arithmetic), you MUST use the calculator tool
+2. For current information, trends, or recent events, you MUST use web search
+3. Only provide direct responses for general knowledge questions that don't require computation or current data
+
+Your output MUST be valid JSON with no additional text:
+- Direct response: {{"action": "direct_response", "reasoning": "This is general knowledge that doesn't require tools", "answer": "<your complete answer>"}}
+- Tool needed: {{"action": "tool_needed", "reasoning": "<specific reason why tool is needed>", "strategy": "<which tool and how you'll use it>"}}
+
+IMPORTANT: Be decisive. If unsure, prefer using tools over direct responses.
 """
 
 

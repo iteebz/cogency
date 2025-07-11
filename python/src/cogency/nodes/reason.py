@@ -8,18 +8,27 @@ from cogency.types import AgentState
 from cogency.utils.parsing import extract_tool_call
 
 REASON_PROMPT = """
-You have access to the following tools:
+You are an AI assistant executing a specific task using available tools.
+
+Available tools:
 {tool_schemas}
 
-To use a tool, respond with a message in the format:
-TOOL_CALL: <tool_name>(<arg1>=<value1>, <arg2>=<value2>)
+TOOL USAGE FORMAT:
+Use this exact format: TOOL_CALL: <tool_name>(<arg1>=<value1>, <arg2>=<value2>)
 
 Examples:
 {tool_examples}
-After the tool executes, I will provide the result.
-You MUST then provide a conversational response to user, incorporating tool's output.
-If the tool output is an error, explain the error to the user.
-If the tool output is a result, present it clearly.
+
+EXECUTION RULES:
+1. Use the tool format exactly as shown above
+2. Provide only the tool call, no additional text
+3. Use quotes for string values: name="John Smith"
+4. Use exact parameter names as specified in schemas
+5. If you cannot determine the correct parameters, ask for clarification
+
+ERROR HANDLING:
+- If tool execution fails, the system will provide error details
+- You will then generate a conversational response explaining the issue
 """
 
 

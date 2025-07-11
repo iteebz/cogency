@@ -39,12 +39,12 @@ class Agent:
         self.workflow.add_edge("respond", END)
         self.app = self.workflow.compile()
 
-    def run(self, message: str, enable_trace: bool = False) -> Dict[str, Any]:
+    def run(self, message: str, trace: bool = False) -> Dict[str, Any]:
         """Run agent with optional execution trace."""
         context = Context(current_input=message)
 
         execution_trace = None
-        if enable_trace:
+        if trace:
             execution_trace = ExecutionTrace(trace_id=str(uuid.uuid4())[:8])
             context.execution_trace = execution_trace
 
@@ -64,7 +64,7 @@ class Agent:
             "conversation": final_state["context"].get_clean_conversation(),
         }
 
-        if enable_trace and execution_trace:
+        if trace and execution_trace:
             result["execution_trace"] = execution_trace.to_dict()
 
         return result
@@ -72,11 +72,17 @@ class Agent:
     def _plan_router(self, state: AgentState) -> str:
         """Direct routing after plan node."""
         last_message = state["context"].messages[-1]["content"]
+        # Handle case where content might be a list
+        if isinstance(last_message, list):
+            last_message = last_message[0] if last_message else ""
         route, _ = parse_plan_response(last_message)
         return route
 
     def _reflect_router(self, state: AgentState) -> str:
         """Direct routing after reflect node."""
         last_message = state["context"].messages[-1]["content"]
+        # Handle case where content might be a list
+        if isinstance(last_message, list):
+            last_message = last_message[0] if last_message else ""
         route, _ = parse_reflect_response(last_message)
         return route

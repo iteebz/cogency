@@ -49,6 +49,9 @@ class GeminiLLM(BaseLLM):
     ):
         super().__init__(api_key, key_rotator)
         self.model = model
+        # Set more reasonable timeout for faster failures
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 15.0  # 15 second timeout instead of default 60+
         self.kwargs = kwargs
         self._llm_instances: Dict[str, BaseChatModel] = {}  # Cache for LLM instances
         self._current_llm: Optional[

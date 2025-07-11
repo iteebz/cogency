@@ -49,12 +49,14 @@ class Context:
             content = msg["content"]
             # Filter out internal JSON messages
             try:
-                data = json.loads(content)
-                if data.get("action") in ["tool_needed", "direct_response"] or data.get(
-                    "status"
-                ) in ["continue", "complete", "error"]:
-                    continue
-            except json.JSONDecodeError:
+                # Only try to parse if content is a string
+                if isinstance(content, str):
+                    data = json.loads(content)
+                    if data.get("action") in ["tool_needed", "direct_response"] or data.get(
+                        "status"
+                    ) in ["continue", "complete", "error"]:
+                        continue
+            except (json.JSONDecodeError, TypeError):
                 pass
             # Filter out tool calls and system messages
             if content.startswith("TOOL_CALL:") or msg["role"] == "system":
