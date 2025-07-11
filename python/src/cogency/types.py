@@ -48,9 +48,6 @@ class ExecutionTrace:
 
 class AgentState(TypedDict):
     context: Context
-    tool_needed: bool
-    task_complete: bool
-    last_node: Optional[str]
     execution_trace: Optional[ExecutionTrace]
 
 class Tool(ABC):

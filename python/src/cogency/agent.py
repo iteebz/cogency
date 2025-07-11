@@ -4,7 +4,8 @@ from langgraph.graph import StateGraph, END
 from cogency.llm import LLM
 from cogency.context import Context
 from cogency.types import Tool
-from cogency.nodes import act, router, respond, plan, reason, reflect
+from cogency.nodes import act, respond, plan, reason, reflect
+from cogency.parsing import TOOL_NEEDED_PREFIX, TASK_COMPLETE_PREFIX
 import uuid
 
 class Agent:
@@ -24,15 +25,15 @@ class Agent:
 
         self.workflow.add_conditional_edges(
             "plan",
-            router,
-            {"tool_needed": "reason", "direct_response": "respond"}
+            self._plan_router,
+            {"reason": "reason", "respond": "respond"}
         )
         self.workflow.add_edge("reason", "act")
-        self.workflow.add_edge("act", "reflect") # New edge: act -> reflect
+        self.workflow.add_edge("act", "reflect")
         self.workflow.add_conditional_edges(
             "reflect",
-            router,
-            {"task_complete": "respond", "continue_task": "reason"} # New routing from reflect
+            self._reflect_router,
+            {"reason": "reason", "respond": "respond"}
         )
         self.workflow.add_edge("respond", END)
         self.app = self.workflow.compile()
@@ -48,9 +49,6 @@ class Agent:
         
         initial_state: AgentState = {
             "context": context,
-            "tool_needed": False,
-            "task_complete": False,
-            "last_node": None,
             "execution_trace": execution_trace
         }
         
@@ -65,3 +63,13 @@ class Agent:
             result["execution_trace"] = execution_trace.to_dict()
         
         return result
+    
+    def _plan_router(self, state: AgentState) -> str:
+        """Direct routing after plan node."""
+        last_message = state["context"].messages[-1]["content"]
+        return "reason" if last_message.startswith(TOOL_NEEDED_PREFIX) else "respond"
+    
+    def _reflect_router(self, state: AgentState) -> str:
+        """Direct routing after reflect node."""
+        last_message = state["context"].messages[-1]["content"]
+        return "respond" if last_message.startswith(TASK_COMPLETE_PREFIX) else "reason"

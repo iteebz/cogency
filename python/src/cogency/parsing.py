@@ -1,6 +1,12 @@
 import re
 from typing import Optional, Tuple, Any, Dict
 
+# Parsing constants
+TOOL_NEEDED_PREFIX = "TOOL_NEEDED:"
+DIRECT_RESPONSE_PREFIX = "DIRECT_RESPONSE:"
+TASK_COMPLETE_PREFIX = "TASK_COMPLETE:"
+CONTINUE_TASK_PREFIX = "CONTINUE_TASK:"
+
 def _extract_tool_call(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]]:
     tool_call = None
     if llm_response.startswith("TOOL_CALL:"):

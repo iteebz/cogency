@@ -37,12 +37,7 @@ def reason(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
 
     context.add_message("assistant", result_str)
 
-    tool_call = _extract_tool_call(result_str)
-    tool_was_called = tool_call is not None
-    
     return {
-        "context": context, 
-        "task_complete": False, 
-        "last_node": "reason", 
+        "context": context,
         "execution_trace": state["execution_trace"]
     }

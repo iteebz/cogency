@@ -24,10 +24,7 @@ def reflect(state: AgentState, llm: LLM) -> AgentState:
     llm_response = llm.invoke(messages)
     context.add_message("assistant", llm_response)
 
-    is_complete = llm_response.startswith(TASK_COMPLETE_PREFIX)
     return {
-        "context": context, 
-        "task_complete": is_complete, 
-        "last_node": "reflect",
+        "context": context,
         "execution_trace": state["execution_trace"]
     }

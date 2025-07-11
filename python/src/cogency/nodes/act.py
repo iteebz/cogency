@@ -65,7 +65,6 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
         context.tool_call_details = None
 
     return {
-        "context": context, 
-        "last_node": "act",
+        "context": context,
         "execution_trace": state["execution_trace"]
     }

@@ -21,8 +21,6 @@ def respond(state: AgentState, llm: LLM) -> AgentState:
     context.add_message("assistant", llm_response)
 
     return {
-        "context": context, 
-        "task_complete": True, 
-        "last_node": "respond",
+        "context": context,
         "execution_trace": state["execution_trace"]
     }

@@ -25,12 +25,7 @@ def plan(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     llm_response = llm.invoke(messages)
     context.add_message("assistant", llm_response)
 
-    needs_tool = llm_response.startswith(TOOL_NEEDED_PREFIX)
-    
     return {
-        "context": context, 
-        "tool_needed": needs_tool, 
-        "task_complete": False, 
-        "last_node": "plan",
+        "context": context,
         "execution_trace": state["execution_trace"]
     }
