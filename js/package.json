@@ -1,0 +1,29 @@
+{
+  "name": "cogency",
+  "version": "0.0.2",
+  "description": "A multi-modal agent framework.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "agent",
+    "ai",
+    "framework"
+  ],
+  "author": "Tyson Chan <tyson.chan@proton.me>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/iteebz/cogency.git"
+  },
+  "homepage": "https://github.com/iteebz/cogency#readme",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}

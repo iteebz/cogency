@@ -1,0 +1,87 @@
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[project]
+name = "cogency"
+version = "0.1.0"
+description = "Cognitive architecture for AI agents - Skills, Tools, and Services"
+authors = [
+    {name = "Tyson Chan", email = "tyson.chan@proton.me"},
+]
+readme = "README.md"
+license = "MIT"
+homepage = "https://github.com/cogencyai/cogency"
+repository = "https://github.com/cogencyai/cogency"
+keywords = ["ai", "agents", "cognitive", "architecture", "skills"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "pydantic>=2.0",
+    "typing-extensions>=4.0",
+]
+
+
+[project.optional-dependencies]
+openai = ["openai>=1.0"]
+anthropic = ["anthropic>=0.3"]
+google = ["google-generativeai>=0.3"]
+all = ["openai>=1.0", "anthropic>=0.3", "google-generativeai>=0.3"]
+
+[project.scripts]
+cogency = "cogency.cli:main"
+
+[tool.hatch.envs.default]
+dependencies = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "mypy>=1.0",
+    "ruff>=0.1",
+]
+
+[tool.hatch.envs.default.scripts]
+test = "pytest {args}"
+test-cov = "pytest --cov-report=term-missing --cov=cogency {args}"
+type-check = "mypy cogency {args}"
+lint = "ruff check cogency {args}"
+fmt = "ruff format cogency {args}"
+check = ["lint", "type-check", "test"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cogency"]
+
+[tool.black]
+line-length = 88
+target-version = ['py39']
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+select = ["E", "W", "F", "I", "N", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+pythonpath = ["src"]
