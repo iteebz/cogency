@@ -1,9 +1,6 @@
 from typing import Any, Dict
-
+import math
 from cogency.types import Tool
-
-class CalculatorTool(Tool):
-    import math
 
 class CalculatorTool(Tool):
     name = "calculator"

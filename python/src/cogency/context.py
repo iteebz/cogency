@@ -4,13 +4,14 @@ from typing import Any, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from cogency.types import ExecutionTrace
 
+# Context: Conversation state (user input + message history)
+# AgentState: LangGraph workflow state container (includes Context + execution trace)
 class Context:
     """Agent operational context."""
-    def __init__(self, current_input: str, messages: list[dict[str, str]] = None, tool_call_details: Optional[dict[str, Any]] = None, execution_trace: Optional["ExecutionTrace"] = None):
+    def __init__(self, current_input: str, messages: list[dict[str, str]] = None, tool_result: Optional[dict[str, Any]] = None):
         self.current_input = current_input
         self.messages = messages if messages is not None else []
-        self.tool_call_details = tool_call_details
-        self.execution_trace = execution_trace
+        self.tool_result = tool_result
 
     def add_message(self, role: str, content: str):
         """Adds message to history."""
@@ -20,7 +21,7 @@ class Context:
     def add_message_with_trace(self, role: str, content: str, trace_id: Optional[str] = None):
         """Adds message with optional trace linkage."""
         message_dict = {"role": role, "content": content}
-        if trace_id and self.execution_trace:
+        if trace_id:
             message_dict["trace_id"] = trace_id
         self.messages.append(message_dict)
 
@@ -32,5 +33,4 @@ class Context:
         ]
 
     def __repr__(self):
-        trace_info = f", trace={self.execution_trace.trace_id}" if self.execution_trace else ""
-        return f"Context(current_input='{self.current_input}', messages={len(self.messages)} messages{trace_info})"
+        return f"Context(current_input='{self.current_input}', messages={len(self.messages)} messages)"

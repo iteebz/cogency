@@ -8,7 +8,6 @@ from cogency.trace import trace_node
 @trace_node
 def act(state: AgentState, tools: list[Tool]) -> AgentState:
     context = state["context"]
-    tool_was_called = False
 
     # Get the last assistant message, which should contain the tool call
     llm_response_content = context.messages[-1]["content"]
@@ -17,7 +16,6 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
     if tool_call:
         tool_name, tool_args = tool_call
         context.tool_call_details = {"name": tool_name, "args": tool_args}
-        tool_was_called = True
 
         raw_args = tool_args.get("raw_args", "")
         parsed_args = {}
