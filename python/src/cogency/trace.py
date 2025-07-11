@@ -1,47 +1,94 @@
-"""Simple execution trace for cogency agent."""
-
+import json
 from typing import Any, Dict, Callable, TypeVar
 from functools import wraps
 from cogency.types import AgentState
 
 F = TypeVar('F', bound=Callable[..., Any])
 
+def _extract_reasoning(message: str) -> str:
+    """Extracts a descriptive reasoning string from a message."""
+    try:
+        message_json = json.loads(message)
+        
+        # Mapping of keys to their human-readable prefixes
+        REASONING_MAP = {
+            "reasoning": "Reasoning",
+            "strategy": "Strategy",
+            "assessment": "Assessment",
+            "description": "Error Description",
+            "answer": "Direct Answer",
+            "action": "Action",
+        }
+
+        for key, prefix in REASONING_MAP.items():
+            if key in message_json:
+                return f"{prefix}: {message_json[key]}"
+        
+        # Fallback for unexpected JSON structure
+        return f"LLM Output (JSON): {message}"
+
+    except (json.JSONDecodeError, KeyError):
+        # If it's not a JSON or doesn't have the expected keys, return the raw message
+        return f"LLM Output: {message}"
+
+@wraps(F)
 def trace_node(func: F) -> F:
     """
-    Simple decorator to trace agent node execution input/output only.
+    Decorator to trace agent node execution with detailed, developer-friendly context.
+    It captures the state before and after the node runs to provide a clear delta.
     """
-    @wraps(func)
     def wrapper(*args, **kwargs):
-        # Assume first arg is AgentState
         state = args[0] if args else kwargs.get('state')
-        if not state or not isinstance(state, dict):
+        if not state or not isinstance(state, dict) or not state.get("execution_trace"):
             return func(*args, **kwargs)
+
+        context = state.get("context")
         
-        # If no trace enabled, run normally
-        if not state.get("execution_trace"):
-            return func(*args, **kwargs)
+        # 1. Capture state BEFORE node execution
+        messages_before = [msg["content"] for msg in context.messages]
+        tool_results_before = list(context.tool_results)
         
-        # Simple input capture
         input_data = {
-            "task_complete": state.get("task_complete", False),
-            "last_node": state.get("last_node")
+            "user_query": context.current_input,
+            "messages": messages_before,
+            "tool_results": tool_results_before,
         }
-        
-        # Execute function
+
+        # 2. Execute the node
         result = func(*args, **kwargs)
         
-        # Simple output capture
-        output_data = {}
-        if isinstance(result, dict):
-            output_data = {
-                "task_complete": result.get("task_complete", False),
-                "last_node": result.get("last_node")
-            }
+        # 3. Capture state AFTER node execution and determine the delta
+        context_after = result.get("context")
+        messages_after = [msg["content"] for msg in context_after.messages]
+        tool_results_after = list(context_after.tool_results)
+
+        new_messages = [msg for msg in messages_after if msg not in messages_before]
+
+        # 4. Extract detailed reasoning from the new message(s)
+        reasoning = "No new message added by this node."
+        if new_messages:
+            reasoning = _extract_reasoning(new_messages[-1])
+
+        # 5. Construct detailed, human-readable output data
+        output_data = {"new_messages": new_messages}
         
-        # Add to trace
-        state["execution_trace"].add_step(func.__name__, input_data, output_data, f"Executed {func.__name__}")
+        if func.__name__ == 'act' and len(tool_results_after) > len(tool_results_before):
+            last_tool_result = tool_results_after[-1]
+            output_data.update({
+                "tool_used": last_tool_result.get("tool_name"),
+                "tool_input": last_tool_result.get("args"),
+                "tool_result": last_tool_result.get("output"),
+            })
+            reasoning += f" | Tool Result: {last_tool_result.get('output')}"
+
+        # 6. Add the detailed step to the execution trace
+        state["execution_trace"].add_step(
+            func.__name__, 
+            input_data, 
+            output_data, 
+            reasoning
+        )
         
         return result
     
     return wrapper
-

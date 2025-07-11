@@ -4,13 +4,14 @@
 import sys
 import os
 import json
+import argparse
 from typing import List
 from dotenv import load_dotenv, find_dotenv
 
 from cogency.agent import Agent
 from cogency.llm import GeminiLLM, KeyRotator
 from cogency.tools.calculator import CalculatorTool
-
+from cogency.utils.formatting import format_trace
 
 def load_api_keys() -> List[str]:
     """Load API keys from environment variables."""
@@ -76,10 +77,8 @@ def interactive_mode(agent: Agent, enable_trace: bool = False):
             result = agent.run(message, enable_trace=enable_trace)
             print(f"🤖 {result['response']}")
             
-            if enable_trace:
-                print("\nConversation:", json.dumps(result["conversation"], indent=2))
-                if "execution_trace" in result:
-                    print("Execution trace:", json.dumps(result["execution_trace"], indent=2))
+            if enable_trace and "execution_trace" in result:
+                print(format_trace(result["execution_trace"]))
                     
         except KeyboardInterrupt:
             print("\nGoodbye!")
@@ -92,10 +91,13 @@ def main():
     """Main CLI entry point."""
     # Load environment variables
     load_dotenv(find_dotenv(usecwd=True))
-    
-    # Parse arguments
-    enable_trace = "--trace" in sys.argv
-    interactive = "--interactive" in sys.argv or "-i" in sys.argv
+
+    parser = argparse.ArgumentParser(description="Run the Cogency agent.")
+    parser.add_argument("message", nargs="?", help="Message to send to the agent (for non-interactive mode).")
+    parser.add_argument("-i", "--interactive", action="store_true", help="Run the agent in interactive mode.")
+    parser.add_argument("-t", "--trace", action="store_true", help="Enable tracing for agent execution.")
+
+    args = parser.parse_args()
     
     # Create agent
     try:
@@ -107,21 +109,17 @@ def main():
         sys.exit(1)
     
     # Interactive mode
-    if interactive or len(sys.argv) < 2:
-        interactive_mode(agent, enable_trace)
+    if args.interactive or not args.message:
+        interactive_mode(agent, args.trace)
         return
     
     # Single query mode
-    message = sys.argv[1]
-    
     try:
-        result = agent.run(message, enable_trace=enable_trace)
+        result = agent.run(args.message, enable_trace=args.trace)
         print("Response:", result["response"])
         
-        if enable_trace:
-            print("Conversation:", json.dumps(result["conversation"], indent=2))
-            if "execution_trace" in result:
-                print("Execution trace:", json.dumps(result["execution_trace"], indent=2))
+        if args.trace and "execution_trace" in result:
+            print(format_trace(result["execution_trace"]))
                 
     except Exception as e:
         print(f"Error: {e}")
