@@ -1,22 +1,21 @@
-from typing import Any, Dict, List
-from cogency.context import Context
 from cogency.llm import LLM
 from cogency.types import AgentState, Tool
 from cogency.trace import trace_node
 
-PLAN_PROMPT = (
-    "You are an AI assistant. Your goal is to help the user. "
-    "You have access to the following tools: {tool_names}. "
-    "CRITICAL: For ANY math calculation, you MUST use the calculator tool, even for simple math. "
-    "NEVER do math in your head - always use the calculator tool. "
-    "Only give direct responses for non-math questions. "
-    "Respond with JSON in one of these formats:\n"
-    "- If you can answer directly WITHOUT tools: {{\"action\": \"direct_response\", \"answer\": \"<your answer>\"}}\n"
-    "- If you need a tool: {{\"action\": \"tool_needed\", \"strategy\": \"<brief reason>\"}}"
-)
+PLAN_PROMPT = '''
+You are an AI assistant. Your goal is to help the user.
+You have access to the following tools: {tool_names}.
+CRITICAL: For ANY math calculation, you MUST use the calculator tool, even for simple math.
+NEVER do math in your head - always use the calculator tool.
+Only give direct responses for non-math questions.
+Your output MUST be a single, valid JSON object and nothing else. Do not add any text before or after the JSON.
+Choose one of the following JSON structures for your response:
+- If you can answer directly WITHOUT tools: {{"action": "direct_response", "reasoning": "I can answer this directly because...", "answer": "<your answer>"}}
+- If you need a tool: {{"action": "tool_needed", "reasoning": "<Why you need a tool>", "strategy": "<Which tool you will use>"}}
+'''
 
 @trace_node
-def plan(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
+def plan(state: AgentState, llm: LLM, tools: list[Tool]) -> AgentState:
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 

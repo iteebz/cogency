@@ -5,13 +5,20 @@ from cogency.types import AgentState, Tool
 from cogency.utils.parsing import extract_tool_call
 from cogency.trace import trace_node
 
-REASON_PROMPT = (
-    "You have access to the following tools:\n{tool_schemas}\n\n" +
-    "To use a tool, respond with a message in the format: TOOL_CALL: <tool_name>(<arg1>=<value1>, <arg2>=<value2>)\n" +
-    "Examples:\n{tool_examples}\n" +
-    "After the tool executes, I will provide the result. You MUST then provide a conversational response to the user, incorporating the tool's output. " +
-    "If the tool output is an error, explain the error to the user. If the tool output is a result, present it clearly.\n\n"
-)
+REASON_PROMPT = '''
+You have access to the following tools:
+{tool_schemas}
+
+To use a tool, respond with a message in the format:
+TOOL_CALL: <tool_name>(<arg1>=<value1>, <arg2>=<value2>)
+
+Examples:
+{tool_examples}
+After the tool executes, I will provide the result.
+You MUST then provide a conversational response to user, incorporating tool's output.
+If the tool output is an error, explain the error to the user.
+If the tool output is a result, present it clearly.
+'''
 
 @trace_node
 def reason(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:

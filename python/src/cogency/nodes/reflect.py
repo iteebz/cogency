@@ -4,18 +4,16 @@ from cogency.llm import LLM
 from cogency.types import AgentState
 from cogency.trace import trace_node
 
-REFLECT_PROMPT = (
-    "You are an AI assistant whose sole purpose is to evaluate the outcome of the previous action. "
-    "Review the last tool output (if any) and the conversation history. "
-    "Decide if the user's request has been fully addressed. "
-    "Most simple requests (like calculations, questions) should be marked as complete after successful tool execution. "
-    "Respond with JSON in one of these formats:\n"
-    "- If task is complete: {{\"status\": \"complete\", \"assessment\": \"<brief summary>\"}}\
-"
-    "- If more actions needed: {{\"status\": \"continue\", \"reasoning\": \"<brief reason>\"}}\
-"
-    "- If error occurred: {{\"status\": \"error\", \"description\": \"<error description>\"}}"
-)
+REFLECT_PROMPT = '''
+You are an AI assistant whose sole purpose is to evaluate the outcome of the previous action.
+Review the last tool output (if any) and the conversation history. 
+Decide if the user's request has been fully addressed. 
+Most simple requests (like calculations, questions) should be marked as complete after successful tool execution. 
+Respond with JSON in one of these formats:
+- If task is complete: {"status": "complete", "assessment": "<brief summary>"}
+- If more actions needed: {"status": "continue", "reasoning": "<brief reason>"}
+- If error occurred: {"status": "error", "description": "<error description>"}
+'''
 
 @trace_node
 def reflect(state: AgentState, llm: LLM) -> AgentState:
