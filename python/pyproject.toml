@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "cogency"
-version = "0.1.0"
+version = "0.1.1"
 description = "Cognitive architecture for AI agents - Skills, Tools, and Services"
 authors = [
     {name = "Tyson Chan", email = "tyson.chan@proton.me"},
@@ -30,36 +30,10 @@ requires-python = ">=3.9"
 dependencies = [
     "pydantic>=2.0",
     "typing-extensions>=4.0",
+    "langgraph",
+    "langchain-google-genai",
+    
 ]
-
-
-[project.optional-dependencies]
-openai = ["openai>=1.0"]
-anthropic = ["anthropic>=0.3"]
-google = ["google-generativeai>=0.3"]
-all = ["openai>=1.0", "anthropic>=0.3", "google-generativeai>=0.3"]
-
-[project.scripts]
-cogency = "cogency.cli:main"
-
-[tool.hatch.envs.default]
-dependencies = [
-    "pytest>=7.0",
-    "pytest-asyncio>=0.21",
-    "mypy>=1.0",
-    "ruff>=0.1",
-]
-
-[tool.hatch.envs.default.scripts]
-test = "pytest {args}"
-test-cov = "pytest --cov-report=term-missing --cov=cogency {args}"
-type-check = "mypy cogency {args}"
-lint = "ruff check cogency {args}"
-fmt = "ruff format cogency {args}"
-check = ["lint", "type-check", "test"]
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/cogency"]
 
 [tool.black]
 line-length = 88
