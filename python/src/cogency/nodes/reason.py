@@ -6,10 +6,10 @@ from cogency.utils.parsing import extract_tool_call
 from cogency.trace import trace_node
 
 REASON_PROMPT = (
-    "You have access to the following tools:\n{tool_list}\n\n" +
+    "You have access to the following tools:\n{tool_schemas}\n\n" +
     "To use a tool, respond with a message in the format: TOOL_CALL: <tool_name>(<arg1>=<value1>, <arg2>=<value2>)\n" +
-    "For example: TOOL_CALL: calculator(operation=\'add\', num1=5, num2=3) or TOOL_CALL: calculator(operation=\'square_root\', num1=9)\n" +
-    "After the tool executes, I will provide the result. You MUST then provide a conversational response to the user, incorporating the tool\'s output. " +
+    "Examples:\n{tool_examples}\n" +
+    "After the tool executes, I will provide the result. You MUST then provide a conversational response to the user, incorporating the tool's output. " +
     "If the tool output is an error, explain the error to the user. If the tool output is a result, present it clearly.\n\n"
 )
 
@@ -22,10 +22,18 @@ def reason(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     
     tool_instructions = ""
     if tools:
-        instructions = []
+        # Full tool schemas for precise formatting
+        schemas = []
+        all_examples = []
         for tool in tools:
-            instructions.append(f"- {tool.name}: {tool.description}")
-        tool_instructions = REASON_PROMPT.format(tool_list="\n".join(instructions))
+            schemas.append(f"- {tool.name}: {tool.description}")
+            schemas.append(f"  Schema: {tool.get_schema()}")
+            all_examples.extend([f"  {example}" for example in tool.get_usage_examples()])
+        
+        tool_instructions = REASON_PROMPT.format(
+            tool_schemas="\n".join(schemas),
+            tool_examples="\n".join(all_examples)
+        )
 
     if tool_instructions:
         messages.insert(0, {"role": "system", "content": tool_instructions})

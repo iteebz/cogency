@@ -20,8 +20,15 @@ def plan(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
-    tool_names = ", ".join([tool.name for tool in tools]) if tools else "no tools"
-    system_prompt = PLAN_PROMPT.format(tool_names=tool_names)
+    # Lite tool descriptions for planning decision
+    if tools:
+        tool_descriptions = []
+        for tool in tools:
+            tool_descriptions.append(f"{tool.name} ({tool.description})")
+        tool_info = ", ".join(tool_descriptions)
+    else:
+        tool_info = "no tools"
+    system_prompt = PLAN_PROMPT.format(tool_names=tool_info)
     messages.insert(0, {"role": "system", "content": system_prompt})
 
     llm_response = llm.invoke(messages)

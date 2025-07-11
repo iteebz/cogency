@@ -15,7 +15,7 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
     tool_call = extract_tool_call(llm_response_content)
     if tool_call:
         tool_name, tool_args = tool_call
-        context.tool_call_details = {"name": tool_name, "args": tool_args}
+        # Store tool call info temporarily
 
         raw_args = tool_args.get("raw_args", "")
         parsed_args = {}
@@ -48,19 +48,12 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
         
         for tool in tools:
             if tool.name == tool_name:
-                try:
-                    tool_output = tool.run(**parsed_args)
-                except TypeError as e:
-                    tool_output = {"error": f"Tool argument error: {e}. Please check the arguments provided to the tool."}
-                except ValueError as e:
-                    tool_output = {"error": f"Tool data error: {e}. The tool received invalid data."}
-                except Exception as e:
-                    tool_output = {"error": f"An unexpected error occurred during tool execution: {type(e).__name__}: {e}"}
+                tool_output = tool.validate_and_run(**parsed_args)
                 break
 
         context.add_message("system", str(tool_output))
-        # Clear tool_call_details after use
-        context.tool_call_details = None
+        # Store tool execution result for future reference
+        context.add_tool_result(tool_name, parsed_args, tool_output)
 
     return {
         "context": context,

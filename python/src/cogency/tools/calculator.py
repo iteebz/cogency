@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 import math
 from cogency.types import Tool
 
@@ -34,3 +34,13 @@ class CalculatorTool(Tool):
         else:
             return {"error": f"Unsupported operation: {operation}"}
         return {"result": result}
+    
+    def get_schema(self) -> str:
+        return "calculator(operation='add|subtract|multiply|divide|square_root', num1=float, num2=float)"
+    
+    def get_usage_examples(self) -> List[str]:
+        return [
+            "calculator(operation='add', num1=5, num2=3)",
+            "calculator(operation='multiply', num1=7, num2=8)", 
+            "calculator(operation='square_root', num1=9)"
+        ]
