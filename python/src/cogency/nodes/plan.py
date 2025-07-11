@@ -1,6 +1,7 @@
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
-from cogency.types import AgentState, BaseTool
+from cogency.types import AgentState
+from cogency.tools.base import BaseTool
 
 PLAN_PROMPT = """
 You are an AI assistant. Your goal is to help the user.

@@ -62,3 +62,6 @@ install-js:
 
 install-all: install-python install-js
     @echo "All dependencies installed."
+
+commits:
+    @git --no-pager log --pretty=format:"%ar %s"

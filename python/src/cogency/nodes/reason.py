@@ -3,7 +3,8 @@ from typing import Any, Dict, List
 from cogency.context import Context
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
-from cogency.types import AgentState, BaseTool
+from cogency.types import AgentState
+from cogency.tools.base import BaseTool
 from cogency.utils.parsing import extract_tool_call
 
 REASON_PROMPT = """
