@@ -1,15 +1,15 @@
 from typing import List, Optional, Any, Dict
 from cogency.types import AgentState, ExecutionTrace
 from langgraph.graph import StateGraph, END
-from cogency.llm import LLM
+from cogency.llm import BaseLLM
 from cogency.context import Context
-from cogency.types import Tool
+from cogency.tools.base import BaseTool
 from cogency.nodes import act, respond, plan, reason, reflect
 from cogency.utils.parsing import parse_plan_response, parse_reflect_response
 import uuid
 
 class Agent:
-    def __init__(self, name: str, llm: LLM, tools: Optional[List[Tool]] = None):
+    def __init__(self, name: str, llm: BaseLLM, tools: Optional[List[BaseTool]] = None):
         self.name = name
         self.llm = llm
         self.tools = tools if tools is not None else []

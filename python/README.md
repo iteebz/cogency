@@ -51,12 +51,12 @@ Tools are auto-discovered from the `/tools/` directory:
 
 ## Adding Custom Tools
 
-Create a new tool by extending the `Tool` base class:
+Create a new tool by extending the `BaseTool` base class:
 
 ```python
-from cogency.tools.base import Tool
+from cogency.tools.base import BaseTool
 
-class WeatherTool(Tool):
+class WeatherTool(BaseTool):
     def __init__(self):
         super().__init__(
             name="weather",

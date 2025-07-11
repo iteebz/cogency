@@ -5,7 +5,7 @@ import os
 import importlib
 import inspect
 from pathlib import Path
-from cogency.types import Tool
+from cogency.tools.base import BaseTool
 
 def _discover_tools():
     """Auto-discover all Tool classes in the tools directory."""
@@ -22,8 +22,8 @@ def _discover_tools():
             module = importlib.import_module(module_name)
             for name, obj in inspect.getmembers(module):
                 if (inspect.isclass(obj) and 
-                    issubclass(obj, Tool) and 
-                    obj is not Tool):
+                    issubclass(obj, BaseTool) and 
+                    obj is not BaseTool):
                     tool_classes.append(obj)
         except ImportError:
             continue
@@ -35,7 +35,7 @@ AVAILABLE_TOOLS = _discover_tools()
 
 # Tool registry by name for dynamic lookup
 TOOL_REGISTRY = {
-    tool.name: tool for tool in AVAILABLE_TOOLS
+    tool().name: tool for tool in AVAILABLE_TOOLS
 }
 
 def get_tool_by_name(name: str):

@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 from cogency.context import Context
-from cogency.llm import LLM
+from cogency.llm import BaseLLM
 from cogency.types import AgentState
 from cogency.trace import trace_node
 
@@ -16,7 +16,7 @@ Respond with JSON in one of these formats:
 '''
 
 @trace_node
-def reflect(state: AgentState, llm: LLM) -> AgentState:
+def reflect(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
     messages = list(context.messages)
 

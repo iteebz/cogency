@@ -79,7 +79,7 @@ def trace_node(func: F) -> F:
                 "tool_input": last_tool_result.get("args"),
                 "tool_result": last_tool_result.get("output"),
             })
-            reasoning += f" | Tool Result: {last_tool_result.get('output')}"
+            reasoning += f" | BaseTool Result: {last_tool_result.get('output')}"
 
         # 6. Add the detailed step to the execution trace
         state["execution_trace"].add_step(

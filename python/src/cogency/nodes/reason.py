@@ -1,7 +1,7 @@
 from typing import Any, Dict, List
 from cogency.context import Context
-from cogency.llm import LLM
-from cogency.types import AgentState, Tool
+from cogency.llm import BaseLLM
+from cogency.types import AgentState, BaseTool
 from cogency.utils.parsing import extract_tool_call
 from cogency.trace import trace_node
 
@@ -21,7 +21,7 @@ If the tool output is a result, present it clearly.
 '''
 
 @trace_node
-def reason(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
+def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
     context = state["context"]
     
     # Build proper message sequence: user question + system instructions

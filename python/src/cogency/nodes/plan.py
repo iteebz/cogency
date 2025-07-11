@@ -1,5 +1,5 @@
-from cogency.llm import LLM
-from cogency.types import AgentState, Tool
+from cogency.llm import BaseLLM
+from cogency.types import AgentState, BaseTool
 from cogency.trace import trace_node
 
 PLAN_PROMPT = '''
@@ -15,7 +15,7 @@ Choose one of the following JSON structures for your response:
 '''
 
 @trace_node
-def plan(state: AgentState, llm: LLM, tools: list[Tool]) -> AgentState:
+def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 

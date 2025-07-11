@@ -1,6 +1,6 @@
 from typing import Any, Dict
 from cogency.context import Context
-from cogency.llm import LLM
+from cogency.llm import BaseLLM
 from cogency.types import AgentState
 from cogency.trace import trace_node
 
@@ -12,7 +12,7 @@ Your response should be purely conversational and should NOT include any tool-re
 '''
 
 @trace_node
-def respond(state: AgentState, llm: LLM) -> AgentState:
+def respond(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
     
     # Check if the last message is a direct response JSON

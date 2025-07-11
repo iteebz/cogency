@@ -50,27 +50,3 @@ class AgentState(TypedDict):
     context: Context
     execution_trace: Optional[ExecutionTrace]
 
-class Tool(ABC):
-    name: str
-    description: str
-
-    def validate_and_run(self, **kwargs: Any) -> Dict[str, Any]:
-        """Validate parameters then run the tool."""
-        try:
-            return self.run(**kwargs)
-        except Exception as e:
-            return {"error": str(e)}
-
-    @abstractmethod
-    def run(self, **kwargs: Any) -> Dict[str, Any]:
-        pass
-    
-    @abstractmethod
-    def get_schema(self) -> str:
-        """Return tool call schema for LLM formatting."""
-        pass
-    
-    @abstractmethod
-    def get_usage_examples(self) -> List[str]:
-        """Return example tool calls for LLM guidance."""
-        pass

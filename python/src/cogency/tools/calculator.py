@@ -1,10 +1,13 @@
 from typing import Any, Dict, List
 import math
-from cogency.types import Tool
+from cogency.tools.base import BaseTool
 
-class CalculatorTool(Tool):
-    name = "calculator"
-    description = "A calculator tool that can perform basic arithmetic operations (add, subtract, multiply, divide) and calculate square roots."
+class CalculatorTool(BaseTool):
+    def __init__(self):
+        super().__init__(
+            name="calculator",
+            description="A calculator tool that can perform basic arithmetic operations (add, subtract, multiply, divide) and calculate square roots."
+        )
 
     def run(self, operation: str, num1: float = None, num2: float = None) -> Dict[str, Any]:
         if operation == "add":

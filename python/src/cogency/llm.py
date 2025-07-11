@@ -14,16 +14,27 @@ class KeyRotator:
         """Get next key in rotation."""
         return next(self.cycle)
 
-class LLM(ABC):
+class BaseLLM(ABC):
+    """Base class for all LLM implementations in the cogency framework."""
+    
     def __init__(self, api_key: str = None, key_rotator: KeyRotator = None, **kwargs):
         self.api_key = api_key
         self.key_rotator = key_rotator
 
     @abstractmethod
     def invoke(self, messages: list[dict[str, str]], **kwargs) -> str:
+        """Generate a response from the LLM given a list of messages.
+        
+        Args:
+            messages: List of message dictionaries with 'role' and 'content' keys
+            **kwargs: Additional parameters for the LLM call
+            
+        Returns:
+            String response from the LLM
+        """
         pass
 
-class GeminiLLM(LLM):
+class GeminiLLM(BaseLLM):
     def __init__(self, api_key: str = None, key_rotator: KeyRotator = None, model: str = "gemini-2.5-flash", **kwargs):
         super().__init__(api_key, key_rotator)
         self.model = model

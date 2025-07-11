@@ -1,12 +1,12 @@
 from typing import Any, Dict
 from cogency.context import Context
-from cogency.types import Tool
+from cogency.tools.base import BaseTool
 from cogency.types import AgentState
 from cogency.utils.parsing import extract_tool_call
 from cogency.trace import trace_node
 
 @trace_node
-def act(state: AgentState, tools: list[Tool]) -> AgentState:
+def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
     context = state["context"]
 
     # Get the last assistant message, which should contain the tool call
