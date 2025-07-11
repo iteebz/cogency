@@ -59,7 +59,7 @@ class Agent:
             "response": (
                 final_state["context"].messages[-1]["content"]
                 if final_state["context"].messages
-                else ""
+                else "No response generated"
             ),
             "conversation": final_state["context"].get_clean_conversation(),
         }

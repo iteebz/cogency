@@ -10,9 +10,10 @@ Cogency makes it dead simple to build multi-step reasoning agents. No complex co
 from cogency.agent import Agent
 from cogency.llm import GeminiLLM
 from cogency.tools.calculator import CalculatorTool
+from cogency.tools.web_search import WebSearchTool
 
 llm = GeminiLLM(api_key="your-key")
-agent = Agent(name="MyAgent", llm=llm, tools=[CalculatorTool()])
+agent = Agent(name="MyAgent", llm=llm, tools=[CalculatorTool(), WebSearchTool()])
 
 result = agent.run("What is 15 * 23?", enable_trace=True)
 print(result["response"])

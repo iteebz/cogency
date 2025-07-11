@@ -47,7 +47,7 @@ Cogency uses a clean 5-step reasoning loop:
 Tools are auto-discovered from the `/tools/` directory:
 
 - `CalculatorTool` - Basic arithmetic operations
-- More tools coming soon
+- `WebSearchTool` - Web search using DuckDuckGo
 
 ## Adding Custom Tools
 
@@ -123,10 +123,11 @@ result = agent.run("Calculate abc + def")
 
 ## CLI Usage
 
-Run agents directly from command line:
+Run the example from command line:
 
 ```bash
-poetry run python agent.py "What is 2+2?" --trace
+cd python
+poetry run python ../examples/basic_usage.py
 ```
 
 ## Configuration
@@ -153,9 +154,9 @@ poetry run pytest
 Extend the `BaseLLM` class and implement required methods:
 
 ```python
-from cogency.llm.base import BaseLLM
+from cogency.llm import GeminiLLM
 
-class YourLLM(BaseLLM):
+class YourLLM(GeminiLLM):
     def generate(self, prompt: str, **kwargs) -> str:
         # Your implementation
         pass

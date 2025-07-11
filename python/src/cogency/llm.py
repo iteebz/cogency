@@ -26,7 +26,7 @@ class BaseLLM(ABC):
         self.key_rotator = key_rotator
 
     @abstractmethod
-    def invoke(self, messages: list[dict[str, str]], **kwargs) -> str:
+    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         """Generate a response from the LLM given a list of messages.
 
         Args:
@@ -51,9 +51,9 @@ class GeminiLLM(BaseLLM):
         self.model = model
         self.kwargs = kwargs
         self._llm_instances: Dict[str, BaseChatModel] = {}  # Cache for LLM instances
-        self._current_llm: Optional[BaseChatModel] = (
-            None  # Currently active LLM instance
-        )
+        self._current_llm: Optional[
+            BaseChatModel
+        ] = None  # Currently active LLM instance
         self._init_current_llm()  # Initialize the first LLM instance
 
     def _init_current_llm(self):
@@ -72,7 +72,7 @@ class GeminiLLM(BaseLLM):
 
         self._current_llm = self._llm_instances[current_key]
 
-    def invoke(self, messages: list[dict[str, str]], **kwargs) -> str:
+    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         # Rotate key and update current LLM if a rotator is used
         if self.key_rotator:
             self._init_current_llm()

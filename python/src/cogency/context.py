@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 # Avoid circular import
 if TYPE_CHECKING:
@@ -13,8 +13,8 @@ class Context:
     def __init__(
         self,
         current_input: str,
-        messages: list[dict[str, str]] = None,
-        tool_results: Optional[list[dict[str, Any]]] = None,
+        messages: List[Dict[str, str]] = None,
+        tool_results: Optional[List[Dict[str, Any]]] = None,
     ):
         self.current_input = current_input
         self.messages = messages if messages is not None else []
@@ -40,7 +40,7 @@ class Context:
             {"tool_name": tool_name, "args": args, "output": output}
         )
 
-    def get_clean_conversation(self) -> list[dict[str, str]]:
+    def get_clean_conversation(self) -> List[Dict[str, str]]:
         """Returns conversation without execution trace data and internal JSON."""
         import json
 
