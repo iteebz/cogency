@@ -12,42 +12,42 @@ class CalculatorTool(BaseTool):
         )
 
     def run(
-        self, operation: str, num1: float = None, num2: float = None
+        self, operation: str, x1: float = None, x2: float = None
     ) -> Dict[str, Any]:
         if operation == "add":
-            if num1 is None or num2 is None:
-                return {"error": "Both num1 and num2 are required for addition."}
-            result = num1 + num2
+            if x1 is None or x2 is None:
+                return {"error": "Both x1 and x2 are required for addition."}
+            result = x1 + x2
         elif operation == "subtract":
-            if num1 is None or num2 is None:
-                return {"error": "Both num1 and num2 are required for subtraction."}
-            result = num1 - num2
+            if x1 is None or x2 is None:
+                return {"error": "Both x1 and x2 are required for subtraction."}
+            result = x1 - x2
         elif operation == "multiply":
-            if num1 is None or num2 is None:
-                return {"error": "Both num1 and num2 are required for multiplication."}
-            result = num1 * num2
+            if x1 is None or x2 is None:
+                return {"error": "Both x1 and x2 are required for multiplication."}
+            result = x1 * x2
         elif operation == "divide":
-            if num1 is None or num2 is None:
-                return {"error": "Both num1 and num2 are required for division."}
-            if num2 == 0:
+            if x1 is None or x2 is None:
+                return {"error": "Both x1 and x2 are required for division."}
+            if x2 == 0:
                 return {"error": "Cannot divide by zero"}
-            result = num1 / num2
+            result = x1 / x2
         elif operation == "square_root":
-            if num1 is None:
-                return {"error": "num1 is required for square_root."}
-            if num1 < 0:
+            if x1 is None:
+                return {"error": "x1 is required for square_root."}
+            if x1 < 0:
                 return {"error": "Cannot calculate square root of a negative number."}
-            result = math.sqrt(num1)
+            result = math.sqrt(x1)
         else:
             return {"error": f"Unsupported operation: {operation}"}
         return {"result": result}
 
     def get_schema(self) -> str:
-        return "calculator(operation='add|subtract|multiply|divide|square_root', num1=float, num2=float)"
+        return "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float)"
 
     def get_usage_examples(self) -> List[str]:
         return [
-            "calculator(operation='add', num1=5, num2=3)",
-            "calculator(operation='multiply', num1=7, num2=8)",
-            "calculator(operation='square_root', num1=9)",
+            "calculator(operation='add', x1=5, x2=3)",
+            "calculator(operation='multiply', x1=7, x2=8)",
+            "calculator(operation='square_root', x1=9)",
         ]
