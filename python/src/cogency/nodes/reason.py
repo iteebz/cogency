@@ -3,6 +3,7 @@ from cogency.context import Context
 from cogency.llm import LLM
 from cogency.types import AgentState, Tool
 from cogency.parsing import _extract_tool_call
+from cogency.trace import trace_node
 
 REASON_PROMPT = (
     "You have access to the following tools:\n{tool_list}\n\n" +
@@ -12,6 +13,7 @@ REASON_PROMPT = (
     "If the tool output is an error, explain the error to the user. If the tool output is a result, present it clearly.\n\n"
 )
 
+@trace_node
 def reason(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     context = state["context"]
     messages = list(context.messages)
@@ -36,8 +38,11 @@ def reason(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     context.add_message("assistant", result_str)
 
     tool_call = _extract_tool_call(result_str)
-    if tool_call:
-        return {"context": context, "tool_called": True, "task_complete": False, "last_node": "reason"}
-    else:
-        # If LLM didn't make a tool call, it might be a direct response or an error
-        return {"context": context, "tool_called": False, "task_complete": False, "last_node": "reason"}
+    tool_was_called = tool_call is not None
+    
+    return {
+        "context": context, 
+        "task_complete": False, 
+        "last_node": "reason", 
+        "execution_trace": state["execution_trace"]
+    }

@@ -3,6 +3,7 @@ from cogency.context import Context
 from cogency.llm import LLM
 from cogency.types import AgentState, Tool
 from cogency.parsing import TOOL_NEEDED_PREFIX, DIRECT_RESPONSE_PREFIX
+from cogency.trace import trace_node
 
 PLAN_PROMPT = (
     "You are an AI assistant. Your goal is to help the user. "
@@ -12,6 +13,7 @@ PLAN_PROMPT = (
     "If you need a tool, respond with 'TOOL_NEEDED: <brief reason>'."
 )
 
+@trace_node
 def plan(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
@@ -24,10 +26,11 @@ def plan(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     context.add_message("assistant", llm_response)
 
     needs_tool = llm_response.startswith(TOOL_NEEDED_PREFIX)
+    
     return {
         "context": context, 
         "tool_needed": needs_tool, 
         "task_complete": False, 
-        "tool_called": False, 
-        "last_node": "plan"
+        "last_node": "plan",
+        "execution_trace": state["execution_trace"]
     }

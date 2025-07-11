@@ -3,6 +3,7 @@ from cogency.context import Context
 from cogency.llm import LLM
 from cogency.types import AgentState
 from cogency.parsing import TASK_COMPLETE_PREFIX, CONTINUE_TASK_PREFIX
+from cogency.trace import trace_node
 
 REFLECT_PROMPT = (
     "You are an AI assistant whose sole purpose is to evaluate the outcome of the previous action. "
@@ -13,6 +14,7 @@ REFLECT_PROMPT = (
     "If there was an error, respond with 'ERROR_OCCURRED: <description of error>'."
 )
 
+@trace_node
 def reflect(state: AgentState, llm: LLM) -> AgentState:
     context = state["context"]
     messages = list(context.messages)
@@ -25,7 +27,7 @@ def reflect(state: AgentState, llm: LLM) -> AgentState:
     is_complete = llm_response.startswith(TASK_COMPLETE_PREFIX)
     return {
         "context": context, 
-        "tool_called": False, 
         "task_complete": is_complete, 
-        "last_node": "reflect"
+        "last_node": "reflect",
+        "execution_trace": state["execution_trace"]
     }

@@ -3,7 +3,9 @@ from cogency.context import Context
 from cogency.types import Tool
 from cogency.types import AgentState
 from cogency.parsing import _extract_tool_call
+from cogency.trace import trace_node
 
+@trace_node
 def act(state: AgentState, tools: list[Tool]) -> AgentState:
     context = state["context"]
     tool_was_called = False
@@ -43,7 +45,9 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
                     else:
                         parsed_args[key] = value_str
 
+        # Execute tool
         tool_output = {"error": f"Tool '{tool_name}' not found."}
+        
         for tool in tools:
             if tool.name == tool_name:
                 try:
@@ -60,4 +64,8 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
         # Clear tool_call_details after use
         context.tool_call_details = None
 
-    return {"context": context, "tool_called": tool_was_called, "last_node": "act"}
+    return {
+        "context": context, 
+        "last_node": "act",
+        "execution_trace": state["execution_trace"]
+    }
