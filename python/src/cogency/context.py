@@ -34,11 +34,23 @@ class Context:
         })
 
     def get_clean_conversation(self) -> list[dict[str, str]]:
-        """Returns conversation without execution trace data."""
-        return [
-            {"role": msg["role"], "content": msg["content"]}
-            for msg in self.messages
-        ]
+        """Returns conversation without execution trace data and internal JSON."""
+        import json
+        clean_messages = []
+        for msg in self.messages:
+            content = msg["content"]
+            # Filter out internal JSON messages
+            try:
+                data = json.loads(content)
+                if data.get("action") in ["tool_needed", "direct_response"] or data.get("status") in ["continue", "complete", "error"]:
+                    continue
+            except json.JSONDecodeError:
+                pass
+            # Filter out tool calls and system messages
+            if content.startswith("TOOL_CALL:") or msg["role"] == "system":
+                continue
+            clean_messages.append({"role": msg["role"], "content": content})
+        return clean_messages
 
     def __repr__(self):
         return f"Context(current_input='{self.current_input}', messages={len(self.messages)} messages)"

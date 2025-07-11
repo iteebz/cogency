@@ -8,6 +8,7 @@ REFLECT_PROMPT = (
     "You are an AI assistant whose sole purpose is to evaluate the outcome of the previous action. "
     "Review the last tool output (if any) and the conversation history. "
     "Decide if the user's request has been fully addressed. "
+    "Most simple requests (like calculations, questions) should be marked as complete after successful tool execution. "
     "Respond with JSON in one of these formats:\n"
     "- If task is complete: {{\"status\": \"complete\", \"assessment\": \"<brief summary>\"}}\
 "
