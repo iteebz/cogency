@@ -1,10 +1,10 @@
-from typing import TypedDict, Optional
+from typing import TypedDict
 from langgraph.graph import StateGraph, END
 from cogency.llm import LLM
+from cogency.context import Context
 
 class AgentState(TypedDict):
-    input: str
-    output: Optional[str]
+    context: Context
 
 class Agent:
     def __init__(self, name: str, llm: LLM):
@@ -18,10 +18,12 @@ class Agent:
         self.app = self.workflow.compile()
 
     def _llm_response_node(self, state: AgentState) -> AgentState:
-        res = self.llm.invoke(state["input"])
-        return {"output": res}
+        context = state["context"]
+        res = self.llm.invoke(context.messages)
+        context.add_message("assistant", res)
+        return {"context": context}
 
-    def run(self, task: str) -> str:
-        init_state = {"input": task, "output": None}
+    def run(self, context: Context) -> Context:
+        init_state = {"context": context}
         final_state = self.app.invoke(init_state)
-        return final_state["output"]
+        return final_state["context"]

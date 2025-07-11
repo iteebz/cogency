@@ -8,7 +8,7 @@ class LLM(ABC):
         self.api_key = api_key
 
     @abstractmethod
-    def invoke(self, prompt: str, **kwargs) -> str:
+    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         pass
 
 class GeminiLLM(LLM):
@@ -16,8 +16,8 @@ class GeminiLLM(LLM):
         super().__init__(api_key)
         self.llm: BaseChatModel = ChatGoogleGenerativeAI(model=model, google_api_key=api_key, **kwargs)
 
-    def invoke(self, prompt: str, **kwargs) -> str:
-        res = self.llm.invoke(prompt, **kwargs)
+    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        res = self.llm.invoke(messages, **kwargs)
         return res.content
 
 
