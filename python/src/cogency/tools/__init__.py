@@ -8,6 +8,23 @@ from pathlib import Path
 
 from cogency.tools.base import BaseTool
 
+# Explicit imports for clean API
+from cogency.tools.calculator import CalculatorTool
+from cogency.tools.web_search import WebSearchTool
+from cogency.tools.file_manager import FileManagerTool
+
+# Export all tools for easy importing
+__all__ = [
+    'BaseTool',
+    'CalculatorTool', 
+    'WebSearchTool',
+    'FileManagerTool',
+    'AVAILABLE_TOOLS',
+    'TOOL_REGISTRY',
+    'get_tool_by_name',
+    'list_available_tools'
+]
+
 
 def _discover_tools():
     """Auto-discover all Tool classes in the tools directory."""
