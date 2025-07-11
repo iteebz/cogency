@@ -1,14 +1,21 @@
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 # Avoid circular import
 if TYPE_CHECKING:
     from cogency.types import ExecutionTrace
 
+
 # Context: Conversation state (user input + message history)
 # AgentState: LangGraph workflow state container (includes Context + execution trace)
 class Context:
     """Agent operational context."""
-    def __init__(self, current_input: str, messages: list[dict[str, str]] = None, tool_results: Optional[list[dict[str, Any]]] = None):
+
+    def __init__(
+        self,
+        current_input: str,
+        messages: list[dict[str, str]] = None,
+        tool_results: Optional[list[dict[str, Any]]] = None,
+    ):
         self.current_input = current_input
         self.messages = messages if messages is not None else []
         self.tool_results = tool_results if tool_results is not None else []
@@ -18,31 +25,34 @@ class Context:
         message_dict = {"role": role, "content": content}
         self.messages.append(message_dict)
 
-    def add_message_with_trace(self, role: str, content: str, trace_id: Optional[str] = None):
+    def add_message_with_trace(
+        self, role: str, content: str, trace_id: Optional[str] = None
+    ):
         """Adds message with optional trace linkage."""
         message_dict = {"role": role, "content": content}
         if trace_id:
             message_dict["trace_id"] = trace_id
         self.messages.append(message_dict)
-    
+
     def add_tool_result(self, tool_name: str, args: dict, output: dict):
         """Add tool execution result to history."""
-        self.tool_results.append({
-            "tool_name": tool_name,
-            "args": args,
-            "output": output
-        })
+        self.tool_results.append(
+            {"tool_name": tool_name, "args": args, "output": output}
+        )
 
     def get_clean_conversation(self) -> list[dict[str, str]]:
         """Returns conversation without execution trace data and internal JSON."""
         import json
+
         clean_messages = []
         for msg in self.messages:
             content = msg["content"]
             # Filter out internal JSON messages
             try:
                 data = json.loads(content)
-                if data.get("action") in ["tool_needed", "direct_response"] or data.get("status") in ["continue", "complete", "error"]:
+                if data.get("action") in ["tool_needed", "direct_response"] or data.get(
+                    "status"
+                ) in ["continue", "complete", "error"]:
                     continue
             except json.JSONDecodeError:
                 pass

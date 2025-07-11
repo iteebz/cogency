@@ -1,6 +1,7 @@
 import json
 from typing import Any, Dict, Optional, Tuple
 
+
 def parse_plan_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
     """Parse plan node JSON response to determine routing action."""
     try:
@@ -20,6 +21,7 @@ def parse_plan_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
         if response.startswith("TOOL_NEEDED:"):
             return "reason", {"action": "tool_needed", "content": response[12:]}
         return "respond", {"action": "direct_response", "content": response}
+
 
 def parse_reflect_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
     """Parse reflect node JSON response to determine routing action."""
@@ -41,13 +43,15 @@ def parse_reflect_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]
             return "respond", {"status": "complete", "content": response[14:]}
         return "reason", {"status": "continue", "content": response}
 
+
 def extract_tool_call(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]]:
     """Extract tool call from LLM response."""
     if llm_response.startswith("TOOL_CALL:"):
         try:
-            tool_call_str = llm_response[len("TOOL_CALL:"):].strip()
-            
+            tool_call_str = llm_response[len("TOOL_CALL:") :].strip()
+
             import re
+
             match = re.match(r"(\w+)\((.*)\)", tool_call_str)
             if match:
                 tool_name = match.group(1)
@@ -55,5 +59,5 @@ def extract_tool_call(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]]
                 return tool_name, {"raw_args": args_str}
         except Exception:
             pass
-    
+
     return None

@@ -1,8 +1,8 @@
 from cogency.llm import BaseLLM
-from cogency.types import AgentState, BaseTool
 from cogency.trace import trace_node
+from cogency.types import AgentState, BaseTool
 
-PLAN_PROMPT = '''
+PLAN_PROMPT = """
 You are an AI assistant. Your goal is to help the user.
 You have access to the following tools: {tool_names}.
 CRITICAL: For ANY math calculation, you MUST use the calculator tool, even for simple math.
@@ -12,7 +12,8 @@ Your output MUST be a single, valid JSON object and nothing else. Do not add any
 Choose one of the following JSON structures for your response:
 - If you can answer directly WITHOUT tools: {{"action": "direct_response", "reasoning": "I can answer this directly because...", "answer": "<your answer>"}}
 - If you need a tool: {{"action": "tool_needed", "reasoning": "<Why you need a tool>", "strategy": "<Which tool you will use>"}}
-'''
+"""
+
 
 @trace_node
 def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
@@ -35,7 +36,4 @@ def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
     # Store the raw response for routing, but don't add to conversation yet
     context.add_message("assistant", llm_response)
 
-    return {
-        "context": context,
-        "execution_trace": state["execution_trace"]
-    }
+    return {"context": context, "execution_trace": state["execution_trace"]}

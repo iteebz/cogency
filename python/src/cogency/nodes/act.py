@@ -1,9 +1,11 @@
 from typing import Any, Dict
+
 from cogency.context import Context
 from cogency.tools.base import BaseTool
+from cogency.trace import trace_node
 from cogency.types import AgentState
 from cogency.utils.parsing import extract_tool_call
-from cogency.trace import trace_node
+
 
 @trace_node
 def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
@@ -28,11 +30,11 @@ def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
                 # Attempt to convert to int, float, or bool
                 if value_str.isdigit():
                     parsed_args[key] = int(value_str)
-                elif value_str.replace('.', '', 1).isdigit():
+                elif value_str.replace(".", "", 1).isdigit():
                     parsed_args[key] = float(value_str)
-                elif value_str.lower() == 'true':
+                elif value_str.lower() == "true":
                     parsed_args[key] = True
-                elif value_str.lower() == 'false':
+                elif value_str.lower() == "false":
                     parsed_args[key] = False
                 else:
                     # Treat as string, remove surrounding quotes
@@ -45,7 +47,7 @@ def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
 
         # Execute tool
         tool_output = {"error": f"Tool '{tool_name}' not found."}
-        
+
         for tool in tools:
             if tool.name == tool_name:
                 tool_output = tool.validate_and_run(**parsed_args)
@@ -55,7 +57,4 @@ def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
         # Store tool execution result for future reference
         context.add_tool_result(tool_name, parsed_args, tool_output)
 
-    return {
-        "context": context,
-        "execution_trace": state["execution_trace"]
-    }
+    return {"context": context, "execution_trace": state["execution_trace"]}

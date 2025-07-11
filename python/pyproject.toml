@@ -24,12 +24,14 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.9,<4.0"
 dependencies = [
     "pydantic>=2.0",
     "typing-extensions>=4.0",
     "langgraph",
-    "langchain-google-genai"
+    "langchain-google-genai",
+    "black",
+    "isort"
 ]
 
 [tool.poetry]
@@ -50,9 +52,10 @@ warn_return_any = true
 warn_unused_configs = true
 
 [tool.ruff]
-line-length = 88
+line-length = 100
 target-version = "py39"
 select = ["E", "W", "F", "I", "N", "UP"]
+ignore = ["W293"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
