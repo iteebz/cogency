@@ -30,6 +30,11 @@ def _format_reason(reasoning: str, _: Dict[str, Any]) -> str:
 def _format_act(_: str, output_data: Dict[str, Any]) -> str:
     tool_used = output_data.get("tool_used", "N/A")
     tool_result = output_data.get("tool_result", "N/A")
+    
+    # Truncate long results for cleaner display
+    if isinstance(tool_result, str) and len(tool_result) > 100:
+        tool_result = tool_result[:97] + "..."
+    
     return f"{tool_used} -> {tool_result}"
 
 
@@ -56,7 +61,7 @@ NODE_FORMATTERS: Dict[str, Callable[[str, Dict[str, Any]], str]] = {
 
 def format_trace(trace: Dict[str, Any]) -> str:
     """Formats a detailed execution trace into a human-readable summary."""
-    lines = [f"--- Execution Trace (ID: {trace.get('trace_id', 'N/A')}) ---"]
+    lines = ["--- Execution Trace ---"]
 
     for step in trace.get("steps", []):
         node = step.get("node", "unknown").upper()
@@ -68,5 +73,4 @@ def format_trace(trace: Dict[str, Any]) -> str:
 
         lines.append(f"{node:<8} | {summary}")
 
-    lines.append("--- End Trace ---")
     return "\n".join(lines)

@@ -168,7 +168,7 @@ class YourLLM(GeminiLLM):
 - ✅ Tool auto-discovery
 - ✅ Clean execution tracing
 - ✅ Error handling and validation
-- 🔄 OpenAI LLM support
+- 🔄 OpenAI + Anthropic LLM support
 - 🔄 Memory and persistence
 - 🔄 Multi-agent coordination
 - 🔄 Streaming responses

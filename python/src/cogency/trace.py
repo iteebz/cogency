@@ -7,8 +7,16 @@ from cogency.types import AgentState
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def _extract_reasoning(message: str) -> str:
+def _extract_reasoning(message) -> str:
     """Extracts a descriptive reasoning string from a message."""
+    # Handle case where message is a list
+    if isinstance(message, list):
+        message = message[0] if message else ""
+    
+    # If message is not a string, convert to string
+    if not isinstance(message, str):
+        message = str(message)
+    
     try:
         message_json = json.loads(message)
 

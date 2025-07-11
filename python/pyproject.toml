@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [project]
 name = "cogency"
 version = "0.2.0"
-description = "Clean multi-step reasoning agents with tool support and traceable execution."
+description = "Agentic AI out of the box"
 authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
 readme = "README.md"
 license = "MIT"
