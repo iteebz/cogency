@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models import BaseChatModel
 
@@ -8,7 +8,7 @@ class LLM(ABC):
         self.api_key = api_key
 
     @abstractmethod
-    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    def invoke(self, messages: list[dict[str, str]], **kwargs) -> str:
         pass
 
 class GeminiLLM(LLM):
@@ -16,7 +16,7 @@ class GeminiLLM(LLM):
         super().__init__(api_key)
         self.llm: BaseChatModel = ChatGoogleGenerativeAI(model=model, google_api_key=api_key, **kwargs)
 
-    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    def invoke(self, messages: list[dict[str, str]], **kwargs) -> str:
         res = self.llm.invoke(messages, **kwargs)
         return res.content
 
