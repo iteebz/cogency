@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, END
 from cogency.llm import LLM
 from cogency.context import Context
 from cogency.types import Tool
-from cogency.nodes import llm_response, act, router, respond
+from cogency.nodes import act, router, respond, plan, reason, reflect
 
 class Agent:
     def __init__(self, name: str, llm: LLM, tools: Optional[List[Tool]] = None):
@@ -13,21 +13,25 @@ class Agent:
         self.tools = tools if tools is not None else []
 
         self.workflow = StateGraph(AgentState)
-        self.workflow.add_node("llm_response", lambda state: invoke_llm(state, self.llm, self.tools))
+        self.workflow.add_node("plan", lambda state: plan(state, self.llm, self.tools))
+        self.workflow.add_node("reason", lambda state: reason(state, self.llm, self.tools))
         self.workflow.add_node("act", lambda state: act(state, self.tools))
+        self.workflow.add_node("reflect", lambda state: reflect(state, self.llm))
         self.workflow.add_node("respond", lambda state: respond(state, self.llm))
 
-        self.workflow.set_entry_point("llm_response")
-        self.workflow.add_edge("llm_response", "act")
+        self.workflow.set_entry_point("plan")
+
         self.workflow.add_conditional_edges(
-            "act",
+            "plan",
             router,
-            {"act": "llm_response", "respond": "respond"}
+            {"tool_needed": "reason", "direct_response": "respond"}
+        )
+        self.workflow.add_edge("reason", "act")
+        self.workflow.add_edge("act", "reflect") # New edge: act -> reflect
+        self.workflow.add_conditional_edges(
+            "reflect",
+            router,
+            {"task_complete": "respond", "continue_task": "reason"} # New routing from reflect
         )
         self.workflow.add_edge("respond", END)
         self.app = self.workflow.compile()
-
-    def run(self, context: Context) -> Context:
-        init_state = {"context": context}
-        final_state = self.app.invoke(init_state)
-        return final_state["context"]

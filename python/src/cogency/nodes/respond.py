@@ -3,12 +3,19 @@ from cogency.context import Context
 from cogency.llm import LLM
 from cogency.types import AgentState
 
+RESPOND_PROMPT = (
+    "You are an AI assistant. Your goal is to provide a clear and concise conversational response to the user. "
+    "Review the entire conversation history, including any tool outputs, and formulate a helpful answer. "
+    "Your response should be purely conversational and should NOT include any tool-related syntax like TOOL_CALL: or TOOL_CODE:."
+)
+
 def respond(state: AgentState, llm: LLM) -> AgentState:
     context = state["context"]
-    
-    # The LLM will generate a conversational response based on the full message history,
-    # including any tool outputs.
-    final_response_content = llm.invoke(context.messages)
-    context.add_message("assistant", final_response_content)
+    messages = list(context.messages)
 
-    return {"context": context, "tool_called": False}
+    messages.insert(0, {"role": "system", "content": RESPOND_PROMPT})
+
+    result = llm.invoke(messages)
+    context.add_message("assistant", result)
+
+    return {"context": context, "tool_called": state["tool_called"], "task_complete": True, "last_node": "respond"}

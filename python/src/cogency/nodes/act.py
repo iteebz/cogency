@@ -3,7 +3,6 @@ from cogency.context import Context
 from cogency.types import Tool
 from cogency.types import AgentState
 from cogency.parsing import _extract_tool_call
-import uuid
 
 def act(state: AgentState, tools: list[Tool]) -> AgentState:
     context = state["context"]
@@ -15,8 +14,7 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
     tool_call = _extract_tool_call(llm_response_content)
     if tool_call:
         tool_name, tool_args = tool_call
-        tool_call_id = str(uuid.uuid4())
-        context.tool_call_details = {"name": tool_name, "args": tool_args, "tool_call_id": tool_call_id}
+        context.tool_call_details = {"name": tool_name, "args": tool_args}
         tool_was_called = True
 
         raw_args = tool_args.get("raw_args", "")
@@ -58,8 +56,8 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
                     tool_output = {"error": f"An unexpected error occurred during tool execution: {type(e).__name__}: {e}"}
                 break
 
-        context.add_message("tool", str(tool_output), tool_call_id=context.tool_call_details["tool_call_id"])
+        context.add_message("system", str(tool_output))
         # Clear tool_call_details after use
         context.tool_call_details = None
 
-    return {"context": context, "tool_called": tool_was_called}
+    return {"context": context, "tool_called": tool_was_called, "last_node": "act"}

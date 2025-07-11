@@ -5,6 +5,9 @@ from abc import ABC, abstractmethod
 class AgentState(TypedDict):
     context: Context
     tool_called: bool
+    tool_needed: bool
+    task_complete: bool
+    last_node: Optional[str]
 
 class Tool(ABC):
     name: str

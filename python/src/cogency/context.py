@@ -7,11 +7,9 @@ class Context:
         self.messages = messages if messages is not None else []
         self.tool_call_details = tool_call_details
 
-    def add_message(self, role: str, content: str, tool_call_id: Optional[str] = None):
+    def add_message(self, role: str, content: str):
         """Adds message to history."""
         message_dict = {"role": role, "content": content}
-        if tool_call_id:
-            message_dict["tool_call_id"] = tool_call_id
         self.messages.append(message_dict)
 
     def __repr__(self):
