@@ -1,5 +1,10 @@
 # Cogency
 
+[![PyPI version](https://badge.fury.io/py/cogency.svg)](https://badge.fury.io/py/cogency)
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Downloads](https://pepy.tech/badge/cogency)](https://pepy.tech/project/cogency)
+
 > **Agentic AI out of the box**
 
 Cogency makes it dead simple to build multi-step reasoning agents. No complex configurations, no verbose setup - just clean, extensible agents that work.
@@ -9,13 +14,22 @@ Cogency makes it dead simple to build multi-step reasoning agents. No complex co
 ```python
 from cogency.agent import Agent
 from cogency.llm import GeminiLLM
-from cogency.tools.calculator import CalculatorTool
-from cogency.tools.web_search import WebSearchTool
+from cogency.tools import CalculatorTool, WebSearchTool, FileManagerTool
 
+# Instantiate agent
 llm = GeminiLLM(api_key="your-key")
-agent = Agent(name="MyAgent", llm=llm, tools=[CalculatorTool(), WebSearchTool()])
+agent = Agent(
+    name="MyAgent", 
+    llm=llm, 
+    tools=[
+        CalculatorTool(), 
+        WebSearchTool(), 
+        FileManagerTool()
+    ]
+)
 
-result = agent.run("What is 15 * 23?", enable_trace=True)
+# Execute agent
+result = agent.run("What is 15 * 23?", trace=True)
 print(result["response"])
 ```
 

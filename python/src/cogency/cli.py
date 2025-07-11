@@ -2,7 +2,6 @@
 """CLI interface for cogency agent."""
 
 import argparse
-import json
 import os
 import sys
 from typing import List

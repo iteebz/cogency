@@ -10,19 +10,19 @@ from cogency.tools.base import BaseTool
 
 # Explicit imports for clean API
 from cogency.tools.calculator import CalculatorTool
-from cogency.tools.web_search import WebSearchTool
 from cogency.tools.file_manager import FileManagerTool
+from cogency.tools.web_search import WebSearchTool
 
 # Export all tools for easy importing
 __all__ = [
-    'BaseTool',
-    'CalculatorTool', 
-    'WebSearchTool',
-    'FileManagerTool',
-    'AVAILABLE_TOOLS',
-    'TOOL_REGISTRY',
-    'get_tool_by_name',
-    'list_available_tools'
+    "BaseTool",
+    "CalculatorTool",
+    "WebSearchTool",
+    "FileManagerTool",
+    "AVAILABLE_TOOLS",
+    "TOOL_REGISTRY",
+    "get_tool_by_name",
+    "list_available_tools",
 ]
 
 
@@ -40,11 +40,7 @@ def _discover_tools():
         try:
             module = importlib.import_module(module_name)
             for name, obj in inspect.getmembers(module):
-                if (
-                    inspect.isclass(obj)
-                    and issubclass(obj, BaseTool)
-                    and obj is not BaseTool
-                ):
+                if inspect.isclass(obj) and issubclass(obj, BaseTool) and obj is not BaseTool:
                     tool_classes.append(obj)
         except ImportError:
             continue

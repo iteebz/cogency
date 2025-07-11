@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 # Avoid circular import
 if TYPE_CHECKING:
-    from cogency.types import ExecutionTrace
+    pass
 
 
 # Context: Conversation state (user input + message history)
@@ -25,9 +25,7 @@ class Context:
         message_dict = {"role": role, "content": content}
         self.messages.append(message_dict)
 
-    def add_message_with_trace(
-        self, role: str, content: str, trace_id: Optional[str] = None
-    ):
+    def add_message_with_trace(self, role: str, content: str, trace_id: Optional[str] = None):
         """Adds message with optional trace linkage."""
         message_dict = {"role": role, "content": content}
         if trace_id:
@@ -36,9 +34,7 @@ class Context:
 
     def add_tool_result(self, tool_name: str, args: dict, output: dict):
         """Add tool execution result to history."""
-        self.tool_results.append(
-            {"tool_name": tool_name, "args": args, "output": output}
-        )
+        self.tool_results.append({"tool_name": tool_name, "args": args, "output": output})
 
     def get_clean_conversation(self) -> List[Dict[str, str]]:
         """Returns conversation without execution trace data and internal JSON."""
@@ -65,4 +61,6 @@ class Context:
         return clean_messages
 
     def __repr__(self):
-        return f"Context(current_input='{self.current_input}', messages={len(self.messages)} messages)"
+        return (
+            f"Context(current_input='{self.current_input}', messages={len(self.messages)} messages)"
+        )

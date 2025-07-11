@@ -126,7 +126,7 @@ def main():
     for query in queries:
         print(f"\n> {query}")
         try:
-            result = agent.run(query)
+            result = agent.run(query, enable_trace=True, print_trace=True)
             print(f"💡 {result['response']}")
         except Exception as e:
             print(f"❌ Error: {e}")

@@ -19,9 +19,7 @@ class Agent:
 
         self.workflow = StateGraph(AgentState)
         self.workflow.add_node("plan", lambda state: plan(state, self.llm, self.tools))
-        self.workflow.add_node(
-            "reason", lambda state: reason(state, self.llm, self.tools)
-        )
+        self.workflow.add_node("reason", lambda state: reason(state, self.llm, self.tools))
         self.workflow.add_node("act", lambda state: act(state, self.tools))
         self.workflow.add_node("reflect", lambda state: reflect(state, self.llm))
         self.workflow.add_node("respond", lambda state: respond(state, self.llm))
@@ -39,12 +37,18 @@ class Agent:
         self.workflow.add_edge("respond", END)
         self.app = self.workflow.compile()
 
-    def run(self, message: str, trace: bool = False) -> Dict[str, Any]:
+    def run(
+        self, message: str, enable_trace: bool = False, print_trace: bool = False
+    ) -> Dict[str, Any]:
         """Run agent with optional execution trace."""
+        # Auto-enable trace if print_trace is requested
+        if print_trace:
+            enable_trace = True
+
         context = Context(current_input=message)
 
         execution_trace = None
-        if trace:
+        if enable_trace:
             execution_trace = ExecutionTrace(trace_id=str(uuid.uuid4())[:8])
             context.execution_trace = execution_trace
 
@@ -64,8 +68,14 @@ class Agent:
             "conversation": final_state["context"].get_clean_conversation(),
         }
 
-        if trace and execution_trace:
+        if enable_trace and execution_trace:
             result["execution_trace"] = execution_trace.to_dict()
+
+            # Auto-print trace if requested
+            if print_trace:
+                from cogency.utils.formatting import format_trace
+
+                print(format_trace(result["execution_trace"]))
 
         return result
 

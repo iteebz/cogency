@@ -34,13 +34,13 @@ def main():
 
     # Example 1: Calculator
     print("=== Calculator Example ===")
-    result = agent.run("What is 127 * 43?", enable_trace=True)
+    result = agent.run("What is 127 * 43?", enable_trace=True, print_trace=True)
     print(f"Response: {result['response']}")
     print()
 
     # Example 2: Web Search
     print("=== Web Search Example ===")
-    result = agent.run("What are the latest developments in AI?", enable_trace=True)
+    result = agent.run("What are the latest developments in AI?", enable_trace=True, print_trace=True)
     print(f"Response: {result['response']}")
     print()
 
@@ -48,7 +48,8 @@ def main():
     print("=== Combined Reasoning Example ===")
     result = agent.run(
         "Search for the current stock price of NVIDIA and calculate what 100 shares would cost",
-        enable_trace=True
+        enable_trace=True,
+        print_trace=True
     )
     print(f"Response: {result['response']}")
 

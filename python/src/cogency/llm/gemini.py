@@ -1,62 +1,27 @@
-import itertools
-from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-
-class KeyRotator:
-    """Simple key rotator for API rate limit avoidance."""
-
-    def __init__(self, keys: List[str]):
-        self.keys = keys
-        self.cycle = itertools.cycle(keys)
-
-    def get_key(self) -> str:
-        """Get next key in rotation."""
-        return next(self.cycle)
-
-
-class BaseLLM(ABC):
-    """Base class for all LLM implementations in the cogency framework."""
-
-    def __init__(self, api_key: str = None, key_rotator: KeyRotator = None, **kwargs):
-        self.api_key = api_key
-        self.key_rotator = key_rotator
-
-    @abstractmethod
-    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        """Generate a response from the LLM given a list of messages.
-
-        Args:
-            messages: List of message dictionaries with 'role' and 'content' keys
-            **kwargs: Additional parameters for the LLM call
-
-        Returns:
-            String response from the LLM
-        """
-        pass
+from cogency.llm.base import BaseLLM
 
 
 class GeminiLLM(BaseLLM):
     def __init__(
         self,
         api_key: str = None,
-        key_rotator: KeyRotator = None,
+        key_rotator=None,
         model: str = "gemini-2.5-flash",
         **kwargs,
     ):
         super().__init__(api_key, key_rotator)
         self.model = model
         # Set more reasonable timeout for faster failures
-        if 'timeout' not in kwargs:
-            kwargs['timeout'] = 15.0  # 15 second timeout instead of default 60+
+        if "timeout" not in kwargs:
+            kwargs["timeout"] = 15.0  # 15 second timeout instead of default 60+
         self.kwargs = kwargs
         self._llm_instances: Dict[str, BaseChatModel] = {}  # Cache for LLM instances
-        self._current_llm: Optional[
-            BaseChatModel
-        ] = None  # Currently active LLM instance
+        self._current_llm: Optional[BaseChatModel] = None  # Currently active LLM instance
         self._init_current_llm()  # Initialize the first LLM instance
 
     def _init_current_llm(self):
@@ -64,9 +29,7 @@ class GeminiLLM(BaseLLM):
         current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
 
         if not current_key:
-            raise ValueError(
-                "API key must be provided either directly or via KeyRotator."
-            )
+            raise ValueError("API key must be provided either directly or via KeyRotator.")
 
         if current_key not in self._llm_instances:
             self._llm_instances[current_key] = ChatGoogleGenerativeAI(

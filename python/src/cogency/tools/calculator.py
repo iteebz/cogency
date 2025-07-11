@@ -11,9 +11,7 @@ class CalculatorTool(BaseTool):
             description="A calculator tool that can perform basic arithmetic operations (add, subtract, multiply, divide) and calculate square roots.",
         )
 
-    def run(
-        self, operation: str, x1: float = None, x2: float = None
-    ) -> Dict[str, Any]:
+    def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
         if operation == "add":
             if x1 is None or x2 is None:
                 return {"error": "Both x1 and x2 are required for addition."}
@@ -43,7 +41,9 @@ class CalculatorTool(BaseTool):
         return {"result": result}
 
     def get_schema(self) -> str:
-        return "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float)"
+        return (
+            "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float)"
+        )
 
     def get_usage_examples(self) -> List[str]:
         return [
