@@ -4,16 +4,14 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "cogency"
-version = "0.1.1"
-description = "Cognitive architecture for AI agents - Skills, Tools, and Services"
-authors = [
-    {name = "Tyson Chan", email = "tyson.chan@proton.me"},
-]
+version = "0.2.0"
+description = "Clean multi-step reasoning agents with tool support and traceable execution."
+authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
 readme = "README.md"
 license = "MIT"
-homepage = "https://github.com/cogencyai/cogency"
-repository = "https://github.com/cogencyai/cogency"
-keywords = ["ai", "agents", "cognitive", "architecture", "skills"]
+homepage = "https://github.com/iteebz/cogency"
+repository = "https://github.com/iteebz/cogency"
+keywords = ["ai", "agents", "reasoning", "tools", "tracing", "cognition"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -31,9 +29,11 @@ dependencies = [
     "pydantic>=2.0",
     "typing-extensions>=4.0",
     "langgraph",
-    "langchain-google-genai",
-    
+    "langchain-google-genai"
 ]
+
+[tool.poetry]
+packages = [{ include = "cogency", from = "src" }]
 
 [tool.black]
 line-length = 88
