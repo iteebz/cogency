@@ -2,8 +2,9 @@ from typing import Any, Dict, List
 from cogency.context import Context
 from cogency.llm import LLM
 from cogency.types import AgentState, Tool
+from cogency.parsing import TOOL_NEEDED_PREFIX, DIRECT_RESPONSE_PREFIX
 
-SYSTEM_PROMPT = (
+PLAN_PROMPT = (
     "You are an AI assistant. Your goal is to help the user. "
     "You have access to the following tools: {tool_names}. "
     "If a tool is available and relevant to the user's request, you MUST use it. "
@@ -16,13 +17,17 @@ def plan(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
     tool_names = ", ".join([tool.name for tool in tools]) if tools else "no tools"
-    system_prompt = SYSTEM_PROMPT.format(tool_names=tool_names)
+    system_prompt = PLAN_PROMPT.format(tool_names=tool_names)
     messages.insert(0, {"role": "system", "content": system_prompt})
 
-    result = llm.invoke(messages)
-    context.add_message("assistant", result)
+    llm_response = llm.invoke(messages)
+    context.add_message("assistant", llm_response)
 
-    if result.startswith("TOOL_NEEDED:"):
-        return {"context": context, "tool_needed": True, "task_complete": False, "tool_called": False, "last_node": "plan"}
-    else:
-        return {"context": context, "tool_needed": False, "task_complete": False, "tool_called": False, "last_node": "plan"}
+    needs_tool = llm_response.startswith(TOOL_NEEDED_PREFIX)
+    return {
+        "context": context, 
+        "tool_needed": needs_tool, 
+        "task_complete": False, 
+        "tool_called": False, 
+        "last_node": "plan"
+    }

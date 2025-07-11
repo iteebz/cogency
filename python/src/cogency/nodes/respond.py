@@ -15,7 +15,12 @@ def respond(state: AgentState, llm: LLM) -> AgentState:
 
     messages.insert(0, {"role": "system", "content": RESPOND_PROMPT})
 
-    result = llm.invoke(messages)
-    context.add_message("assistant", result)
+    llm_response = llm.invoke(messages)
+    context.add_message("assistant", llm_response)
 
-    return {"context": context, "tool_called": state["tool_called"], "task_complete": True, "last_node": "respond"}
+    return {
+        "context": context, 
+        "tool_called": state["tool_called"], 
+        "task_complete": True, 
+        "last_node": "respond"
+    }

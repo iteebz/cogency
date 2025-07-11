@@ -13,6 +13,6 @@ def _extract_tool_call(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]
                 args_str = match.group(2)
                 return tool_name, {"raw_args": args_str}
         except Exception as e:
-            print(f"Error parsing tool call: {e}")
+            pass # Error parsing tool call: {e}
     
     return tool_call
