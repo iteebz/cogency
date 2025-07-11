@@ -5,7 +5,7 @@ from cogency.llm import LLM
 from cogency.context import Context
 from cogency.types import Tool
 from cogency.nodes import act, respond, plan, reason, reflect
-from cogency.parsing import TOOL_NEEDED_PREFIX, TASK_COMPLETE_PREFIX
+from cogency.utils.parsing import parse_plan_response, parse_reflect_response
 import uuid
 
 class Agent:
@@ -67,9 +67,11 @@ class Agent:
     def _plan_router(self, state: AgentState) -> str:
         """Direct routing after plan node."""
         last_message = state["context"].messages[-1]["content"]
-        return "reason" if last_message.startswith(TOOL_NEEDED_PREFIX) else "respond"
+        route, _ = parse_plan_response(last_message)
+        return route
     
     def _reflect_router(self, state: AgentState) -> str:
         """Direct routing after reflect node."""
         last_message = state["context"].messages[-1]["content"]
-        return "respond" if last_message.startswith(TASK_COMPLETE_PREFIX) else "reason"
+        route, _ = parse_reflect_response(last_message)
+        return route

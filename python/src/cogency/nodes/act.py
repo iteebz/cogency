@@ -2,7 +2,7 @@ from typing import Any, Dict
 from cogency.context import Context
 from cogency.types import Tool
 from cogency.types import AgentState
-from cogency.parsing import _extract_tool_call
+from cogency.utils.parsing import extract_tool_call
 from cogency.trace import trace_node
 
 @trace_node
@@ -13,7 +13,7 @@ def act(state: AgentState, tools: list[Tool]) -> AgentState:
     # Get the last assistant message, which should contain the tool call
     llm_response_content = context.messages[-1]["content"]
 
-    tool_call = _extract_tool_call(llm_response_content)
+    tool_call = extract_tool_call(llm_response_content)
     if tool_call:
         tool_name, tool_args = tool_call
         context.tool_call_details = {"name": tool_name, "args": tool_args}

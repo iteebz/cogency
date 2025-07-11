@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 from cogency.context import Context
 from cogency.llm import LLM
 from cogency.types import AgentState, Tool
-from cogency.parsing import _extract_tool_call
+from cogency.utils.parsing import extract_tool_call
 from cogency.trace import trace_node
 
 REASON_PROMPT = (
@@ -16,8 +16,10 @@ REASON_PROMPT = (
 @trace_node
 def reason(state: AgentState, llm: LLM, tools: List[Tool]) -> AgentState:
     context = state["context"]
-    messages = list(context.messages)
-
+    
+    # Build proper message sequence: user question + system instructions
+    messages = [{"role": "user", "content": context.current_input}]
+    
     tool_instructions = ""
     if tools:
         instructions = []
