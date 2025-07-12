@@ -23,11 +23,12 @@ class BaseLLM(ABC):
         pass
 
     @abstractmethod
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         """Generate a streaming response from the LLM given a list of messages.
 
         Args:
             messages: List of message dictionaries with 'role' and 'content' keys
+            yield_interval: Minimum time between yields for rate limiting (seconds)
             **kwargs: Additional parameters for the LLM call
 
         Yields:

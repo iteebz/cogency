@@ -1,5 +1,5 @@
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, AsyncIterator, Dict, List, Optional
 
 from langgraph.graph import END, StateGraph
 
@@ -7,6 +7,7 @@ from cogency.context import Context
 from cogency.embed import BaseEmbed
 from cogency.llm import BaseLLM
 from cogency.nodes import act, plan, reason, reflect, respond
+from cogency.nodes.plan import plan_streaming
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState, ExecutionTrace
 from cogency.utils.cancellation import interruptable
@@ -142,6 +143,36 @@ class Agent:
             result["execution_trace"] = execution_trace.to_dict()
 
         return result
+
+    async def stream(self, message: str, context: Optional[Context] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
+        """Stream the agent's execution process in real-time.
+        
+        Args:
+            message: User input message
+            context: Optional context to continue conversation
+            yield_interval: Minimum time between yields for rate limiting (seconds)
+        """
+        # Use provided context or create new one
+        if context is None:
+            context = Context(current_input=message)
+        else:
+            context.current_input = message
+
+        # Store context for property access
+        self._context = context
+
+        initial_state: AgentState = {
+            "context": context,
+            "execution_trace": None,
+        }
+
+        # For now, manually stream through plan node as pilot
+        # TODO: Integrate with full LangGraph streaming when ready
+        async for chunk in plan_streaming(initial_state, self.llm, self.tools, yield_interval):
+            # TODO: Implement yield_interval rate limiting here when needed
+            # if yield_interval > 0.0:
+            #     await asyncio.sleep(yield_interval)
+            yield chunk
 
     def _plan_router(self, state: AgentState) -> str:
         """Direct routing after plan node."""

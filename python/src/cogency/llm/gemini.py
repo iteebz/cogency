@@ -91,8 +91,7 @@ class GeminiLLM(BaseLLM):
         res = await self._current_model.generate_content_async(prompt, **kwargs)
         return res.text
 
-    @interruptable
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         # Rotate key and update current model if a rotator is used
         if self.key_rotator:
             self._init_current_model()

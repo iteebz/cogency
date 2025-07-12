@@ -41,12 +41,14 @@ class OpenAILLM(BaseLLM):
         self.temperature = temperature
         self.max_retries = max_retries
 
-        # Build kwargs for OpenAI client
+        # Build kwargs for OpenAI chat completions (filtering client-level params)
         self.kwargs = {
-            "timeout": timeout,
             "temperature": temperature,
-            "max_retries": max_retries,
             **kwargs,
+        }
+        self.client_kwargs = {
+            "timeout": timeout,
+            "max_retries": max_retries,
         }
 
         self._client: Optional[openai.AsyncOpenAI] = None
@@ -62,7 +64,7 @@ class OpenAILLM(BaseLLM):
                 error_code="NO_CURRENT_API_KEY",
             )
 
-        self._client = openai.AsyncOpenAI(api_key=current_key)
+        self._client = openai.AsyncOpenAI(api_key=current_key, **self.client_kwargs)
 
     @interruptable
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
@@ -86,8 +88,7 @@ class OpenAILLM(BaseLLM):
         )
         return res.choices[0].message.content
 
-    @interruptable
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         # Rotate key and update current LLM if a rotator is used
         if self.key_rotator:
             self._init_client()

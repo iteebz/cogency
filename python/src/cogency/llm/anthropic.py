@@ -89,8 +89,7 @@ class AnthropicLLM(BaseLLM):
         )
         return res.content[0].text
 
-    @interruptable
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         # Rotate key and update current LLM if a rotator is used
         if self.key_rotator:
             self._init_client()
