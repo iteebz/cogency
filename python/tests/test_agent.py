@@ -34,7 +34,9 @@ class TestAgent:
         """Test agent can handle multiple tools."""
         tool2 = Mock()
         tool2.name = "mock_tool"
-        agent = Agent(name="TestAgent", llm=self.mock_llm, tools=[self.calculator, tool2])
+        agent = Agent(
+            name="TestAgent", llm=self.mock_llm, tools=[self.calculator, tool2]
+        )
         assert len(agent.tools) == 2
         assert agent.tools[0].name == "calculator"
         assert agent.tools[1].name == "mock_tool"
@@ -58,7 +60,9 @@ class TestAgent:
 
         # Create mock state with tool_needed response
         context = Context(current_input="test")
-        context.messages = [{"content": '{"action": "tool_needed", "reasoning": "need calc"}'}]
+        context.messages = [
+            {"content": '{"action": "tool_needed", "reasoning": "need calc"}'}
+        ]
         state = {"context": context}
 
         result = agent._plan_router(state)
@@ -70,7 +74,9 @@ class TestAgent:
 
         # Create mock state with direct response
         context = Context(current_input="test")
-        context.messages = [{"content": '{"action": "direct_response", "answer": "42"}'}]
+        context.messages = [
+            {"content": '{"action": "direct_response", "answer": "42"}'}
+        ]
         state = {"context": context}
 
         result = agent._plan_router(state)
@@ -82,7 +88,9 @@ class TestAgent:
 
         # Create mock state with continue status
         context = Context(current_input="test")
-        context.messages = [{"content": '{"status": "continue", "assessment": "need more"}'}]
+        context.messages = [
+            {"content": '{"status": "continue", "assessment": "need more"}'}
+        ]
         state = {"context": context}
 
         result = agent._reflect_router(state)

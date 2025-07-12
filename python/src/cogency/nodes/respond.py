@@ -26,6 +26,11 @@ def respond(state: AgentState, llm: BaseLLM) -> AgentState:
 
     # Check if the last message is a direct response JSON
     last_message = context.messages[-1]["content"]
+
+    # Handle case where content might be a list
+    if isinstance(last_message, list):
+        last_message = last_message[0] if last_message else ""
+
     try:
         import json
 
@@ -34,7 +39,7 @@ def respond(state: AgentState, llm: BaseLLM) -> AgentState:
             # Replace the JSON with the clean answer
             context.messages[-1]["content"] = data.get("answer", last_message)
             return {"context": context, "execution_trace": state["execution_trace"]}
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, TypeError):
         pass
 
     # For non-direct responses, use the LLM to generate a response

@@ -3,22 +3,23 @@ from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
 
-PLAN_PROMPT = """
-You are an AI assistant analyzing user requests to determine the appropriate action.
+PLAN_PROMPT = """You are an AI assistant. Analyze the user request and respond with ONLY valid JSON.
 
 Available tools: {tool_names}
 
-CRITICAL RULES:
-1. For ANY mathematical calculation (including basic arithmetic), you MUST use the calculator tool
-2. For current information, trends, or recent events, you MUST use web search
-3. Only provide direct responses for general knowledge questions that don't require computation or current data
+Rules:
+- Math calculations → use calculator tool
+- Current info/events → use web search
+- File operations → use file_manager tool
+- General knowledge → direct response
 
-Your output MUST be valid JSON with no additional text:
-- Direct response: {{"action": "direct_response", "reasoning": "This is general knowledge that doesn't require tools", "answer": "<your complete answer>"}}
-- Tool needed: {{"action": "tool_needed", "reasoning": "<specific reason why tool is needed>", "strategy": "<which tool and how you'll use it>"}}
+Output format (choose one):
 
-IMPORTANT: Be decisive. If unsure, prefer using tools over direct responses.
-"""
+{{"action": "direct_response", "reasoning": "Brief explanation", "answer": "Your answer"}}
+
+{{"action": "tool_needed", "reasoning": "Why tool needed", "strategy": "Which tool"}}
+
+Respond with JSON only - no other text."""
 
 
 @trace_node

@@ -4,6 +4,8 @@ from typing import Any, Dict, Optional, Tuple
 
 def parse_plan_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
     """Parse plan node JSON response to determine routing action."""
+    if response is None:
+        return "respond", {"action": "direct_response", "content": "No response"}
     try:
         data = json.loads(response)
         action = data.get("action")
@@ -25,6 +27,8 @@ def parse_plan_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
 
 def parse_reflect_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
     """Parse reflect node JSON response to determine routing action."""
+    if response is None:
+        return "respond", {"status": "complete", "content": "No response"}
     try:
         data = json.loads(response)
         status = data.get("status")
@@ -33,15 +37,14 @@ def parse_reflect_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]
         elif status == "complete":
             return "respond", data
         else:
-            # Fallback to prefix parsing for compatibility
-            if response.startswith("TASK_COMPLETE:"):
-                return "respond", {"status": "complete", "content": response[14:]}
-            return "reason", {"status": "continue", "content": response}
+            # Fallback: if status is missing or unknown, default to complete
+            return "respond", {"status": "complete", "content": response}
     except json.JSONDecodeError:
         # Fallback to prefix parsing
         if response.startswith("TASK_COMPLETE:"):
             return "respond", {"status": "complete", "content": response[14:]}
-        return "reason", {"status": "continue", "content": response}
+        # Default to complete instead of continue to prevent loops
+        return "respond", {"status": "complete", "content": response}
 
 
 def extract_tool_call(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]]:

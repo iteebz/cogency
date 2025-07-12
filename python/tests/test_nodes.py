@@ -21,7 +21,9 @@ class TestPlanNode:
 
     def test_plan_with_tools_direct_response(self):
         """Test plan node with tools when direct response is needed."""
-        self.mock_llm.invoke.return_value = '{"action": "direct_response", "answer": "Hello"}'
+        self.mock_llm.invoke.return_value = (
+            '{"action": "direct_response", "answer": "Hello"}'
+        )
 
         result = plan(self.state, self.mock_llm, [self.calculator])
 
@@ -35,7 +37,9 @@ class TestPlanNode:
 
     def test_plan_with_tools_tool_needed(self):
         """Test plan node when tool is needed."""
-        self.mock_llm.invoke.return_value = '{"action": "tool_needed", "reasoning": "need calc"}'
+        self.mock_llm.invoke.return_value = (
+            '{"action": "tool_needed", "reasoning": "need calc"}'
+        )
 
         result = plan(self.state, self.mock_llm, [self.calculator])
 
@@ -49,7 +53,7 @@ class TestPlanNode:
             '{"action": "direct_response", "answer": "No tools available"}'
         )
 
-        result = plan(self.state, self.mock_llm, [])
+        plan(self.state, self.mock_llm, [])
 
         # Check that system prompt mentions "no tools"
         call_args = self.mock_llm.invoke.call_args[0][0]
@@ -58,7 +62,9 @@ class TestPlanNode:
 
     def test_plan_prompt_format(self):
         """Test that plan prompt is properly formatted."""
-        self.mock_llm.invoke.return_value = '{"action": "direct_response", "answer": "test"}'
+        self.mock_llm.invoke.return_value = (
+            '{"action": "direct_response", "answer": "test"}'
+        )
 
         plan(self.state, self.mock_llm, [self.calculator])
 
@@ -84,7 +90,9 @@ class TestReasonNode:
 
     def test_reason_with_tools(self):
         """Test reason node with tools."""
-        self.mock_llm.invoke.return_value = "TOOL_CALL: calculator(operation='add', x1=2, x2=2)"
+        self.mock_llm.invoke.return_value = (
+            "TOOL_CALL: calculator(operation='add', x1=2, x2=2)"
+        )
 
         result = reason(self.state, self.mock_llm, [self.calculator])
 
@@ -97,9 +105,11 @@ class TestReasonNode:
 
     def test_reason_without_tools(self):
         """Test reason node without tools."""
-        self.mock_llm.invoke.return_value = "I cannot perform calculations without tools."
+        self.mock_llm.invoke.return_value = (
+            "I cannot perform calculations without tools."
+        )
 
-        result = reason(self.state, self.mock_llm, [])
+        reason(self.state, self.mock_llm, [])
 
         # Check that no tool instructions are added when no tools available
         call_args = self.mock_llm.invoke.call_args[0][0]
@@ -116,7 +126,9 @@ class TestReasonNode:
 
     def test_reason_prompt_includes_schemas(self):
         """Test that reason prompt includes tool schemas."""
-        self.mock_llm.invoke.return_value = "TOOL_CALL: calculator(operation='add', x1=1, x2=2)"
+        self.mock_llm.invoke.return_value = (
+            "TOOL_CALL: calculator(operation='add', x1=1, x2=2)"
+        )
 
         reason(self.state, self.mock_llm, [self.calculator])
 
@@ -135,7 +147,9 @@ class TestActNode:
         """Setup test fixtures."""
         self.calculator = CalculatorTool()
         self.context = Context(current_input="Calculate 2 + 2")
-        self.context.add_message("assistant", "TOOL_CALL: calculator(operation='add', x1=2, x2=2)")
+        self.context.add_message(
+            "assistant", "TOOL_CALL: calculator(operation='add', x1=2, x2=2)"
+        )
         self.state = {"context": self.context, "execution_trace": None}
 
     def test_act_successful_tool_call(self):
@@ -170,9 +184,9 @@ class TestActNode:
     def test_act_argument_parsing(self):
         """Test act node argument parsing logic."""
         # Test different argument types
-        self.context.messages[-1]["content"] = (
-            "TOOL_CALL: calculator(operation='add', x1=2.5, x2=3)"
-        )
+        self.context.messages[-1][
+            "content"
+        ] = "TOOL_CALL: calculator(operation='add', x1=2.5, x2=3)"
 
         result = act(self.state, [self.calculator])
 
@@ -187,9 +201,11 @@ class TestActNode:
         mock_tool.name = "test_tool"
         mock_tool.validate_and_run.return_value = {"result": "success"}
 
-        self.context.messages[-1]["content"] = "TOOL_CALL: test_tool(text='hello world')"
+        self.context.messages[-1][
+            "content"
+        ] = "TOOL_CALL: test_tool(text='hello world')"
 
-        result = act(self.state, [mock_tool])
+        act(self.state, [mock_tool])
 
         mock_tool.validate_and_run.assert_called_once_with(text="hello world")
 
@@ -201,13 +217,17 @@ class TestReflectNode:
         """Setup test fixtures."""
         self.mock_llm = Mock()
         self.context = Context(current_input="What is 2 + 2?")
-        self.context.add_message("assistant", "TOOL_CALL: calculator(operation='add', x1=2, x2=2)")
+        self.context.add_message(
+            "assistant", "TOOL_CALL: calculator(operation='add', x1=2, x2=2)"
+        )
         self.context.add_message("system", "4")
         self.state = {"context": self.context, "execution_trace": None}
 
     def test_reflect_continue_status(self):
         """Test reflect node returning continue status."""
-        self.mock_llm.invoke.return_value = '{"status": "continue", "assessment": "Need more info"}'
+        self.mock_llm.invoke.return_value = (
+            '{"status": "continue", "assessment": "Need more info"}'
+        )
 
         result = reflect(self.state, self.mock_llm)
 
@@ -217,7 +237,9 @@ class TestReflectNode:
 
     def test_reflect_complete_status(self):
         """Test reflect node returning complete status."""
-        self.mock_llm.invoke.return_value = '{"status": "complete", "assessment": "Task done"}'
+        self.mock_llm.invoke.return_value = (
+            '{"status": "complete", "assessment": "Task done"}'
+        )
 
         result = reflect(self.state, self.mock_llm)
 
@@ -231,7 +253,9 @@ class TestRespondNode:
         """Setup test fixtures."""
         self.mock_llm = Mock()
         self.context = Context(current_input="What is 2 + 2?")
-        self.context.add_message("assistant", "TOOL_CALL: calculator(operation='add', x1=2, x2=2)")
+        self.context.add_message(
+            "assistant", "TOOL_CALL: calculator(operation='add', x1=2, x2=2)"
+        )
         self.context.add_message("system", "4")
         self.state = {"context": self.context, "execution_trace": None}
 
@@ -250,9 +274,9 @@ class TestRespondNode:
 
     def test_respond_with_direct_response_json(self):
         """Test respond node with direct response JSON."""
-        self.context.messages[-1]["content"] = (
-            '{"action": "direct_response", "answer": "The answer is 4"}'
-        )
+        self.context.messages[-1][
+            "content"
+        ] = '{"action": "direct_response", "answer": "The answer is 4"}'
 
         result = respond(self.state, self.mock_llm)
 
@@ -268,7 +292,9 @@ class TestRespondNode:
         result = respond(self.state, self.mock_llm)
 
         # Should call LLM and replace message
-        assert result["context"].messages[-1]["content"] == "I cannot parse that response."
+        assert (
+            result["context"].messages[-1]["content"] == "I cannot parse that response."
+        )
         self.mock_llm.invoke.assert_called_once()
 
     def test_respond_with_conversation_history(self):

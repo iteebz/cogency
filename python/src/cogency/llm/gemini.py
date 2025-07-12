@@ -1,19 +1,30 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from langchain_core.language_models import BaseChatModel
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from cogency.llm.base import BaseLLM
+from cogency.llm.key_rotator import KeyRotator
 
 
 class GeminiLLM(BaseLLM):
     def __init__(
         self,
-        api_key: str = None,
-        key_rotator=None,
+        api_keys: Union[str, List[str]] = None,
         model: str = "gemini-2.5-flash",
         **kwargs,
     ):
+        # Handle the cleaner interface: if list provided, create key rotator internally
+        if isinstance(api_keys, list) and len(api_keys) > 1:
+            key_rotator = KeyRotator(api_keys)
+            api_key = None
+        elif isinstance(api_keys, list) and len(api_keys) == 1:
+            key_rotator = None
+            api_key = api_keys[0]
+        else:
+            key_rotator = None
+            api_key = api_keys
+
         super().__init__(api_key, key_rotator)
         self.model = model
         # Set more reasonable timeout for faster failures
@@ -21,7 +32,9 @@ class GeminiLLM(BaseLLM):
             kwargs["timeout"] = 15.0  # 15 second timeout instead of default 60+
         self.kwargs = kwargs
         self._llm_instances: Dict[str, BaseChatModel] = {}  # Cache for LLM instances
-        self._current_llm: Optional[BaseChatModel] = None  # Currently active LLM instance
+        self._current_llm: Optional[
+            BaseChatModel
+        ] = None  # Currently active LLM instance
         self._init_current_llm()  # Initialize the first LLM instance
 
     def _init_current_llm(self):
@@ -29,7 +42,9 @@ class GeminiLLM(BaseLLM):
         current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
 
         if not current_key:
-            raise ValueError("API key must be provided either directly or via KeyRotator.")
+            raise ValueError(
+                "API key must be provided either directly or via KeyRotator."
+            )
 
         if current_key not in self._llm_instances:
             self._llm_instances[current_key] = ChatGoogleGenerativeAI(

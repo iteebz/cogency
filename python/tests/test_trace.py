@@ -27,7 +27,11 @@ class TestExecutionStep:
         """Test ExecutionStep with custom timestamp."""
         custom_time = datetime(2024, 1, 1, 12, 0, 0)
         step = ExecutionStep(
-            node="test_node", input_data={}, output_data={}, reasoning="test", timestamp=custom_time
+            node="test_node",
+            input_data={},
+            output_data={},
+            reasoning="test",
+            timestamp=custom_time,
         )
 
         assert step.timestamp == custom_time
@@ -243,7 +247,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        result = test_func(state)
+        test_func(state)
 
         assert len(trace.steps) == 1
         step = trace.steps[0]
@@ -271,7 +275,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        result = act(state)
+        act(state)
 
         assert len(trace.steps) == 1
         step = trace.steps[0]
@@ -287,7 +291,9 @@ class TestTraceNode:
         @trace_node
         def test_func(state):
             # Add two messages during execution
-            state["context"].messages.extend([{"content": "message 1"}, {"content": "message 2"}])
+            state["context"].messages.extend(
+                [{"content": "message 1"}, {"content": "message 2"}]
+            )
             return state
 
         context = Mock()
@@ -298,7 +304,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        result = test_func(state)
+        test_func(state)
 
         step = trace.steps[0]
         assert step.output_data["new_messages"] == ["message 1", "message 2"]
@@ -321,7 +327,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        result = test_func(state)
+        test_func(state)
 
         step = trace.steps[0]
         assert step.reasoning == "Reasoning: I need to think about this"
@@ -341,7 +347,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        result = test_func(state)
+        test_func(state)
 
         step = trace.steps[0]
         assert step.reasoning == "No new message added by this node."

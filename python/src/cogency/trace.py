@@ -82,7 +82,9 @@ def trace_node(func: F) -> F:
         # 5. Construct detailed, human-readable output data
         output_data = {"new_messages": new_messages}
 
-        if func.__name__ == "act" and len(tool_results_after) > len(tool_results_before):
+        if func.__name__ == "act" and len(tool_results_after) > len(
+            tool_results_before
+        ):
             last_tool_result = tool_results_after[-1]
             output_data.update(
                 {
@@ -94,7 +96,9 @@ def trace_node(func: F) -> F:
             reasoning += f" | BaseTool Result: {last_tool_result.get('output')}"
 
         # 6. Add the detailed step to the execution trace
-        state["execution_trace"].add_step(func.__name__, input_data, output_data, reasoning)
+        state["execution_trace"].add_step(
+            func.__name__, input_data, output_data, reasoning
+        )
 
         return result
 

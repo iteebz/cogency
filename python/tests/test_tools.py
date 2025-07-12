@@ -264,8 +264,16 @@ class TestWebSearchTool:
     def test_successful_search(self, mock_ddgs):
         """Test successful search with results."""
         mock_results = [
-            {"title": "Test Title 1", "body": "Test snippet 1", "href": "https://example.com/1"},
-            {"title": "Test Title 2", "body": "Test snippet 2", "href": "https://example.com/2"},
+            {
+                "title": "Test Title 1",
+                "body": "Test snippet 1",
+                "href": "https://example.com/1",
+            },
+            {
+                "title": "Test Title 2",
+                "body": "Test snippet 2",
+                "href": "https://example.com/2",
+            },
         ]
         mock_ddgs.return_value.__enter__.return_value.text.return_value = mock_results
 
@@ -295,7 +303,9 @@ class TestWebSearchTool:
     @patch("cogency.tools.web_search.DDGS")
     def test_search_exception(self, mock_ddgs):
         """Test search exception handling."""
-        mock_ddgs.return_value.__enter__.return_value.text.side_effect = Exception("Network error")
+        mock_ddgs.return_value.__enter__.return_value.text.side_effect = Exception(
+            "Network error"
+        )
 
         result = self.web_search.run(query="test")
 

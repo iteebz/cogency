@@ -41,9 +41,7 @@ class CalculatorTool(BaseTool):
         return {"result": result}
 
     def get_schema(self) -> str:
-        return (
-            "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float)"
-        )
+        return "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float)"
 
     def get_usage_examples(self) -> List[str]:
         return [

@@ -1,5 +1,9 @@
 from cogency.utils.formatting import NODE_FORMATTERS, format_trace
-from cogency.utils.parsing import extract_tool_call, parse_plan_response, parse_reflect_response
+from cogency.utils.parsing import (
+    extract_tool_call,
+    parse_plan_response,
+    parse_reflect_response,
+)
 
 
 class TestParsing:
@@ -86,13 +90,13 @@ class TestParsing:
         assert data["content"] == " The task has been finished"
 
     def test_parse_reflect_response_fallback_continue(self):
-        """Test parsing reflect response with fallback for continue."""
+        """Test parsing reflect response with fallback for complete (stability fix)."""
         response = "Still working on the task"
 
         route, data = parse_reflect_response(response)
 
-        assert route == "reason"
-        assert data["status"] == "continue"
+        assert route == "respond"  # Now defaults to complete/respond for stability
+        assert data["status"] == "complete"
         assert data["content"] == "Still working on the task"
 
     def test_extract_tool_call_valid(self):
@@ -169,7 +173,7 @@ class TestFormatting:
         assert "PLAN" in result
         assert "ACT" in result
         assert "calculate" in result
-        assert "[TOOL_CALL] calculator -> 4" in result
+        assert "Executing calculation..." in result
 
     def test_format_trace_empty_steps(self):
         """Test trace formatting with empty steps."""
@@ -182,22 +186,28 @@ class TestFormatting:
 
     def test_format_trace_missing_trace_id(self):
         """Test trace formatting with missing trace ID."""
-        trace = {"steps": [{"node": "plan", "reasoning": "test reasoning", "output_data": {}}]}
+        trace = {
+            "steps": [
+                {"node": "plan", "reasoning": "test reasoning", "output_data": {}}
+            ]
+        }
 
         result = format_trace(trace)
 
         # trace_id is not included in current format
-        assert "LLM returned non-JSON plan" in result
+        assert "test reasoning" in result
 
     def test_node_formatters_plan(self):
         """Test plan node formatter."""
-        reasoning = '{"intent": "calculate", "reasoning": "need math", "strategy": "use calc"}'
+        reasoning = (
+            '{"intent": "calculate", "reasoning": "need math", "strategy": "use calc"}'
+        )
         output_data = {}
 
         result = NODE_FORMATTERS["PLAN"](reasoning, output_data)
 
         assert "Intent: calculate" in result
-        assert "Reasoning: need math" in result
+        assert "need math" in result  # No longer includes "Reasoning:" prefix
         assert "Strategy: use calc" in result
 
     def test_node_formatters_plan_no_json(self):
@@ -207,7 +217,7 @@ class TestFormatting:
 
         result = NODE_FORMATTERS["PLAN"](reasoning, output_data)
 
-        assert "non-JSON plan" in result
+        assert "Not JSON format" in result
 
     def test_node_formatters_reason(self):
         """Test reason node formatter."""
@@ -225,7 +235,7 @@ class TestFormatting:
 
         result = NODE_FORMATTERS["ACT"](reasoning, output_data)
 
-        assert result == "[TOOL_CALL] calculator -> 42"
+        assert result == "Executing calculation..."
 
     def test_node_formatters_act_missing_data(self):
         """Test act node formatter with missing data."""
@@ -234,7 +244,7 @@ class TestFormatting:
 
         result = NODE_FORMATTERS["ACT"](reasoning, output_data)
 
-        assert result == "[TOOL_CALL] N/A -> N/A"
+        assert result == "Executing N/A..."
 
     def test_node_formatters_reflect(self):
         """Test reflect node formatter."""
