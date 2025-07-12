@@ -15,15 +15,24 @@ class Context:
         current_input: str,
         messages: List[Dict[str, str]] = None,
         tool_results: Optional[List[Dict[str, Any]]] = None,
+        max_history: Optional[int] = None,
     ):
         self.current_input = current_input
         self.messages = messages if messages is not None else []
         self.tool_results = tool_results if tool_results is not None else []
+        self.max_history = max_history
 
     def add_message(self, role: str, content: str):
         """Adds message to history."""
         message_dict = {"role": role, "content": content}
         self.messages.append(message_dict)
+        
+        # Apply sliding window if max_history is set
+        if self.max_history is not None and len(self.messages) > self.max_history:
+            if self.max_history == 0:
+                self.messages = []
+            else:
+                self.messages = self.messages[-self.max_history:]
 
     def add_message_with_trace(
         self, role: str, content: str, trace_id: Optional[str] = None
@@ -33,6 +42,13 @@ class Context:
         if trace_id:
             message_dict["trace_id"] = trace_id
         self.messages.append(message_dict)
+        
+        # Apply sliding window if max_history is set
+        if self.max_history is not None and len(self.messages) > self.max_history:
+            if self.max_history == 0:
+                self.messages = []
+            else:
+                self.messages = self.messages[-self.max_history:]
 
     def add_tool_result(self, tool_name: str, args: dict, output: dict):
         """Add tool execution result to history."""

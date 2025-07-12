@@ -89,6 +89,34 @@ from cogency.llm import KeyRotator
 llm = GeminiLLM(key_rotator=KeyRotator(["key1", "key2"]))
 ```
 
+## Conversation History
+
+Cogency supports conversation history with optional sliding window:
+
+```python
+from cogency.context import Context
+
+# Create context with conversation history limit
+context = Context("Hello", max_history=10)  # Keep last 10 messages
+
+# Run multiple interactions with shared context
+result1 = agent.run("What's 2+2?", context=context)
+result2 = agent.run("What about 3+3?", context=context)  # Remembers previous exchange
+
+# Access conversation state
+print(f"Messages in context: {len(agent.context.messages)}")
+print(f"Full conversation: {agent.context.get_clean_conversation()}")
+
+# Continue conversation across multiple runs
+result3 = agent.run("Add those two results together", context=context)
+```
+
+**Key features:**
+- **Sliding window**: Automatically trims old messages when `max_history` is reached
+- **Context persistence**: Reuse contexts across multiple `agent.run()` calls  
+- **Context access**: Inspect conversation state via `agent.context` property
+- **Clean output**: `get_clean_conversation()` filters internal messages
+
 ## Execution Tracing
 
 Enable detailed tracing to see your agent's reasoning:

@@ -51,15 +51,27 @@ class Agent:
         self.workflow.add_edge("respond", END)
         self.app = self.workflow.compile()
 
+    @property
+    def context(self) -> Optional[Context]:
+        """Get the current context if available."""
+        return getattr(self, '_context', None)
+
     def run(
-        self, message: str, enable_trace: bool = False, print_trace: bool = False
+        self, message: str, enable_trace: bool = False, print_trace: bool = False, context: Optional[Context] = None
     ) -> Dict[str, Any]:
         """Run agent with optional execution trace."""
         # Auto-enable trace if print_trace is requested
         if print_trace:
             enable_trace = True
 
-        context = Context(current_input=message)
+        # Use provided context or create new one
+        if context is None:
+            context = Context(current_input=message)
+        else:
+            context.current_input = message
+        
+        # Store context for property access
+        self._context = context
 
         execution_trace = None
         if enable_trace:
