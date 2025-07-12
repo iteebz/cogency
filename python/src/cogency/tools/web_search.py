@@ -4,6 +4,14 @@ from typing import Any, Dict, List
 from ddgs import DDGS
 
 from cogency.tools.base import BaseTool
+from cogency.utils.errors import (
+    ValidationError,
+    ToolError,
+    handle_tool_exception,
+    validate_required_params,
+    create_success_response,
+)
+from cogency.config import get_config
 
 
 class WebSearchTool(BaseTool):
@@ -13,15 +21,32 @@ class WebSearchTool(BaseTool):
             description="Search the web using DuckDuckGo for current information and answers to questions.",
         )
         self._last_search_time = 0
-        self._min_delay = 1.0  # Minimum delay between searches in seconds
+        # Get rate limit from config
+        try:
+            config = get_config()
+            self._min_delay = config.web_rate_limit
+        except:
+            # Fallback if config not available
+            self._min_delay = 1.0
 
-    def run(self, query: str, max_results: int = 5) -> Dict[str, Any]:
+    @handle_tool_exception
+    def run(self, query: str, max_results: int = None) -> Dict[str, Any]:
+        # Get default max_results from config if not provided
+        if max_results is None:
+            try:
+                config = get_config()
+                max_results = config.web_max_results
+            except:
+                max_results = 5  # Fallback
         # Input validation
-        if not query or not query.strip():
-            return {"error": "Query cannot be empty"}
-
+        validate_required_params({"query": query}, ["query"], self.name)
+        
         if not isinstance(max_results, int) or max_results <= 0:
-            return {"error": "max_results must be a positive integer"}
+            raise ValidationError(
+                "max_results must be a positive integer",
+                error_code="INVALID_MAX_RESULTS",
+                details={"max_results": max_results, "type": type(max_results).__name__}
+            )
 
         if max_results > 10:
             max_results = 10  # Cap at 10 results
@@ -32,44 +57,48 @@ class WebSearchTool(BaseTool):
         if time_since_last < self._min_delay:
             time.sleep(self._min_delay - time_since_last)
 
+        # Perform search
+        ddgs = DDGS()
         try:
-            # Perform search
-            ddgs = DDGS()
             results = list(ddgs.text(query, max_results=max_results))
+        except Exception as e:
+            raise ToolError(
+                f"DuckDuckGo search failed: {str(e)}",
+                error_code="SEARCH_FAILED",
+                details={"query": query, "max_results": max_results}
+            )
 
-            self._last_search_time = time.time()
+        self._last_search_time = time.time()
 
-            # Format results
-            formatted_results = []
-            for result in results:
-                formatted_results.append(
-                    {
-                        "title": result.get("title", "No title"),
-                        "snippet": result.get("body", "No snippet available"),
-                        "url": result.get("href", "No URL"),
-                    }
-                )
-            
-            if not formatted_results:
-                return {
+        # Format results
+        formatted_results = []
+        for result in results:
+            formatted_results.append(
+                {
+                    "title": result.get("title", "No title"),
+                    "snippet": result.get("body", "No snippet available"),
+                    "url": result.get("href", "No URL"),
+                }
+            )
+        
+        if not formatted_results:
+            return create_success_response(
+                {
                     "results": [],
                     "query": query,
                     "total_found": 0,
-                    "message": "No results found for your query",
-                }
+                },
+                "No results found for your query"
+            )
 
-            return {
+        return create_success_response(
+            {
                 "results": formatted_results,
                 "query": query,
                 "total_found": len(formatted_results),
-            }
-
-        except Exception as e:
-            return {
-                "error": f"Search failed: {str(e)}",
-                "query": query,
-                "total_found": 0,
-            }
+            },
+            f"Found {len(formatted_results)} results for '{query}'"
+        )
 
     def get_schema(self) -> str:
         return "web_search(query='search terms', max_results=5)"

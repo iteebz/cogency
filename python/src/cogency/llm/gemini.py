@@ -5,6 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
+from cogency.utils.errors import ConfigurationError
 
 
 class GeminiLLM(BaseLLM):
@@ -12,8 +13,18 @@ class GeminiLLM(BaseLLM):
         self,
         api_keys: Union[str, List[str]] = None,
         model: str = "gemini-2.5-flash",
+        timeout: float = 15.0,
+        temperature: float = 0.7,
+        max_retries: int = 3,
         **kwargs,
     ):
+        # Validate inputs
+        if not api_keys:
+            raise ConfigurationError(
+                "API keys must be provided",
+                error_code="NO_API_KEYS"
+            )
+        
         # Handle the cleaner interface: if list provided, create key rotator internally
         if isinstance(api_keys, list) and len(api_keys) > 1:
             key_rotator = KeyRotator(api_keys)
@@ -27,10 +38,20 @@ class GeminiLLM(BaseLLM):
 
         super().__init__(api_key, key_rotator)
         self.model = model
-        # Set more reasonable timeout for faster failures
-        if "timeout" not in kwargs:
-            kwargs["timeout"] = 15.0  # 15 second timeout instead of default 60+
-        self.kwargs = kwargs
+        
+        # Configuration parameters
+        self.timeout = timeout
+        self.temperature = temperature
+        self.max_retries = max_retries
+        
+        # Build kwargs for ChatGoogleGenerativeAI
+        self.kwargs = {
+            "timeout": timeout,
+            "temperature": temperature,
+            "max_retries": max_retries,
+            **kwargs
+        }
+        
         self._llm_instances: Dict[str, BaseChatModel] = {}  # Cache for LLM instances
         self._current_llm: Optional[
             BaseChatModel
@@ -42,8 +63,9 @@ class GeminiLLM(BaseLLM):
         current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
 
         if not current_key:
-            raise ValueError(
-                "API key must be provided either directly or via KeyRotator."
+            raise ConfigurationError(
+                "API key must be provided either directly or via KeyRotator.",
+                error_code="NO_CURRENT_API_KEY"
             )
 
         if current_key not in self._llm_instances:

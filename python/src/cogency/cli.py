@@ -2,51 +2,40 @@
 """CLI interface for cogency agent."""
 
 import argparse
-import os
 import sys
-from typing import List
-
-from dotenv import find_dotenv, load_dotenv
 
 from cogency.agent import Agent
-from cogency.llm import GeminiLLM, KeyRotator
+from cogency.config import get_config
+from cogency.llm import GeminiLLM
 from cogency.tools.calculator import CalculatorTool
+from cogency.tools.file_manager import FileManagerTool
+from cogency.tools.web_search import WebSearchTool
 from cogency.utils.formatting import format_trace
 
 
-def load_api_keys() -> List[str]:
-    """Load API keys from environment variables."""
-    keys = []
-
-    # Try numbered keys first (GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc.)
-    for i in range(1, 10):
-        key = os.environ.get(f"GEMINI_API_KEY_{i}")
-        if key:
-            keys.append(key)
-
-    # If no numbered keys, try single key
-    if not keys:
-        single_key = os.environ.get("GEMINI_API_KEY")
-        if single_key:
-            keys.append(single_key)
-
-    return keys
-
-
 def create_llm() -> GeminiLLM:
-    """Create LLM instance with intelligent key handling."""
-    keys = load_api_keys()
-
-    if not keys:
-        # No keys found - raise helpful error
-        raise ValueError(
-            "No API keys found. Please set either:\n"
-            "- GEMINI_API_KEY for single key usage\n"
-            "- GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc. for key rotation"
-        )
+    """Create LLM instance from configuration."""
+    config = get_config()
     
-    # Use new cleaner interface - handles rotation automatically
-    return GeminiLLM(api_keys=keys)
+    return GeminiLLM(
+        api_keys=config.api_keys,
+        model=config.model,
+        timeout=config.timeout,
+        temperature=config.temperature,
+    )
+
+
+def create_tools():
+    """Create tool instances from configuration."""
+    config = get_config()
+    
+    tools = [
+        CalculatorTool(),
+        FileManagerTool(base_dir=config.file_base_dir),
+        WebSearchTool(),
+    ]
+    
+    return tools
 
 
 def interactive_mode(agent: Agent, enable_trace: bool = False):
@@ -86,9 +75,6 @@ def interactive_mode(agent: Agent, enable_trace: bool = False):
 
 def main():
     """Main CLI entry point."""
-    # Load environment variables
-    load_dotenv(find_dotenv(usecwd=True))
-
     parser = argparse.ArgumentParser(description="Run the Cogency agent.")
     parser.add_argument(
         "message",
@@ -104,29 +90,45 @@ def main():
     parser.add_argument(
         "-t", "--trace", action="store_true", help="Enable tracing for agent execution."
     )
-
     args = parser.parse_args()
+
+    # Load configuration
+    try:
+        config = get_config()
+    except Exception as e:
+        print(f"Configuration error: {e}")
+        sys.exit(1)
 
     # Create agent
     try:
         llm = create_llm()
-        calculator = CalculatorTool()
-        agent = Agent(name="CogencyAgent", llm=llm, tools=[calculator])
+        tools = create_tools()
+        agent = Agent(
+            name=config.agent_name,
+            llm=llm,
+            tools=tools,
+            max_depth=config.max_depth
+        )
     except Exception as e:
         print(f"Error initializing agent: {e}")
         sys.exit(1)
 
+    # Use trace setting from CLI
+    enable_trace = args.trace
+    print_trace = args.trace
+
     # Interactive mode
     if args.interactive or not args.message:
-        interactive_mode(agent, args.trace)
+        interactive_mode(agent, enable_trace)
         return
 
     # Single query mode
     try:
-        result = agent.run(args.message, enable_trace=args.trace)
-        print("Response:", result["response"])
+        result = agent.run(args.message, enable_trace=enable_trace, print_trace=print_trace)
+        if not print_trace:  # Don't double-print if already printed during execution
+            print("Response:", result["response"])
 
-        if args.trace and "execution_trace" in result:
+        if enable_trace and not print_trace and "execution_trace" in result:
             print(format_trace(result["execution_trace"]))
 
     except Exception as e:
