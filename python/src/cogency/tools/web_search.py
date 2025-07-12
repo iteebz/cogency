@@ -1,3 +1,4 @@
+from cogency.utils.cancellation import handle_cancellation
 import time
 from typing import Any, Dict, List
 
@@ -30,6 +31,7 @@ class WebSearchTool(BaseTool):
             self._min_delay = 1.0
 
     @handle_tool_exception
+    @handle_cancellation
     async def run(self, query: str, max_results: int = None) -> Dict[str, Any]:
         # Get default max_results from config if not provided
         if max_results is None:

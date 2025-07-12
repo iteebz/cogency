@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -9,6 +10,7 @@ from cogency.llm import BaseLLM
 from cogency.nodes import act, plan, reason, reflect, respond
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState, ExecutionTrace
+from cogency.utils.cancellation import handle_cancellation
 from cogency.utils.parsing import parse_plan_response, parse_reflect_response
 
 
@@ -65,6 +67,7 @@ class Agent:
         """Get the current context if available."""
         return getattr(self, '_context', None)
 
+    @handle_cancellation
     async def run(
         self, message: str, enable_trace: bool = False, print_trace: bool = False, context: Optional[Context] = None
     ) -> Dict[str, Any]:
@@ -131,8 +134,6 @@ class Agent:
 
         if enable_trace and execution_trace:
             result["execution_trace"] = execution_trace.to_dict()
-
-            # Don't double-print trace - it's already printed in real-time
 
         return result
 

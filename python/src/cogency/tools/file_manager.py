@@ -1,3 +1,4 @@
+from cogency.utils.cancellation import handle_cancellation
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -54,6 +55,7 @@ class FileManagerTool(BaseTool):
         return path
 
     @handle_tool_exception
+    @handle_cancellation
     async def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
         """Execute file operations based on action type.
 

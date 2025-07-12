@@ -5,6 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
+from cogency.utils.cancellation import handle_cancellation
 from cogency.utils.errors import ConfigurationError
 
 
@@ -75,6 +76,7 @@ class GeminiLLM(BaseLLM):
 
         self._current_llm = self._llm_instances[current_key]
 
+    @handle_cancellation
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         # Rotate key and update current LLM if a rotator is used
         if self.key_rotator:

@@ -1,3 +1,4 @@
+from cogency.utils.cancellation import handle_cancellation
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
@@ -23,6 +24,7 @@ IMPORTANT: Be decisive. Most single-tool requests should be marked complete afte
 
 
 @trace_node
+@handle_cancellation
 async def reflect(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
     messages = list(context.messages)

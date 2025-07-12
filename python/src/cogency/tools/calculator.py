@@ -1,3 +1,4 @@
+from cogency.utils.cancellation import handle_cancellation
 import math
 from typing import Any, Dict, List
 
@@ -18,6 +19,7 @@ class CalculatorTool(BaseTool):
         )
 
     @handle_tool_exception
+    @handle_cancellation
     async def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
         # Validate operation type
         if not operation or operation not in ["add", "subtract", "multiply", "divide", "square_root"]:

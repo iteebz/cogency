@@ -1,3 +1,4 @@
+from cogency.utils.cancellation import handle_cancellation
 from typing import List
 
 from cogency.llm import BaseLLM
@@ -31,6 +32,7 @@ ERROR HANDLING:
 
 
 @trace_node
+@handle_cancellation
 async def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
     context = state["context"]
 

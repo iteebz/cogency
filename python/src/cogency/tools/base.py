@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
+from cogency.utils.cancellation import handle_cancellation
+
 
 class BaseTool(ABC):
     """Base class for all tools in the cogency framework."""
@@ -15,6 +17,7 @@ class BaseTool(ABC):
         self.name = name
         self.description = description
 
+    @handle_cancellation
     async def validate_and_run(self, **kwargs: Any) -> Dict[str, Any]:
         """Validate parameters then run the tool."""
         try:

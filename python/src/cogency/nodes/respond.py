@@ -1,3 +1,4 @@
+from cogency.utils.cancellation import handle_cancellation
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
@@ -21,6 +22,7 @@ TONE: Professional, helpful, and direct. Answer as if you're speaking to a colle
 
 
 @trace_node
+@handle_cancellation
 async def respond(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
 
