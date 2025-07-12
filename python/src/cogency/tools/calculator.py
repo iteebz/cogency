@@ -2,6 +2,12 @@ import math
 from typing import Any, Dict, List
 
 from cogency.tools.base import BaseTool
+from cogency.utils.errors import (
+    ValidationError,
+    handle_tool_exception,
+    validate_required_params,
+    create_success_response,
+)
 
 
 class CalculatorTool(BaseTool):
@@ -11,34 +17,50 @@ class CalculatorTool(BaseTool):
             description="A calculator tool that can perform basic arithmetic operations (add, subtract, multiply, divide) and calculate square roots.",
         )
 
+    @handle_tool_exception
     def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
+        # Validate operation type
+        if not operation or operation not in ["add", "subtract", "multiply", "divide", "square_root"]:
+            raise ValidationError(
+                f"Unsupported operation: {operation}",
+                error_code="INVALID_OPERATION",
+                details={"valid_operations": ["add", "subtract", "multiply", "divide", "square_root"]}
+            )
+        
+        # Validate required parameters based on operation
+        if operation in ["add", "subtract", "multiply", "divide"]:
+            validate_required_params({"x1": x1, "x2": x2}, ["x1", "x2"], self.name)
+        elif operation == "square_root":
+            validate_required_params({"x1": x1}, ["x1"], self.name)
+        
+        # Perform operation-specific validation and calculation
         if operation == "add":
-            if x1 is None or x2 is None:
-                return {"error": "Both x1 and x2 are required for addition."}
             result = x1 + x2
         elif operation == "subtract":
-            if x1 is None or x2 is None:
-                return {"error": "Both x1 and x2 are required for subtraction."}
             result = x1 - x2
         elif operation == "multiply":
-            if x1 is None or x2 is None:
-                return {"error": "Both x1 and x2 are required for multiplication."}
             result = x1 * x2
         elif operation == "divide":
-            if x1 is None or x2 is None:
-                return {"error": "Both x1 and x2 are required for division."}
             if x2 == 0:
-                return {"error": "Cannot divide by zero"}
+                raise ValidationError(
+                    "Cannot divide by zero",
+                    error_code="DIVISION_BY_ZERO",
+                    details={"x1": x1, "x2": x2}
+                )
             result = x1 / x2
         elif operation == "square_root":
-            if x1 is None:
-                return {"error": "x1 is required for square_root."}
             if x1 < 0:
-                return {"error": "Cannot calculate square root of a negative number."}
+                raise ValidationError(
+                    "Cannot calculate square root of a negative number",
+                    error_code="NEGATIVE_SQUARE_ROOT",
+                    details={"x1": x1}
+                )
             result = math.sqrt(x1)
-        else:
-            return {"error": f"Unsupported operation: {operation}"}
-        return {"result": result}
+        
+        return create_success_response(
+            {"result": result, "operation": operation},
+            f"Successfully performed {operation}"
+        )
 
     def get_schema(self) -> str:
         return "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float)"

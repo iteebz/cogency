@@ -2,6 +2,13 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from cogency.tools.base import BaseTool
+from cogency.utils.errors import (
+    ValidationError,
+    ToolError,
+    handle_tool_exception,
+    validate_required_params,
+    create_success_response,
+)
 
 
 class FileManagerTool(BaseTool):
@@ -28,17 +35,25 @@ class FileManagerTool(BaseTool):
     def _safe_path(self, rel_path: str) -> Path:
         """Ensure path is within base directory to prevent directory traversal."""
         if not rel_path or rel_path.strip() == "":
-            raise ValueError("Path cannot be empty")
+            raise ValidationError(
+                "Path cannot be empty",
+                error_code="EMPTY_PATH"
+            )
 
         # Normalize the path and resolve it relative to base_dir
         path = (self.base_dir / rel_path).resolve()
 
         # Security check: ensure path is within base_dir
         if not str(path).startswith(str(self.base_dir)):
-            raise ValueError(f"Unsafe path access attempted: {rel_path}")
+            raise ValidationError(
+                f"Unsafe path access attempted: {rel_path}",
+                error_code="PATH_TRAVERSAL_ATTEMPT",
+                details={"attempted_path": rel_path, "base_dir": str(self.base_dir)}
+            )
 
         return path
 
+    @handle_tool_exception
     def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
         """Execute file operations based on action type.
 
@@ -50,76 +65,105 @@ class FileManagerTool(BaseTool):
         Returns:
             Dict containing operation results or error information
         """
-        try:
-            if action == "create_file":
-                return self._create_file(filename, content)
-            elif action == "read_file":
-                return self._read_file(filename)
-            elif action == "list_files":
-                return self._list_files(filename if filename else ".")
-            elif action == "delete_file":
-                return self._delete_file(filename)
-            else:
-                return {
-                    "error": f"Unknown action: {action}. Available: create_file, read_file, list_files, delete_file"
-                }
+        valid_actions = ["create_file", "read_file", "list_files", "delete_file"]
+        
+        if action not in valid_actions:
+            raise ValidationError(
+                f"Unknown action: {action}",
+                error_code="INVALID_ACTION",
+                details={"valid_actions": valid_actions, "provided_action": action}
+            )
 
-        except Exception as e:
-            return {"error": str(e)}
+        if action == "create_file":
+            return self._create_file(filename, content)
+        elif action == "read_file":
+            return self._read_file(filename)
+        elif action == "list_files":
+            return self._list_files(filename if filename else ".")
+        elif action == "delete_file":
+            return self._delete_file(filename)
 
     def _create_file(self, filename: str, content: str) -> Dict[str, Any]:
         """Create a file with content."""
-        if not filename:
-            return {"error": "Filename is required for create_file"}
+        validate_required_params({"filename": filename}, ["filename"], self.name)
 
         path = self._safe_path(filename)
 
-        # Create parent directories if they don't exist
-        path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            # Create parent directories if they don't exist
+            path.parent.mkdir(parents=True, exist_ok=True)
+            # Write content to file
+            path.write_text(content, encoding="utf-8")
+        except Exception as e:
+            raise ToolError(
+                f"Failed to create file {filename}: {str(e)}",
+                error_code="FILE_CREATE_FAILED",
+                details={"filename": filename, "content_length": len(content)}
+            )
 
-        # Write content to file
-        path.write_text(content, encoding="utf-8")
-
-        return {
-            "status": "created",
-            "path": str(path.relative_to(self.base_dir)),
-            "size": len(content),
-            "message": f"Created file: {filename}",
-        }
+        return create_success_response(
+            {
+                "path": str(path.relative_to(self.base_dir)),
+                "size": len(content),
+            },
+            f"Created file: {filename}"
+        )
 
     def _read_file(self, filename: str) -> Dict[str, Any]:
         """Read a file's content."""
-        if not filename:
-            return {"error": "Filename is required for read_file"}
+        validate_required_params({"filename": filename}, ["filename"], self.name)
 
         path = self._safe_path(filename)
 
         if not path.exists():
-            return {"error": f"File not found: {filename}"}
+            raise ToolError(
+                f"File not found: {filename}",
+                error_code="FILE_NOT_FOUND",
+                details={"filename": filename}
+            )
 
         if not path.is_file():
-            return {"error": f"Path is not a file: {filename}"}
+            raise ToolError(
+                f"Path is not a file: {filename}",
+                error_code="NOT_A_FILE",
+                details={"filename": filename, "path_type": "directory" if path.is_dir() else "unknown"}
+            )
 
         try:
             content = path.read_text(encoding="utf-8")
-            return {
+        except Exception as e:
+            raise ToolError(
+                f"Failed to read file {filename}: {str(e)}",
+                error_code="FILE_READ_FAILED",
+                details={"filename": filename}
+            )
+
+        return create_success_response(
+            {
                 "content": content,
                 "path": str(path.relative_to(self.base_dir)),
                 "size": len(content),
-                "message": f"Read file: {filename}",
-            }
-        except Exception as e:
-            return {"error": f"Failed to read file {filename}: {str(e)}"}
+            },
+            f"Read file: {filename}"
+        )
 
     def _list_files(self, directory: str = ".") -> Dict[str, Any]:
         """List files and directories."""
         path = self._safe_path(directory)
 
         if not path.exists():
-            return {"error": f"Directory not found: {directory}"}
+            raise ToolError(
+                f"Directory not found: {directory}",
+                error_code="DIRECTORY_NOT_FOUND",
+                details={"directory": directory}
+            )
 
         if not path.is_dir():
-            return {"error": f"Path is not a directory: {directory}"}
+            raise ToolError(
+                f"Path is not a directory: {directory}",
+                error_code="NOT_A_DIRECTORY",
+                details={"directory": directory, "path_type": "file" if path.is_file() else "unknown"}
+            )
 
         try:
             items = []
@@ -133,38 +177,57 @@ class FileManagerTool(BaseTool):
                         "size": item.stat().st_size if item.is_file() else None,
                     }
                 )
+        except Exception as e:
+            raise ToolError(
+                f"Failed to list directory {directory}: {str(e)}",
+                error_code="DIRECTORY_LIST_FAILED",
+                details={"directory": directory}
+            )
 
-            return {
+        return create_success_response(
+            {
                 "items": items,
                 "directory": directory,
                 "total": len(items),
-                "message": f"Listed {len(items)} items in {directory}",
-            }
-        except Exception as e:
-            return {"error": f"Failed to list directory {directory}: {str(e)}"}
+            },
+            f"Listed {len(items)} items in {directory}"
+        )
 
     def _delete_file(self, filename: str) -> Dict[str, Any]:
         """Delete a file."""
-        if not filename:
-            return {"error": "Filename is required for delete_file"}
+        validate_required_params({"filename": filename}, ["filename"], self.name)
 
         path = self._safe_path(filename)
 
         if not path.exists():
-            return {"error": f"File not found: {filename}"}
+            raise ToolError(
+                f"File not found: {filename}",
+                error_code="FILE_NOT_FOUND",
+                details={"filename": filename}
+            )
 
         if not path.is_file():
-            return {"error": f"Path is not a file: {filename}"}
+            raise ToolError(
+                f"Path is not a file: {filename}",
+                error_code="NOT_A_FILE",
+                details={"filename": filename, "path_type": "directory" if path.is_dir() else "unknown"}
+            )
 
         try:
             path.unlink()
-            return {
-                "status": "deleted",
-                "path": str(path.relative_to(self.base_dir)),
-                "message": f"Deleted file: {filename}",
-            }
         except Exception as e:
-            return {"error": f"Failed to delete file {filename}: {str(e)}"}
+            raise ToolError(
+                f"Failed to delete file {filename}: {str(e)}",
+                error_code="FILE_DELETE_FAILED",
+                details={"filename": filename}
+            )
+
+        return create_success_response(
+            {
+                "path": str(path.relative_to(self.base_dir)),
+            },
+            f"Deleted file: {filename}"
+        )
 
     def get_schema(self) -> str:
         """Return tool call schema for LLM formatting."""
