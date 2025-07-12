@@ -29,7 +29,7 @@ agent = Agent(
 )
 
 # Execute agent
-result = agent.run("What is 15 * 23?", trace=True)
+result = agent.run("What is 15 * 23?", print_trace=True)
 print(result["response"])
 ```
 
