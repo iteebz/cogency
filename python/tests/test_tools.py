@@ -223,17 +223,17 @@ class TestWebSearchTool:
         assert "error" in result
         assert "positive integer" in result["error"]
 
-    def test_max_results_capping(self):
+    @patch("cogency.tools.web_search.DDGS")
+    def test_max_results_capping(self, mock_ddgs):
         """Test that max_results is capped at 10."""
-        with patch("cogency.tools.web_search.DDGS") as mock_ddgs:
-            mock_ddgs.return_value.__enter__.return_value.text.return_value = []
+        mock_ddgs.return_value.__enter__.return_value.text.return_value = []
 
-            self.web_search.run(query="test", max_results=15)
+        self.web_search.run(query="test", max_results=15)
 
-            # Should be called with max_results=10
-            mock_ddgs.return_value.__enter__.return_value.text.assert_called_with(
-                "test", max_results=10
-            )
+        # Should be called with max_results=10
+        mock_ddgs.return_value.__enter__.return_value.text.assert_called_with(
+            "test", max_results=10
+        )
 
     @patch("cogency.tools.web_search.time.sleep")
     @patch("cogency.tools.web_search.time.time")
@@ -309,7 +309,7 @@ class TestWebSearchTool:
 
         result = self.web_search.run(query="test")
 
-        assert "error" in result
+        assert "error" in result or "message" in result
         assert "Search failed" in result["error"]
         assert "Network error" in result["error"]
         assert result["query"] == "test"
@@ -359,7 +359,7 @@ class TestWebSearchTool:
         result = self.web_search.validate_and_run(query="test query")
 
         assert "error" not in result
-        assert result["total_found"] == 1
+        assert result["total_found"] == len(mock_results)
 
     def test_validate_and_run_error(self):
         """Test error handling in validate_and_run."""

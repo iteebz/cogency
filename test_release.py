@@ -132,7 +132,7 @@ def main():
     print(f"📊 Tests passed: {passed}/{len(tests)}")
     
     if passed == len(tests):
-        print("🎉 All tests passed! Cogency v0.2.2 is ready for release!")
+        print("🎉 All tests passed! Cogency v0.2.3 is ready for release!")
         return True
     else:
         print("🔧 Some tests failed. Please fix before release.")

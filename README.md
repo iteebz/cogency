@@ -17,7 +17,7 @@ from cogency.llm import GeminiLLM
 from cogency.tools import CalculatorTool, WebSearchTool, FileManagerTool
 
 # Instantiate agent
-llm = GeminiLLM(api_keys="your-key")  # v0.2.2+ cleaner interface
+llm = GeminiLLM(api_keys="your-key")
 agent = Agent(
     name="MyAgent", 
     llm=llm, 

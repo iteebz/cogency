@@ -81,7 +81,7 @@ from cogency.llm import GeminiLLM
 # Single API key
 llm = GeminiLLM(api_keys="your-key")
 
-# Multiple keys with automatic rotation (v0.2.2+)
+# Or multiple keys with automatic rotation
 llm = GeminiLLM(api_keys=["key1", "key2", "key3"])
 
 # Legacy interface (still supported)

@@ -34,18 +34,10 @@ class WebSearchTool(BaseTool):
 
         try:
             # Perform search
-            with DDGS() as ddgs:
-                results = list(ddgs.text(query, max_results=max_results))
+            ddgs = DDGS()
+            results = list(ddgs.text(query, max_results=max_results))
 
             self._last_search_time = time.time()
-
-            if not results:
-                return {
-                    "results": [],
-                    "query": query,
-                    "total_found": 0,
-                    "message": "No results found for your query",
-                }
 
             # Format results
             formatted_results = []
@@ -57,6 +49,14 @@ class WebSearchTool(BaseTool):
                         "url": result.get("href", "No URL"),
                     }
                 )
+            
+            if not formatted_results:
+                return {
+                    "results": [],
+                    "query": query,
+                    "total_found": 0,
+                    "message": "No results found for your query",
+                }
 
             return {
                 "results": formatted_results,
