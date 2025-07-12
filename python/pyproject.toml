@@ -29,9 +29,11 @@ dependencies = [
     "pydantic>=2.0",
     "typing-extensions>=4.0",
     "langgraph",
-    "langchain-google-genai",
+    "google-generativeai",
+    "anthropic",
+    "openai",
+    "mistralai",
     "ddgs>=9.0.0",
-    "lxml>=4.9.0",
     "numpy>=1.24.0",
     "python-dotenv>=1.0.0"
 ]

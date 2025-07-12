@@ -1,7 +1,6 @@
-from typing import Dict, List, Optional, Union
+from typing import AsyncIterator, Dict, List, Optional, Union
 
-from langchain_core.language_models import BaseChatModel
-from langchain_google_genai import ChatGoogleGenerativeAI
+import google.generativeai as genai
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
@@ -42,7 +41,7 @@ class GeminiLLM(BaseLLM):
         self.temperature = temperature
         self.max_retries = max_retries
 
-        # Build kwargs for ChatGoogleGenerativeAI
+        # Build kwargs for Gemini client
         self.kwargs = {
             "timeout": timeout,
             "temperature": temperature,
@@ -50,12 +49,12 @@ class GeminiLLM(BaseLLM):
             **kwargs,
         }
 
-        self._llm_instances: Dict[str, BaseChatModel] = {}  # Cache for LLM instances
-        self._current_llm: Optional[BaseChatModel] = None  # Currently active LLM instance
-        self._init_current_llm()  # Initialize the first LLM instance
+        self._model_instances: Dict[str, genai.GenerativeModel] = {}  # Cache for model instances
+        self._current_model: Optional[genai.GenerativeModel] = None  # Currently active model instance
+        self._init_current_model()  # Initialize the first model instance
 
-    def _init_current_llm(self):
-        """Initializes or retrieves the current LLM instance based on the active key."""
+    def _init_current_model(self):
+        """Initializes or retrieves the current model instance based on the active key."""
         current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
 
         if not current_key:
@@ -64,21 +63,50 @@ class GeminiLLM(BaseLLM):
                 error_code="NO_CURRENT_API_KEY",
             )
 
-        if current_key not in self._llm_instances:
-            self._llm_instances[current_key] = ChatGoogleGenerativeAI(
-                model=self.model, google_api_key=current_key, **self.kwargs
+        if current_key not in self._model_instances:
+            genai.configure(api_key=current_key)
+            self._model_instances[current_key] = genai.GenerativeModel(
+                model_name=self.model,
+                generation_config=genai.types.GenerationConfig(
+                    temperature=self.temperature,
+                    **{k: v for k, v in self.kwargs.items() if k != "temperature"}
+                )
             )
 
-        self._current_llm = self._llm_instances[current_key]
+        self._current_model = self._model_instances[current_key]
 
     @interruptable
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        # Rotate key and update current LLM if a rotator is used
+        # Rotate key and update current model if a rotator is used
         if self.key_rotator:
-            self._init_current_llm()
+            self._init_current_model()
 
-        if not self._current_llm:
-            raise RuntimeError("LLM instance not initialized.")
+        if not self._current_model:
+            raise RuntimeError("Gemini model not initialized.")
 
-        res = await self._current_llm.ainvoke(messages, **kwargs)
-        return res.content
+        # Convert messages to Gemini format (simple text concatenation for now)
+        # Gemini's chat format is different - it expects conversation history
+        prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+
+        res = await self._current_model.generate_content_async(prompt, **kwargs)
+        return res.text
+
+    @interruptable
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+        # Rotate key and update current model if a rotator is used
+        if self.key_rotator:
+            self._init_current_model()
+
+        if not self._current_model:
+            raise RuntimeError("Gemini model not initialized.")
+
+        # Convert messages to Gemini format (simple text concatenation for now)
+        prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+
+        response = await self._current_model.generate_content_async(
+            prompt, stream=True, **kwargs
+        )
+        
+        async for chunk in response:
+            if chunk.text:
+                yield chunk.text

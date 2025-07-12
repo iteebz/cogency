@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List
+from typing import AsyncIterator, Dict, List
 
 
 class BaseLLM(ABC):
@@ -19,5 +19,18 @@ class BaseLLM(ABC):
 
         Returns:
             String response from the LLM
+        """
+        pass
+
+    @abstractmethod
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+        """Generate a streaming response from the LLM given a list of messages.
+
+        Args:
+            messages: List of message dictionaries with 'role' and 'content' keys
+            **kwargs: Additional parameters for the LLM call
+
+        Yields:
+            String chunks from the LLM response
         """
         pass
