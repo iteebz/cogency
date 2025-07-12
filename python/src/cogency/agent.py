@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from langgraph.graph import END, StateGraph
 
 from cogency.context import Context
+from cogency.embed import BaseEmbed
 from cogency.llm import BaseLLM
 from cogency.nodes import act, plan, reason, reflect, respond
 from cogency.tools.base import BaseTool
@@ -17,11 +18,13 @@ class Agent:
         name: str,
         llm: BaseLLM,
         tools: Optional[List[BaseTool]] = None,
+        embed: Optional[BaseEmbed] = None,
         max_depth: int = 10,
     ):
         self.name = name
         self.llm = llm
         self.tools = tools if tools is not None else []
+        self.embed = embed
         self.max_depth = max_depth
 
         self.workflow = StateGraph(AgentState)
