@@ -23,7 +23,7 @@ Respond with JSON only - no other text."""
 
 
 @trace_node
-def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
+async def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
@@ -38,7 +38,7 @@ def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
     system_prompt = PLAN_PROMPT.format(tool_names=tool_info)
     messages.insert(0, {"role": "system", "content": system_prompt})
 
-    llm_response = llm.invoke(messages)
+    llm_response = await llm.invoke(messages)
 
     # Store the raw response for routing, but don't add to conversation yet
     context.add_message("assistant", llm_response)

@@ -23,13 +23,13 @@ IMPORTANT: Be decisive. Most single-tool requests should be marked complete afte
 
 
 @trace_node
-def reflect(state: AgentState, llm: BaseLLM) -> AgentState:
+async def reflect(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
     messages = list(context.messages)
 
     messages.insert(0, {"role": "system", "content": REFLECT_PROMPT})
 
-    llm_response = llm.invoke(messages)
+    llm_response = await llm.invoke(messages)
     context.add_message("assistant", llm_response)
 
     return {"context": context, "execution_trace": state["execution_trace"]}

@@ -15,15 +15,15 @@ class BaseTool(ABC):
         self.name = name
         self.description = description
 
-    def validate_and_run(self, **kwargs: Any) -> Dict[str, Any]:
+    async def validate_and_run(self, **kwargs: Any) -> Dict[str, Any]:
         """Validate parameters then run the tool."""
         try:
-            return self.run(**kwargs)
+            return await self.run(**kwargs)
         except Exception as e:
             return {"error": str(e)}
 
     @abstractmethod
-    def run(self, **kwargs: Any) -> Dict[str, Any]:
+    async def run(self, **kwargs: Any) -> Dict[str, Any]:
         """Execute the tool with the given parameters.
 
         Returns:

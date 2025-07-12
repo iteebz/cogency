@@ -100,7 +100,8 @@ class TestGeminiLLM:
                 GeminiLLM(api_keys=["key1", "key2"])
 
     @patch('cogency.llm.gemini.ChatGoogleGenerativeAI')
-    def test_invoke_single_key(self, mock_chat_llm):
+    @pytest.mark.asyncio
+    async def test_invoke_single_key(self, mock_chat_llm):
         """Test invoke method with single key."""
         mock_instance = Mock()
         mock_response = Mock()
@@ -111,13 +112,14 @@ class TestGeminiLLM:
         llm = GeminiLLM(api_keys="test-key")
         
         messages = [{"role": "user", "content": "Hello"}]
-        result = llm.invoke(messages)
+        result = await llm.invoke(messages)
         
         assert result == "LLM response"
         mock_instance.invoke.assert_called_once_with(messages)
 
     @patch('cogency.llm.gemini.ChatGoogleGenerativeAI')
-    def test_invoke_with_key_rotation(self, mock_chat_llm):
+    @pytest.mark.asyncio
+    async def test_invoke_with_key_rotation(self, mock_chat_llm):
         """Test invoke method with key rotation."""
         mock_instance1 = Mock()
         mock_instance2 = Mock()
@@ -134,15 +136,16 @@ class TestGeminiLLM:
         messages = [{"role": "user", "content": "Hello"}]
         
         # First invoke
-        result1 = llm.invoke(messages)
+        result1 = await llm.invoke(messages)
         assert result1 == "LLM response"
         
         # Second invoke should potentially use different key
-        result2 = llm.invoke(messages)
+        result2 = await llm.invoke(messages)
         assert result2 == "LLM response"
 
     @patch('cogency.llm.gemini.ChatGoogleGenerativeAI')
-    def test_invoke_no_current_llm(self, mock_chat_llm):
+    @pytest.mark.asyncio
+    async def test_invoke_no_current_llm(self, mock_chat_llm):
         """Test invoke method when current LLM is None."""
         mock_chat_llm.return_value = None
         
@@ -152,7 +155,7 @@ class TestGeminiLLM:
         messages = [{"role": "user", "content": "Hello"}]
         
         with pytest.raises(RuntimeError, match="LLM instance not initialized"):
-            llm.invoke(messages)
+            await llm.invoke(messages)
 
     @patch('cogency.llm.gemini.ChatGoogleGenerativeAI')
     def test_llm_instance_caching(self, mock_chat_llm):
@@ -187,7 +190,8 @@ class TestGeminiLLM:
         assert mock_chat_llm.call_count == 2
 
     @patch('cogency.llm.gemini.ChatGoogleGenerativeAI')
-    def test_invoke_with_additional_kwargs(self, mock_chat_llm):
+    @pytest.mark.asyncio
+    async def test_invoke_with_additional_kwargs(self, mock_chat_llm):
         """Test invoke method with additional keyword arguments."""
         mock_instance = Mock()
         mock_response = Mock()
@@ -200,7 +204,7 @@ class TestGeminiLLM:
         messages = [{"role": "user", "content": "Hello"}]
         additional_kwargs = {"stream": True, "max_tokens": 100}
         
-        result = llm.invoke(messages, **additional_kwargs)
+        result = await llm.invoke(messages, **additional_kwargs)
         
         assert result == "LLM response"
         mock_instance.invoke.assert_called_once_with(messages, **additional_kwargs)

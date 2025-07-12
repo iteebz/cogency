@@ -54,7 +54,7 @@ class FileManagerTool(BaseTool):
         return path
 
     @handle_tool_exception
-    def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
+    async def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
         """Execute file operations based on action type.
 
         Args:

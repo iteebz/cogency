@@ -18,7 +18,7 @@ class CalculatorTool(BaseTool):
         )
 
     @handle_tool_exception
-    def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
+    async def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
         # Validate operation type
         if not operation or operation not in ["add", "subtract", "multiply", "divide", "square_root"]:
             raise ValidationError(

@@ -9,7 +9,7 @@ from cogency.llm.base import BaseLLM
 class MockLLM(BaseLLM):
     """Mock LLM for testing."""
     
-    def invoke(self, messages, **kwargs):
+    async def invoke(self, messages, **kwargs):
         return "Mock response"
 
 
@@ -21,17 +21,19 @@ class TestAgentContext:
         
         assert agent.context is None
 
-    def test_agent_stores_context_after_run(self):
+    @pytest.mark.asyncio
+    async def test_agent_stores_context_after_run(self):
         """Test that agent stores context after running."""
         llm = MockLLM()
         agent = Agent("test", llm)
         
-        result = agent.run("test message")
+        result = await agent.run("test message")
         
         assert agent.context is not None
         assert agent.context.current_input == "test message"
 
-    def test_agent_run_with_custom_context(self):
+    @pytest.mark.asyncio
+    async def test_agent_run_with_custom_context(self):
         """Test agent.run with custom context."""
         llm = MockLLM()
         agent = Agent("test", llm)
@@ -41,14 +43,15 @@ class TestAgentContext:
         custom_context.add_message("user", "previous message")
         custom_context.add_message("assistant", "previous response")
         
-        result = agent.run("new message", context=custom_context)
+        result = await agent.run("new message", context=custom_context)
         
         # Agent should use the provided context
         assert agent.context is custom_context
         assert agent.context.current_input == "new message"
         assert len(agent.context.messages) >= 2  # Should contain previous messages
 
-    def test_context_reuse_across_runs(self):
+    @pytest.mark.asyncio
+    async def test_context_reuse_across_runs(self):
         """Test reusing context across multiple agent runs."""
         llm = MockLLM()
         agent = Agent("test", llm)
@@ -56,18 +59,19 @@ class TestAgentContext:
         context = Context("first", max_history=10)
         
         # First run
-        agent.run("first message", context=context)
+        await agent.run("first message", context=context)
         first_message_count = len(context.messages)
         
         # Second run with same context
-        agent.run("second message", context=context)
+        await agent.run("second message", context=context)
         second_message_count = len(context.messages)
         
         # Should accumulate messages
         assert second_message_count > first_message_count
         assert agent.context is context
 
-    def test_context_sliding_window_with_agent(self):
+    @pytest.mark.asyncio
+    async def test_context_sliding_window_with_agent(self):
         """Test that sliding window works when using context with agent."""
         llm = MockLLM()
         agent = Agent("test", llm)
@@ -79,30 +83,32 @@ class TestAgentContext:
         context.add_message("assistant", "resp1")
         
         # Run agent - should add more messages and trigger sliding window
-        agent.run("new message", context=context)
+        await agent.run("new message", context=context)
         
         # Should respect the sliding window limit
         assert len(context.messages) <= 3
 
-    def test_context_property_persists_between_calls(self):
+    @pytest.mark.asyncio
+    async def test_context_property_persists_between_calls(self):
         """Test that context property persists between property accesses."""
         llm = MockLLM()
         agent = Agent("test", llm)
         
-        agent.run("test message")
+        await agent.run("test message")
         
         # Multiple property accesses should return same object
         context1 = agent.context
         context2 = agent.context
         assert context1 is context2
 
-    def test_agent_updates_current_input_on_existing_context(self):
+    @pytest.mark.asyncio
+    async def test_agent_updates_current_input_on_existing_context(self):
         """Test that agent updates current_input when reusing context."""
         llm = MockLLM()
         agent = Agent("test", llm)
         
         context = Context("original input")
-        agent.run("new input", context=context)
+        await agent.run("new input", context=context)
         
         assert context.current_input == "new input"
         assert agent.context.current_input == "new input"

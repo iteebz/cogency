@@ -31,7 +31,7 @@ ERROR HANDLING:
 
 
 @trace_node
-def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
+async def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
     context = state["context"]
 
     # Build proper message sequence: include conversation history + current input
@@ -61,7 +61,7 @@ def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState
     if tool_instructions:
         messages.insert(0, {"role": "system", "content": tool_instructions})
 
-    result = llm.invoke(messages)
+    result = await llm.invoke(messages)
 
     if isinstance(result, list):
         result_str = " ".join(result)  # Join list elements into a single string

@@ -75,7 +75,7 @@ class GeminiLLM(BaseLLM):
 
         self._current_llm = self._llm_instances[current_key]
 
-    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         # Rotate key and update current LLM if a rotator is used
         if self.key_rotator:
             self._init_current_llm()
@@ -83,5 +83,5 @@ class GeminiLLM(BaseLLM):
         if not self._current_llm:
             raise RuntimeError("LLM instance not initialized.")
 
-        res = self._current_llm.invoke(messages, **kwargs)
+        res = await self._current_llm.ainvoke(messages, **kwargs)
         return res.content

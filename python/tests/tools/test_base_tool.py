@@ -11,7 +11,7 @@ class ConcreteTool(BaseTool):
     def __init__(self):
         super().__init__(name="test_tool", description="A test tool")
 
-    def run(self, **kwargs):
+    async def run(self, **kwargs):
         if "error" in kwargs:
             raise ValueError("Test error")
         return {"result": "success", "args": kwargs}
@@ -35,25 +35,28 @@ class TestBaseTool:
         assert self.tool.name == "test_tool"
         assert self.tool.description == "A test tool"
 
-    def test_validate_and_run_success(self):
+    @pytest.mark.asyncio
+    async def test_validate_and_run_success(self):
         """Test successful validation and run."""
-        result = self.tool.validate_and_run(arg1="test", arg2=123)
+        result = await self.tool.validate_and_run(arg1="test", arg2=123)
 
         assert result["result"] == "success"
         assert result["args"]["arg1"] == "test"
         assert result["args"]["arg2"] == 123
 
-    def test_validate_and_run_error(self):
+    @pytest.mark.asyncio
+    async def test_validate_and_run_error(self):
         """Test error handling in validate_and_run."""
-        result = self.tool.validate_and_run(error=True)
+        result = await self.tool.validate_and_run(error=True)
 
         assert "error" in result
         assert result["error"] == "Test error"
 
-    def test_abstract_methods(self):
+    @pytest.mark.asyncio
+    async def test_abstract_methods(self):
         """Test that abstract methods are implemented."""
         # These should not raise NotImplementedError
-        self.tool.run()
+        await self.tool.run()
         self.tool.get_schema()
         self.tool.get_usage_examples()
 
@@ -89,12 +92,14 @@ class TestBaseTool:
         assert all(isinstance(example, str) for example in examples)
         assert all(self.tool.name in example for example in examples)
 
-    def test_run_returns_dict(self):
+    @pytest.mark.asyncio
+    async def test_run_returns_dict(self):
         """Test that run method returns a dictionary."""
-        result = self.tool.run()
+        result = await self.tool.run()
         assert isinstance(result, dict)
 
-    def test_validate_and_run_returns_dict(self):
+    @pytest.mark.asyncio
+    async def test_validate_and_run_returns_dict(self):
         """Test that validate_and_run method returns a dictionary."""
-        result = self.tool.validate_and_run()
+        result = await self.tool.validate_and_run()
         assert isinstance(result, dict)

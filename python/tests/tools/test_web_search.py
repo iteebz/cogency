@@ -15,46 +15,52 @@ class TestWebSearchTool:
         """Setup test fixtures."""
         self.web_search = WebSearchTool()
 
-    def test_web_search_initialization(self):
+    @pytest.mark.asyncio
+    async def test_web_search_initialization(self):
         """Test web search initialization."""
         assert self.web_search.name == "web_search"
         assert "DuckDuckGo" in self.web_search.description
         assert self.web_search._last_search_time == 0
         assert self.web_search._min_delay >= 0  # Should be positive
 
-    def test_empty_query(self):
+    @pytest.mark.asyncio
+    async def test_empty_query(self):
         """Test empty query handling."""
-        result = self.web_search.run(query="")
+        result = await self.web_search.run(query="")
 
         assert "error" in result
         assert result["error_code"] == "EMPTY_PARAMETERS"
         assert result["tool"] == "web_search"
 
-    def test_whitespace_query(self):
+    @pytest.mark.asyncio
+    async def test_whitespace_query(self):
         """Test whitespace-only query handling."""
-        result = self.web_search.run(query="   ")
+        result = await self.web_search.run(query="   ")
 
         assert "error" in result
         assert result["error_code"] == "EMPTY_PARAMETERS"
 
-    def test_invalid_max_results(self):
+    @pytest.mark.asyncio
+    async def test_invalid_max_results(self):
         """Test invalid max_results parameter."""
-        result = self.web_search.run(query="test", max_results=0)
+        result = await self.web_search.run(query="test", max_results=0)
 
         assert "error" in result
         assert result["error_code"] == "INVALID_MAX_RESULTS"
         assert "details" in result
 
-    def test_negative_max_results(self):
+    @pytest.mark.asyncio
+    async def test_negative_max_results(self):
         """Test negative max_results parameter."""
-        result = self.web_search.run(query="test", max_results=-1)
+        result = await self.web_search.run(query="test", max_results=-1)
 
         assert "error" in result
         assert result["error_code"] == "INVALID_MAX_RESULTS"
 
-    def test_string_max_results(self):
+    @pytest.mark.asyncio
+    async def test_string_max_results(self):
         """Test string max_results parameter."""
-        result = self.web_search.run(query="test", max_results="invalid")
+        result = await self.web_search.run(query="test", max_results="invalid")
 
         assert "error" in result
         assert result["error_code"] == "INVALID_MAX_RESULTS"
@@ -106,7 +112,7 @@ class TestWebSearchTool:
         ]
         mock_ddgs.return_value.text.return_value = mock_results
 
-        result = self.web_search.run(query="test query")
+        result = await self.web_search.run(query="test query")
 
         assert result["success"] is True
         assert result["query"] == "test query"
@@ -121,7 +127,7 @@ class TestWebSearchTool:
         """Test search with no results."""
         mock_ddgs.return_value.text.return_value = []
 
-        result = self.web_search.run(query="nonexistent query")
+        result = await self.web_search.run(query="nonexistent query")
 
         assert result["success"] is True
         assert result["query"] == "nonexistent query"
@@ -134,7 +140,7 @@ class TestWebSearchTool:
         """Test search exception handling."""
         mock_ddgs.return_value.text.side_effect = Exception("Network error")
 
-        result = self.web_search.run(query="test")
+        result = await self.web_search.run(query="test")
 
         assert "error" in result
         assert result["error_code"] == "SEARCH_FAILED"
@@ -153,14 +159,15 @@ class TestWebSearchTool:
         ]
         mock_ddgs.return_value.text.return_value = mock_results
 
-        result = self.web_search.run(query="test")
+        result = await self.web_search.run(query="test")
 
         assert result["success"] is True
         assert result["results"][0]["title"] == "Test Title"
         assert result["results"][0]["snippet"] == "No snippet available"
         assert result["results"][0]["url"] == "No URL"
 
-    def test_get_schema(self):
+    @pytest.mark.asyncio
+    async def test_get_schema(self):
         """Test get_schema method."""
         schema = self.web_search.get_schema()
 
@@ -168,7 +175,8 @@ class TestWebSearchTool:
         assert "query=" in schema
         assert "max_results=" in schema
 
-    def test_get_usage_examples(self):
+    @pytest.mark.asyncio
+    async def test_get_usage_examples(self):
         """Test get_usage_examples method."""
         examples = self.web_search.get_usage_examples()
 
@@ -182,14 +190,15 @@ class TestWebSearchTool:
         mock_results = [{"title": "Test", "body": "Test", "href": "https://test.com"}]
         mock_ddgs.return_value.text.return_value = mock_results
 
-        result = self.web_search.validate_and_run(query="test query")
+        result = await self.web_search.validate_and_run(query="test query")
 
         assert result["success"] is True
         assert result["total_found"] == len(mock_results)
 
-    def test_validate_and_run_error(self):
+    @pytest.mark.asyncio
+    async def test_validate_and_run_error(self):
         """Test error handling in validate_and_run."""
-        result = self.web_search.validate_and_run(query="", max_results=-1)
+        result = await self.web_search.validate_and_run(query="", max_results=-1)
 
         assert "error" in result
         assert result["error_code"] == "EMPTY_PARAMETERS"
@@ -222,7 +231,7 @@ class TestWebSearchTool:
         ]
         mock_ddgs.return_value.text.return_value = mock_results
 
-        result = self.web_search.run(query="popular topic", max_results=10)
+        result = await self.web_search.run(query="popular topic", max_results=10)
 
         assert result["success"] is True
         assert result["total_found"] == 20  # All results returned by DDGS
@@ -240,7 +249,7 @@ class TestWebSearchTool:
         ]
         mock_ddgs.return_value.text.return_value = mock_results
 
-        result = self.web_search.run(query="search 世界 🔍")
+        result = await self.web_search.run(query="search 世界 🔍")
 
         assert result["success"] is True
         assert result["query"] == "search 世界 🔍"

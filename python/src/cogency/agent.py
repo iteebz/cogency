@@ -28,13 +28,22 @@ class Agent:
         self.max_depth = max_depth
 
         self.workflow = StateGraph(AgentState)
-        self.workflow.add_node("plan", lambda state: plan(state, self.llm, self.tools))
-        self.workflow.add_node(
-            "reason", lambda state: reason(state, self.llm, self.tools)
-        )
-        self.workflow.add_node("act", lambda state: act(state, self.tools))
-        self.workflow.add_node("reflect", lambda state: reflect(state, self.llm))
-        self.workflow.add_node("respond", lambda state: respond(state, self.llm))
+        async def plan_node(state):
+            return await plan(state, self.llm, self.tools)
+        async def reason_node(state):
+            return await reason(state, self.llm, self.tools)
+        async def act_node(state):
+            return await act(state, self.tools)
+        async def reflect_node(state):
+            return await reflect(state, self.llm)
+        async def respond_node(state):
+            return await respond(state, self.llm)
+            
+        self.workflow.add_node("plan", plan_node)
+        self.workflow.add_node("reason", reason_node)
+        self.workflow.add_node("act", act_node)
+        self.workflow.add_node("reflect", reflect_node)
+        self.workflow.add_node("respond", respond_node)
 
         self.workflow.set_entry_point("plan")
 
@@ -56,7 +65,7 @@ class Agent:
         """Get the current context if available."""
         return getattr(self, '_context', None)
 
-    def run(
+    async def run(
         self, message: str, enable_trace: bool = False, print_trace: bool = False, context: Optional[Context] = None
     ) -> Dict[str, Any]:
         """Run agent with optional execution trace."""
@@ -88,7 +97,7 @@ class Agent:
         if print_trace:
             print("--- Execution Trace ---")
             final_state = None
-            for step in self.app.stream(initial_state, config=config):
+            async for step in self.app.astream(initial_state, config=config):
                 # Extract step info for real-time printing
                 for node_name, node_state in step.items():
                     if execution_trace and execution_trace.steps:
@@ -109,7 +118,7 @@ class Agent:
                             print(f"{node_label:<10} {summary}")
                 final_state = node_state
         else:
-            final_state = self.app.invoke(initial_state, config=config)
+            final_state = await self.app.ainvoke(initial_state, config=config)
 
         result = {
             "response": (

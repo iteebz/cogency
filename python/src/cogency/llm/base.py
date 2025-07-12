@@ -10,7 +10,7 @@ class BaseLLM(ABC):
         self.key_rotator = key_rotator
 
     @abstractmethod
-    def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         """Generate a response from the LLM given a list of messages.
 
         Args:

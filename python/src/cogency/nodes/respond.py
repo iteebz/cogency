@@ -21,7 +21,7 @@ TONE: Professional, helpful, and direct. Answer as if you're speaking to a colle
 
 
 @trace_node
-def respond(state: AgentState, llm: BaseLLM) -> AgentState:
+async def respond(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
 
     # Check if the last message is a direct response JSON
@@ -46,7 +46,7 @@ def respond(state: AgentState, llm: BaseLLM) -> AgentState:
     messages = list(context.messages)
     messages.insert(0, {"role": "system", "content": RESPOND_PROMPT})
 
-    llm_response = llm.invoke(messages)
+    llm_response = await llm.invoke(messages)
 
     # Replace the last message with the clean response
     context.messages[-1]["content"] = llm_response

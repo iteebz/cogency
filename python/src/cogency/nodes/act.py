@@ -5,7 +5,7 @@ from cogency.utils.parsing import extract_tool_call
 
 
 @trace_node
-def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
+async def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
     context = state["context"]
 
     # Get the last assistant message, which should contain the tool call
@@ -47,7 +47,7 @@ def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
 
         for tool in tools:
             if tool.name == tool_name:
-                tool_output = tool.validate_and_run(**parsed_args)
+                tool_output = await tool.validate_and_run(**parsed_args)
                 break
 
         context.add_message("system", str(tool_output))

@@ -12,96 +12,108 @@ class TestCalculatorTool:
         """Setup test fixtures."""
         self.calculator = CalculatorTool()
 
-    def test_calculator_initialization(self):
+    @pytest.mark.asyncio
+    async def test_calculator_initialization(self):
         """Test calculator initialization."""
         assert self.calculator.name == "calculator"
         assert "arithmetic" in self.calculator.description
 
-    def test_addition(self):
+    @pytest.mark.asyncio
+    async def test_addition(self):
         """Test addition operation."""
-        result = self.calculator.run(operation="add", x1=2, x2=3)
+        result = await self.calculator.run(operation="add", x1=2, x2=3)
 
         assert result["success"] is True
         assert result["result"] == 5
         assert result["operation"] == "add"
         assert "error" not in result
 
-    def test_subtraction(self):
+    @pytest.mark.asyncio
+    async def test_subtraction(self):
         """Test subtraction operation."""
-        result = self.calculator.run(operation="subtract", x1=10, x2=3)
+        result = await self.calculator.run(operation="subtract", x1=10, x2=3)
 
         assert result["success"] is True
         assert result["result"] == 7
         assert result["operation"] == "subtract"
 
-    def test_multiplication(self):
+    @pytest.mark.asyncio
+    async def test_multiplication(self):
         """Test multiplication operation."""
-        result = self.calculator.run(operation="multiply", x1=4, x2=5)
+        result = await self.calculator.run(operation="multiply", x1=4, x2=5)
 
         assert result["success"] is True
         assert result["result"] == 20
         assert result["operation"] == "multiply"
 
-    def test_division(self):
+    @pytest.mark.asyncio
+    async def test_division(self):
         """Test division operation."""
-        result = self.calculator.run(operation="divide", x1=10, x2=2)
+        result = await self.calculator.run(operation="divide", x1=10, x2=2)
 
         assert result["success"] is True
         assert result["result"] == 5.0
         assert result["operation"] == "divide"
 
-    def test_division_by_zero(self):
+    @pytest.mark.asyncio
+    async def test_division_by_zero(self):
         """Test division by zero error."""
-        result = self.calculator.run(operation="divide", x1=10, x2=0)
+        result = await self.calculator.run(operation="divide", x1=10, x2=0)
 
         assert "error" in result
         assert "error_code" in result
         assert result["error_code"] == "DIVISION_BY_ZERO"
         assert result["tool"] == "calculator"
 
-    def test_square_root(self):
+    @pytest.mark.asyncio
+    async def test_square_root(self):
         """Test square root operation."""
-        result = self.calculator.run(operation="square_root", x1=9)
+        result = await self.calculator.run(operation="square_root", x1=9)
 
         assert result["success"] is True
         assert result["result"] == 3.0
         assert result["operation"] == "square_root"
 
-    def test_square_root_negative(self):
+    @pytest.mark.asyncio
+    async def test_square_root_negative(self):
         """Test square root of negative number."""
-        result = self.calculator.run(operation="square_root", x1=-4)
+        result = await self.calculator.run(operation="square_root", x1=-4)
 
         assert "error" in result
         assert "error_code" in result
         assert result["error_code"] == "NEGATIVE_SQUARE_ROOT"
         assert "details" in result
 
-    def test_missing_parameters_add(self):
+    @pytest.mark.asyncio
+    async def test_missing_parameters_add(self):
         """Test missing parameters for addition."""
-        result = self.calculator.run(operation="add", x1=5)
+        result = await self.calculator.run(operation="add", x1=5)
 
         assert "error" in result
         assert result["error_code"] == "EMPTY_PARAMETERS"
         assert "x2" in result["details"]["empty_params"]
 
-    def test_missing_parameters_square_root(self):
+    @pytest.mark.asyncio
+    async def test_missing_parameters_square_root(self):
         """Test missing parameters for square root."""
-        result = self.calculator.run(operation="square_root")
+        result = await self.calculator.run(operation="square_root")
 
         assert "error" in result
         assert result["error_code"] == "EMPTY_PARAMETERS"
         assert "x1" in result["details"]["empty_params"]
 
-    def test_unsupported_operation(self):
+    @pytest.mark.asyncio
+    async def test_unsupported_operation(self):
         """Test unsupported operation."""
-        result = self.calculator.run(operation="power", x1=2, x2=3)
+        result = await self.calculator.run(operation="power", x1=2, x2=3)
 
         assert "error" in result
         assert result["error_code"] == "INVALID_OPERATION"
         assert "details" in result
         assert "valid_operations" in result["details"]
 
-    def test_get_schema(self):
+    @pytest.mark.asyncio
+    async def test_get_schema(self):
         """Test get_schema method."""
         schema = self.calculator.get_schema()
 
@@ -110,7 +122,8 @@ class TestCalculatorTool:
         assert "x1=" in schema
         assert "x2=" in schema
 
-    def test_get_usage_examples(self):
+    @pytest.mark.asyncio
+    async def test_get_usage_examples(self):
         """Test get_usage_examples method."""
         examples = self.calculator.get_usage_examples()
 
@@ -120,47 +133,52 @@ class TestCalculatorTool:
         assert any("multiply" in example for example in examples)
         assert any("square_root" in example for example in examples)
 
-    def test_validate_and_run_success(self):
+    @pytest.mark.asyncio
+    async def test_validate_and_run_success(self):
         """Test successful validation and run."""
-        result = self.calculator.validate_and_run(operation="add", x1=2, x2=3)
+        result = await self.calculator.validate_and_run(operation="add", x1=2, x2=3)
 
         assert result["success"] is True
         assert result["result"] == 5
 
-    def test_validate_and_run_error(self):
+    @pytest.mark.asyncio
+    async def test_validate_and_run_error(self):
         """Test error handling in validate_and_run."""
-        result = self.calculator.validate_and_run(operation="divide", x1=10, x2=0)
+        result = await self.calculator.validate_and_run(operation="divide", x1=10, x2=0)
 
         assert "error" in result
         assert result["error_code"] == "DIVISION_BY_ZERO"
 
-    def test_float_precision(self):
+    @pytest.mark.asyncio
+    async def test_float_precision(self):
         """Test floating point operations."""
-        result = self.calculator.run(operation="divide", x1=1, x2=3)
+        result = await self.calculator.run(operation="divide", x1=1, x2=3)
         
         assert result["success"] is True
         assert abs(result["result"] - 0.3333333333333333) < 1e-10
 
-    def test_large_numbers(self):
+    @pytest.mark.asyncio
+    async def test_large_numbers(self):
         """Test operations with large numbers."""
-        result = self.calculator.run(operation="multiply", x1=1e6, x2=1e6)
+        result = await self.calculator.run(operation="multiply", x1=1e6, x2=1e6)
         
         assert result["success"] is True
         assert result["result"] == 1e12
 
-    def test_zero_operations(self):
+    @pytest.mark.asyncio
+    async def test_zero_operations(self):
         """Test operations involving zero."""
         # Zero addition
-        result = self.calculator.run(operation="add", x1=0, x2=5)
+        result = await self.calculator.run(operation="add", x1=0, x2=5)
         assert result["success"] is True
         assert result["result"] == 5
         
         # Zero multiplication
-        result = self.calculator.run(operation="multiply", x1=0, x2=100)
+        result = await self.calculator.run(operation="multiply", x1=0, x2=100)
         assert result["success"] is True
         assert result["result"] == 0
         
         # Square root of zero
-        result = self.calculator.run(operation="square_root", x1=0)
+        result = await self.calculator.run(operation="square_root", x1=0)
         assert result["success"] is True
         assert result["result"] == 0

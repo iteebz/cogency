@@ -30,7 +30,7 @@ class WebSearchTool(BaseTool):
             self._min_delay = 1.0
 
     @handle_tool_exception
-    def run(self, query: str, max_results: int = None) -> Dict[str, Any]:
+    async def run(self, query: str, max_results: int = None) -> Dict[str, Any]:
         # Get default max_results from config if not provided
         if max_results is None:
             try:
@@ -52,10 +52,11 @@ class WebSearchTool(BaseTool):
             max_results = 10  # Cap at 10 results
 
         # Rate limiting
+        import asyncio
         current_time = time.time()
         time_since_last = current_time - self._last_search_time
         if time_since_last < self._min_delay:
-            time.sleep(self._min_delay - time_since_last)
+            await asyncio.sleep(self._min_delay - time_since_last)
 
         # Perform search
         ddgs = DDGS()

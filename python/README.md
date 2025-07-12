@@ -28,7 +28,7 @@ agent = Agent(
 )
 
 # Execute with tracing
-result = agent.run("What is 15 * 23?", enable_trace=True, print_trace=True)
+result = await agent.run("What is 15 * 23?", enable_trace=True, print_trace=True)
 print(result["response"])
 ```
 
@@ -100,15 +100,15 @@ from cogency.context import Context
 context = Context("Hello", max_history=10)  # Keep last 10 messages
 
 # Run multiple interactions with shared context
-result1 = agent.run("What's 2+2?", context=context)
-result2 = agent.run("What about 3+3?", context=context)  # Remembers previous exchange
+result1 = await agent.run("What's 2+2?", context=context)
+result2 = await agent.run("What about 3+3?", context=context)  # Remembers previous exchange
 
 # Access conversation state
 print(f"Messages in context: {len(agent.context.messages)}")
 print(f"Full conversation: {agent.context.get_clean_conversation()}")
 
 # Continue conversation across multiple runs
-result3 = agent.run("Add those two results together", context=context)
+result3 = await agent.run("Add those two results together", context=context)
 ```
 
 **Key features:**
@@ -123,10 +123,10 @@ Enable detailed tracing to see your agent's reasoning:
 
 ```python
 # Simple trace viewing
-result = agent.run("Complex task", enable_trace=True, print_trace=True)
+result = await agent.run("Complex task", enable_trace=True, print_trace=True)
 
 # Or capture trace data
-result = agent.run("Complex task", enable_trace=True)
+result = await agent.run("Complex task", enable_trace=True)
 trace_data = result["execution_trace"]
 ```
 
@@ -150,7 +150,7 @@ All tools include built-in validation and graceful error handling:
 
 ```python
 # Invalid operations are caught and handled
-result = agent.run("Calculate abc + def")
+result = await agent.run("Calculate abc + def")
 # Agent will respond with helpful error message instead of crashing
 ```
 
@@ -186,7 +186,7 @@ The key insight behind Cogency is that clean architectural separation enables em
 
 ```python
 # Agent fails with poor search query, reflects, and tries again
-result = agent.run("Tell me about recent AI developments")
+result = await agent.run("Tell me about recent AI developments")
 
 # Trace shows:
 # 1. Initial search with generic query
