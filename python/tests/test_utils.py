@@ -186,11 +186,7 @@ class TestFormatting:
 
     def test_format_trace_missing_trace_id(self):
         """Test trace formatting with missing trace ID."""
-        trace = {
-            "steps": [
-                {"node": "plan", "reasoning": "test reasoning", "output_data": {}}
-            ]
-        }
+        trace = {"steps": [{"node": "plan", "reasoning": "test reasoning", "output_data": {}}]}
 
         result = format_trace(trace)
 
@@ -199,9 +195,7 @@ class TestFormatting:
 
     def test_node_formatters_plan(self):
         """Test plan node formatter."""
-        reasoning = (
-            '{"intent": "calculate", "reasoning": "need math", "strategy": "use calc"}'
-        )
+        reasoning = '{"intent": "calculate", "reasoning": "need math", "strategy": "use calc"}'
         output_data = {}
 
         result = NODE_FORMATTERS["PLAN"](reasoning, output_data)

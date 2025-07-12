@@ -25,12 +25,12 @@ class NomicEmbed(BaseEmbed):
         if not self._initialized:
             if not self.api_key:
                 raise ConfigurationError(
-                    "NOMIC_API_KEY required for NomicEmbed",
-                    error_code="NO_API_KEY"
+                    "NOMIC_API_KEY required for NomicEmbed", error_code="NO_API_KEY"
                 )
 
             try:
                 import nomic
+
                 nomic.login(self.api_key)
                 self._initialized = True
                 logger.info("Nomic API initialized")
@@ -50,7 +50,9 @@ class NomicEmbed(BaseEmbed):
         """
         return self.embed_batch([text], **kwargs)[0]
 
-    def embed_batch(self, texts: list[str], batch_size: Optional[int] = None, **kwargs) -> list[np.ndarray]:
+    def embed_batch(
+        self, texts: list[str], batch_size: Optional[int] = None, **kwargs
+    ) -> list[np.ndarray]:
         """
         Embed multiple texts with automatic batching
 
@@ -68,34 +70,32 @@ class NomicEmbed(BaseEmbed):
             return []
 
         # Use provided batch size or default
-        effective_batch_size = batch_size or self._batch_size
+        bsz = batch_size or self._batch_size
 
         # Extract embedding parameters
         model = kwargs.get("model", self._model)
-        dimensionality = kwargs.get("dimensionality", self._dimensionality)
+        dims = kwargs.get("dimensionality", self._dimensionality)
 
         try:
             from nomic import embed
 
             # Process in batches if needed
-            if len(texts) > effective_batch_size:
-                logger.info(f"Processing {len(texts)} texts in batches of {effective_batch_size}")
+            if len(texts) > bsz:
+                logger.info(f"Processing {len(texts)} texts in batches of {bsz}")
                 all_embeddings = []
 
-                for i in range(0, len(texts), effective_batch_size):
-                    batch = texts[i : i + effective_batch_size]
-                    logger.debug(
-                        f"Processing batch {i//effective_batch_size + 1}/{(len(texts) + effective_batch_size - 1)//effective_batch_size}"
-                    )
+                for i in range(0, len(texts), bsz):
+                    batch = texts[i : i + bsz]
+                    logger.debug(f"Processing batch {i // bsz + 1}/{(len(texts) + bsz - 1) // bsz}")
 
-                    batch_result = embed.text(texts=batch, model=model, dimensionality=dimensionality)
+                    batch_result = embed.text(texts=batch, model=model, dimensionality=dims)
                     all_embeddings.extend(batch_result["embeddings"])
 
                 logger.info(f"Successfully embedded {len(texts)} texts")
                 return [np.array(emb) for emb in all_embeddings]
             else:
                 # Single batch
-                result = embed.text(texts=texts, model=model, dimensionality=dimensionality)
+                result = embed.text(texts=texts, model=model, dimensionality=dims)
                 logger.info(f"Successfully embedded {len(texts)} texts")
                 return [np.array(emb) for emb in result["embeddings"]]
 
@@ -118,14 +118,14 @@ class NomicEmbed(BaseEmbed):
         """Get the embedding dimensionality"""
         return self._dimensionality
 
-    def set_model(self, model: str, dimensionality: int = 768):
+    def set_model(self, model: str, dims: int = 768):
         """
         Set the embedding model and dimensionality
 
         Args:
             model: Model name (e.g., 'nomic-embed-text-v2')
-            dimensionality: Embedding dimensions
+            dims: Embedding dimensions
         """
         self._model = model
-        self._dimensionality = dimensionality
-        logger.info(f"Model set to {model} with {dimensionality} dimensions")
+        self._dimensionality = dims
+        logger.info(f"Model set to {model} with {dims} dimensions")

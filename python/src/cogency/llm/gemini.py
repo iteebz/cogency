@@ -5,7 +5,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.cancellation import handle_cancellation
+from cogency.utils.cancellation import interruptable
 from cogency.utils.errors import ConfigurationError
 
 
@@ -21,11 +21,8 @@ class GeminiLLM(BaseLLM):
     ):
         # Validate inputs
         if not api_keys:
-            raise ConfigurationError(
-                "API keys must be provided",
-                error_code="NO_API_KEYS"
-            )
-        
+            raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
+
         # Handle the cleaner interface: if list provided, create key rotator internally
         if isinstance(api_keys, list) and len(api_keys) > 1:
             key_rotator = KeyRotator(api_keys)
@@ -39,24 +36,22 @@ class GeminiLLM(BaseLLM):
 
         super().__init__(api_key, key_rotator)
         self.model = model
-        
+
         # Configuration parameters
         self.timeout = timeout
         self.temperature = temperature
         self.max_retries = max_retries
-        
+
         # Build kwargs for ChatGoogleGenerativeAI
         self.kwargs = {
             "timeout": timeout,
             "temperature": temperature,
             "max_retries": max_retries,
-            **kwargs
+            **kwargs,
         }
-        
+
         self._llm_instances: Dict[str, BaseChatModel] = {}  # Cache for LLM instances
-        self._current_llm: Optional[
-            BaseChatModel
-        ] = None  # Currently active LLM instance
+        self._current_llm: Optional[BaseChatModel] = None  # Currently active LLM instance
         self._init_current_llm()  # Initialize the first LLM instance
 
     def _init_current_llm(self):
@@ -66,7 +61,7 @@ class GeminiLLM(BaseLLM):
         if not current_key:
             raise ConfigurationError(
                 "API key must be provided either directly or via KeyRotator.",
-                error_code="NO_CURRENT_API_KEY"
+                error_code="NO_CURRENT_API_KEY",
             )
 
         if current_key not in self._llm_instances:
@@ -76,7 +71,7 @@ class GeminiLLM(BaseLLM):
 
         self._current_llm = self._llm_instances[current_key]
 
-    @handle_cancellation
+    @interruptable
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         # Rotate key and update current LLM if a rotator is used
         if self.key_rotator:

@@ -106,7 +106,7 @@ def main():
     print("\n🤖 Testing with agent...")
     
     # Set your API key
-    api_key = "AIzaSyA7QHtdxjtKwpGvNEgtBsyt7kCVpedFNNQ"
+    api_key = "your-api-key"
     llm = GeminiLLM(api_keys=api_key)  # New cleaner interface
     
     # Create agent with our custom tool

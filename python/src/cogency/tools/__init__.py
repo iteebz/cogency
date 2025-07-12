@@ -3,7 +3,6 @@
 
 import importlib
 import inspect
-import os
 from pathlib import Path
 
 from cogency.tools.base import BaseTool
@@ -40,11 +39,7 @@ def _discover_tools():
         try:
             module = importlib.import_module(module_name)
             for name, obj in inspect.getmembers(module):
-                if (
-                    inspect.isclass(obj)
-                    and issubclass(obj, BaseTool)
-                    and obj is not BaseTool
-                ):
+                if inspect.isclass(obj) and issubclass(obj, BaseTool) and obj is not BaseTool:
                     tool_classes.append(obj)
         except ImportError:
             continue

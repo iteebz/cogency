@@ -153,7 +153,7 @@ class TestCalculatorTool:
     async def test_float_precision(self):
         """Test floating point operations."""
         result = await self.calculator.run(operation="divide", x1=1, x2=3)
-        
+
         assert result["success"] is True
         assert abs(result["result"] - 0.3333333333333333) < 1e-10
 
@@ -161,7 +161,7 @@ class TestCalculatorTool:
     async def test_large_numbers(self):
         """Test operations with large numbers."""
         result = await self.calculator.run(operation="multiply", x1=1e6, x2=1e6)
-        
+
         assert result["success"] is True
         assert result["result"] == 1e12
 
@@ -172,12 +172,12 @@ class TestCalculatorTool:
         result = await self.calculator.run(operation="add", x1=0, x2=5)
         assert result["success"] is True
         assert result["result"] == 5
-        
+
         # Zero multiplication
         result = await self.calculator.run(operation="multiply", x1=0, x2=100)
         assert result["success"] is True
         assert result["result"] == 0
-        
+
         # Square root of zero
         result = await self.calculator.run(operation="square_root", x1=0)
         assert result["success"] is True

@@ -22,6 +22,7 @@ test-js:
     @echo "Running JavaScript tests..."
     cd js && npm test
 
+test: test-python
 test-all: test-python test-js
     @echo "All tests passed."
 
@@ -38,6 +39,23 @@ publish-js:
 sync-versions:
     @echo "Syncing versions between Python and JS packages..."
     @python scripts/sync_versions.py || echo "Warning: scripts/sync_versions.py not found or failed. Please implement it."
+
+# Formatting and Linting
+format-python:
+    @echo "Formatting Python code with ruff..."
+    cd python && poetry run ruff format .
+
+lint-python:
+    @echo "Linting Python code with ruff..."
+    cd python && poetry run ruff check .
+
+fix-python:
+    @echo "Fixing Python linting issues with ruff..."
+    cd python && poetry run ruff check . --fix
+
+format: format-python
+lint: lint-python
+fix: fix-python
 
 # Clean commands
 clean-python:

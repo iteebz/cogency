@@ -1,12 +1,12 @@
-from cogency.utils.cancellation import handle_cancellation
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
+from cogency.utils.cancellation import interruptable
 from cogency.utils.parsing import extract_tool_call
 
 
 @trace_node
-@handle_cancellation
+@interruptable
 async def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
     context = state["context"]
 

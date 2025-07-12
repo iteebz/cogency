@@ -1,13 +1,14 @@
-from cogency.utils.cancellation import handle_cancellation
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
+from cogency.utils.cancellation import interruptable
 
 RESPOND_PROMPT = """
 You are an AI assistant providing the final response to the user.
 
 RESPONSE TASK:
-Generate a clear, helpful, and conversational response based on the entire conversation history and tool outputs.
+Generate a clear, helpful, and conversational response based on the entire
+conversation history and tool outputs.
 
 RESPONSE RULES:
 1. Be conversational and natural - speak directly to the user
@@ -22,7 +23,7 @@ TONE: Professional, helpful, and direct. Answer as if you're speaking to a colle
 
 
 @trace_node
-@handle_cancellation
+@interruptable
 async def respond(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
 

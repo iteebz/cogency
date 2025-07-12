@@ -1,7 +1,7 @@
 """Tests for FileManagerTool."""
 
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -25,16 +25,14 @@ class TestFileManagerTool:
     async def test_file_manager_initialization(self):
         """Test file manager initialization."""
         assert self.file_manager.name == "file_manager"
-        assert "file system operations" in self.file_manager.description.lower()
+        assert "manage files and directories" in self.file_manager.description.lower()
         assert self.file_manager.base_dir == Path(self.temp_dir).resolve()
 
     @pytest.mark.asyncio
     async def test_create_file_success(self):
         """Test successful file creation."""
         result = await self.file_manager.run(
-            action="create_file",
-            filename="test.txt",
-            content="Hello, World!"
+            action="create_file", filename="test.txt", content="Hello, World!"
         )
 
         assert result["success"] is True
@@ -51,9 +49,7 @@ class TestFileManagerTool:
     async def test_create_file_with_subdirectory(self):
         """Test file creation in subdirectory."""
         result = await self.file_manager.run(
-            action="create_file",
-            filename="subdir/test.txt",
-            content="Nested file"
+            action="create_file", filename="subdir/test.txt", content="Nested file"
         )
 
         assert result["success"] is True
@@ -68,9 +64,7 @@ class TestFileManagerTool:
     async def test_create_file_empty_filename(self):
         """Test file creation with empty filename."""
         result = await self.file_manager.run(
-            action="create_file",
-            filename="",
-            content="Some content"
+            action="create_file", filename="", content="Some content"
         )
 
         assert "error" in result
@@ -82,10 +76,8 @@ class TestFileManagerTool:
         """Test successful file reading."""
         # Create a file first
         test_content = "This is test content"
-        self.file_manager.run(
-            action="create_file",
-            filename="read_test.txt",
-            content=test_content
+        await self.file_manager.run(
+            action="create_file", filename="read_test.txt", content=test_content
         )
 
         # Read the file
@@ -127,15 +119,17 @@ class TestFileManagerTool:
     async def test_list_files_with_content(self):
         """Test listing files with content."""
         # Create some test files and directories
-        self.file_manager.run(action="create_file", filename="file1.txt", content="content1")
-        self.file_manager.run(action="create_file", filename="file2.txt", content="content2")
-        self.file_manager.run(action="create_file", filename="subdir/nested.txt", content="nested")
+        await self.file_manager.run(action="create_file", filename="file1.txt", content="content1")
+        await self.file_manager.run(action="create_file", filename="file2.txt", content="content2")
+        await self.file_manager.run(
+            action="create_file", filename="subdir/nested.txt", content="nested"
+        )
 
         result = await self.file_manager.run(action="list_files", filename=".")
 
         assert result["success"] is True
-        assert result["total"] == 2  # file1.txt, file2.txt, subdir
-        
+        assert result["total"] == 3  # file1.txt, file2.txt, subdir
+
         # Check that we have the expected items
         item_names = [item["name"] for item in result["items"]]
         assert "file1.txt" in item_names
@@ -154,7 +148,9 @@ class TestFileManagerTool:
     @pytest.mark.asyncio
     async def test_list_files_subdirectory(self):
         """Test listing files in subdirectory."""
-        self.file_manager.run(action="create_file", filename="subdir/nested.txt", content="nested")
+        await self.file_manager.run(
+            action="create_file", filename="subdir/nested.txt", content="nested"
+        )
 
         result = await self.file_manager.run(action="list_files", filename="subdir")
 
@@ -175,7 +171,7 @@ class TestFileManagerTool:
     async def test_delete_file_success(self):
         """Test successful file deletion."""
         # Create a file first
-        self.file_manager.run(action="create_file", filename="delete_me.txt", content="bye")
+        await self.file_manager.run(action="create_file", filename="delete_me.txt", content="bye")
 
         # Delete the file
         result = await self.file_manager.run(action="delete_file", filename="delete_me.txt")
@@ -218,9 +214,7 @@ class TestFileManagerTool:
         """Test that path traversal attacks are prevented."""
         # Try to access parent directory
         result = await self.file_manager.run(
-            action="create_file",
-            filename="../outside.txt",
-            content="malicious"
+            action="create_file", filename="../outside.txt", content="malicious"
         )
 
         assert "error" in result
@@ -228,9 +222,7 @@ class TestFileManagerTool:
 
         # Try absolute path outside base dir
         result = await self.file_manager.run(
-            action="create_file",
-            filename="/etc/passwd",
-            content="malicious"
+            action="create_file", filename="/etc/passwd", content="malicious"
         )
 
         assert "error" in result
@@ -240,7 +232,9 @@ class TestFileManagerTool:
     async def test_read_directory_as_file(self):
         """Test reading a directory as if it were a file."""
         # Create a subdirectory
-        self.file_manager.run(action="create_file", filename="subdir/test.txt", content="test")
+        await self.file_manager.run(
+            action="create_file", filename="subdir/test.txt", content="test"
+        )
 
         # Try to read the directory
         result = await self.file_manager.run(action="read_file", filename="subdir")
@@ -253,7 +247,7 @@ class TestFileManagerTool:
     async def test_list_file_as_directory(self):
         """Test listing a file as if it were a directory."""
         # Create a file
-        self.file_manager.run(action="create_file", filename="test.txt", content="test")
+        await self.file_manager.run(action="create_file", filename="test.txt", content="test")
 
         # Try to list the file
         result = await self.file_manager.run(action="list_files", filename="test.txt")
@@ -266,7 +260,9 @@ class TestFileManagerTool:
     async def test_delete_directory_as_file(self):
         """Test deleting a directory as if it were a file."""
         # Create a subdirectory
-        self.file_manager.run(action="create_file", filename="subdir/test.txt", content="test")
+        await self.file_manager.run(
+            action="create_file", filename="subdir/test.txt", content="test"
+        )
 
         # Try to delete the directory
         result = await self.file_manager.run(action="delete_file", filename="subdir")
@@ -300,11 +296,9 @@ class TestFileManagerTool:
     async def test_unicode_content(self):
         """Test handling of unicode content."""
         unicode_content = "Hello 世界! 🌍"
-        
+
         result = await self.file_manager.run(
-            action="create_file",
-            filename="unicode.txt",
-            content=unicode_content
+            action="create_file", filename="unicode.txt", content=unicode_content
         )
 
         assert result["success"] is True

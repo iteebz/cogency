@@ -1,7 +1,6 @@
 """Tests for WebSearchTool."""
 
-import time
-from unittest.mock import patch, Mock
+from unittest.mock import patch
 
 import pytest
 
@@ -66,18 +65,20 @@ class TestWebSearchTool:
         assert result["error_code"] == "INVALID_MAX_RESULTS"
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_max_results_capping(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_max_results_capping(self, mock_ddgs):
         """Test that max_results is capped at 10."""
         mock_ddgs.return_value.text.return_value = []
 
-        self.web_search.run(query="test", max_results=15)
+        await self.web_search.run(query="test", max_results=15)
 
         # Should be called with max_results=10
         mock_ddgs.return_value.text.assert_called_with("test", max_results=10)
 
-    @patch("cogency.tools.web_search.time.sleep")
+    @patch("asyncio.sleep")
     @patch("cogency.tools.web_search.time.time")
-    def test_rate_limiting(self, mock_time, mock_sleep):
+    @pytest.mark.asyncio
+    async def test_rate_limiting(self, mock_time, mock_sleep):
         """Test rate limiting functionality."""
         # Mock time to simulate rapid calls
         mock_time.side_effect = [0, 1.0, 1.5, 2.0]
@@ -86,17 +87,18 @@ class TestWebSearchTool:
             mock_ddgs.return_value.text.return_value = []
 
             # First call - should sleep full delay since last_search_time is 0
-            self.web_search.run(query="test1")
+            await self.web_search.run(query="test1")
 
             # Second call - should sleep remaining delay
-            self.web_search.run(query="test2")
+            await self.web_search.run(query="test2")
 
             # Should have slept twice
             assert mock_sleep.call_count == 2
             mock_sleep.assert_any_call(self.web_search._min_delay)  # First call
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_successful_search(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_successful_search(self, mock_ddgs):
         """Test successful search with results."""
         mock_results = [
             {
@@ -105,7 +107,7 @@ class TestWebSearchTool:
                 "href": "https://example.com/1",
             },
             {
-                "title": "Test Title 2", 
+                "title": "Test Title 2",
                 "body": "Test snippet 2",
                 "href": "https://example.com/2",
             },
@@ -123,7 +125,8 @@ class TestWebSearchTool:
         assert result["results"][0]["url"] == "https://example.com/1"
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_no_results_found(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_no_results_found(self, mock_ddgs):
         """Test search with no results."""
         mock_ddgs.return_value.text.return_value = []
 
@@ -136,7 +139,8 @@ class TestWebSearchTool:
         assert "No results found" in result["message"]
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_search_exception(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_search_exception(self, mock_ddgs):
         """Test search exception handling."""
         mock_ddgs.return_value.text.side_effect = Exception("Network error")
 
@@ -149,7 +153,8 @@ class TestWebSearchTool:
         assert "details" in result
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_missing_result_fields(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_missing_result_fields(self, mock_ddgs):
         """Test handling of results with missing fields."""
         mock_results = [
             {
@@ -185,7 +190,8 @@ class TestWebSearchTool:
         assert any("query=" in example for example in examples)
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_validate_and_run_success(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_validate_and_run_success(self, mock_ddgs):
         """Test successful validation and run."""
         mock_results = [{"title": "Test", "body": "Test", "href": "https://test.com"}]
         mock_ddgs.return_value.text.return_value = mock_results
@@ -204,12 +210,13 @@ class TestWebSearchTool:
         assert result["error_code"] == "EMPTY_PARAMETERS"
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_default_max_results(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_default_max_results(self, mock_ddgs):
         """Test default max_results from config."""
         mock_ddgs.return_value.text.return_value = []
 
         # Call without max_results parameter
-        self.web_search.run(query="test")
+        await self.web_search.run(query="test")
 
         # Should use default from config or fallback
         call_args = mock_ddgs.return_value.text.call_args[1]
@@ -218,7 +225,8 @@ class TestWebSearchTool:
         assert call_args["max_results"] > 0
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_large_result_set(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_large_result_set(self, mock_ddgs):
         """Test handling of large result sets."""
         # Create many mock results
         mock_results = [
@@ -238,7 +246,8 @@ class TestWebSearchTool:
         assert len(result["results"]) == 20
 
     @patch("cogency.tools.web_search.DDGS")
-    def test_unicode_query(self, mock_ddgs):
+    @pytest.mark.asyncio
+    async def test_unicode_query(self, mock_ddgs):
         """Test search with unicode characters."""
         mock_results = [
             {

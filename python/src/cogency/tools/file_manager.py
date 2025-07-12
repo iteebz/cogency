@@ -1,14 +1,14 @@
-from cogency.utils.cancellation import handle_cancellation
 from pathlib import Path
 from typing import Any, Dict, List
 
 from cogency.tools.base import BaseTool
+from cogency.utils.cancellation import interruptable
 from cogency.utils.errors import (
-    ValidationError,
     ToolError,
+    ValidationError,
+    create_success_response,
     handle_tool_exception,
     validate_required_params,
-    create_success_response,
 )
 
 
@@ -27,7 +27,9 @@ class FileManagerTool(BaseTool):
         """
         super().__init__(
             name="file_manager",
-            description="Manage files and directories - create, read, list, and delete files safely.",
+            description=(
+                "Manage files and directories - create, read, list, and delete files safely."
+            ),
         )
         self.base_dir = Path(base_dir).resolve()
         # Ensure base directory exists
@@ -36,10 +38,7 @@ class FileManagerTool(BaseTool):
     def _safe_path(self, rel_path: str) -> Path:
         """Ensure path is within base directory to prevent directory traversal."""
         if not rel_path or rel_path.strip() == "":
-            raise ValidationError(
-                "Path cannot be empty",
-                error_code="EMPTY_PATH"
-            )
+            raise ValidationError("Path cannot be empty", error_code="EMPTY_PATH")
 
         # Normalize the path and resolve it relative to base_dir
         path = (self.base_dir / rel_path).resolve()
@@ -49,13 +48,13 @@ class FileManagerTool(BaseTool):
             raise ValidationError(
                 f"Unsafe path access attempted: {rel_path}",
                 error_code="PATH_TRAVERSAL_ATTEMPT",
-                details={"attempted_path": rel_path, "base_dir": str(self.base_dir)}
+                details={"attempted_path": rel_path, "base_dir": str(self.base_dir)},
             )
 
         return path
 
     @handle_tool_exception
-    @handle_cancellation
+    @interruptable
     async def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
         """Execute file operations based on action type.
 
@@ -68,12 +67,12 @@ class FileManagerTool(BaseTool):
             Dict containing operation results or error information
         """
         valid_actions = ["create_file", "read_file", "list_files", "delete_file"]
-        
+
         if action not in valid_actions:
             raise ValidationError(
                 f"Unknown action: {action}",
                 error_code="INVALID_ACTION",
-                details={"valid_actions": valid_actions, "provided_action": action}
+                details={"valid_actions": valid_actions, "provided_action": action},
             )
 
         if action == "create_file":
@@ -100,7 +99,7 @@ class FileManagerTool(BaseTool):
             raise ToolError(
                 f"Failed to create file {filename}: {str(e)}",
                 error_code="FILE_CREATE_FAILED",
-                details={"filename": filename, "content_length": len(content)}
+                details={"filename": filename, "content_length": len(content)},
             )
 
         return create_success_response(
@@ -108,7 +107,7 @@ class FileManagerTool(BaseTool):
                 "path": str(path.relative_to(self.base_dir)),
                 "size": len(content),
             },
-            f"Created file: {filename}"
+            f"Created file: {filename}",
         )
 
     def _read_file(self, filename: str) -> Dict[str, Any]:
@@ -121,14 +120,17 @@ class FileManagerTool(BaseTool):
             raise ToolError(
                 f"File not found: {filename}",
                 error_code="FILE_NOT_FOUND",
-                details={"filename": filename}
+                details={"filename": filename},
             )
 
         if not path.is_file():
             raise ToolError(
                 f"Path is not a file: {filename}",
                 error_code="NOT_A_FILE",
-                details={"filename": filename, "path_type": "directory" if path.is_dir() else "unknown"}
+                details={
+                    "filename": filename,
+                    "path_type": "directory" if path.is_dir() else "unknown",
+                },
             )
 
         try:
@@ -137,7 +139,7 @@ class FileManagerTool(BaseTool):
             raise ToolError(
                 f"Failed to read file {filename}: {str(e)}",
                 error_code="FILE_READ_FAILED",
-                details={"filename": filename}
+                details={"filename": filename},
             )
 
         return create_success_response(
@@ -146,7 +148,7 @@ class FileManagerTool(BaseTool):
                 "path": str(path.relative_to(self.base_dir)),
                 "size": len(content),
             },
-            f"Read file: {filename}"
+            f"Read file: {filename}",
         )
 
     def _list_files(self, directory: str = ".") -> Dict[str, Any]:
@@ -157,14 +159,17 @@ class FileManagerTool(BaseTool):
             raise ToolError(
                 f"Directory not found: {directory}",
                 error_code="DIRECTORY_NOT_FOUND",
-                details={"directory": directory}
+                details={"directory": directory},
             )
 
         if not path.is_dir():
             raise ToolError(
                 f"Path is not a directory: {directory}",
                 error_code="NOT_A_DIRECTORY",
-                details={"directory": directory, "path_type": "file" if path.is_file() else "unknown"}
+                details={
+                    "directory": directory,
+                    "path_type": "file" if path.is_file() else "unknown",
+                },
             )
 
         try:
@@ -183,7 +188,7 @@ class FileManagerTool(BaseTool):
             raise ToolError(
                 f"Failed to list directory {directory}: {str(e)}",
                 error_code="DIRECTORY_LIST_FAILED",
-                details={"directory": directory}
+                details={"directory": directory},
             )
 
         return create_success_response(
@@ -192,7 +197,7 @@ class FileManagerTool(BaseTool):
                 "directory": directory,
                 "total": len(items),
             },
-            f"Listed {len(items)} items in {directory}"
+            f"Listed {len(items)} items in {directory}",
         )
 
     def _delete_file(self, filename: str) -> Dict[str, Any]:
@@ -205,14 +210,17 @@ class FileManagerTool(BaseTool):
             raise ToolError(
                 f"File not found: {filename}",
                 error_code="FILE_NOT_FOUND",
-                details={"filename": filename}
+                details={"filename": filename},
             )
 
         if not path.is_file():
             raise ToolError(
                 f"Path is not a file: {filename}",
                 error_code="NOT_A_FILE",
-                details={"filename": filename, "path_type": "directory" if path.is_dir() else "unknown"}
+                details={
+                    "filename": filename,
+                    "path_type": "directory" if path.is_dir() else "unknown",
+                },
             )
 
         try:
@@ -221,24 +229,28 @@ class FileManagerTool(BaseTool):
             raise ToolError(
                 f"Failed to delete file {filename}: {str(e)}",
                 error_code="FILE_DELETE_FAILED",
-                details={"filename": filename}
+                details={"filename": filename},
             )
 
         return create_success_response(
             {
                 "path": str(path.relative_to(self.base_dir)),
             },
-            f"Deleted file: {filename}"
+            f"Deleted file: {filename}",
         )
 
     def get_schema(self) -> str:
         """Return tool call schema for LLM formatting."""
-        return "file_manager(action='create_file|read_file|list_files|delete_file', filename='path/to/file', content='file content')"
+        return (
+            "file_manager(action='create_file|read_file|list_files|delete_file', "
+            "filename='path/to/file', content='file content')"
+        )
 
     def get_usage_examples(self) -> List[str]:
         """Return example tool calls for LLM guidance."""
         return [
-            "file_manager(action='create_file', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
+            "file_manager(action='create_file', filename='notes/plan.md', "
+            "content='Build agent, ship blog, rest never.')",
             "file_manager(action='read_file', filename='notes/plan.md')",
             "file_manager(action='list_files', filename='notes')",
             "file_manager(action='delete_file', filename='notes/old_file.txt')",

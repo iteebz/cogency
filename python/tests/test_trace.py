@@ -1,6 +1,8 @@
 from datetime import datetime
 from unittest.mock import Mock
 
+import pytest
+
 from cogency.trace import _extract_reasoning, trace_node
 from cogency.types import ExecutionStep, ExecutionTrace
 
@@ -206,35 +208,38 @@ class TestExtractReasoning:
 class TestTraceNode:
     """Test suite for trace_node decorator."""
 
-    def test_trace_node_no_trace(self):
+    @pytest.mark.asyncio
+    async def test_trace_node_no_trace(self):
         """Test trace_node decorator when no trace is present."""
 
         @trace_node
-        def test_func(state):
+        async def test_func(state):
             return {"result": "success"}
 
         state = {"context": Mock(), "execution_trace": None}
 
-        result = test_func(state)
+        result = await test_func(state)
 
         assert result == {"result": "success"}
 
-    def test_trace_node_no_state(self):
+    @pytest.mark.asyncio
+    async def test_trace_node_no_state(self):
         """Test trace_node decorator with no state."""
 
         @trace_node
-        def test_func():
+        async def test_func():
             return {"result": "success"}
 
-        result = test_func()
+        result = await test_func()
 
         assert result == {"result": "success"}
 
-    def test_trace_node_with_trace(self):
+    @pytest.mark.asyncio
+    async def test_trace_node_with_trace(self):
         """Test trace_node decorator with trace enabled."""
 
         @trace_node
-        def test_func(state):
+        async def test_func(state):
             # Simulate adding a message during execution
             state["context"].messages.append({"content": "test response"})
             return state
@@ -247,7 +252,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        test_func(state)
+        await test_func(state)
 
         assert len(trace.steps) == 1
         step = trace.steps[0]
@@ -256,11 +261,12 @@ class TestTraceNode:
         assert step.input_data["messages"] == []
         assert step.output_data["new_messages"] == ["test response"]
 
-    def test_trace_node_with_tool_results(self):
+    @pytest.mark.asyncio
+    async def test_trace_node_with_tool_results(self):
         """Test trace_node decorator with tool results."""
 
         @trace_node
-        def act(state):
+        async def act(state):
             # Simulate tool execution
             state["context"].tool_results.append(
                 {"tool_name": "calculator", "args": {"a": 2, "b": 3}, "output": "5"}
@@ -275,7 +281,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        act(state)
+        await act(state)
 
         assert len(trace.steps) == 1
         step = trace.steps[0]
@@ -285,15 +291,14 @@ class TestTraceNode:
         assert step.output_data["tool_result"] == "5"
         assert "BaseTool Result: 5" in step.reasoning
 
-    def test_trace_node_message_delta(self):
+    @pytest.mark.asyncio
+    async def test_trace_node_message_delta(self):
         """Test trace_node tracks message deltas correctly."""
 
         @trace_node
-        def test_func(state):
+        async def test_func(state):
             # Add two messages during execution
-            state["context"].messages.extend(
-                [{"content": "message 1"}, {"content": "message 2"}]
-            )
+            state["context"].messages.extend([{"content": "message 1"}, {"content": "message 2"}])
             return state
 
         context = Mock()
@@ -304,16 +309,17 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        test_func(state)
+        await test_func(state)
 
         step = trace.steps[0]
         assert step.output_data["new_messages"] == ["message 1", "message 2"]
 
-    def test_trace_node_reasoning_extraction(self):
+    @pytest.mark.asyncio
+    async def test_trace_node_reasoning_extraction(self):
         """Test trace_node extracts reasoning from new messages."""
 
         @trace_node
-        def test_func(state):
+        async def test_func(state):
             state["context"].messages.append(
                 {"content": '{"reasoning": "I need to think about this"}'}
             )
@@ -327,16 +333,17 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        test_func(state)
+        await test_func(state)
 
         step = trace.steps[0]
         assert step.reasoning == "Reasoning: I need to think about this"
 
-    def test_trace_node_no_new_messages(self):
+    @pytest.mark.asyncio
+    async def test_trace_node_no_new_messages(self):
         """Test trace_node when no new messages are added."""
 
         @trace_node
-        def test_func(state):
+        async def test_func(state):
             return state
 
         context = Mock()
@@ -347,7 +354,7 @@ class TestTraceNode:
         trace = ExecutionTrace(trace_id="test123")
         state = {"context": context, "execution_trace": trace}
 
-        test_func(state)
+        await test_func(state)
 
         step = trace.steps[0]
         assert step.reasoning == "No new message added by this node."

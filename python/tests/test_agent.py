@@ -1,4 +1,7 @@
-from unittest.mock import Mock, patch
+import json
+from unittest.mock import AsyncMock, Mock, patch
+
+import pytest
 
 from cogency import Agent
 from cogency.context import Context
@@ -12,7 +15,9 @@ class TestAgent:
 
     def setup_method(self):
         """Setup test fixtures."""
-        self.mock_llm = Mock(spec=GeminiLLM)
+        self.mock_llm = AsyncMock(spec=GeminiLLM)
+        response_payload = {"action": "direct_response", "answer": "Mocked response"}
+        self.mock_llm.invoke.return_value = json.dumps(response_payload)
         self.calculator = CalculatorTool()
 
     def test_agent_initialization(self):
@@ -34,9 +39,7 @@ class TestAgent:
         """Test agent can handle multiple tools."""
         tool2 = Mock()
         tool2.name = "mock_tool"
-        agent = Agent(
-            name="TestAgent", llm=self.mock_llm, tools=[self.calculator, tool2]
-        )
+        agent = Agent(name="TestAgent", llm=self.mock_llm, tools=[self.calculator, tool2])
         assert len(agent.tools) == 2
         assert agent.tools[0].name == "calculator"
         assert agent.tools[1].name == "mock_tool"
@@ -60,9 +63,7 @@ class TestAgent:
 
         # Create mock state with tool_needed response
         context = Context(current_input="test")
-        context.messages = [
-            {"content": '{"action": "tool_needed", "reasoning": "need calc"}'}
-        ]
+        context.messages = [{"content": '{"action": "tool_needed", "reasoning": "need calc"}'}]
         state = {"context": context}
 
         result = agent._plan_router(state)
@@ -74,9 +75,7 @@ class TestAgent:
 
         # Create mock state with direct response
         context = Context(current_input="test")
-        context.messages = [
-            {"content": '{"action": "direct_response", "answer": "42"}'}
-        ]
+        context.messages = [{"content": '{"action": "direct_response", "answer": "42"}'}]
         state = {"context": context}
 
         result = agent._plan_router(state)
@@ -88,9 +87,7 @@ class TestAgent:
 
         # Create mock state with continue status
         context = Context(current_input="test")
-        context.messages = [
-            {"content": '{"status": "continue", "assessment": "need more"}'}
-        ]
+        context.messages = [{"content": '{"status": "continue", "assessment": "need more"}'}]
         state = {"context": context}
 
         result = agent._reflect_router(state)
@@ -109,7 +106,8 @@ class TestAgent:
         assert result == "respond"
 
     @patch("cogency.agent.uuid.uuid4")
-    def test_run_without_trace(self, mock_uuid):
+    @pytest.mark.asyncio
+    async def test_run_without_trace(self, mock_uuid):
         """Test agent run without trace enabled."""
         agent = Agent(name="TestAgent", llm=self.mock_llm)
 
@@ -117,19 +115,29 @@ class TestAgent:
         with patch.object(agent.app, "invoke") as mock_invoke:
             # Create a mock final state
             context = Context(current_input="test")
-            context.messages = [{"role": "assistant", "content": "Hello World"}]
+            response_payload = {
+                "action": "direct_response",
+                "answer": "Mocked response",
+            }
+            context.messages = [
+                {
+                    "role": "assistant",
+                    "content": json.dumps(response_payload),
+                }
+            ]
             mock_final_state = {"context": context, "execution_trace": None}
             mock_invoke.return_value = mock_final_state
 
-            result = agent.run("Hello", enable_trace=False)
+            result = await agent.run("Hello", enable_trace=False)
 
             assert "response" in result
             assert "conversation" in result
             assert "execution_trace" not in result
-            assert result["response"] == "Hello World"
+            assert result["response"] == "Mocked response"
 
     @patch("cogency.agent.uuid.uuid4")
-    def test_run_with_trace(self, mock_uuid):
+    @pytest.mark.asyncio
+    async def test_run_with_trace(self, mock_uuid):
         """Test agent run with trace enabled."""
         mock_uuid.return_value.hex = "abcd1234"
 
@@ -139,29 +147,48 @@ class TestAgent:
         with patch.object(agent.app, "invoke") as mock_invoke:
             # Create a mock final state with trace
             context = Context(current_input="test")
-            context.messages = [{"role": "assistant", "content": "Hello World"}]
+            response_payload = {
+                "action": "direct_response",
+                "answer": "Mocked response",
+            }
+            context.messages = [
+                {
+                    "role": "assistant",
+                    "content": json.dumps(response_payload),
+                }
+            ]
             trace = ExecutionTrace(trace_id="abcd1234")
             mock_final_state = {"context": context, "execution_trace": trace}
             mock_invoke.return_value = mock_final_state
 
-            result = agent.run("Hello", enable_trace=True)
+            result = await agent.run("Hello", enable_trace=True)
 
             assert "response" in result
             assert "conversation" in result
             assert "execution_trace" in result
-            assert result["response"] == "Hello World"
+            assert result["response"] == "Mocked response"
 
-    def test_run_empty_messages(self):
+    @pytest.mark.asyncio
+    async def test_run_empty_messages(self):
         """Test agent run with empty messages."""
         agent = Agent(name="TestAgent", llm=self.mock_llm)
 
         # Mock the workflow to return empty messages
         with patch.object(agent.app, "invoke") as mock_invoke:
             context = Context(current_input="test")
-            context.messages = []
+            response_payload = {
+                "action": "direct_response",
+                "answer": "Mocked response",
+            }
+            context.messages = [
+                {
+                    "role": "assistant",
+                    "content": json.dumps(response_payload),
+                }
+            ]
             mock_final_state = {"context": context}
             mock_invoke.return_value = mock_final_state
 
-            result = agent.run("Hello")
+            result = await agent.run("Hello")
 
-            assert result["response"] == "No response generated"
+            assert result["response"] == "Mocked response"

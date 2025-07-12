@@ -1,10 +1,10 @@
-from cogency.utils.cancellation import handle_cancellation
 from typing import List
 
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
+from cogency.utils.cancellation import interruptable
 
 REASON_PROMPT = """
 You are an AI assistant executing a specific task using available tools.
@@ -32,7 +32,7 @@ ERROR HANDLING:
 
 
 @trace_node
-@handle_cancellation
+@interruptable
 async def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
     context = state["context"]
 
@@ -52,9 +52,7 @@ async def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> Agen
         for tool in tools:
             schemas.append(f"- {tool.name}: {tool.description}")
             schemas.append(f"  Schema: {tool.get_schema()}")
-            all_examples.extend(
-                [f"  {example}" for example in tool.get_usage_examples()]
-            )
+            all_examples.extend([f"  {example}" for example in tool.get_usage_examples()])
 
         tool_instructions = REASON_PROMPT.format(
             tool_schemas="\n".join(schemas), tool_examples="\n".join(all_examples)

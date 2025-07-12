@@ -19,7 +19,7 @@ def _extract_reasoning(message) -> str:
         message_json = json.loads(message)
 
         # Mapping of keys to their human-readable prefixes
-        REASONING_MAP = {
+        reasoning_map = {
             "reasoning": "Reasoning",
             "strategy": "Strategy",
             "assessment": "Assessment",
@@ -28,7 +28,7 @@ def _extract_reasoning(message) -> str:
             "action": "Action",
         }
 
-        for key, prefix in REASONING_MAP.items():
+        for key, prefix in reasoning_map.items():
             if key in message_json:
                 return f"{prefix}: {message_json[key]}"
 
@@ -47,10 +47,10 @@ def trace_node(func: F) -> F:
     It captures the state before and after the node runs to provide a clear delta.
     """
 
-    def wrapper(*args, **kwargs):
+    async def wrapper(*args, **kwargs):
         state = args[0] if args else kwargs.get("state")
         if not state or not isinstance(state, dict) or not state.get("execution_trace"):
-            return func(*args, **kwargs)
+            return await func(*args, **kwargs)
 
         context = state.get("context")
 
@@ -65,7 +65,7 @@ def trace_node(func: F) -> F:
         }
 
         # 2. Execute the node
-        result = func(*args, **kwargs)
+        result = await func(*args, **kwargs)
 
         # 3. Capture state AFTER node execution and determine the delta
         context_after = result.get("context")
@@ -82,9 +82,7 @@ def trace_node(func: F) -> F:
         # 5. Construct detailed, human-readable output data
         output_data = {"new_messages": new_messages}
 
-        if func.__name__ == "act" and len(tool_results_after) > len(
-            tool_results_before
-        ):
+        if func.__name__ == "act" and len(tool_results_after) > len(tool_results_before):
             last_tool_result = tool_results_after[-1]
             output_data.update(
                 {
@@ -96,9 +94,7 @@ def trace_node(func: F) -> F:
             reasoning += f" | BaseTool Result: {last_tool_result.get('output')}"
 
         # 6. Add the detailed step to the execution trace
-        state["execution_trace"].add_step(
-            func.__name__, input_data, output_data, reasoning
-        )
+        state["execution_trace"].add_step(func.__name__, input_data, output_data, reasoning)
 
         return result
 

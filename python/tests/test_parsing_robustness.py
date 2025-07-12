@@ -1,4 +1,3 @@
-
 import pytest
 
 from cogency.utils.parsing import parse_plan_response, parse_reflect_response
@@ -9,21 +8,28 @@ class TestPlanResponseParsing:
 
     def test_valid_json_tool_needed(self):
         """Test valid JSON with tool_needed action."""
-        response = '{"action": "tool_needed", "reasoning": "Math calculation required", "strategy": "Use calculator"}'
+        response = (
+            '{"action": "tool_needed", "reasoning": "Math calculation required", '
+            '"strategy": "Use calculator"}'
+        )
         route, data = parse_plan_response(response)
         assert route == "reason"
         assert data["action"] == "tool_needed"
 
     def test_valid_json_direct_response(self):
         """Test valid JSON with direct_response action."""
-        response = '{"action": "direct_response", "reasoning": "General knowledge", "answer": "Hello"}'
+        response = (
+            '{"action": "direct_response", "reasoning": "General knowledge", "answer": "Hello"}'
+        )
         route, data = parse_plan_response(response)
         assert route == "respond"
         assert data["action"] == "direct_response"
 
     def test_malformed_json(self):
         """Test malformed JSON falls back gracefully."""
-        response = '{"action": "tool_needed", "reasoning": "Math calculation", missing closing brace'
+        response = (
+            '{"action": "tool_needed", "reasoning": "Math calculation", missing closing brace'
+        )
         route, data = parse_plan_response(response)
         assert route == "respond"  # fallback
         assert data["action"] == "direct_response"
@@ -114,7 +120,10 @@ class TestErrorHandling:
 
     def test_unicode_characters(self):
         """Test unicode character handling."""
-        response = '{"action": "direct_response", "reasoning": "Unicode test: 🤖🔧📁", "answer": "Hello 世界"}'
+        response = (
+            '{"action": "direct_response", "reasoning": "Unicode test: 🤖🔧📁", '
+            '"answer": "Hello 世界"}'
+        )
         route, data = parse_plan_response(response)
         assert route == "respond"
         assert "🤖" in data["reasoning"]

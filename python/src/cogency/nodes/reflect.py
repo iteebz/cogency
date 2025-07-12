@@ -1,13 +1,13 @@
-from cogency.utils.cancellation import handle_cancellation
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
+from cogency.utils.cancellation import interruptable
 
 REFLECT_PROMPT = """
 You are an AI assistant evaluating task completion status.
 
 ANALYSIS TASK:
-Review the conversation history and tool outputs to determine if the user's request has been fully addressed.
+Review conversation history and tool outputs to determine if user's request has been addressed.
 
 DECISION CRITERIA:
 - COMPLETE: Tool executed successfully and produced the expected result
@@ -16,15 +16,17 @@ DECISION CRITERIA:
 
 Your output MUST be valid JSON with no additional text:
 - Task complete: {{"status": "complete", "assessment": "<brief summary of what was accomplished>"}}
-- More work needed: {{"status": "continue", "reasoning": "<specific reason why more work is needed>"}}
+- More work needed: {{"status": "continue", "reasoning": "<specific reason why
+  more work is needed>"}}
 - Error occurred: {{"status": "error", "description": "<clear description of the error>"}}
 
-IMPORTANT: Be decisive. Most single-tool requests should be marked complete after successful execution.
+IMPORTANT: Be decisive. Most single-tool requests should be marked complete
+after successful execution.
 """
 
 
 @trace_node
-@handle_cancellation
+@interruptable
 async def reflect(state: AgentState, llm: BaseLLM) -> AgentState:
     context = state["context"]
     messages = list(context.messages)

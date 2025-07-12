@@ -67,13 +67,13 @@ class TestBaseTool:
 
     def test_tool_name_attribute(self):
         """Test that tool has name attribute."""
-        assert hasattr(self.tool, 'name')
+        assert hasattr(self.tool, "name")
         assert isinstance(self.tool.name, str)
         assert len(self.tool.name) > 0
 
     def test_tool_description_attribute(self):
-        """Test that tool has description attribute.""" 
-        assert hasattr(self.tool, 'description')
+        """Test that tool has description attribute."""
+        assert hasattr(self.tool, "description")
         assert isinstance(self.tool.description, str)
         assert len(self.tool.description) > 0
 

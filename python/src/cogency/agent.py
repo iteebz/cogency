@@ -1,4 +1,3 @@
-import asyncio
 import uuid
 from typing import Any, Dict, List, Optional
 
@@ -10,7 +9,7 @@ from cogency.llm import BaseLLM
 from cogency.nodes import act, plan, reason, reflect, respond
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState, ExecutionTrace
-from cogency.utils.cancellation import handle_cancellation
+from cogency.utils.cancellation import interruptable
 from cogency.utils.parsing import parse_plan_response, parse_reflect_response
 
 
@@ -30,17 +29,22 @@ class Agent:
         self.max_depth = max_depth
 
         self.workflow = StateGraph(AgentState)
+
         async def plan_node(state):
             return await plan(state, self.llm, self.tools)
+
         async def reason_node(state):
             return await reason(state, self.llm, self.tools)
+
         async def act_node(state):
             return await act(state, self.tools)
+
         async def reflect_node(state):
             return await reflect(state, self.llm)
+
         async def respond_node(state):
             return await respond(state, self.llm)
-            
+
         self.workflow.add_node("plan", plan_node)
         self.workflow.add_node("reason", reason_node)
         self.workflow.add_node("act", act_node)
@@ -65,11 +69,15 @@ class Agent:
     @property
     def context(self) -> Optional[Context]:
         """Get the current context if available."""
-        return getattr(self, '_context', None)
+        return getattr(self, "_context", None)
 
-    @handle_cancellation
+    @interruptable
     async def run(
-        self, message: str, enable_trace: bool = False, print_trace: bool = False, context: Optional[Context] = None
+        self,
+        message: str,
+        enable_trace: bool = False,
+        print_trace: bool = False,
+        context: Optional[Context] = None,
     ) -> Dict[str, Any]:
         """Run agent with optional execution trace."""
         # Auto-enable trace if print_trace is requested
@@ -81,7 +89,7 @@ class Agent:
             context = Context(current_input=message)
         else:
             context.current_input = message
-        
+
         # Store context for property access
         self._context = context
 
@@ -111,9 +119,7 @@ class Agent:
                                 _format_default,
                             )
 
-                            formatter = NODE_FORMATTERS.get(
-                                node_name.upper(), _format_default
-                            )
+                            formatter = NODE_FORMATTERS.get(node_name.upper(), _format_default)
                             reasoning = latest_step.reasoning or ""
                             output_data = latest_step.output_data or {}
                             summary = formatter(reasoning, output_data)
@@ -156,9 +162,7 @@ class Agent:
             last_message = last_message[0] if last_message else ""
 
         tool_call = extract_tool_call(last_message)
-        if (
-            tool_call and tool_call[0] != "N/A"
-        ):  # tool_call is a tuple (tool_name, args)
+        if tool_call and tool_call[0] != "N/A":  # tool_call is a tuple (tool_name, args)
             return "act"
         else:
             return "respond"

@@ -16,7 +16,7 @@ from cogency.utils.formatting import format_trace
 def create_llm() -> GeminiLLM:
     """Create LLM instance from configuration."""
     config = get_config()
-    
+
     return GeminiLLM(
         api_keys=config.api_keys,
         model=config.model,
@@ -28,13 +28,13 @@ def create_llm() -> GeminiLLM:
 def create_tools():
     """Create tool instances from configuration."""
     config = get_config()
-    
+
     tools = [
         CalculatorTool(),
         FileManagerTool(base_dir=config.file_base_dir),
         WebSearchTool(),
     ]
-    
+
     return tools
 
 
@@ -103,12 +103,7 @@ def main():
     try:
         llm = create_llm()
         tools = create_tools()
-        agent = Agent(
-            name=config.agent_name,
-            llm=llm,
-            tools=tools,
-            max_depth=config.max_depth
-        )
+        agent = Agent(name=config.agent_name, llm=llm, tools=tools, max_depth=config.max_depth)
     except Exception as e:
         print(f"Error initializing agent: {e}")
         sys.exit(1)
