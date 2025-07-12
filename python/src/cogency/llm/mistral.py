@@ -4,7 +4,7 @@ from mistralai import Mistral
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import ConfigurationError
 
 

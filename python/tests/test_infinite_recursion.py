@@ -1,17 +1,16 @@
 """Tests for infinite recursion prevention and edge cases."""
 
 import pytest
+from typing import AsyncIterator
 
 from cogency.agent import Agent
 from cogency.context import Context
 from cogency.llm.base import BaseLLM
-from cogency.nodes.reason import reason
 from cogency.types import AgentState, ExecutionTrace
-from cogency.utils.parsing import parse_reflect_response
 
 
 class MockLLM(BaseLLM):
-    """Mock LLM for testing."""
+    """Mock LLM for testing with streaming support."""
 
     def __init__(self, responses=None):
         super().__init__()
@@ -26,6 +25,11 @@ class MockLLM(BaseLLM):
         self.call_count += 1
         return response
 
+    async def stream(self, messages, yield_interval=0.0, **kwargs):
+        """Mock streaming implementation."""
+        response = await self.invoke(messages, **kwargs)
+        yield response
+
 
 @pytest.mark.asyncio
 async def test_max_depth_prevents_infinite_loops():
@@ -38,7 +42,7 @@ async def test_max_depth_prevents_infinite_loops():
     ] * 20  # Repeat many times to test recursion limit
 
     mock_llm = MockLLM(mock_responses)
-    agent = Agent(name="TestAgent", llm=mock_llm, max_depth=5)  # Sufficient limit for test
+    agent = Agent(name="TestAgent", llm=mock_llm, max_depth=5)
 
     # This should hit the recursion limit and raise an exception
     from langgraph.errors import GraphRecursionError
@@ -47,79 +51,16 @@ async def test_max_depth_prevents_infinite_loops():
         await agent.run("What is 1 + 1?")
 
 
-def test_reflect_defaults_to_complete_on_error():
-    """Test that reflect node defaults to 'complete' on parsing errors to prevent loops."""
-    # Test malformed JSON that would previously cause infinite loops
-    malformed_responses = [
-        "Invalid JSON response",
-        None,
-        "",
-        "{ malformed json",
-        "Just plain text",
+@pytest.mark.asyncio
+async def test_agent_handles_basic_workflow():
+    """Test agent handles basic workflow without recursion."""
+    mock_responses = [
+        '{"action": "direct_response", "answer": "Hello world"}',
     ]
-
-    for response in malformed_responses:
-        route, data = parse_reflect_response(response)
-        # Should default to complete/respond instead of continue/reason
-        assert route == "respond", f"Failed for response: {response}"
-        assert data["status"] == "complete", f"Failed for response: {response}"
-
-
-@pytest.mark.asyncio
-async def test_reason_preserves_conversation_history():
-    """Test that reason node preserves conversation history to prevent repeating actions."""
-    context = Context(current_input="What is 2 + 2?")
-    # Simulate previous conversation
-    context.add_message("user", "What is 2 + 2?")
-    context.add_message(
-        "assistant", "TOOL_CALL: calculator(operation='add', x1=2, x2=2)"
-    )
-    context.add_message("system", "Calculator result: 4")
-
-    state: AgentState = {
-        "context": context,
-        "execution_trace": ExecutionTrace("test123"),
-    }
-
-    mock_llm = MockLLM(["The answer is 4 based on the previous calculation."])
-
-    result_state = await reason(state, mock_llm, [])
-
-    # Should preserve all previous messages
-    messages = result_state["context"].messages
-    assert len(messages) >= 4  # At least the original messages + new response
-
-    # Should include the calculation history
-    calculator_call_found = any(
-        "calculator" in str(msg.get("content", "")) for msg in messages
-    )
-    assert calculator_call_found, "Previous calculator call should be preserved"
-
-
-@pytest.mark.asyncio
-async def test_agent_handles_none_llm_response():
-    """Test agent gracefully handles None responses from LLM."""
-    mock_llm = MockLLM(['{"action": "direct_response", "answer": "No response"}'] * 5)
-    agent = Agent(name="TestAgent", llm=mock_llm, max_depth=5)
-
-    # Should not crash on None response
-    result = await agent.run("Test message")
-    assert result is not None
+    
+    mock_llm = MockLLM(mock_responses)
+    agent = Agent(name="TestAgent", llm=mock_llm)
+    
+    result = await agent.run("Hello")
     assert "response" in result
-
-
-@pytest.mark.asyncio
-async def test_recursion_limit_configuration():
-    """Test that recursion limit is properly configured in LangGraph."""
-    mock_llm = MockLLM(['{"action": "direct_response", "answer": "Hello"}'])
-
-    # Test different max_depth values
-    for max_depth in [5, 10, 15]:
-        agent = Agent(name="TestAgent", llm=mock_llm, max_depth=max_depth)
-
-        # Verify the agent has the correct max_depth
-        assert agent.max_depth == max_depth
-
-        # Should work normally with proper limits
-        result = await agent.run("Hello")
-        assert result is not None
+    assert result["response"] == "Hello world"

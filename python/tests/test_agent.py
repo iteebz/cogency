@@ -192,3 +192,42 @@ class TestAgent:
             result = await agent.run("Hello")
 
             assert result["response"] == "Mocked response"
+
+    @pytest.mark.asyncio
+    async def test_agent_stream(self):
+        """Test agent streaming functionality."""
+        agent = Agent(name="TestAgent", llm=self.mock_llm)
+        
+        # Mock the streaming LLM
+        async def mock_stream(messages, yield_interval=0.0):
+            chunks = ["Hello", " streaming", " world"]
+            for chunk in chunks:
+                yield chunk
+        
+        self.mock_llm.stream = mock_stream
+        
+        chunks = []
+        async for chunk in agent.stream("Hello"):
+            chunks.append(chunk)
+        
+        # Should produce streaming chunks
+        assert len(chunks) > 0
+        assert any(chunk["type"] == "thinking" for chunk in chunks)
+
+    @pytest.mark.asyncio
+    async def test_agent_stream_with_yield_interval(self):
+        """Test agent streaming with yield_interval parameter."""
+        agent = Agent(name="TestAgent", llm=self.mock_llm)
+        
+        # Mock the streaming LLM
+        async def mock_stream(messages, yield_interval=0.0):
+            yield "test chunk"
+        
+        self.mock_llm.stream = mock_stream
+        
+        chunks = []
+        async for chunk in agent.stream("Hello", yield_interval=0.1):
+            chunks.append(chunk)
+        
+        # Should work with yield_interval parameter
+        assert len(chunks) > 0

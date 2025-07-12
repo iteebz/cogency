@@ -3,7 +3,7 @@ from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 
 PLAN_PROMPT = """You are an AI assistant. Analyze the user request and respond with ONLY valid JSON.
 

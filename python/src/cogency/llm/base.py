@@ -3,7 +3,15 @@ from typing import AsyncIterator, Dict, List
 
 
 class BaseLLM(ABC):
-    """Base class for all LLM implementations in the cogency framework."""
+    """
+    Base class for all LLM implementations in the cogency framework.
+    
+    All LLM providers support:
+    - Streaming execution for real-time output
+    - Key rotation for high-volume usage  
+    - Rate limiting via yield_interval parameter
+    - Unified interface across providers
+    """
 
     def __init__(self, api_key: str = None, key_rotator=None, **kwargs):
         self.api_key = api_key
