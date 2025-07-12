@@ -37,20 +37,16 @@ def create_llm() -> GeminiLLM:
     """Create LLM instance with intelligent key handling."""
     keys = load_api_keys()
 
-    if len(keys) > 1:
-        # Multiple keys - use rotation
-        key_rotator = KeyRotator(keys)
-        return GeminiLLM(key_rotator=key_rotator)
-    elif len(keys) == 1:
-        # Single key - use directly
-        return GeminiLLM(api_key=keys[0])
-    else:
+    if not keys:
         # No keys found - raise helpful error
         raise ValueError(
             "No API keys found. Please set either:\n"
             "- GEMINI_API_KEY for single key usage\n"
             "- GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc. for key rotation"
         )
+    
+    # Use new cleaner interface - handles rotation automatically
+    return GeminiLLM(api_keys=keys)
 
 
 def interactive_mode(agent: Agent, enable_trace: bool = False):

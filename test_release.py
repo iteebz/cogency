@@ -99,7 +99,7 @@ def test_agent_without_llm():
         # This will fail on run() without API key, but should create successfully
         agent = Agent(
             name="TestAgent",
-            llm=GeminiLLM(api_key="fake-key"),
+            llm=GeminiLLM(api_keys="fake-key"),  # New cleaner interface
             tools=[CalculatorTool(), WebSearchTool()]
         )
         print("✅ Agent created successfully with tools")
@@ -110,7 +110,7 @@ def test_agent_without_llm():
 
 def main():
     """Run all tests"""
-    print("🚀 Running Cogency v0.2.0 release tests...\n")
+    print("🚀 Running Cogency v0.2.2 release tests...\n")
     
     tests = [
         test_tool_discovery,
@@ -132,7 +132,7 @@ def main():
     print(f"📊 Tests passed: {passed}/{len(tests)}")
     
     if passed == len(tests):
-        print("🎉 All tests passed! Cogency v0.2.0 is ready for release!")
+        print("🎉 All tests passed! Cogency v0.2.2 is ready for release!")
         return True
     else:
         print("🔧 Some tests failed. Please fix before release.")

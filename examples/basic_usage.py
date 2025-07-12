@@ -22,8 +22,8 @@ def main():
         print("Set it with: export GEMINI_API_KEY=your-api-key")
         sys.exit(1)
 
-    # Create LLM instance
-    llm = GeminiLLM(api_key=api_key)
+    # Create LLM instance (new cleaner interface)
+    llm = GeminiLLM(api_keys=api_key)
 
     # Create agent with tools
     agent = Agent(

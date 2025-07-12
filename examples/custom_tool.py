@@ -107,7 +107,7 @@ def main():
     
     # Set your API key
     api_key = "AIzaSyA7QHtdxjtKwpGvNEgtBsyt7kCVpedFNNQ"
-    llm = GeminiLLM(api_key=api_key)
+    llm = GeminiLLM(api_keys=api_key)  # New cleaner interface
     
     # Create agent with our custom tool
     agent = Agent(

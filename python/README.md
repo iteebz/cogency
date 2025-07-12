@@ -16,7 +16,7 @@ from cogency.llm import GeminiLLM
 from cogency.tools import CalculatorTool, WebSearchTool, FileManagerTool
 
 # Create agent with multiple tools
-llm = GeminiLLM(api_key="your-key")
+llm = GeminiLLM(api_keys="your-key")  # New cleaner interface
 agent = Agent(
     name="MyAgent", 
     llm=llm, 
@@ -73,18 +73,20 @@ Tools are automatically discovered and available to agents.
 
 ## LLM Support
 
-Currently supports Google Gemini:
+Currently supports Google Gemini with automatic key rotation:
 
 ```python
 from cogency.llm import GeminiLLM
 
-# Simple usage
-llm = GeminiLLM(api_key="your-key")
+# Single API key
+llm = GeminiLLM(api_keys="your-key")
 
-# With key rotation
+# Multiple keys with automatic rotation (v0.2.2+)
+llm = GeminiLLM(api_keys=["key1", "key2", "key3"])
+
+# Legacy interface (still supported)
 from cogency.llm import KeyRotator
-keys = ["key1", "key2", "key3"]
-llm = GeminiLLM(key_rotator=KeyRotator(keys))
+llm = GeminiLLM(key_rotator=KeyRotator(["key1", "key2"]))
 ```
 
 ## Execution Tracing
