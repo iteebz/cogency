@@ -2,7 +2,7 @@ from typing import AsyncIterator, Dict, Any
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 from cogency.utils.parsing import extract_tool_call
 
 
@@ -57,12 +57,17 @@ async def act_streaming(state: AgentState, tools: list[BaseTool], yield_interval
         # Execute tool
         yield {"type": "thinking", "node": "act", "content": f"Running {tool_name} with args: {parsed_args}"}
         
+        tool_found = False
         tool_output = {"error": f"Tool '{tool_name}' not found."}
         for tool in tools:
             if tool.name == tool_name:
+                tool_found = True
                 yield {"type": "tool_call", "node": "act", "data": {"tool": tool_name, "args": parsed_args}}
                 tool_output = await tool.validate_and_run(**parsed_args)
                 break
+
+        if not tool_found:
+            yield {"type": "error", "node": "act", "content": f"Tool '{tool_name}' not found"}
 
         yield {"type": "thinking", "node": "act", "content": f"Tool execution completed"}
         

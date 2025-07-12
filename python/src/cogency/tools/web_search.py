@@ -5,7 +5,7 @@ from ddgs import DDGS
 
 from cogency.config import get_config
 from cogency.tools.base import BaseTool
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import (
     ToolError,
     ValidationError,

@@ -4,7 +4,7 @@ from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 
 REASON_PROMPT = """
 You are an AI assistant executing a specific task using available tools.

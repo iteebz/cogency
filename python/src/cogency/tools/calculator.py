@@ -2,7 +2,7 @@ import math
 from typing import Any, Dict, List
 
 from cogency.tools.base import BaseTool
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import (
     ValidationError,
     create_success_response,

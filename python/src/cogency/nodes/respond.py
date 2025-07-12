@@ -2,7 +2,7 @@ from typing import AsyncIterator, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 
 RESPOND_PROMPT = """
 You are an AI assistant providing the final response to the user.

@@ -10,6 +10,7 @@ pip install cogency
 
 ## Quick Start
 
+### Standard Execution
 ```python
 from cogency.agent import Agent
 from cogency.llm import GeminiLLM
@@ -32,6 +33,29 @@ result = await agent.run("What is 15 * 23?", enable_trace=True, print_trace=True
 print(result["response"])
 ```
 
+### Streaming Execution (NEW in 0.3.0)
+```python
+# Stream agent execution in real-time - see thinking process as it happens
+async for chunk in agent.stream("What is 15 * 23?"):
+    if chunk["type"] == "thinking":
+        print(f"💭 {chunk['content']}")
+    elif chunk["type"] == "chunk":
+        print(f"🧠 {chunk['content']}", end="")
+    elif chunk["type"] == "result":
+        print(f"\n✅ {chunk['node']}: {chunk['data']}")
+
+# Example output:
+# 💭 Analyzing user request and available tools...
+# 💭 Available tools: calculator (Basic arithmetic operations)
+# 💭 Generating plan decision...
+# 🧠 {"action": "tool_needed", "reasoning": "Math calculation", "strategy": "calculator"}
+# ✅ plan: {"decision": "..."}
+# 💭 Analyzing task and selecting appropriate tool...
+# 💭 Available tools: ['calculator']
+# 🧠 TOOL_CALL: calculator(operation='multiply', x1=15, x2=23)
+# ✅ reason: {"tool_call": "..."}
+```
+
 ## Core Architecture
 
 Cogency uses a clean 5-step reasoning loop:
@@ -43,6 +67,15 @@ Cogency uses a clean 5-step reasoning loop:
 5. **Respond** - Format clean answer for user
 
 This separation enables emergent reasoning behavior - agents adapt their tool usage based on results without explicit programming.
+
+### Stream-First Design (0.3.0)
+
+Cogency implements a stream-first architecture where agents are defined by their execution streams rather than traditional callback patterns.
+
+- Every node is an **async generator** that yields thinking steps in real-time
+- Stream IS the execution, not a view of it
+- Natural cancellation, unified interfaces, and transparent reasoning
+- Configurable yield intervals for rate limiting
 
 ## Built-in Tools
 
@@ -73,21 +106,38 @@ Tools are automatically discovered and available to agents.
 
 ## LLM Support
 
-Currently supports Google Gemini with automatic key rotation:
+Supports multiple LLM providers with automatic key rotation:
 
 ```python
+# OpenAI
+from cogency.llm import OpenAILLM
+llm = OpenAILLM(api_keys="your-key", model="gpt-4")
+
+# Anthropic Claude
+from cogency.llm import AnthropicLLM
+llm = AnthropicLLM(api_keys="your-key", model="claude-3-sonnet-20240229")
+
+# Google Gemini
 from cogency.llm import GeminiLLM
+llm = GeminiLLM(api_keys="your-key", model="gemini-1.5-pro")
 
-# Single API key
-llm = GeminiLLM(api_keys="your-key")
+# Grok (X.AI)
+from cogency.llm import GrokLLM
+llm = GrokLLM(api_keys="your-key", model="grok-beta")
 
-# Or multiple keys with automatic rotation
-llm = GeminiLLM(api_keys=["key1", "key2", "key3"])
+# Mistral
+from cogency.llm import MistralLLM
+llm = MistralLLM(api_keys="your-key", model="mistral-large-latest")
 
-# Legacy interface (still supported)
-from cogency.llm import KeyRotator
-llm = GeminiLLM(key_rotator=KeyRotator(["key1", "key2"]))
+# Multiple keys with automatic rotation (all providers)
+llm = OpenAILLM(api_keys=["key1", "key2", "key3"])
 ```
+
+All LLM providers support:
+- **Streaming execution** for real-time output
+- **Key rotation** for high-volume usage
+- **Rate limiting** via yield_interval parameter
+- **Unified interface** - switch providers with one line
 
 ## Conversation History
 

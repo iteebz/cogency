@@ -4,7 +4,7 @@ import google.generativeai as genai
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import ConfigurationError
 
 
@@ -65,12 +65,19 @@ class GeminiLLM(BaseLLM):
 
         if current_key not in self._model_instances:
             genai.configure(api_key=current_key)
+            # Only pass GenerationConfig-compatible parameters
+            generation_params = {
+                "temperature": self.temperature,
+                # Add other valid GenerationConfig params as needed
+            }
+            # Filter out non-GenerationConfig params like timeout, max_retries
+            for k, v in self.kwargs.items():
+                if k in ["temperature", "max_output_tokens", "top_p", "top_k", "candidate_count", "stop_sequences"]:
+                    generation_params[k] = v
+            
             self._model_instances[current_key] = genai.GenerativeModel(
                 model_name=self.model,
-                generation_config=genai.types.GenerationConfig(
-                    temperature=self.temperature,
-                    **{k: v for k, v in self.kwargs.items() if k != "temperature"}
-                )
+                generation_config=genai.types.GenerationConfig(**generation_params)
             )
 
         self._current_model = self._model_instances[current_key]

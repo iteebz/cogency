@@ -8,13 +8,31 @@ from cogency.embed import BaseEmbed
 from cogency.llm import BaseLLM
 from cogency.nodes import act, plan, reason, reflect, respond
 from cogency.nodes.plan import plan_streaming
+from cogency.nodes.reason import reason_streaming
+from cogency.nodes.act import act_streaming
+from cogency.nodes.reflect import reflect_streaming
+from cogency.nodes.respond import respond_streaming
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState, ExecutionTrace
-from cogency.utils.cancellation import interruptable
+from cogency.utils.interrupt import interruptable
 from cogency.utils.parsing import parse_plan_response, parse_reflect_response
 
 
 class Agent:
+    """
+    Cogency Agent with stream-first architecture.
+    
+    Features revolutionary streaming where agents are defined by their streams,
+    not just made streamable. Every node is an async generator that yields
+    thinking steps in real-time.
+    
+    Args:
+        name: Agent identifier
+        llm: Language model instance supporting streaming
+        tools: Optional list of tools for agent to use
+        embed: Optional embedding model for retrieval
+        max_depth: Maximum reasoning depth
+    """
     def __init__(
         self,
         name: str,
@@ -147,10 +165,22 @@ class Agent:
     async def stream(self, message: str, context: Optional[Context] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
         """Stream the agent's execution process in real-time.
         
+        Revolutionary streaming architecture where the stream IS the execution,
+        not a view of it. Every node yields thinking steps as they happen.
+        
         Args:
             message: User input message
             context: Optional context to continue conversation
             yield_interval: Minimum time between yields for rate limiting (seconds)
+            
+        Yields:
+            Dict[str, Any]: Streaming chunks with types:
+                - thinking: Agent's reasoning process
+                - chunk: LLM response chunks
+                - result: Node execution results
+                - tool_call: Tool execution events
+                - error: Error events
+                - state: Updated agent state
         """
         # Use provided context or create new one
         if context is None:
@@ -166,13 +196,66 @@ class Agent:
             "execution_trace": None,
         }
 
-        # For now, manually stream through plan node as pilot
-        # TODO: Integrate with full LangGraph streaming when ready
-        async for chunk in plan_streaming(initial_state, self.llm, self.tools, yield_interval):
-            # TODO: Implement yield_interval rate limiting here when needed
-            # if yield_interval > 0.0:
-            #     await asyncio.sleep(yield_interval)
-            yield chunk
+        # Stream through complete agent workflow: plan → reason → act → reflect → respond
+        current_state = initial_state
+        max_iterations = 10  # Prevent infinite loops
+        iteration = 0
+        
+        while iteration < max_iterations:
+            iteration += 1
+            
+            # 1. Plan Phase
+            async for chunk in plan_streaming(current_state, self.llm, self.tools, yield_interval):
+                yield chunk
+                if chunk["type"] == "state":
+                    current_state = chunk["state"]
+            
+            # Check plan decision
+            plan_decision = self._plan_router(current_state)
+            
+            if plan_decision == "respond":
+                # Direct response - go straight to respond
+                async for chunk in respond_streaming(current_state, self.llm, yield_interval):
+                    yield chunk
+                    if chunk["type"] == "state":
+                        current_state = chunk["state"]
+                break
+            
+            elif plan_decision == "reason":
+                # 2. Reason Phase
+                async for chunk in reason_streaming(current_state, self.llm, self.tools, yield_interval):
+                    yield chunk
+                    if chunk["type"] == "state":
+                        current_state = chunk["state"]
+                
+                # 3. Act Phase
+                async for chunk in act_streaming(current_state, self.tools, yield_interval):
+                    yield chunk
+                    if chunk["type"] == "state":
+                        current_state = chunk["state"]
+                
+                # 4. Reflect Phase
+                async for chunk in reflect_streaming(current_state, self.llm, yield_interval):
+                    yield chunk
+                    if chunk["type"] == "state":
+                        current_state = chunk["state"]
+                
+                # Check reflection decision
+                reflect_decision = self._reflect_router(current_state)
+                
+                if reflect_decision == "respond":
+                    # 5. Respond Phase
+                    async for chunk in respond_streaming(current_state, self.llm, yield_interval):
+                        yield chunk
+                        if chunk["type"] == "state":
+                            current_state = chunk["state"]
+                    break
+                # If continue, loop back to plan
+            
+            else:
+                # Unknown decision, break
+                yield {"type": "error", "node": "agent", "content": f"Unknown plan decision: {plan_decision}"}
+                break
 
     def _plan_router(self, state: AgentState) -> str:
         """Direct routing after plan node."""
