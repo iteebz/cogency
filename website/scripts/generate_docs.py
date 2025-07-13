@@ -4,7 +4,7 @@ Generate API documentation from cogency OSS project.
 Extracts docs via Python inspection and outputs JSON for Astro.
 
 Run from website: python scripts/generate_docs.py
-Or with poetry: cd ../python && poetry run python ../website/scripts/generate_docs.py
+Or with poetry: cd ../../ && poetry run python website/scripts/generate_docs.py
 """
 
 import json
@@ -130,9 +130,9 @@ def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
 
 def main():
     """Main entry point."""
-    # Default to cogency python directory (now colocated)
-    cogency_path = "../python"
-    output_dir = "../python/autodocs"
+    # Default to cogency src directory (restructured)
+    cogency_path = "../.."
+    output_dir = "../autodocs"
     
     if len(sys.argv) > 1:
         cogency_path = sys.argv[1]
