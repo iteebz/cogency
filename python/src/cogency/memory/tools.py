@@ -32,7 +32,7 @@ class MemorizeTool(BaseTool):
         metadata = kwargs.get("metadata", {})
         
         try:
-            artifact = await self.memory.memorize(content, tags, metadata)
+            artifact = await self.memory.memorize(content, tags=tags, metadata=metadata)
             return {
                 "success": True,
                 "artifact_id": str(artifact.id),
@@ -103,7 +103,7 @@ class RecallTool(BaseTool):
         tags = kwargs.get("tags", [])
         
         try:
-            artifacts = await self.memory.recall(query, limit, tags if tags else None)
+            artifacts = await self.memory.recall(query, limit=limit, tags=tags if tags else None)
             
             results = []
             for artifact in artifacts:

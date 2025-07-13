@@ -55,8 +55,8 @@ async def test_memorize_tool_run_success(memorize_tool, mock_memory):
     # Verify mock was called correctly
     mock_memory.memorize.assert_called_once_with(
         "Test content",
-        ["test"],
-        {"priority": "high"}
+        tags=["test"],
+        metadata={"priority": "high"}
     )
     
     # Verify result
@@ -83,7 +83,7 @@ async def test_memorize_tool_run_with_defaults(memorize_tool, mock_memory):
     
     result = await memorize_tool.run(content="Test content")
     
-    mock_memory.memorize.assert_called_once_with("Test content", [], {})
+    mock_memory.memorize.assert_called_once_with("Test content", tags=[], metadata={})
     assert result["success"] is True
 
 
@@ -128,7 +128,7 @@ async def test_recall_tool_run_success(recall_tool, mock_memory):
     )
     
     # Verify mock was called correctly
-    mock_memory.recall.assert_called_once_with("test content", 10, ["test"])
+    mock_memory.recall.assert_called_once_with("test content", limit=10, tags=["test"])
     
     # Verify result
     assert result["success"] is True
@@ -161,7 +161,7 @@ async def test_recall_tool_run_with_defaults(recall_tool, mock_memory):
     
     result = await recall_tool.run(query="test")
     
-    mock_memory.recall.assert_called_once_with("test", None, None)
+    mock_memory.recall.assert_called_once_with("test", limit=None, tags=None)
     assert result["success"] is True
     assert result["results_count"] == 0
 
@@ -185,7 +185,7 @@ async def test_recall_tool_empty_tags_handling(recall_tool, mock_memory):
     result = await recall_tool.run(query="test", tags=[])
     
     # Empty tags should be converted to None
-    mock_memory.recall.assert_called_once_with("test", None, None)
+    mock_memory.recall.assert_called_once_with("test", limit=None, tags=None)
 
 
 def test_memorize_tool_schema(memorize_tool):

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from .base import BaseMemory, MemoryArtifact
+from .base import BaseMemory, MemoryArtifact, MemoryType
 
 
 class FSMemory(BaseMemory):
@@ -26,13 +26,15 @@ class FSMemory(BaseMemory):
 
     async def memorize(
         self, 
-        content: str, 
+        content: str,
+        memory_type: MemoryType = MemoryType.FACT,
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> MemoryArtifact:
         """Store content as JSON file."""
         artifact = MemoryArtifact(
             content=content,
+            memory_type=memory_type,
             tags=tags or [],
             metadata=metadata or {}
         )
@@ -42,6 +44,7 @@ class FSMemory(BaseMemory):
         artifact_data = {
             "id": str(artifact.id),
             "content": artifact.content,
+            "memory_type": artifact.memory_type.value,
             "tags": artifact.tags,
             "metadata": artifact.metadata,
             "created_at": artifact.created_at.isoformat()
@@ -56,7 +59,10 @@ class FSMemory(BaseMemory):
         self, 
         query: str,
         limit: Optional[int] = None,
-        tags: Optional[List[str]] = None
+        tags: Optional[List[str]] = None,
+        memory_type: Optional[MemoryType] = None,
+        since: Optional[str] = None,
+        **kwargs
     ) -> List[MemoryArtifact]:
         """Search artifacts using simple text matching."""
         artifacts = []
@@ -72,15 +78,30 @@ class FSMemory(BaseMemory):
                 content_match = query_lower in data["content"].lower()
                 tag_match = any(query_lower in tag.lower() for tag in data["tags"])
                 
+                # Memory type filtering
+                if memory_type:
+                    artifact_type = MemoryType(data.get("memory_type", MemoryType.FACT.value))
+                    if artifact_type != memory_type:
+                        continue
+                
                 # Tag filtering
                 if tags:
                     tag_filter_match = any(tag in data["tags"] for tag in tags)
                     if not tag_filter_match:
                         continue
                 
+                # Time-based filtering
+                if since:
+                    from datetime import datetime
+                    since_dt = datetime.fromisoformat(since)
+                    artifact_dt = datetime.fromisoformat(data["created_at"])
+                    if artifact_dt < since_dt:
+                        continue
+                
                 if content_match or tag_match:
                     artifact = MemoryArtifact(
                         content=data["content"],
+                        memory_type=MemoryType(data.get("memory_type", MemoryType.FACT.value)),
                         id=UUID(data["id"]),
                         tags=data["tags"],
                         metadata=data["metadata"]

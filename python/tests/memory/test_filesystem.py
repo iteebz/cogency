@@ -45,7 +45,7 @@ async def test_memorize_with_tags_and_metadata(fs_memory):
     tags = ["test", "memory", "important"]
     metadata = {"priority": "high", "category": "testing"}
     
-    artifact = await fs_memory.memorize(content, tags, metadata)
+    artifact = await fs_memory.memorize(content, tags=tags, metadata=metadata)
     
     assert artifact.content == content
     assert artifact.tags == tags
