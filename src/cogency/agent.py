@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from typing import Any, AsyncIterator, Dict, List, Optional
 
 from langgraph.graph import END, StateGraph
@@ -12,6 +13,7 @@ from cogency.tools.base import BaseTool
 from cogency.types import AgentState, ExecutionTrace
 from cogency.utils.interrupt import interruptable
 from cogency.utils.parsing import parse_plan_response, parse_reflect_response
+from cogency.utils.coordination import StateCoordinator
 
 
 # Default cognitive pipeline - Plan → Reason → Act → Reflect → Respond

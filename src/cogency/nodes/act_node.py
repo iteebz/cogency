@@ -1,4 +1,5 @@
 """Act node implementation for stream-first cognitive architecture."""
+import asyncio
 from typing import AsyncGenerator
 
 from cogency.trace import trace_node
@@ -94,6 +95,7 @@ class ActNode(BaseNode):
 
         # Yield final state
         yield {"type": "state", "node": self.name, "content": None, "data": None, "state": {"context": context, "execution_trace": ctx.state["execution_trace"]}}
+    
 
     @trace_node
     @interruptable
