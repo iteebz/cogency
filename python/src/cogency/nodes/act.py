@@ -63,7 +63,11 @@ async def act_streaming(state: AgentState, tools: list[BaseTool], yield_interval
             if tool.name == tool_name:
                 tool_found = True
                 yield {"type": "tool_call", "node": "act", "data": {"tool": tool_name, "args": parsed_args}}
-                tool_output = await tool.validate_and_run(**parsed_args)
+                try:
+                    tool_output = await tool.validate_and_run(**parsed_args)
+                except Exception as e:
+                    tool_output = {"error": f"Tool execution failed: {str(e)}"}
+                    yield {"type": "error", "node": "act", "content": f"Tool execution failed: {str(e)}"}
                 break
 
         if not tool_found:

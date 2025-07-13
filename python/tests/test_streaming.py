@@ -229,3 +229,123 @@ class TestStreamingNodes:
                 assert "data" in chunk
             elif chunk["type"] == "state":
                 assert "state" in chunk
+
+    @pytest.mark.asyncio
+    async def test_partial_tool_failure_mid_phase(self):
+        """Test partial tool failure during execution phase with error propagation."""
+        # Create a tool that will fail
+        class FailingTool:
+            name = "failing_tool"
+            
+            async def validate_and_run(self, **kwargs):
+                raise ValueError("Tool execution failed")
+        
+        failing_tool = FailingTool()
+        
+        # Setup context with tool call to failing tool
+        tool_call = "TOOL_CALL: failing_tool(arg=value)"
+        self.context.add_message("assistant", tool_call)
+        
+        chunks = []
+        async for chunk in act_streaming(self.state, [failing_tool]):
+            chunks.append(chunk)
+        
+        # Verify error handling in streaming
+        error_chunks = [c for c in chunks if c["type"] == "error"]
+        thinking_chunks = [c for c in chunks if c["type"] == "thinking"]
+        
+        # Should capture tool execution attempt and failure
+        assert len(thinking_chunks) >= 2  # At least parsing + execution attempt
+        assert any("failing_tool" in c["content"] for c in thinking_chunks)
+        
+        # Should produce final state even after failure
+        state_chunks = [c for c in chunks if c["type"] == "state"]
+        assert len(state_chunks) >= 1
+        
+        # Context should be updated with error information
+        final_state = state_chunks[-1]["state"]
+        messages = final_state["context"].messages
+        assert any("error" in str(msg).lower() or "fail" in str(msg).lower() for msg in messages[-2:])
+
+    @pytest.mark.asyncio
+    async def test_early_plan_termination_direct_response(self):
+        """Test early termination from Plan phase via direct response path."""
+        # Plan returns direct response JSON
+        direct_response = '{"action": "direct_response", "answer": "Direct answer without tools"}'
+        mock_llm = MockLLM(direct_response)
+        
+        chunks = []
+        async for chunk in plan_streaming(self.state, mock_llm, [self.calculator]):
+            chunks.append(chunk)
+        
+        # Verify direct response decision is captured in raw form
+        result_chunks = [c for c in chunks if c["type"] == "result"]
+        assert len(result_chunks) >= 1
+        
+        result_data = result_chunks[-1]["data"]
+        assert "decision" in result_data
+        
+        # The decision should be the raw JSON response
+        raw_decision = result_data["decision"].strip()
+        assert "direct_response" in raw_decision
+        assert "Direct answer without tools" in raw_decision
+        
+        # Test that router would parse this correctly
+        from cogency.utils.parsing import parse_plan_response
+        route, parsed_data = parse_plan_response(raw_decision)
+        assert route == "respond"
+        assert parsed_data["action"] == "direct_response"
+        assert "Direct answer without tools" in parsed_data["answer"]
+        
+        # Verify final state has the JSON message (raw)
+        state_chunks = [c for c in chunks if c["type"] == "state"]
+        final_state = state_chunks[-1]["state"]
+        last_message = final_state["context"].messages[-1]["content"]
+        
+        # Should contain the raw JSON response
+        assert '{"action":' in last_message
+        assert "direct_response" in last_message
+
+    @pytest.mark.asyncio
+    async def test_reflect_loop_redirection_edge_cases(self):
+        """Test Reflect phase loop redirection and decision boundary cases."""
+        # Test 1: Continue decision (should loop back)
+        continue_response = '{"status": "continue", "reasoning": "More work needed"}'
+        mock_llm = MockLLM(continue_response)
+        
+        chunks = []
+        async for chunk in reflect_streaming(self.state, mock_llm):
+            chunks.append(chunk)
+        
+        # Verify continue decision is processed
+        result_chunks = [c for c in chunks if c["type"] == "result"]
+        assert len(result_chunks) >= 1
+        
+        result_data = result_chunks[-1]["data"]
+        assert "assessment" in result_data
+        assert "continue" in result_data["assessment"]
+        
+        # Test 2: Malformed JSON decision (should handle gracefully)
+        malformed_response = '{"status": "invalid_status", "broken": json}'
+        mock_llm_malformed = MockLLM(malformed_response)
+        
+        chunks_malformed = []
+        async for chunk in reflect_streaming(self.state, mock_llm_malformed):
+            chunks_malformed.append(chunk)
+        
+        # Should still produce valid chunk structure
+        assert len(chunks_malformed) > 0
+        assert any(c["type"] == "state" for c in chunks_malformed)
+        
+        # Test 3: Complete decision
+        complete_response = '{"status": "complete", "assessment": "Task finished successfully"}'
+        mock_llm_complete = MockLLM(complete_response)
+        
+        chunks_complete = []
+        async for chunk in reflect_streaming(self.state, mock_llm_complete):
+            chunks_complete.append(chunk)
+        
+        # Verify complete assessment structure
+        result_chunks_complete = [c for c in chunks_complete if c["type"] == "result"]
+        assert len(result_chunks_complete) >= 1
+        assert "complete" in result_chunks_complete[-1]["data"]["assessment"]

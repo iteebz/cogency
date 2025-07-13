@@ -7,15 +7,15 @@ from cogency.context import Context
 from cogency.embed import BaseEmbed
 from cogency.llm import BaseLLM
 from cogency.nodes import act, plan, reason, reflect, respond
-from cogency.nodes.plan import plan_streaming
-from cogency.nodes.reason import reason_streaming
-from cogency.nodes.act import act_streaming
-from cogency.nodes.reflect import reflect_streaming
-from cogency.nodes.respond import respond_streaming
+from cogency.nodes import BaseNode, NodeContext, PlanNode, ReasonNode, ActNode, ReflectNode, RespondNode
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState, ExecutionTrace
 from cogency.utils.interrupt import interruptable
 from cogency.utils.parsing import parse_plan_response, parse_reflect_response
+
+
+# Default cognitive pipeline - Plan → Reason → Act → Reflect → Respond
+DEFAULT_PIPELINE = [PlanNode(), ReasonNode(), ActNode(), ReflectNode(), RespondNode()]
 
 
 class Agent:
@@ -32,6 +32,7 @@ class Agent:
         tools: Optional list of tools for agent to use
         embed: Optional embedding model for retrieval
         max_depth: Maximum reasoning depth
+        pipeline: Optional custom pipeline nodes (defaults to Plan→Reason→Act→Reflect→Respond)
     """
     def __init__(
         self,
@@ -40,12 +41,14 @@ class Agent:
         tools: Optional[List[BaseTool]] = None,
         embed: Optional[BaseEmbed] = None,
         max_depth: int = 10,
+        pipeline: Optional[List[BaseNode]] = None,
     ):
         self.name = name
         self.llm = llm
         self.tools = tools if tools is not None else []
         self.embed = embed
         self.max_depth = max_depth
+        self.pipeline = pipeline if pipeline is not None else DEFAULT_PIPELINE
 
         self.workflow = StateGraph(AgentState)
 
@@ -196,7 +199,7 @@ class Agent:
             "execution_trace": None,
         }
 
-        # Stream through complete agent workflow: plan → reason → act → reflect → respond
+        # Stream through pluggable cognitive pipeline
         current_state = initial_state
         max_iterations = 10  # Prevent infinite loops
         iteration = 0
@@ -204,58 +207,71 @@ class Agent:
         while iteration < max_iterations:
             iteration += 1
             
-            # 1. Plan Phase
-            async for chunk in plan_streaming(current_state, self.llm, self.tools, yield_interval):
-                yield chunk
-                if chunk["type"] == "state":
-                    current_state = chunk["state"]
+            # Create NodeContext for pluggable nodes
+            node_ctx = NodeContext(
+                state=current_state,
+                llm=self.llm,
+                tools=self.tools
+            )
+            
+            # Execute pipeline nodes based on routing logic
+            plan_node = self._get_node_by_name("plan")
+            if plan_node:
+                async for chunk in plan_node.stream(node_ctx, yield_interval):
+                    yield chunk
+                    if chunk["type"] == "state":
+                        current_state = chunk["state"]
+                        node_ctx.state = current_state
             
             # Check plan decision
             plan_decision = self._plan_router(current_state)
             
             if plan_decision == "respond":
                 # Direct response - go straight to respond
-                async for chunk in respond_streaming(current_state, self.llm, yield_interval):
-                    yield chunk
-                    if chunk["type"] == "state":
-                        current_state = chunk["state"]
+                respond_node = self._get_node_by_name("respond")
+                if respond_node:
+                    async for chunk in respond_node.stream(node_ctx, yield_interval):
+                        yield chunk
+                        if chunk["type"] == "state":
+                            current_state = chunk["state"]
                 break
             
             elif plan_decision == "reason":
-                # 2. Reason Phase
-                async for chunk in reason_streaming(current_state, self.llm, self.tools, yield_interval):
-                    yield chunk
-                    if chunk["type"] == "state":
-                        current_state = chunk["state"]
-                
-                # 3. Act Phase
-                async for chunk in act_streaming(current_state, self.tools, yield_interval):
-                    yield chunk
-                    if chunk["type"] == "state":
-                        current_state = chunk["state"]
-                
-                # 4. Reflect Phase
-                async for chunk in reflect_streaming(current_state, self.llm, yield_interval):
-                    yield chunk
-                    if chunk["type"] == "state":
-                        current_state = chunk["state"]
+                # Execute reason → act → reflect sequence
+                for node_name in ["reason", "act", "reflect"]:
+                    node = self._get_node_by_name(node_name)
+                    if node:
+                        async for chunk in node.stream(node_ctx, yield_interval):
+                            yield chunk
+                            if chunk["type"] == "state":
+                                current_state = chunk["state"]
+                                node_ctx.state = current_state
                 
                 # Check reflection decision
                 reflect_decision = self._reflect_router(current_state)
                 
                 if reflect_decision == "respond":
-                    # 5. Respond Phase
-                    async for chunk in respond_streaming(current_state, self.llm, yield_interval):
-                        yield chunk
-                        if chunk["type"] == "state":
-                            current_state = chunk["state"]
+                    # Final response
+                    respond_node = self._get_node_by_name("respond")
+                    if respond_node:
+                        async for chunk in respond_node.stream(node_ctx, yield_interval):
+                            yield chunk
+                            if chunk["type"] == "state":
+                                current_state = chunk["state"]
                     break
                 # If continue, loop back to plan
             
             else:
                 # Unknown decision, break
-                yield {"type": "error", "node": "agent", "content": f"Unknown plan decision: {plan_decision}"}
+                yield {"type": "error", "node": "agent", "content": f"Unknown plan decision: {plan_decision}", "data": None, "state": None}
                 break
+    
+    def _get_node_by_name(self, name: str) -> Optional[BaseNode]:
+        """Get a node from the pipeline by name."""
+        for node in self.pipeline:
+            if node.name == name:
+                return node
+        return None
 
     def _plan_router(self, state: AgentState) -> str:
         """Direct routing after plan node."""
