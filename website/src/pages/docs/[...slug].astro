@@ -1,0 +1,252 @@
+---
+import Layout from '../../components/Layout.astro';
+import fs from 'fs';
+import path from 'path';
+
+export async function getStaticPaths() {
+  try {
+    // Read the autodocs JSON
+    const docsPath = path.join(process.cwd(), 'src/data/autodocs/api_docs.json');
+    
+    if (!fs.existsSync(docsPath)) {
+      console.warn('Autodocs not found at:', docsPath);
+      return [];
+    }
+    
+    const docsContent = fs.readFileSync(docsPath, 'utf-8');
+    const apiDocs = JSON.parse(docsContent);
+    
+    const paths = [];
+    
+    // Create index page
+    paths.push({
+      params: { slug: undefined },
+      props: { 
+        type: 'index', 
+        data: apiDocs,
+        title: 'API Documentation',
+        description: `Cogency ${apiDocs.package?.version || 'API'} Documentation`
+      }
+    });
+    
+    // Create module pages
+    for (const [moduleName, moduleData] of Object.entries(apiDocs.modules || {})) {
+      paths.push({
+        params: { slug: moduleName },
+        props: { 
+          type: 'module', 
+          data: moduleData,
+          moduleName,
+          title: `${moduleName} Module`,
+          description: moduleData.docstring || `Cogency ${moduleName} module documentation`
+        }
+      });
+      
+      // Create class pages
+      for (const classData of moduleData.classes || []) {
+        paths.push({
+          params: { slug: `${moduleName}/${classData.name}` },
+          props: { 
+            type: 'class', 
+            data: classData,
+            moduleName,
+            title: `${classData.name} Class`,
+            description: classData.docstring || `${classData.name} class in cogency.${moduleName}`
+          }
+        });
+      }
+      
+      // Create function pages
+      for (const funcData of moduleData.functions || []) {
+        paths.push({
+          params: { slug: `${moduleName}/${funcData.name}` },
+          props: { 
+            type: 'function', 
+            data: funcData,
+            moduleName,
+            title: `${funcData.name} Function`,
+            description: funcData.docstring || `${funcData.name} function in cogency.${moduleName}`
+          }
+        });
+      }
+    }
+    
+    return paths;
+  } catch (error) {
+    console.error('Error generating docs paths:', error);
+    return [];
+  }
+}
+
+const { type, data, moduleName, title, description } = Astro.props;
+---
+
+<Layout title={title} description={description} canonicalUrl={`https://cogency.dev/docs/${Astro.params.slug || ''}`}>
+  <div class="max-w-4xl mx-auto px-4 py-8">
+    
+    {type === 'index' && (
+      <div>
+        <h1 class="text-4xl font-bold mb-6">API Documentation</h1>
+        <p class="text-lg text-gray-600 mb-8">
+          Complete API reference for Cogency {data.package?.version || 'framework'}
+        </p>
+        
+        <div class="grid gap-6">
+          {Object.entries(data.modules || {}).map(([name, module]) => (
+            <div class="border rounded-lg p-6">
+              <h2 class="text-2xl font-semibold mb-2">
+                <a href={`/docs/${name}`} class="text-blue-600 hover:underline">
+                  cogency.{name}
+                </a>
+              </h2>
+              <p class="text-gray-600 mb-4">{module.docstring || `${name} module`}</p>
+              <div class="flex gap-4 text-sm text-gray-500">
+                <span>{module.classes?.length || 0} classes</span>
+                <span>{module.functions?.length || 0} functions</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+    
+    {type === 'module' && (
+      <div>
+        <nav class="text-sm text-gray-500 mb-4">
+          <a href="/docs" class="hover:underline">Docs</a> 
+          <span class="mx-2">/</span>
+          <span>{moduleName}</span>
+        </nav>
+        
+        <h1 class="text-4xl font-bold mb-6">cogency.{moduleName}</h1>
+        {data.docstring && (
+          <p class="text-lg text-gray-600 mb-8">{data.docstring}</p>
+        )}
+        
+        {data.classes && data.classes.length > 0 && (
+          <section class="mb-12">
+            <h2 class="text-2xl font-semibold mb-6">Classes</h2>
+            <div class="space-y-4">
+              {data.classes.map((cls) => (
+                <div class="border rounded-lg p-6">
+                  <h3 class="text-xl font-semibold mb-2">
+                    <a href={`/docs/${moduleName}/${cls.name}`} class="text-blue-600 hover:underline">
+                      {cls.name}
+                    </a>
+                  </h3>
+                  {cls.docstring && (
+                    <p class="text-gray-600 mb-3">{cls.docstring}</p>
+                  )}
+                  {cls.init_signature && (
+                    <code class="text-sm bg-gray-100 px-2 py-1 rounded">
+                      {cls.name}{cls.init_signature}
+                    </code>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        
+        {data.functions && data.functions.length > 0 && (
+          <section>
+            <h2 class="text-2xl font-semibold mb-6">Functions</h2>
+            <div class="space-y-4">
+              {data.functions.map((func) => (
+                <div class="border rounded-lg p-6">
+                  <h3 class="text-xl font-semibold mb-2">
+                    <a href={`/docs/${moduleName}/${func.name}`} class="text-blue-600 hover:underline">
+                      {func.name}
+                    </a>
+                  </h3>
+                  {func.docstring && (
+                    <p class="text-gray-600 mb-3">{func.docstring}</p>
+                  )}
+                  {func.signature && (
+                    <code class="text-sm bg-gray-100 px-2 py-1 rounded">
+                      {func.name}{func.signature}
+                    </code>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    )}
+    
+    {type === 'class' && (
+      <div>
+        <nav class="text-sm text-gray-500 mb-4">
+          <a href="/docs" class="hover:underline">Docs</a> 
+          <span class="mx-2">/</span>
+          <a href={`/docs/${moduleName}`} class="hover:underline">{moduleName}</a>
+          <span class="mx-2">/</span>
+          <span>{data.name}</span>
+        </nav>
+        
+        <h1 class="text-4xl font-bold mb-6">{data.name}</h1>
+        {data.docstring && (
+          <p class="text-lg text-gray-600 mb-8">{data.docstring}</p>
+        )}
+        
+        {data.init_signature && (
+          <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Constructor</h2>
+            <code class="block bg-gray-100 p-4 rounded text-sm">
+              {data.name}{data.init_signature}
+            </code>
+          </div>
+        )}
+        
+        {data.methods && data.methods.length > 0 && (
+          <section>
+            <h2 class="text-2xl font-semibold mb-6">Methods</h2>
+            <div class="space-y-6">
+              {data.methods.map((method) => (
+                <div class="border rounded-lg p-6">
+                  <h3 class="text-xl font-semibold mb-2">{method.name}</h3>
+                  {method.docstring && (
+                    <p class="text-gray-600 mb-3">{method.docstring}</p>
+                  )}
+                  {method.signature && (
+                    <code class="text-sm bg-gray-100 px-2 py-1 rounded">
+                      {method.name}{method.signature}
+                    </code>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+    )}
+    
+    {type === 'function' && (
+      <div>
+        <nav class="text-sm text-gray-500 mb-4">
+          <a href="/docs" class="hover:underline">Docs</a> 
+          <span class="mx-2">/</span>
+          <a href={`/docs/${moduleName}`} class="hover:underline">{moduleName}</a>
+          <span class="mx-2">/</span>
+          <span>{data.name}</span>
+        </nav>
+        
+        <h1 class="text-4xl font-bold mb-6">{data.name}</h1>
+        {data.docstring && (
+          <p class="text-lg text-gray-600 mb-8">{data.docstring}</p>
+        )}
+        
+        {data.signature && (
+          <div class="mb-8">
+            <h2 class="text-2xl font-semibold mb-4">Signature</h2>
+            <code class="block bg-gray-100 p-4 rounded text-sm">
+              {data.name}{data.signature}
+            </code>
+          </div>
+        )}
+      </div>
+    )}
+    
+  </div>
+</Layout>

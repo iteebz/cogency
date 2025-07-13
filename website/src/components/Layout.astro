@@ -1,0 +1,121 @@
+---
+export interface Props {
+	title: string;
+	description: string;
+	ogImage?: string;
+	canonicalUrl: string;
+	keywords?: string;
+}
+
+const {
+	title,
+	description,
+	ogImage = "/og-image.png",
+	canonicalUrl,
+	keywords
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta name="generator" content={Astro.generator} />
+
+		<!-- Primary Meta Tags -->
+		<title>{title}</title>
+		<meta name="title" content={title} />
+		<meta name="description" content={description} />
+
+		{keywords && <meta name="keywords" content={keywords} />}
+
+		<!-- Open Graph / Facebook -->
+		<meta property="og:type" content="website" />
+		<meta property="og:url" content={canonicalUrl} />
+		<meta property="og:title" content={title} />
+		<meta property="og:description" content={description} />
+		<meta property="og:image" content={ogImage} />
+
+		<!-- Twitter -->
+		<meta property="twitter:card" content="summary_large_image" />
+		<meta property="twitter:url" content={canonicalUrl} />
+		<meta property="twitter:title" content={title} />
+		<meta property="twitter:description" content={description} />
+		<meta property="twitter:image" content={ogImage} />
+
+		<!-- Additional SEO -->
+		<meta name="robots" content="index, follow" />
+		<meta name="author" content="Cogency" />
+		<link rel="canonical" href={canonicalUrl} />
+
+		<!-- Preload critical resources -->
+		<link rel="preconnect" href="https://fonts.googleapis.com" />
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+		<link
+			href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+			rel="stylesheet"
+		/>
+
+		<!-- JSON-LD Structured Data -->
+		<script
+			type="application/ld+json"
+			set:html={JSON.stringify({
+				"@context": "https://schema.org",
+				"@type": "TechArticle",
+				name: title,
+				description: description,
+				url: canonicalUrl,
+				author: {
+					"@type": "Organization",
+					name: "Cogency"
+				},
+				publisher: {
+					"@type": "Organization",
+					name: "Cogency",
+					url: "https://cogency.dev"
+				},
+				mainEntityOfPage: canonicalUrl
+			})}
+		/>
+	</head>
+	<body class="bg-gray-950 font-inter text-white antialiased">
+		<!-- Navigation -->
+		<nav class="border-b border-gray-800 bg-gray-950/95 backdrop-blur">
+			<div class="mx-auto max-w-6xl px-6 py-4">
+				<div class="flex items-center justify-between">
+					<a href="/" class="text-xl font-bold text-white">Cogency</a>
+					<div class="flex items-center gap-6">
+						<a href="/" class="text-gray-300 transition-colors hover:text-white"
+							>Home</a
+						>
+						<a
+							href="https://github.com/iteebz/cogency"
+							class="text-gray-300 transition-colors hover:text-white">GitHub</a
+						>
+					</div>
+				</div>
+			</div>
+		</nav>
+
+		<main>
+			<slot />
+		</main>
+
+		<!-- Footer -->
+		<footer class="border-t border-gray-800 px-6 py-12 sm:px-8 lg:px-16">
+			<div class="mx-auto max-w-6xl text-center">
+				<p class="text-gray-400">
+					Open source AI agent framework built for developers.
+					<a
+						href="https://github.com/iteebz/cogency"
+						class="text-blue-400 transition-colors hover:text-blue-300"
+					>
+						Star us on GitHub
+					</a>
+				</p>
+			</div>
+		</footer>
+	</body>
+</html>

@@ -1,0 +1,363 @@
+---
+import Layout from "../../components/Layout.astro";
+import FeatureHero from "../../components/FeatureHero.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import FeatureGrid from "../../components/FeatureGrid.astro";
+
+const title = "Auto-Discovery AI Tools - Cogency";
+const description =
+	"Drop tools in /tools/ and they just work. Magic auto-discovery system that finds and loads your custom AI tools automatically. Zero configuration, maximum productivity.";
+const keywords =
+	"automatic tool discovery python, magic AI tool loading, auto-discovery AI framework, python tool autodiscovery, dynamic tool loading, ai agent tools";
+const canonicalUrl = "https://cogency.dev/features/auto-discovery";
+
+const relatedFeatures = [
+	{
+		href: "/features/zero-config",
+		title: "Zero Configuration",
+		description: "Auto-discovery works with zero additional setup.",
+		icon: "M13 10V3L4 14h7v7l9-11h-7z",
+		color: "blue"
+	},
+	{
+		href: "/features/extensibility",
+		title: "Highly Extensible",
+		description: "Custom tools are automatically discovered too.",
+		icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z",
+		color: "cyan"
+	},
+	{
+		href: "/features/streaming",
+		title: "Streaming Execution",
+		description: "Watch auto-discovered tools execute in real-time.",
+		icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+		color: "purple"
+	}
+];
+---
+
+<Layout
+	title={title}
+	description={description}
+	keywords={keywords}
+	canonicalUrl={canonicalUrl}
+>
+	<FeatureHero
+		badge="🪄 Auto-Discovery"
+		badgeColor="border-green-500/20 bg-green-500/10 text-green-400"
+		title="Drop tools in"
+		titleGradient="from-white via-green-100 to-green-200"
+		subtitle="/tools/ and they just work"
+		description="Magic auto-discovery system that finds and loads your custom AI tools automatically. Zero configuration, maximum productivity."
+		ctaText="See the Magic"
+		ctaLink="#example"
+		ctaColor="bg-green-600 hover:bg-green-500 focus:ring-green-500/50"
+	/>
+
+	<!-- Magic Example -->
+	<section id="example" class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-4xl">
+			<div class="mb-12 text-center">
+				<h2 class="mb-4 text-3xl font-bold text-white">The Magic in Action</h2>
+				<p class="text-xl text-gray-300">
+					Create a tool file and watch it instantly become available
+				</p>
+			</div>
+
+			<div class="grid gap-8 lg:grid-cols-2">
+				<div>
+					<h3 class="mb-4 text-xl font-semibold text-white">
+						1. Create your tool
+					</h3>
+					<CodeBlock title="tools/weather_tool.py">
+						<span class="text-pink-400">from</span>
+						<span class="text-blue-400">cogency.tools.base</span>
+						<span class="text-pink-400">import</span>
+						<span class="text-white">BaseTool</span>
+
+						<span class="text-pink-400">class</span>
+						<span class="text-yellow-400">WeatherTool</span><span
+							class="text-white">(</span
+						><span class="text-yellow-400">BaseTool</span><span
+							class="text-white">):</span
+						>
+						<span class="text-pink-400">def</span>
+						<span class="text-blue-400">__init__</span><span class="text-white"
+							>(</span
+						><span class="text-blue-400">self</span><span class="text-white"
+							>):</span
+						>
+						<span class="text-yellow-400">super</span><span class="text-white"
+							>()</span
+						><span class="text-white">.</span><span class="text-yellow-400"
+							>__init__</span
+						><span class="text-white">(</span>
+						<span class="text-blue-400">name</span><span class="text-pink-400"
+							>=</span
+						><span class="text-green-400">"weather"</span><span
+							class="text-white">,</span
+						>
+						<span class="text-blue-400">description</span><span
+							class="text-pink-400">=</span
+						><span class="text-green-400">"Get weather info"</span>
+						<span class="text-white">)</span>
+
+						<span class="text-pink-400">async</span>
+						<span class="text-pink-400">def</span>
+						<span class="text-blue-400">run</span><span class="text-white"
+							>(</span
+						><span class="text-blue-400">self</span><span class="text-white"
+							>,</span
+						>
+						<span class="text-blue-400">city</span><span class="text-white"
+							>):</span
+						>
+						<span class="text-gray-500"># Your weather logic</span>
+						<span class="text-pink-400">return</span>
+						<span class="text-white"
+							>{}<span class="text-green-400">"temp"</span><span
+								class="text-white">:</span
+							>
+							<span class="text-green-400">"22°C"</span><span class="text-white"
+							></span></span
+						>
+					</CodeBlock>
+				</div>
+
+				<div>
+					<h3 class="mb-4 text-xl font-semibold text-white">
+						2. Use it immediately
+					</h3>
+					<CodeBlock title="agent.py">
+						<span class="text-pink-400">from</span>
+						<span class="text-blue-400">cogency.agent</span>
+						<span class="text-pink-400">import</span>
+						<span class="text-white">Agent</span>
+
+						<span class="text-gray-500"
+							># Agent automatically finds your tool!</span
+						>
+						<span class="text-white">agent</span>
+						<span class="text-pink-400">=</span>
+						<span class="text-yellow-400">Agent</span><span class="text-white"
+							>(</span
+						><span class="text-blue-400">name</span><span class="text-pink-400"
+							>=</span
+						><span class="text-green-400">"Helper"</span><span
+							class="text-white">)</span
+						>
+
+						<span class="text-gray-500"
+							># Weather tool is automatically available</span
+						>
+						<span class="text-white">result</span>
+						<span class="text-pink-400">=</span>
+						<span class="text-pink-400">await</span>
+						<span class="text-white">agent</span><span class="text-white"
+							>.</span
+						><span class="text-yellow-400">run</span><span class="text-white"
+							>(</span
+						>
+						<span class="text-green-400">"What's the weather in Tokyo?"</span>
+						<span class="text-white">)</span>
+
+						<span class="text-gray-500"
+							># Agent: "I'll check the weather for you!"</span
+						>
+						<span class="text-gray-500"
+							># *automatically calls weather tool*</span
+						>
+						<span class="text-gray-500"># Agent: "It's 22°C in Tokyo"</span>
+					</CodeBlock>
+				</div>
+			</div>
+
+			<div class="mt-8 rounded-xl border border-gray-700 bg-gray-800/50 p-6">
+				<p class="text-center text-gray-300">
+					<span class="font-semibold text-green-400">Pure magic!</span> No imports,
+					no registration, no configuration. Just drop the file and it works.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- How it Works -->
+	<section class="bg-gray-900/50 px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-6xl">
+			<h2 class="mb-12 text-center text-3xl font-bold text-white">
+				How the Magic Works
+			</h2>
+			<div class="grid gap-8 lg:grid-cols-3">
+				<div class="text-center">
+					<div
+						class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10"
+					>
+						<span class="text-2xl font-bold text-blue-400">1</span>
+					</div>
+					<h3 class="mb-4 text-xl font-bold text-white">Scan & Discover</h3>
+					<p class="text-gray-300">
+						Cogency automatically scans your tools/ directory for Python files
+						containing tool classes at startup.
+					</p>
+				</div>
+
+				<div class="text-center">
+					<div
+						class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10"
+					>
+						<span class="text-2xl font-bold text-green-400">2</span>
+					</div>
+					<h3 class="mb-4 text-xl font-bold text-white">Load & Register</h3>
+					<p class="text-gray-300">
+						Found tools are dynamically imported, instantiated, and registered
+						with the agent's tool registry.
+					</p>
+				</div>
+
+				<div class="text-center">
+					<div
+						class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/10"
+					>
+						<span class="text-2xl font-bold text-purple-400">3</span>
+					</div>
+					<h3 class="mb-4 text-xl font-bold text-white">Ready to Use</h3>
+					<p class="text-gray-300">
+						Your agent can immediately use any discovered tools through natural
+						language requests and reasoning.
+					</p>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- File Structure -->
+	<section class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-4xl">
+			<div class="mb-12 text-center">
+				<h2 class="mb-4 text-3xl font-bold text-white">
+					Simple File Structure
+				</h2>
+				<p class="text-xl text-gray-300">Organize tools however you want</p>
+			</div>
+
+			<CodeBlock title="project structure">
+				<span class="text-blue-400">my_project/</span>
+				├── <span class="text-green-400">agent.py</span>
+				<span class="text-gray-500"># Your main agent</span>
+				└── <span class="text-yellow-400">tools/</span>
+				<span class="text-gray-500"># Magic directory</span>
+				├── <span class="text-green-400">weather_tool.py</span>
+				<span class="text-gray-500"># ✨ Auto-discovered</span>
+				├── <span class="text-green-400">database_tool.py</span>
+				<span class="text-gray-500"># ✨ Auto-discovered</span>
+				├── <span class="text-green-400">email_tool.py</span>
+				<span class="text-gray-500"># ✨ Auto-discovered</span>
+				└── <span class="text-yellow-400">integrations/</span>
+				<span class="text-gray-500"># Subdirectories work too!</span>
+				├── <span class="text-green-400">slack_tool.py</span>
+				<span class="text-gray-500"># ✨ Auto-discovered</span>
+				└── <span class="text-green-400">stripe_tool.py</span>
+				<span class="text-gray-500"># ✨ Auto-discovered</span>
+			</CodeBlock>
+		</div>
+	</section>
+
+	<!-- Advanced Features -->
+	<section class="bg-gray-900/50 px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-6xl">
+			<h2 class="mb-12 text-center text-3xl font-bold text-white">
+				Advanced Discovery Features
+			</h2>
+			<div class="grid gap-8 lg:grid-cols-2">
+				<div class="rounded-xl border border-gray-700 bg-gray-800/50 p-6">
+					<h3 class="mb-4 text-xl font-bold text-white">Smart Filtering</h3>
+					<ul class="space-y-3 text-gray-300">
+						<li class="flex items-start gap-2">
+							<span class="text-green-400">✓</span>
+							<span>Only loads valid tool classes</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-green-400">✓</span>
+							<span>Ignores test files and __pycache__</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-green-400">✓</span>
+							<span>Handles import errors gracefully</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-green-400">✓</span>
+							<span>Validates tool interfaces</span>
+						</li>
+					</ul>
+				</div>
+
+				<div class="rounded-xl border border-gray-700 bg-gray-800/50 p-6">
+					<h3 class="mb-4 text-xl font-bold text-white">Hot Reloading</h3>
+					<ul class="space-y-3 text-gray-300">
+						<li class="flex items-start gap-2">
+							<span class="text-blue-400">⚡</span>
+							<span>Detects new tool files automatically</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-blue-400">⚡</span>
+							<span>Reloads modified tools in development</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-blue-400">⚡</span>
+							<span>Zero downtime tool updates</span>
+						</li>
+						<li class="flex items-start gap-2">
+							<span class="text-blue-400">⚡</span>
+							<span>File watcher integration</span>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<FeatureGrid title="Perfect With Other Features" features={relatedFeatures} />
+
+	<!-- CTA -->
+	<section class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-4xl text-center">
+			<h2 class="mb-6 text-3xl font-bold text-white">
+				Ready for Magic Tool Loading?
+			</h2>
+			<p class="mb-8 text-xl text-gray-300">
+				Experience the productivity boost of auto-discovery
+			</p>
+			<div class="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-6">
+				<a
+					href="/"
+					class="inline-flex items-center justify-center rounded-lg bg-green-600 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-green-500 focus:ring-4 focus:ring-green-500/50"
+				>
+					Start Building
+					<svg
+						class="ml-2 h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M13 7l5 5-5 5M6 12h12"></path>
+					</svg>
+				</a>
+				<a
+					href="https://github.com/iteebz/cogency"
+					class="inline-flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800/50 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-gray-700"
+				>
+					<svg class="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+						<path
+							d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+						></path>
+					</svg>
+					View on GitHub
+				</a>
+			</div>
+		</div>
+	</section>
+</Layout>

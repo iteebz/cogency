@@ -1,0 +1,28 @@
+# Astro development commands
+
+# Format code with prettier
+format:
+	pnpm prettier --write .
+
+# Lint code with eslint
+lint:
+	pnpm eslint . --ext .js,.ts,.astro
+
+# Fix linting issues automatically
+fix:
+	pnpm eslint . --ext .js,.ts,.astro --fix
+
+# Run both format and fix
+all: format fix
+
+# Build the project
+build:
+	pnpm build
+
+# Dev server
+dev:
+	pnpm dev
+
+# Preview built site
+preview:
+	pnpm preview

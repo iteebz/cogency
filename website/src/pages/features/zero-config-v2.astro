@@ -1,0 +1,164 @@
+---
+import Layout from "../../components/Layout.astro";
+import FeatureHero from "../../components/FeatureHero.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import FeatureGrid from "../../components/FeatureGrid.astro";
+
+const title = "Zero Config AI Agents - Cogency";
+const description =
+	"Agents in 6 lines of code. No complex configuration files, no verbose setup - just clean, extensible agents that work out of the box.";
+const keywords =
+	"zero config AI agents python, no configuration AI framework, simple AI agents, easy AI setup, python ai agents";
+const canonicalUrl = "https://cogency.dev/features/zero-config";
+
+const relatedFeatures = [
+	{
+		href: "/features/auto-discovery",
+		title: "Auto-Discovery",
+		description: "Combined with auto-discovery for ultimate simplicity.",
+		icon: "M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z",
+		color: "green"
+	},
+	{
+		href: "/features/extensibility",
+		title: "Highly Extensible",
+		description: "Build unlimited custom tools with zero config.",
+		icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z",
+		color: "cyan"
+	},
+	{
+		href: "/features/streaming",
+		title: "Streaming Execution",
+		description: "Watch zero-config agents execute in real-time.",
+		icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+		color: "purple"
+	}
+];
+---
+
+<Layout
+	title={title}
+	description={description}
+	keywords={keywords}
+	canonicalUrl={canonicalUrl}
+>
+	<FeatureHero
+		badge="⚡ Zero Configuration"
+		badgeColor="border-blue-500/20 bg-blue-500/10 text-blue-400"
+		title="Agents in"
+		titleGradient="from-white via-blue-100 to-blue-200"
+		subtitle="6 lines of code"
+		description="No complex configuration files, no verbose setup - just clean, extensible agents that work out of the box."
+		ctaText="See the Code"
+		ctaLink="#example"
+		ctaColor="bg-blue-600 hover:bg-blue-500 focus:ring-blue-500/50"
+	/>
+
+	<!-- Example Code -->
+	<section id="example" class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-4xl">
+			<div class="mb-12 text-center">
+				<h2 class="mb-4 text-3xl font-bold text-white">
+					Zero Config in Action
+				</h2>
+				<p class="text-xl text-gray-300">From zero to AI agent in 6 lines</p>
+			</div>
+
+			<CodeBlock title="agent.py">
+				<span class="text-pink-400">from</span>
+				<span class="text-blue-400">cogency.agent</span>
+				<span class="text-pink-400">import</span>
+				<span class="text-white">Agent</span>
+				<span class="text-pink-400">from</span>
+				<span class="text-blue-400">cogency.llm</span>
+				<span class="text-pink-400">import</span>
+				<span class="text-white">GeminiLLM</span>
+
+				<span class="text-white">llm</span>
+				<span class="text-pink-400">=</span>
+				<span class="text-yellow-400">GeminiLLM</span><span class="text-white"
+					>(</span
+				><span class="text-blue-400">api_key</span><span class="text-pink-400"
+					>=</span
+				><span class="text-green-400">"your-key"</span><span class="text-white"
+					>)</span
+				>
+				<span class="text-white">agent</span>
+				<span class="text-pink-400">=</span>
+				<span class="text-yellow-400">Agent</span><span class="text-white"
+					>(</span
+				><span class="text-blue-400">name</span><span class="text-pink-400"
+					>=</span
+				><span class="text-green-400">"MyAgent"</span><span class="text-white"
+					>,</span
+				>
+				<span class="text-blue-400">llm</span><span class="text-pink-400"
+					>=</span
+				><span class="text-white">llm</span><span class="text-white">)</span>
+
+				<span class="text-white">result</span>
+				<span class="text-pink-400">=</span>
+				<span class="text-pink-400">await</span>
+				<span class="text-white">agent</span><span class="text-white">.</span
+				><span class="text-yellow-400">run</span><span class="text-white"
+					>(</span
+				><span class="text-green-400">"What is 15 * 23?"</span><span
+					class="text-white">)</span
+				>
+			</CodeBlock>
+
+			<div class="mt-8 rounded-xl border border-gray-700 bg-gray-800/50 p-6">
+				<p class="text-center text-gray-300">
+					<span class="font-semibold text-green-400">That's it!</span> No config
+					files, no setup, no boilerplate. Your agent automatically discovers tools
+					and is ready to reason and act.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<FeatureGrid title="Perfect With Other Features" features={relatedFeatures} />
+
+	<!-- CTA -->
+	<section class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-4xl text-center">
+			<h2 class="mb-6 text-3xl font-bold text-white">
+				Ready for Zero-Config Agents?
+			</h2>
+			<p class="mb-8 text-xl text-gray-300">
+				Build intelligent agents in 6 lines of code with zero configuration
+			</p>
+			<div class="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-6">
+				<a
+					href="/"
+					class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-blue-500 focus:ring-4 focus:ring-blue-500/50"
+				>
+					Get Started Now
+					<svg
+						class="ml-2 h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M13 7l5 5-5 5M6 12h12"></path>
+					</svg>
+				</a>
+				<a
+					href="https://github.com/iteebz/cogency"
+					class="inline-flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800/50 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-gray-700"
+				>
+					<svg class="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+						<path
+							d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+						></path>
+					</svg>
+					View on GitHub
+				</a>
+			</div>
+		</div>
+	</section>
+</Layout>

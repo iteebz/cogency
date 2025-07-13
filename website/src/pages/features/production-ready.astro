@@ -1,0 +1,521 @@
+---
+import Layout from "../../components/Layout.astro";
+import FeatureHero from "../../components/FeatureHero.astro";
+import CodeBlock from "../../components/CodeBlock.astro";
+import FeatureGrid from "../../components/FeatureGrid.astro";
+
+const title = "Production-Ready AI Agents - Cogency";
+const description =
+	"Deploy AI agents with confidence. Built-in error handling, monitoring, scaling, and enterprise features for production workloads.";
+const keywords =
+	"production AI agents python, scalable AI framework, enterprise AI agents, AI agent deployment, production AI monitoring";
+const canonicalUrl = "https://cogency.dev/features/production-ready";
+
+const relatedFeatures = [
+	{
+		href: "/features/streaming",
+		title: "Streaming Execution",
+		description: "Monitor agent performance in real-time.",
+		icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+		color: "purple"
+	},
+	{
+		href: "/features/extensibility",
+		title: "Highly Extensible",
+		description: "Custom enterprise integrations and workflows.",
+		icon: "M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z",
+		color: "cyan"
+	},
+	{
+		href: "/features/zero-config",
+		title: "Zero Configuration",
+		description: "Production deployment without complex setup.",
+		icon: "M13 10V3L4 14h7v7l9-11h-7z",
+		color: "blue"
+	}
+];
+---
+
+<Layout
+	title={title}
+	description={description}
+	keywords={keywords}
+	canonicalUrl={canonicalUrl}
+>
+	<FeatureHero
+		badge="🚀 Production Ready"
+		badgeColor="border-emerald-500/20 bg-emerald-500/10 text-emerald-400"
+		title="Enterprise-grade"
+		titleGradient="from-white via-emerald-100 to-emerald-200"
+		subtitle="AI agents"
+		description="Built for production from day one. Error handling, monitoring, scaling, and enterprise features included—no additional setup required."
+		ctaText="Deploy Now"
+		ctaLink="#deployment"
+		ctaColor="bg-emerald-600 hover:bg-emerald-500 focus:ring-emerald-500/50"
+	/>
+
+	<!-- Production Features Grid -->
+	<section class="bg-gray-900/50 px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-6xl">
+			<h2 class="mb-12 text-center text-3xl font-bold text-white">
+				Enterprise Features Built-In
+			</h2>
+			<div class="grid gap-8 lg:grid-cols-2">
+				<div class="space-y-6">
+					<div class="flex items-start gap-4">
+						<div
+							class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-red-500/10"
+						>
+							<svg
+								class="h-6 w-6 text-red-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+								></path>
+							</svg>
+						</div>
+						<div>
+							<h3 class="mb-2 text-xl font-bold text-white">
+								Robust Error Handling
+							</h3>
+							<p class="text-gray-300">
+								Automatic retry logic, graceful degradation, and comprehensive
+								error reporting keep your agents running smoothly.
+							</p>
+						</div>
+					</div>
+
+					<div class="flex items-start gap-4">
+						<div
+							class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-blue-500/10"
+						>
+							<svg
+								class="h-6 w-6 text-blue-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+								></path>
+							</svg>
+						</div>
+						<div>
+							<h3 class="mb-2 text-xl font-bold text-white">
+								Built-in Monitoring
+							</h3>
+							<p class="text-gray-300">
+								Real-time metrics, execution tracing, and performance analytics
+								out of the box. No additional monitoring setup required.
+							</p>
+						</div>
+					</div>
+
+					<div class="flex items-start gap-4">
+						<div
+							class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-green-500/10"
+						>
+							<svg
+								class="h-6 w-6 text-green-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+							</svg>
+						</div>
+						<div>
+							<h3 class="mb-2 text-xl font-bold text-white">Auto-Scaling</h3>
+							<p class="text-gray-300">
+								Intelligent load balancing and resource management. Your agents
+								scale automatically with demand.
+							</p>
+						</div>
+					</div>
+				</div>
+
+				<div class="space-y-6">
+					<div class="flex items-start gap-4">
+						<div
+							class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-purple-500/10"
+						>
+							<svg
+								class="h-6 w-6 text-purple-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+								></path>
+							</svg>
+						</div>
+						<div>
+							<h3 class="mb-2 text-xl font-bold text-white">
+								Enterprise Security
+							</h3>
+							<p class="text-gray-300">
+								API key rotation, secure credential management, and audit
+								logging for compliance and security requirements.
+							</p>
+						</div>
+					</div>
+
+					<div class="flex items-start gap-4">
+						<div
+							class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-yellow-500/10"
+						>
+							<svg
+								class="h-6 w-6 text-yellow-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"
+								></path>
+							</svg>
+						</div>
+						<div>
+							<h3 class="mb-2 text-xl font-bold text-white">
+								Memory Management
+							</h3>
+							<p class="text-gray-300">
+								Persistent agent memory, conversation history, and semantic
+								search for context-aware responses.
+							</p>
+						</div>
+					</div>
+
+					<div class="flex items-start gap-4">
+						<div
+							class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-cyan-500/10"
+						>
+							<svg
+								class="h-6 w-6 text-cyan-400"
+								fill="none"
+								stroke="currentColor"
+								viewBox="0 0 24 24"
+							>
+								<path
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									stroke-width="2"
+									d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+								></path>
+							</svg>
+						</div>
+						<div>
+							<h3 class="mb-2 text-xl font-bold text-white">
+								Cost Optimization
+							</h3>
+							<p class="text-gray-300">
+								Smart LLM routing, token usage tracking, and cost controls to
+								keep your AI operations efficient and predictable.
+							</p>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- Deployment Example -->
+	<section id="deployment" class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-4xl">
+			<div class="mb-12 text-center">
+				<h2 class="mb-4 text-3xl font-bold text-white">
+					Production Deployment
+				</h2>
+				<p class="text-xl text-gray-300">
+					From development to production in minutes
+				</p>
+			</div>
+
+			<CodeBlock title="production_agent.py">
+				<span class="text-pink-400">from</span>
+				<span class="text-blue-400">cogency.agent</span>
+				<span class="text-pink-400">import</span>
+				<span class="text-white">Agent</span>
+				<span class="text-pink-400">from</span>
+				<span class="text-blue-400">cogency.llm</span>
+				<span class="text-pink-400">import</span>
+				<span class="text-white">GeminiLLM</span>
+				<span class="text-pink-400">from</span>
+				<span class="text-blue-400">cogency.memory</span>
+				<span class="text-pink-400">import</span>
+				<span class="text-white">SemanticMemory</span>
+				<span class="text-pink-400">from</span>
+				<span class="text-blue-400">fastapi</span>
+				<span class="text-pink-400">import</span>
+				<span class="text-white">FastAPI</span>
+
+				<span class="text-white">app</span>
+				<span class="text-pink-400">=</span>
+				<span class="text-yellow-400">FastAPI</span><span class="text-white"
+					>()</span
+				>
+
+				<span class="text-gray-500"
+					># Production-ready agent with all features enabled</span
+				>
+				<span class="text-white">agent</span>
+				<span class="text-pink-400">=</span>
+				<span class="text-yellow-400">Agent</span><span class="text-white"
+					>(</span
+				>
+				<span class="text-blue-400">name</span><span class="text-pink-400"
+					>=</span
+				><span class="text-green-400">"Customer Support"</span><span
+					class="text-white">,</span
+				>
+				<span class="text-blue-400">llm</span><span class="text-pink-400"
+					>=</span
+				><span class="text-yellow-400">GeminiLLM</span><span class="text-white"
+					>(</span
+				><span class="text-blue-400">api_key</span><span class="text-pink-400"
+					>=</span
+				><span class="text-green-400">"prod-key"</span><span class="text-white"
+					>),</span
+				>
+				<span class="text-blue-400">memory</span><span class="text-pink-400"
+					>=</span
+				><span class="text-yellow-400">SemanticMemory</span><span
+					class="text-white">(),</span
+				>
+				<span class="text-gray-500"># Persistent memory</span>
+				<span class="text-blue-400">max_retries</span><span
+					class="text-pink-400">=</span
+				><span class="text-cyan-400">3</span><span class="text-white">,</span>
+				<span class="text-gray-500"># Error handling</span>
+				<span class="text-blue-400">monitoring</span><span class="text-pink-400"
+					>=</span
+				><span class="text-cyan-400">True</span><span class="text-white">,</span
+				>
+				<span class="text-gray-500"># Built-in metrics</span>
+				<span class="text-white">)</span>
+
+				<span class="text-pink-400">@</span><span class="text-yellow-400"
+					>app</span
+				><span class="text-white">.</span><span class="text-yellow-400"
+					>post</span
+				><span class="text-white">(</span><span class="text-green-400"
+					>"/chat"</span
+				><span class="text-white">)</span>
+				<span class="text-pink-400">async</span>
+				<span class="text-pink-400">def</span>
+				<span class="text-blue-400">chat</span><span class="text-white">(</span
+				><span class="text-blue-400">message</span><span class="text-white"
+					>:</span
+				>
+				<span class="text-yellow-400">str</span><span class="text-white"
+					>):</span
+				>
+				<span class="text-gray-500"
+					># Production-ready endpoint with automatic scaling</span
+				>
+				<span class="text-pink-400">async</span>
+				<span class="text-pink-400">for</span>
+				<span class="text-white">response</span>
+				<span class="text-pink-400">in</span>
+				<span class="text-white">agent</span><span class="text-white">.</span
+				><span class="text-yellow-400">stream</span><span class="text-white"
+					>(</span
+				><span class="text-white">message</span><span class="text-white"
+					>):</span
+				>
+				<span class="text-pink-400">yield</span>
+				<span class="text-white">response</span>
+				<span class="text-gray-500"># Real-time streaming</span>
+			</CodeBlock>
+
+			<div class="mt-8 rounded-xl border border-gray-700 bg-gray-800/50 p-6">
+				<p class="text-center text-gray-300">
+					<span class="font-semibold text-emerald-400">Production ready!</span> Error
+					handling, monitoring, memory, and scaling are all handled automatically.
+				</p>
+			</div>
+		</div>
+	</section>
+
+	<!-- Monitoring Dashboard -->
+	<section class="bg-gray-900/50 px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-6xl">
+			<h2 class="mb-12 text-center text-3xl font-bold text-white">
+				Real-time Monitoring
+			</h2>
+			<div class="rounded-xl border border-gray-700 bg-gray-800/50 p-8">
+				<div class="mb-8 grid gap-6 lg:grid-cols-3">
+					<div class="text-center">
+						<div class="mb-2 text-3xl font-bold text-emerald-400">99.9%</div>
+						<div class="text-gray-300">Uptime</div>
+					</div>
+					<div class="text-center">
+						<div class="mb-2 text-3xl font-bold text-blue-400">1.2s</div>
+						<div class="text-gray-300">Avg Response</div>
+					</div>
+					<div class="text-center">
+						<div class="mb-2 text-3xl font-bold text-purple-400">45k</div>
+						<div class="text-gray-300">Requests/Day</div>
+					</div>
+				</div>
+
+				<div class="space-y-4">
+					<h3 class="mb-4 text-lg font-semibold text-white">
+						Built-in Metrics
+					</h3>
+					<div class="grid gap-4 sm:grid-cols-2">
+						<ul class="space-y-2 text-gray-300">
+							<li>• Response time tracking</li>
+							<li>• Error rate monitoring</li>
+							<li>• Token usage analytics</li>
+							<li>• Cost breakdown</li>
+						</ul>
+						<ul class="space-y-2 text-gray-300">
+							<li>• Agent performance scores</li>
+							<li>• Tool usage patterns</li>
+							<li>• Memory efficiency</li>
+							<li>• Custom metric support</li>
+						</ul>
+					</div>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<!-- Deployment Options -->
+	<section class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-6xl">
+			<h2 class="mb-12 text-center text-3xl font-bold text-white">
+				Flexible Deployment
+			</h2>
+			<div class="grid gap-8 lg:grid-cols-3">
+				<div
+					class="rounded-xl border border-gray-700 bg-gray-800/50 p-6 text-center"
+				>
+					<div
+						class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-blue-500/10"
+					>
+						<span class="text-2xl">☁️</span>
+					</div>
+					<h3 class="mb-4 text-xl font-bold text-white">Cloud Native</h3>
+					<p class="mb-4 text-gray-300">
+						Deploy to AWS, GCP, Azure with containerized scaling and managed
+						services integration.
+					</p>
+					<ul class="space-y-1 text-sm text-gray-400">
+						<li>• Docker containers</li>
+						<li>• Kubernetes support</li>
+						<li>• Auto-scaling groups</li>
+						<li>• Load balancing</li>
+					</ul>
+				</div>
+
+				<div
+					class="rounded-xl border border-gray-700 bg-gray-800/50 p-6 text-center"
+				>
+					<div
+						class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-green-500/10"
+					>
+						<span class="text-2xl">🏢</span>
+					</div>
+					<h3 class="mb-4 text-xl font-bold text-white">On-Premise</h3>
+					<p class="mb-4 text-gray-300">
+						Full control with on-premise deployment. Air-gapped environments and
+						enterprise security.
+					</p>
+					<ul class="space-y-1 text-sm text-gray-400">
+						<li>• Air-gapped deployment</li>
+						<li>• Local model hosting</li>
+						<li>• Enterprise SSO</li>
+						<li>• Compliance ready</li>
+					</ul>
+				</div>
+
+				<div
+					class="rounded-xl border border-gray-700 bg-gray-800/50 p-6 text-center"
+				>
+					<div
+						class="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-purple-500/10"
+					>
+						<span class="text-2xl">🔗</span>
+					</div>
+					<h3 class="mb-4 text-xl font-bold text-white">Hybrid</h3>
+					<p class="mb-4 text-gray-300">
+						Best of both worlds. Sensitive processing on-premise, scaling in the
+						cloud.
+					</p>
+					<ul class="space-y-1 text-sm text-gray-400">
+						<li>• Hybrid architectures</li>
+						<li>• Data sovereignty</li>
+						<li>• Edge processing</li>
+						<li>• Seamless scaling</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+	</section>
+
+	<FeatureGrid title="Production Excellence" features={relatedFeatures} />
+
+	<!-- CTA -->
+	<section class="px-6 py-16 sm:px-8 lg:px-16">
+		<div class="mx-auto max-w-4xl text-center">
+			<h2 class="mb-6 text-3xl font-bold text-white">Ready for Production?</h2>
+			<p class="mb-8 text-xl text-gray-300">
+				Deploy enterprise-grade AI agents with confidence and zero additional
+				setup
+			</p>
+			<div class="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-6">
+				<a
+					href="/"
+					class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-emerald-500 focus:ring-4 focus:ring-emerald-500/50"
+				>
+					Deploy Now
+					<svg
+						class="ml-2 h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M13 7l5 5-5 5M6 12h12"></path>
+					</svg>
+				</a>
+				<a
+					href="https://github.com/iteebz/cogency"
+					class="inline-flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800/50 px-8 py-4 text-lg font-semibold text-white transition-all hover:bg-gray-700"
+				>
+					<svg class="mr-2 h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+						<path
+							d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.30.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
+						></path>
+					</svg>
+					View on GitHub
+				</a>
+			</div>
+		</div>
+	</section>
+</Layout>
