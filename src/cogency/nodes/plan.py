@@ -1,9 +1,9 @@
+import json
 from typing import AsyncIterator, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.interrupt import interruptable
 
 PLAN_PROMPT = """You are an AI assistant. Analyze the user request and respond with ONLY valid JSON.
 
@@ -76,7 +76,6 @@ async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool],
 
 
 @trace_node
-@interruptable
 async def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]

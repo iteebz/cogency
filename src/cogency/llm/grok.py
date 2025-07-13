@@ -3,12 +3,12 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import openai
 
 from cogency.llm.base import BaseLLM
+from cogency.llm.mixin import ProviderMixin
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import ConfigurationError
 
 
-class GrokLLM(BaseLLM):
+class GrokLLM(ProviderMixin, BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
@@ -67,19 +67,13 @@ class GrokLLM(BaseLLM):
             base_url="https://api.x.ai/v1"
         )
 
-    @interruptable
+    def _get_client(self):
+        """Get client instance."""
+        return self._client
+
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        # Rotate key and update current LLM if a rotator is used
-        if self.key_rotator:
-            self._init_client()
-
-        if not self._client:
-            raise RuntimeError("Grok client not initialized.")
-
-        # Convert messages to OpenAI format (Grok uses OpenAI-compatible API)
-        grok_messages = []
-        for msg in messages:
-            grok_messages.append({"role": msg["role"], "content": msg["content"]})
+        self._ensure_client()
+        grok_messages = self._convert_msgs(messages)
 
         res = await self._client.chat.completions.create(
             model=self.model,
@@ -90,17 +84,8 @@ class GrokLLM(BaseLLM):
         return res.choices[0].message.content
 
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        # Rotate key and update current LLM if a rotator is used
-        if self.key_rotator:
-            self._init_client()
-
-        if not self._client:
-            raise RuntimeError("Grok client not initialized.")
-
-        # Convert messages to OpenAI format (Grok uses OpenAI-compatible API)
-        grok_messages = []
-        for msg in messages:
-            grok_messages.append({"role": msg["role"], "content": msg["content"]})
+        self._ensure_client()
+        grok_messages = self._convert_msgs(messages)
 
         stream = await self._client.chat.completions.create(
             model=self.model,

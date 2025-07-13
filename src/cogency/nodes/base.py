@@ -1,42 +1,26 @@
-"""Base node interface for stream-first cognitive architecture."""
+"""Base node interface for clean cognitive architecture."""
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, AsyncGenerator, Dict, List, Optional, TypedDict
+from typing import Any, AsyncIterator, Dict, List, Optional, TypedDict
 
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState
 
 
-class StreamDelta(TypedDict):
-    """Structured streaming delta from cognitive nodes."""
-    type: str  # thinking, chunk, result, tool_call, error, state
-    node: str  # node name
-    content: Optional[str]  # for thinking/chunk/error types
-    data: Optional[Dict[str, Any]]  # for result/tool_call types
-    state: Optional[Dict[str, Any]]  # for state type
-
-
-@dataclass
-class NodeContext:
-    """Enhanced context for cognitive nodes with execution resources."""
-    state: AgentState
-    llm: Optional[BaseLLM] = None
-    tools: Optional[List[BaseTool]] = None
+# StreamDelta deleted - was streaming-first bullshit
 
 
 class BaseNode(ABC):
-    """Base class for pluggable cognitive nodes in stream-first architecture.
+    """Base class for cognitive nodes.
     
-    Each node represents an atomic cognitive operation that yields structured
-    streaming deltas to provide real-time observability into agent reasoning.
+    Each node represents an atomic cognitive operation.
     
     Design principles:
     - Nodes are stateless and composable
-    - Streaming is the primary interface, not an afterthought  
-    - Rich observability through structured deltas
-    - Clean separation of concerns
-    - Compatible with existing LangGraph workflows
+    - Primary interface is invoke() for clean, testable execution
+    - Optional streaming for real-time UX
+    - Compatible with LangGraph workflows
     """
     
     def __init__(self, name: str, description: str):
@@ -50,43 +34,22 @@ class BaseNode(ABC):
         self.description = description
     
     @abstractmethod
-    async def stream(
-        self, 
-        ctx: NodeContext, 
-        yield_interval: float = 0.0
-    ) -> AsyncGenerator[StreamDelta, None]:
-        """Stream node execution with real-time deltas.
+    async def invoke(self, state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
+        """Execute node and return updated state.
         
-        This is the primary interface - streaming execution that yields
-        structured deltas as cognition unfolds.
+        This is the primary interface - clean, testable execution.
         
         Args:
-            ctx: Node context with state, tools, LLM, etc.
-            yield_interval: Minimum time between yields for rate limiting
+            state: Current agent state
+            llm: Language model instance
+            tools: Available tools
             
-        Yields:
-            StreamDelta: Structured streaming chunks with types:
-                - thinking: Agent's reasoning process
-                - chunk: LLM response chunks  
-                - result: Node execution results
-                - tool_call: Tool execution events
-                - error: Error events
-                - state: Updated agent state
+        Returns:
+            AgentState: Updated agent state after node execution
         """
         pass
     
-    async def invoke(self, ctx: NodeContext) -> AgentState:
-        """Non-streaming version for LangGraph compatibility.
-        
-        Default implementation collects streaming deltas and returns final state.
-        Can be overridden for optimized non-streaming execution.
-        """
-        final_state = ctx.state
-        async for delta in self.stream(ctx):
-            if delta["type"] == "state":
-                final_state = delta["state"]
-        
-        return final_state
+# No streaming method needed - LangGraph handles this
     
     def get_metadata(self) -> Dict[str, Any]:
         """Get node metadata for introspection and debugging."""

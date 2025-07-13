@@ -3,12 +3,12 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import anthropic
 
 from cogency.llm.base import BaseLLM
+from cogency.llm.mixin import ProviderMixin
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import ConfigurationError
 
 
-class AnthropicLLM(BaseLLM):
+class AnthropicLLM(ProviderMixin, BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
@@ -67,19 +67,13 @@ class AnthropicLLM(BaseLLM):
 
         self._client = anthropic.AsyncAnthropic(api_key=current_key)
 
-    @interruptable
+    def _get_client(self):
+        """Get client instance."""
+        return self._client
+
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        # Rotate key and update current LLM if a rotator is used
-        if self.key_rotator:
-            self._init_client()
-
-        if not self._client:
-            raise RuntimeError("Anthropic client not initialized.")
-
-        # Convert messages to Anthropic format
-        anthropic_messages = []
-        for msg in messages:
-            anthropic_messages.append({"role": msg["role"], "content": msg["content"]})
+        self._ensure_client()
+        anthropic_messages = self._convert_msgs(messages)
 
         res = await self._client.messages.create(
             model=self.model,
@@ -90,17 +84,8 @@ class AnthropicLLM(BaseLLM):
         return res.content[0].text
 
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        # Rotate key and update current LLM if a rotator is used
-        if self.key_rotator:
-            self._init_client()
-
-        if not self._client:
-            raise RuntimeError("Anthropic client not initialized.")
-
-        # Convert messages to Anthropic format
-        anthropic_messages = []
-        for msg in messages:
-            anthropic_messages.append({"role": msg["role"], "content": msg["content"]})
+        self._ensure_client()
+        anthropic_messages = self._convert_msgs(messages)
 
         async with self._client.messages.stream(
             model=self.model,

@@ -3,9 +3,11 @@ from typing import Any, Dict, List, Optional
 import json
 
 from ..tools.base import BaseTool
+from ..tools.registry import tool
 from .base import BaseMemory
 
 
+@tool
 class MemorizeTool(BaseTool):
     """Tool for storing content in agent memory."""
 
@@ -77,6 +79,7 @@ class MemorizeTool(BaseTool):
         ]
 
 
+@tool
 class RecallTool(BaseTool):
     """Tool for retrieving content from agent memory."""
 

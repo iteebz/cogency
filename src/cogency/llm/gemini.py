@@ -3,12 +3,12 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import google.generativeai as genai
 
 from cogency.llm.base import BaseLLM
+from cogency.llm.mixin import ProviderMixin
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import ConfigurationError
 
 
-class GeminiLLM(BaseLLM):
+class GeminiLLM(ProviderMixin, BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
@@ -82,14 +82,16 @@ class GeminiLLM(BaseLLM):
 
         self._current_model = self._model_instances[current_key]
 
-    @interruptable
-    async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        # Rotate key and update current model if a rotator is used
-        if self.key_rotator:
-            self._init_current_model()
+    def _get_client(self):
+        """Get model instance."""
+        return self._current_model
 
-        if not self._current_model:
-            raise RuntimeError("Gemini model not initialized.")
+    def _init_client(self):
+        """Alias for _init_current_model to match mixin interface."""
+        self._init_current_model()
+
+    async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        self._ensure_client()
 
         # Convert messages to Gemini format (simple text concatenation for now)
         # Gemini's chat format is different - it expects conversation history
@@ -99,12 +101,7 @@ class GeminiLLM(BaseLLM):
         return res.text
 
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        # Rotate key and update current model if a rotator is used
-        if self.key_rotator:
-            self._init_current_model()
-
-        if not self._current_model:
-            raise RuntimeError("Gemini model not initialized.")
+        self._ensure_client()
 
         # Convert messages to Gemini format (simple text concatenation for now)
         prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])

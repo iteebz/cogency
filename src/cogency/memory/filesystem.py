@@ -1,11 +1,13 @@
 """Filesystem-based memory implementation for Cogency agents."""
 import json
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from .base import BaseMemory, MemoryArtifact, MemoryType
+from .filters import filter_artifacts
 
 
 class FSMemory(BaseMemory):
@@ -29,7 +31,8 @@ class FSMemory(BaseMemory):
         content: str,
         memory_type: MemoryType = MemoryType.FACT,
         tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        timeout_seconds: float = 10.0
     ) -> MemoryArtifact:
         """Store content as JSON file."""
         artifact = MemoryArtifact(
@@ -78,25 +81,9 @@ class FSMemory(BaseMemory):
                 content_match = query_lower in data["content"].lower()
                 tag_match = any(query_lower in tag.lower() for tag in data["tags"])
                 
-                # Memory type filtering
-                if memory_type:
-                    artifact_type = MemoryType(data.get("memory_type", MemoryType.FACT.value))
-                    if artifact_type != memory_type:
-                        continue
-                
-                # Tag filtering
-                if tags:
-                    tag_filter_match = any(tag in data["tags"] for tag in tags)
-                    if not tag_filter_match:
-                        continue
-                
-                # Time-based filtering
-                if since:
-                    from datetime import datetime
-                    since_dt = datetime.fromisoformat(since)
-                    artifact_dt = datetime.fromisoformat(data["created_at"])
-                    if artifact_dt < since_dt:
-                        continue
+                # Apply common filters
+                if not filter_artifacts(data, memory_type, tags, since):
+                    continue
                 
                 if content_match or tag_match:
                     artifact = MemoryArtifact(
@@ -107,7 +94,6 @@ class FSMemory(BaseMemory):
                         metadata=data["metadata"]
                     )
                     # Parse datetime
-                    from datetime import datetime
                     artifact.created_at = datetime.fromisoformat(data["created_at"])
                     artifacts.append(artifact)
                     

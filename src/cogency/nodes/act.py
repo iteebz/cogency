@@ -2,8 +2,7 @@ from typing import AsyncIterator, Dict, Any
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.interrupt import interruptable
-from cogency.utils.parsing import extract_tool_call
+from cogency.utils.parsing import extract_tool_call, parse_tool_args
 
 
 async def act_streaming(state: AgentState, tools: list[BaseTool], yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
@@ -27,32 +26,9 @@ async def act_streaming(state: AgentState, tools: list[BaseTool], yield_interval
         yield {"type": "thinking", "node": "act", "content": f"Executing tool: {tool_name}"}
         
         raw_args = tool_args.get("raw_args", "")
-        parsed_args = {}
         if raw_args:
             yield {"type": "thinking", "node": "act", "content": f"Parsing arguments: {raw_args}"}
-            
-            for arg_pair in raw_args.split(","):
-                key, value_str = arg_pair.split("=", 1)
-                key = key.strip()
-                value_str = value_str.strip()
-
-                # Attempt to convert to int, float, or bool
-                if value_str.isdigit():
-                    parsed_args[key] = int(value_str)
-                elif value_str.replace(".", "", 1).isdigit():
-                    parsed_args[key] = float(value_str)
-                elif value_str.lower() == "true":
-                    parsed_args[key] = True
-                elif value_str.lower() == "false":
-                    parsed_args[key] = False
-                else:
-                    # Treat as string, remove surrounding quotes
-                    if value_str.startswith("'") and value_str.endswith("'"):
-                        parsed_args[key] = value_str[1:-1]
-                    elif value_str.startswith('"') and value_str.endswith('"'):
-                        parsed_args[key] = value_str[1:-1]
-                    else:
-                        parsed_args[key] = value_str
+        parsed_args = parse_tool_args(raw_args)
 
         # Execute tool
         yield {"type": "thinking", "node": "act", "content": f"Running {tool_name} with args: {parsed_args}"}
@@ -89,7 +65,6 @@ async def act_streaming(state: AgentState, tools: list[BaseTool], yield_interval
 
 
 @trace_node
-@interruptable
 async def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
@@ -103,30 +78,7 @@ async def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
         # Store tool call info temporarily
 
         raw_args = tool_args.get("raw_args", "")
-        parsed_args = {}
-        if raw_args:
-            for arg_pair in raw_args.split(","):
-                key, value_str = arg_pair.split("=", 1)
-                key = key.strip()
-                value_str = value_str.strip()
-
-                # Attempt to convert to int, float, or bool
-                if value_str.isdigit():
-                    parsed_args[key] = int(value_str)
-                elif value_str.replace(".", "", 1).isdigit():
-                    parsed_args[key] = float(value_str)
-                elif value_str.lower() == "true":
-                    parsed_args[key] = True
-                elif value_str.lower() == "false":
-                    parsed_args[key] = False
-                else:
-                    # Treat as string, remove surrounding quotes
-                    if value_str.startswith("'") and value_str.endswith("'"):
-                        parsed_args[key] = value_str[1:-1]
-                    elif value_str.startswith('"') and value_str.endswith('"'):
-                        parsed_args[key] = value_str[1:-1]
-                    else:
-                        parsed_args[key] = value_str
+        parsed_args = parse_tool_args(raw_args)
 
         # Execute tool
         tool_output = {"error": f"Tool '{tool_name}' not found."}

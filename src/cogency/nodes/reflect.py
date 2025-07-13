@@ -2,7 +2,6 @@ from typing import AsyncIterator, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.interrupt import interruptable
 
 REFLECT_PROMPT = """
 You are an AI assistant evaluating task completion status.
@@ -57,8 +56,7 @@ async def reflect_streaming(state: AgentState, llm: BaseLLM, yield_interval: flo
 
 
 @trace_node
-@interruptable
-async def reflect(state: AgentState, llm: BaseLLM) -> AgentState:
+async def reflect(state: AgentState, llm: BaseLLM, tools) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
     messages = list(context.messages)

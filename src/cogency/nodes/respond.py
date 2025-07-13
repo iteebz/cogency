@@ -1,8 +1,8 @@
+import json
 from typing import AsyncIterator, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.interrupt import interruptable
 
 RESPOND_PROMPT = """
 You are an AI assistant providing the final response to the user.
@@ -43,7 +43,6 @@ async def respond_streaming(state: AgentState, llm: BaseLLM, yield_interval: flo
         last_message = last_message[0] if last_message else ""
 
     try:
-        import json
 
         data = json.loads(last_message)
         if data.get("action") == "direct_response":
@@ -80,8 +79,7 @@ async def respond_streaming(state: AgentState, llm: BaseLLM, yield_interval: flo
 
 
 @trace_node
-@interruptable
-async def respond(state: AgentState, llm: BaseLLM) -> AgentState:
+async def respond(state: AgentState, llm: BaseLLM, tools) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
 
@@ -93,7 +91,6 @@ async def respond(state: AgentState, llm: BaseLLM) -> AgentState:
         last_message = last_message[0] if last_message else ""
 
     try:
-        import json
 
         data = json.loads(last_message)
         if data.get("action") == "direct_response":

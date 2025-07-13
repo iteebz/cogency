@@ -3,9 +3,7 @@ from typing import Any, Dict, List
 
 from ddgs import DDGS
 
-from cogency.config import get_config
 from cogency.tools.base import BaseTool
-from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import (
     ToolError,
     ValidationError,
@@ -24,24 +22,12 @@ class WebSearchTool(BaseTool):
             ),
         )
         self._last_search_time = 0
-        # Get rate limit from config
-        try:
-            config = get_config()
-            self._min_delay = config.web_rate_limit
-        except Exception:
-            # Fallback if config not available, log error in a real system
-            self._min_delay = 1.0
+        self._min_delay = 1.0  # Simple rate limit
 
     @handle_tool_exception
-    @interruptable
     async def run(self, query: str, max_results: int = None) -> Dict[str, Any]:
-        # Get default max_results from config if not provided
         if max_results is None:
-            try:
-                config = get_config()
-                max_results = config.web_max_results
-            except Exception:
-                max_results = 5  # Fallback
+            max_results = 5
         # Input validation
         validate_required_params({"query": query}, ["query"], self.name)
 

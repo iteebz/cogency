@@ -7,6 +7,7 @@ from uuid import UUID
 
 from ..embed.base import BaseEmbed
 from .base import BaseMemory, MemoryArtifact, MemoryType
+from .filters import filter_artifacts
 
 
 class SemanticMemory(BaseMemory):
@@ -119,25 +120,9 @@ class SemanticMemory(BaseMemory):
                 if not data.get("embedding"):
                     continue
                 
-                # Memory type filtering
-                if memory_type:
-                    artifact_type = MemoryType(data.get("memory_type", MemoryType.FACT.value))
-                    if artifact_type != memory_type:
-                        continue
-                
-                # Tag filtering
-                if tags:
-                    tag_filter_match = any(tag in data["tags"] for tag in tags)
-                    if not tag_filter_match:
-                        continue
-                
-                # Time-based filtering
-                if since:
-                    from datetime import datetime
-                    since_dt = datetime.fromisoformat(since)
-                    artifact_dt = datetime.fromisoformat(data["created_at"])
-                    if artifact_dt < since_dt:
-                        continue
+                # Apply common filters
+                if not filter_artifacts(data, memory_type, tags, since):
+                    continue
                 
                 # Compute cosine similarity
                 artifact_embedding = np.array(data["embedding"])
@@ -183,25 +168,9 @@ class SemanticMemory(BaseMemory):
                 content_match = query_lower in data["content"].lower()
                 tag_match = any(query_lower in tag.lower() for tag in data["tags"])
                 
-                # Memory type filtering
-                if memory_type:
-                    artifact_type = MemoryType(data.get("memory_type", MemoryType.FACT.value))
-                    if artifact_type != memory_type:
-                        continue
-                
-                # Tag filtering
-                if tags:
-                    tag_filter_match = any(tag in data["tags"] for tag in tags)
-                    if not tag_filter_match:
-                        continue
-                
-                # Time-based filtering
-                if since:
-                    from datetime import datetime
-                    since_dt = datetime.fromisoformat(since)
-                    artifact_dt = datetime.fromisoformat(data["created_at"])
-                    if artifact_dt < since_dt:
-                        continue
+                # Apply common filters
+                if not filter_artifacts(data, memory_type, tags, since):
+                    continue
                 
                 if content_match or tag_match:
                     artifact = self._data_to_artifact(data)

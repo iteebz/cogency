@@ -3,12 +3,12 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import openai
 
 from cogency.llm.base import BaseLLM
+from cogency.llm.mixin import ProviderMixin
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import ConfigurationError
 
 
-class OpenAILLM(BaseLLM):
+class OpenAILLM(ProviderMixin, BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
@@ -52,63 +52,43 @@ class OpenAILLM(BaseLLM):
         }
 
         self._client: Optional[openai.AsyncOpenAI] = None
-        self._init_client()  # Initialize the client
+        self._init_client()
 
     def _init_client(self):
-        """Initializes the OpenAI client based on the active key."""
-        current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
-
-        if not current_key:
+        """Init OpenAI client."""
+        key = self.key_rotator.get_key() if self.key_rotator else self.api_key
+        if not key:
             raise ConfigurationError(
-                "API key must be provided either directly or via KeyRotator.",
+                "API key required.",
                 error_code="NO_CURRENT_API_KEY",
             )
+        self._client = openai.AsyncOpenAI(api_key=key, **self.client_kwargs)
 
-        self._client = openai.AsyncOpenAI(api_key=current_key, **self.client_kwargs)
+    def _get_client(self):
+        """Get client instance."""
+        return self._client
 
-    @interruptable
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        # Rotate key and update current LLM if a rotator is used
-        if self.key_rotator:
-            self._init_client()
-
-        if not self._client:
-            raise RuntimeError("OpenAI client not initialized.")
-
-        # Convert messages to OpenAI format
-        openai_messages = []
-        for msg in messages:
-            openai_messages.append({"role": msg["role"], "content": msg["content"]})
-
+        self._ensure_client()
+        msgs = self._convert_msgs(messages)
         res = await self._client.chat.completions.create(
             model=self.model,
-            messages=openai_messages,
+            messages=msgs,
             **self.kwargs,
             **kwargs,
         )
         return res.choices[0].message.content
 
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        # Rotate key and update current LLM if a rotator is used
-        if self.key_rotator:
-            self._init_client()
-
-        if not self._client:
-            raise RuntimeError("OpenAI client not initialized.")
-
-        # Convert messages to OpenAI format
-        openai_messages = []
-        for msg in messages:
-            openai_messages.append({"role": msg["role"], "content": msg["content"]})
-
+        self._ensure_client()
+        msgs = self._convert_msgs(messages)
         stream = await self._client.chat.completions.create(
             model=self.model,
-            messages=openai_messages,
+            messages=msgs,
             stream=True,
             **self.kwargs,
             **kwargs,
         )
-
         async for chunk in stream:
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content

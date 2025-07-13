@@ -1,3 +1,4 @@
+import json
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 # Avoid circular import
@@ -22,31 +23,21 @@ class Context:
         self.tool_results = tool_results if tool_results is not None else []
         self.max_history = max_history
 
-    def add_message(self, role: str, content: str):
-        """Adds message to history."""
-        message_dict = {"role": role, "content": content}
-        self.messages.append(message_dict)
-
-        # Apply sliding window if max_history is set
-        if self.max_history is not None and len(self.messages) > self.max_history:
-            if self.max_history == 0:
-                self.messages = []
-            else:
-                self.messages = self.messages[-self.max_history :]
-
-    def add_message_with_trace(self, role: str, content: str, trace_id: Optional[str] = None):
-        """Adds message with optional trace linkage."""
+    def add_message(self, role: str, content: str, trace_id: Optional[str] = None):
+        """Add message to history with optional trace linkage."""
         message_dict = {"role": role, "content": content}
         if trace_id:
             message_dict["trace_id"] = trace_id
         self.messages.append(message_dict)
+        self._apply_history_limit()
 
-        # Apply sliding window if max_history is set
+    def _apply_history_limit(self):
+        """Apply sliding window if max_history is set."""
         if self.max_history is not None and len(self.messages) > self.max_history:
             if self.max_history == 0:
                 self.messages = []
             else:
-                self.messages = self.messages[-self.max_history :]
+                self.messages = self.messages[-self.max_history:]
 
     def add_tool_result(self, tool_name: str, args: dict, output: dict):
         """Add tool execution result to history."""
@@ -54,7 +45,6 @@ class Context:
 
     def get_clean_conversation(self) -> List[Dict[str, str]]:
         """Returns conversation without execution trace data and internal JSON."""
-        import json
 
         clean_messages = []
         for msg in self.messages:

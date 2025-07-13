@@ -2,7 +2,6 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from cogency.tools.base import BaseTool
-from cogency.utils.interrupt import interruptable
 from cogency.utils.errors import (
     ToolError,
     ValidationError,
@@ -54,7 +53,6 @@ class FileManagerTool(BaseTool):
         return path
 
     @handle_tool_exception
-    @interruptable
     async def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
         """Execute file operations based on action type.
 

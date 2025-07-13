@@ -4,7 +4,7 @@ from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
 from cogency.types import AgentState
-from cogency.utils.interrupt import interruptable
+from cogency.utils.parsing import prepare_node_messages
 
 REASON_PROMPT = """
 You are an AI assistant executing a specific task using available tools.
@@ -45,32 +45,10 @@ async def reason_streaming(state: AgentState, llm: BaseLLM, tools: List[BaseTool
     
     context = state["context"]
 
-    # Build proper message sequence: include conversation history + current input
-    messages = list(context.messages)
-    if not any(
-        msg.get("role") == "user" and msg.get("content") == context.current_input
-        for msg in messages
-    ):
-        messages.append({"role": "user", "content": context.current_input})
-
-    tool_instructions = ""
     if tools:
         yield {"type": "thinking", "node": "reason", "content": f"Available tools: {[tool.name for tool in tools]}"}
-        
-        # Full tool schemas for precise formatting
-        schemas = []
-        all_examples = []
-        for tool in tools:
-            schemas.append(f"- {tool.name}: {tool.description}")
-            schemas.append(f"  Schema: {tool.get_schema()}")
-            all_examples.extend([f"  {example}" for example in tool.get_usage_examples()])
-
-        tool_instructions = REASON_PROMPT.format(
-            tool_schemas="\n".join(schemas), tool_examples="\n".join(all_examples)
-        )
-
-    if tool_instructions:
-        messages.insert(0, {"role": "system", "content": tool_instructions})
+    
+    messages = prepare_node_messages(context, tools, REASON_PROMPT)
 
     # Stream LLM reasoning for tool selection
     yield {"type": "thinking", "node": "reason", "content": "Generating tool call..."}
@@ -96,35 +74,11 @@ async def reason_streaming(state: AgentState, llm: BaseLLM, tools: List[BaseTool
 
 
 @trace_node
-@interruptable
 async def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
 
-    # Build proper message sequence: include conversation history + current input
-    messages = list(context.messages)
-    if not any(
-        msg.get("role") == "user" and msg.get("content") == context.current_input
-        for msg in messages
-    ):
-        messages.append({"role": "user", "content": context.current_input})
-
-    tool_instructions = ""
-    if tools:
-        # Full tool schemas for precise formatting
-        schemas = []
-        all_examples = []
-        for tool in tools:
-            schemas.append(f"- {tool.name}: {tool.description}")
-            schemas.append(f"  Schema: {tool.get_schema()}")
-            all_examples.extend([f"  {example}" for example in tool.get_usage_examples()])
-
-        tool_instructions = REASON_PROMPT.format(
-            tool_schemas="\n".join(schemas), tool_examples="\n".join(all_examples)
-        )
-
-    if tool_instructions:
-        messages.insert(0, {"role": "system", "content": tool_instructions})
+    messages = prepare_node_messages(context, tools, REASON_PROMPT)
 
     result = await llm.invoke(messages)
 
