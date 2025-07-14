@@ -1,3 +1,4 @@
+import os
 from typing import AsyncIterator, Dict, List, Optional, Union
 
 import google.generativeai as genai
@@ -18,9 +19,25 @@ class GeminiLLM(ProviderMixin, BaseLLM):
         max_retries: int = 3,
         **kwargs,
     ):
-        # Validate inputs
-        if not api_keys:
-            raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
+        # Auto-detect API keys from environment if not provided
+        if api_keys is None:
+            # Try numbered keys first (GEMINI_API_KEY_1, etc.)
+            detected_keys = []
+            for i in range(1, 4):  # Check 1-3
+                key = os.getenv(f'GEMINI_API_KEY_{i}')
+                if key:
+                    detected_keys.append(key)
+            
+            # Fall back to base GEMINI_API_KEY
+            if not detected_keys:
+                base_key = os.getenv('GEMINI_API_KEY')
+                if base_key:
+                    detected_keys = [base_key]
+                    
+            if detected_keys:
+                api_keys = detected_keys
+            else:
+                raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
 
         # Handle the cleaner interface: if list provided, create key rotator internally
         if isinstance(api_keys, list) and len(api_keys) > 1:

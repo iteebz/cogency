@@ -1,4 +1,4 @@
-from typing import AsyncIterator, List, Optional, Union
+from typing import AsyncIterator, List, Optional, Union, Dict
 
 from cogency.context import Context
 from cogency.llm import BaseLLM, auto_detect_llm
@@ -27,6 +27,7 @@ class Agent:
         tools: Optional[List[BaseTool]] = None,
         trace: bool = False,
         memory_dir: str = ".cogency_memory",
+        prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None,
     ):
         self.name = name
         self.llm = llm if llm is not None else auto_detect_llm()
@@ -37,7 +38,7 @@ class Agent:
         self.tools = (tools if tools is not None else []) + discovered_tools
         
         self.trace = trace
-        self.workflow = CognitiveWorkflow(self.llm, self.tools).workflow
+        self.workflow = CognitiveWorkflow(self.llm, self.tools, prompt_fragments=prompt_fragments).workflow
     
     async def run(self, message: str, context: Optional[Context] = None) -> str:
         """Run agent in batch mode."""

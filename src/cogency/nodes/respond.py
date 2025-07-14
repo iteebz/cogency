@@ -1,5 +1,6 @@
 import json
-from typing import AsyncIterator, Dict, Any
+from typing import AsyncIterator, Dict, Any, Optional, List
+from cogency.tools.base import BaseTool
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
@@ -23,7 +24,7 @@ TONE: Professional, helpful, and direct. Answer as if you're speaking to a colle
 """
 
 
-async def respond_streaming(state: AgentState, llm: BaseLLM, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
+async def respond_streaming(state: AgentState, llm: BaseLLM, prompt_fragments: Optional[Dict[str, str]] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
     """Streaming version of respond node - generates final response in real-time.
     
     Args:
@@ -78,8 +79,7 @@ async def respond_streaming(state: AgentState, llm: BaseLLM, yield_interval: flo
     yield {"type": "state", "node": "respond", "state": {"context": context, "execution_trace": state["execution_trace"]}}
 
 
-@trace_node
-async def respond(state: AgentState, llm: BaseLLM, tools) -> AgentState:
+async def respond(state: AgentState, *, llm: BaseLLM, prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
 
@@ -102,7 +102,14 @@ async def respond(state: AgentState, llm: BaseLLM, tools) -> AgentState:
 
     # For non-direct responses, use the LLM to generate a response
     messages = list(context.messages)
-    messages.insert(0, {"role": "system", "content": RESPOND_PROMPT})
+    
+    # Use prompt fragments if provided, otherwise use default
+    if prompt_fragments and "aip_format" in prompt_fragments:
+        system_prompt = RESPOND_PROMPT + "\n\n" + prompt_fragments["aip_format"]
+    else:
+        system_prompt = RESPOND_PROMPT
+    
+    messages.insert(0, {"role": "system", "content": system_prompt})
 
     llm_response = await llm.invoke(messages)
 

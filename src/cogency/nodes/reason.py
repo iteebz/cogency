@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Dict, Any, List
+from typing import AsyncIterator, Dict, Any, List, Optional
 
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
@@ -31,7 +31,7 @@ ERROR HANDLING:
 """
 
 
-async def reason_streaming(state: AgentState, llm: BaseLLM, tools: List[BaseTool], yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
+async def reason_streaming(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
     """Streaming version of reason node - generates tool calls in real-time.
     
     Args:
@@ -73,8 +73,7 @@ async def reason_streaming(state: AgentState, llm: BaseLLM, tools: List[BaseTool
     yield {"type": "state", "node": "reason", "state": {"context": context, "execution_trace": state["execution_trace"]}}
 
 
-@trace_node
-async def reason(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> AgentState:
+async def reason(state: AgentState, *, llm: BaseLLM, tools: Optional[List[BaseTool]] = None) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
 

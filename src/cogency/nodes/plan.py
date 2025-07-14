@@ -1,5 +1,5 @@
 import json
-from typing import AsyncIterator, Dict, Any
+from typing import AsyncIterator, Dict, Any, Optional
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.trace import trace_node
@@ -9,22 +9,18 @@ PLAN_PROMPT = """You are an AI assistant. Analyze the user request and respond w
 
 Available tools: {tool_names}
 
-Rules:
-- Math calculations → use calculator tool
-- Current info/events → use web search
-- File operations → use file_manager tool
-- General knowledge → direct response
+{injection_point}
 
 Output format (choose one):
 
-{{"action": "direct_response", "reasoning": "Brief explanation", "answer": "Your answer"}}
+{{"action": "direct_response", "answer": "Your answer"}}
 
-{{"action": "tool_needed", "reasoning": "Why tool needed", "strategy": "Which tool"}}
+{{"action": "tool_needed", "reasoning": "Why tool needed", "strategy": "Which tool", "tool_input": {{"query": "tool specific query"}}}}
 
 Respond with JSON only - no other text."""
 
 
-async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool], yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
+async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool], prompt_fragments: Optional[Dict[str, str]] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
     """Streaming version of plan node - yields execution steps in real-time.
     
     Args:
@@ -53,7 +49,7 @@ async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool],
         tool_info = "no tools"
         yield {"type": "thinking", "node": "plan", "content": "No tools available - will use direct response"}
     
-    system_prompt = PLAN_PROMPT.format(tool_names=tool_info)
+    system_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", ""))
     messages.insert(0, {"role": "system", "content": system_prompt})
 
     # Stream LLM response and collect chunks
@@ -75,8 +71,7 @@ async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool],
     yield {"type": "state", "node": "plan", "state": {"context": context, "execution_trace": state["execution_trace"]}}
 
 
-@trace_node
-async def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentState:
+async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
@@ -89,7 +84,10 @@ async def plan(state: AgentState, llm: BaseLLM, tools: list[BaseTool]) -> AgentS
         tool_info = ", ".join(tool_descriptions)
     else:
         tool_info = "no tools"
-    system_prompt = PLAN_PROMPT.format(tool_names=tool_info)
+    
+    # Use prompt_override if provided, otherwise use default PLAN_PROMPT
+    current_plan_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", ""))
+    system_prompt = current_plan_prompt
     messages.insert(0, {"role": "system", "content": system_prompt})
 
     llm_response = await llm.invoke(messages)

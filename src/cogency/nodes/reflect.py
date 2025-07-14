@@ -1,7 +1,8 @@
-from typing import AsyncIterator, Dict, Any
+from typing import AsyncIterator, Dict, Any, Optional, List
 from cogency.llm import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
+from cogency.tools.base import BaseTool
 
 REFLECT_PROMPT = """
 You are an AI assistant evaluating task completion status.
@@ -25,7 +26,7 @@ after successful execution.
 """
 
 
-async def reflect_streaming(state: AgentState, llm: BaseLLM, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
+async def reflect_streaming(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
     """Streaming version of reflect node - evaluates task completion in real-time.
     
     Args:
@@ -55,8 +56,7 @@ async def reflect_streaming(state: AgentState, llm: BaseLLM, yield_interval: flo
     yield {"type": "state", "node": "reflect", "state": {"context": context, "execution_trace": state["execution_trace"]}}
 
 
-@trace_node
-async def reflect(state: AgentState, llm: BaseLLM, tools) -> AgentState:
+async def reflect(state: AgentState, *, llm: BaseLLM) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
     messages = list(context.messages)

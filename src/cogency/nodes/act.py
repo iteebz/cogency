@@ -1,11 +1,12 @@
-from typing import AsyncIterator, Dict, Any
+from typing import AsyncIterator, Dict, Any, Optional
 from cogency.tools.base import BaseTool
+from cogency.llm.base import BaseLLM
 from cogency.trace import trace_node
 from cogency.types import AgentState
 from cogency.utils.parsing import extract_tool_call, parse_tool_args
 
 
-async def act_streaming(state: AgentState, tools: list[BaseTool], yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
+async def act_streaming(state: AgentState, tools: Optional[list[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
     """Streaming version of act node - executes tools with real-time feedback.
     
     Args:
@@ -64,8 +65,7 @@ async def act_streaming(state: AgentState, tools: list[BaseTool], yield_interval
     yield {"type": "state", "node": "act", "state": {"context": context, "execution_trace": state["execution_trace"]}}
 
 
-@trace_node
-async def act(state: AgentState, tools: list[BaseTool]) -> AgentState:
+async def act(state: AgentState, *, tools: Optional[list[BaseTool]] = None) -> AgentState:
     """Non-streaming version for LangGraph compatibility."""
     context = state["context"]
 

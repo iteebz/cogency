@@ -23,10 +23,11 @@ DEFAULT_ROUTING_TABLE = {
 class CognitiveWorkflow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
-    def __init__(self, llm, tools, routing_table: Optional[Dict] = None):
+    def __init__(self, llm, tools, routing_table: Optional[Dict] = None, prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None):
         self.llm = llm
         self.tools = tools
         self.routing_table = routing_table or DEFAULT_ROUTING_TABLE
+        self.prompt_fragments = prompt_fragments or {}
         self.workflow = self._build_graph()
     
     def _build_graph(self) -> StateGraph:
@@ -43,7 +44,7 @@ class CognitiveWorkflow:
         }
         
         for node_name, node_func in node_functions.items():
-            workflow.add_node(node_name, self._wrap_node(node_func))
+            workflow.add_node(node_name, self._wrap_node(node_name, node_func))
         
         # Configure edges from routing table
         workflow.set_entry_point(self.routing_table["entry_point"])
@@ -59,10 +60,27 @@ class CognitiveWorkflow:
         
         return workflow.compile()
     
-    def _wrap_node(self, node_func):
-        """Wrap function-based node for LangGraph execution."""
+    def _wrap_node(self, node_name: str, node_func):
+        """Wrap function-based node for LangGraph execution, dynamically passing arguments."""
+        import inspect
+
         async def wrapped(state: AgentState) -> AgentState:
-            return await node_func(state, self.llm, self.tools)
+            sig = inspect.signature(node_func)
+            
+            available_args = {
+                "llm": self.llm,
+                "tools": self.tools,
+                "prompt_fragments": self.prompt_fragments.get(node_name, {})
+            }
+            
+            args_to_pass = {}
+            for param_name, _ in sig.parameters.items():
+                if param_name == "state":
+                    continue  # State is always passed positionally
+                if param_name in available_args:
+                    args_to_pass[param_name] = available_args[param_name]
+            
+            return await node_func(state, **args_to_pass)
         return wrapped
     
     def _route(self, state: AgentState) -> str:
@@ -71,8 +89,12 @@ class CognitiveWorkflow:
         if isinstance(last_message, list):
             last_message = last_message[0] if last_message else ""
         
-        # Try plan routing first, fall back to reflect
+        # Try plan routing first
         route, _ = parse_plan_response(last_message)
-        if route != "respond":  # If plan doesn't route to respond, try reflect
+        
+        # If plan doesn't route to respond, it means it wants to reason (i.e., use a tool)
+        # If it routes to respond, then we check reflect for further routing
+        if route == "respond":
             route, _ = parse_reflect_response(last_message)
+        
         return route

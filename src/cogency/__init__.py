@@ -6,6 +6,7 @@ from .tools.base import BaseTool
 from .tools.calculator import CalculatorTool
 from .tools.web_search import WebSearchTool
 from .tools.file_manager import FileManagerTool
+from .workflow import CognitiveWorkflow
 
 __all__ = [
     "Agent",
@@ -24,4 +25,5 @@ __all__ = [
     "CalculatorTool",
     "WebSearchTool",
     "FileManagerTool",
+    "CognitiveWorkflow",
 ]
