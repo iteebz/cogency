@@ -32,7 +32,7 @@ class CalculatorTool(BaseTool):
             description="A calculator tool that can perform basic arithmetic operations (add, subtract, multiply, divide) and calculate square roots.",
         )
 
-    def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
+    async def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
         """Execute the calculator operation.
         
         Args:
@@ -91,7 +91,7 @@ class CalculatorTool(BaseTool):
         ]
 
 
-def main():
+async def main():
     """Demo the custom calculator tool."""
     print("=== Custom Tool Example ===")
     print("Building and using a custom calculator tool with cogency\n")
@@ -99,7 +99,7 @@ def main():
     # Test the tool directly first
     print("🔧 Testing tool directly...")
     calc = CalculatorTool()
-    result = calc.run("add", 15, 27)
+    result = await calc.run("add", 15, 27)
     print(f"15 + 27 = {result['result']}")
     
     # Now test with agent
@@ -126,8 +126,8 @@ def main():
     for query in queries:
         print(f"\n> {query}")
         try:
-            result = agent.run(query, enable_trace=True, print_trace=True)
-            print(f"💡 {result['response']}")
+            result = await agent.run(query)
+            print(f"💡 {result}")
         except Exception as e:
             print(f"❌ Error: {e}")
     
@@ -143,4 +143,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())

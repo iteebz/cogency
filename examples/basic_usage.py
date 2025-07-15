@@ -14,7 +14,7 @@ from cogency.tools.calculator import CalculatorTool
 from cogency.tools.web_search import WebSearchTool
 
 
-def main():
+async def main():
     # Get API key from environment
     api_key = os.environ.get("GEMINI_API_KEY")
     if not api_key:
@@ -34,25 +34,24 @@ def main():
 
     # Example 1: Calculator
     print("=== Calculator Example ===")
-    result = agent.run("What is 127 * 43?", enable_trace=True, print_trace=True)
-    print(f"Response: {result['response']}")
+    result = await agent.run("What is 127 * 43?")
+    print(f"Response: {result}")
     print()
 
     # Example 2: Web Search
     print("=== Web Search Example ===")
-    result = agent.run("What are the latest developments in AI?", enable_trace=True, print_trace=True)
-    print(f"Response: {result['response']}")
+    result = await agent.run("What are the latest developments in AI?")
+    print(f"Response: {result}")
     print()
 
     # Example 3: Combined reasoning
     print("=== Combined Reasoning Example ===")
-    result = agent.run(
-        "Search for the current stock price of NVIDIA and calculate what 100 shares would cost",
-        enable_trace=True,
-        print_trace=True
+    result = await agent.run(
+        "Search for the current stock price of NVIDIA and calculate what 100 shares would cost"
     )
-    print(f"Response: {result['response']}")
+    print(f"Response: {result}")
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())
