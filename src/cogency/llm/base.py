@@ -31,6 +31,10 @@ class BaseLLM(ABC):
         """
         pass
 
+    async def ainvoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        """LangGraph compatibility method - wrapper around invoke()."""
+        return await self.invoke(messages, **kwargs)
+
     @abstractmethod
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         """Generate a streaming response from the LLM given a list of messages.

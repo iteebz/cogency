@@ -1,6 +1,6 @@
 """NO BULLSHIT parsing tests - only test real bugs that break shit."""
 import pytest
-from cogency.utils.parsing import parse_tool_args, extract_tool_call
+from cogency.utils.parsing import parse_tool_args, extract_tools
 
 
 def test_parse_tool_args_with_quotes():
@@ -27,9 +27,9 @@ def test_extract_tool_call_with_memorize():
     """Test extracting memorize tool calls - REAL BUG."""
     content = """I need to memorize this.
 
-TOOL_CALL: memorize(content='blue is my favorite color', tags=['personal'])
+SINGLE_TOOL: memorize(content='blue is my favorite color', tags=['personal'])
 """
-    result = extract_tool_call(content)
+    result = extract_tools(content)
     
     assert result is not None
     tool_name, tool_args = result

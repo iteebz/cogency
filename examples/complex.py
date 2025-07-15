@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """ADVANCED CHAINING - Multi-step problem solving with tool dependencies."""
 import asyncio
-from cogency import Agent, CalculatorTool, WeatherTool, TimezoneTool
+from cogency import Agent
+from cogency import CalculatorTool, WeatherTool, TimezoneTool
 
 async def main():
     # Agent with multiple tools for complex problem solving
@@ -29,7 +30,7 @@ async def main():
     print(f"🤖 Scenario: {scenario}")
     print()
     
-    result = await agent.run(scenario)
+    result = await agent.stream(scenario)
 
     print("\n🧠 MULTI-STEP SOLUTION:")
     print(result)

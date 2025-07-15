@@ -2,49 +2,33 @@ import json
 from typing import Any, Dict, Optional, Tuple, List
 
 
-def parse_plan_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """Parse plan node JSON response to determine routing action."""
+def parse_plan(response: str) -> Optional[Dict[str, Any]]:
+    """Parse plan node JSON response - PURE PARSING ONLY."""
     if response is None:
-        return "respond", {"action": "direct_response", "content": "No response"}
+        return {"action": "direct_response", "content": "No response"}
     try:
         data = json.loads(response)
-        action = data.get("action")
-        if action == "tool_needed":
-            return "reason", data
-        elif action == "direct_response":
-            return "respond", data
-        else:
-            # Fallback to prefix parsing for compatibility
-            if response.startswith("TOOL_NEEDED:"):
-                return "reason", {"action": "tool_needed", "content": response[12:]}
-            return "respond", {"action": "direct_response", "content": response}
+        return data
     except json.JSONDecodeError:
         # Fallback to prefix parsing
         if response.startswith("TOOL_NEEDED:"):
-            return "reason", {"action": "tool_needed", "content": response[12:]}
-        return "respond", {"action": "direct_response", "content": response}
+            return {"action": "tool_needed", "content": response[12:]}
+        return {"action": "direct_response", "content": response}
 
 
-def parse_reflect_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]]:
-    """Parse reflect node JSON response to determine routing action."""
+def parse_reflect(response: str) -> Optional[Dict[str, Any]]:
+    """Parse reflect node JSON response - PURE PARSING ONLY."""
     if response is None:
-        return "respond", {"status": "complete", "content": "No response"}
+        return {"status": "complete", "content": "No response"}
     try:
         data = json.loads(response)
-        status = data.get("status")
-        if status == "continue":
-            return "reason", data
-        elif status == "complete":
-            return "respond", data
-        else:
-            # Fallback: if status is missing or unknown, default to complete
-            return "respond", {"status": "complete", "content": response}
+        return data
     except json.JSONDecodeError:
         # Fallback to prefix parsing
         if response.startswith("TASK_COMPLETE:"):
-            return "respond", {"status": "complete", "content": response[14:]}
+            return {"status": "complete", "content": response[14:]}
         # Default to complete instead of continue to prevent loops
-        return "respond", {"status": "complete", "content": response}
+        return {"status": "complete", "content": response}
 
 
 def parse_tool_args(raw_args: str) -> Dict[str, Any]:
@@ -74,34 +58,34 @@ def parse_tool_args(raw_args: str) -> Dict[str, Any]:
         return result
 
 
-def extract_tool_call(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]]:
-    """Extract tool call from LLM response - supports both single and parallel calls."""
+def extract_tools(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]]:
+    """Extract tool call from LLM response - supports both single and multi-tool calls."""
     import re
     
-    # Search for TOOL_CALL: anywhere in the response
-    tool_call_match = re.search(r"TOOL_CALL:\s*(\w+)\((.*?)\)", llm_response, re.DOTALL)
-    if tool_call_match:
-        tool_name = tool_call_match.group(1)
-        args_str = tool_call_match.group(2).strip()
+    # Search for SINGLE_TOOL: anywhere in the response
+    single_match = re.search(r"SINGLE_TOOL:\s*(\w+)\((.*?)\)", llm_response, re.DOTALL)
+    if single_match:
+        tool_name = single_match.group(1)
+        args_str = single_match.group(2).strip()
         return tool_name, {"raw_args": args_str}
     
-    # Search for PARALLEL_CALLS: anywhere in the response  
-    parallel_match = re.search(r"PARALLEL_CALLS:\s*(.*)", llm_response, re.DOTALL)
-    if parallel_match:
-        parallel_str = parallel_match.group(1).strip()
-        return "PARALLEL", {"parallel_calls": parallel_str}
+    # Search for MULTI_TOOL: anywhere in the response  
+    multi_match = re.search(r"MULTI_TOOL:\s*(.*)", llm_response, re.DOTALL)
+    if multi_match:
+        multi_str = multi_match.group(1).strip()
+        return "MULTI_TOOL", {"multi_calls": multi_str}
 
     return None
 
 
-def parse_parallel_calls(parallel_str: str) -> List[Tuple[str, Dict[str, Any]]]:
-    """Parse parallel tool calls string into list of (tool_name, args) tuples."""
+def parse_multi_calls(multi_str: str) -> List[Tuple[str, Dict[str, Any]]]:
+    """Parse multi-tool calls string into list of (tool_name, args) tuples."""
     import re
     
     # Remove brackets and split by tool calls
-    parallel_str = parallel_str.strip()
-    if parallel_str.startswith("[") and parallel_str.endswith("]"):
-        parallel_str = parallel_str[1:-1]
+    multi_str = multi_str.strip()
+    if multi_str.startswith("[") and multi_str.endswith("]"):
+        multi_str = multi_str[1:-1]
     
     calls = []
     # Simple parsing - split by commas not inside parentheses
@@ -109,7 +93,7 @@ def parse_parallel_calls(parallel_str: str) -> List[Tuple[str, Dict[str, Any]]]:
     paren_count = 0
     current_part = ""
     
-    for char in parallel_str:
+    for char in multi_str:
         if char == "(":
             paren_count += 1
         elif char == ")":

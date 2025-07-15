@@ -6,9 +6,9 @@ from cogency.memory.filesystem import FSMemory
 from cogency.tools import memory  # Import to trigger tool registration
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
-from cogency.types import AgentState
-from cogency.trace import ExecutionTrace
-from cogency.workflow import Flow
+from cogency.types import AgentState, StreamingMode
+from cogency.types import ExecutionTrace
+from cogency.flow import Flow
 
 
 class Agent:
@@ -29,20 +29,24 @@ class Agent:
         trace: bool = True,
         memory_dir: str = ".memory",
         prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None,
+        default_streaming_mode: StreamingMode = "summary",
     ):
         self.name = name
         self.llm = llm if llm is not None else auto_detect_llm()
         self.memory = FSMemory(memory_dir)
+        self.default_streaming_mode = default_streaming_mode
         
         # Auto-discover tools including memory tools
         discovered_tools = ToolRegistry.get_tools(memory=self.memory)
         self.tools = (tools if tools is not None else []) + discovered_tools
         
         self.trace = trace
-        self.workflow = Flow(self.llm, self.tools, prompt_fragments=prompt_fragments).workflow
+        self.flow = Flow(self.llm, self.tools, prompt_fragments=prompt_fragments)
+        self.workflow = self.flow.workflow
     
-    async def run(self, message: str, context: Optional[Context] = None) -> str:
-        """Run agent with beautiful streaming traces by default."""
+    async def stream(self, message: str, context: Optional[Context] = None, mode: Optional[StreamingMode] = None) -> str:
+        """STREAMING FIRST: Run agent with real-time traces."""
+        mode = mode or self.default_streaming_mode
         state = self._prepare_state(message, context)
         
         # Smart auto-storage: Store personal info without ceremony
@@ -57,18 +61,19 @@ class Agent:
             print()
         
         final_response = ""
-        async for chunk in self.workflow.astream(state):
-            for node_name, node_output in chunk.items():
-                # Real-time trace display as each node completes
-                if self.trace and "execution_trace" in node_output:
-                    trace = node_output["execution_trace"] 
-                    if trace.steps:
-                        latest_step = trace.steps[-1]
-                        print(latest_step)
-                
-                # Collect final response
-                if "context" in node_output and node_output["context"].messages:
-                    final_response = self._extract_response(node_output)
+        final_state = None
+        
+        # Set mode on flow for this execution
+        self.flow.stream_mode = mode
+        
+        # Execute workflow with node-based streaming
+        final_state = await self.workflow.ainvoke(state)
+        
+        # Extract response from final state
+        if final_state and "context" in final_state:
+            final_response = self._extract_response(final_state)
+        else:
+            final_response = "No response generated"
         
         # Show completion
         if self.trace:
@@ -82,30 +87,17 @@ class Agent:
         
         return final_response
     
-    async def stream(self, message: str, context: Optional[Context] = None) -> AsyncIterator[str]:
-        """Stream the agent's response in real-time with beautiful traces."""
-        state = self._prepare_state(message, context)
+    async def run(self, message: str, context: Optional[Context] = None) -> str:
+        """BATCH MODE: Run without streaming for programmatic use."""
+        # Temporarily disable tracing for batch mode
+        original_trace = self.trace
+        self.trace = False
         
-        # Show user query immediately if tracing
-        if self.trace:
-            print(f"🤖 Query: \"{message}\"")
-            print()
-        
-        async for chunk in self.workflow.astream(state):
-            for node_name, node_output in chunk.items():
-                # Show trace for each node completion
-                if self.trace and "execution_trace" in node_output:
-                    trace = node_output["execution_trace"] 
-                    if trace.steps:
-                        latest_step = trace.steps[-1]
-                        print(latest_step)
-                
-                # Only stream final response from RESPOND node
-                if node_name == "respond" and "context" in node_output:
-                    response = self._extract_response(node_output)
-                    if response and response != "No response generated":
-                        for char in response:
-                            yield char
+        try:
+            return await self.stream(message, context)
+        finally:
+            self.trace = original_trace
+    
     
     def _prepare_state(self, message: str, context: Optional[Context] = None) -> AgentState:
         """Prepare agent state for execution."""

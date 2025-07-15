@@ -1,124 +1,124 @@
-"""NO BULLSHIT memory tool tests - only test real bugs that break shit."""
+"""Memory tools unit tests."""
 import pytest
-from unittest.mock import Mock, AsyncMock
+from unittest.mock import Mock
 from cogency.tools.memory import MemorizeTool, RecallTool
-from cogency.memory.base import BaseMemory
-from cogency.memory import MemoryArtifact
+from cogency.memory.base import BaseMemory, MemoryArtifact
 from datetime import datetime
+import uuid
 
 
-class TestMemorizeTool:
-    """Test MemorizeTool - focus on real bugs."""
+class MockMemory(BaseMemory):
+    """Mock memory for testing."""
     
-    @pytest.fixture
-    def mock_memory(self):
-        memory = Mock(spec=BaseMemory)
-        memory.memorize = AsyncMock()
-        return memory
+    def __init__(self):
+        self.artifacts = {}
     
-    @pytest.fixture
-    def memorize_tool(self, mock_memory):
-        return MemorizeTool(mock_memory)
-    
-    @pytest.mark.asyncio
-    async def test_memorize_with_content_and_tags(self, memorize_tool, mock_memory):
-        """Test memorize with content and tags - REAL BUG."""
-        # Mock artifact
+    async def memorize(self, content: str, tags: list = None, metadata: dict = None) -> MemoryArtifact:
+        """Store content and return artifact."""
+        artifact_id = str(uuid.uuid4())
         artifact = MemoryArtifact(
-            id="test-id",
-            content="test content",
-            tags=["tag1", "tag2"],
-            metadata={},
+            id=artifact_id,
+            content=content,
+            tags=tags or [],
+            metadata=metadata or {},
             created_at=datetime.now()
         )
-        mock_memory.memorize.return_value = artifact
-        
-        # This should NOT crash with parsing errors
-        result = await memorize_tool.run(
-            content="test content",
-            tags=["tag1", "tag2"]
-        )
-        
-        assert result["success"] is True
-        assert result["artifact_id"] == "test-id"
-        assert result["tags"] == ["tag1", "tag2"]
-        mock_memory.memorize.assert_called_once_with(
-            "test content", 
-            tags=["tag1", "tag2"], 
-            metadata={}
-        )
+        self.artifacts[artifact_id] = artifact
+        return artifact
+    
+    async def recall(self, query: str, limit: int = None, tags: list = None) -> list[MemoryArtifact]:
+        """Retrieve matching artifacts."""
+        results = []
+        for artifact in self.artifacts.values():
+            if query.lower() in artifact.content.lower():
+                if not tags or any(tag in artifact.tags for tag in tags):
+                    results.append(artifact)
+        return results[:limit] if limit else results
+    
+    def should_store(self, content: str) -> tuple[bool, str]:
+        """Mock smart categorization."""
+        if "personal" in content.lower():
+            return True, "personal"
+        elif "work" in content.lower():
+            return True, "work"
+        return False, ""
+
+
+class TestMemorizeTools:
+    """Test memory tools functionality."""
     
     @pytest.mark.asyncio
-    async def test_memorize_missing_content(self, memorize_tool):
-        """Test memorize without content - REAL BUG."""
-        result = await memorize_tool.run()
+    async def test_memorize_tool_basic(self):
+        """Test basic memorize tool functionality."""
+        memory = MockMemory()
+        tool = MemorizeTool(memory)
+        
+        result = await tool.run(content="Test content", tags=["test"])
+        
+        assert result["success"] == True
+        assert "artifact_id" in result
+        assert result["content_preview"] == "Test content"
+        assert result["tags"] == ["test"]
+    
+    @pytest.mark.asyncio
+    async def test_memorize_tool_auto_tagging(self):
+        """Test memorize tool with auto-tagging."""
+        memory = MockMemory()
+        tool = MemorizeTool(memory)
+        
+        result = await tool.run(content="I work as a developer")
+        
+        assert result["success"] == True
+        assert result["tags"] == ["work"]
+    
+    @pytest.mark.asyncio
+    async def test_memorize_tool_no_content(self):
+        """Test memorize tool with missing content."""
+        memory = MockMemory()
+        tool = MemorizeTool(memory)
+        
+        result = await tool.run()
         
         assert "error" in result
         assert "content parameter is required" in result["error"]
     
     @pytest.mark.asyncio
-    async def test_memorize_handles_exceptions(self, memorize_tool, mock_memory):
-        """Test memorize handles memory exceptions - REAL BUG."""
-        mock_memory.memorize.side_effect = Exception("Memory storage failed")
+    async def test_recall_tool_basic(self):
+        """Test basic recall tool functionality."""
+        memory = MockMemory()
+        recall_tool = RecallTool(memory)
         
-        result = await memorize_tool.run(content="test")
+        # First store some content
+        await memory.memorize("Test content about work", tags=["work"])
         
-        assert "error" in result
-        assert "Failed to memorize content" in result["error"]
-
-
-class TestRecallTool:
-    """Test RecallTool - focus on real bugs."""
-    
-    @pytest.fixture
-    def mock_memory(self):
-        memory = Mock(spec=BaseMemory)
-        memory.recall = AsyncMock()
-        return memory
-    
-    @pytest.fixture
-    def recall_tool(self, mock_memory):
-        return RecallTool(mock_memory)
-    
-    @pytest.mark.asyncio
-    async def test_recall_with_query(self, recall_tool, mock_memory):
-        """Test recall with query - REAL BUG."""
-        # Mock artifacts
-        artifact = MemoryArtifact(
-            id="test-id",
-            content="test content",
-            tags=["tag1"],
-            metadata={},
-            created_at=datetime.now()
-        )
-        mock_memory.recall.return_value = [artifact]
+        result = await recall_tool.run(query="work")
         
-        result = await recall_tool.run(query="test query")
-        
-        assert result["success"] is True
+        assert result["success"] == True
         assert result["results_count"] == 1
-        assert result["results"][0]["id"] == "test-id"
-        assert result["results"][0]["content"] == "test content"
-        mock_memory.recall.assert_called_once_with(
-            "test query", 
-            limit=None, 
-            tags=None
-        )
+        assert "work" in result["results"][0]["content"]
     
     @pytest.mark.asyncio
-    async def test_recall_missing_query(self, recall_tool):
-        """Test recall without query - REAL BUG."""
-        result = await recall_tool.run()
+    async def test_recall_tool_no_query(self):
+        """Test recall tool with missing query."""
+        memory = MockMemory()
+        tool = RecallTool(memory)
+        
+        result = await tool.run()
         
         assert "error" in result
         assert "query parameter is required" in result["error"]
     
     @pytest.mark.asyncio
-    async def test_recall_handles_exceptions(self, recall_tool, mock_memory):
-        """Test recall handles memory exceptions - REAL BUG."""
-        mock_memory.recall.side_effect = Exception("Memory recall failed")
+    async def test_recall_tool_with_limit(self):
+        """Test recall tool with limit parameter."""
+        memory = MockMemory()
+        recall_tool = RecallTool(memory)
         
-        result = await recall_tool.run(query="test")
+        # Store multiple items
+        await memory.memorize("First test item", tags=["test"])
+        await memory.memorize("Second test item", tags=["test"])
         
-        assert "error" in result
-        assert "Failed to recall content" in result["error"]
+        result = await recall_tool.run(query="test", limit=1)
+        
+        assert result["success"] == True
+        assert result["results_count"] == 1

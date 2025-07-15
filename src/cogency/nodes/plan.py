@@ -1,24 +1,33 @@
 import json
 import re
-from typing import AsyncIterator, Dict, Any, Optional
+from typing import Dict, Any, Optional
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
-from cogency.trace import trace_node
 from cogency.types import AgentState
+from cogency.utils import validate_tools, trace
 
-PLAN_PROMPT = """You are an AI assistant. Analyze the user request and respond with ONLY valid JSON.
-
-Available tools: {tool_names}
+PLAN_PROMPT = """Tools: {tool_names}
 
 {injection_point}
 
-Output format (choose one):
+Decide if tools needed or can respond directly.
 
-{{"action": "direct_response", "answer": "Your answer"}}
+If tools needed, generate VALID tool calls using EXACT tool names:
+- Single tool: SINGLE_TOOL: tool_name(arg1="value1", arg2="value2")
+- Multiple tools: MULTI_TOOL: [tool1(args), tool2(args)]
 
-{{"action": "tool_needed", "reasoning": "Why tools needed for this request"}}
+CRITICAL: Only use tool names from the available tools list above. 
+Invalid tool names will cause execution failure.
 
-Respond with JSON only - no other text."""
+JSON output format (REQUIRED):
+{{"action": "direct_response", "answer": "your answer"}} OR
+{{"action": "tool_needed", "tool_call": "SINGLE_TOOL: tool_name(args)"}} OR
+{{"action": "tool_needed", "tool_call": "MULTI_TOOL: [tool1(args), tool2(args)]"}}
+
+VALIDATION: Before outputting, verify:
+1. Tool names match available tools exactly
+2. Arguments follow proper syntax: arg="value"
+3. JSON is valid and properly formatted"""
 
 
 async def _subset_tools(user_input: str, tools: list[BaseTool], llm: BaseLLM) -> list[BaseTool]:
@@ -28,15 +37,13 @@ async def _subset_tools(user_input: str, tools: list[BaseTool], llm: BaseLLM) ->
         
     tool_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
     
-    prompt = f"""Given this user request: "{user_input}"
+    prompt = f"""Request: "{user_input}"
 
-Available tools:
+Tools:
 {tool_list}
 
-Which tools are relevant? Return ONLY a JSON list of tool names:
-{{"relevant_tools": ["tool1", "tool2"]}}
-
-Be selective - only include tools actually needed for this specific request."""
+Return JSON with relevant tools only:
+{{"relevant_tools": ["tool1", "tool2"]}}"""
 
     try:
         response = await llm.invoke([{"role": "user", "content": prompt}])
@@ -53,95 +60,44 @@ Be selective - only include tools actually needed for this specific request."""
         return tools
 
 
-async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool], prompt_fragments: Optional[Dict[str, str]] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
-    """Streaming version of plan node - yields execution steps in real-time.
-    
-    Args:
-        state: Current agent state
-        llm: Language model to use
-        tools: Available tools for planning
-        yield_interval: Minimum time between yields for rate limiting (seconds)
-    """
-    # Yield initial thinking
-    yield {"type": "thinking", "node": "plan", "content": "Analyzing user request and available tools..."}
-    # TODO: Implement yield_interval rate limiting when consumer needs it
-    # if yield_interval > 0.0:
-    #     await asyncio.sleep(yield_interval)
+
+
+@trace
+async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
+    """Plan node determines execution strategy."""
     
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
     # Intelligent tool subsetting
     if tools:
-        yield {"type": "thinking", "node": "plan", "content": "Analyzing which tools are relevant for this request..."}
         relevant_tools = await _subset_tools(context.current_input, tools, llm)
         
         tool_descriptions = []
         for tool in relevant_tools:
             tool_descriptions.append(f"{tool.name} ({tool.description})")
         tool_info = ", ".join(tool_descriptions)
-        
-        if len(relevant_tools) < len(tools):
-            yield {"type": "thinking", "node": "plan", "content": f"Intelligently filtered {len(tools)} tools down to {len(relevant_tools)} relevant ones: {tool_info}"}
-        else:
-            yield {"type": "thinking", "node": "plan", "content": f"All tools relevant: {tool_info}"}
             
         # Store selected tools for downstream nodes
         state["selected_tools"] = relevant_tools
     else:
         tool_info = "no tools"
         state["selected_tools"] = []
-        yield {"type": "thinking", "node": "plan", "content": "No tools available - will use direct response"}
     
     system_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", ""))
     messages.insert(0, {"role": "system", "content": system_prompt})
 
-    # Stream LLM response and collect chunks
-    yield {"type": "thinking", "node": "plan", "content": "Generating plan decision..."}
-    response_chunks = []
-    async for chunk in llm.stream(messages, yield_interval=yield_interval):
-        yield {"type": "chunk", "node": "plan", "content": chunk}
-        response_chunks.append(chunk)
-    
-    llm_response = "".join(response_chunks)
-
-    # Store the raw response for routing, but don't add to conversation yet
-    context.add_message("assistant", llm_response)
-
-    # Yield final result
-    yield {"type": "result", "node": "plan", "data": {"decision": llm_response}}
-    
-    # Yield final state for downstream consumption
-    yield {"type": "state", "node": "plan", "state": {"context": context, "execution_trace": state["execution_trace"]}}
-
-
-async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
-    """Non-streaming version for LangGraph compatibility."""
-    context = state["context"]
-    messages = context.messages + [{"role": "user", "content": context.current_input}]
-
-    # Intelligent tool subsetting
-    if tools:
-        relevant_tools = await _subset_tools(context.current_input, tools, llm)
-        tool_descriptions = []
-        for tool in relevant_tools:
-            tool_descriptions.append(f"{tool.name} ({tool.description})")
-        tool_info = ", ".join(tool_descriptions)
-        
-        # Store selected tools for downstream nodes
-        state["selected_tools"] = relevant_tools
-    else:
-        tool_info = "no tools"
-        state["selected_tools"] = []
-    
-    # Use prompt_override if provided, otherwise use default PLAN_PROMPT
-    current_plan_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", ""))
-    system_prompt = current_plan_prompt
-    messages.insert(0, {"role": "system", "content": system_prompt})
-
+    # Get LLM response
     llm_response = await llm.invoke(messages)
 
-    # Store the raw response for routing, but don't add to conversation yet
-    context.add_message("assistant", llm_response)
+    # Validate tool calls if present
+    if tools:
+        validated_response = validate_tools(llm_response, tools)
+        if validated_response != llm_response:
+            llm_response = validated_response
 
+    # Store the raw response for routing
+    context.add_message("assistant", llm_response)
+    
+    # Return updated state
     return {"context": context, "execution_trace": state["execution_trace"]}

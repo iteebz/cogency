@@ -5,7 +5,7 @@ from cogency import Agent, WeatherTool
 
 async def main():
     agent = Agent("weather_assistant", tools=[WeatherTool()])
-    result = await agent.run("What's the weather in San Francisco?")
+    result = await agent.stream("What's the weather in San Francisco?")
     print(result)
 
 if __name__ == "__main__":
