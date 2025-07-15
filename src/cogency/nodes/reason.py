@@ -37,30 +37,18 @@ CRITICAL: Use exact tool names from available tools list above."""
 
 
 def _can_answer_directly(response: str) -> bool:
-    """Check if response indicates direct answer capability."""
     return response.strip().startswith("DIRECT_RESPONSE:")
 
-
 def _extract_direct_response(response: str) -> str:
-    """Extract clean response from DIRECT_RESPONSE format."""
     return response.replace("DIRECT_RESPONSE:", "").strip()
 
-
 def _extract_tool_calls(response: str) -> Optional[str]:
-    """Extract tool calls from TOOL_NEEDED format."""
     if "TOOL_NEEDED:" in response:
         return response.split("TOOL_NEEDED:", 1)[1].strip()
     return None
 
-
 def _task_complete(context, tool_results: List[Dict]) -> bool:
-    """Determine if task is complete based on tool results and context."""
-    if not tool_results:
-        return False
-    
-    # Simple heuristic: if we got tool results, task is likely complete
-    # More sophisticated logic can be added here
-    return len(tool_results) > 0
+    return len(tool_results) > 0 if tool_results else False
 
 
 @trace_node("reason")
@@ -112,15 +100,9 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
             response_text = _extract_direct_response(llm_response)
             trace.add("reason", f"Direct response generated: {response_text[:50]}...")
             
-            decision = ReasoningDecision(
-                should_respond=True,
-                response_text=response_text,
-                task_complete=True
-            )
-            
             return {
                 "context": context,
-                "reasoning_decision": decision,
+                "reasoning_decision": ReasoningDecision(should_respond=True, response_text=response_text, task_complete=True),
                 "last_node_output": response_text
             }
         
@@ -171,15 +153,9 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
                 final_response = await llm.invoke(final_messages)
                 context.add_message("assistant", final_response)
                 
-                decision = ReasoningDecision(
-                    should_respond=True,
-                    response_text=final_response,
-                    task_complete=True
-                )
-                
                 return {
                     "context": context,
-                    "reasoning_decision": decision,
+                    "reasoning_decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True),
                     "last_node_output": final_response
                 }
             
@@ -189,29 +165,18 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
         # No tools identified and no direct response - fallback
         trace.add("reason", "No clear action identified, generating fallback response")
         
-        decision = ReasoningDecision(
-            should_respond=True,
-            response_text=llm_response,
-            task_complete=True
-        )
-        
         return {
             "context": context,
-            "reasoning_decision": decision,
+            "reasoning_decision": ReasoningDecision(should_respond=True, response_text=llm_response, task_complete=True),
             "last_node_output": llm_response
         }
     
     # Max iterations reached
     trace.add("reason", f"Max iterations ({max_iterations}) reached")
-    
-    decision = ReasoningDecision(
-        should_respond=True,
-        response_text="I've reached the maximum reasoning iterations. Let me provide what I can determine so far.",
-        task_complete=True
-    )
+    fallback_text = "I've reached the maximum reasoning iterations. Let me provide what I can determine so far."
     
     return {
         "context": context,
-        "reasoning_decision": decision,
-        "last_node_output": decision.response_text
+        "reasoning_decision": ReasoningDecision(should_respond=True, response_text=fallback_text, task_complete=True),
+        "last_node_output": fallback_text
     }
