@@ -4,8 +4,10 @@ from .llm import BaseLLM, OpenAILLM, AnthropicLLM, GeminiLLM, GrokLLM, MistralLL
 from .memory import BaseMemory, FSMemory, SemanticMemory
 from .tools.base import BaseTool
 from .tools.calculator import CalculatorTool
-from .tools.web_search import WebSearchTool
 from .tools.file_manager import FileManagerTool
+from .tools.timezone import TimezoneTool
+from .tools.weather import WeatherTool
+from .tools.web_search import WebSearchTool
 from .workflow import CognitiveWorkflow
 
 __all__ = [
@@ -23,7 +25,9 @@ __all__ = [
     "SemanticMemory",
     "BaseTool",
     "CalculatorTool",
-    "WebSearchTool",
     "FileManagerTool",
+    "TimezoneTool",
+    "WeatherTool",
+    "WebSearchTool",
     "CognitiveWorkflow",
 ]

@@ -10,14 +10,18 @@ from cogency.tools.base import BaseTool
 # Explicit imports for clean API
 from cogency.tools.calculator import CalculatorTool
 from cogency.tools.file_manager import FileManagerTool
+from cogency.tools.timezone import TimezoneTool
+from cogency.tools.weather import WeatherTool
 from cogency.tools.web_search import WebSearchTool
 
 # Export all tools for easy importing
 __all__ = [
     "BaseTool",
     "CalculatorTool",
+    "FileManagerTool", 
+    "TimezoneTool",
+    "WeatherTool",
     "WebSearchTool",
-    "FileManagerTool",
     "AVAILABLE_TOOLS",
     "TOOL_REGISTRY",
     "get_tool_by_name",
