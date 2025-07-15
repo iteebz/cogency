@@ -1,9 +1,10 @@
 """Filesystem-based memory implementation for Cogency agents."""
 import json
 import os
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 
 from .base import BaseMemory, MemoryArtifact, MemoryType
@@ -25,6 +26,25 @@ class FSMemory(BaseMemory):
         """
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(exist_ok=True)
+    
+    def should_store(self, text: str) -> Tuple[bool, str]:
+        """Smart auto-storage heuristics - NO BULLSHIT."""
+        triggers = [
+            (r"\bi am\b", "personal"),
+            (r"\bi have\b", "personal"), 
+            (r"\bi work\b", "work"),
+            (r"\bi like\b", "preferences"),
+            (r"\bmy name is\b", "personal"),
+            (r"\badhd\b", "personal"),
+            (r"\bsoftware engineer\b", "work"),
+            (r"\bdeveloper\b", "work")
+        ]
+        
+        text_lower = text.lower()
+        for pattern, category in triggers:
+            if re.search(pattern, text_lower):
+                return True, category
+        return False, ""
 
     async def memorize(
         self, 
@@ -77,9 +97,13 @@ class FSMemory(BaseMemory):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
-                # Simple text matching in content and tags
-                content_match = query_lower in data["content"].lower()
-                tag_match = any(query_lower in tag.lower() for tag in data["tags"])
+                # Better text matching - split query into words
+                content_lower = data["content"].lower()
+                query_words = query_lower.split()
+                
+                # Match if any query word appears in content or tags
+                content_match = any(word in content_lower for word in query_words)
+                tag_match = any(word in tag.lower() for tag in data["tags"] for word in query_words)
                 
                 # Apply common filters
                 if not filter_artifacts(data, memory_type, tags, since):

@@ -45,6 +45,12 @@ class Agent:
         """Run agent with beautiful streaming traces by default."""
         state = self._prepare_state(message, context)
         
+        # Smart auto-storage: Store personal info without ceremony
+        if hasattr(self.memory, 'should_store'):
+            should_store, category = self.memory.should_store(message)
+            if should_store:
+                await self.memory.memorize(message, tags=[category])
+        
         # Show user query immediately
         if self.trace:
             print(f"🤖 Query: \"{message}\"")
