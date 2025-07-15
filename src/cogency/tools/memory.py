@@ -2,9 +2,9 @@
 from typing import Any, Dict, List, Optional
 import json
 
-from ..tools.base import BaseTool
-from ..tools.registry import tool
-from .base import BaseMemory
+from .base import BaseTool
+from .registry import tool
+from ..memory.base import BaseMemory
 
 
 @tool
@@ -45,30 +45,7 @@ class MemorizeTool(BaseTool):
             return {"error": f"Failed to memorize content: {str(e)}"}
 
     def get_schema(self) -> str:
-        """Return the tool schema for LLM formatting."""
-        return json.dumps({
-            "name": "memorize",
-            "description": "Store information in memory for later recall",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "content": {
-                        "type": "string",
-                        "description": "The content to store in memory"
-                    },
-                    "tags": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Optional tags for categorization"
-                    },
-                    "metadata": {
-                        "type": "object",
-                        "description": "Optional metadata dictionary"
-                    }
-                },
-                "required": ["content"]
-            }
-        })
+        return "memorize(content='text to remember', tags=['tag1', 'tag2'])"
 
     def get_usage_examples(self) -> List[str]:
         """Return example tool calls."""
@@ -128,30 +105,7 @@ class RecallTool(BaseTool):
             return {"error": f"Failed to recall content: {str(e)}"}
 
     def get_schema(self) -> str:
-        """Return the tool schema for LLM formatting."""
-        return json.dumps({
-            "name": "recall",
-            "description": "Search and retrieve information from memory",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "query": {
-                        "type": "string",
-                        "description": "Search query to match against stored content"
-                    },
-                    "limit": {
-                        "type": "integer",
-                        "description": "Maximum number of results to return"
-                    },
-                    "tags": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Filter results by tags"
-                    }
-                },
-                "required": ["query"]
-            }
-        })
+        return "recall(query='search terms', limit=5, tags=['tag1'])"
 
     def get_usage_examples(self) -> List[str]:
         """Return example tool calls."""

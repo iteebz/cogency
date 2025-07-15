@@ -13,6 +13,7 @@ from cogency.tools.file_manager import FileManagerTool
 from cogency.tools.timezone import TimezoneTool
 from cogency.tools.weather import WeatherTool
 from cogency.tools.web_search import WebSearchTool
+from cogency.tools.memory import MemorizeTool, RecallTool
 
 # Export all tools for easy importing
 __all__ = [
@@ -22,6 +23,8 @@ __all__ = [
     "TimezoneTool",
     "WeatherTool",
     "WebSearchTool",
+    "MemorizeTool",
+    "RecallTool",
     "AVAILABLE_TOOLS",
     "TOOL_REGISTRY",
     "get_tool_by_name",
@@ -30,31 +33,20 @@ __all__ = [
 
 
 def _discover_tools():
-    """Auto-discover all Tool classes in the tools directory."""
-    tools_dir = Path(__file__).parent
-    tool_classes = []
-
-    # Scan all Python files in tools directory
-    for file_path in tools_dir.glob("*.py"):
-        if file_path.name.startswith("_"):
-            continue
-
-        module_name = f"cogency.tools.{file_path.stem}"
-        try:
-            module = importlib.import_module(module_name)
-            for name, obj in inspect.getmembers(module):
-                if inspect.isclass(obj) and issubclass(obj, BaseTool) and obj is not BaseTool:
-                    tool_classes.append(obj)
-        except ImportError:
-            continue
-
-    return tool_classes
+    """Auto-discover only standalone tool classes."""
+    return [
+        CalculatorTool,
+        FileManagerTool,
+        TimezoneTool, 
+        WeatherTool,
+        WebSearchTool
+    ]
 
 
 # Auto-discovered tools
 AVAILABLE_TOOLS = _discover_tools()
 
-# Tool registry by name for dynamic lookup
+# Tool registry by name for dynamic lookup (standalone tools only)
 TOOL_REGISTRY = {tool().name: tool for tool in AVAILABLE_TOOLS}
 
 

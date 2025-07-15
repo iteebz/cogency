@@ -28,12 +28,6 @@ class TimezoneTool(BaseTool):
             Time data including local time, timezone, UTC offset
         """
         try:
-            # Try as timezone first, then as city
-            urls = [
-                f"http://worldtimeapi.org/api/timezone/{location}",
-                f"http://worldtimeapi.org/api/ip"  # Fallback to IP-based lookup
-            ]
-            
             # If location looks like a city, try to map it to timezone
             city_to_tz = {
                 "new york": "America/New_York",
@@ -51,9 +45,9 @@ class TimezoneTool(BaseTool):
             location_lower = location.lower()
             if location_lower in city_to_tz:
                 timezone = city_to_tz[location_lower]
-                url = f"http://worldtimeapi.org/api/timezone/{timezone}"
+                url = f"https://worldtimeapi.org/api/timezone/{timezone}"
             else:
-                url = f"http://worldtimeapi.org/api/timezone/{location}"
+                url = f"https://worldtimeapi.org/api/timezone/{location}"
             
             async with httpx.AsyncClient(timeout=10.0) as client:
                 response = await client.get(url)
@@ -76,6 +70,7 @@ class TimezoneTool(BaseTool):
         except httpx.TimeoutException:
             return {"error": f"Time service timeout for {location}"}
         except httpx.HTTPError as e:
+            logger.error(f"HTTP error for {location}: {e}")
             return {"error": f"Failed to get time for {location}: {str(e)}"}
         except (KeyError, IndexError) as e:
             return {"error": f"Invalid time data format for {location}"}

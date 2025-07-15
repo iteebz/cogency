@@ -13,21 +13,23 @@ Available tools:
 {tool_schemas}
 
 TOOL USAGE FORMAT:
-Use this exact format: TOOL_CALL: <tool_name>(<arg1>=<value1>, <arg2>=<value2>)
+For single tool: TOOL_CALL: <tool_name>(<arg1>=<value1>, <arg2>=<value2>)
+For multiple tools: PARALLEL_CALLS: [<tool_name1>(<args>), <tool_name2>(<args>)]
 
 Examples:
 {tool_examples}
 
 EXECUTION RULES:
-1. Use the tool format exactly as shown above
-2. Provide only the tool call, no additional text
+1. If task requires only ONE tool, use TOOL_CALL format
+2. If task requires MULTIPLE tools, use PARALLEL_CALLS format for parallel execution
 3. Use quotes for string values: name="John Smith"
 4. Use exact parameter names as specified in schemas
-5. If you cannot determine the correct parameters, ask for clarification
+5. Analyze the task to determine if tools can be executed in parallel or need sequential execution
 
-ERROR HANDLING:
-- If tool execution fails, the system will provide error details
-- You will then generate a conversational response explaining the issue
+PARALLEL EXECUTION:
+- Use when tools are independent (e.g., search + calculate)
+- Avoid when one tool's output feeds into another
+- Maximum efficiency for independent tool calls
 """
 
 

@@ -16,7 +16,7 @@ Output format (choose one):
 
 {{"action": "direct_response", "answer": "Your answer"}}
 
-{{"action": "tool_needed", "reasoning": "Why tool needed", "strategy": "Which tool", "tool_input": {{"query": "tool specific query"}}}}
+{{"action": "tool_needed", "reasoning": "Why tools needed for this request"}}
 
 Respond with JSON only - no other text."""
 

@@ -63,6 +63,7 @@ class CognitiveWorkflow:
     def _wrap_node(self, node_name: str, node_func):
         """Wrap function-based node for LangGraph execution, dynamically passing arguments."""
         import inspect
+        from datetime import datetime
 
         async def wrapped(state: AgentState) -> AgentState:
             sig = inspect.signature(node_func)
@@ -80,7 +81,14 @@ class CognitiveWorkflow:
                 if param_name in available_args:
                     args_to_pass[param_name] = available_args[param_name]
             
-            return await node_func(state, **args_to_pass)
+            result = await node_func(state, **args_to_pass)
+            
+            # BEAUTIFUL AUTO-TRACING - zero ceremony
+            if state.get("execution_trace"):
+                context = result.get("context") if isinstance(result, dict) else None
+                state["execution_trace"].add(node_name.lower(), context)
+            
+            return result
         return wrapped
     
     def _route(self, state: AgentState) -> str:
