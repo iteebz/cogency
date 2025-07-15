@@ -22,6 +22,25 @@ class MemoryArtifact:
     metadata: Dict[str, Any] = field(default_factory=dict)
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
+    
+    # Phase 2: Enhanced relevance scoring
+    relevance_score: float = 0.0
+    confidence_score: float = 1.0
+    access_count: int = 0
+    last_accessed: datetime = field(default_factory=lambda: datetime.now(UTC))
+    
+    def decay_score(self) -> float:
+        """Calculate decay based on recency and confidence."""
+        now = datetime.now(UTC)
+        days_since_created = (now - self.created_at).days
+        days_since_accessed = (now - self.last_accessed).days
+        
+        # Decay formula: confidence * recency_factor * access_boost
+        recency_factor = max(0.1, 1.0 - (days_since_created * 0.05))
+        access_boost = min(2.0, 1.0 + (self.access_count * 0.1))
+        staleness_penalty = max(0.5, 1.0 - (days_since_accessed * 0.02))
+        
+        return self.confidence_score * recency_factor * access_boost * staleness_penalty
 
 
 class BaseMemory(ABC):

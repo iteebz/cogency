@@ -2,7 +2,7 @@
 import json
 import os
 import re
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
@@ -70,7 +70,10 @@ class FSMemory(BaseMemory):
             "memory_type": artifact.memory_type.value,
             "tags": artifact.tags,
             "metadata": artifact.metadata,
-            "created_at": artifact.created_at.isoformat()
+            "created_at": artifact.created_at.isoformat(),
+            "confidence_score": artifact.confidence_score,
+            "access_count": artifact.access_count,
+            "last_accessed": artifact.last_accessed.isoformat()
         }
         
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -87,9 +90,10 @@ class FSMemory(BaseMemory):
         since: Optional[str] = None,
         **kwargs
     ) -> List[MemoryArtifact]:
-        """Search artifacts using simple text matching."""
+        """Search artifacts with enhanced relevance scoring."""
         artifacts = []
         query_lower = query.lower()
+        query_words = query_lower.split()
         
         # Load all artifacts from filesystem
         for file_path in self.memory_dir.glob("*.json"):
@@ -97,42 +101,95 @@ class FSMemory(BaseMemory):
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
-                # Better text matching - split query into words
-                content_lower = data["content"].lower()
-                query_words = query_lower.split()
-                
-                # Match if any query word appears in content or tags
-                content_match = any(word in content_lower for word in query_words)
-                tag_match = any(word in tag.lower() for tag in data["tags"] for word in query_words)
-                
                 # Apply common filters
                 if not filter_artifacts(data, memory_type, tags, since):
                     continue
                 
-                if content_match or tag_match:
+                # Enhanced relevance scoring
+                content_lower = data["content"].lower()
+                relevance_score = self._calculate_relevance(content_lower, query_words, data["tags"])
+                
+                if relevance_score > 0:
                     artifact = MemoryArtifact(
                         content=data["content"],
                         memory_type=MemoryType(data.get("memory_type", MemoryType.FACT.value)),
                         id=UUID(data["id"]),
                         tags=data["tags"],
-                        metadata=data["metadata"]
+                        metadata=data["metadata"],
+                        relevance_score=relevance_score,
+                        confidence_score=data.get("confidence_score", 1.0),
+                        access_count=data.get("access_count", 0),
                     )
-                    # Parse datetime
+                    # Parse datetimes
                     artifact.created_at = datetime.fromisoformat(data["created_at"])
+                    artifact.last_accessed = datetime.fromisoformat(data.get("last_accessed", data["created_at"]))
+                    
+                    # Update access tracking
+                    artifact.access_count += 1
+                    artifact.last_accessed = datetime.now(UTC)
+                    await self._update_access_stats(artifact)
+                    
                     artifacts.append(artifact)
                     
             except (json.JSONDecodeError, KeyError, ValueError):
                 # Skip corrupted files
                 continue
         
-        # Sort by recency (most recent first)
-        artifacts.sort(key=lambda x: x.created_at, reverse=True)
+        # Sort by combined score: relevance * decay_score
+        artifacts.sort(key=lambda x: x.relevance_score * x.decay_score(), reverse=True)
         
         # Apply limit
         if limit:
             artifacts = artifacts[:limit]
         
         return artifacts
+    
+    def _calculate_relevance(self, content: str, query_words: List[str], tags: List[str]) -> float:
+        """Calculate relevance score based on content and tag matching."""
+        if not query_words:
+            return 0.0
+        
+        score = 0.0
+        
+        # Exact phrase match gets highest score
+        query_phrase = " ".join(query_words)
+        if query_phrase in content:
+            score += 2.0
+        
+        # Word frequency scoring
+        for word in query_words:
+            word_count = content.count(word)
+            if word_count > 0:
+                score += word_count * 0.5
+        
+        # Tag matching boost
+        for tag in tags:
+            if any(word in tag.lower() for word in query_words):
+                score += 1.0
+        
+        # Normalize by content length to favor precise matches
+        content_length = len(content.split())
+        if content_length > 0:
+            score = score / (content_length * 0.01)
+        
+        return min(score, 10.0)  # Cap at 10.0
+    
+    async def _update_access_stats(self, artifact: MemoryArtifact) -> None:
+        """Update access statistics for an artifact."""
+        file_path = self.memory_dir / f"{artifact.id}.json"
+        if file_path.exists():
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                data["access_count"] = artifact.access_count
+                data["last_accessed"] = artifact.last_accessed.isoformat()
+                
+                with open(file_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
+                    
+            except (json.JSONDecodeError, KeyError, ValueError):
+                pass  # Skip if corrupted
 
     async def forget(self, artifact_id: UUID) -> bool:
         """Remove artifact file."""
