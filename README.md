@@ -21,7 +21,7 @@ from cogency import Agent
 async def main():
     # That's it. Auto-detects LLM from .env
     agent = Agent("assistant")
-    result = await agent.run("What is 25 * 43?")
+    result = await agent.run("What is 25 * 43?", mode="summary")
     print(result)
 
 asyncio.run(main())
@@ -46,7 +46,7 @@ from cogency import Agent
 
 async def main():
     agent = Agent("assistant")
-    result = await agent.run("What is 25 * 43?")
+    result = await agent.run("What is 25 * 43?", mode="summary")
     print(result)  # 1075
 
 asyncio.run(main())
@@ -59,7 +59,7 @@ from cogency import Agent, WeatherTool
 
 async def main():
     agent = Agent("weather_assistant", tools=[WeatherTool()])
-    result = await agent.run("What's the weather in San Francisco?")
+    result = await agent.run("What's the weather in San Francisco?", mode="summary")
     print(result)
 
 asyncio.run(main())
@@ -73,13 +73,9 @@ from cogency import Agent, CalculatorTool, WebSearchTool
 async def main():
     agent = Agent("analyst", tools=[CalculatorTool(), WebSearchTool()])
 
-    async for chunk in agent.stream("Find Bitcoin price and calculate value of 0.5 BTC"):
-        if chunk["type"] == "thinking":
-            print(f"💭 {chunk['content']}")
-        elif chunk["type"] == "tool_call":  
-            print(f"🔧 {chunk['content']}")
-        elif chunk["type"] == "result":
-            print(f"✅ {chunk['data']}")
+    # Stream with trace mode for full visibility
+    async for chunk in agent.stream("Find Bitcoin price and calculate value of 0.5 BTC", mode="trace"):
+        print(chunk, end="", flush=True)
 
 asyncio.run(main())
 ```
@@ -148,39 +144,45 @@ Cogency uses **Plan-Reason-Act-Reflect-Respond** for transparent multi-step reas
 
 Every step is streamable and traceable.
 
-## Beautiful Tracing
+## Output Examples
 
+## Output Modes
+
+Cogency supports three output modes:
+
+**Summary Mode (Default)**: Clean final answer only
 ```python
-import asyncio
-from cogency import Agent, CalculatorTool
+result = await agent.run("What's 15 * 23?", mode="summary")
+print(result)  # "345"
+```
 
-async def main():
-    agent = Agent("analyst", tools=[CalculatorTool()])
-    result = await agent.run("What's 15 * 23?")
-    print(result)
+**Trace Mode**: Beautiful execution trace + answer
+```python
+result = await agent.run("What's 15 * 23?", mode="trace")
+# Outputs:
+# 🚀 EXECUTION TRACE (450ms total)
+# ==================================================
+# 🔸 PLAN [14:30:15] 120ms
+#    📥 'What's 15 * 23?'
+#    📤 Decision: tool_needed
+#
+# 🔸 ACT [14:30:15] 200ms
+#    📥 calculator(expression="15 * 23")
+#    📤 Result: 345
+# ==================================================
+# ✅ Final: 345
+```
 
-asyncio.run(main())
+**Dev Mode**: Raw state dumps for debugging
+```python
+result = await agent.run("What's 15 * 23?", mode="dev")
+# Outputs full AgentState with all internal data
+```
 
-# Automatic beautiful traces
-🚀 EXECUTION TRACE (450ms total)
-==================================================
-🔸 PLAN [14:30:15] 120ms
-   📥 'What's 15 * 23?'
-   📤 Decision: tool_needed
-
-🔸 REASON [14:30:15] 80ms  
-   📥 executed
-   📤 completed
-
-🔸 ACT [14:30:15] 200ms
-   📥 executed  
-   📤 completed
-
-🔸 REFLECT [14:30:15] 50ms
-   📥 executed
-   📤 completed
-==================================================
-✅ Complete in 450ms
+**Streaming**: Real-time output with any mode
+```python
+async for chunk in agent.stream("Calculate something", mode="trace"):
+    print(chunk, end="", flush=True)
 ```
 
 ## Key Features

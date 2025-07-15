@@ -4,12 +4,11 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import google.generativeai as genai
 
 from cogency.llm.base import BaseLLM
-from cogency.llm.mixin import ProviderMixin
 from cogency.llm.key_rotator import KeyRotator
 from cogency.utils.errors import ConfigurationError
 
 
-class GeminiLLM(ProviderMixin, BaseLLM):
+class GeminiLLM(BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
@@ -107,12 +106,17 @@ class GeminiLLM(ProviderMixin, BaseLLM):
         """Alias for _init_current_model to match mixin interface."""
         self._init_current_model()
 
+    def _rotate_client(self):
+        """Rotate to the next key and re-initialize the client."""
+        if self.key_rotator:
+            self._init_client()
+
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         self._rotate_client()
 
         # Convert messages to Gemini format (simple text concatenation for now)
         # Gemini's chat format is different - it expects conversation history
-        prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+        prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
         res = await self._current_model.generate_content_async(prompt, **kwargs)
         return res.text
@@ -121,7 +125,7 @@ class GeminiLLM(ProviderMixin, BaseLLM):
         self._rotate_client()
 
         # Convert messages to Gemini format (simple text concatenation for now)
-        prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+        prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
         response = await self._current_model.generate_content_async(
             prompt, stream=True, **kwargs

@@ -8,13 +8,12 @@ from cogency.llm.key_rotator import KeyRotator
 from cogency.utils.errors import ConfigurationError
 
 from .base import BaseEmbed
-from .mixin import EmbedMixin
 
 logger = logging.getLogger(__name__)
 
 
-class NomicEmbed(EmbedMixin, BaseEmbed):
-    """Nomic embedding provider with MAGICAL key rotation."""
+class NomicEmbed(BaseEmbed):
+    """Nomic embedding provider with key rotation."""
 
     def __init__(self, api_keys: Union[str, List[str]] = None, **kwargs):
         # Auto-detect API keys from environment if not provided
@@ -69,6 +68,11 @@ class NomicEmbed(EmbedMixin, BaseEmbed):
     def _get_client(self):
         """Get client status."""
         return self._initialized
+
+    def _rotate_client(self):
+        """Rotate to the next key and re-initialize the client."""
+        if self.key_rotator:
+            self._init_client()
 
     def _ensure_initialized(self) -> None:
         """Initialize Nomic API connection if not already done"""

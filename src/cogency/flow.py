@@ -4,19 +4,25 @@ from typing import Dict, List, Callable, Optional
 
 from langgraph.graph import StateGraph, END
 from cogency.nodes import think, plan, act, reflect, respond
+from cogency.nodes.memory import memorize
+from cogency.nodes.select_tools import select_tools
 from cogency.types import AgentState, OutputMode
-from cogency.utils import parse_plan, parse_reflect
+from cogency.memory.base import BaseMemory
+from cogency.router import Router
+from cogency.constants import NodeName
 
 
 # Default cognitive flow configuration - TPARR workflow
 DEFAULT_ROUTING_TABLE = {
-    "entry_point": "think",
+    "entry_point": NodeName.MEMORIZE.value,
     "edges": {
-        "think": {"type": "conditional", "router": "_route_think", "destinations": {"plan": "plan", "respond": "respond"}},
-        "plan": {"type": "conditional", "router": "_route", "destinations": {"respond": "respond", "act": "act"}},
-        "act": {"type": "direct", "destination": "reflect"},
-        "reflect": {"type": "conditional", "router": "_route", "destinations": {"respond": "respond", "plan": "plan"}},
-        "respond": {"type": "end"}
+        NodeName.MEMORIZE.value: {"type": "direct", "destination": NodeName.SELECT_TOOLS.value},
+        NodeName.SELECT_TOOLS.value: {"type": "direct", "destination": NodeName.THINK.value},
+        NodeName.THINK.value: {"type": "conditional", "router": "_route_think", "destinations": {NodeName.PLAN.value: NodeName.PLAN.value, NodeName.RESPOND.value: NodeName.RESPOND.value}},
+        NodeName.PLAN.value: {"type": "conditional", "router": "_route", "destinations": {NodeName.RESPOND.value: NodeName.RESPOND.value, NodeName.ACT.value: NodeName.ACT.value}},
+        NodeName.ACT.value: {"type": "direct", "destination": NodeName.REFLECT.value},
+        NodeName.REFLECT.value: {"type": "conditional", "router": "_route", "destinations": {NodeName.RESPOND.value: NodeName.RESPOND.value, NodeName.PLAN.value: NodeName.PLAN.value}},
+        NodeName.RESPOND.value: {"type": "end"}
     }
 }
 
@@ -24,9 +30,11 @@ DEFAULT_ROUTING_TABLE = {
 class Flow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
-    def __init__(self, llm, tools, routing_table: Optional[Dict] = None, prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None):
+    def __init__(self, llm, tools, memory: BaseMemory, routing_table: Optional[Dict] = None, prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None):
         self.llm = llm
         self.tools = tools
+        self.memory = memory
+        self.router = Router(tools=self.tools)  # Instantiate the Router
         self.routing_table = routing_table or DEFAULT_ROUTING_TABLE
         self.prompt_fragments = prompt_fragments or {}
         # Mode is now handled in Agent class
@@ -38,11 +46,13 @@ class Flow:
         
         # Pure LangGraph composition - nodes handle their own dependencies
         node_functions = {
-            "think": partial(think, llm=self.llm),
-            "plan": partial(plan, llm=self.llm, tools=self.tools, prompt_fragments=self.prompt_fragments.get("plan", {})),
-            "act": partial(act, tools=self.tools),
-            "reflect": partial(reflect, llm=self.llm),
-            "respond": partial(respond, llm=self.llm)
+            NodeName.MEMORIZE.value: partial(memorize, memory=self.memory),
+            NodeName.SELECT_TOOLS.value: partial(select_tools, llm=self.llm, tools=self.tools),
+            NodeName.THINK.value: partial(think, llm=self.llm),
+            NodeName.PLAN.value: partial(plan, llm=self.llm, tools=self.tools, prompt_fragments=self.prompt_fragments.get("plan", {})),
+            NodeName.ACT.value: partial(act, tools=self.tools),
+            NodeName.REFLECT.value: partial(reflect, llm=self.llm),
+            NodeName.RESPOND.value: partial(respond, llm=self.llm)
         }
         
         # Add nodes to workflow
@@ -65,51 +75,8 @@ class Flow:
     
     def _route_think(self, state: AgentState) -> str:
         """Router for THINK phase - determines if we need planning or can respond directly."""
-        # Check if thinking determined this is a simple query
-        if state.get("skip_thinking"):
-            return "respond"
-        
-        # Check the thinking output to see if it indicates tools are needed
-        last_message = state["context"].messages[-1]["content"]
-        if isinstance(last_message, list):
-            last_message = last_message[0] if last_message else ""
-        
-        # Look for indicators that tools/planning are needed
-        thinking_indicators = ["tool", "search", "calculate", "remember", "complex", "step", "analyze", "need to"]
-        
-        if any(indicator in last_message.lower() for indicator in thinking_indicators):
-            return "plan"
-        
-        # If tools are available and thinking suggests complexity, go to plan
-        if len(self.tools) > 0 and any(word in last_message.lower() for word in ["analyze", "research", "find", "look up", "check"]):
-            return "plan"
-        
-        # Otherwise, go straight to respond
-        return "respond"
+        return self.router.route(state)
     
     def _route(self, state: AgentState) -> str:
         """Universal router for plan/reflect decisions."""
-        last_message = state["context"].messages[-1]["content"]
-        if isinstance(last_message, list):
-            last_message = last_message[0] if last_message else ""
-        
-        # Try plan routing first
-        plan_data = parse_plan(last_message)
-        if plan_data:
-            action = plan_data.get("action")
-            if action == "tool_needed":
-                return "act"
-            elif action == "direct_response":
-                return "respond"
-        
-        # Try reflect routing
-        reflect_data = parse_reflect(last_message)
-        if reflect_data:
-            status = reflect_data.get("status")
-            if status == "continue":
-                return "plan"
-            elif status == "complete":
-                return "respond"
-        
-        # Default fallback
-        return "respond"
+        return self.router.route(state)

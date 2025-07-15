@@ -45,4 +45,4 @@ async def reflect(state: AgentState, *, llm: BaseLLM) -> AgentState:
     context.add_message("assistant", llm_response)
     
     # Return updated state
-    return {"context": context, "reflection_response": llm_response}
+    return {"context": context, "reflection_response": llm_response, "last_node_output": llm_response}

@@ -3,12 +3,11 @@ from typing import AsyncIterator, Dict, List, Optional, Union
 import openai
 
 from cogency.llm.base import BaseLLM
-from cogency.llm.mixin import ProviderMixin
 from cogency.llm.key_rotator import KeyRotator
 from cogency.utils.errors import ConfigurationError
 
 
-class OpenAILLM(ProviderMixin, BaseLLM):
+class OpenAILLM(BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
@@ -67,6 +66,15 @@ class OpenAILLM(ProviderMixin, BaseLLM):
     def _get_client(self):
         """Get client instance."""
         return self._client
+
+    def _rotate_client(self):
+        """Rotate to the next key and re-initialize the client."""
+        if self.key_rotator:
+            self._init_client()
+
+    def _convert_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """Convert to provider format."""
+        return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         self._rotate_client()

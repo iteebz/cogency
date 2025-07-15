@@ -30,7 +30,7 @@ async def main():
     print(f"🤖 Scenario: {scenario}")
     print()
     
-    result = await agent.stream(scenario)
+    result = await agent.run(scenario, mode="trace")
 
     print("\n🧠 MULTI-STEP SOLUTION:")
     print(result)

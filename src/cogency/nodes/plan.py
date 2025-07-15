@@ -31,7 +31,6 @@ VALIDATION: Before outputting, verify:
 3. JSON is valid and properly formatted"""
 
 
-
 @trace_node("plan")
 async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
     """Plan node determines execution strategy."""
@@ -66,4 +65,4 @@ async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] 
     context.add_message("assistant", llm_response)
     
     # Return updated state
-    return {"context": context, "plan_response": llm_response, "selected_tools": selected_tools}
+    return {"context": context, "plan_response": llm_response, "selected_tools": selected_tools, "last_node_output": llm_response}

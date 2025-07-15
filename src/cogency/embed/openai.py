@@ -8,11 +8,10 @@ from cogency.llm.key_rotator import KeyRotator
 from cogency.utils.errors import ConfigurationError
 
 from .base import BaseEmbed
-from .mixin import EmbedMixin
 
 
-class OpenAIEmbed(EmbedMixin, BaseEmbed):
-    """OpenAI embedding provider with MAGICAL key rotation."""
+class OpenAIEmbed(BaseEmbed):
+    """OpenAI embedding provider with key rotation."""
 
     def __init__(
         self,
@@ -64,6 +63,11 @@ class OpenAIEmbed(EmbedMixin, BaseEmbed):
     def _get_client(self):
         """Get OpenAI client."""
         return self._client
+
+    def _rotate_client(self):
+        """Rotate to the next key and re-initialize the client."""
+        if self.key_rotator:
+            self._init_client()
 
     def embed_single(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string."""

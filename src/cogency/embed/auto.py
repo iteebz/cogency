@@ -1,61 +1,44 @@
-import os
-from typing import Optional
-
-from dotenv import load_dotenv
-
+"""Auto-detection of embedding providers from environment variables."""
+from cogency.config import get_api_keys
 from .base import BaseEmbed
 from .openai import OpenAIEmbed
-from .nomic import NomicEmbed  
+from .nomic import NomicEmbed
 from .sentence import SentenceEmbed
-
-# Auto-load .env file if it exists
-load_dotenv()
-
-
-def _detect_keys(prefix: str) -> Optional[list]:
-    """Auto-detect API keys from environment with numbered fallback."""
-    # Try numbered keys first (PREFIX_1, PREFIX_2, etc.)
-    detected_keys = []
-    for i in range(1, 10):  # Check 1-9
-        key = os.getenv(f'{prefix}_{i}')
-        if key:
-            detected_keys.append(key)
-    
-    # Fall back to base key
-    if not detected_keys:
-        base_key = os.getenv(prefix)
-        if base_key:
-            detected_keys = [base_key]
-    
-    return detected_keys if detected_keys else None
-
 
 def auto_detect_embedder() -> BaseEmbed:
     """Auto-detect embedding provider from environment variables.
+    
+    Fallback chain:
+    1. OpenAI
+    2. Nomic
+    3. Sentence Transformers (local)
     
     Returns:
         BaseEmbed: Configured embedder instance
         
     Raises:
-        RuntimeError: If no API keys found
+        RuntimeError: If no API keys found and sentence-transformers is not installed.
     """
-    # Check for API keys in order of preference
-    if openai_keys := _detect_keys("OPENAI_API_KEY"):
-        return OpenAIEmbed(api_keys=openai_keys)
-    
-    if nomic_keys := _detect_keys("NOMIC_API_KEY"):
-        return NomicEmbed(api_keys=nomic_keys)
-    
+    provider_map = {
+        "openai": OpenAIEmbed,
+        "nomic": NomicEmbed,
+    }
+
+    for provider_name, embedder_class in provider_map.items():
+        api_keys = get_api_keys(provider_name)
+        if api_keys:
+            return embedder_class(api_keys=api_keys)
+
     # Fall back to local sentence transformers (no API key needed)
     try:
         return SentenceEmbed()
     except ImportError:
         pass
-    
+
     # Clear error message with setup instructions
     raise RuntimeError(
-        "No embedding provider configured. Set one of:\n"
-        "  export OPENAI_API_KEY=your_key\n"
-        "  export NOMIC_API_KEY=your_key\n"
-        "  or install sentence-transformers: pip install sentence-transformers"
+        "No embedding provider configured. Set an API key for one of the supported providers:\n"
+        "  - OPENAI_API_KEY\n"
+        "  - NOMIC_API_KEY\n"
+        "or install sentence-transformers: pip install sentence-transformers"
     )

@@ -1,15 +1,13 @@
-from typing import AsyncIterator, List, Optional, Union, Dict
-from datetime import datetime
+from typing import List, Optional, Dict
 
 from cogency.context import Context
 from cogency.llm import BaseLLM, auto_detect_llm
 from cogency.memory.filesystem import FSMemory
-from cogency.tools import memory  # Import to trigger tool registration
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
-from cogency.types import AgentState, OutputMode
-from cogency.types import ExecutionTrace
+from cogency.types import AgentState, OutputMode, ExecutionTrace
 from cogency.flow import Flow
+from cogency.tracer import Tracer
 
 
 class Agent:
@@ -42,12 +40,11 @@ class Agent:
         self.tools = (tools if tools is not None else []) + discovered_tools
         
         self.trace = trace
-        self.flow = Flow(self.llm, self.tools, prompt_fragments=prompt_fragments)
+        self.flow = Flow(self.llm, self.tools, self.memory, prompt_fragments=prompt_fragments)
         self.workflow = self.flow.workflow
     
-    async def run(self, query: str, context: Optional[Context] = None, mode: OutputMode = "summary") -> str:
+    async def run(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
         """Run agent with clean mode control."""
-        from cogency.types import ExecutionTrace, summarize_trace, format_trace, format_full_debug
         
         # Initialize state
         if context is None:
@@ -56,17 +53,11 @@ class Agent:
             context.current_input = query
         
         trace = ExecutionTrace()
-        state = {
+        state: AgentState = {
             "query": query,
             "trace": trace,
             "context": context,
         }
-        
-        # Smart auto-storage: Store personal info without ceremony
-        if hasattr(self.memory, 'should_store'):
-            should_store, category = self.memory.should_store(query)
-            if should_store:
-                await self.memory.memorize(query, tags=[category])
         
         # Execute workflow
         final_state = None
@@ -82,23 +73,12 @@ class Agent:
             final_response = "No response generated"
         
         # Output based on mode
-        if mode == "summary":
-            print(f"✅ {summarize_trace(trace)}")
-        elif mode == "trace":
-            print(format_trace(trace))
-            print(f"\n✅ Complete")
-        elif mode == "dev":
-            print(format_full_debug(trace))
-            print(f"\n✅ Complete")
+        output_mode = mode or self.default_output_mode
+        if self.trace:
+            tracer = Tracer(trace)
+            tracer.output(output_mode)
         
         return final_response
-    
-    async def stream(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
-        """Alias for run() - backward compatibility."""
-        return await self.run(query, context, mode or self.default_output_mode)
-    
-    
-# No longer needed - state preparation is inline in run()
     
     def _extract_response(self, result) -> str:
         """Extract final response from agent state."""

@@ -58,3 +58,4 @@ class AgentState(TypedDict):
     context: Context
     trace: Optional[ExecutionTrace]
     query: str
+    last_node_output: Optional[Any]

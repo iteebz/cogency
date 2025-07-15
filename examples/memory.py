@@ -9,12 +9,12 @@ async def main():
     
     # Call 1: Natural info storage - agent should auto-store
     print("📝 Natural info sharing...")
-    result1 = await agent.run("I have ADHD and work as a software engineer in SF")
+    result1 = await agent.run("I have ADHD and work as a software engineer in SF", mode="summary")
     print(f"Storage: {result1}")
     
     # Call 2: Natural recall - agent should auto-recall
     print("🔍 Natural recall...")
-    result2 = await agent.run("What do you know about my work situation?")
+    result2 = await agent.run("What do you know about my work situation?", mode="summary")
     print(f"Recall: {result2}")
     
     # Verify it's actually using memory, not hallucinating

@@ -1,32 +1,25 @@
 """Tool execution utilities for clean separation of parsing and execution."""
 import json
-from typing import Dict, Any, List, Tuple, Optional
+from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
-from cogency.utils.parsing import extract_tools, parse_tool_args, parse_multi_calls
+from cogency.schemas import ToolCall, MultiToolCall
+from cogency.utils.parsing import parse_plan
 from cogency.utils import retry
 
 
-def parse_tool_call(llm_response_content: str) -> Optional[Tuple[str, Dict]]:
+def parse_tool_call(llm_response_content: str) -> Optional[Union[ToolCall, MultiToolCall]]:
     """Parse tool call from LLM response content.
     
     Args:
         llm_response_content: Raw LLM response 
         
     Returns:
-        Tuple of (tool_name, tool_args) or None if no tool call found
+        ToolCall or MultiToolCall object, or None if no tool call found
     """
-    tool_call = None
-    
-    # Try to extract tool call from PLAN node JSON response
-    try:
-        plan_data = json.loads(llm_response_content)
-        if plan_data.get("action") == "tool_needed" and "tool_call" in plan_data:
-            tool_call = extract_tools(plan_data["tool_call"])
-    except:
-        # Fallback to direct extraction from response
-        tool_call = extract_tools(llm_response_content)
-    
-    return tool_call
+    plan_data = parse_plan(llm_response_content)
+    if plan_data and "tool_call" in plan_data:
+        return plan_data["tool_call"]
+    return None
 
 
 @retry(max_attempts=3)
@@ -41,15 +34,13 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
     Returns:
         Tuple of (tool_name, parsed_args, result)
     """
-    raw_args = tool_args.get("raw_args", "")
-    parsed_args = parse_tool_args(raw_args)
     
     for tool in tools:
         if tool.name == tool_name:
-            result = await tool.validate_and_run(**parsed_args)
-            return tool_name, parsed_args, result
+            result = await tool.validate_and_run(**tool_args)
+            return tool_name, tool_args, result
     
-    return tool_name, parsed_args, {"error": f"Tool '{tool_name}' not found"}
+    return tool_name, tool_args, {"error": f"Tool '{tool_name}' not found"}
 
 
 async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> None:

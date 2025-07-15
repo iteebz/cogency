@@ -12,8 +12,9 @@ async def main():
     print("🚀 STREAMING INTEGRATION TEST")
     print("=" * 50)
     
-    # Single hybrid streaming test
-    await agent.stream("Tell me about quantum computing", mode="both")
+    # Stream with trace mode for full visibility
+    async for chunk in agent.stream("Tell me about quantum computing", mode="trace"):
+        print(chunk, end="", flush=True)
     
     print("\n✅ STREAMING TEST COMPLETE")
 
