@@ -8,6 +8,7 @@ from cogency.tools.registry import ToolRegistry
 from cogency.types import AgentState, OutputMode, ExecutionTrace
 from cogency.react import ReAct
 from cogency.tracer import Tracer
+from cogency.monitoring import get_monitor
 
 
 class Agent:
@@ -42,43 +43,51 @@ class Agent:
         self.trace = trace
         self.react = ReAct(self.llm, self.tools, self.memory, prompt_fragments=prompt_fragments)
         self.workflow = self.react.workflow
+        self.monitor = get_monitor()
     
     async def run(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
         """Run agent with clean mode control."""
         
-        # Initialize state
-        if context is None:
-            context = Context(current_input=query)
-        else:
-            context.current_input = query
-        
-        trace = ExecutionTrace()
-        state: AgentState = {
-            "query": query,
-            "trace": trace,
-            "context": context,
-        }
-        
-        # Execute workflow
-        final_state = None
-        async for event in self.workflow.astream_events(state, version="v1"):
-            if event["event"] == "on_chain_end" and event.get("name") == "LangGraph":
-                # Capture final state from main workflow
-                final_state = event["data"]["output"]
-        
-        # Extract response from final state
-        if final_state:
-            final_response = self._extract_response(final_state)
-        else:
-            final_response = "No response generated"
-        
-        # Output based on mode
-        output_mode = mode or self.default_output_mode
-        if self.trace:
-            tracer = Tracer(trace)
-            tracer.output(output_mode)
-        
-        return final_response
+        async with self.monitor.monitor_operation("agent_run", tags={"query_length": str(len(query))}):
+            # Initialize state
+            if context is None:
+                context = Context(current_input=query)
+            else:
+                context.current_input = query
+            
+            trace = ExecutionTrace()
+            state: AgentState = {
+                "query": query,
+                "trace": trace,
+                "context": context,
+            }
+            
+            # Track query complexity
+            complexity_score = self._estimate_query_complexity(query)
+            self.monitor.metrics.gauge("query_complexity", complexity_score)
+            
+            # Execute workflow
+            final_state = None
+            async for event in self.workflow.astream_events(state, version="v1"):
+                if event["event"] == "on_chain_end" and event.get("name") == "LangGraph":
+                    # Capture final state from main workflow
+                    final_state = event["data"]["output"]
+            
+            # Extract response from final state
+            if final_state:
+                final_response = self._extract_response(final_state)
+                self.monitor.metrics.gauge("response_length", len(final_response))
+            else:
+                final_response = "No response generated"
+                self.monitor.metrics.counter("no_response_failures")
+            
+            # Output based on mode
+            output_mode = mode or self.default_output_mode
+            if self.trace:
+                tracer = Tracer(trace)
+                tracer.output(output_mode)
+            
+            return final_response
     
     def _extract_response(self, result) -> str:
         """Extract final response from agent state."""
@@ -105,4 +114,27 @@ class Agent:
 
         # Fallback to messages if no direct response from 'respond' node
         return messages[-1]["content"] if messages else "No response generated"
+    
+    def _estimate_query_complexity(self, query: str) -> float:
+        """Estimate query complexity for monitoring."""
+        complexity_score = 0.0
+        
+        # Length factor
+        complexity_score += min(0.3, len(query) / 300)
+        
+        # Complexity keywords
+        complex_keywords = ['analyze', 'compare', 'evaluate', 'research', 'comprehensive', 'detailed']
+        simple_keywords = ['what', 'when', 'where', 'who', 'define', 'is', 'are']
+        
+        complex_count = sum(1 for keyword in complex_keywords if keyword in query.lower())
+        simple_count = sum(1 for keyword in simple_keywords if keyword in query.lower())
+        
+        complexity_score += min(0.4, complex_count * 0.1)
+        complexity_score -= min(0.2, simple_count * 0.05)
+        
+        # Question complexity
+        complexity_score += min(0.2, query.count('?') * 0.1)
+        complexity_score += min(0.1, query.count(' and ') * 0.05)
+        
+        return max(0.1, min(1.0, complexity_score))
     

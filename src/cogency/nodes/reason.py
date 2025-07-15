@@ -9,6 +9,7 @@ from cogency.utils.trace import trace_node
 from cogency.utils.tool_execution import parse_tool_call, execute_single_tool, execute_parallel_tools
 from cogency.utils.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
 from cogency.schemas import ToolCall, MultiToolCall
+from cogency.utils.profiling import CogencyProfiler
 
 REASON_PROMPT = """You are an AI assistant analyzing a user request to determine the best response strategy.
 
@@ -111,61 +112,64 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
                 prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
     """Unified reasoning: analyze → decide → execute → complete with adaptive depth control."""
     
-    context = state["context"]
-    trace = state["trace"]
-    user_input = context.current_input
+    profiler = CogencyProfiler()
     
-    # Use pre-selected tools from state or fall back to all tools
-    selected_tools = state.get("selected_tools", tools or [])
-    
-    # Build tool info
-    if selected_tools:
-        tool_descriptions = []
-        for tool in selected_tools:
-            tool_descriptions.append(f"{tool.name} ({tool.description})")
-        tool_info = ", ".join(tool_descriptions)
-    else:
-        tool_info = "no tools"
-    
-    # Initialize adaptive reasoning controller
-    complexity = _estimate_query_complexity(user_input, len(selected_tools))
-    criteria = StoppingCriteria()
-    criteria.max_iterations = criteria.max_iterations if complexity < 0.7 else min(criteria.max_iterations + 2, 8)
-    
-    controller = AdaptiveReasoningController(criteria)
-    controller.start_reasoning()
-    
-    from cogency.utils.explanation import ExplanationGenerator, ExplanationLevel, ExplanationContext
-    explainer = ExplanationGenerator(ExplanationLevel.CONCISE)
-    
-    context_info = ExplanationContext(
-        user_query=user_input,
-        tools_available=[tool.name for tool in selected_tools] if selected_tools else [],
-        reasoning_depth=criteria.max_iterations,
-        execution_time=0.0,
-        success=True
-    )
-    
-    explanation = explainer.explain_reasoning_start(context_info)
-    trace.add("reason", f"Adaptive reasoning started - complexity: {complexity:.2f}, max_iterations: {criteria.max_iterations}", explanation=explanation)
-    
-    # Reasoning loop with adaptive control
-    while True:
-        iteration_start_time = time.time()
+    async def _reason_implementation():
+        context = state["context"]
+        trace = state["trace"]
+        user_input = context.current_input
         
-        # Check if we should continue reasoning
-        should_continue, stopping_reason = controller.should_continue_reasoning(
-            iteration_start_time=iteration_start_time
+        # Use pre-selected tools from state or fall back to all tools
+        selected_tools = state.get("selected_tools", tools or [])
+        
+        # Build tool info
+        if selected_tools:
+            tool_descriptions = []
+            for tool in selected_tools:
+                tool_descriptions.append(f"{tool.name} ({tool.description})")
+            tool_info = ", ".join(tool_descriptions)
+        else:
+            tool_info = "no tools"
+        
+        # Initialize adaptive reasoning controller
+        complexity = _estimate_query_complexity(user_input, len(selected_tools))
+        criteria = StoppingCriteria()
+        criteria.max_iterations = criteria.max_iterations if complexity < 0.7 else min(criteria.max_iterations + 2, 8)
+        
+        controller = AdaptiveReasoningController(criteria)
+        controller.start_reasoning()
+        
+        from cogency.utils.explanation import ExplanationGenerator, ExplanationLevel, ExplanationContext
+        explainer = ExplanationGenerator(ExplanationLevel.CONCISE)
+        
+        context_info = ExplanationContext(
+            user_query=user_input,
+            tools_available=[tool.name for tool in selected_tools] if selected_tools else [],
+            reasoning_depth=criteria.max_iterations,
+            execution_time=0.0,
+            success=True
         )
         
-        if not should_continue:
-            explanation = explainer.explain_stopping_criteria(stopping_reason.value, {"total_time": time.time() - controller.metrics.start_time})
-            trace.add("reason", f"Stopping reasoning: {stopping_reason.value}", explanation=explanation)
-            break
+        explanation = explainer.explain_reasoning_start(context_info)
+        trace.add("reason", f"Adaptive reasoning started - complexity: {complexity:.2f}, max_iterations: {criteria.max_iterations}", explanation=explanation)
         
-        trace.add("reason", f"Reasoning iteration {controller.metrics.iteration + 1}")
-        
-        # Prepare reasoning prompt
+        # Reasoning loop with adaptive control
+        while True:
+            iteration_start_time = time.time()
+            
+            # Check if we should continue reasoning
+            should_continue, stopping_reason = controller.should_continue_reasoning(
+                iteration_start_time=iteration_start_time
+            )
+            
+            if not should_continue:
+                explanation = explainer.explain_stopping_criteria(stopping_reason.value, {"total_time": time.time() - controller.metrics.start_time})
+                trace.add("reason", f"Stopping reasoning: {stopping_reason.value}", explanation=explanation)
+                break
+            
+            trace.add("reason", f"Reasoning iteration {controller.metrics.iteration + 1}")
+            
+            # Prepare reasoning prompt
         messages = list(context.messages)
         messages.append({"role": "user", "content": user_input})
         
@@ -359,8 +363,10 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
             "last_node_output": last_response
         }
     
-    return {
-        "context": context,
-        "reasoning_decision": ReasoningDecision(should_respond=True, response_text=fallback_text, task_complete=True),
-        "last_node_output": fallback_text
-    }
+        return {
+            "context": context,
+            "reasoning_decision": ReasoningDecision(should_respond=True, response_text=fallback_text, task_complete=True),
+            "last_node_output": fallback_text
+        }
+    
+    return await profiler.profile_reasoning_loop(_reason_implementation)

@@ -2,13 +2,16 @@
 import json
 import os
 import re
+import asyncio
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
+from concurrent.futures import ThreadPoolExecutor
 
 from .base import BaseMemory, MemoryArtifact, MemoryType
 from .filters import filter_artifacts
+from ..utils.profiling import CogencyProfiler
 
 
 class FSMemory(BaseMemory):
@@ -26,6 +29,9 @@ class FSMemory(BaseMemory):
         """
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(exist_ok=True)
+        self.profiler = CogencyProfiler()
+        self._executor = ThreadPoolExecutor(max_workers=4)  # For I/O operations
+        self._cache = {}  # Simple in-memory cache
     
     def should_store(self, text: str) -> Tuple[bool, str]:
         """Smart auto-storage heuristics - NO BULLSHIT."""
@@ -90,20 +96,67 @@ class FSMemory(BaseMemory):
         since: Optional[str] = None,
         **kwargs
     ) -> List[MemoryArtifact]:
-        """Search artifacts with enhanced relevance scoring."""
-        artifacts = []
-        query_lower = query.lower()
-        query_words = query_lower.split()
+        """Search artifacts with enhanced relevance scoring and async optimization."""
         
-        # Load all artifacts from filesystem
-        for file_path in self.memory_dir.glob("*.json"):
+        async def _recall_implementation():
+            # Check cache first
+            cache_key = f"{query}:{limit}:{tags}:{memory_type}:{since}"
+            if cache_key in self._cache:
+                return self._cache[cache_key]
+            
+            artifacts = []
+            query_lower = query.lower()
+            query_words = query_lower.split()
+            
+            # Get all JSON files
+            file_paths = list(self.memory_dir.glob("*.json"))
+            
+            # Process files in parallel batches
+            batch_size = 10
+            tasks = []
+            
+            for i in range(0, len(file_paths), batch_size):
+                batch = file_paths[i:i + batch_size]
+                task = self._process_file_batch(batch, query_words, memory_type, tags, since)
+                tasks.append(task)
+            
+            # Execute all batches concurrently
+            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
+            
+            # Flatten results
+            for batch_result in batch_results:
+                if isinstance(batch_result, list):
+                    artifacts.extend(batch_result)
+            
+            # Sort by combined score: relevance * decay_score
+            artifacts.sort(key=lambda x: x.relevance_score * x.decay_score(), reverse=True)
+            
+            # Apply limit
+            if limit:
+                artifacts = artifacts[:limit]
+            
+            # Cache results for 60 seconds
+            self._cache[cache_key] = artifacts
+            asyncio.create_task(self._expire_cache_entry(cache_key, 60))
+            
+            return artifacts
+        
+        return await self.profiler.profile_memory_access(_recall_implementation)
+    
+    async def _process_file_batch(self, file_paths: List[Path], query_words: List[str], 
+                                  memory_type: Optional[MemoryType], tags: Optional[List[str]], 
+                                  since: Optional[str]) -> List[MemoryArtifact]:
+        """Process a batch of files concurrently."""
+        loop = asyncio.get_event_loop()
+        
+        def process_file(file_path: Path) -> Optional[MemoryArtifact]:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 
                 # Apply common filters
                 if not filter_artifacts(data, memory_type, tags, since):
-                    continue
+                    return None
                 
                 # Enhanced relevance scoring
                 content_lower = data["content"].lower()
@@ -124,25 +177,35 @@ class FSMemory(BaseMemory):
                     artifact.created_at = datetime.fromisoformat(data["created_at"])
                     artifact.last_accessed = datetime.fromisoformat(data.get("last_accessed", data["created_at"]))
                     
-                    # Update access tracking
+                    # Update access tracking asynchronously
                     artifact.access_count += 1
                     artifact.last_accessed = datetime.now(UTC)
-                    await self._update_access_stats(artifact)
                     
-                    artifacts.append(artifact)
+                    return artifact
                     
             except (json.JSONDecodeError, KeyError, ValueError):
                 # Skip corrupted files
-                continue
+                return None
         
-        # Sort by combined score: relevance * decay_score
-        artifacts.sort(key=lambda x: x.relevance_score * x.decay_score(), reverse=True)
+        # Process files concurrently using thread pool
+        tasks = [loop.run_in_executor(self._executor, process_file, file_path) 
+                for file_path in file_paths]
         
-        # Apply limit
-        if limit:
-            artifacts = artifacts[:limit]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        # Filter out None results and exceptions
+        artifacts = [r for r in results if isinstance(r, MemoryArtifact)]
+        
+        # Update access stats for all artifacts (fire and forget)
+        for artifact in artifacts:
+            asyncio.create_task(self._update_access_stats(artifact))
         
         return artifacts
+    
+    async def _expire_cache_entry(self, cache_key: str, delay: float):
+        """Remove cache entry after delay."""
+        await asyncio.sleep(delay)
+        self._cache.pop(cache_key, None)
     
     def _calculate_relevance(self, content: str, query_words: List[str], tags: List[str]) -> float:
         """Calculate relevance score based on content and tag matching."""

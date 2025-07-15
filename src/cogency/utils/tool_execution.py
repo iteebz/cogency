@@ -6,6 +6,7 @@ from cogency.tools.base import BaseTool
 from cogency.schemas import ToolCall, MultiToolCall
 from cogency.utils.parsing import parse_plan
 from cogency.utils import retry
+from cogency.utils.profiling import CogencyProfiler
 
 
 def parse_tool_call(llm_response_content: str) -> Optional[Union[ToolCall, MultiToolCall]]:
@@ -35,31 +36,36 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
     Returns:
         Tuple of (tool_name, parsed_args, result)
     """
-    try:
-        for tool in tools:
-            if tool.name == tool_name:
-                result = await tool.validate_and_run(**tool_args)
-                return tool_name, tool_args, {
-                    "success": True,
-                    "result": result,
-                    "error": None
-                }
-        
-        # Tool not found - return structured error
-        return tool_name, tool_args, {
-            "success": False,
-            "result": None,
-            "error": f"Tool '{tool_name}' not found in available tools",
-            "error_type": "tool_not_found"
-        }
+    profiler = CogencyProfiler()
     
-    except Exception as e:
-        return tool_name, tool_args, {
-            "success": False,
-            "result": None,
-            "error": str(e),
-            "error_type": "execution_error"
-        }
+    async def _execute():
+        try:
+            for tool in tools:
+                if tool.name == tool_name:
+                    result = await tool.validate_and_run(**tool_args)
+                    return tool_name, tool_args, {
+                        "success": True,
+                        "result": result,
+                        "error": None
+                    }
+            
+            # Tool not found - return structured error
+            return tool_name, tool_args, {
+                "success": False,
+                "result": None,
+                "error": f"Tool '{tool_name}' not found in available tools",
+                "error_type": "tool_not_found"
+            }
+        
+        except Exception as e:
+            return tool_name, tool_args, {
+                "success": False,
+                "result": None,
+                "error": str(e),
+                "error_type": "execution_error"
+            }
+    
+    return await profiler.profile_tool_execution(_execute)
 
 
 async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> Dict[str, Any]:
@@ -76,9 +82,15 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
     if not tool_calls:
         return {"success": True, "results": [], "errors": [], "summary": "No tools to execute"}
     
-    # Execute all tools in parallel with error isolation
-    tasks = [execute_single_tool(name, args, tools) for name, args in tool_calls]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    profiler = CogencyProfiler()
+    
+    async def _execute_parallel():
+        # Execute all tools in parallel with error isolation
+        tasks = [execute_single_tool(name, args, tools) for name, args in tool_calls]
+        return await asyncio.gather(*tasks, return_exceptions=True)
+    
+    # Profile the parallel execution
+    results = await profiler.profile_tool_execution(_execute_parallel)
     
     # Process results and separate successes from failures
     successes = []
