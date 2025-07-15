@@ -48,58 +48,48 @@ def parse_reflect_response(response: str) -> Tuple[str, Optional[Dict[str, Any]]
 
 
 def parse_tool_args(raw_args: str) -> Dict[str, Any]:
-    """Parse tool arguments string into typed dictionary."""
-    parsed_args = {}
+    """Parse tool arguments - SIMPLE AND ROBUST."""
     if not raw_args:
-        return parsed_args
-        
-    for arg_pair in raw_args.split(","):
-        key, value_str = arg_pair.split("=", 1)
-        key = key.strip()
-        value_str = value_str.strip()
-
-        # Attempt to convert to int, float, or bool
-        if value_str.isdigit():
-            parsed_args[key] = int(value_str)
-        elif value_str.replace(".", "", 1).isdigit():
-            parsed_args[key] = float(value_str)
-        elif value_str.lower() == "true":
-            parsed_args[key] = True
-        elif value_str.lower() == "false":
-            parsed_args[key] = False
-        else:
-            # Treat as string, remove surrounding quotes
-            if value_str.startswith("'") and value_str.endswith("'"):
-                parsed_args[key] = value_str[1:-1]
-            elif value_str.startswith('"') and value_str.endswith('"'):
-                parsed_args[key] = value_str[1:-1]
-            else:
-                parsed_args[key] = value_str
-                
-    return parsed_args
+        return {}
+    
+    import ast
+    import re
+    try:
+        # Convert function args to dict syntax: key=value -> 'key': value
+        dict_str = re.sub(r'(\w+)=', r"'\1':", raw_args)
+        dict_str = f"{{{dict_str}}}"
+        return ast.literal_eval(dict_str)
+    except:
+        # Fallback: try to eval individual values
+        result = {}
+        for pair in raw_args.split(","):
+            if "=" in pair:
+                k, v = pair.split("=", 1)
+                k = k.strip()
+                v = v.strip()
+                try:
+                    result[k] = ast.literal_eval(v)
+                except:
+                    result[k] = v.strip("'\"")
+        return result
 
 
 def extract_tool_call(llm_response: str) -> Optional[Tuple[str, Dict[str, Any]]]:
     """Extract tool call from LLM response - supports both single and parallel calls."""
-    if llm_response.startswith("TOOL_CALL:"):
-        try:
-            tool_call_str = llm_response[len("TOOL_CALL:") :].strip()
-            import re
-            match = re.match(r"(\w+)\((.*)\)", tool_call_str)
-            if match:
-                tool_name = match.group(1)
-                args_str = match.group(2)
-                return tool_name, {"raw_args": args_str}
-        except Exception:
-            pass
+    import re
     
-    elif llm_response.startswith("PARALLEL_CALLS:"):
-        try:
-            parallel_str = llm_response[len("PARALLEL_CALLS:") :].strip()
-            # Return special marker for parallel execution
-            return "PARALLEL", {"parallel_calls": parallel_str}
-        except Exception:
-            pass
+    # Search for TOOL_CALL: anywhere in the response
+    tool_call_match = re.search(r"TOOL_CALL:\s*(\w+)\((.*?)\)", llm_response, re.DOTALL)
+    if tool_call_match:
+        tool_name = tool_call_match.group(1)
+        args_str = tool_call_match.group(2).strip()
+        return tool_name, {"raw_args": args_str}
+    
+    # Search for PARALLEL_CALLS: anywhere in the response  
+    parallel_match = re.search(r"PARALLEL_CALLS:\s*(.*)", llm_response, re.DOTALL)
+    if parallel_match:
+        parallel_str = parallel_match.group(1).strip()
+        return "PARALLEL", {"parallel_calls": parallel_str}
 
     return None
 

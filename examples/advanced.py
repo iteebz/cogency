@@ -1,36 +1,41 @@
 #!/usr/bin/env python3
-"""PARALLEL EXECUTION - Test multiple tools working together."""
+"""ADVANCED CHAINING - Multi-step problem solving with tool dependencies."""
 import asyncio
 from cogency import Agent, CalculatorTool, WeatherTool, TimezoneTool
 
 async def main():
-    # Agent with multiple tools for parallel execution testing
+    # Agent with multiple tools for complex problem solving
     agent = Agent(
-        "multi_tool_analyst", 
+        "travel_planner", 
         tools=[CalculatorTool(), WeatherTool(), TimezoneTool()]
     )
 
-    print("🎯 TESTING PARALLEL EXECUTION")
+    print("🎯 ADVANCED MULTI-STEP PROBLEM SOLVING")
     print("=" * 50)
 
-    # Task that should trigger parallel execution
-    task = """
-    I need multiple pieces of information:
-    1. Calculate 15 * 24 
-    2. Get weather for London
-    3. What time is it in Tokyo timezone?
+    # Complex scenario requiring tool chaining and dependencies
+    scenario = """
+    I'm planning a business trip to London and need to prepare:
+    
+    1. First, what's the current weather in London so I know what to pack?
+    2. What time is it there right now? (I need to schedule calls)
+    3. If my flight costs $1,200 and hotel is $180 per night for 3 nights, 
+       what's my total accommodation cost?
+    4. What's the total trip cost (flight + hotel)?
+    
+    Please work through this step-by-step.
     """
 
-    print(f"🤖 Query: \"{task}\"")
+    print(f"🤖 Scenario: {scenario}")
     print()
     
-    result = await agent.run(task)
+    result = await agent.run(scenario)
 
-    print("\n🧠 PARALLEL EXECUTION RESULT:")
+    print("\n🧠 MULTI-STEP SOLUTION:")
     print(result)
     
     print("\n" + "=" * 50)
-    print("✅ Advanced parallel execution test complete!")
+    print("✅ Advanced chaining demo complete!")
 
 if __name__ == "__main__":
     asyncio.run(main())

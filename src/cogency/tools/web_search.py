@@ -83,13 +83,20 @@ class WebSearchTool(BaseTool):
                 "No results found for your query",
             )
 
+        # Return clean summary for PRARR tracing
+        summary = f"Found {len(formatted_results)} results for '{query}'"
+        if formatted_results:
+            top_result = formatted_results[0]
+            summary += f" - Top result: {top_result['title']}"
+        
         return create_success_response(
             {
-                "results": formatted_results,
+                "summary": summary,
                 "query": query,
                 "total_found": len(formatted_results),
+                "top_result": formatted_results[0] if formatted_results else None,
             },
-            f"Found {len(formatted_results)} results for '{query}'",
+            summary,
         )
 
     def get_schema(self) -> str:

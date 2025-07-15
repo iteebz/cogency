@@ -17,7 +17,7 @@ class FSMemory(BaseMemory):
     Uses simple text matching for recall operations.
     """
 
-    def __init__(self, memory_dir: str = ".cogency_memory"):
+    def __init__(self, memory_dir: str = ".memory"):
         """Initialize filesystem memory.
         
         Args:
@@ -122,3 +122,13 @@ class FSMemory(BaseMemory):
         """Remove all artifact files."""
         for file_path in self.memory_dir.glob("*.json"):
             file_path.unlink()
+    
+    def _get_fs_stats(self) -> Dict[str, Any]:
+        """Get filesystem-specific stats."""
+        files = list(self.memory_dir.glob("*.json"))
+        total_size = sum(f.stat().st_size for f in files)
+        return {
+            "count": len(files),
+            "total_size_kb": round(total_size / 1024, 1),
+            "directory": str(self.memory_dir)
+        }

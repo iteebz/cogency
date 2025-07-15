@@ -8,9 +8,6 @@ from cogency.tools.base import BaseTool
 from cogency.types import AgentState
 
 
-# StreamDelta deleted - was streaming-first bullshit
-
-
 class BaseNode(ABC):
     """Base class for cognitive nodes.
     

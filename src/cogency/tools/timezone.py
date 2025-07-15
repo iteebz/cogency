@@ -1,8 +1,9 @@
-"""Timezone tool using worldtimeapi.org - NO API KEY NEEDED."""
+"""Timezone tool using pytz - ROCK SOLID, NO NETWORK BULLSHIT."""
 import logging
+from datetime import datetime
 from typing import Any, Dict, List
 
-import httpx
+import pytz
 
 from .base import BaseTool
 
@@ -10,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class TimezoneTool(BaseTool):
-    """Get current time for any timezone/city using worldtimeapi.org (no API key required)."""
+    """Get current time for any timezone/city using pytz - reliable local computation."""
 
     def __init__(self):
         super().__init__(
@@ -35,7 +36,9 @@ class TimezoneTool(BaseTool):
                 "tokyo": "Asia/Tokyo",
                 "paris": "Europe/Paris",
                 "sydney": "Australia/Sydney",
+                "melbourne": "Australia/Melbourne",
                 "los angeles": "America/Los_Angeles",
+                "san francisco": "America/Los_Angeles",
                 "chicago": "America/Chicago",
                 "berlin": "Europe/Berlin",
                 "mumbai": "Asia/Kolkata",
@@ -44,39 +47,29 @@ class TimezoneTool(BaseTool):
             
             location_lower = location.lower()
             if location_lower in city_to_tz:
-                timezone = city_to_tz[location_lower]
-                url = f"https://worldtimeapi.org/api/timezone/{timezone}"
+                timezone_name = city_to_tz[location_lower]
             else:
-                url = f"https://worldtimeapi.org/api/timezone/{location}"
+                timezone_name = location
             
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.get(url)
+            # Get timezone object
+            tz = pytz.timezone(timezone_name)
+            now = datetime.now(tz)
+            
+            # Format like the old API response for consistency
+            return {
+                "location": location,
+                "timezone": timezone_name,
+                "datetime": now.strftime("%Y-%m-%d %H:%M:%S"),
+                "utc_offset": now.strftime("%z"),
+                "day_of_year": now.timetuple().tm_yday,
+                "week_number": int(now.strftime("%W"))
+            }
                 
-                if response.status_code == 404:
-                    return {"error": f"Timezone/city '{location}' not found. Try format like 'America/New_York' or major city names."}
-                
-                response.raise_for_status()
-                data = response.json()
-                
-                return {
-                    "location": location,
-                    "timezone": data["timezone"],
-                    "datetime": data["datetime"][:19],  # Remove microseconds
-                    "utc_offset": data["utc_offset"],
-                    "day_of_year": data["day_of_year"],
-                    "week_number": data["week_number"]
-                }
-                
-        except httpx.TimeoutException:
-            return {"error": f"Time service timeout for {location}"}
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP error for {location}: {e}")
-            return {"error": f"Failed to get time for {location}: {str(e)}"}
-        except (KeyError, IndexError) as e:
-            return {"error": f"Invalid time data format for {location}"}
+        except pytz.UnknownTimeZoneError:
+            return {"error": f"Timezone/city '{location}' not found. Try format like 'America/New_York' or major city names."}
         except Exception as e:
             logger.error(f"Timezone tool error: {e}")
-            return {"error": f"Time lookup failed for {location}"}
+            return {"error": f"Time lookup failed for {location}: {str(e)}"}
 
     def get_schema(self) -> str:
         """Return the tool call schema."""

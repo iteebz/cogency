@@ -20,7 +20,7 @@ DEFAULT_ROUTING_TABLE = {
 }
 
 
-class CognitiveWorkflow:
+class Flow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
     def __init__(self, llm, tools, routing_table: Optional[Dict] = None, prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None):

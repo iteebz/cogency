@@ -21,8 +21,8 @@ Output format (choose one):
 Respond with JSON only - no other text."""
 
 
-async def _filter_relevant_tools_llm(user_input: str, tools: list[BaseTool], llm: BaseLLM) -> list[BaseTool]:
-    """Let LLM intelligently select relevant tools - NO HARDCODED BULLSHIT."""
+async def _subset_tools(user_input: str, tools: list[BaseTool], llm: BaseLLM) -> list[BaseTool]:
+    """Let LLM intelligently select relevant tools."""
     if len(tools) <= 3:  # Don't filter if few tools
         return tools
         
@@ -71,10 +71,10 @@ async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool],
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
-    # INTELLIGENT tool subsetting using LLM - NO HARDCODED BULLSHIT
+    # Intelligent tool subsetting
     if tools:
         yield {"type": "thinking", "node": "plan", "content": "Analyzing which tools are relevant for this request..."}
-        relevant_tools = await _filter_relevant_tools_llm(context.current_input, tools, llm)
+        relevant_tools = await _subset_tools(context.current_input, tools, llm)
         
         tool_descriptions = []
         for tool in relevant_tools:
@@ -120,9 +120,9 @@ async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] 
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
-    # INTELLIGENT tool subsetting using LLM - NO HARDCODED BULLSHIT
+    # Intelligent tool subsetting
     if tools:
-        relevant_tools = await _filter_relevant_tools_llm(context.current_input, tools, llm)
+        relevant_tools = await _subset_tools(context.current_input, tools, llm)
         tool_descriptions = []
         for tool in relevant_tools:
             tool_descriptions.append(f"{tool.name} ({tool.description})")

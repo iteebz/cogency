@@ -8,7 +8,7 @@ from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
 from cogency.types import AgentState
 from cogency.trace import ExecutionTrace
-from cogency.workflow import CognitiveWorkflow
+from cogency.workflow import Flow
 
 
 class Agent:
@@ -27,7 +27,7 @@ class Agent:
         llm: Optional[BaseLLM] = None,
         tools: Optional[List[BaseTool]] = None,
         trace: bool = True,
-        memory_dir: str = ".cogency_memory",
+        memory_dir: str = ".memory",
         prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None,
     ):
         self.name = name
@@ -39,7 +39,7 @@ class Agent:
         self.tools = (tools if tools is not None else []) + discovered_tools
         
         self.trace = trace
-        self.workflow = CognitiveWorkflow(self.llm, self.tools, prompt_fragments=prompt_fragments).workflow
+        self.workflow = Flow(self.llm, self.tools, prompt_fragments=prompt_fragments).workflow
     
     async def run(self, message: str, context: Optional[Context] = None) -> str:
         """Run agent with beautiful streaming traces by default."""

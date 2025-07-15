@@ -52,4 +52,5 @@ build/
 /autodocs
 
 .env
-.cogency_memory
+.memory
+sandbox/
