@@ -25,9 +25,27 @@ class ExecutionTrace:
     start_time: datetime = field(default_factory=datetime.now)
     
     def add(self, node: str, input_data: Any, output_data: Any, duration_ms: float):
-        """Add step with simple summarization."""
-        input_str = str(input_data)[:80] + "..." if len(str(input_data)) > 80 else str(input_data)
-        output_str = str(output_data)[:80] + "..." if len(str(output_data)) > 80 else str(output_data)
+        """Add step with INTELLIGENT summarization - filter bullshit."""
+        # Smart input summary
+        if hasattr(input_data, 'current_input'):
+            input_str = f"'{input_data.current_input[:50]}...'" if len(input_data.current_input) > 50 else f"'{input_data.current_input}'"
+        else:
+            input_str = str(input_data)[:60] + "..." if len(str(input_data)) > 60 else str(input_data)
+        
+        # Smart output summary - FILTER EXECUTION BULLSHIT
+        if isinstance(output_data, dict):
+            if "result" in output_data:
+                output_str = f"Result: {output_data['result']}"
+            elif "temperature" in str(output_data):
+                output_str = "Weather data retrieved"
+            elif "time" in str(output_data):
+                output_str = "Time data retrieved"
+            elif "error" in output_data:
+                output_str = f"Error: {output_data['error']}"
+            else:
+                output_str = str(output_data)[:60] + "..." if len(str(output_data)) > 60 else str(output_data)
+        else:
+            output_str = str(output_data)[:60] + "..." if len(str(output_data)) > 60 else str(output_data)
         
         self.steps.append(TraceStep(node, input_str, output_str, duration_ms))
     

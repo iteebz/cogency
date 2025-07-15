@@ -5,6 +5,8 @@
 ## Installation
 
 ```bash
+# Current broken until next release v0.3.1 (pending)
+# Recommended: Fork and install from source
 pip install cogency
 ```
 
