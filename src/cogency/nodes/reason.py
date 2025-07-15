@@ -135,7 +135,19 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
     controller = AdaptiveReasoningController(criteria)
     controller.start_reasoning()
     
-    trace.add("reason", f"Adaptive reasoning started - complexity: {complexity:.2f}, max_iterations: {criteria.max_iterations}")
+    from cogency.utils.explanation import ExplanationGenerator, ExplanationLevel, ExplanationContext
+    explainer = ExplanationGenerator(ExplanationLevel.CONCISE)
+    
+    context_info = ExplanationContext(
+        user_query=user_input,
+        tools_available=[tool.name for tool in selected_tools] if selected_tools else [],
+        reasoning_depth=criteria.max_iterations,
+        execution_time=0.0,
+        success=True
+    )
+    
+    explanation = explainer.explain_reasoning_start(context_info)
+    trace.add("reason", f"Adaptive reasoning started - complexity: {complexity:.2f}, max_iterations: {criteria.max_iterations}", explanation=explanation)
     
     # Reasoning loop with adaptive control
     while True:
@@ -147,7 +159,8 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
         )
         
         if not should_continue:
-            trace.add("reason", f"Stopping reasoning: {stopping_reason.value}")
+            explanation = explainer.explain_stopping_criteria(stopping_reason.value, {"total_time": time.time() - controller.metrics.start_time})
+            trace.add("reason", f"Stopping reasoning: {stopping_reason.value}", explanation=explanation)
             break
         
         trace.add("reason", f"Reasoning iteration {controller.metrics.iteration + 1}")
@@ -170,7 +183,8 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
         # Check if direct response
         if _can_answer_directly(llm_response):
             response_text = _extract_direct_response(llm_response)
-            trace.add("reason", f"Direct response generated: {response_text[:50]}...")
+            explanation = explainer.explain_reasoning_decision("direct_response", "I can answer this directly")
+            trace.add("reason", f"Direct response generated: {response_text[:50]}...", explanation=explanation)
             
             # Update metrics and log completion
             iteration_time = time.time() - iteration_start_time

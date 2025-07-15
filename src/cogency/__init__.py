@@ -8,7 +8,7 @@ from .tools.file_manager import FileManagerTool
 from .tools.timezone import TimezoneTool
 from .tools.weather import WeatherTool
 from .tools.web_search import WebSearchTool
-from .flow import Flow
+from .react import ReAct
 from .utils import retry, parse_plan, parse_reflect, validate_tools
 from .utils.trace import trace_node
 from .types import AgentState, OutputMode, ExecutionTrace, summarize_trace, format_trace, format_full_debug
@@ -31,7 +31,7 @@ __all__ = [
     "TimezoneTool",
     "WeatherTool",
     "WebSearchTool",
-    "Flow",
+    "ReAct",
     "retry",
     "trace_node",
     "parse_plan",

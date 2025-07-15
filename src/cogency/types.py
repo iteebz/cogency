@@ -6,8 +6,8 @@ import time
 from cogency.context import Context
 
 
-# Output modes: "summary", "trace", "dev"
-OutputMode = Literal["summary", "trace", "dev"]
+# Output modes: "summary", "trace", "dev", "explain"
+OutputMode = Literal["summary", "trace", "dev", "explain"]
 
 
 @dataclass
@@ -24,11 +24,12 @@ class ExecutionTrace:
     def __init__(self):
         self.entries = []
 
-    def add(self, node: str, message: str, data: dict = None):
+    def add(self, node: str, message: str, data: dict = None, explanation: str = None):
         self.entries.append({
             "node": node,
             "message": message,
             "data": data or {},
+            "explanation": explanation,
             "timestamp": time.time()
         })
 

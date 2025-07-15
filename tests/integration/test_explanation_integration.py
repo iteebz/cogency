@@ -1,0 +1,224 @@
+#!/usr/bin/env python3
+"""End-to-end test for the explanation system integrated with the full ReAct workflow."""
+
+import asyncio
+from unittest.mock import MagicMock, AsyncMock
+from cogency.agent import Agent
+from cogency.types import ExecutionTrace
+from cogency.tracer import Tracer
+from cogency.llm import BaseLLM
+
+
+class MockLLM(BaseLLM):
+    """Mock LLM for testing."""
+    
+    def __init__(self, responses):
+        self.responses = responses
+        self.call_count = 0
+    
+    async def invoke(self, messages):
+        if self.call_count < len(self.responses):
+            response = self.responses[self.call_count]
+            self.call_count += 1
+            return response
+        return "I don't have enough information to provide a response."
+
+
+class MockTool:
+    """Mock tool for testing."""
+    
+    def __init__(self, name, description="Mock tool", response="Mock response"):
+        self.name = name
+        self.description = description
+        self.response = response
+    
+    async def validate_and_run(self, **kwargs):
+        return self.response
+
+
+async def test_direct_response_explanation():
+    """Test explanation system with direct response scenario."""
+    print("🧪 Testing direct response explanation...")
+    
+    # Create mock LLM that provides direct response
+    llm = MockLLM([
+        "relevant_tools: []",  # Tool selection
+        "DIRECT_RESPONSE: The answer is 42. This is a well-known reference."
+    ])
+    
+    # Create agent with explain mode
+    agent = Agent(
+        name="test_agent",
+        llm=llm,
+        tools=[],
+        default_output_mode="explain"
+    )
+    
+    # Run with simple query
+    try:
+        response = await agent.run("What is the meaning of life?")
+        
+        # Should complete successfully
+        assert response is not None
+        assert "42" in response
+        print("  ✅ Direct response with explanation works")
+        
+    except Exception as e:
+        print(f"  ❌ Direct response explanation failed: {e}")
+        raise
+    
+    print("🎉 Direct response explanation test passed!")
+
+
+async def test_tool_usage_explanation():
+    """Test explanation system with tool usage scenario."""
+    print("🧪 Testing tool usage explanation...")
+    
+    # Create mock tool
+    search_tool = MockTool("search", "Search for information", "Python is a programming language")
+    
+    # Create mock LLM that uses tools
+    llm = MockLLM([
+        '{"relevant_tools": ["search"]}',  # Tool selection
+        "TOOL_NEEDED: search(query='Python programming language')",  # First reasoning
+        "Based on the search results, Python is a high-level programming language known for its simplicity and readability."  # After tool execution
+    ])
+    
+    # Create agent with explain mode
+    agent = Agent(
+        name="test_agent",
+        llm=llm,
+        tools=[search_tool],
+        default_output_mode="explain"
+    )
+    
+    # Run with query that needs tools
+    try:
+        response = await agent.run("What is Python?")
+        
+        # Should complete successfully
+        assert response is not None
+        assert "programming language" in response
+        print("  ✅ Tool usage with explanation works")
+        
+    except Exception as e:
+        print(f"  ❌ Tool usage explanation failed: {e}")
+        raise
+    
+    print("🎉 Tool usage explanation test passed!")
+
+
+async def test_complex_reasoning_explanation():
+    """Test explanation system with complex reasoning scenario."""
+    print("🧪 Testing complex reasoning explanation...")
+    
+    # Create multiple tools
+    search_tool = MockTool("search", "Search for information", "Machine learning is a subset of AI")
+    calc_tool = MockTool("calculator", "Perform calculations", "Result: 1024")
+    
+    # Create mock LLM for complex reasoning
+    llm = MockLLM([
+        '{"relevant_tools": ["search", "calculator"]}',  # Tool selection
+        "TOOL_NEEDED: search(query='machine learning performance metrics')",  # First reasoning
+        "TOOL_NEEDED: calculator(expression='2^10')",  # Second reasoning
+        "Based on the research and calculations, machine learning performance can be measured using various metrics, and computational complexity often scales exponentially."  # Final response
+    ])
+    
+    # Create agent with explain mode
+    agent = Agent(
+        name="test_agent",
+        llm=llm,
+        tools=[search_tool, calc_tool],
+        default_output_mode="explain"
+    )
+    
+    # Run with complex query
+    try:
+        response = await agent.run("Analyze the performance implications of machine learning algorithms and calculate the computational complexity.")
+        
+        # Should complete successfully
+        assert response is not None
+        assert "performance" in response.lower()
+        print("  ✅ Complex reasoning with explanation works")
+        
+    except Exception as e:
+        print(f"  ❌ Complex reasoning explanation failed: {e}")
+        raise
+    
+    print("🎉 Complex reasoning explanation test passed!")
+
+
+def test_explanation_transparency():
+    """Test that explanation system provides transparent insights."""
+    print("🧪 Testing explanation transparency...")
+    
+    # Create trace with various scenarios
+    trace = ExecutionTrace()
+    
+    # Add entries that simulate different reasoning patterns
+    trace.add("memorize", "Memory initialized", explanation="🧠 Accessing relevant memories")
+    trace.add("select_tools", "Selected 3 tools from 10 available", explanation="🔧 Selected 3 relevant tools: search, calculator, database")
+    trace.add("reason", "Adaptive reasoning started - complexity: 0.8, max_iterations: 6", explanation="🤔 Starting to think through your request (complex)")
+    trace.add("reason", "Tool calls identified: search, calculator", explanation="💭 I need to gather more information")
+    trace.add("reason", "Tool execution completed", explanation="⚡ Executed tools and gathered information")
+    trace.add("reason", "Stopping reasoning: diminishing_returns", explanation="🏁 Finished reasoning - additional reasoning wouldn't improve the answer")
+    
+    tracer = Tracer(trace)
+    
+    # Test that transparency features work
+    context = tracer._build_explanation_context()
+    assert context.reasoning_depth == 6  # Complex reasoning
+    assert context.execution_time > 0
+    
+    # Test explained trace format
+    explained_output = tracer._format_explained_trace()
+    assert "🤔" in explained_output
+    assert "🔧" in explained_output
+    assert "💭" in explained_output
+    assert "⚡" in explained_output
+    assert "🏁" in explained_output
+    
+    print("  ✅ Explanation transparency works")
+    print("🎉 Explanation transparency test passed!")
+
+
+async def test_explanation_error_handling():
+    """Test explanation system handles errors gracefully."""
+    print("🧪 Testing explanation error handling...")
+    
+    # Create agent with minimal setup
+    llm = MockLLM(["DIRECT_RESPONSE: Simple answer"])
+    agent = Agent(
+        name="test_agent",
+        llm=llm,
+        tools=[],
+        default_output_mode="explain"
+    )
+    
+    # Test with various edge cases
+    try:
+        # Empty query
+        response = await agent.run("")
+        assert response is not None
+        print("  ✅ Empty query handling works")
+        
+        # Very long query
+        long_query = "This is a very long query " * 100
+        response = await agent.run(long_query)
+        assert response is not None
+        print("  ✅ Long query handling works")
+        
+    except Exception as e:
+        print(f"  ❌ Error handling failed: {e}")
+        raise
+    
+    print("🎉 Explanation error handling test passed!")
+
+
+if __name__ == "__main__":
+    asyncio.run(test_direct_response_explanation())
+    asyncio.run(test_tool_usage_explanation())
+    asyncio.run(test_complex_reasoning_explanation())
+    asyncio.run(test_explanation_transparency())
+    asyncio.run(test_explanation_error_handling())
+    print("\n🎉 All end-to-end explanation tests passed!")
