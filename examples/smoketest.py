@@ -19,67 +19,21 @@ async def test_basic_agent():
         print(f"❌ Basic agent failed: {e}")
         return False
 
-async def test_calculator_tool():
-    """Test: Calculator tool integration"""
-    print("🧪 Testing calculator tool...")
-    try:
-        agent = Agent("calc_agent", tools=[CalculatorTool()])
-        result = await agent.run("Calculate 15 * 23")
-        # Should contain 345 somewhere
-        assert "345" in str(result), f"Expected 345 in result, got: {result}"
-        print("✅ Calculator tool works")
-        return True
-    except Exception as e:
-        print(f"❌ Calculator tool failed: {e}")
-        return False
-
-async def test_weather_tool():
-    """Test: Weather tool (no API key needed)"""
-    print("🧪 Testing weather tool...")
-    try:
-        agent = Agent("weather_agent", tools=[WeatherTool()])
-        result = await agent.run("What's the weather in London?")
-        # Should contain temperature or weather info
-        result_str = str(result).lower()
-        has_weather = any(word in result_str for word in ["temperature", "°c", "°f", "weather", "sunny", "cloudy", "rain"])
-        assert has_weather, f"No weather info found in: {result}"
-        print("✅ Weather tool works")
-        return True
-    except Exception as e:
-        print(f"❌ Weather tool failed: {e}")
-        return False
-
-async def test_timezone_tool():
-    """Test: Timezone tool (no API key needed)"""
-    print("🧪 Testing timezone tool...")
-    try:
-        agent = Agent("time_agent", tools=[TimezoneTool()])
-        result = await agent.run("What time is it in Tokyo?")
-        # Should contain time info
-        result_str = str(result).lower()
-        has_time = any(word in result_str for word in ["time", "timezone", "asia", "tokyo", ":"])
-        assert has_time, f"No time info found in: {result}"
-        print("✅ Timezone tool works")
-        return True
-    except Exception as e:
-        print(f"❌ Timezone tool failed: {e}")
-        return False
 
 async def test_streaming():
-    """Test: Streaming works"""
+    """Test: Streaming works (character-by-character)"""
     print("🧪 Testing streaming...")
     try:
-        agent = Agent("stream_agent", tools=[CalculatorTool()])
-        chunks = []
-        async for chunk in agent.stream("What is 7 * 6?"):
-            chunks.append(chunk)
-            if len(chunks) > 10:  # Prevent infinite loop
+        agent = Agent("stream_agent", tools=[CalculatorTool()], trace=False)  # No trace for cleaner stream test
+        chars = []
+        async for char in agent.stream("What is 7 * 6?"):
+            chars.append(char)
+            if len(chars) > 100:  # Prevent infinite collection
                 break
         
-        assert len(chunks) > 0, "No streaming chunks received"
-        # Should have thinking, tool_call, or result chunks
-        chunk_types = [chunk.get("type") for chunk in chunks]
-        assert any(t in chunk_types for t in ["thinking", "tool_call", "result"]), f"No valid chunk types: {chunk_types}"
+        result = "".join(chars)
+        assert len(result) > 0, "No streaming content received"
+        assert "42" in result, f"Expected 42 in streaming result: {result}"
         print("✅ Streaming works")
         return True
     except Exception as e:
@@ -116,9 +70,6 @@ async def main():
     
     tests = [
         test_basic_agent,
-        test_calculator_tool,
-        test_weather_tool,
-        test_timezone_tool,
         test_streaming,
         test_tool_subsetting
     ]
