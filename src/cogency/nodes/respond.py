@@ -3,10 +3,9 @@ from typing import Dict, Any, Optional, List
 from cogency.tools.base import BaseTool
 from cogency.llm import BaseLLM
 from cogency.types import AgentState
-from cogency.utils import trace
+from cogency.utils.trace import trace_node
 
-RESPOND_PROMPT = """
-You are an AI assistant providing the final response to the user.
+RESPOND_PROMPT = """You are an AI assistant providing the final response to the user.
 
 RESPONSE TASK:
 Generate a clear, helpful, and conversational response based on the entire
@@ -20,11 +19,10 @@ RESPONSE RULES:
 5. If errors occurred, explain them in user-friendly terms
 6. Keep responses concise but complete
 
-TONE: Professional, helpful, and direct. Answer as if you're speaking to a colleague.
-"""
+TONE: Professional, helpful, and direct. Answer as if you're speaking to a colleague."""
 
 
-@trace
+@trace_node("respond")
 async def respond(state: AgentState, *, llm: BaseLLM, prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
     """Respond node generates final response."""
     
@@ -44,7 +42,7 @@ async def respond(state: AgentState, *, llm: BaseLLM, prompt_fragments: Optional
             clean_answer = data.get("answer", last_message)
             context.messages[-1]["content"] = clean_answer
             
-            return {"context": context, "execution_trace": state["execution_trace"]}
+            return {"context": context, "response": clean_answer}
     except (json.JSONDecodeError, TypeError):
         pass
 
@@ -64,6 +62,6 @@ async def respond(state: AgentState, *, llm: BaseLLM, prompt_fragments: Optional
 
     # Replace the last message with the clean response
     context.messages[-1]["content"] = llm_response
-
+    
     # Return updated state
-    return {"context": context, "execution_trace": state["execution_trace"]}
+    return {"context": context, "response": llm_response}

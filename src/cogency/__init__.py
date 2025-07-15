@@ -9,8 +9,9 @@ from .tools.timezone import TimezoneTool
 from .tools.weather import WeatherTool
 from .tools.web_search import WebSearchTool
 from .flow import Flow
-from .utils import retry, trace, parse_plan, parse_reflect, extract_tools, validate_tools
-from .types import AgentState, StreamingMode, ExecutionTrace, TraceStep
+from .utils import retry, parse_plan, parse_reflect, extract_tools, validate_tools
+from .utils.trace import trace_node
+from .types import AgentState, OutputMode, ExecutionTrace, summarize_trace, format_trace, format_full_debug
 
 __all__ = [
     "Agent",
@@ -32,13 +33,15 @@ __all__ = [
     "WebSearchTool",
     "Flow",
     "retry",
-    "trace",
+    "trace_node",
     "parse_plan",
     "parse_reflect", 
     "extract_tools",
     "validate_tools",
     "AgentState",
-    "StreamingMode",
+    "OutputMode",
     "ExecutionTrace",
-    "TraceStep",
+    "summarize_trace",
+    "format_trace",
+    "format_full_debug",
 ]

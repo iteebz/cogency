@@ -1,35 +1,35 @@
-"""Clean trace decorator - EXTENSIBLE."""
+"""Clean trace decorator with post-hoc diff analysis."""
 from functools import wraps
-from cogency.types import ExecutionTrace
+from copy import deepcopy
+from cogency.utils.diff import compute_diff, generate_trace_message
 
 
-def trace(func):
-    """Clean trace decorator for nodes - auto-detects node name."""
-    @wraps(func)
-    async def wrapper(state, *args, **kwargs):
-        # Auto-detect node name from function
-        current_node = func.__name__
-        
-        # Get trace from state
-        execution_trace = state.get("execution_trace")
-        if execution_trace:
-            # Add starting step
-            execution_trace.add(current_node, f"Starting {current_node}")
-            # Print the step immediately
-            step = execution_trace.steps[-1]
-            print(step)
-        
-        # Execute the wrapped function
-        result = await func(state, *args, **kwargs)
-        
-        # Add completion trace
-        if execution_trace:
-            execution_trace.add(current_node, f"Completed {current_node}")
-            # Print the completion step immediately
-            step = execution_trace.steps[-1]
-            print(step)
-        
-        # Return result
-        return result
+def trace_node(node_name: str):
+    """Decorator that adds tracing via post-hoc state diff analysis."""
+    def decorator(fn):
+        @wraps(fn)
+        async def wrapped(state, *args, **kwargs):
+            # Take snapshot before execution
+            before = deepcopy(state)
             
-    return wrapper
+            # Execute pure business logic
+            result = await fn(state, *args, **kwargs)
+            
+            # Take snapshot after execution
+            after = deepcopy(result)
+            
+            # Compute diff and generate trace message
+            delta = compute_diff(before, after)
+            message = generate_trace_message(node_name, delta)
+            
+            # Add to trace if present
+            if state.get("trace"):
+                state["trace"].add(node_name, message, delta)
+            
+            return result
+        return wrapped
+    return decorator
+
+
+# Alias for backward compatibility
+trace = trace_node

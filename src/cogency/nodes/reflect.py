@@ -1,11 +1,10 @@
 from typing import Dict, Any, Optional, List
 from cogency.llm import BaseLLM
 from cogency.types import AgentState
-from cogency.utils import trace
+from cogency.utils.trace import trace_node
 from cogency.tools.base import BaseTool
 
-REFLECT_PROMPT = """
-You are a decisive AI assistant evaluating task completion.
+REFLECT_PROMPT = """You are a decisive AI assistant evaluating task completion.
 
 ANALYSIS TASK:
 1. Review conversation history and tool outputs
@@ -28,11 +27,10 @@ Your output MUST be valid JSON:
 {{"status": "continue", "missing": "<what specific information is still needed>", "reasoning": "<why more work needed>"}}
 {{"status": "error", "error": "<clear error description>"}}
 
-BE DECISIVE: If you have the core information requested, mark as COMPLETE.
-"""
+BE DECISIVE: If you have the core information requested, mark as COMPLETE."""
 
 
-@trace
+@trace_node("reflect")
 async def reflect(state: AgentState, *, llm: BaseLLM) -> AgentState:
     """Reflect node evaluates task completion."""
     
@@ -43,7 +41,8 @@ async def reflect(state: AgentState, *, llm: BaseLLM) -> AgentState:
 
     # Get reflection analysis
     llm_response = await llm.invoke(messages)
+    
     context.add_message("assistant", llm_response)
     
     # Return updated state
-    return {"context": context, "execution_trace": state["execution_trace"]}
+    return {"context": context, "reflection_response": llm_response}

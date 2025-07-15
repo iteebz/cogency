@@ -1,4 +1,5 @@
 from typing import AsyncIterator, List, Optional, Union, Dict
+from datetime import datetime
 
 from cogency.context import Context
 from cogency.llm import BaseLLM, auto_detect_llm
@@ -6,7 +7,7 @@ from cogency.memory.filesystem import FSMemory
 from cogency.tools import memory  # Import to trigger tool registration
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
-from cogency.types import AgentState, StreamingMode
+from cogency.types import AgentState, OutputMode
 from cogency.types import ExecutionTrace
 from cogency.flow import Flow
 
@@ -29,12 +30,12 @@ class Agent:
         trace: bool = True,
         memory_dir: str = ".memory",
         prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None,
-        default_streaming_mode: StreamingMode = "summary",
+        default_output_mode: OutputMode = "summary",
     ):
         self.name = name
         self.llm = llm if llm is not None else auto_detect_llm()
         self.memory = FSMemory(memory_dir)
-        self.default_streaming_mode = default_streaming_mode
+        self.default_output_mode = default_output_mode
         
         # Auto-discover tools including memory tools
         discovered_tools = ToolRegistry.get_tools(memory=self.memory)
@@ -44,75 +45,71 @@ class Agent:
         self.flow = Flow(self.llm, self.tools, prompt_fragments=prompt_fragments)
         self.workflow = self.flow.workflow
     
-    async def stream(self, message: str, context: Optional[Context] = None, mode: Optional[StreamingMode] = None) -> str:
-        """STREAMING FIRST: Run agent with real-time traces."""
-        mode = mode or self.default_streaming_mode
-        state = self._prepare_state(message, context)
+    async def run(self, query: str, context: Optional[Context] = None, mode: OutputMode = "summary") -> str:
+        """Run agent with clean mode control."""
+        from cogency.types import ExecutionTrace, summarize_trace, format_trace, format_full_debug
+        
+        # Initialize state
+        if context is None:
+            context = Context(current_input=query)
+        else:
+            context.current_input = query
+        
+        trace = ExecutionTrace()
+        state = {
+            "query": query,
+            "trace": trace,
+            "context": context,
+        }
         
         # Smart auto-storage: Store personal info without ceremony
         if hasattr(self.memory, 'should_store'):
-            should_store, category = self.memory.should_store(message)
+            should_store, category = self.memory.should_store(query)
             if should_store:
-                await self.memory.memorize(message, tags=[category])
+                await self.memory.memorize(query, tags=[category])
         
-        # Show user query immediately
-        if self.trace:
-            print(f"🤖 Query: \"{message}\"")
-            print()
-        
-        final_response = ""
+        # Execute workflow
         final_state = None
-        
-        # Set mode on flow for this execution
-        self.flow.stream_mode = mode
-        
-        # Execute workflow with node-based streaming
-        final_state = await self.workflow.ainvoke(state)
+        async for event in self.workflow.astream_events(state, version="v1"):
+            if event["event"] == "on_chain_end" and event.get("name") == "LangGraph":
+                # Capture final state from main workflow
+                final_state = event["data"]["output"]
         
         # Extract response from final state
-        if final_state and "context" in final_state:
+        if final_state:
             final_response = self._extract_response(final_state)
         else:
             final_response = "No response generated"
         
-        # Show completion
-        if self.trace:
-            total_s = (state["execution_trace"].start_time if state.get("execution_trace") else 0)
-            if isinstance(total_s, type(state["execution_trace"].start_time)):
-                from datetime import datetime
-                total_s = (datetime.now() - total_s).total_seconds()
-                print(f"\n✅ Complete ({total_s:.1f}s)")
-            else:
-                print("\n✅ Complete")
+        # Output based on mode
+        if mode == "summary":
+            print(f"✅ {summarize_trace(trace)}")
+        elif mode == "trace":
+            print(format_trace(trace))
+            print(f"\n✅ Complete")
+        elif mode == "dev":
+            print(format_full_debug(trace))
+            print(f"\n✅ Complete")
         
         return final_response
     
-    async def run(self, message: str, context: Optional[Context] = None) -> str:
-        """BATCH MODE: Run without streaming for programmatic use."""
-        # Temporarily disable tracing for batch mode
-        original_trace = self.trace
-        self.trace = False
-        
-        try:
-            return await self.stream(message, context)
-        finally:
-            self.trace = original_trace
+    async def stream(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
+        """Alias for run() - backward compatibility."""
+        return await self.run(query, context, mode or self.default_output_mode)
     
     
-    def _prepare_state(self, message: str, context: Optional[Context] = None) -> AgentState:
-        """Prepare agent state for execution."""
-        if context is None:
-            context = Context(current_input=message)
-        else:
-            context.current_input = message
-        
-        execution_trace = ExecutionTrace() if self.trace else None
-        if execution_trace:
-            execution_trace.user_query = f'Query: "{message}"'
-        return {"context": context, "execution_trace": execution_trace}
+# No longer needed - state preparation is inline in run()
     
     def _extract_response(self, result) -> str:
         """Extract final response from agent state."""
-        messages = result["context"].messages
+        # If top-level context exists, use it
+        if "context" in result:
+            messages = result["context"].messages
+        # Else fallback to the 'respond' node output
+        elif "respond" in result and "context" in result["respond"]:
+            messages = result["respond"]["context"].messages
+        else:
+            return "No response generated"
+
         return messages[-1]["content"] if messages else "No response generated"
     

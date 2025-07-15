@@ -4,7 +4,8 @@ from typing import Dict, Any, Optional
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState
-from cogency.utils import validate_tools, trace
+from cogency.utils import validate_tools
+from cogency.utils.trace import trace_node
 
 PLAN_PROMPT = """Tools: {tool_names}
 
@@ -30,69 +31,34 @@ VALIDATION: Before outputting, verify:
 3. JSON is valid and properly formatted"""
 
 
-async def _subset_tools(user_input: str, tools: list[BaseTool], llm: BaseLLM) -> list[BaseTool]:
-    """Let LLM intelligently select relevant tools."""
-    if len(tools) <= 3:  # Don't filter if few tools
-        return tools
-        
-    tool_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
-    
-    prompt = f"""Request: "{user_input}"
 
-Tools:
-{tool_list}
-
-Return JSON with relevant tools only:
-{{"relevant_tools": ["tool1", "tool2"]}}"""
-
-    try:
-        response = await llm.invoke([{"role": "user", "content": prompt}])
-        import json
-        result = json.loads(response)
-        relevant_names = set(result.get("relevant_tools", []))
-        
-        # Filter to selected tools
-        relevant_tools = [tool for tool in tools if tool.name in relevant_names]
-        return relevant_tools if relevant_tools else tools
-        
-    except Exception:
-        # Fallback to all tools if LLM filtering fails
-        return tools
-
-
-
-
-@trace
+@trace_node("plan")
 async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
     """Plan node determines execution strategy."""
     
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
-    # Intelligent tool subsetting
-    if tools:
-        relevant_tools = await _subset_tools(context.current_input, tools, llm)
-        
+    # Use pre-selected tools from state or fall back to all tools
+    selected_tools = state.get("selected_tools", tools or [])
+    
+    if selected_tools:
         tool_descriptions = []
-        for tool in relevant_tools:
+        for tool in selected_tools:
             tool_descriptions.append(f"{tool.name} ({tool.description})")
         tool_info = ", ".join(tool_descriptions)
-            
-        # Store selected tools for downstream nodes
-        state["selected_tools"] = relevant_tools
     else:
         tool_info = "no tools"
-        state["selected_tools"] = []
     
-    system_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", ""))
+    system_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", "") if prompt_fragments else "")
     messages.insert(0, {"role": "system", "content": system_prompt})
 
     # Get LLM response
     llm_response = await llm.invoke(messages)
 
     # Validate tool calls if present
-    if tools:
-        validated_response = validate_tools(llm_response, tools)
+    if selected_tools:
+        validated_response = validate_tools(llm_response, selected_tools)
         if validated_response != llm_response:
             llm_response = validated_response
 
@@ -100,4 +66,4 @@ async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] 
     context.add_message("assistant", llm_response)
     
     # Return updated state
-    return {"context": context, "execution_trace": state["execution_trace"]}
+    return {"context": context, "plan_response": llm_response, "selected_tools": selected_tools}

@@ -4,7 +4,7 @@ from typing import Dict, List, Callable, Optional
 
 from langgraph.graph import StateGraph, END
 from cogency.nodes import think, plan, act, reflect, respond
-from cogency.types import AgentState, StreamingMode
+from cogency.types import AgentState, OutputMode
 from cogency.utils import parse_plan, parse_reflect
 
 
@@ -29,7 +29,7 @@ class Flow:
         self.tools = tools
         self.routing_table = routing_table or DEFAULT_ROUTING_TABLE
         self.prompt_fragments = prompt_fragments or {}
-        self.stream_mode = "summary"  # Default mode
+        # Mode is now handled in Agent class
         self.workflow = self._build_graph()
     
     def _build_graph(self) -> StateGraph:
