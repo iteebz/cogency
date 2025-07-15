@@ -1,4 +1,5 @@
 import json
+import re
 from typing import AsyncIterator, Dict, Any, Optional
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
@@ -20,6 +21,38 @@ Output format (choose one):
 Respond with JSON only - no other text."""
 
 
+async def _filter_relevant_tools_llm(user_input: str, tools: list[BaseTool], llm: BaseLLM) -> list[BaseTool]:
+    """Let LLM intelligently select relevant tools - NO HARDCODED BULLSHIT."""
+    if len(tools) <= 3:  # Don't filter if few tools
+        return tools
+        
+    tool_list = "\n".join([f"- {tool.name}: {tool.description}" for tool in tools])
+    
+    prompt = f"""Given this user request: "{user_input}"
+
+Available tools:
+{tool_list}
+
+Which tools are relevant? Return ONLY a JSON list of tool names:
+{{"relevant_tools": ["tool1", "tool2"]}}
+
+Be selective - only include tools actually needed for this specific request."""
+
+    try:
+        response = await llm.invoke([{"role": "user", "content": prompt}])
+        import json
+        result = json.loads(response)
+        relevant_names = set(result.get("relevant_tools", []))
+        
+        # Filter to selected tools
+        relevant_tools = [tool for tool in tools if tool.name in relevant_names]
+        return relevant_tools if relevant_tools else tools
+        
+    except Exception:
+        # Fallback to all tools if LLM filtering fails
+        return tools
+
+
 async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool], prompt_fragments: Optional[Dict[str, str]] = None, yield_interval: float = 0.0) -> AsyncIterator[Dict[str, Any]]:
     """Streaming version of plan node - yields execution steps in real-time.
     
@@ -38,15 +71,26 @@ async def plan_streaming(state: AgentState, llm: BaseLLM, tools: list[BaseTool],
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
-    # Lite tool descriptions for planning decision
+    # INTELLIGENT tool subsetting using LLM - NO HARDCODED BULLSHIT
     if tools:
+        yield {"type": "thinking", "node": "plan", "content": "Analyzing which tools are relevant for this request..."}
+        relevant_tools = await _filter_relevant_tools_llm(context.current_input, tools, llm)
+        
         tool_descriptions = []
-        for tool in tools:
+        for tool in relevant_tools:
             tool_descriptions.append(f"{tool.name} ({tool.description})")
         tool_info = ", ".join(tool_descriptions)
-        yield {"type": "thinking", "node": "plan", "content": f"Available tools: {tool_info}"}
+        
+        if len(relevant_tools) < len(tools):
+            yield {"type": "thinking", "node": "plan", "content": f"Intelligently filtered {len(tools)} tools down to {len(relevant_tools)} relevant ones: {tool_info}"}
+        else:
+            yield {"type": "thinking", "node": "plan", "content": f"All tools relevant: {tool_info}"}
+            
+        # Store selected tools for downstream nodes
+        state["selected_tools"] = relevant_tools
     else:
         tool_info = "no tools"
+        state["selected_tools"] = []
         yield {"type": "thinking", "node": "plan", "content": "No tools available - will use direct response"}
     
     system_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", ""))
@@ -76,14 +120,19 @@ async def plan(state: AgentState, llm: BaseLLM, tools: Optional[list[BaseTool]] 
     context = state["context"]
     messages = context.messages + [{"role": "user", "content": context.current_input}]
 
-    # Lite tool descriptions for planning decision
+    # INTELLIGENT tool subsetting using LLM - NO HARDCODED BULLSHIT
     if tools:
+        relevant_tools = await _filter_relevant_tools_llm(context.current_input, tools, llm)
         tool_descriptions = []
-        for tool in tools:
+        for tool in relevant_tools:
             tool_descriptions.append(f"{tool.name} ({tool.description})")
         tool_info = ", ".join(tool_descriptions)
+        
+        # Store selected tools for downstream nodes
+        state["selected_tools"] = relevant_tools
     else:
         tool_info = "no tools"
+        state["selected_tools"] = []
     
     # Use prompt_override if provided, otherwise use default PLAN_PROMPT
     current_plan_prompt = PLAN_PROMPT.format(tool_names=tool_info, injection_point=prompt_fragments.get("injection_point", ""))
