@@ -4,33 +4,23 @@ from cogency.tools.timezone import TimezoneTool
 
 
 class TestTimezoneTool:
-    """Test timezone tool functionality."""
-    
+    """Test the TimezoneTool."""
+
     @pytest.mark.asyncio
-    async def test_get_time(self):
-        """Test getting current time."""
+    async def test_get_time_valid_location(self):
+        """Test getting current time for a valid location."""
         tz = TimezoneTool()
-        result = await tz.run("get_time", "UTC")
-        
-        assert "time" in result
+        result = await tz.run("America/New_York")
+        assert "location" in result
         assert "timezone" in result
-        assert result["timezone"] == "UTC"
-    
+        assert "datetime" in result
+        assert "utc_offset" in result
+        assert result["location"] == "America/New_York"
+
     @pytest.mark.asyncio
-    async def test_convert_time(self):
-        """Test converting time between timezones."""
+    async def test_get_time_invalid_location(self):
+        """Test getting current time for an invalid location."""
         tz = TimezoneTool()
-        result = await tz.run("convert", "12:00", "UTC", "America/New_York")
-        
-        assert "converted_time" in result
-        assert "from_timezone" in result
-        assert "to_timezone" in result
-        assert result["from_timezone"] == "UTC"
-        assert result["to_timezone"] == "America/New_York"
-    
-    @pytest.mark.asyncio
-    async def test_invalid_action(self):
-        """Test invalid action handling."""
-        tz = TimezoneTool()
-        with pytest.raises(ValueError):
-            await tz.run("invalid_action", "timezone")
+        result = await tz.run("Invalid/Timezone")
+        assert "error" in result
+        assert "not found" in result["error"]

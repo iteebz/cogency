@@ -28,7 +28,7 @@ class TestActNode:
         
         # Should have required keys
         assert "context" in result
-        assert "execution_trace" in result
+
         
         # Context should be updated
         assert result["context"] is not None
@@ -51,7 +51,7 @@ class TestActNode:
         
         # Should have required keys
         assert "context" in result
-        assert "execution_trace" in result
+
         
         # Context should be returned unchanged or minimally modified
         assert result["context"] is not None

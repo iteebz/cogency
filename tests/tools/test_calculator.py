@@ -38,12 +38,14 @@ class TestCalculatorTool:
     async def test_invalid_operation(self):
         """Test invalid operation handling."""
         calc = CalculatorTool()
-        with pytest.raises(ValueError):
-            await calc.run("invalid", 1, 2)
+        result = await calc.run("invalid_op", 1, 2)
+        assert "error" in result
+        assert "Invalid operation" in result["error"]
     
     @pytest.mark.asyncio
     async def test_division_by_zero(self):
         """Test division by zero handling."""
         calc = CalculatorTool()
-        with pytest.raises(ValueError):
-            await calc.run("divide", 10, 0)
+        result = await calc.run("divide", 10, 0)
+        assert "error" in result
+        assert "Cannot divide by zero" in result["error"]

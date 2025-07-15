@@ -17,11 +17,12 @@ class TestFileManagerTool:
             file_path = os.path.join(tmpdir, "test.txt")
             
             # Create file
-            create_result = await file_manager.run("create", file_path, "Hello World")
-            assert create_result["success"] == True
+            create_result = await file_manager.run("create_file", filename=file_path, content="Hello World")
+            assert "result" in create_result
+            assert "Created file" in create_result["result"]
             
             # Read file
-            read_result = await file_manager.run("read", file_path)
+            read_result = await file_manager.run("read_file", filename=file_path)
             assert read_result["content"] == "Hello World"
     
     @pytest.mark.asyncio
@@ -35,8 +36,9 @@ class TestFileManagerTool:
             Path(test_file).write_text("test content")
             
             # List directory
-            result = await file_manager.run("list", tmpdir)
-            assert "test.txt" in result["files"]
+            result = await file_manager.run("list_files", filename=tmpdir)
+            assert "items" in result
+            assert any(item["name"] == "test.txt" for item in result["items"])
     
     @pytest.mark.asyncio
     async def test_delete_file(self):
@@ -49,8 +51,9 @@ class TestFileManagerTool:
             Path(file_path).write_text("test content")
             
             # Delete file
-            delete_result = await file_manager.run("delete", file_path)
-            assert delete_result["success"] == True
+            delete_result = await file_manager.run("delete_file", filename=file_path)
+            assert "result" in delete_result
+            assert "Deleted file" in delete_result["result"]
             
             # Verify deleted
             assert not os.path.exists(file_path)
@@ -60,5 +63,6 @@ class TestFileManagerTool:
         """Test invalid action handling."""
         with tempfile.TemporaryDirectory() as tmpdir:
             file_manager = FileManagerTool(base_dir=tmpdir)
-            with pytest.raises(ValueError):
-                await file_manager.run("invalid_action", "path")
+            result = await file_manager.run("invalid_action", "filename")
+            assert "error" in result
+            assert "Unknown action" in result["error"]

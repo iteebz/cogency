@@ -18,25 +18,15 @@ class TestPlanNode:
             "execution_trace": ExecutionTrace()
         }
         
-        chunks = []
-        async for chunk in plan(state, llm=mock_llm, tools=[CalculatorTool()]):
-            chunks.append(chunk)
+        result_state = await plan(state, llm=mock_llm, tools=[CalculatorTool()])
         
-        # Should have thinking chunks and final state
-        assert len(chunks) > 0
+        # Should return a dict
+        assert isinstance(result_state, dict)
         
-        # Should have thinking type chunks
-        thinking_chunks = [c for c in chunks if c.get("type") == "thinking"]
-        assert len(thinking_chunks) > 0
-        
-        # Should have final state chunk
-        state_chunks = [c for c in chunks if c.get("type") == "state"]
-        assert len(state_chunks) == 1
-        
-        # Final state should contain updated context
-        final_state = state_chunks[0]["state"]
-        assert "context" in final_state
-        assert "selected_tools" in final_state
+        # Should have required keys
+        assert "context" in result_state
+        assert "selected_tools" in result_state
+        assert "plan_response" in result_state
     
     @pytest.mark.asyncio
     async def test_plan_node_tool_selection(self, mock_llm):
@@ -48,12 +38,9 @@ class TestPlanNode:
         }
         
         tools = [CalculatorTool()]
-        final_state = None
-        async for chunk in plan(state, llm=mock_llm, tools=tools):
-            if chunk.get("type") == "state":
-                final_state = chunk["state"]
+        result_state = await plan(state, llm=mock_llm, tools=tools)
         
         # Should have selected tools
-        assert final_state is not None
-        assert "selected_tools" in final_state
-        assert len(final_state["selected_tools"]) > 0
+        assert result_state is not None
+        assert "selected_tools" in result_state
+        assert len(result_state["selected_tools"]) > 0
