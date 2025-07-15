@@ -50,6 +50,26 @@ def _extract_tool_calls(response: str) -> Optional[str]:
 def _task_complete(context, tool_results: List[Dict]) -> bool:
     return len(tool_results) > 0 if tool_results else False
 
+def _task_complete_with_results(context, execution_results: Dict[str, Any]) -> bool:
+    """Check if task is complete based on execution results.
+    
+    Task is complete if:
+    1. At least one tool executed successfully, OR
+    2. All tools failed but we have enough context to provide a response
+    """
+    if not execution_results:
+        return False
+    
+    # If we have successful results, task is complete
+    if execution_results.get("success") and execution_results.get("results"):
+        return True
+    
+    # If all tools failed, we can still complete with error context
+    if execution_results.get("errors") and len(execution_results.get("errors", [])) > 0:
+        return True
+    
+    return False
+
 
 @trace_node("reason")
 async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, 
@@ -119,36 +139,72 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
             
             # Parse and execute tools
             tool_call = parse_tool_call(tool_call_str)
-            tool_results = []
+            execution_results = {}
             
             if tool_call:
                 if isinstance(tool_call, MultiToolCall):
-                    # Execute parallel tools
+                    # Execute parallel tools with robust error handling
                     tool_calls_for_execution = [(call.name, call.args) for call in tool_call.calls]
-                    await execute_parallel_tools(tool_calls_for_execution, selected_tools, context)
-                    tool_results = context.tool_results if hasattr(context, 'tool_results') else []
+                    execution_results = await execute_parallel_tools(tool_calls_for_execution, selected_tools, context)
                     
                 elif isinstance(tool_call, ToolCall):
-                    # Execute single tool
+                    # Execute single tool with structured error handling
                     tool_name, parsed_args, tool_output = await execute_single_tool(
                         tool_call.name, tool_call.args, selected_tools
                     )
-                    context.add_message("system", str(tool_output))
-                    context.add_tool_result(tool_name, parsed_args, tool_output)
-                    tool_results = [{"tool": tool_name, "output": tool_output}]
+                    
+                    if isinstance(tool_output, dict) and tool_output.get("success") is False:
+                        # Tool failed - add error to context
+                        error_msg = f"Tool '{tool_name}' failed: {tool_output.get('error', 'Unknown error')}"
+                        context.add_message("system", error_msg)
+                        execution_results = {
+                            "success": False,
+                            "errors": [{
+                                "tool_name": tool_name,
+                                "args": parsed_args,
+                                "error": tool_output.get("error"),
+                                "error_type": tool_output.get("error_type")
+                            }],
+                            "results": [],
+                            "summary": f"Tool {tool_name} failed"
+                        }
+                    else:
+                        # Tool succeeded
+                        result = tool_output.get("result") if isinstance(tool_output, dict) else tool_output
+                        context.add_message("system", str(result))
+                        context.add_tool_result(tool_name, parsed_args, result)
+                        execution_results = {
+                            "success": True,
+                            "results": [{"tool_name": tool_name, "args": parsed_args, "result": result}],
+                            "errors": [],
+                            "summary": f"Tool {tool_name} executed successfully"
+                        }
                 
-                trace.add("reason", f"Executed {len(tool_results)} tools")
+                trace.add("reason", f"Tool execution summary: {execution_results.get('summary', 'No summary')}")
             
-            # Check if task is complete
-            if _task_complete(context, tool_results):
+            # Check if task is complete based on execution results
+            if _task_complete_with_results(context, execution_results):
                 trace.add("reason", "Task complete after tool execution")
                 
-                # Generate final response incorporating tool results
+                # Generate final response incorporating tool results and handling errors
                 final_messages = list(context.messages)
-                final_messages.insert(0, {"role": "system", "content": 
-                    "Generate a clear, helpful response incorporating the tool results. "
-                    "Be conversational and natural - speak directly to the user."
-                })
+                
+                # Create context-aware system prompt based on execution results
+                if execution_results.get("success"):
+                    system_prompt = (
+                        "Generate a clear, helpful response incorporating the successful tool results. "
+                        "Be conversational and natural - speak directly to the user."
+                    )
+                else:
+                    system_prompt = (
+                        "Some tools failed during execution. Generate a helpful response that: "
+                        "1. Acknowledges what went wrong "
+                        "2. Provides alternative solutions or suggestions "
+                        "3. Remains helpful and conversational "
+                        "4. Uses any partial results that may be available"
+                    )
+                
+                final_messages.insert(0, {"role": "system", "content": system_prompt})
                 
                 final_response = await llm.invoke(final_messages)
                 context.add_message("assistant", final_response)
