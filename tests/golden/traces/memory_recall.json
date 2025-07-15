@@ -1,0 +1,34 @@
+{
+  "scenario": "memory_recall",
+  "query": "Remember that my favorite color is blue, then tell me what my favorite color is",
+  "expected_nodes": [
+    "memorize",
+    "select_tools",
+    "reason"
+  ],
+  "expected_pattern": "memorize \u2192 select_tools \u2192 reason",
+  "trace_entries": [
+    {
+      "node": "memorize",
+      "message": "Processing query",
+      "data": {},
+      "explanation": null,
+      "timestamp": 1752609630.617558
+    },
+    {
+      "node": "select_tools",
+      "message": "Selected tools",
+      "data": {},
+      "explanation": null,
+      "timestamp": 1752609630.617562
+    },
+    {
+      "node": "reason",
+      "message": "Generated response",
+      "data": {},
+      "explanation": null,
+      "timestamp": 1752609630.617564
+    }
+  ],
+  "response_type": "str"
+}

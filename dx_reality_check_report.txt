@@ -1,0 +1,43 @@
+
+🎯 COGENCY DX REALITY CHECK REPORT
+==================================================
+
+📊 PERFORMANCE METRICS:
+------------------------------
+✅ installation_time: 5.88 seconds (expected: ≤30)
+   └─ Installation successful
+✅ hello_world_time: 7.87 seconds (expected: ≤10)
+   └─ Hello world successful
+❌ agent_creation_time: 999000.00 ms (expected: ≤100)
+   └─ Agent creation failed: No module named 'cogency'
+❌ first_query_latency: 999.00 seconds (expected: ≤3)
+   └─ First query failed: No module named 'cogency'
+❌ startup_time: 999.00 seconds (expected: ≤1)
+   └─ Startup failed: Traceback (most recent call last):
+  File "<string>", line 4, in <module>
+ModuleNotFoundError: No module named 'cogency'
+
+❌ import_complexity: 999.00 imports (expected: ≤1)
+   └─ Single import failed: No module named 'cogency'
+⚠️ minimal_lines_of_code: 7.00 lines (expected: ≤6)
+   └─ Lines for hello world
+❌ memory_overhead: 999.00 MB (expected: ≤50)
+   └─ Memory test failed: No module named 'psutil'
+
+🎯 API SIMPLICITY CHECKS:
+------------------------------
+❌ Single Import
+❌ No Config Needed
+❌ Async By Default
+❌ Auto Llm Detection
+❌ Magical Dx
+
+🏆 OVERALL ASSESSMENT:
+------------------------------
+✅ Passed: 2
+⚠️ Warnings: 1
+❌ Failed: 5
+
+👎 DX VERDICT: NEEDS IMPROVEMENT
+
+⏰ Generated: 2025-07-16T05:49:48.437068

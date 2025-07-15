@@ -20,18 +20,59 @@ class ReasoningDecision:
 
 
 class ExecutionTrace:
-    """Lean trace engine - just stores entries."""
+    """Lean trace engine - just stores entries with serialization safety."""
     def __init__(self):
         self.entries = []
+        self._streaming_executor = None  # Set by StreamingExecutor when streaming
 
     def add(self, node: str, message: str, data: dict = None, explanation: str = None):
-        self.entries.append({
+        # Ensure data is serializable by converting to basic types
+        safe_data = self._make_serializable(data or {})
+        timestamp = time.time()
+        
+        entry = {
             "node": node,
             "message": message,
-            "data": data or {},
+            "data": safe_data,
             "explanation": explanation,
-            "timestamp": time.time()
-        })
+            "timestamp": timestamp
+        }
+        self.entries.append(entry)
+        
+        # Emit streaming event if streaming is active
+        if self._streaming_executor and hasattr(self._streaming_executor, 'emit_trace_update'):
+            # Create a task to emit the update (don't block trace.add)
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self._streaming_executor.emit_trace_update(
+                        node, message, safe_data, timestamp
+                    ))
+            except RuntimeError:
+                # No event loop, skip streaming
+                pass
+    
+    def _make_serializable(self, obj):
+        """Convert object to serializable form."""
+        if obj is None:
+            return None
+        elif isinstance(obj, (str, int, float, bool)):
+            return obj
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_serializable(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {k: self._make_serializable(v) for k, v in obj.items()}
+        else:
+            # For complex objects, store type name
+            return f"<{type(obj).__name__}>"
+    
+    def __deepcopy__(self, memo):
+        """Custom deepcopy to handle serialization."""
+        from copy import deepcopy
+        new_trace = ExecutionTrace()
+        new_trace.entries = deepcopy(self.entries, memo)
+        return new_trace
 
 
 def summarize_trace(trace: ExecutionTrace) -> str:

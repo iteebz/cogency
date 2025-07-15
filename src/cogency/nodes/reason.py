@@ -9,7 +9,7 @@ from cogency.utils.trace import trace_node
 from cogency.utils.tool_execution import parse_tool_call, execute_single_tool, execute_parallel_tools
 from cogency.utils.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
 from cogency.schemas import ToolCall, MultiToolCall
-from cogency.utils.profiling import CogencyProfiler
+# from cogency.utils.profiling import CogencyProfiler  # Temporarily disabled for faster startup
 
 REASON_PROMPT = """You are an AI assistant analyzing a user request to determine the best response strategy.
 
@@ -112,7 +112,7 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
                 prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
     """Unified reasoning: analyze → decide → execute → complete with adaptive depth control."""
     
-    profiler = CogencyProfiler()
+    # profiler = CogencyProfiler()  # Temporarily disabled for faster startup
     
     async def _reason_implementation():
         context = state["context"]
@@ -170,203 +170,204 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
             trace.add("reason", f"Reasoning iteration {controller.metrics.iteration + 1}")
             
             # Prepare reasoning prompt
-        messages = list(context.messages)
-        messages.append({"role": "user", "content": user_input})
-        
-        system_prompt = REASON_PROMPT.format(
-            tool_names=tool_info,
-            user_input=user_input,
-            injection_point=prompt_fragments.get("injection_point", "") if prompt_fragments else ""
-        )
-        messages.insert(0, {"role": "system", "content": system_prompt})
-        
-        # Get reasoning decision
-        llm_response = await llm.invoke(messages)
-        context.add_message("assistant", llm_response)
-        
-        # Check if direct response
-        if _can_answer_directly(llm_response):
-            response_text = _extract_direct_response(llm_response)
-            explanation = explainer.explain_reasoning_decision("direct_response", "I can answer this directly")
-            trace.add("reason", f"Direct response generated: {response_text[:50]}...", explanation=explanation)
+            messages = list(context.messages)
+            messages.append({"role": "user", "content": user_input})
             
-            # Update metrics and log completion
-            iteration_time = time.time() - iteration_start_time
-            controller.update_iteration_metrics({}, iteration_time)
+            system_prompt = REASON_PROMPT.format(
+                tool_names=tool_info,
+                user_input=user_input,
+                injection_point=prompt_fragments.get("injection_point", "") if prompt_fragments else ""
+            )
+            messages.insert(0, {"role": "system", "content": system_prompt})
             
-            summary = controller.get_reasoning_summary()
-            trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
+            # Get reasoning decision
+            llm_response = await llm.invoke(messages)
+            context.add_message("assistant", llm_response)
             
-            return {
-                "context": context,
-                "reasoning_decision": ReasoningDecision(should_respond=True, response_text=response_text, task_complete=True),
-                "last_node_output": response_text
-            }
-        
-        # Extract and execute tool calls
-        tool_call_str = _extract_tool_calls(llm_response)
-        execution_results = {}
-        
-        if tool_call_str:
-            trace.add("reason", f"Tool calls identified: {tool_call_str}")
-            
-            # Validate tool calls
-            if selected_tools:
-                validated_response = validate_tools(tool_call_str, selected_tools)
-                if validated_response != tool_call_str:
-                    tool_call_str = validated_response
-            
-            # Parse and execute tools
-            tool_call = parse_tool_call(tool_call_str)
-            
-            if tool_call:
-                if isinstance(tool_call, MultiToolCall):
-                    # Execute parallel tools with robust error handling
-                    tool_calls_for_execution = [(call.name, call.args) for call in tool_call.calls]
-                    execution_results = await execute_parallel_tools(tool_calls_for_execution, selected_tools, context)
-                    
-                elif isinstance(tool_call, ToolCall):
-                    # Execute single tool with structured error handling
-                    tool_name, parsed_args, tool_output = await execute_single_tool(
-                        tool_call.name, tool_call.args, selected_tools
-                    )
-                    
-                    if isinstance(tool_output, dict) and tool_output.get("success") is False:
-                        # Tool failed - add error to context
-                        error_msg = f"Tool '{tool_name}' failed: {tool_output.get('error', 'Unknown error')}"
-                        context.add_message("system", error_msg)
-                        execution_results = {
-                            "success": False,
-                            "errors": [{
-                                "tool_name": tool_name,
-                                "args": parsed_args,
-                                "error": tool_output.get("error"),
-                                "error_type": tool_output.get("error_type")
-                            }],
-                            "results": [],
-                            "summary": f"Tool {tool_name} failed",
-                            "total_executed": 1,
-                            "successful_count": 0,
-                            "failed_count": 1
-                        }
-                    else:
-                        # Tool succeeded
-                        result = tool_output.get("result") if isinstance(tool_output, dict) else tool_output
-                        context.add_message("system", str(result))
-                        context.add_tool_result(tool_name, parsed_args, result)
-                        execution_results = {
-                            "success": True,
-                            "results": [{"tool_name": tool_name, "args": parsed_args, "result": result}],
-                            "errors": [],
-                            "summary": f"Tool {tool_name} executed successfully",
-                            "total_executed": 1,
-                            "successful_count": 1,
-                            "failed_count": 0
-                        }
+            # Check if direct response
+            if _can_answer_directly(llm_response):
+                response_text = _extract_direct_response(llm_response)
+                explanation = explainer.explain_reasoning_decision("direct_response", "I can answer this directly")
+                trace.add("reason", f"Direct response generated: {response_text[:50]}...", explanation=explanation)
                 
-                trace.add("reason", f"Tool execution summary: {execution_results.get('summary', 'No summary')}")
-        
-        # Update iteration metrics
-        iteration_time = time.time() - iteration_start_time
-        controller.update_iteration_metrics(execution_results, iteration_time)
-        
-        # Check if task is complete based on execution results
-        if execution_results and _task_complete_with_results(context, execution_results):
-            trace.add("reason", "Task complete after tool execution")
-            
-            # Generate final response incorporating tool results and handling errors
-            final_messages = list(context.messages)
-            
-            # Create context-aware system prompt based on execution results
-            if execution_results.get("success"):
-                system_prompt = (
-                    "Generate a clear, helpful response incorporating the successful tool results. "
-                    "Be conversational and natural - speak directly to the user."
-                )
-            else:
-                system_prompt = (
-                    "Some tools failed during execution. Generate a helpful response that: "
-                    "1. Acknowledges what went wrong "
-                    "2. Provides alternative solutions or suggestions "
-                    "3. Remains helpful and conversational "
-                    "4. Uses any partial results that may be available"
-                )
-            
-            final_messages.insert(0, {"role": "system", "content": system_prompt})
-            
-            final_response = await llm.invoke(final_messages)
-            context.add_message("assistant", final_response)
-            
-            # Log completion summary
-            summary = controller.get_reasoning_summary()
-            trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s, tools: {summary['total_tools_executed']}")
-            
-            return {
-                "context": context,
-                "reasoning_decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True),
-                "last_node_output": final_response
-            }
-        
-        # Check adaptive stopping criteria after each iteration
-        should_continue, stopping_reason = controller.should_continue_reasoning(execution_results)
-        
-        if not should_continue:
-            trace.add("reason", f"Adaptive stopping: {stopping_reason.value}")
-            break
-        
-        # Continue reasoning with tool results
-        
-        # If no tools identified and no direct response, check if we should stop
-        if not tool_call_str:
-            trace.add("reason", "No clear action identified, checking stopping criteria")
-            
-            # Update metrics for iteration without tools
-            iteration_time = time.time() - iteration_start_time
-            controller.update_iteration_metrics({}, iteration_time)
-            
-            # Check if we should stop due to lack of progress
-            should_continue, stopping_reason = controller.should_continue_reasoning()
-            
-            if not should_continue:
-                trace.add("reason", f"Stopping due to: {stopping_reason.value}")
+                # Update metrics and log completion
+                iteration_time = time.time() - iteration_start_time
+                controller.update_iteration_metrics({}, iteration_time)
+                
                 summary = controller.get_reasoning_summary()
                 trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
                 
                 return {
                     "context": context,
-                    "reasoning_decision": ReasoningDecision(should_respond=True, response_text=llm_response, task_complete=True),
-                    "last_node_output": llm_response
+                    "reasoning_decision": ReasoningDecision(should_respond=True, response_text=response_text, task_complete=True),
+                    "last_node_output": response_text
                 }
-    
-    # Loop ended due to stopping criteria
-    summary = controller.get_reasoning_summary()
-    trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
-    
-    # Generate final response based on stopping reason
-    if stopping_reason == StoppingReason.CONFIDENCE_THRESHOLD:
-        fallback_text = "I've gathered sufficient information to provide a confident response."
-    elif stopping_reason == StoppingReason.TIME_LIMIT:
-        fallback_text = "I've reached the time limit for reasoning. Let me provide what I can determine so far."
-    elif stopping_reason == StoppingReason.DIMINISHING_RETURNS:
-        fallback_text = "I've explored the available options thoroughly. Here's my response based on the information gathered."
-    else:
-        fallback_text = f"I've completed my reasoning process. Here's my response based on the analysis."
-    
-    # Get the last LLM response or generate a fallback
-    final_messages = list(context.messages)
-    if final_messages:
-        # Use the last assistant message as the response
-        last_response = next((msg["content"] for msg in reversed(final_messages) if msg["role"] == "assistant"), fallback_text)
-        return {
-            "context": context,
-            "reasoning_decision": ReasoningDecision(should_respond=True, response_text=last_response, task_complete=True),
-            "last_node_output": last_response
-        }
-    
+            
+            # Extract and execute tool calls
+            tool_call_str = _extract_tool_calls(llm_response)
+            execution_results = {}
+            
+            if tool_call_str:
+                trace.add("reason", f"Tool calls identified: {tool_call_str}")
+                
+                # Validate tool calls
+                if selected_tools:
+                    validated_response = validate_tools(tool_call_str, selected_tools)
+                    if validated_response != tool_call_str:
+                        tool_call_str = validated_response
+                
+                # Parse and execute tools
+                tool_call = parse_tool_call(tool_call_str)
+                
+                if tool_call:
+                    if isinstance(tool_call, MultiToolCall):
+                        # Execute parallel tools with robust error handling
+                        tool_calls_for_execution = [(call.name, call.args) for call in tool_call.calls]
+                        execution_results = await execute_parallel_tools(tool_calls_for_execution, selected_tools, context)
+                        
+                    elif isinstance(tool_call, ToolCall):
+                        # Execute single tool with structured error handling
+                        tool_name, parsed_args, tool_output = await execute_single_tool(
+                            tool_call.name, tool_call.args, selected_tools
+                        )
+                        
+                        if isinstance(tool_output, dict) and tool_output.get("success") is False:
+                            # Tool failed - add error to context
+                            error_msg = f"Tool '{tool_name}' failed: {tool_output.get('error', 'Unknown error')}"
+                            context.add_message("system", error_msg)
+                            execution_results = {
+                                "success": False,
+                                "errors": [{
+                                    "tool_name": tool_name,
+                                    "args": parsed_args,
+                                    "error": tool_output.get("error"),
+                                    "error_type": tool_output.get("error_type")
+                                }],
+                                "results": [],
+                                "summary": f"Tool {tool_name} failed",
+                                "total_executed": 1,
+                                "successful_count": 0,
+                                "failed_count": 1
+                            }
+                        else:
+                            # Tool succeeded
+                            result = tool_output.get("result") if isinstance(tool_output, dict) else tool_output
+                            context.add_message("system", str(result))
+                            context.add_tool_result(tool_name, parsed_args, result)
+                            execution_results = {
+                                "success": True,
+                                "results": [{"tool_name": tool_name, "args": parsed_args, "result": result}],
+                                "errors": [],
+                                "summary": f"Tool {tool_name} executed successfully",
+                                "total_executed": 1,
+                                "successful_count": 1,
+                                "failed_count": 0
+                            }
+                    
+                    trace.add("reason", f"Tool execution summary: {execution_results.get('summary', 'No summary')}")
+            
+            # Update iteration metrics
+            iteration_time = time.time() - iteration_start_time
+            controller.update_iteration_metrics(execution_results, iteration_time)
+            
+            # Check if task is complete based on execution results
+            if execution_results and _task_complete_with_results(context, execution_results):
+                trace.add("reason", "Task complete after tool execution")
+                
+                # Generate final response incorporating tool results and handling errors
+                final_messages = list(context.messages)
+                
+                # Create context-aware system prompt based on execution results
+                if execution_results.get("success"):
+                    system_prompt = (
+                        "Generate a clear, helpful response incorporating the successful tool results. "
+                        "Be conversational and natural - speak directly to the user."
+                    )
+                else:
+                    system_prompt = (
+                        "Some tools failed during execution. Generate a helpful response that: "
+                        "1. Acknowledges what went wrong "
+                        "2. Provides alternative solutions or suggestions "
+                        "3. Remains helpful and conversational "
+                        "4. Uses any partial results that may be available"
+                    )
+                
+                final_messages.insert(0, {"role": "system", "content": system_prompt})
+                
+                final_response = await llm.invoke(final_messages)
+                context.add_message("assistant", final_response)
+                
+                # Log completion summary
+                summary = controller.get_reasoning_summary()
+                trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s, tools: {summary['total_tools_executed']}")
+                
+                return {
+                    "context": context,
+                    "reasoning_decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True),
+                    "last_node_output": final_response
+                }
+        
+            # Check adaptive stopping criteria after each iteration
+            should_continue, stopping_reason = controller.should_continue_reasoning(execution_results)
+            
+            if not should_continue:
+                trace.add("reason", f"Adaptive stopping: {stopping_reason.value}")
+                break
+            
+            # Continue reasoning with tool results
+            
+            # If no tools identified and no direct response, check if we should stop
+            if not tool_call_str:
+                trace.add("reason", "No clear action identified, checking stopping criteria")
+                
+                # Update metrics for iteration without tools
+                iteration_time = time.time() - iteration_start_time
+                controller.update_iteration_metrics({}, iteration_time)
+                
+                # Check if we should stop due to lack of progress
+                should_continue, stopping_reason = controller.should_continue_reasoning()
+                
+                if not should_continue:
+                    trace.add("reason", f"Stopping due to: {stopping_reason.value}")
+                    summary = controller.get_reasoning_summary()
+                    trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
+                    
+                    return {
+                        "context": context,
+                        "reasoning_decision": ReasoningDecision(should_respond=True, response_text=llm_response, task_complete=True),
+                        "last_node_output": llm_response
+                    }
+        
+        # Loop ended due to stopping criteria
+        summary = controller.get_reasoning_summary()
+        trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
+        
+        # Generate final response based on stopping reason
+        if stopping_reason == StoppingReason.CONFIDENCE_THRESHOLD:
+            fallback_text = "I've gathered sufficient information to provide a confident response."
+        elif stopping_reason == StoppingReason.TIME_LIMIT:
+            fallback_text = "I've reached the time limit for reasoning. Let me provide what I can determine so far."
+        elif stopping_reason == StoppingReason.DIMINISHING_RETURNS:
+            fallback_text = "I've explored the available options thoroughly. Here's my response based on the information gathered."
+        else:
+            fallback_text = f"I've completed my reasoning process. Here's my response based on the analysis."
+        
+        # Get the last LLM response or generate a fallback
+        final_messages = list(context.messages)
+        if final_messages:
+            # Use the last assistant message as the response
+            last_response = next((msg["content"] for msg in reversed(final_messages) if msg["role"] == "assistant"), fallback_text)
+            return {
+                "context": context,
+                "reasoning_decision": ReasoningDecision(should_respond=True, response_text=last_response, task_complete=True),
+                "last_node_output": last_response
+            }
+        
         return {
             "context": context,
             "reasoning_decision": ReasoningDecision(should_respond=True, response_text=fallback_text, task_complete=True),
             "last_node_output": fallback_text
         }
     
-    return await profiler.profile_reasoning_loop(_reason_implementation)
+    # return await profiler.profile_reasoning_loop(_reason_implementation)  # Temporarily disabled
+    return await _reason_implementation()

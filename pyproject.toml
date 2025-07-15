@@ -37,7 +37,8 @@ dependencies = [
     "numpy>=1.24.0",
     "python-dotenv>=1.0.0",
     "nomic>=1.0.0",
-    "aiohttp (>=3.12.14,<4.0.0)"
+    "aiohttp (>=3.12.14,<4.0.0)",
+    "psutil>=5.9.0"
 ]
 
 [tool.poetry.group.dev.dependencies]

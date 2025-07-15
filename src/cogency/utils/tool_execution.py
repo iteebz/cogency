@@ -6,7 +6,7 @@ from cogency.tools.base import BaseTool
 from cogency.schemas import ToolCall, MultiToolCall
 from cogency.utils.parsing import parse_plan
 from cogency.utils import retry
-from cogency.utils.profiling import CogencyProfiler
+# from cogency.utils.profiling import CogencyProfiler  # Temporarily disabled for faster startup
 
 
 def parse_tool_call(llm_response_content: str) -> Optional[Union[ToolCall, MultiToolCall]]:
@@ -36,7 +36,7 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
     Returns:
         Tuple of (tool_name, parsed_args, result)
     """
-    profiler = CogencyProfiler()
+    # profiler = CogencyProfiler()  # Temporarily disabled for faster startup
     
     async def _execute():
         try:
@@ -65,7 +65,8 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
                 "error_type": "execution_error"
             }
     
-    return await profiler.profile_tool_execution(_execute)
+    # return await profiler.profile_tool_execution(_execute)  # Temporarily disabled
+    return await _execute()
 
 
 async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> Dict[str, Any]:
@@ -82,7 +83,7 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
     if not tool_calls:
         return {"success": True, "results": [], "errors": [], "summary": "No tools to execute"}
     
-    profiler = CogencyProfiler()
+    # profiler = CogencyProfiler()  # Temporarily disabled for faster startup
     
     async def _execute_parallel():
         # Execute all tools in parallel with error isolation
@@ -90,7 +91,8 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
         return await asyncio.gather(*tasks, return_exceptions=True)
     
     # Profile the parallel execution
-    results = await profiler.profile_tool_execution(_execute_parallel)
+    # results = await profiler.profile_tool_execution(_execute_parallel)  # Temporarily disabled
+    results = await _execute_parallel()
     
     # Process results and separate successes from failures
     successes = []

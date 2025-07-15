@@ -11,7 +11,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from .base import BaseMemory, MemoryArtifact, MemoryType
 from .filters import filter_artifacts
-from ..utils.profiling import CogencyProfiler
+# from ..utils.profiling import CogencyProfiler  # Temporarily disabled for faster startup
 
 
 class FSMemory(BaseMemory):
@@ -29,7 +29,7 @@ class FSMemory(BaseMemory):
         """
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(exist_ok=True)
-        self.profiler = CogencyProfiler()
+        # self.profiler = CogencyProfiler()  # Temporarily disabled for faster startup
         self._executor = ThreadPoolExecutor(max_workers=4)  # For I/O operations
         self._cache = {}  # Simple in-memory cache
     
@@ -141,7 +141,8 @@ class FSMemory(BaseMemory):
             
             return artifacts
         
-        return await self.profiler.profile_memory_access(_recall_implementation)
+        # return await self.profiler.profile_memory_access(_recall_implementation)  # Temporarily disabled
+        return await _recall_implementation()
     
     async def _process_file_batch(self, file_paths: List[Path], query_words: List[str], 
                                   memory_type: Optional[MemoryType], tags: Optional[List[str]], 

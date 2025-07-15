@@ -3,9 +3,19 @@ from copy import deepcopy
 from typing import Dict, Any
 
 
-def compute_diff(before: dict, after: dict) -> dict:
+def compute_diff(before: dict, after: Any) -> dict:
     """Compute meaningful differences between states."""
     diff = {}
+    
+    # Handle case where after is not a dict (e.g., string result)
+    if not isinstance(after, dict):
+        diff["result"] = after
+        return diff
+    
+    # Handle case where before is not a dict
+    if not isinstance(before, dict):
+        diff["state_change"] = after
+        return diff
     
     # Check for selected_tools changes
     if before.get("selected_tools") != after.get("selected_tools"):

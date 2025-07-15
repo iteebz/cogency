@@ -1,0 +1,34 @@
+{
+  "scenario": "tool_usage",
+  "query": "What's the weather like today?",
+  "expected_nodes": [
+    "memorize",
+    "select_tools",
+    "reason"
+  ],
+  "expected_pattern": "memorize \u2192 select_tools \u2192 reason",
+  "trace_entries": [
+    {
+      "node": "memorize",
+      "message": "Processing query",
+      "data": {},
+      "explanation": null,
+      "timestamp": 1752609624.478349
+    },
+    {
+      "node": "select_tools",
+      "message": "Selected tools",
+      "data": {},
+      "explanation": null,
+      "timestamp": 1752609624.4783528
+    },
+    {
+      "node": "reason",
+      "message": "Generated response",
+      "data": {},
+      "explanation": null,
+      "timestamp": 1752609624.478356
+    }
+  ],
+  "response_type": "str"
+}
