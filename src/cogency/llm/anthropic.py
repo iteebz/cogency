@@ -72,7 +72,7 @@ class AnthropicLLM(ProviderMixin, BaseLLM):
         return self._client
 
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        self._ensure_client()
+        self._rotate_client()
         anthropic_messages = self._convert_msgs(messages)
 
         res = await self._client.messages.create(
@@ -84,7 +84,7 @@ class AnthropicLLM(ProviderMixin, BaseLLM):
         return res.content[0].text
 
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        self._ensure_client()
+        self._rotate_client()
         anthropic_messages = self._convert_msgs(messages)
 
         async with self._client.messages.stream(

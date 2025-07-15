@@ -11,6 +11,7 @@ class BaseLLM(ABC):
     - Key rotation for high-volume usage  
     - Rate limiting via yield_interval parameter
     - Unified interface across providers
+    - Dynamic model/parameter configuration
     """
 
     def __init__(self, api_key: str = None, key_rotator=None, **kwargs):

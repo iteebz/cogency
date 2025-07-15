@@ -5,25 +5,15 @@ Basic usage example for Cogency - demonstrates calculator and web search tools
 Run with: cd ../python && poetry run python ../examples/basic_usage.py
 """
 
-import os
-import sys
-
 from cogency.agent import Agent
-from cogency.llm import GeminiLLM
+from cogency.llm import auto_detect_llm
 from cogency.tools.calculator import CalculatorTool
 from cogency.tools.web_search import WebSearchTool
 
 
 async def main():
-    # Get API key from environment
-    api_key = os.environ.get("GEMINI_API_KEY")
-    if not api_key:
-        print("Error: GEMINI_API_KEY environment variable not set")
-        print("Set it with: export GEMINI_API_KEY=your-api-key")
-        sys.exit(1)
-
-    # Create LLM instance (new cleaner interface)
-    llm = GeminiLLM(api_keys=api_key)
+    # Auto-detect LLM from environment - MAGICAL!
+    llm = auto_detect_llm()
 
     # Create agent with tools
     agent = Agent(

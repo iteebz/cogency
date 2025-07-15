@@ -108,7 +108,7 @@ class GeminiLLM(ProviderMixin, BaseLLM):
         self._init_current_model()
 
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        self._ensure_client()
+        self._rotate_client()
 
         # Convert messages to Gemini format (simple text concatenation for now)
         # Gemini's chat format is different - it expects conversation history
@@ -118,7 +118,7 @@ class GeminiLLM(ProviderMixin, BaseLLM):
         return res.text
 
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        self._ensure_client()
+        self._rotate_client()
 
         # Convert messages to Gemini format (simple text concatenation for now)
         prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])

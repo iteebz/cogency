@@ -70,7 +70,7 @@ class MistralLLM(ProviderMixin, BaseLLM):
         return self._client
 
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        self._ensure_client()
+        self._rotate_client()
         mistral_messages = self._convert_msgs(messages)
 
         res = await self._client.chat.complete_async(
@@ -82,7 +82,7 @@ class MistralLLM(ProviderMixin, BaseLLM):
         return res.choices[0].message.content
 
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        self._ensure_client()
+        self._rotate_client()
         mistral_messages = self._convert_msgs(messages)
 
         stream = await self._client.chat.stream_async(

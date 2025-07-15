@@ -50,3 +50,6 @@ build/
 
 # Generated documentation
 /autodocs
+
+.env
+.cogency_memory

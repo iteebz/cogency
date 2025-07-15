@@ -1,25 +1,74 @@
 import logging
 import os
-from typing import Optional
+from typing import List, Optional, Union
 
 import numpy as np
 
+from cogency.llm.key_rotator import KeyRotator
 from cogency.utils.errors import ConfigurationError
 
 from .base import BaseEmbed
+from .mixin import EmbedMixin
 
 logger = logging.getLogger(__name__)
 
 
-class NomicEmbed(BaseEmbed):
-    """Nomic embedding provider with RAG capabilities"""
+class NomicEmbed(EmbedMixin, BaseEmbed):
+    """Nomic embedding provider with MAGICAL key rotation."""
 
-    def __init__(self, api_key: Optional[str] = None, **kwargs):
+    def __init__(self, api_keys: Union[str, List[str]] = None, **kwargs):
+        # Auto-detect API keys from environment if not provided
+        if api_keys is None:
+            # Try numbered keys first (NOMIC_API_KEY_1, etc.)
+            detected_keys = []
+            for i in range(1, 10):  # Check 1-9
+                key = os.getenv(f'NOMIC_API_KEY_{i}')
+                if key:
+                    detected_keys.append(key)
+            
+            # Fall back to base NOMIC_API_KEY
+            if not detected_keys:
+                base_key = os.getenv('NOMIC_API_KEY')
+                if base_key:
+                    detected_keys = [base_key]
+                    
+            if detected_keys:
+                api_keys = detected_keys
+            else:
+                raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
+
+        # Handle key rotation
+        if isinstance(api_keys, list) and len(api_keys) > 1:
+            self.key_rotator = KeyRotator(api_keys)
+            api_key = None
+        elif isinstance(api_keys, list) and len(api_keys) == 1:
+            self.key_rotator = None
+            api_key = api_keys[0]
+        else:
+            self.key_rotator = None
+            api_key = api_keys
+
         super().__init__(api_key, **kwargs)
         self._initialized = False
         self._model = "nomic-embed-text-v1.5"
         self._dimensionality = 768
         self._batch_size = 3
+
+    def _init_client(self):
+        """Initialize Nomic client with current key."""
+        current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
+        if current_key:
+            try:
+                import nomic
+                nomic.login(current_key)
+                self._initialized = True
+                logger.info("Nomic API initialized")
+            except ImportError:
+                raise ImportError("nomic package required. Install with: pip install nomic")
+
+    def _get_client(self):
+        """Get client status."""
+        return self._initialized
 
     def _ensure_initialized(self) -> None:
         """Initialize Nomic API connection if not already done"""
@@ -65,6 +114,7 @@ class NomicEmbed(BaseEmbed):
         Returns:
             List of embedding vectors as numpy arrays
         """
+        self._rotate_client()
         self._ensure_initialized()
 
         if not texts:
