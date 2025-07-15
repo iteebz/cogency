@@ -93,7 +93,7 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
                 "tool_name": tool_name,
                 "args": tool_args,
                 "error": str(result),
-                "error_type": "async_error"
+                "error_type": "execution_error"  # Changed from async_error to execution_error
             }
             failures.append(failure_result)
         else:

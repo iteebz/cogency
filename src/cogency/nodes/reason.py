@@ -1,4 +1,5 @@
 """Unified reasoning node - THINK+PLAN+REFLECT merged into pure cognition."""
+import time
 from typing import Dict, Any, Optional, List
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
@@ -6,6 +7,7 @@ from cogency.types import AgentState, ReasoningDecision
 from cogency.utils import validate_tools
 from cogency.utils.trace import trace_node
 from cogency.utils.tool_execution import parse_tool_call, execute_single_tool, execute_parallel_tools
+from cogency.utils.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
 from cogency.schemas import ToolCall, MultiToolCall
 
 REASON_PROMPT = """You are an AI assistant analyzing a user request to determine the best response strategy.
@@ -71,10 +73,43 @@ def _task_complete_with_results(context, execution_results: Dict[str, Any]) -> b
     return False
 
 
+def _estimate_query_complexity(user_input: str, tool_count: int) -> float:
+    """Estimate query complexity for adaptive iteration control."""
+    complexity_score = 0.0
+    
+    # Length factor (longer queries tend to be more complex)
+    complexity_score += min(0.3, len(user_input) / 300)  # Reduced denominator for more impact
+    
+    # Keyword complexity indicators with higher weights
+    complex_keywords = ['analyze', 'compare', 'evaluate', 'research', 'investigate', 'comprehensive', 'detailed', 'implications', 'trade-offs', 'performance', 'frameworks']
+    simple_keywords = ['what', 'when', 'where', 'who', 'define', 'explain', 'is', 'are']
+    
+    complex_count = sum(1 for keyword in complex_keywords if keyword in user_input.lower())
+    simple_count = sum(1 for keyword in simple_keywords if keyword in user_input.lower())
+    
+    # Higher weight for complex keywords
+    complexity_score += min(0.4, complex_count * 0.15)
+    complexity_score -= min(0.2, simple_count * 0.05)
+    
+    # Tool availability factor (more tools = potentially more complex reasoning)
+    complexity_score += min(0.2, tool_count / 15)  # Reduced denominator for more impact
+    
+    # Question marks and conjunctions (multiple questions = complexity)
+    complexity_score += min(0.1, user_input.count('?') * 0.05)
+    complexity_score += min(0.15, user_input.count(' and ') * 0.05)  # Higher weight for conjunctions
+    
+    # Multiple sentences indicate complexity
+    sentence_count = max(1, user_input.count('.') + user_input.count('!') + user_input.count('?'))
+    if sentence_count > 1:
+        complexity_score += min(0.2, sentence_count * 0.05)
+    
+    return max(0.1, min(1.0, complexity_score))
+
+
 @trace_node("reason")
 async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, 
                 prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
-    """Unified reasoning: analyze → decide → execute → complete."""
+    """Unified reasoning: analyze → decide → execute → complete with adaptive depth control."""
     
     context = state["context"]
     trace = state["trace"]
@@ -92,13 +127,30 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
     else:
         tool_info = "no tools"
     
-    # Reasoning loop - continue until task complete
-    max_iterations = 3
-    iteration = 0
+    # Initialize adaptive reasoning controller
+    complexity = _estimate_query_complexity(user_input, len(selected_tools))
+    criteria = StoppingCriteria()
+    criteria.max_iterations = criteria.max_iterations if complexity < 0.7 else min(criteria.max_iterations + 2, 8)
     
-    while iteration < max_iterations:
-        iteration += 1
-        trace.add("reason", f"Reasoning iteration {iteration}")
+    controller = AdaptiveReasoningController(criteria)
+    controller.start_reasoning()
+    
+    trace.add("reason", f"Adaptive reasoning started - complexity: {complexity:.2f}, max_iterations: {criteria.max_iterations}")
+    
+    # Reasoning loop with adaptive control
+    while True:
+        iteration_start_time = time.time()
+        
+        # Check if we should continue reasoning
+        should_continue, stopping_reason = controller.should_continue_reasoning(
+            iteration_start_time=iteration_start_time
+        )
+        
+        if not should_continue:
+            trace.add("reason", f"Stopping reasoning: {stopping_reason.value}")
+            break
+        
+        trace.add("reason", f"Reasoning iteration {controller.metrics.iteration + 1}")
         
         # Prepare reasoning prompt
         messages = list(context.messages)
@@ -120,6 +172,13 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
             response_text = _extract_direct_response(llm_response)
             trace.add("reason", f"Direct response generated: {response_text[:50]}...")
             
+            # Update metrics and log completion
+            iteration_time = time.time() - iteration_start_time
+            controller.update_iteration_metrics({}, iteration_time)
+            
+            summary = controller.get_reasoning_summary()
+            trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
+            
             return {
                 "context": context,
                 "reasoning_decision": ReasoningDecision(should_respond=True, response_text=response_text, task_complete=True),
@@ -128,6 +187,8 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
         
         # Extract and execute tool calls
         tool_call_str = _extract_tool_calls(llm_response)
+        execution_results = {}
+        
         if tool_call_str:
             trace.add("reason", f"Tool calls identified: {tool_call_str}")
             
@@ -139,7 +200,6 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
             
             # Parse and execute tools
             tool_call = parse_tool_call(tool_call_str)
-            execution_results = {}
             
             if tool_call:
                 if isinstance(tool_call, MultiToolCall):
@@ -166,7 +226,10 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
                                 "error_type": tool_output.get("error_type")
                             }],
                             "results": [],
-                            "summary": f"Tool {tool_name} failed"
+                            "summary": f"Tool {tool_name} failed",
+                            "total_executed": 1,
+                            "successful_count": 0,
+                            "failed_count": 1
                         }
                     else:
                         # Tool succeeded
@@ -177,59 +240,110 @@ async def reason(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]
                             "success": True,
                             "results": [{"tool_name": tool_name, "args": parsed_args, "result": result}],
                             "errors": [],
-                            "summary": f"Tool {tool_name} executed successfully"
+                            "summary": f"Tool {tool_name} executed successfully",
+                            "total_executed": 1,
+                            "successful_count": 1,
+                            "failed_count": 0
                         }
                 
                 trace.add("reason", f"Tool execution summary: {execution_results.get('summary', 'No summary')}")
+        
+        # Update iteration metrics
+        iteration_time = time.time() - iteration_start_time
+        controller.update_iteration_metrics(execution_results, iteration_time)
+        
+        # Check if task is complete based on execution results
+        if execution_results and _task_complete_with_results(context, execution_results):
+            trace.add("reason", "Task complete after tool execution")
             
-            # Check if task is complete based on execution results
-            if _task_complete_with_results(context, execution_results):
-                trace.add("reason", "Task complete after tool execution")
-                
-                # Generate final response incorporating tool results and handling errors
-                final_messages = list(context.messages)
-                
-                # Create context-aware system prompt based on execution results
-                if execution_results.get("success"):
-                    system_prompt = (
-                        "Generate a clear, helpful response incorporating the successful tool results. "
-                        "Be conversational and natural - speak directly to the user."
-                    )
-                else:
-                    system_prompt = (
-                        "Some tools failed during execution. Generate a helpful response that: "
-                        "1. Acknowledges what went wrong "
-                        "2. Provides alternative solutions or suggestions "
-                        "3. Remains helpful and conversational "
-                        "4. Uses any partial results that may be available"
-                    )
-                
-                final_messages.insert(0, {"role": "system", "content": system_prompt})
-                
-                final_response = await llm.invoke(final_messages)
-                context.add_message("assistant", final_response)
+            # Generate final response incorporating tool results and handling errors
+            final_messages = list(context.messages)
+            
+            # Create context-aware system prompt based on execution results
+            if execution_results.get("success"):
+                system_prompt = (
+                    "Generate a clear, helpful response incorporating the successful tool results. "
+                    "Be conversational and natural - speak directly to the user."
+                )
+            else:
+                system_prompt = (
+                    "Some tools failed during execution. Generate a helpful response that: "
+                    "1. Acknowledges what went wrong "
+                    "2. Provides alternative solutions or suggestions "
+                    "3. Remains helpful and conversational "
+                    "4. Uses any partial results that may be available"
+                )
+            
+            final_messages.insert(0, {"role": "system", "content": system_prompt})
+            
+            final_response = await llm.invoke(final_messages)
+            context.add_message("assistant", final_response)
+            
+            # Log completion summary
+            summary = controller.get_reasoning_summary()
+            trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s, tools: {summary['total_tools_executed']}")
+            
+            return {
+                "context": context,
+                "reasoning_decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True),
+                "last_node_output": final_response
+            }
+        
+        # Check adaptive stopping criteria after each iteration
+        should_continue, stopping_reason = controller.should_continue_reasoning(execution_results)
+        
+        if not should_continue:
+            trace.add("reason", f"Adaptive stopping: {stopping_reason.value}")
+            break
+        
+        # Continue reasoning with tool results
+        
+        # If no tools identified and no direct response, check if we should stop
+        if not tool_call_str:
+            trace.add("reason", "No clear action identified, checking stopping criteria")
+            
+            # Update metrics for iteration without tools
+            iteration_time = time.time() - iteration_start_time
+            controller.update_iteration_metrics({}, iteration_time)
+            
+            # Check if we should stop due to lack of progress
+            should_continue, stopping_reason = controller.should_continue_reasoning()
+            
+            if not should_continue:
+                trace.add("reason", f"Stopping due to: {stopping_reason.value}")
+                summary = controller.get_reasoning_summary()
+                trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
                 
                 return {
                     "context": context,
-                    "reasoning_decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True),
-                    "last_node_output": final_response
+                    "reasoning_decision": ReasoningDecision(should_respond=True, response_text=llm_response, task_complete=True),
+                    "last_node_output": llm_response
                 }
-            
-            # Continue reasoning with tool results
-            continue
-        
-        # No tools identified and no direct response - fallback
-        trace.add("reason", "No clear action identified, generating fallback response")
-        
+    
+    # Loop ended due to stopping criteria
+    summary = controller.get_reasoning_summary()
+    trace.add("reason", f"Reasoning completed - iterations: {summary['total_iterations']}, time: {summary['total_time']:.2f}s")
+    
+    # Generate final response based on stopping reason
+    if stopping_reason == StoppingReason.CONFIDENCE_THRESHOLD:
+        fallback_text = "I've gathered sufficient information to provide a confident response."
+    elif stopping_reason == StoppingReason.TIME_LIMIT:
+        fallback_text = "I've reached the time limit for reasoning. Let me provide what I can determine so far."
+    elif stopping_reason == StoppingReason.DIMINISHING_RETURNS:
+        fallback_text = "I've explored the available options thoroughly. Here's my response based on the information gathered."
+    else:
+        fallback_text = f"I've completed my reasoning process. Here's my response based on the analysis."
+    
+    # Get the last LLM response or generate a fallback
+    final_messages = list(context.messages)
+    if final_messages:
+        # Use the last assistant message as the response
+        last_response = next((msg["content"] for msg in reversed(final_messages) if msg["role"] == "assistant"), fallback_text)
         return {
             "context": context,
-            "reasoning_decision": ReasoningDecision(should_respond=True, response_text=llm_response, task_complete=True),
-            "last_node_output": llm_response
+            "reasoning_decision": ReasoningDecision(should_respond=True, response_text=last_response, task_complete=True),
+            "last_node_output": last_response
         }
-    
-    # Max iterations reached
-    trace.add("reason", f"Max iterations ({max_iterations}) reached")
-    fallback_text = "I've reached the maximum reasoning iterations. Let me provide what I can determine so far."
     
     return {
         "context": context,

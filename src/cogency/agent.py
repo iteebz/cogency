@@ -6,7 +6,7 @@ from cogency.memory.filesystem import FSMemory
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
 from cogency.types import AgentState, OutputMode, ExecutionTrace
-from cogency.flow import Flow
+from cogency.react import ReAct
 from cogency.tracer import Tracer
 
 
@@ -40,8 +40,8 @@ class Agent:
         self.tools = (tools if tools is not None else []) + discovered_tools
         
         self.trace = trace
-        self.flow = Flow(self.llm, self.tools, self.memory, prompt_fragments=prompt_fragments)
-        self.workflow = self.flow.workflow
+        self.react = ReAct(self.llm, self.tools, self.memory, prompt_fragments=prompt_fragments)
+        self.workflow = self.react.workflow
     
     async def run(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
         """Run agent with clean mode control."""
