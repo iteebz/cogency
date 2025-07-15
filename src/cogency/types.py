@@ -10,6 +10,15 @@ from cogency.context import Context
 OutputMode = Literal["summary", "trace", "dev"]
 
 
+@dataclass
+class ReasoningDecision:
+    """Structured decision from reasoning - NO JSON CEREMONY."""
+    should_respond: bool
+    response_text: Optional[str] = None
+    tool_calls: Optional[List[Dict[str, Any]]] = None
+    task_complete: bool = False
+
+
 class ExecutionTrace:
     """Lean trace engine - just stores entries."""
     def __init__(self):
@@ -40,7 +49,7 @@ def summarize_trace(trace: ExecutionTrace) -> str:
 
 def format_trace(trace: ExecutionTrace) -> str:
     """Format full trace with icons."""
-    icons = {"think": "🤔", "plan": "🧠", "act": "⚡", "reflect": "🔍", "respond": "💬"}
+    icons = {"think": "🤔", "plan": "🧠", "act": "⚡", "reflect": "🔍", "respond": "💬", "reason": "⚡"}
     lines = []
     for entry in trace.entries:
         icon = icons.get(entry["node"], "📝")

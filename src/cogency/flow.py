@@ -3,7 +3,8 @@ from functools import partial
 from typing import Dict, List, Callable, Optional
 
 from langgraph.graph import StateGraph, END
-from cogency.nodes import think, plan, act, reflect, respond
+from cogency.nodes.reason import reason
+from cogency.nodes.respond import respond
 from cogency.nodes.memory import memorize
 from cogency.nodes.select_tools import select_tools
 from cogency.types import AgentState, OutputMode
@@ -12,16 +13,13 @@ from cogency.router import Router
 from cogency.constants import NodeName
 
 
-# Default cognitive flow configuration - TPARR workflow
+# Simplified cognitive flow - NO CEREMONY
 DEFAULT_ROUTING_TABLE = {
     "entry_point": NodeName.MEMORIZE.value,
     "edges": {
         NodeName.MEMORIZE.value: {"type": "direct", "destination": NodeName.SELECT_TOOLS.value},
-        NodeName.SELECT_TOOLS.value: {"type": "direct", "destination": NodeName.THINK.value},
-        NodeName.THINK.value: {"type": "conditional", "router": "_route_think", "destinations": {NodeName.PLAN.value: NodeName.PLAN.value, NodeName.RESPOND.value: NodeName.RESPOND.value}},
-        NodeName.PLAN.value: {"type": "conditional", "router": "_route", "destinations": {NodeName.RESPOND.value: NodeName.RESPOND.value, NodeName.ACT.value: NodeName.ACT.value}},
-        NodeName.ACT.value: {"type": "direct", "destination": NodeName.REFLECT.value},
-        NodeName.REFLECT.value: {"type": "conditional", "router": "_route", "destinations": {NodeName.RESPOND.value: NodeName.RESPOND.value, NodeName.PLAN.value: NodeName.PLAN.value}},
+        NodeName.SELECT_TOOLS.value: {"type": "direct", "destination": NodeName.REASON.value},
+        NodeName.REASON.value: {"type": "conditional", "router": "_route", "destinations": {NodeName.RESPOND.value: NodeName.RESPOND.value}},
         NodeName.RESPOND.value: {"type": "end"}
     }
 }
@@ -48,10 +46,7 @@ class Flow:
         node_functions = {
             NodeName.MEMORIZE.value: partial(memorize, memory=self.memory),
             NodeName.SELECT_TOOLS.value: partial(select_tools, llm=self.llm, tools=self.tools),
-            NodeName.THINK.value: partial(think, llm=self.llm),
-            NodeName.PLAN.value: partial(plan, llm=self.llm, tools=self.tools, prompt_fragments=self.prompt_fragments.get("plan", {})),
-            NodeName.ACT.value: partial(act, tools=self.tools),
-            NodeName.REFLECT.value: partial(reflect, llm=self.llm),
+            NodeName.REASON.value: partial(reason, llm=self.llm, tools=self.tools, prompt_fragments=self.prompt_fragments.get("reason", {})),
             NodeName.RESPOND.value: partial(respond, llm=self.llm)
         }
         
@@ -73,10 +68,6 @@ class Flow:
         
         return workflow.compile()
     
-    def _route_think(self, state: AgentState) -> str:
-        """Router for THINK phase - determines if we need planning or can respond directly."""
-        return self.router.route(state)
-    
     def _route(self, state: AgentState) -> str:
-        """Universal router for plan/reflect decisions."""
+        """Universal router - simplified for reason-based flow."""
         return self.router.route(state)

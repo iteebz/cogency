@@ -82,14 +82,27 @@ class Agent:
     
     def _extract_response(self, result) -> str:
         """Extract final response from agent state."""
+        # Check if the last action was a recall tool and format its output
+        if "act" in result and "tool_output" in result["act"] and "recall_tool" in result["act"]["tool_output"] and result["act"]["tool_output"]["recall_tool"] is not None:
+            recall_results = result["act"]["tool_output"]["recall_tool"].get("results", [])
+            if recall_results:
+                return "Recalled memories: " + " | ".join([r["content"] for r in recall_results])
+            else:
+                return "No relevant memories recalled."
+
+        messages = [] # Initialize messages to empty list
+
         # If top-level context exists, use it
         if "context" in result:
             messages = result["context"].messages
-        # Else fallback to the 'respond' node output
+        # Else fallback to the 'respond' node output (if context is not directly available)
         elif "respond" in result and "context" in result["respond"]:
             messages = result["respond"]["context"].messages
-        else:
-            return "No response generated"
 
+        # Prioritize response from the 'respond' node
+        if "respond" in result and "response" in result["respond"]:
+            return result["respond"]["response"]
+
+        # Fallback to messages if no direct response from 'respond' node
         return messages[-1]["content"] if messages else "No response generated"
     
