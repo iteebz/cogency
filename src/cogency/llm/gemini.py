@@ -6,6 +6,7 @@ import google.generativeai as genai
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
 from cogency.utils.errors import ConfigurationError
+from cogency.core.resilience import with_resilience, with_retry, RateLimitedError, CircuitOpenError, RateLimiterConfig, CircuitBreakerConfig
 
 
 class GeminiLLM(BaseLLM):
@@ -111,6 +112,13 @@ class GeminiLLM(BaseLLM):
         if self.key_rotator:
             self._init_client()
 
+    @with_resilience(
+        rate_limiter="gemini",
+        circuit_breaker="gemini",
+        rate_config=RateLimiterConfig(requests_per_minute=10, burst_size=3),  # Conservative for free tier
+        circuit_config=CircuitBreakerConfig(failure_threshold=3, recovery_timeout=120)
+    )
+    @with_retry(max_attempts=3, exceptions=(Exception,))
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         self._rotate_client()
 
@@ -118,19 +126,37 @@ class GeminiLLM(BaseLLM):
         # Gemini's chat format is different - it expects conversation history
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
-        res = await self._current_model.generate_content_async(prompt, **kwargs)
-        return res.text
+        try:
+            res = await self._current_model.generate_content_async(prompt, **kwargs)
+            return res.text
+        except Exception as e:
+            # Handle rate limiting gracefully
+            if "429" in str(e) or "quota" in str(e).lower():
+                raise RateLimitedError(f"Gemini rate limited: {e}")
+            raise
 
+    @with_resilience(
+        rate_limiter="gemini_stream",
+        circuit_breaker="gemini",
+        rate_config=RateLimiterConfig(requests_per_minute=10, burst_size=3),
+        circuit_config=CircuitBreakerConfig(failure_threshold=3, recovery_timeout=120)
+    )
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         self._rotate_client()
 
         # Convert messages to Gemini format (simple text concatenation for now)
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
-        response = await self._current_model.generate_content_async(
-            prompt, stream=True, **kwargs
-        )
-        
-        async for chunk in response:
-            if chunk.text:
-                yield chunk.text
+        try:
+            response = await self._current_model.generate_content_async(
+                prompt, stream=True, **kwargs
+            )
+            
+            async for chunk in response:
+                if chunk.text:
+                    yield chunk.text
+        except Exception as e:
+            # Handle rate limiting gracefully
+            if "429" in str(e) or "quota" in str(e).lower():
+                raise RateLimitedError(f"Gemini streaming rate limited: {e}")
+            raise

@@ -8,6 +8,8 @@ from cogency.tools.registry import ToolRegistry
 from cogency.types import AgentState, OutputMode, ExecutionTrace
 from cogency.workflow import Workflow
 from cogency.core.tracer import Tracer
+from cogency.core.metrics import with_metrics, counter, histogram, get_metrics
+from cogency.core.resilience import RateLimitedError, CircuitOpenError
 # from cogency.core.monitoring import get_monitor  # Temporarily disabled for faster startup
 
 
@@ -45,35 +47,63 @@ class Agent:
         self.workflow = self.workflow_builder.workflow
         # self.monitor = get_monitor()  # Temporarily disabled for faster startup
     
+    @with_metrics("agent.stream", tags={"agent": "stream"})
     async def stream(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None):
         """Stream agent execution with native LangGraph streaming."""
+        counter("agent.stream.requests")
+        histogram("agent.stream.query_length", len(query))
+        
         state = self._init_state(query, context)
         
-        # Use native LangGraph streaming
-        async for event in self.workflow.astream(state):
-            if event and "react_loop" in event:
-                # Extract reasoning content from node output
-                reasoning_output = event["react_loop"].get("last_node_output")
-                if reasoning_output:
-                    yield reasoning_output
+        try:
+            # Use native LangGraph streaming
+            async for event in self.workflow.astream(state):
+                if event and "react_loop" in event:
+                    # Extract reasoning content from node output
+                    reasoning_output = event["react_loop"].get("last_node_output")
+                    if reasoning_output:
+                        yield reasoning_output
+            
+            counter("agent.stream.success")
+            
+        except RateLimitedError as e:
+            counter("agent.stream.rate_limited")
+            raise
+        except CircuitOpenError as e:
+            counter("agent.stream.circuit_open")
+            raise
+        except Exception as e:
+            counter("agent.stream.errors")
+            raise
     
+    @with_metrics("agent.run", tags={"agent": "run"})
     async def run(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
         """Run agent - wrapper around streaming for final response."""
-        response_chunks = []
-        async for chunk in self.stream(query, context, mode):
-            response_chunks.append(chunk)
+        counter("agent.run.requests")
+        histogram("agent.run.query_length", len(query))
         
-        final_response = "".join(response_chunks) if response_chunks else "No response generated"
-        
-        # Output based on mode
-        output_mode = mode or self.default_output_mode
-        if self.trace:
-            # Create minimal trace for output
-            trace = ExecutionTrace()
-            tracer = Tracer(trace)
-            tracer.output(output_mode)
-        
-        return final_response
+        try:
+            response_chunks = []
+            async for chunk in self.stream(query, context, mode):
+                response_chunks.append(chunk)
+            
+            final_response = "".join(response_chunks) if response_chunks else "No response generated"
+            histogram("agent.run.response_length", len(final_response))
+            
+            # Output based on mode
+            output_mode = mode or self.default_output_mode
+            if self.trace:
+                # Create minimal trace for output
+                trace = ExecutionTrace()
+                tracer = Tracer(trace)
+                tracer.output(output_mode)
+            
+            counter("agent.run.success")
+            return final_response
+            
+        except Exception as e:
+            counter("agent.run.errors")
+            raise
     
     def _init_state(self, query: str, context: Optional[Context] = None) -> AgentState:
         """Initialize agent state."""
