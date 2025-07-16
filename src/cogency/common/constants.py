@@ -1,6 +1,5 @@
 from enum import Enum
 
 class NodeName(str, Enum):
-    MEMORIZE = "memorize"
-    FILTER_TOOLS = "filter_tools"
+    PRE_REACT = "pre_react"
     REACT_LOOP = "react_loop"

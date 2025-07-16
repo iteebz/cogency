@@ -4,19 +4,17 @@ from typing import Dict, List, Callable, Optional, Any
 
 from langgraph.graph import StateGraph, END
 from cogency.react.react_responder import react_loop_node
-from cogency.memory.memorize import memorize_node
-from cogency.react.filter_tools import filter_tools_node
+from cogency.prepare.pre_react import pre_react_node
 from cogency.common.types import AgentState, OutputMode
 from cogency.memory.base import BaseMemory
 from cogency.common.constants import NodeName
 
 
-# Linear 3-node cognitive flow - ZERO CEREMONY
+# Optimized 2-node cognitive flow - MINIMAL LATENCY
 DEFAULT_ROUTING_TABLE = {
-    "entry_point": NodeName.MEMORIZE.value,
+    "entry_point": "pre_react",
     "edges": {
-        NodeName.MEMORIZE.value: {"type": "direct", "destination": NodeName.FILTER_TOOLS.value},
-        NodeName.FILTER_TOOLS.value: {"type": "direct", "destination": NodeName.REACT_LOOP.value},
+        "pre_react": {"type": "direct", "destination": NodeName.REACT_LOOP.value},
         NodeName.REACT_LOOP.value: {"type": "end"}
     }
 }
@@ -39,8 +37,7 @@ class Workflow:
         
         # Pure LangGraph composition - nodes handle their own dependencies
         node_functions = {
-            NodeName.MEMORIZE.value: partial(memorize_node, memory=self.memory),
-            NodeName.FILTER_TOOLS.value: partial(filter_tools_node, llm=self.llm, tools=self.tools),
+            "pre_react": partial(pre_react_node, llm=self.llm, tools=self.tools, memory=self.memory),
             NodeName.REACT_LOOP.value: partial(react_loop_node, llm=self.llm, tools=self.tools, response_shaper=self.response_shaper)
         }
         

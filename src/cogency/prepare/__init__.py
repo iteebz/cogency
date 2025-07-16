@@ -1,0 +1,1 @@
+"""Context preparation before reasoning."""
