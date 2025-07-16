@@ -58,6 +58,7 @@ build/
 .memory/
 .diagnostics/
 sandbox/
+monitoring/
 
 # Test artifacts (keep contained)
 .test_*
