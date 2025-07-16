@@ -8,6 +8,12 @@ Cogency is a multistep reasoning framework that makes building AI agents stupidl
 
 ```bash
 pip install cogency
+
+# Set your API keys
+echo "OPENAI_API_KEY=sk-..." >> .env
+echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
+echo "GEMINI_API_KEY=your-key-here" >> .env
+# Agent auto-detects from any available key
 ```
 
 ## Quick Start
@@ -20,9 +26,8 @@ async def main():
     # That's it. Auto-detects LLM from .env
     agent = Agent("assistant")
     
-    # Beautiful streaming ReAct reasoning (NEW in 0.4.1!)
+    # Beautiful streaming ReAct reasoning
     await agent.run_streaming("What is 25 * 43?")
-    # Shows: 🧠 REASON → ⚡ ACT → 👀 OBSERVE → 💬 RESPOND
 
 asyncio.run(main())
 ```
@@ -39,48 +44,51 @@ asyncio.run(main())
 
 ## Examples
 
-### Hello World
+**Basic Usage** ([`examples/hello.py`](examples/hello.py))
 ```python
 import asyncio
 from cogency import Agent
 
 async def main():
     agent = Agent("assistant")
-    result = await agent.run("What is 25 * 43?", mode="summary")
+    result = await agent.run("What is 25 * 43?")
     print(result)  # 1075
 
 asyncio.run(main())
 ```
 
-### With Tools
+**With Tools** ([`examples/basic.py`](examples/basic.py))
 ```python
 import asyncio
 from cogency import Agent, WeatherTool
 
 async def main():
     agent = Agent("weather_assistant", tools=[WeatherTool()])
-    result = await agent.run("What's the weather in San Francisco?", mode="summary")
-    print(result)
+    await agent.run_streaming("What's the weather in San Francisco?")
 
 asyncio.run(main())
 ```
 
-### Streaming Reasoning
+**Multi-Step Reasoning** ([`examples/complex.py`](examples/complex.py))
 ```python
 import asyncio
-from cogency import Agent, CalculatorTool, WebSearchTool
+from cogency import Agent, CalculatorTool, WeatherTool, TimezoneTool
 
 async def main():
-    agent = Agent("analyst", tools=[CalculatorTool(), WebSearchTool()])
-
-    # Stream with trace mode for full visibility
-    async for chunk in agent.stream("Find Bitcoin price and calculate value of 0.5 BTC", mode="trace"):
-        print(chunk, end="", flush=True)
+    agent = Agent("travel_planner", tools=[CalculatorTool(), WeatherTool(), TimezoneTool()])
+    
+    scenario = """
+    I'm planning a trip to London. What's the weather there?
+    What time is it? If my flight costs $1,200 and hotel is $180 
+    per night for 3 nights, what's the total cost?
+    """
+    
+    await agent.run_streaming(scenario)
 
 asyncio.run(main())
 ```
 
-### Custom Tools
+**Custom Tools**
 ```python
 from cogency import Agent, BaseTool
 
@@ -97,16 +105,37 @@ class TimezoneTool(BaseTool):
 agent = Agent("time_assistant", tools=[TimezoneTool()])
 ```
 
-## Installation
+## ReAct Loop Architecture
 
-```bash
-pip install cogency
+Cogency uses a **ReAct loop** for transparent multi-step reasoning:
 
-# Set your API keys
-echo "OPENAI_API_KEY=sk-..." >> .env
-echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
-echo "GEMINI_API_KEY=your-key-here" >> .env
-# Agent auto-detects from any available key
+```
+🧠 REASON → Analyze request, select tools
+⚡ ACT    → Execute tools, gather results  
+👀 OBSERVE → Process tool outputs
+💬 RESPOND → Generate final answer
+```
+
+Every step streams in real-time and is fully traceable.
+
+## Output Modes
+
+**Summary Mode (Default)**: Clean final answer only
+```python
+result = await agent.run("What's 15 * 23?")
+print(result)  # "345"
+```
+
+**Streaming**: Real-time output with beautiful formatting
+```python
+await agent.run_streaming("What's 15 * 23?")
+# Shows live reasoning steps as they happen
+```
+
+**Stream with Modes**: Control output format
+```python
+async for chunk in agent.stream("Calculate something", mode="trace"):
+    print(chunk, end="", flush=True)
 ```
 
 ## Supported Providers
@@ -118,11 +147,6 @@ echo "GEMINI_API_KEY=your-key-here" >> .env
 - xAI (Grok)
 - Mistral
 
-**Embeddings (Auto-detected):**
-- OpenAI (text-embedding-3)
-- Nomic (nomic-embed-text)
-- Sentence Transformers (local)
-
 **Built-in Tools:**
 - Calculator - Math operations
 - Weather - Real weather data (no API key)
@@ -130,69 +154,11 @@ echo "GEMINI_API_KEY=your-key-here" >> .env
 - WebSearch - Internet search
 - FileManager - File operations
 
-## PRARR Architecture
-
-Cogency uses **Plan-Reason-Act-Reflect-Respond** for transparent multi-step reasoning:
-
-```
-📋 PLAN    → Analyze request, filter relevant tools
-🧠 REASON  → Determine tool usage strategy  
-⚡ ACT     → Execute tools, gather results
-🔍 REFLECT → Filter out bullshit, focus results
-💬 RESPOND → Generate clean final answer
-```
-
-Every step is streamable and traceable.
-
-## Output Examples
-
-## Output Modes
-
-Cogency supports three output modes:
-
-**Summary Mode (Default)**: Clean final answer only
-```python
-result = await agent.run("What's 15 * 23?", mode="summary")
-print(result)  # "345"
-```
-
-**Trace Mode**: Beautiful execution trace + answer
-```python
-result = await agent.run("What's 15 * 23?", mode="trace")
-# Outputs:
-# 🚀 EXECUTION TRACE (450ms total)
-# ==================================================
-# 🔸 PLAN [14:30:15] 120ms
-#    📥 'What's 15 * 23?'
-#    📤 Decision: tool_needed
-#
-# 🔸 ACT [14:30:15] 200ms
-#    📥 calculator(expression="15 * 23")
-#    📤 Result: 345
-# ==================================================
-# ✅ Final: 345
-```
-
-**Dev Mode**: Raw state dumps for debugging
-```python
-result = await agent.run("What's 15 * 23?", mode="dev")
-# Outputs full AgentState with all internal data
-```
-
-**Streaming**: Real-time output with any mode
-```python
-async for chunk in agent.stream("Calculate something", mode="trace"):
-    print(chunk, end="", flush=True)
-```
-
 ## Key Features
 
 - **Auto-detection** - Zero config provider setup
 - **Tool subsetting** - Intelligent filtering keeps prompts lean
-- **Key rotation** - Load balance across multiple API keys
-- **Result filtering** - Remove execution metadata in REFLECT
 - **Stream transparency** - Watch reasoning in real-time
-- **Beautiful traces** - Human-readable execution logs
 - **Plug-and-play** - Drop in tools, they auto-register
 
 ## Contributing
@@ -200,11 +166,6 @@ async for chunk in agent.stream("Calculate something", mode="trace"):
 Framework designed for extension:
 
 ```python
-# Add new LLM provider
-class YourLLM(ProviderMixin, BaseLLM):
-    async def invoke(self, messages, **kwargs):
-        # Your implementation
-        
 # Add new tool  
 class YourTool(BaseTool):
     async def run(self, **params):
@@ -219,4 +180,4 @@ MIT - Build whatever you want.
 
 ---
 
-**Cogency: AI agents without the ceremony.**
+**Cogency: AI agents out of the box.**
