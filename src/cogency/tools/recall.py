@@ -1,63 +1,10 @@
-"""Memory tools for Cogency agents using BaseMemory."""
+"""Recall tool for Cogency agents using BaseMemory."""
 from typing import Any, Dict, List, Optional
 import json
 
 from .base import BaseTool
 from .registry import tool
 from ..memory.base import BaseMemory
-
-
-@tool
-class MemorizeTool(BaseTool):
-    """Tool for storing content in agent memory."""
-
-    def __init__(self, memory: BaseMemory):
-        super().__init__(
-            name="memorize",
-            description="Store important information the user wants remembered for future conversations (explicit user request to remember something)"
-        )
-        self.memory = memory
-
-    async def run(self, **kwargs: Any) -> Dict[str, Any]:
-        """Store content in memory with smart auto-tagging."""
-        content = kwargs.get("content")
-        if not content:
-            return {"error": "content parameter is required"}
-        
-        tags = kwargs.get("tags", [])
-        metadata = kwargs.get("metadata", {})
-        
-        # Extract user_id from context if available
-        context = kwargs.get("_context")
-        user_id = getattr(context, 'user_id', 'default') if context else 'default'
-        
-        # Smart auto-tagging if no tags provided
-        if not tags and hasattr(self.memory, 'should_store'):
-            should_store, category = self.memory.should_store(content)
-            if category:
-                tags = [category]
-        
-        try:
-            artifact = await self.memory.memorize(content, tags=tags, metadata=metadata, user_id=user_id)
-            return {
-                "success": True,
-                "artifact_id": str(artifact.id),
-                "content_preview": content[:100] + "..." if len(content) > 100 else content,
-                "tags": tags
-            }
-        except Exception as e:
-            return {"error": f"Failed to memorize content: {str(e)}"}
-
-    def get_schema(self) -> str:
-        return "memorize(content='text to remember', tags=['tag1', 'tag2'])"
-
-    def get_usage_examples(self) -> List[str]:
-        """Return example tool calls."""
-        return [
-            'memorize(content="Remember that I prefer working in quiet environments", tags=["preferences"])',
-            'memorize(content="I have ADHD and work as a software engineer", tags=["personal"])',
-            'memorize(content="Project deadline is next Friday", tags=["work"])'
-        ]
 
 
 @tool

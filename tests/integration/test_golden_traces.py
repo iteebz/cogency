@@ -10,7 +10,7 @@ from cogency.context import Context
 from cogency.common.types import ExecutionTrace
 from cogency.tools.calculator import CalculatorTool
 from cogency.tools.file_manager import FileManagerTool
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.tools.recall import RecallTool
 from cogency.tools.weather import WeatherTool
 
 
@@ -30,7 +30,7 @@ class GoldenTraceValidator:
     
     from cogency.tools.calculator import CalculatorTool
 from cogency.tools.file_manager import FileManagerTool
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.tools.recall import RecallTool
 from cogency.tools.weather import WeatherTool
 
 

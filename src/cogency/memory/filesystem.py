@@ -3,13 +3,14 @@ import json
 import os
 import re
 import asyncio
+import numpy as np
 from datetime import datetime, UTC
 from pathlib import Path
 from typing import List, Optional, Dict, Any, Tuple
 from uuid import UUID
 from concurrent.futures import ThreadPoolExecutor
 
-from .base import BaseMemory, MemoryArtifact, MemoryType
+from .base import BaseMemory, MemoryArtifact, MemoryType, SearchType
 from .filters import filter_artifacts
 # from ..utils.profiling import CogencyProfiler  # Temporarily disabled for faster startup
 
@@ -21,12 +22,14 @@ class FSMemory(BaseMemory):
     Uses simple text matching for recall operations.
     """
 
-    def __init__(self, memory_dir: str = ".memory"):
+    def __init__(self, memory_dir: str = ".memory", embedding_provider=None):
         """Initialize filesystem memory.
         
         Args:
             memory_dir: Base directory to store memory files
+            embedding_provider: Optional embedding provider for semantic search
         """
+        super().__init__(embedding_provider)
         self.base_memory_dir = Path(memory_dir)
         self.base_memory_dir.mkdir(exist_ok=True)
         # self.profiler = CogencyProfiler()  # Temporarily disabled for faster startup
@@ -68,13 +71,22 @@ class FSMemory(BaseMemory):
         timeout_seconds: float = 10.0,
         user_id: str = "default"
     ) -> MemoryArtifact:
-        """Store content as JSON file."""
+        """Store content as JSON file with optional embedding."""
         artifact = MemoryArtifact(
             content=content,
             memory_type=memory_type,
             tags=tags or [],
             metadata=metadata or {}
         )
+        
+        # Generate embedding if provider available
+        embedding = None
+        if self.embedding_provider:
+            try:
+                embedding = await self.embedding_provider.embed(content)
+            except Exception:
+                # Fail gracefully if embedding fails
+                pass
         
         # Save as JSON file with UUID as filename in user-specific directory
         memory_dir = self._get_user_memory_dir(user_id)
@@ -88,7 +100,8 @@ class FSMemory(BaseMemory):
             "created_at": artifact.created_at.isoformat(),
             "confidence_score": artifact.confidence_score,
             "access_count": artifact.access_count,
-            "last_accessed": artifact.last_accessed.isoformat()
+            "last_accessed": artifact.last_accessed.isoformat(),
+            "embedding": embedding  # Store embedding vector
         }
         
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -99,52 +112,73 @@ class FSMemory(BaseMemory):
     async def recall(
         self, 
         query: str,
-        limit: Optional[int] = None,
+        search_type: SearchType = SearchType.AUTO,
+        limit: int = 10,
+        threshold: float = 0.7,
         tags: Optional[List[str]] = None,
         memory_type: Optional[MemoryType] = None,
+        metadata_filter: Optional[Dict[str, Any]] = None,
         since: Optional[str] = None,
         user_id: str = "default",
         **kwargs
     ) -> List[MemoryArtifact]:
-        """Search artifacts with enhanced relevance scoring and async optimization."""
+        """Search artifacts using unified search interface."""
+        
+        # Determine search method
+        effective_search_type = self._determine_search_type(search_type)
+        
+        # Validate search type requirements
+        if effective_search_type == SearchType.SEMANTIC and not self.embedding_provider:
+            raise ValueError("Semantic search requested but no embedding provider available")
         
         async def _recall_implementation():
-            # Check cache first - include user_id in cache key for isolation
-            cache_key = f"{user_id}:{query}:{limit}:{tags}:{memory_type}:{since}"
+            # Check cache first
+            cache_key = f"{user_id}:{query}:{effective_search_type.value}:{limit}:{threshold}:{tags}:{memory_type}:{metadata_filter}:{since}"
             if cache_key in self._cache:
                 return self._cache[cache_key]
-            
-            artifacts = []
-            query_lower = query.lower()
-            query_words = query_lower.split()
             
             # Get all JSON files from user-specific directory
             memory_dir = self._get_user_memory_dir(user_id)
             file_paths = list(memory_dir.glob("*.json"))
             
-            # Process files in parallel batches
-            batch_size = 10
-            tasks = []
+            # Load and filter artifacts
+            artifacts = []
+            for file_path in file_paths:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    # Apply filters
+                    if not self._apply_filters(data, memory_type, tags, metadata_filter, since):
+                        continue
+                    
+                    # Create artifact
+                    artifact = self._create_artifact_from_data(data)
+                    artifacts.append(artifact)
+                    
+                except (json.JSONDecodeError, KeyError, ValueError):
+                    continue
             
-            for i in range(0, len(file_paths), batch_size):
-                batch = file_paths[i:i + batch_size]
-                task = self._process_file_batch(batch, query_words, memory_type, tags, since, user_id)
-                tasks.append(task)
-            
-            # Execute all batches concurrently
-            batch_results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            # Flatten results
-            for batch_result in batch_results:
-                if isinstance(batch_result, list):
-                    artifacts.extend(batch_result)
+            # Apply search method
+            if effective_search_type == SearchType.SEMANTIC:
+                artifacts = await self._semantic_search(query, artifacts, threshold)
+            elif effective_search_type == SearchType.TEXT:
+                artifacts = self._text_search(query, artifacts)
+            elif effective_search_type == SearchType.HYBRID:
+                artifacts = await self._hybrid_search(query, artifacts, threshold)
             
             # Sort by combined score: relevance * decay_score
             artifacts.sort(key=lambda x: x.relevance_score * x.decay_score(), reverse=True)
             
             # Apply limit
-            if limit:
-                artifacts = artifacts[:limit]
+            artifacts = artifacts[:limit]
+            
+            # Update access stats for returned artifacts
+            for artifact in artifacts:
+                artifact.access_count += 1
+                artifact.last_accessed = datetime.now(UTC)
+                # Update stats in file asynchronously
+                asyncio.create_task(self._update_access_stats(artifact, user_id))
             
             # Cache results for 60 seconds
             self._cache[cache_key] = artifacts
@@ -154,67 +188,8 @@ class FSMemory(BaseMemory):
             
             return artifacts
         
-        # return await self.profiler.profile_memory_access(_recall_implementation)  # Temporarily disabled
         return await _recall_implementation()
     
-    async def _process_file_batch(self, file_paths: List[Path], query_words: List[str], 
-                                  memory_type: Optional[MemoryType], tags: Optional[List[str]], 
-                                  since: Optional[str], user_id: str) -> List[MemoryArtifact]:
-        """Process a batch of files concurrently."""
-        loop = asyncio.get_event_loop()
-        
-        def process_file(file_path: Path) -> Optional[MemoryArtifact]:
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                
-                # Apply common filters
-                if not filter_artifacts(data, memory_type, tags, since):
-                    return None
-                
-                # Enhanced relevance scoring
-                content_lower = data["content"].lower()
-                relevance_score = self._calculate_relevance(content_lower, query_words, data["tags"])
-                
-                if relevance_score > 0:
-                    artifact = MemoryArtifact(
-                        content=data["content"],
-                        memory_type=MemoryType(data.get("memory_type", MemoryType.FACT.value)),
-                        id=UUID(data["id"]),
-                        tags=data["tags"],
-                        metadata=data["metadata"],
-                        relevance_score=relevance_score,
-                        confidence_score=data.get("confidence_score", 1.0),
-                        access_count=data.get("access_count", 0),
-                    )
-                    # Parse datetimes
-                    artifact.created_at = datetime.fromisoformat(data["created_at"])
-                    artifact.last_accessed = datetime.fromisoformat(data.get("last_accessed", data["created_at"]))
-                    
-                    # Update access tracking asynchronously
-                    artifact.access_count += 1
-                    artifact.last_accessed = datetime.now(UTC)
-                    
-                    return artifact
-                    
-            except (json.JSONDecodeError, KeyError, ValueError):
-                # Skip corrupted files
-                return None
-        
-        # Process files concurrently using thread pool
-        tasks = [loop.run_in_executor(self._executor, process_file, file_path) 
-                for file_path in file_paths]
-        
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # Filter out None results and exceptions
-        artifacts = [r for r in results if isinstance(r, MemoryArtifact)]
-        
-        # Update access stats for all artifacts (fire and forget)
-        for artifact in artifacts:
-            asyncio.create_task(self._update_access_stats(artifact, user_id))
-        
-        return artifacts
     
     async def _expire_cache_entry(self, cache_key: str, delay: float):
         """Remove cache entry after delay."""
@@ -310,6 +285,134 @@ class FSMemory(BaseMemory):
             "user_id": user_id
         }
 
-    def close(self):
-        """Shuts down the thread pool executor."""
+    async def close(self):
+        """Shuts down the thread pool executor and cleans up background tasks."""
+        await self._cleanup_tasks()
         self._executor.shutdown(wait=True)
+    
+    def _determine_search_type(self, search_type: SearchType) -> SearchType:
+        """Determine effective search type based on availability."""
+        if search_type == SearchType.AUTO:
+            # Choose semantic if embedding provider available, else text
+            return SearchType.SEMANTIC if self.embedding_provider else SearchType.TEXT
+        return search_type
+    
+    def _apply_filters(self, data: Dict[str, Any], memory_type: Optional[MemoryType], 
+                      tags: Optional[List[str]], metadata_filter: Optional[Dict[str, Any]], 
+                      since: Optional[str]) -> bool:
+        """Apply standard filters to artifact data."""
+        # Use existing filter logic
+        return filter_artifacts(data, memory_type, tags, since) and self._metadata_filter_match(data, metadata_filter)
+    
+    def _metadata_filter_match(self, data: Dict[str, Any], metadata_filter: Optional[Dict[str, Any]]) -> bool:
+        """Check if artifact metadata matches filter."""
+        if not metadata_filter:
+            return True
+        
+        artifact_metadata = data.get("metadata", {})
+        for key, value in metadata_filter.items():
+            if key not in artifact_metadata or artifact_metadata[key] != value:
+                return False
+        return True
+    
+    def _create_artifact_from_data(self, data: Dict[str, Any]) -> MemoryArtifact:
+        """Create MemoryArtifact from JSON data."""
+        artifact = MemoryArtifact(
+            content=data["content"],
+            memory_type=MemoryType(data.get("memory_type", MemoryType.FACT.value)),
+            id=UUID(data["id"]),
+            tags=data["tags"],
+            metadata=data["metadata"],
+            confidence_score=data.get("confidence_score", 1.0),
+            access_count=data.get("access_count", 0),
+        )
+        # Parse datetimes
+        artifact.created_at = datetime.fromisoformat(data["created_at"])
+        artifact.last_accessed = datetime.fromisoformat(data.get("last_accessed", data["created_at"]))
+        return artifact
+    
+    async def _semantic_search(self, query: str, artifacts: List[MemoryArtifact], threshold: float) -> List[MemoryArtifact]:
+        """Perform semantic search using embeddings."""
+        if not self.embedding_provider:
+            return []
+        
+        # Generate query embedding
+        query_embedding = await self.embedding_provider.embed(query)
+        if not query_embedding:
+            return []
+        
+        # Calculate similarities
+        results = []
+        for artifact in artifacts:
+            # Get stored embedding
+            memory_dir = self._get_user_memory_dir()
+            file_path = memory_dir / f"{artifact.id}.json"
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                stored_embedding = data.get("embedding")
+                if stored_embedding:
+                    similarity = self._cosine_similarity(query_embedding, stored_embedding)
+                    if similarity >= threshold:
+                        artifact.relevance_score = similarity
+                        results.append(artifact)
+            except (json.JSONDecodeError, KeyError, ValueError):
+                continue
+        
+        return results
+    
+    def _text_search(self, query: str, artifacts: List[MemoryArtifact]) -> List[MemoryArtifact]:
+        """Perform text-based search."""
+        query_lower = query.lower()
+        query_words = query_lower.split()
+        
+        results = []
+        for artifact in artifacts:
+            relevance_score = self._calculate_relevance(artifact.content.lower(), query_words, artifact.tags)
+            if relevance_score > 0:
+                artifact.relevance_score = relevance_score
+                results.append(artifact)
+        
+        return results
+    
+    async def _hybrid_search(self, query: str, artifacts: List[MemoryArtifact], threshold: float) -> List[MemoryArtifact]:
+        """Perform hybrid search combining semantic and text."""
+        # Get both search results
+        semantic_results = await self._semantic_search(query, artifacts, threshold * 0.5)  # Lower threshold for semantic
+        text_results = self._text_search(query, artifacts)
+        
+        # Combine and deduplicate
+        combined = {}
+        
+        # Add semantic results with higher weight
+        for artifact in semantic_results:
+            combined[artifact.id] = artifact
+            artifact.relevance_score *= 1.2  # Boost semantic matches
+        
+        # Add text results
+        for artifact in text_results:
+            if artifact.id in combined:
+                # Combine scores
+                combined[artifact.id].relevance_score = (combined[artifact.id].relevance_score + artifact.relevance_score) / 2
+            else:
+                combined[artifact.id] = artifact
+        
+        return list(combined.values())
+    
+    def _cosine_similarity(self, a: List[float], b: List[float]) -> float:
+        """Calculate cosine similarity between two vectors."""
+        try:
+            a_np = np.array(a)
+            b_np = np.array(b)
+            
+            dot_product = np.dot(a_np, b_np)
+            norm_a = np.linalg.norm(a_np)
+            norm_b = np.linalg.norm(b_np)
+            
+            if norm_a == 0 or norm_b == 0:
+                return 0.0
+            
+            return dot_product / (norm_a * norm_b)
+        except Exception:
+            return 0.0

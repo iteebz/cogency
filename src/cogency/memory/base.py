@@ -13,6 +13,14 @@ class MemoryType(Enum):
     CONTEXT = "context"   # Working memory/history
 
 
+class SearchType(Enum):
+    """Search methods for memory recall."""
+    AUTO = "auto"         # Backend chooses best method
+    SEMANTIC = "semantic" # Vector similarity search
+    TEXT = "text"         # Keyword/regex matching
+    HYBRID = "hybrid"     # Combined semantic + text
+
+
 @dataclass
 class MemoryArtifact:
     """A memory artifact with content and metadata."""
@@ -46,6 +54,10 @@ class MemoryArtifact:
 class BaseMemory(ABC):
     """Abstract base class for memory backends."""
 
+    def __init__(self, embedding_provider=None):
+        """Initialize memory backend with optional embedding provider."""
+        self.embedding_provider = embedding_provider
+
     @abstractmethod
     async def memorize(
         self, 
@@ -62,13 +74,16 @@ class BaseMemory(ABC):
     async def recall(
         self, 
         query: str,
-        limit: Optional[int] = None,
+        search_type: SearchType = SearchType.AUTO,
+        limit: int = 10,
+        threshold: float = 0.7,
         tags: Optional[List[str]] = None,
         memory_type: Optional[MemoryType] = None,
+        metadata_filter: Optional[Dict[str, Any]] = None,
         since: Optional[str] = None,
         **kwargs
     ) -> List[MemoryArtifact]:
-        """Retrieve relevant content from memory."""
+        """Retrieve relevant content from memory using unified search interface."""
         pass
 
     async def forget(self, artifact_id: UUID) -> bool:

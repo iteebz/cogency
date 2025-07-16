@@ -6,7 +6,7 @@ from cogency.llm.mock import MockLLM
 from cogency.memory.filesystem import FSMemory
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.tools.recall import RecallTool
 
 @pytest.fixture
 def mock_llm():
@@ -36,7 +36,6 @@ def setup_tool_registry():
     # Clear existing tools to prevent interference between tests
     ToolRegistry.clear()
     # Register memory tool classes explicitly for testing auto-discovery
-    ToolRegistry.register(MemorizeTool)
     ToolRegistry.register(RecallTool)
     yield
     # Clean up after tests

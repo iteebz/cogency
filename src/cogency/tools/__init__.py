@@ -13,7 +13,7 @@ from cogency.tools.file_manager import FileManagerTool
 from cogency.tools.timezone import TimezoneTool
 from cogency.tools.weather import WeatherTool
 from cogency.tools.web_search import WebSearchTool
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.tools.recall import RecallTool
 
 # Export all tools for easy importing
 __all__ = [
@@ -23,6 +23,5 @@ __all__ = [
     "TimezoneTool",
     "WeatherTool",
     "WebSearchTool",
-    "MemorizeTool",
     "RecallTool",
 ]

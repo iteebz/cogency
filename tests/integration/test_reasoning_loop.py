@@ -9,7 +9,7 @@ from cogency import Agent
 from cogency.memory.filesystem import FSMemory
 from cogency.tools.calculator import CalculatorTool
 from cogency.tools.timezone import TimezoneTool
-from cogency.tools.memory import MemorizeTool
+from cogency.tools.recall import RecallTool
 
 
 class TestReasoningLoopIntegration:

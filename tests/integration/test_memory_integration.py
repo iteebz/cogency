@@ -1,7 +1,7 @@
 """Unit tests for smart memory functionality."""
 import pytest
 from cogency.memory.filesystem import FSMemory
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.tools.recall import RecallTool
 
 
 @pytest.fixture

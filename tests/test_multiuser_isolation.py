@@ -8,7 +8,7 @@ from cogency.memory.filesystem import FSMemory
 from cogency.memory.base import MemoryType
 from cogency.context import Context
 from cogency.agent import Agent
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.tools.recall import RecallTool
 
 
 class TestMultiUserIsolation:
