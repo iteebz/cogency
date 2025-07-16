@@ -3,13 +3,19 @@ from typing import List, Optional, Dict, Any
 from cogency.context import Context
 from cogency.llm import BaseLLM, auto_detect_llm
 from cogency.memory.filesystem import FSMemory
+from cogency.memory.base import BaseMemory
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
-from cogency.types import AgentState, OutputMode, ExecutionTrace
+from cogency.common.types import AgentState, OutputMode, ExecutionTrace
 from cogency.workflow import Workflow
 from cogency.core.tracer import Tracer
 from cogency.core.metrics import with_metrics, counter, histogram, get_metrics
 from cogency.core.resilience import RateLimitedError, CircuitOpenError
+try:
+    from cogency.core.mcp_server import CogencyMCPServer
+    MCP_AVAILABLE = True
+except ImportError:
+    MCP_AVAILABLE = False
 # from cogency.core.monitoring import get_monitor  # Temporarily disabled for faster startup
 
 
@@ -29,13 +35,15 @@ class Agent:
         llm: Optional[BaseLLM] = None,
         tools: Optional[List[BaseTool]] = None,
         trace: bool = True,
+        memory: Optional[BaseMemory] = None,  # New parameter
         memory_dir: str = ".memory",
         response_shaper: Optional[Dict[str, Any]] = None,
         default_output_mode: OutputMode = "summary",
+        enable_mcp: bool = False,
     ):
         self.name = name
         self.llm = llm if llm is not None else auto_detect_llm()
-        self.memory = FSMemory(memory_dir)
+        self.memory = memory if memory is not None else FSMemory(memory_dir) # Use provided memory or create new FSMemory
         self.default_output_mode = default_output_mode
         
         # Auto-discover tools including memory tools
@@ -45,6 +53,12 @@ class Agent:
         self.trace = trace
         self.workflow_builder = Workflow(self.llm, self.tools, self.memory, response_shaper=response_shaper)
         self.workflow = self.workflow_builder.workflow
+        
+        # Initialize MCP server if enabled
+        if enable_mcp and not MCP_AVAILABLE:
+            raise ImportError("MCP is required for enable_mcp=True but mcp package is not installed")
+        self.mcp_server = CogencyMCPServer(self) if enable_mcp else None
+        
         # self.monitor = get_monitor()  # Temporarily disabled for faster startup
     
     @with_metrics("agent.stream", tags={"agent": "stream"})
@@ -194,4 +208,21 @@ class Agent:
         complexity_score += min(0.1, query.count(' and ') * 0.05)
         
         return max(0.1, min(1.0, complexity_score))
+    
+    async def process_input(self, input_text: str, context: Optional[Context] = None) -> str:
+        """Process input text and return response - used by MCP server"""
+        return await self.run(input_text, context)
+    
+    async def start_mcp_server(self, transport: str = "stdio", host: str = "localhost", port: int = 8765):
+        """Start MCP server for agent communication"""
+        if not self.mcp_server:
+            raise ValueError("MCP server not enabled. Set enable_mcp=True in Agent constructor")
+        
+        if transport == "stdio":
+            async with self.mcp_server.serve_stdio():
+                pass
+        elif transport == "websocket":
+            await self.mcp_server.serve_websocket(host, port)
+        else:
+            raise ValueError(f"Unsupported transport: {transport}")
     

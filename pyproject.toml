@@ -24,7 +24,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.9,<4.0"
+requires-python = ">=3.10,<4.0"
 dependencies = [
     "pydantic>=2.0",
     "typing-extensions>=4.0",
@@ -38,7 +38,8 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "nomic>=1.0.0",
     "aiohttp (>=3.12.14,<4.0.0)",
-    "psutil>=5.9.0"
+    "psutil>=5.9.0",
+    "mcp>=1.0.0"
 ]
 
 [tool.poetry.group.dev.dependencies]
