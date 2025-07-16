@@ -2,7 +2,7 @@
 """Tests for query complexity estimation."""
 
 import asyncio
-from cogency.nodes.reason import _estimate_query_complexity
+from cogency.nodes.react_loop import _complexity_score
 
 
 class TestQueryComplexityEstimation:
@@ -18,7 +18,7 @@ class TestQueryComplexityEstimation:
         ]
         
         for query in simple_queries:
-            complexity = _estimate_query_complexity(query, 5)
+            complexity = _complexity_score(query, 5)
             assert 0.1 <= complexity <= 0.5, f"Simple query '{query}' should have low complexity, got {complexity}"
     
     def test_complex_query_complexity(self):
@@ -30,15 +30,15 @@ class TestQueryComplexityEstimation:
         ]
         
         for query in complex_queries:
-            complexity = _estimate_query_complexity(query, 10)
+            complexity = _complexity_score(query, 10)
             assert 0.5 <= complexity <= 1.0, f"Complex query '{query}' should have high complexity, got {complexity}"
     
     def test_tool_count_influence(self):
         """Test that tool count influences complexity estimation."""
         query = "Analyze the system performance"
         
-        low_tool_complexity = _estimate_query_complexity(query, 2)
-        high_tool_complexity = _estimate_query_complexity(query, 20)
+        low_tool_complexity = _complexity_score(query, 2)
+        high_tool_complexity = _complexity_score(query, 20)
         
         assert high_tool_complexity > low_tool_complexity, "More tools should increase complexity"
     
@@ -51,7 +51,7 @@ class TestQueryComplexityEstimation:
         ]
         
         for query, tool_count in test_cases:
-            complexity = _estimate_query_complexity(query, tool_count)
+            complexity = _complexity_score(query, tool_count)
             assert 0.1 <= complexity <= 1.0, f"Complexity {complexity} should be bounded for query length {len(query)}"
 
 

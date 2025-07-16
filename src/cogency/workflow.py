@@ -3,7 +3,7 @@ from functools import partial
 from typing import Dict, List, Callable, Optional
 
 from langgraph.graph import StateGraph, END
-from cogency.nodes.reason import reason
+from cogency.nodes.react_loop import react_loop_node
 from cogency.nodes.memory import memorize
 from cogency.nodes.select_tools import select_tools
 from cogency.types import AgentState, OutputMode
@@ -16,13 +16,13 @@ DEFAULT_ROUTING_TABLE = {
     "entry_point": NodeName.MEMORIZE.value,
     "edges": {
         NodeName.MEMORIZE.value: {"type": "direct", "destination": NodeName.SELECT_TOOLS.value},
-        NodeName.SELECT_TOOLS.value: {"type": "direct", "destination": NodeName.REASON.value},
-        NodeName.REASON.value: {"type": "end"}
+        NodeName.SELECT_TOOLS.value: {"type": "direct", "destination": NodeName.REACT_LOOP.value},
+        NodeName.REACT_LOOP.value: {"type": "end"}
     }
 }
 
 
-class ReAct:
+class Workflow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
     def __init__(self, llm, tools, memory: BaseMemory, routing_table: Optional[Dict] = None, prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None):
@@ -42,7 +42,7 @@ class ReAct:
         node_functions = {
             NodeName.MEMORIZE.value: partial(memorize, memory=self.memory),
             NodeName.SELECT_TOOLS.value: partial(select_tools, llm=self.llm, tools=self.tools),
-            NodeName.REASON.value: partial(reason, llm=self.llm, tools=self.tools, prompt_fragments=self.prompt_fragments.get("reason", {}))
+            NodeName.REACT_LOOP.value: partial(react_loop_node, llm=self.llm, tools=self.tools, prompt_fragments=self.prompt_fragments.get("react_loop", {}))
         }
         
         # Add nodes to workflow

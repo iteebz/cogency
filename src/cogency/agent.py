@@ -6,10 +6,9 @@ from cogency.memory.filesystem import FSMemory
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
 from cogency.types import AgentState, OutputMode, ExecutionTrace
-from cogency.react import ReAct
-from cogency.tracer import Tracer
-from cogency.streaming import StreamingExecutor
-# from cogency.monitoring import get_monitor  # Temporarily disabled for faster startup
+from cogency.workflow import Workflow
+from cogency.core.tracer import Tracer
+# from cogency.core.monitoring import get_monitor  # Temporarily disabled for faster startup
 
 
 class Agent:
@@ -42,65 +41,53 @@ class Agent:
         self.tools = (tools if tools is not None else []) + discovered_tools
         
         self.trace = trace
-        self.react = ReAct(self.llm, self.tools, self.memory, prompt_fragments=prompt_fragments)
-        self.workflow = self.react.workflow
+        self.workflow_builder = Workflow(self.llm, self.tools, self.memory, prompt_fragments=prompt_fragments)
+        self.workflow = self.workflow_builder.workflow
         # self.monitor = get_monitor()  # Temporarily disabled for faster startup
     
-    async def run(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
-        """Run agent with clean mode control."""
+    async def stream(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None):
+        """Stream agent execution with native LangGraph streaming."""
+        state = self._init_state(query, context)
         
-        # async with self.monitor.monitor_operation("agent_run", tags={"query_length": str(len(query))}):  # Temporarily disabled
-        if True:  # Temporary replacement for monitoring context
-            # Initialize state
-            if context is None:
-                context = Context(current_input=query)
-            else:
-                context.current_input = query
-            
+        # Use native LangGraph streaming
+        async for event in self.workflow.astream(state):
+            if event and "react_loop" in event:
+                # Extract reasoning content from node output
+                reasoning_output = event["react_loop"].get("last_node_output")
+                if reasoning_output:
+                    yield reasoning_output
+    
+    async def run(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
+        """Run agent - wrapper around streaming for final response."""
+        response_chunks = []
+        async for chunk in self.stream(query, context, mode):
+            response_chunks.append(chunk)
+        
+        final_response = "".join(response_chunks) if response_chunks else "No response generated"
+        
+        # Output based on mode
+        output_mode = mode or self.default_output_mode
+        if self.trace:
+            # Create minimal trace for output
             trace = ExecutionTrace()
-            state: AgentState = {
-                "query": query,
-                "trace": trace,
-                "context": context,
-            }
-            
-            # Track query complexity
-            complexity_score = self._estimate_query_complexity(query)
-            # self.monitor.metrics.gauge("query_complexity", complexity_score)  # Temporarily disabled
-            
-            # Execute workflow with custom streaming wrapper
-            streaming_executor = StreamingExecutor()
-            final_state = None
-            
-            # Use streaming execution that hooks into trace.add()
-            async for event in streaming_executor.astream_execute(self.workflow, state):
-                # Process streaming events for real-time updates
-                if event.event_type == "trace_update":
-                    # Could emit to external consumers here
-                    pass
-                elif event.event_type == "final_state":
-                    final_state = event.data["state"]
-                    break
-            
-            # Fallback to direct invoke if streaming didn't complete
-            if final_state is None:
-                final_state = await self.workflow.ainvoke(state)
-            
-            # Extract response from final state
-            if final_state:
-                final_response = self._extract_response(final_state)
-                # self.monitor.metrics.gauge("response_length", len(final_response))  # Temporarily disabled
-            else:
-                final_response = "No response generated"
-                # self.monitor.metrics.counter("no_response_failures")  # Temporarily disabled
-            
-            # Output based on mode
-            output_mode = mode or self.default_output_mode
-            if self.trace:
-                tracer = Tracer(trace)
-                tracer.output(output_mode)
-            
-            return final_response
+            tracer = Tracer(trace)
+            tracer.output(output_mode)
+        
+        return final_response
+    
+    def _init_state(self, query: str, context: Optional[Context] = None) -> AgentState:
+        """Initialize agent state."""
+        if context is None:
+            context = Context(current_input=query)
+        else:
+            context.current_input = query
+        
+        trace = ExecutionTrace()
+        return {
+            "query": query,
+            "trace": trace,
+            "context": context,
+        }
     
     def _extract_response(self, result) -> str:
         """Extract final response from agent state."""

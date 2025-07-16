@@ -3,7 +3,7 @@
 
 import asyncio
 from unittest.mock import MagicMock, AsyncMock
-from cogency.nodes.reason import reason, _estimate_query_complexity
+from cogency.nodes.react_loop import react_loop_node, _complexity_score
 from cogency.utils.adaptive_reasoning import StoppingCriteria
 from cogency.context import Context
 from cogency.types import ExecutionTrace
@@ -53,7 +53,7 @@ async def test_adaptive_reasoning_integration():
         "selected_tools": []
     }
     
-    result = await reason(state, llm)
+    result = await react_loop_node(state, llm)
     
     assert result["reasoning_decision"].should_respond == True
     assert result["reasoning_decision"].task_complete == True
@@ -63,8 +63,8 @@ async def test_adaptive_reasoning_integration():
     # Test 2: Query complexity estimation
     print("  Testing query complexity estimation...")
     
-    simple_complexity = _estimate_query_complexity("What is Python?", 5)
-    complex_complexity = _estimate_query_complexity(
+    simple_complexity = _complexity_score("What is Python?", 5)
+    complex_complexity = _complexity_score(
         "Analyze and compare the performance implications of different machine learning frameworks", 
         15
     )
@@ -92,7 +92,7 @@ async def test_adaptive_reasoning_integration():
         "selected_tools": [mock_tool]
     }
     
-    result = await reason(state, llm)
+    result = await react_loop_node(state, llm)
     
     assert result["reasoning_decision"].should_respond == True
     assert result["reasoning_decision"].task_complete == True
@@ -102,7 +102,7 @@ async def test_adaptive_reasoning_integration():
     # Test 4: Trace logging verification
     print("  Testing trace logging...")
     
-    trace_entries = [entry for entry in trace.entries if entry["node"] == "reason"]
+    trace_entries = [entry for entry in trace.entries if entry["node"] == "react_loop"]
     assert len(trace_entries) > 0
     
     # Should have adaptive reasoning traces
