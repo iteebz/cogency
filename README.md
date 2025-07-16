@@ -20,7 +20,7 @@ async def main():
     # That's it. Auto-detects LLM from .env
     agent = Agent("assistant")
     
-    # Beautiful streaming ReAct reasoning (NEW in 0.4.0!)
+    # Beautiful streaming ReAct reasoning (NEW in 0.4.1!)
     await agent.run_streaming("What is 25 * 43?")
     # Shows: 🧠 REASON → ⚡ ACT → 👀 OBSERVE → 💬 RESPOND
 

@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "cogency"
-version = "0.4.0"
+version = "0.4.1"
 description = "Agentic AI out of the box"
 authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
 readme = "README.md"
