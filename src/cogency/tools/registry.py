@@ -21,11 +21,15 @@ class ToolRegistry:
         tools = []
         for tool_class in cls._tools:
             try:
-                # Attempt to instantiate tool with provided kwargs
-                tools.append(tool_class(**kwargs))
+                # First try without kwargs (most tools don't need them)
+                tools.append(tool_class())
             except TypeError:
-                # Skip tools that can't be instantiated with current kwargs
-                continue
+                try:
+                    # Then try with kwargs (memory tools need them)
+                    tools.append(tool_class(**kwargs))
+                except TypeError:
+                    # Skip tools that can't be instantiated
+                    continue
         return tools
     
     @classmethod

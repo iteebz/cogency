@@ -5,10 +5,12 @@ from typing import Any, Dict, List
 import httpx
 
 from .base import BaseTool
+from .registry import tool
 
 logger = logging.getLogger(__name__)
 
 
+@tool
 class WeatherTool(BaseTool):
     """Get current weather for any city using wttr.in (no API key required)."""
 

@@ -2,8 +2,10 @@ import math
 from typing import Any, Dict, List
 
 from cogency.tools.base import BaseTool
+from cogency.tools.registry import tool
 
 
+@tool
 class CalculatorTool(BaseTool):
     def __init__(self):
         super().__init__(
@@ -45,7 +47,9 @@ class CalculatorTool(BaseTool):
 
     def get_schema(self) -> str:
         return (
-            "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float)"
+            "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float) - "
+            "Examples: calculator(operation='multiply', x1=180, x2=3) for 180*3, "
+            "calculator(operation='add', x1=1200, x2=540) for 1200+540"
         )
 
     def get_usage_examples(self) -> List[str]:

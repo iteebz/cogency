@@ -30,10 +30,10 @@ async def main():
     print(f"🤖 Scenario: {scenario}")
     print()
     
-    result = await agent.run(scenario, mode="trace")
-
-    print("\n🧠 MULTI-STEP SOLUTION:")
-    print(result)
+    # Show beautiful multi-step ReAct reasoning
+    print("🔄 Multi-Step ReAct Reasoning:")
+    async for chunk in agent.stream(scenario, mode="summary"):
+        print(chunk, end="", flush=True)
     
     print("\n" + "=" * 50)
     print("✅ Advanced chaining demo complete!")

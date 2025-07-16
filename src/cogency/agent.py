@@ -49,20 +49,38 @@ class Agent:
     
     @with_metrics("agent.stream", tags={"agent": "stream"})
     async def stream(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None):
-        """Stream agent execution with native LangGraph streaming."""
+        """Stream agent execution with real-time phase updates."""
         counter("agent.stream.requests")
         histogram("agent.stream.query_length", len(query))
         
         state = self._init_state(query, context)
         
+        # Create streaming buffer for real-time updates
+        streaming_buffer = []
+        
+        async def streaming_callback(update: str):
+            """Callback to capture streaming updates in real-time."""
+            streaming_buffer.append(update)
+        
+        # Configure streaming callback - store in configurable field
+        config = {"configurable": {"streaming_callback": streaming_callback}}
+        
         try:
-            # Use native LangGraph streaming
-            async for event in self.workflow.astream(state):
+            # Run workflow with streaming callback
+            async for event in self.workflow.astream(state, config=config):
+                # Yield any buffered streaming updates
+                while streaming_buffer:
+                    yield streaming_buffer.pop(0)
+                
                 if event and "react_loop" in event:
-                    # Extract reasoning content from node output
+                    # Extract final reasoning content
                     reasoning_output = event["react_loop"].get("last_node_output")
                     if reasoning_output:
-                        yield reasoning_output
+                        yield f"\n📝 {reasoning_output}"
+            
+            # Yield any remaining buffered updates
+            while streaming_buffer:
+                yield streaming_buffer.pop(0)
             
             counter("agent.stream.success")
             
@@ -83,11 +101,14 @@ class Agent:
         histogram("agent.run.query_length", len(query))
         
         try:
-            response_chunks = []
+            final_response_chunks = []
             async for chunk in self.stream(query, context, mode):
-                response_chunks.append(chunk)
+                # Only collect final response chunks, not streaming updates
+                if "📝 " in chunk:
+                    # Extract content after the 📝 prefix
+                    final_response_chunks.append(chunk.split("📝 ", 1)[1])
             
-            final_response = "".join(response_chunks) if response_chunks else "No response generated"
+            final_response = "".join(final_response_chunks) if final_response_chunks else "No response generated"
             histogram("agent.run.response_length", len(final_response))
             
             # Output based on mode

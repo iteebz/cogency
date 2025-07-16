@@ -1,6 +1,7 @@
 """Production resilience: Rate limiting, circuit breakers, retries."""
 
 import asyncio
+import os
 import time
 import logging
 from typing import Dict, Any, Callable, Optional, Awaitable
@@ -26,11 +27,11 @@ class CircuitBreakerConfig:
 
 @dataclass
 class RateLimiterConfig:
-    requests_per_minute: int = 50
-    burst_size: int = 10
-    backoff_multiplier: float = 2.0
-    max_backoff: float = 300.0
-    jitter: bool = True
+    requests_per_minute: int = int(os.getenv("COGENCY_RATE_LIMIT_RPM", "300"))
+    burst_size: int = int(os.getenv("COGENCY_RATE_LIMIT_BURST", "50"))
+    backoff_multiplier: float = float(os.getenv("COGENCY_RATE_LIMIT_BACKOFF", "2.0"))
+    max_backoff: float = float(os.getenv("COGENCY_RATE_LIMIT_MAX_BACKOFF", "60.0"))
+    jitter: bool = os.getenv("COGENCY_RATE_LIMIT_JITTER", "true").lower() == "true"
 
 
 @dataclass

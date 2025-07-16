@@ -21,25 +21,86 @@ Based on what you know so far, decide:
 1. Do you have enough information to provide a complete answer? 
 2. Or do you need to gather more information using tools?
 
-Response format:
-- If you can answer completely: DIRECT_RESPONSE: [your complete answer]
-- If you need more info: TOOL_NEEDED: tool_name(args) or [tool1(args), tool2(args)]
+Response format (JSON only):
+- If you can answer completely: {{"action": "respond", "answer": "your complete answer"}}
+- If you need one tool: {{"action": "use_tool", "tool_call": {{"name": "tool_name", "args": {{"param": "value"}}}}}}
+- If you need multiple tools: {{"action": "use_tools", "tool_call": {{"calls": [{{"name": "tool1", "args": {{"param": "value"}}}}, {{"name": "tool2", "args": {{"param": "value"}}}}]}}}}
 
-Think step by step about what information you have and what you still need."""
+Think step by step about what information you have and what you still need. Output only valid JSON."""
 
 RESPONSE_PROMPT = """Generate final response based on context and tool results.
 Be conversational and helpful. Incorporate all relevant information."""
 
 
 def _can_answer_directly(response: str) -> bool:
-    return response.strip().startswith("DIRECT_RESPONSE:")
+    """Check if LLM response indicates it can answer directly."""
+    try:
+        import json
+        import re
+        
+        # Handle markdown code blocks
+        response_cleaned = response.strip()
+        if response_cleaned.startswith("```json"):
+            json_match = re.search(r'```json\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
+            if json_match:
+                response_cleaned = json_match.group(1).strip()
+        elif response_cleaned.startswith("```"):
+            json_match = re.search(r'```\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
+            if json_match:
+                response_cleaned = json_match.group(1).strip()
+        
+        data = json.loads(response_cleaned)
+        return data.get("action") == "respond"
+    except (json.JSONDecodeError, KeyError):
+        return False
 
 def _extract_direct_response(response: str) -> str:
-    return response.replace("DIRECT_RESPONSE:", "").strip()
+    """Extract direct answer from LLM response."""
+    try:
+        import json
+        import re
+        
+        # Handle markdown code blocks
+        response_cleaned = response.strip()
+        if response_cleaned.startswith("```json"):
+            json_match = re.search(r'```json\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
+            if json_match:
+                response_cleaned = json_match.group(1).strip()
+        elif response_cleaned.startswith("```"):
+            json_match = re.search(r'```\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
+            if json_match:
+                response_cleaned = json_match.group(1).strip()
+        
+        data = json.loads(response_cleaned)
+        return data.get("answer", "")
+    except (json.JSONDecodeError, KeyError):
+        return ""
 
 def _extract_tool_calls(response: str) -> Optional[str]:
-    if "TOOL_NEEDED:" in response:
-        return response.split("TOOL_NEEDED:", 1)[1].strip()
+    """Extract tool calls from LLM response for parsing."""
+    try:
+        import json
+        import re
+        
+        # Handle markdown code blocks
+        response_cleaned = response.strip()
+        if response_cleaned.startswith("```json"):
+            # Extract JSON from markdown code block
+            json_match = re.search(r'```json\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
+            if json_match:
+                response_cleaned = json_match.group(1).strip()
+        elif response_cleaned.startswith("```"):
+            # Extract from generic code block
+            json_match = re.search(r'```\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
+            if json_match:
+                response_cleaned = json_match.group(1).strip()
+        
+        data = json.loads(response_cleaned)
+        if data.get("action") in ["use_tool", "use_tools"]:
+            # Return the cleaned JSON for parsing by parse_tool_call
+            return response_cleaned
+    except (json.JSONDecodeError, KeyError):
+        pass
     return None
 
 def _complexity_score(user_input: str, tool_count: int) -> float:
@@ -52,10 +113,15 @@ def _complexity_score(user_input: str, tool_count: int) -> float:
 
 @trace_node("react_loop")
 async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, 
-                         prompt_fragments: Optional[Dict[str, str]] = None) -> AgentState:
+                         prompt_fragments: Optional[Dict[str, str]] = None, config: Optional[Dict] = None) -> AgentState:
     """ReAct Loop Node: Full multi-turn reason → act → observe cycle until task complete."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
+    
+    # Get streaming callback from config
+    streaming_callback = None
+    if config and "configurable" in config:
+        streaming_callback = config["configurable"].get("streaming_callback")
     
     # Initialize adaptive control with complexity-based criteria
     complexity = _complexity_score(context.current_input, len(selected_tools))
@@ -65,14 +131,103 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
     controller = AdaptiveReasoningController(criteria)
     controller.start_reasoning()
     
-    # Run multi-turn ReAct loop
-    final_response = await react_loop(state, llm, selected_tools, controller)
+    # Run multi-turn ReAct loop with streaming support
+    final_response = await react_loop_with_streaming(state, llm, selected_tools, controller, streaming_callback)
     
     return {
         "context": final_response["context"],
         "reasoning_decision": final_response["decision"],
         "last_node_output": final_response["text"]
     }
+
+
+async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
+                                   controller: AdaptiveReasoningController, 
+                                   streaming_callback=None) -> Dict[str, Any]:
+    """Streaming version of ReAct loop with polished real-time updates."""
+    iteration = 0
+    
+    while True:
+        should_continue, stopping_reason = controller.should_continue_reasoning()
+        if not should_continue:
+            if streaming_callback:
+                await streaming_callback(f"\n💬 RESPOND: Sufficient information gathered, preparing final response...\n")
+            return await _fallback_response(state, llm, stopping_reason)
+            
+        iteration += 1
+        
+        # Clean visual separation between cycles
+        if iteration > 1 and streaming_callback:
+            await streaming_callback(f"\n")
+        
+        # Stream reasoning phase
+        if streaming_callback:
+            await streaming_callback(f"🧠 REASON: Analyzing available information and deciding next action...\n")
+        
+        # REASON: What should I do next?
+        reasoning = await reason_phase(state, llm, tools)
+        
+        # If agent decides it can answer directly (after considering all context)
+        if reasoning["can_answer_directly"]:
+            if streaming_callback:
+                await streaming_callback(f"💬 RESPOND: Have sufficient information to provide complete answer\n")
+            return {
+                "context": state["context"],
+                "text": reasoning["direct_response"],
+                "decision": ReasoningDecision(should_respond=True, response_text=reasoning["direct_response"], task_complete=True)
+            }
+        
+        # Check if we have tool calls to execute
+        if not reasoning["tool_calls"]:
+            if streaming_callback:
+                await streaming_callback(f"💬 RESPOND: No additional tools needed, responding with current knowledge\n")
+            return {
+                "context": state["context"], 
+                "text": reasoning["response"],
+                "decision": ReasoningDecision(should_respond=True, response_text=reasoning["response"], task_complete=True)
+            }
+        
+        # Extract tool names for better streaming messages
+        tool_call_str = reasoning["tool_calls"]
+        tool_call = parse_tool_call(tool_call_str)
+        
+        # Stream action phase with specific tool names
+        if streaming_callback:
+            if isinstance(tool_call, MultiToolCall):
+                tool_names = [call.name for call in tool_call.calls]
+                if len(tool_names) == 1:
+                    await streaming_callback(f"⚡ ACT: Calling {tool_names[0]} tool to gather needed information...\n")
+                else:
+                    tools_str = ", ".join(tool_names)
+                    await streaming_callback(f"⚡ ACT: Calling {tools_str} tools to gather needed information...\n")
+            elif isinstance(tool_call, ToolCall):
+                await streaming_callback(f"⚡ ACT: Calling {tool_call.name} tool to gather needed information...\n")
+            else:
+                await streaming_callback(f"⚡ ACT: Executing tools to gather needed information...\n")
+        
+        # ACT: Execute the planned action
+        action = await act_phase(reasoning, state, tools)
+        
+        # Stream observation phase with detailed messages
+        if streaming_callback:
+            if action.get("results", {}).get("success"):
+                results = action.get("results", {}).get("results", [])
+                if isinstance(tool_call, MultiToolCall):
+                    tool_names = [call.name for call in tool_call.calls]
+                    tools_str = ", ".join(tool_names)
+                    await streaming_callback(f"👀 OBSERVE: Successfully gathered data from {tools_str} tools\n")
+                elif isinstance(tool_call, ToolCall):
+                    await streaming_callback(f"👀 OBSERVE: Successfully gathered data from {tool_call.name} tool\n")
+                else:
+                    await streaming_callback(f"👀 OBSERVE: Successfully gathered data from tools\n")
+            else:
+                await streaming_callback(f"❌ OBSERVE: Tool execution failed, will retry or use available information\n")
+        
+        # Update controller metrics
+        controller.update_iteration_metrics(action.get("results", {}), action.get("time", 0))
+    
+    # Should never reach here due to controller limits
+    return await _fallback_response(state, llm, "max_iterations")
 
 
 async def react_loop(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
@@ -95,6 +250,14 @@ async def react_loop(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
                 "decision": ReasoningDecision(should_respond=True, response_text=reasoning["direct_response"], task_complete=True)
             }
         
+        # Check if we have tool calls to execute
+        if not reasoning["tool_calls"]:
+            return {
+                "context": state["context"], 
+                "text": reasoning["response"],
+                "decision": ReasoningDecision(should_respond=True, response_text=reasoning["response"], task_complete=True)
+            }
+        
         # ACT: Execute the planned action
         action = await act_phase(reasoning, state, tools)
         
@@ -113,7 +276,7 @@ async def reason_phase(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -
     """ReAct Reason: Think about what to do next."""
     context = state["context"]
     
-    tool_info = ", ".join([f"{t.name} ({t.description})" for t in tools]) if tools else "no tools"
+    tool_info = ", ".join([f"{t.name}: {t.get_schema()}" for t in tools]) if tools else "no tools"
     
     messages = list(context.messages)
     messages.append({"role": "user", "content": context.current_input})
@@ -144,11 +307,10 @@ async def act_phase(reasoning: Dict[str, Any], state: AgentState, tools: List[Ba
     
     context = state["context"]
     
-    # Validate and parse tool calls
-    if tools:
-        validated_response = validate_tools(tool_call_str, tools)
-        if validated_response != tool_call_str:
-            tool_call_str = validated_response
+    # Skip validation for now since it's designed for old format
+    # validated_response = validate_tools(tool_call_str, tools)
+    # if validated_response != tool_call_str:
+    #     tool_call_str = validated_response
     
     tool_call = parse_tool_call(tool_call_str)
     execution_results = {}
@@ -209,20 +371,22 @@ async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason) -
     """Generate fallback response when reasoning loop ends."""
     context = state["context"]
     
-    fallback_text = "I've completed my reasoning process. Here's my response based on the analysis."
+    # Generate a proper summary based on tool results in context
+    summary_prompt = f"""Based on all the tool results and analysis in the conversation, provide a comprehensive answer to the user's original question. 
+
+    Stopping reason: {stopping_reason}
     
-    # Use last assistant message if available
+    Synthesize all the information gathered from tool executions into a clear, helpful response that directly addresses what the user asked for."""
+    
     final_messages = list(context.messages)
-    if final_messages:
-        last_response = next((msg["content"] for msg in reversed(final_messages) if msg["role"] == "assistant"), fallback_text)
-        return {
-            "context": context,
-            "text": last_response,
-            "decision": ReasoningDecision(should_respond=True, response_text=last_response, task_complete=True)
-        }
+    final_messages.append({"role": "user", "content": summary_prompt})
+    final_messages.insert(0, {"role": "system", "content": "Provide a clear, comprehensive summary based on all the tool results and reasoning shown in the conversation."})
+    
+    final_response = await llm.invoke(final_messages)
+    context.add_message("assistant", final_response)
     
     return {
         "context": context,
-        "text": fallback_text,
-        "decision": ReasoningDecision(should_respond=True, response_text=fallback_text, task_complete=True)
+        "text": final_response,
+        "decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True)
     }

@@ -20,7 +20,20 @@ def parse_tool_call(llm_response_content: str) -> Optional[Union[ToolCall, Multi
     """
     plan_data = parse_plan(llm_response_content)
     if plan_data and "tool_call" in plan_data:
-        return plan_data["tool_call"]
+        tool_call_data = plan_data["tool_call"]
+        
+        # Convert dict back to proper ToolCall/MultiToolCall objects
+        if isinstance(tool_call_data, dict):
+            if "calls" in tool_call_data:
+                # MultiToolCall
+                calls = [ToolCall(**call_data) for call_data in tool_call_data["calls"]]
+                return MultiToolCall(calls=calls)
+            else:
+                # Single ToolCall
+                return ToolCall(**tool_call_data)
+        
+        # Already a proper object (shouldn't happen with current parsing)
+        return tool_call_data
     return None
 
 

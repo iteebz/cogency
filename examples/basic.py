@@ -17,8 +17,12 @@ async def main():
     print(f"🤖 Query: \"{query}\"")
     print()
     
-    result = await agent.run(query, mode=mode)
-    print(f"\n📝 Final response: {result}")
+    # Show beautiful streaming by default
+    print("🔄 ReAct Reasoning:")
+    async for chunk in agent.stream(query, mode=mode):
+        print(chunk, end="", flush=True)
+    
+    print("\n✅ Complete!")
 
 if __name__ == "__main__":
     asyncio.run(main())

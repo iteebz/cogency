@@ -6,10 +6,12 @@ from typing import Any, Dict, List
 import pytz
 
 from .base import BaseTool
+from .registry import tool
 
 logger = logging.getLogger(__name__)
 
 
+@tool
 class TimezoneTool(BaseTool):
     """Get current time for any timezone/city using pytz - reliable local computation."""
 
