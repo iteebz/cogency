@@ -20,9 +20,9 @@ def filter_artifacts(
         if artifact_type != memory_type:
             return False
     
-    # Tag filtering
+    # Tag filtering (AND logic - artifact must have ALL specified tags)
     if tags:
-        tag_filter_match = any(tag in data["tags"] for tag in tags)
+        tag_filter_match = all(tag in data["tags"] for tag in tags)
         if not tag_filter_match:
             return False
     

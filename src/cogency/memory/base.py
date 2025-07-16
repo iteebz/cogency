@@ -21,6 +21,7 @@ class SearchType(Enum):
     SEMANTIC = "semantic" # Vector similarity search
     TEXT = "text"         # Keyword/regex matching
     HYBRID = "hybrid"     # Combined semantic + text
+    TAGS = "tags"         # Tag-only search (query ignored)
 
 
 @dataclass
@@ -96,16 +97,62 @@ class BaseMemory(ABC):
         """Clear all artifacts from memory."""
         raise NotImplementedError("clear() not implemented for this memory backend")
     
+    async def recall_by_tags(self, tags: List[str], limit: int = 10, **kwargs) -> List[MemoryArtifact]:
+        """Convenience method for tag-only search."""
+        return await self.recall(
+            query="",  # Ignored for tag search
+            search_type=SearchType.TAGS,
+            tags=tags,
+            limit=limit,
+            **kwargs
+        )
+    
+    async def recall_smart(self, query: str, tags: Optional[List[str]] = None, **kwargs) -> List[MemoryArtifact]:
+        """Smart recall that combines query + tag filtering automatically."""
+        if not query and tags:
+            # Tag-only search
+            return await self.recall_by_tags(tags, **kwargs)
+        elif query and tags:
+            # Hybrid search with tag filtering
+            return await self.recall(
+                query=query,
+                search_type=SearchType.HYBRID,
+                tags=tags,
+                **kwargs
+            )
+        else:
+            # Regular auto search
+            return await self.recall(query=query, **kwargs)
+    
+    async def get_all_tags(self) -> List[str]:
+        """Get all unique tags in the memory store."""
+        all_artifacts = await self.recall("", limit=1000)
+        all_tags = set()
+        for artifact in all_artifacts:
+            all_tags.update(artifact.tags)
+        return sorted(list(all_tags))
+
     async def inspect(self) -> Dict[str, Any]:
         """Dev tooling - inspect memory state."""
         all_artifacts = await self.recall("", limit=1000)
         recent = all_artifacts[:3]
         
+        # Tag statistics
+        all_tags = set()
+        tag_counts = {}
+        for artifact in all_artifacts:
+            for tag in artifact.tags:
+                all_tags.add(tag)
+                tag_counts[tag] = tag_counts.get(tag, 0) + 1
+        
         base_stats = {
             "count": len(all_artifacts),
+            "unique_tags": len(all_tags),
+            "top_tags": sorted(tag_counts.items(), key=lambda x: x[1], reverse=True)[:10],
             "recent": [{
                 "content": a.content[:50] + "..." if len(a.content) > 50 else a.content,
                 "tags": a.tags,
+                "memory_type": a.memory_type.value,
                 "created": a.created_at.strftime("%Y-%m-%d %H:%M:%S")
             } for a in recent]
         }

@@ -1,7 +1,7 @@
 """Memory preparation utilities."""
-from typing import Optional
+from typing import Optional, List
 
-from cogency.memory.base import BaseMemory
+from cogency.memory.base import BaseMemory, MemoryType
 
 
 def should_extract_memory(query: str) -> bool:
@@ -14,8 +14,27 @@ def should_extract_memory(query: str) -> bool:
     return any(indicator in query.lower() for indicator in extract_indicators)
 
 
-async def save_extracted_memory(memory_summary: Optional[str], memory: BaseMemory, user_id: str) -> None:
-    """Save memory summary only if not null or empty."""
-    # TODO: Could make save_memory semantic update in the future
+async def save_extracted_memory(
+    memory_summary: Optional[str], 
+    memory: BaseMemory, 
+    user_id: str,
+    tags: Optional[List[str]] = None,
+    memory_type: str = "fact"
+) -> None:
+    """Save memory summary with LLM-generated tags and memory type."""
     if memory_summary and memory_summary.strip() and hasattr(memory, 'memorize'):
-        await memory.memorize(memory_summary, tags=["insight"], user_id=user_id)
+        # Convert string memory type to enum
+        try:
+            memory_type_enum = MemoryType(memory_type)
+        except ValueError:
+            memory_type_enum = MemoryType.FACT
+        
+        # Use LLM-generated tags or fallback to basic tag
+        final_tags = tags if tags else ["extracted"]
+        
+        await memory.memorize(
+            memory_summary, 
+            memory_type=memory_type_enum,
+            tags=final_tags, 
+            user_id=user_id
+        )

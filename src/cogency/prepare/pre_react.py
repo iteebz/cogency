@@ -30,7 +30,13 @@ async def pre_react_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseToo
         result = await extract_memory_and_filter_tools(query, registry_lite, llm)
         
         # Chain 1: Save extracted memory if not null/empty
-        await save_extracted_memory(result["memory_summary"], memory, user_id)
+        await save_extracted_memory(
+            result["memory_summary"], 
+            memory, 
+            user_id,
+            tags=result.get("tags", []),
+            memory_type=result.get("memory_type", "fact")
+        )
         
         # Chain 2: Filter tools by exclusion (conservative)
         filtered_tools = filter_tools_by_exclusion(tools, result["excluded_tools"])
