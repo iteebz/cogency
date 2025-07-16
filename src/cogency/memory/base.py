@@ -9,8 +9,10 @@ from uuid import uuid4, UUID
 
 class MemoryType(Enum):
     """Types of memory for different agent use cases."""
-    FACT = "fact"         # Semantic knowledge units
-    CONTEXT = "context"   # Working memory/history
+    FACT = "fact"             # Static semantic knowledge - "Paris is in France"
+    EPISODIC = "episodic"     # Personal experiences, conversations - "User asked about ML on Tuesday"
+    EXPERIENCE = "experience" # Learned patterns, procedural knowledge - "When users ask X, do Y"
+    CONTEXT = "context"       # Working memory, recent conversation history
 
 
 class SearchType(Enum):

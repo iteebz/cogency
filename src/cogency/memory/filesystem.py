@@ -337,8 +337,12 @@ class FSMemory(BaseMemory):
             return []
         
         # Generate query embedding
-        query_embedding = await self.embedding_provider.embed(query)
-        if not query_embedding:
+        try:
+            query_embedding = await self.embedding_provider.embed(query)
+            if not query_embedding:
+                return []
+        except Exception:
+            # If embedding fails, return empty results
             return []
         
         # Calculate similarities
