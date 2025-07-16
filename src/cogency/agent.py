@@ -8,7 +8,7 @@ from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
 from cogency.common.types import AgentState, OutputMode, ExecutionTrace
 from cogency.workflow import Workflow
-from cogency.core.tracer import Tracer
+from cogency.utils.tracing import Tracer
 from cogency.core.metrics import with_metrics, counter, histogram, get_metrics
 from cogency.core.resilience import RateLimitedError, CircuitOpenError
 try:

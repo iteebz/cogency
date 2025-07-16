@@ -5,13 +5,13 @@ from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.common.types import AgentState, ReasoningDecision
 from cogency.utils import validate_tools
-from cogency.utils.trace import trace_node
-from cogency.utils.tool_execution import parse_tool_call, execute_single_tool, execute_parallel_tools
-from cogency.utils.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
+from cogency.utils.tracing import trace_node
+from cogency.react.tool_execution import parse_tool_call, execute_single_tool, execute_parallel_tools
+from cogency.react.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
 from cogency.common.schemas import ToolCall, MultiToolCall
 from cogency.react.response_parser import ReactResponseParser
 from cogency.react.message_streamer import MessageStreamer
-from cogency.react.response_shaper import apply_response_shaping
+from cogency.react.response_shaper import shape_response
 
 REASON_PROMPT = """You are in a ReAct reasoning loop. Analyze the current situation and decide your next action.
 
@@ -70,96 +70,23 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
         f"Adaptive reasoning enabled. Max iterations: {criteria.max_iterations}"
     )
     
-    # Run multi-step ReAct loop with streaming support
-    final_response = await react_loop_with_streaming(state, llm, selected_tools, controller, streaming_callback, response_shaper)
+    # Run multi-step ReAct loop 
+    final_response = await react_engine(state, llm, selected_tools, controller)
+    
+    # Apply response shaping at the node level
+    final_text = await shape_response(final_response["text"], llm, response_shaper)
     
     return {
         "context": final_response["context"],
         "reasoning_decision": final_response["decision"],
-        "last_node_output": final_response["text"]
+        "last_node_output": final_text
     }
 
 
-async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
-                                   controller: AdaptiveReasoningController, 
-                                   streaming_callback=None, response_shaper=None) -> Dict[str, Any]:
-    """Streaming version of ReAct loop with polished real-time updates."""
-    iteration = 0
-    
-    while True:
-        should_continue, stopping_reason = controller.should_continue_reasoning()
-        if not should_continue:
-            if streaming_callback:
-                await MessageStreamer.completion_message(streaming_callback)
-            return await _fallback_response(state, llm, stopping_reason, response_shaper)
-            
-        iteration += 1
-        
-        # Clean visual separation between cycles
-        if iteration > 1 and streaming_callback:
-            await MessageStreamer.iteration_separator(streaming_callback)
-        
-        # Stream reasoning phase
-        if streaming_callback:
-            await MessageStreamer.reason_phase(streaming_callback)
-        
-        # REASON: What should I do next?
-        reasoning = await reason_phase(state, llm, tools)
-        
-        # If agent decides it can answer directly (after considering all context)
-        if reasoning["can_answer_directly"]:
-            if streaming_callback:
-                await MessageStreamer.respond_phase(streaming_callback)
-            
-            # Apply response shaping if configured
-            final_text = await apply_response_shaping(reasoning["direct_response"], llm, response_shaper)
-            
-            return {
-                "context": state["context"],
-                "text": final_text,
-                "decision": ReasoningDecision(should_respond=True, response_text=final_text, task_complete=True)
-            }
-        
-        # Check if we have tool calls to execute
-        if not reasoning["tool_calls"]:
-            if streaming_callback:
-                await MessageStreamer.respond_phase(streaming_callback, "No additional tools needed, responding with current knowledge")
-            
-            # Apply response shaping if configured
-            final_text = await apply_response_shaping(reasoning["response"], llm, response_shaper)
-            
-            return {
-                "context": state["context"], 
-                "text": final_text,
-                "decision": ReasoningDecision(should_respond=True, response_text=final_text, task_complete=True)
-            }
-        
-        # Extract tool names for better streaming messages
-        tool_call_str = reasoning["tool_calls"]
-        tool_call = parse_tool_call(tool_call_str)
-        
-        # Stream action phase with specific tool names
-        if streaming_callback:
-            await MessageStreamer.act_phase(streaming_callback, tool_call)
-        
-        # ACT: Execute the planned action
-        action = await act_phase(reasoning, state, tools)
-        
-        # Stream observation phase with detailed messages
-        if streaming_callback:
-            success = action.get("results", {}).get("success", False)
-            await MessageStreamer.observe_phase(streaming_callback, success, tool_call)
-        
-        # Update controller metrics
-        controller.update_iteration_metrics(action.get("results", {}), action.get("time", 0))
-    
-    # Should never reach here due to controller limits
-    return await _fallback_response(state, llm, "max_iterations", response_shaper)
 
-
-async def react_loop(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
-                    controller: AdaptiveReasoningController) -> Dict[str, Any]:
-    """True multi-step ReAct: reason → act → observe → reason → act until agent decides it's done."""
+async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
+                       controller: AdaptiveReasoningController) -> Dict[str, Any]:
+    """Core ReAct reasoning engine: reason → act → observe → reason → act until task complete."""
     
     while True:
         should_continue, stopping_reason = controller.should_continue_reasoning()
@@ -244,7 +171,7 @@ async def act_phase(reasoning: Dict[str, Any], state: AgentState, tools: List[Ba
     if isinstance(tool_call, MultiToolCall):
         execution_results = await execute_parallel_tools(tool_call.calls, tools, context)
     elif isinstance(tool_call, ToolCall):
-        tool_name, parsed_args, tool_output = await execute_single_tool(
+        tool_name, parsed_args, tool_output = await execute_single(
             tool_call.name, tool_call.args, tools
         )
         
@@ -291,7 +218,7 @@ async def respond_phase(action: Dict[str, Any], state: AgentState, llm: BaseLLM)
     }
 
 
-async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason, response_shaper=None) -> Dict[str, Any]:
+async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason) -> Dict[str, Any]:
     """Generate fallback response when reasoning loop ends."""
     context = state["context"]
     
@@ -309,11 +236,10 @@ async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason, r
     final_response = await llm.invoke(final_messages)
     context.add_message("assistant", final_response)
     
-    # Apply response shaping if configured
-    final_text = await apply_response_shaping(final_response, llm, response_shaper)
+    # Response shaping handled at node level
     
     return {
         "context": context,
-        "text": final_text,
-        "decision": ReasoningDecision(should_respond=True, response_text=final_text, task_complete=True)
+        "text": final_response,
+        "decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True)
     }

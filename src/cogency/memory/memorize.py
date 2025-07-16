@@ -3,11 +3,11 @@ from typing import Optional
 
 from cogency.memory.base import BaseMemory
 from cogency.common.types import AgentState
-from cogency.utils.trace import trace_node
+from cogency.utils.tracing import trace_node
 
 
 @trace_node("memorize")
-async def memorize(state: AgentState, *, memory: BaseMemory) -> AgentState:
+async def memorize_node(state: AgentState, *, memory: BaseMemory) -> AgentState:
     """Memorize content if it meets certain criteria."""
     query = state["query"]
     if hasattr(memory, 'should_store'):

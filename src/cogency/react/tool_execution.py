@@ -83,7 +83,7 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
     
     async def _execute_parallel():
         # Execute all tools in parallel with error isolation
-        tasks = [execute_single_tool(name, args, tools) for name, args in tool_calls]
+        tasks = [execute_single(name, args, tools) for name, args in tool_calls]
         return await asyncio.gather(*tasks, return_exceptions=True)
     
     # Profile the parallel execution

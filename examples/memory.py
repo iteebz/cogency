@@ -2,7 +2,7 @@
 """Memory tool isolation test - Smart memory behavior."""
 import asyncio
 from cogency import Agent, FSMemory
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.tools import MemorizeTool, RecallTool
 
 async def main():
     print("🧠 SMART MEMORY DEMONSTRATION")

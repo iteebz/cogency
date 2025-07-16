@@ -28,7 +28,7 @@ class TestWorkflow:
         assert isinstance(workflow_instance.workflow, CompiledStateGraph)
 
         # Verify nodes
-        expected_nodes = {NodeName.MEMORIZE.value, NodeName.SELECT_TOOLS.value, NodeName.REACT_LOOP.value, "__start__"}
+        expected_nodes = {NodeName.MEMORIZE.value, NodeName.FILTER_TOOLS.value, NodeName.REACT_LOOP.value, "__start__"}
         actual_nodes = set(workflow_instance.workflow.nodes.keys())
         assert actual_nodes == expected_nodes
 
@@ -45,9 +45,9 @@ class TestWorkflow:
 
     def test_custom_routing_table_construction(self, mock_llm, mock_tools, fs_memory_fixture):
         custom_routing_table = {
-            "entry_point": NodeName.SELECT_TOOLS.value,
+            "entry_point": NodeName.FILTER_TOOLS.value,
             "edges": {
-                NodeName.SELECT_TOOLS.value: {"type": "direct", "destination": NodeName.MEMORIZE.value},
+                NodeName.FILTER_TOOLS.value: {"type": "direct", "destination": NodeName.MEMORIZE.value},
                 NodeName.MEMORIZE.value: {"type": "end"}
             }
         }
@@ -63,7 +63,7 @@ class TestWorkflow:
         assert isinstance(workflow_instance.workflow, CompiledStateGraph)
         # assert workflow_instance.workflow.get_entry_point() == custom_routing_table["entry_point"] # Not directly accessible on CompiledStateGraph
 
-        expected_nodes = {NodeName.MEMORIZE.value, NodeName.SELECT_TOOLS.value, NodeName.REACT_LOOP.value, "__start__"}
+        expected_nodes = {NodeName.MEMORIZE.value, NodeName.FILTER_TOOLS.value, NodeName.REACT_LOOP.value, "__start__"}
         actual_nodes = set(workflow_instance.workflow.nodes.keys())
         assert actual_nodes == expected_nodes
 
@@ -82,15 +82,15 @@ class TestWorkflow:
         call_args_list = mock_partial.call_args_list
 
         # Check memorize node
-        memorize_call = next((call for call in call_args_list if call.args[0].__name__ == "memorize"), None)
+        memorize_call = next((call for call in call_args_list if call.args[0].__name__ == "memorize_node"), None)
         assert memorize_call is not None
         assert memorize_call.kwargs["memory"] == fs_memory_fixture
 
-        # Check select_tools node
-        select_tools_call = next((call for call in call_args_list if call.args[0].__name__ == "select_tools"), None)
-        assert select_tools_call is not None
-        assert select_tools_call.kwargs["llm"] == mock_llm
-        assert select_tools_call.kwargs["tools"] == mock_tools
+        # Check filter_tools node
+        filter_tools_call = next((call for call in call_args_list if call.args[0].__name__ == "filter_tools_node"), None)
+        assert filter_tools_call is not None
+        assert filter_tools_call.kwargs["llm"] == mock_llm
+        assert filter_tools_call.kwargs["tools"] == mock_tools
 
         # Check react_loop_node
         react_loop_call = next((call for call in call_args_list if call.args[0].__name__ == "react_loop_node"), None)

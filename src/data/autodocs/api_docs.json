@@ -15,6 +15,11 @@
           "module": "cogency.agent",
           "methods": [
             {
+              "name": "process_input",
+              "docstring": "Process input text and return response - used by MCP server",
+              "signature": "(self, input_text: str, context: Optional[cogency.context.Context] = None) -> str"
+            },
+            {
               "name": "run",
               "docstring": "",
               "signature": "(*args, **kwargs)"
@@ -25,17 +30,22 @@
               "signature": "(self, query: str, context: Optional[cogency.context.Context] = None, mode: Optional[Literal['summary', 'trace', 'dev', 'explain']] = None)"
             },
             {
+              "name": "start_mcp_server",
+              "docstring": "Start MCP server for agent communication",
+              "signature": "(self, transport: str = 'stdio', host: str = 'localhost', port: int = 8765)"
+            },
+            {
               "name": "stream",
               "docstring": "",
               "signature": "(*args, **kwargs)"
             }
           ],
-          "init_signature": "(self, name: str, llm: Optional[cogency.llm.base.BaseLLM] = None, tools: Optional[List[cogency.tools.base.BaseTool]] = None, trace: bool = True, memory_dir: str = '.memory', prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None, default_output_mode: Literal['summary', 'trace', 'dev', 'explain'] = 'summary')"
+          "init_signature": "(self, name: str, llm: Optional[cogency.llm.base.BaseLLM] = None, tools: Optional[List[cogency.tools.base.BaseTool]] = None, trace: bool = True, memory: Optional[cogency.memory.base.BaseMemory] = None, memory_dir: str = '.memory', response_shaper: Optional[Dict[str, Any]] = None, default_output_mode: Literal['summary', 'trace', 'dev', 'explain'] = 'summary', enable_mcp: bool = False)"
         },
         {
           "name": "AgentState",
           "docstring": "dict() -> new empty dictionary\ndict(mapping) -> new dictionary initialized from a mapping object's\n    (key, value) pairs\ndict(iterable) -> new dictionary initialized as if via:\n    d = {}\n    for k, v in iterable:\n        d[k] = v\ndict(**kwargs) -> new dictionary initialized with the name=value pairs\n    in the keyword argument list.  For example:  dict(one=1, two=2)",
-          "module": "cogency.types",
+          "module": "cogency.common.types",
           "methods": [],
           "init_signature": "(self, /, *args, **kwargs)"
         },
@@ -61,6 +71,39 @@
             }
           ],
           "init_signature": "(self, api_key: str = None, key_rotator=None, **kwargs)"
+        },
+        {
+          "name": "BaseMemory",
+          "docstring": "Abstract base class for memory backends.",
+          "module": "cogency.memory.base",
+          "methods": [
+            {
+              "name": "clear",
+              "docstring": "Clear all artifacts from memory.",
+              "signature": "(self) -> None"
+            },
+            {
+              "name": "forget",
+              "docstring": "Remove an artifact from memory.",
+              "signature": "(self, artifact_id: uuid.UUID) -> bool"
+            },
+            {
+              "name": "inspect",
+              "docstring": "Dev tooling - inspect memory state.",
+              "signature": "(self) -> Dict[str, Any]"
+            },
+            {
+              "name": "memorize",
+              "docstring": "Store new content in memory.",
+              "signature": "(self, content: str, memory_type: cogency.memory.base.MemoryType = <MemoryType.FACT: 'fact'>, tags: Optional[List[str]] = None, metadata: Optional[Dict[str, Any]] = None, timeout_seconds: float = 10.0) -> cogency.memory.base.MemoryArtifact"
+            },
+            {
+              "name": "recall",
+              "docstring": "Retrieve relevant content from memory.",
+              "signature": "(self, query: str, limit: Optional[int] = None, tags: Optional[List[str]] = None, memory_type: Optional[cogency.memory.base.MemoryType] = None, since: Optional[str] = None, **kwargs) -> List[cogency.memory.base.MemoryArtifact]"
+            }
+          ],
+          "init_signature": "(self, /, *args, **kwargs)"
         },
         {
           "name": "BaseTool",
@@ -98,6 +141,24 @@
           "init_signature": "(self, /, *args, **kwargs)"
         },
         {
+          "name": "CogencyMCPServer",
+          "docstring": "MCP Server for Cogency Agent communication",
+          "module": "cogency.core.mcp_server",
+          "methods": [
+            {
+              "name": "serve_stdio",
+              "docstring": "Serve MCP over stdio",
+              "signature": "(self)"
+            },
+            {
+              "name": "serve_websocket",
+              "docstring": "Serve MCP over websocket",
+              "signature": "(self, host: str = 'localhost', port: int = 8765)"
+            }
+          ],
+          "init_signature": "(self, agent)"
+        },
+        {
           "name": "Context",
           "docstring": "Agent operational context.",
           "module": "cogency.context",
@@ -123,7 +184,7 @@
         {
           "name": "ExecutionTrace",
           "docstring": "Lean trace engine - just stores entries with serialization safety.",
-          "module": "cogency.types",
+          "module": "cogency.common.types",
           "methods": [
             {
               "name": "add",
@@ -142,6 +203,11 @@
               "name": "clear",
               "docstring": "Remove all artifact files.",
               "signature": "(self) -> None"
+            },
+            {
+              "name": "close",
+              "docstring": "Shuts down the thread pool executor.",
+              "signature": "(self)"
             },
             {
               "name": "forget",
@@ -188,7 +254,7 @@
         {
           "name": "Tracer",
           "docstring": "Handles formatting and output of execution traces.",
-          "module": "cogency.core.tracer",
+          "module": "cogency.utils.tracing",
           "methods": [
             {
               "name": "output",
@@ -196,14 +262,14 @@
               "signature": "(self, mode: Literal['summary', 'trace', 'dev', 'explain'])"
             }
           ],
-          "init_signature": "(self, trace: cogency.types.ExecutionTrace)"
+          "init_signature": "(self, trace: cogency.common.types.ExecutionTrace)"
         },
         {
           "name": "Workflow",
           "docstring": "Abstracts LangGraph complexity for magical Agent DX.",
           "module": "cogency.workflow",
           "methods": [],
-          "init_signature": "(self, llm, tools, memory: cogency.memory.base.BaseMemory, routing_table: Optional[Dict] = None, prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None)"
+          "init_signature": "(self, llm, tools, memory: cogency.memory.base.BaseMemory, routing_table: Optional[Dict] = None, response_shaper: Optional[Dict[str, Any]] = None)"
         }
       ],
       "functions": [
@@ -638,51 +704,7 @@
           "init_signature": "(self)"
         }
       ],
-      "functions": [
-        {
-          "name": "_discover_tools",
-          "docstring": "Auto-discover only standalone tool classes.",
-          "module": "cogency.tools",
-          "signature": "()"
-        },
-        {
-          "name": "get_tool_by_name",
-          "docstring": "Get tool class by name.",
-          "module": "cogency.tools",
-          "signature": "(name: str)"
-        },
-        {
-          "name": "list_available_tools",
-          "docstring": "List all available tool names.",
-          "module": "cogency.tools",
-          "signature": "()"
-        }
-      ]
-    },
-    "nodes": {
-      "name": "nodes",
-      "docstring": "",
-      "classes": [],
-      "functions": [
-        {
-          "name": "memorize",
-          "docstring": "Memorize content if it meets certain criteria.",
-          "module": "cogency.nodes.memory",
-          "signature": "(state: cogency.types.AgentState, *, memory: cogency.memory.base.BaseMemory) -> cogency.types.AgentState"
-        },
-        {
-          "name": "react_loop_node",
-          "docstring": "ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete.",
-          "module": "cogency.nodes.react_loop",
-          "signature": "(state: cogency.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None, config: Optional[Dict] = None) -> cogency.types.AgentState"
-        },
-        {
-          "name": "select_tools",
-          "docstring": "Intelligently select a subset of tools based on the user query.",
-          "module": "cogency.nodes.select_tools",
-          "signature": "(state: cogency.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None) -> cogency.types.AgentState"
-        }
-      ]
+      "functions": []
     },
     "memory": {
       "name": "memory",
@@ -730,6 +752,11 @@
               "name": "clear",
               "docstring": "Remove all artifact files.",
               "signature": "(self) -> None"
+            },
+            {
+              "name": "close",
+              "docstring": "Shuts down the thread pool executor.",
+              "signature": "(self)"
             },
             {
               "name": "forget",
@@ -780,7 +807,354 @@
           "init_signature": "(self, *args, **kwds)"
         }
       ],
-      "functions": []
+      "functions": [
+        {
+          "name": "memorize_node",
+          "docstring": "Memorize content if it meets certain criteria.",
+          "module": "cogency.memory.memorize",
+          "signature": "(state: cogency.common.types.AgentState, *, memory: cogency.memory.base.BaseMemory) -> cogency.common.types.AgentState"
+        }
+      ]
+    },
+    "react": {
+      "name": "react",
+      "docstring": "ReAct utilities for cogency.",
+      "classes": [
+        {
+          "name": "AdaptiveReasoningController",
+          "docstring": "Controls adaptive reasoning depth with intelligent stopping criteria.",
+          "module": "cogency.react.adaptive_reasoning",
+          "methods": [
+            {
+              "name": "get_adaptive_max_iterations",
+              "docstring": "Calculate adaptive max iterations based on query complexity.",
+              "signature": "(self, query_complexity: float = 0.5) -> int"
+            },
+            {
+              "name": "get_reasoning_summary",
+              "docstring": "Get comprehensive summary of reasoning session.",
+              "signature": "(self) -> Dict[str, Any]"
+            },
+            {
+              "name": "get_trace_log",
+              "docstring": "Get detailed trace log for introspection.",
+              "signature": "(self) -> List[Dict[str, Any]]"
+            },
+            {
+              "name": "should_continue_reasoning",
+              "docstring": "Determine if reasoning should continue based on adaptive criteria.",
+              "signature": "(self, execution_results: Dict[str, Any] = None, iteration_start_time: float = None) -> Tuple[bool, cogency.react.adaptive_reasoning.StoppingReason]"
+            },
+            {
+              "name": "start_reasoning",
+              "docstring": "Initialize reasoning session.",
+              "signature": "(self) -> None"
+            },
+            {
+              "name": "update_iteration_metrics",
+              "docstring": "Update metrics after each reasoning iteration.",
+              "signature": "(self, execution_results: Dict[str, Any], iteration_time: float) -> None"
+            }
+          ],
+          "init_signature": "(self, criteria: cogency.react.adaptive_reasoning.StoppingCriteria = None)"
+        },
+        {
+          "name": "ExplanationContext",
+          "docstring": "Context for generating contextual explanations.",
+          "module": "cogency.react.explanation",
+          "methods": [],
+          "init_signature": "(self, user_query: str, tools_available: List[str], reasoning_depth: int, execution_time: float, success: bool, stopping_reason: Optional[str] = None) -> None"
+        },
+        {
+          "name": "ExplanationGenerator",
+          "docstring": "Generates human-readable explanations for reasoning steps and tool usage.",
+          "module": "cogency.react.explanation",
+          "methods": [
+            {
+              "name": "explain_error_recovery",
+              "docstring": "Generate explanation for error handling and recovery.",
+              "signature": "(self, error_type: str, recovery_action: str) -> str"
+            },
+            {
+              "name": "explain_memory_action",
+              "docstring": "Generate explanation for memory-related actions.",
+              "signature": "(self, action: str, details: str) -> str"
+            },
+            {
+              "name": "explain_reasoning_decision",
+              "docstring": "Generate explanation for reasoning decisions.",
+              "signature": "(self, decision_type: str, reasoning: str, confidence: float = None) -> str"
+            },
+            {
+              "name": "explain_reasoning_start",
+              "docstring": "Generate explanation for reasoning process initiation.",
+              "signature": "(self, context: cogency.react.explanation.ExplanationContext) -> str"
+            },
+            {
+              "name": "explain_stopping_criteria",
+              "docstring": "Generate explanation for why reasoning stopped.",
+              "signature": "(self, stopping_reason: str, metrics: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "explain_tool_selection",
+              "docstring": "Generate explanation for tool selection.",
+              "signature": "(self, selected_tools: List[str], total_available: int) -> str"
+            },
+            {
+              "name": "explain_tool_usage",
+              "docstring": "Generate explanation for individual tool usage.",
+              "signature": "(self, tool_name: str, tool_input: Dict[str, Any], result_summary: str) -> str"
+            }
+          ],
+          "init_signature": "(self, level: cogency.react.explanation.ExplanationLevel = <ExplanationLevel.CONCISE: 'concise'>)"
+        },
+        {
+          "name": "ExplanationLevel",
+          "docstring": "Different levels of explanation detail.",
+          "module": "cogency.react.explanation",
+          "methods": [],
+          "init_signature": "(self, *args, **kwds)"
+        },
+        {
+          "name": "LoopDetectionConfig",
+          "docstring": "Configuration for loop detection thresholds.",
+          "module": "cogency.react.loop_detection",
+          "methods": [],
+          "init_signature": "(self, max_identical_states: int = 3, max_tool_retries: int = 3, max_reasoning_cycles: int = 5, decision_flip_threshold: int = 2, time_window_seconds: float = 30.0, similarity_threshold: float = 0.85, complexity_multiplier: float = 1.5, max_adaptive_iterations: int = 8) -> None"
+        },
+        {
+          "name": "LoopDetector",
+          "docstring": "Detects infinite loops and circular reasoning patterns.",
+          "module": "cogency.react.loop_detection",
+          "methods": [
+            {
+              "name": "add_decision",
+              "docstring": "Add decision for flip detection.",
+              "signature": "(self, decision_type: str, details: Dict)"
+            },
+            {
+              "name": "add_reasoning_step",
+              "docstring": "Add a reasoning step for loop detection.",
+              "signature": "(self, iteration: int, llm_response: str, tool_calls: Optional[List[str]] = None, execution_results: Optional[Dict] = None)"
+            },
+            {
+              "name": "add_state_change",
+              "docstring": "Add state change for loop detection.",
+              "signature": "(self, state: Dict, trace: cogency.common.types.ExecutionTrace)"
+            },
+            {
+              "name": "add_tool_execution",
+              "docstring": "Add tool execution for loop detection.",
+              "signature": "(self, tool_name: str, args: Dict, result: Any, success: bool)"
+            },
+            {
+              "name": "check_for_loops",
+              "docstring": "Comprehensive loop check with adaptive thresholds.",
+              "signature": "(self, current_iteration: int = None, complexity_factor: float = 1.0) -> List[cogency.react.loop_detection.LoopPattern]"
+            },
+            {
+              "name": "get_loop_summary",
+              "docstring": "Get summary of detected loops.",
+              "signature": "(self) -> Dict[str, Any]"
+            },
+            {
+              "name": "is_loop_detected",
+              "docstring": "Check if any loops of specified types are detected.",
+              "signature": "(self, loop_types: List[cogency.react.loop_detection.LoopType] = None) -> bool"
+            },
+            {
+              "name": "reset",
+              "docstring": "Reset detector for new reasoning session.",
+              "signature": "(self)"
+            }
+          ],
+          "init_signature": "(self, config: cogency.react.loop_detection.LoopDetectionConfig = None)"
+        },
+        {
+          "name": "LoopType",
+          "docstring": "Types of loops that can be detected.",
+          "module": "cogency.react.loop_detection",
+          "methods": [],
+          "init_signature": "(self, *args, **kwds)"
+        },
+        {
+          "name": "MessageStreamer",
+          "docstring": "Utilities for streaming phase-specific messages during ReAct execution.",
+          "module": "cogency.react.message_streamer",
+          "methods": [
+            {
+              "name": "act_phase",
+              "docstring": "Stream action phase message with specific tool names.",
+              "signature": "(callback: Callable[[str], Awaitable[NoneType]], tool_call: Union[cogency.common.schemas.ToolCall, cogency.common.schemas.MultiToolCall, NoneType]) -> None"
+            },
+            {
+              "name": "completion_message",
+              "docstring": "Stream final completion message.",
+              "signature": "(callback: Callable[[str], Awaitable[NoneType]]) -> None"
+            },
+            {
+              "name": "iteration_separator",
+              "docstring": "Add visual separation between iterations.",
+              "signature": "(callback: Callable[[str], Awaitable[NoneType]]) -> None"
+            },
+            {
+              "name": "observe_phase",
+              "docstring": "Stream observation phase message based on execution results.",
+              "signature": "(callback: Callable[[str], Awaitable[NoneType]], success: bool, tool_call: Union[cogency.common.schemas.ToolCall, cogency.common.schemas.MultiToolCall, NoneType]) -> None"
+            },
+            {
+              "name": "reason_phase",
+              "docstring": "Stream reasoning phase message.",
+              "signature": "(callback: Callable[[str], Awaitable[NoneType]]) -> None"
+            },
+            {
+              "name": "respond_phase",
+              "docstring": "Stream response phase message.",
+              "signature": "(callback: Callable[[str], Awaitable[NoneType]], message: str = 'Have sufficient information to provide complete answer') -> None"
+            }
+          ],
+          "init_signature": "(self, /, *args, **kwargs)"
+        },
+        {
+          "name": "ReactResponseParser",
+          "docstring": "Utilities for parsing LLM responses in ReAct format.",
+          "module": "cogency.react.response_parser",
+          "methods": [
+            {
+              "name": "can_answer_directly",
+              "docstring": "Check if LLM response indicates it can answer directly.",
+              "signature": "(response: str) -> bool"
+            },
+            {
+              "name": "extract_answer",
+              "docstring": "Extract direct answer from LLM response.",
+              "signature": "(response: str) -> str"
+            },
+            {
+              "name": "extract_tool_calls",
+              "docstring": "Extract tool calls from LLM response for parsing.",
+              "signature": "(response: str) -> Optional[str]"
+            }
+          ],
+          "init_signature": "(self, /, *args, **kwargs)"
+        },
+        {
+          "name": "ReasoningLoopGuard",
+          "docstring": "Integrates loop detection into reasoning workflows.",
+          "module": "cogency.react.loop_integration",
+          "methods": [
+            {
+              "name": "check_decision_pattern",
+              "docstring": "Check for decision flip patterns.",
+              "signature": "(self, decision_type: str, details: Dict) -> Dict[str, Any]"
+            },
+            {
+              "name": "check_reasoning_step",
+              "docstring": "Check for loops after reasoning step.",
+              "signature": "(self, state: cogency.common.types.AgentState, iteration: int, llm_response: str, tool_calls: List[str] = None, execution_results: Dict = None) -> Dict[str, Any]"
+            },
+            {
+              "name": "check_tool_execution",
+              "docstring": "Check for tool execution loops.",
+              "signature": "(self, tool_name: str, args: Dict, result: Any, success: bool) -> Dict[str, Any]"
+            },
+            {
+              "name": "end_reasoning_session",
+              "docstring": "End reasoning session and return final summary.",
+              "signature": "(self) -> Dict[str, Any]"
+            },
+            {
+              "name": "get_emergency_stop_recommendation",
+              "docstring": "Get emergency stop recommendation based on current loops.",
+              "signature": "(self) -> Dict[str, Any]"
+            },
+            {
+              "name": "start_reasoning_session",
+              "docstring": "Start new reasoning session with loop detection.",
+              "signature": "(self, query: str, tools: List = None)"
+            }
+          ],
+          "init_signature": "(self, config: cogency.react.loop_detection.LoopDetectionConfig = None)"
+        },
+        {
+          "name": "ReasoningMetrics",
+          "docstring": "Metrics for tracking reasoning progress and performance.",
+          "module": "cogency.react.adaptive_reasoning",
+          "methods": [],
+          "init_signature": "(self, iteration: int = 0, start_time: float = 0.0, total_tools_executed: int = 0, successful_tools: int = 0, failed_tools: int = 0, confidence_scores: List[float] = None, execution_times: List[float] = None, tool_results_quality: List[float] = None) -> None"
+        },
+        {
+          "name": "ResponseShaper",
+          "docstring": "Transforms raw cognitive output into desired format/tone/style.",
+          "module": "cogency.react.response_shaper",
+          "methods": [
+            {
+              "name": "shape",
+              "docstring": "Shape raw response according to config.",
+              "signature": "(self, raw_response: str, config: Dict[str, Any]) -> Union[str, Dict[str, Any]]"
+            }
+          ],
+          "init_signature": "(self, llm: cogency.llm.base.BaseLLM)"
+        },
+        {
+          "name": "StoppingCriteria",
+          "docstring": "Configuration for adaptive stopping criteria.",
+          "module": "cogency.react.adaptive_reasoning",
+          "methods": [],
+          "init_signature": "(self, confidence_threshold: float = 0.85, min_confidence_samples: int = 2, max_reasoning_time: float = 30.0, iteration_timeout: float = 10.0, max_iterations: int = 5, max_tools_per_iteration: int = 10, max_total_tools: int = 25, improvement_threshold: float = 0.1, stagnation_iterations: int = 2, max_consecutive_errors: int = 3, error_rate_threshold: float = 0.7) -> None"
+        },
+        {
+          "name": "StoppingReason",
+          "docstring": "Reasons for stopping the reasoning loop.",
+          "module": "cogency.react.adaptive_reasoning",
+          "methods": [],
+          "init_signature": "(self, *args, **kwds)"
+        }
+      ],
+      "functions": [
+        {
+          "name": "create_actionable_insights",
+          "docstring": "Generate actionable insights from trace entries.",
+          "module": "cogency.react.explanation",
+          "signature": "(trace_entries: List[Dict[str, Any]], context: cogency.react.explanation.ExplanationContext) -> List[str]"
+        },
+        {
+          "name": "execute_parallel_tools",
+          "docstring": "Execute multiple tools in parallel with robust error handling and result aggregation.\n\nArgs:\n    tool_calls: List of (tool_name, tool_args) tuples\n    tools: Available tools\n    context: Context to add results to\n    \nReturns:\n    Aggregated results with success/failure statistics",
+          "module": "cogency.react.tool_execution",
+          "signature": "(tool_calls: List[Tuple[str, Dict]], tools: List[cogency.tools.base.BaseTool], context) -> Dict[str, Any]"
+        },
+        {
+          "name": "execute_single_tool",
+          "docstring": "Execute a single tool with given arguments and structured error handling.\n\nArgs:\n    tool_name: Name of tool to execute\n    tool_args: Arguments for tool execution\n    tools: Available tools\n    \nReturns:\n    Tuple of (tool_name, parsed_args, result)",
+          "module": "cogency.react.tool_execution",
+          "signature": "(tool_name: str, tool_args: dict, tools: List[cogency.tools.base.BaseTool]) -> Tuple[str, Dict, Any]"
+        },
+        {
+          "name": "filter_tools_node",
+          "docstring": "Intelligently select a subset of tools based on the user query.",
+          "module": "cogency.react.filter_tools",
+          "signature": "(state: cogency.common.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None) -> cogency.common.types.AgentState"
+        },
+        {
+          "name": "parse_tool_call",
+          "docstring": "Parse tool call from LLM response content.\n\nArgs:\n    llm_response_content: Raw LLM response \n    \nReturns:\n    ToolCall or MultiToolCall object, or None if no tool call found",
+          "module": "cogency.react.tool_execution",
+          "signature": "(llm_response_content: str) -> Union[cogency.common.schemas.ToolCall, cogency.common.schemas.MultiToolCall, NoneType]"
+        },
+        {
+          "name": "react_loop_node",
+          "docstring": "ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete.",
+          "module": "cogency.react.react_responder",
+          "signature": "(state: cogency.common.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None, response_shaper: Optional[Dict[str, Any]] = None, config: Optional[Dict] = None) -> cogency.common.types.AgentState"
+        },
+        {
+          "name": "shape_response",
+          "docstring": "Apply response shaping if configured, otherwise return text unchanged.",
+          "module": "cogency.react.response_shaper",
+          "signature": "(text: str, llm: cogency.llm.base.BaseLLM, shaper_config: Optional[Dict[str, Any]]) -> str"
+        }
+      ]
     },
     "context": {
       "name": "context",
@@ -825,79 +1199,320 @@
         }
       ]
     },
-    "types": {
-      "name": "types",
+    "common": {
+      "name": "common",
+      "docstring": "",
+      "classes": [],
+      "functions": []
+    },
+    "embed": {
+      "name": "embed",
       "docstring": "",
       "classes": [
         {
-          "name": "AgentState",
-          "docstring": "dict() -> new empty dictionary\ndict(mapping) -> new dictionary initialized from a mapping object's\n    (key, value) pairs\ndict(iterable) -> new dictionary initialized as if via:\n    d = {}\n    for k, v in iterable:\n        d[k] = v\ndict(**kwargs) -> new dictionary initialized with the name=value pairs\n    in the keyword argument list.  For example:  dict(one=1, two=2)",
-          "module": "cogency.types",
-          "methods": [],
-          "init_signature": "(self, /, *args, **kwargs)"
-        },
-        {
-          "name": "Context",
-          "docstring": "Agent operational context.",
-          "module": "cogency.context",
+          "name": "BaseEmbed",
+          "docstring": "Base class for embedding providers",
+          "module": "cogency.embed.base",
           "methods": [
             {
-              "name": "add_message",
-              "docstring": "Add message to history with optional trace linkage.",
-              "signature": "(self, role: str, content: str, trace_id: Optional[str] = None)"
+              "name": "embed_as_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
             },
             {
-              "name": "add_tool_result",
-              "docstring": "Add tool execution result to history.",
-              "signature": "(self, tool_name: str, args: dict, output: dict)"
+              "name": "embed_batch",
+              "docstring": "Embed multiple texts",
+              "signature": "(self, texts: list[str], **kwargs) -> list[numpy.ndarray]"
             },
             {
-              "name": "get_clean_conversation",
-              "docstring": "Returns conversation without execution trace data and internal JSON.",
-              "signature": "(self) -> List[Dict[str, str]]"
+              "name": "embed_single",
+              "docstring": "Embed a single text string",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
             }
           ],
-          "init_signature": "(self, current_input: str, messages: List[Dict[str, str]] = None, tool_results: Optional[List[Dict[str, Any]]] = None, max_history: Optional[int] = None)"
+          "init_signature": "(self, api_key: str = None, **kwargs)"
         },
         {
-          "name": "ExecutionTrace",
-          "docstring": "Lean trace engine - just stores entries with serialization safety.",
-          "module": "cogency.types",
+          "name": "NomicEmbed",
+          "docstring": "Nomic embedding provider with key rotation.",
+          "module": "cogency.embed.nomic",
           "methods": [
             {
-              "name": "add",
-              "docstring": "",
-              "signature": "(self, node: str, message: str, data: dict = None, explanation: str = None)"
+              "name": "embed_as_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_batch",
+              "docstring": "Embed multiple texts with automatic batching\n\nArgs:\n    texts: List of texts to embed\n    batch_size: Optional batch size override\n    **kwargs: Additional parameters for embedding\n\nReturns:\n    List of embedding vectors as numpy arrays",
+              "signature": "(self, texts: list[str], batch_size: Optional[int] = None, **kwargs) -> list[numpy.ndarray]"
+            },
+            {
+              "name": "embed_single",
+              "docstring": "Embed a single text string\n\nArgs:\n    text: Text to embed\n    **kwargs: Additional parameters for embedding\n\nReturns:\n    Embedding vector as numpy array",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "set_model",
+              "docstring": "Set the embedding model and dimensionality\n\nArgs:\n    model: Model name (e.g., 'nomic-embed-text-v2')\n    dims: Embedding dimensions",
+              "signature": "(self, model: str, dims: int = 768)"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, **kwargs)"
+        },
+        {
+          "name": "OpenAIEmbed",
+          "docstring": "OpenAI embedding provider with key rotation.",
+          "module": "cogency.embed.openai",
+          "methods": [
+            {
+              "name": "embed_as_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_batch",
+              "docstring": "Embed multiple texts.",
+              "signature": "(self, texts: List[str], **kwargs) -> List[numpy.ndarray]"
+            },
+            {
+              "name": "embed_single",
+              "docstring": "Embed a single text string.",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, model: str = 'text-embedding-3-small', **kwargs)"
+        },
+        {
+          "name": "SentenceEmbed",
+          "docstring": "Sentence Transformers embedding provider - local, no API keys needed.",
+          "module": "cogency.embed.sentence",
+          "methods": [
+            {
+              "name": "embed_as_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_batch",
+              "docstring": "Embed multiple texts.",
+              "signature": "(self, texts: List[str], **kwargs) -> List[numpy.ndarray]"
+            },
+            {
+              "name": "embed_single",
+              "docstring": "Embed a single text string.",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            }
+          ],
+          "init_signature": "(self, model: str = 'all-MiniLM-L6-v2', **kwargs)"
+        }
+      ],
+      "functions": [
+        {
+          "name": "auto_detect_embedder",
+          "docstring": "Auto-detect embedding provider from environment variables.\n\nFallback chain:\n1. OpenAI\n2. Nomic\n3. Sentence Transformers (local)\n\nReturns:\n    BaseEmbed: Configured embedder instance\n    \nRaises:\n    RuntimeError: If no API keys found and sentence-transformers is not installed.",
+          "module": "cogency.embed.auto",
+          "signature": "() -> cogency.embed.base.BaseEmbed"
+        }
+      ]
+    },
+    "utils": {
+      "name": "utils",
+      "docstring": "",
+      "classes": [
+        {
+          "name": "CogencyError",
+          "docstring": "Base exception for Cogency-specific errors.",
+          "module": "cogency.utils.errors",
+          "methods": [],
+          "init_signature": "(self, message: str, error_code: str = 'GENERAL_ERROR', details: Optional[Dict[str, Any]] = None)"
+        },
+        {
+          "name": "CogencyProfiler",
+          "docstring": "Specialized profiler for cogency framework operations.",
+          "module": "cogency.utils.profiling",
+          "methods": [
+            {
+              "name": "get_cogency_bottlenecks",
+              "docstring": "Get bottlenecks categorized by cogency operations.",
+              "signature": "(self) -> Dict[str, List[cogency.utils.profiling.ProfileMetrics]]"
+            },
+            {
+              "name": "profile_llm_inference",
+              "docstring": "Profile LLM inference operations.",
+              "signature": "(self, func, *args, **kwargs)"
+            },
+            {
+              "name": "profile_memory_access",
+              "docstring": "Profile memory access operations.",
+              "signature": "(self, func, *args, **kwargs)"
+            },
+            {
+              "name": "profile_reasoning_loop",
+              "docstring": "Profile the complete reasoning loop.",
+              "signature": "(self, func, *args, **kwargs)"
+            },
+            {
+              "name": "profile_tool_execution",
+              "docstring": "Profile tool execution operations.",
+              "signature": "(self, func, *args, **kwargs)"
             }
           ],
           "init_signature": "(self)"
         },
         {
-          "name": "ReasoningDecision",
-          "docstring": "Structured decision from reasoning - NO JSON CEREMONY.",
-          "module": "cogency.types",
+          "name": "ConfigurationError",
+          "docstring": "Error for configuration-related issues.",
+          "module": "cogency.utils.errors",
           "methods": [],
-          "init_signature": "(self, should_respond: bool, response_text: Optional[str] = None, tool_calls: Optional[List[Dict[str, Any]]] = None, task_complete: bool = False) -> None"
+          "init_signature": "(self, message: str, error_code: str = 'GENERAL_ERROR', details: Optional[Dict[str, Any]] = None)"
+        },
+        {
+          "name": "SystemProfiler",
+          "docstring": "Production-grade system profiler for cognitive operations.",
+          "module": "cogency.utils.profiling",
+          "methods": [
+            {
+              "name": "export_report",
+              "docstring": "Export detailed profiling report to JSON.",
+              "signature": "(self, filepath: str)"
+            },
+            {
+              "name": "get_bottlenecks",
+              "docstring": "Identify performance bottlenecks based on thresholds.",
+              "signature": "(self, threshold_duration: float = 1.0, threshold_memory: float = 50.0) -> List[cogency.utils.profiling.ProfileMetrics]"
+            },
+            {
+              "name": "get_summary",
+              "docstring": "Generate performance summary report.",
+              "signature": "(self) -> Dict[str, Any]"
+            },
+            {
+              "name": "profile",
+              "docstring": "Context manager for profiling async operations.",
+              "signature": "(self, operation_name: str, metadata: Optional[Dict[str, Any]] = None)"
+            }
+          ],
+          "init_signature": "(self, sample_interval: float = 0.1)"
+        },
+        {
+          "name": "ToolError",
+          "docstring": "Error specific to tool execution.",
+          "module": "cogency.utils.errors",
+          "methods": [],
+          "init_signature": "(self, message: str, error_code: str = 'GENERAL_ERROR', details: Optional[Dict[str, Any]] = None)"
+        },
+        {
+          "name": "Tracer",
+          "docstring": "Handles formatting and output of execution traces.",
+          "module": "cogency.utils.tracing",
+          "methods": [
+            {
+              "name": "output",
+              "docstring": "Output trace based on mode.",
+              "signature": "(self, mode: Literal['summary', 'trace', 'dev', 'explain'])"
+            }
+          ],
+          "init_signature": "(self, trace: cogency.common.types.ExecutionTrace)"
+        },
+        {
+          "name": "ValidationError",
+          "docstring": "Error for input validation failures.",
+          "module": "cogency.utils.errors",
+          "methods": [],
+          "init_signature": "(self, message: str, error_code: str = 'GENERAL_ERROR', details: Optional[Dict[str, Any]] = None)"
         }
       ],
       "functions": [
         {
-          "name": "format_full_debug",
-          "docstring": "Format full debug trace (dev mode).",
-          "module": "cogency.types",
-          "signature": "(trace: cogency.types.ExecutionTrace) -> str"
+          "name": "compute_diff",
+          "docstring": "Compute meaningful differences between states.",
+          "module": "cogency.utils.diff",
+          "signature": "(before: dict, after: Any) -> dict"
+        },
+        {
+          "name": "create_success_response",
+          "docstring": "Create standardized success response format.\n\nArgs:\n    data: Response data\n    message: Optional success message\n\nReturns:\n    Dict with standardized success format",
+          "module": "cogency.utils.errors",
+          "signature": "(data: Dict[str, Any], message: str = None) -> Dict[str, Any]"
+        },
+        {
+          "name": "format_tool_error",
+          "docstring": "Standardized error formatting for tool responses.\n\nArgs:\n    error: The exception that occurred\n    tool_name: Name of the tool where error occurred\n    operation: Optional operation being performed\n\nReturns:\n    Dict with standardized error format",
+          "module": "cogency.utils.errors",
+          "signature": "(error: Exception, tool_name: str, operation: str = None) -> Dict[str, Any]"
         },
         {
           "name": "format_trace",
-          "docstring": "Format full trace with icons.",
-          "module": "cogency.types",
-          "signature": "(trace: cogency.types.ExecutionTrace) -> str"
+          "docstring": "Formats a detailed execution trace into a human-readable summary.",
+          "module": "cogency.utils.formatting",
+          "signature": "(trace: Dict[str, Any]) -> str"
         },
         {
-          "name": "summarize_trace",
-          "docstring": "Generate clean summary from trace entries.",
-          "module": "cogency.types",
-          "signature": "(trace: cogency.types.ExecutionTrace) -> str"
+          "name": "generate_trace_message",
+          "docstring": "Generate meaningful trace message from state diff.",
+          "module": "cogency.utils.diff",
+          "signature": "(node: str, delta: dict) -> str"
+        },
+        {
+          "name": "get_profiler",
+          "docstring": "Get the global profiler instance.",
+          "module": "cogency.utils.profiling",
+          "signature": "() -> cogency.utils.profiling.SystemProfiler"
+        },
+        {
+          "name": "handle_tool_exception",
+          "docstring": "Decorator to handle exceptions in tool methods with standardized error formatting.",
+          "module": "cogency.utils.errors",
+          "signature": "(func)"
+        },
+        {
+          "name": "parse_plan",
+          "docstring": "Parse plan node JSON response - PURE PARSING ONLY.",
+          "module": "cogency.utils.parsing",
+          "signature": "(response: str) -> Optional[Dict[str, Any]]"
+        },
+        {
+          "name": "parse_reflect",
+          "docstring": "Parse reflect node JSON response - PURE PARSING ONLY.",
+          "module": "cogency.utils.parsing",
+          "signature": "(response: str) -> Optional[Dict[str, Any]]"
+        },
+        {
+          "name": "profile_async_operation",
+          "docstring": "Profile an async operation with automatic context management.",
+          "module": "cogency.utils.profiling",
+          "signature": "(operation_name: str, func: Callable, *args, **kwargs)"
+        },
+        {
+          "name": "profile_sync_operation",
+          "docstring": "Profile a sync operation with automatic context management.",
+          "module": "cogency.utils.profiling",
+          "signature": "(operation_name: str, func: Callable, *args, **kwargs)"
+        },
+        {
+          "name": "retry",
+          "docstring": "Clean retry decorator - handles retries only.",
+          "module": "cogency.utils.retry",
+          "signature": "(max_attempts=3, delay=0.1)"
+        },
+        {
+          "name": "trace_node",
+          "docstring": "Decorator that adds tracing via post-hoc state diff analysis.",
+          "module": "cogency.utils.tracing",
+          "signature": "(node_name: str)"
+        },
+        {
+          "name": "validate_required_params",
+          "docstring": "Validate that all required parameters are present and not empty.\n\nArgs:\n    params: Dictionary of parameters to validate\n    required: List of required parameter names\n    tool_name: Name of tool for error context\n\nRaises:\n    ValidationError: If any required parameter is missing or empty",
+          "module": "cogency.utils.errors",
+          "signature": "(params: Dict[str, Any], required: list[str], tool_name: str) -> None"
+        },
+        {
+          "name": "validate_tools",
+          "docstring": "Validate and correct tool calls in LLM response.",
+          "module": "cogency.utils.validation",
+          "signature": "(llm_response: str, tools: List[cogency.tools.base.BaseTool]) -> str"
         }
       ]
     }

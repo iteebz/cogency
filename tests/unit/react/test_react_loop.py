@@ -2,13 +2,13 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 import json
 
-from cogency.nodes.react_loop import _complexity_score, reason_phase, act_phase, respond_phase, _fallback_response, REASON_PROMPT, RESPONSE_PROMPT
+from cogency.react import _complexity_score, reason_phase, act_phase, respond_phase, _fallback_response, REASON_PROMPT, RESPONSE_PROMPT
 from cogency.common.types import AgentState, ReasoningDecision, Context
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.common.schemas import ToolCall, MultiToolCall
 
-class TestReactLoopNode:
+class TestReactLoop:
 
     @pytest.fixture
     def mock_agent_state(self):
@@ -40,63 +40,63 @@ class TestReactLoopNode:
 
     # Test reason_phase
     @pytest.mark.asyncio
-    async def test_reason_phase_respond_directly(self, mock_agent_state, mock_llm, mock_tools):
+    @patch("cogency.nodes.react_loop.ReactResponseParser")
+    async def test_reason_phase_respond_directly(self, MockParser, mock_agent_state, mock_llm, mock_tools):
         mock_llm.invoke.return_value = json.dumps({"action": "respond", "answer": "direct answer"})
         
-        with patch("cogency.react.response_parser.ReactResponseParser") as MockParser:
-            mock_parser_instance = MockParser.return_value
-            mock_parser_instance.can_answer_directly.return_value = True
-            mock_parser_instance.extract_answer.return_value = "direct answer"
-            mock_parser_instance.extract_tool_calls.return_value = None
+        mock_parser_instance = MockParser.return_value
+        mock_parser_instance.can_answer_directly.return_value = True
+        mock_parser_instance.extract_answer.return_value = "direct answer"
+        mock_parser_instance.extract_tool_calls.return_value = None
 
-            result = await reason_phase(mock_agent_state, mock_llm, mock_tools)
+        result = await reason_phase(mock_agent_state, mock_llm, mock_tools)
 
-            mock_llm.invoke.assert_called_once()
-            assert result["can_answer_directly"] is True
-            assert result["direct_response"] == "direct answer"
-            assert result["tool_calls"] is None
-            assert "assistant" in mock_agent_state["context"].messages[-1]["role"]
-            assert mock_agent_state["context"].messages[-1]["content"] == json.dumps({"action": "respond", "answer": "direct answer"})
+        mock_llm.invoke.assert_called_once()
+        assert result["can_answer_directly"] is True
+        assert result["direct_response"] == "direct answer"
+        assert result["tool_calls"] is None
+        assert "assistant" in mock_agent_state["context"].messages[-1]["role"]
+        assert mock_agent_state["context"].messages[-1]["content"] == json.dumps({"action": "respond", "answer": "direct answer"})
 
     @pytest.mark.asyncio
-    async def test_reason_phase_use_single_tool(self, mock_agent_state, mock_llm, mock_tools):
+    @patch("cogency.nodes.react_loop.ReactResponseParser")
+    async def test_reason_phase_use_single_tool(self, MockParser, mock_agent_state, mock_llm, mock_tools):
         tool_call_str = json.dumps({"action": "use_tool", "tool_call": {"name": "test_tool", "args": {"param": "value"}}})
         mock_llm.invoke.return_value = tool_call_str
 
-        with patch("cogency.react.response_parser.ReactResponseParser") as MockParser:
-            mock_parser_instance = MockParser.return_value
-            mock_parser_instance.can_answer_directly.return_value = False
-            mock_parser_instance.extract_answer.return_value = None
-            mock_parser_instance.extract_tool_calls.return_value = tool_call_str
+        mock_parser_instance = MockParser.return_value
+        mock_parser_instance.can_answer_directly.return_value = False
+        mock_parser_instance.extract_answer.return_value = None
+        mock_parser_instance.extract_tool_calls.return_value = tool_call_str
 
-            result = await reason_phase(mock_agent_state, mock_llm, mock_tools)
+        result = await reason_phase(mock_agent_state, mock_llm, mock_tools)
 
-            mock_llm.invoke.assert_called_once()
-            assert result["can_answer_directly"] is False
-            assert result["direct_response"] is None
-            assert result["tool_calls"] == tool_call_str
-            assert "assistant" in mock_agent_state["context"].messages[-1]["role"]
-            assert mock_agent_state["context"].messages[-1]["content"] == tool_call_str
+        mock_llm.invoke.assert_called_once()
+        assert result["can_answer_directly"] is False
+        assert result["direct_response"] is None
+        assert result["tool_calls"] == tool_call_str
+        assert "assistant" in mock_agent_state["context"].messages[-1]["role"]
+        assert mock_agent_state["context"].messages[-1]["content"] == tool_call_str
 
     @pytest.mark.asyncio
-    async def test_reason_phase_use_multi_tool(self, mock_agent_state, mock_llm, mock_tools):
+    @patch("cogency.nodes.react_loop.ReactResponseParser")
+    async def test_reason_phase_use_multi_tool(self, MockParser, mock_agent_state, mock_llm, mock_tools):
         multi_tool_call_str = json.dumps({"action": "use_tools", "tool_call": {"calls": [{"name": "test_tool", "args": {"param": "value"}}, {"name": "another_tool", "args": {"param2": "value2"}}]}})
         mock_llm.invoke.return_value = multi_tool_call_str
 
-        with patch("cogency.react.response_parser.ReactResponseParser") as MockParser:
-            mock_parser_instance = MockParser.return_value
-            mock_parser_instance.can_answer_directly.return_value = False
-            mock_parser_instance.extract_answer.return_value = None
-            mock_parser_instance.extract_tool_calls.return_value = multi_tool_call_str
+        mock_parser_instance = MockParser.return_value
+        mock_parser_instance.can_answer_directly.return_value = False
+        mock_parser_instance.extract_answer.return_value = None
+        mock_parser_instance.extract_tool_calls.return_value = multi_tool_call_str
 
-            result = await reason_phase(mock_agent_state, mock_llm, mock_tools)
+        result = await reason_phase(mock_agent_state, mock_llm, mock_tools)
 
-            mock_llm.invoke.assert_called_once()
-            assert result["can_answer_directly"] is False
-            assert result["direct_response"] is None
-            assert result["tool_calls"] == multi_tool_call_str
-            assert "assistant" in mock_agent_state["context"].messages[-1]["role"]
-            assert mock_agent_state["context"].messages[-1]["content"] == multi_tool_call_str
+        mock_llm.invoke.assert_called_once()
+        assert result["can_answer_directly"] is False
+        assert result["direct_response"] is None
+        assert result["tool_calls"] == multi_tool_call_str
+        assert "assistant" in mock_agent_state["context"].messages[-1]["role"]
+        assert mock_agent_state["context"].messages[-1]["content"] == multi_tool_call_str
 
     # Test act_phase
     @pytest.mark.asyncio
@@ -111,7 +111,7 @@ class TestReactLoopNode:
         tool_call_str = json.dumps({"action": "use_tool", "tool_call": {"name": "test_tool", "args": {"param": "value"}}})
         reasoning = {"tool_calls": tool_call_str}
         
-        with patch("cogency.nodes.react_loop.execute_single_tool", new_callable=AsyncMock) as mock_execute_single_tool:
+        with patch("cogency.react.execute_single", new_callable=AsyncMock) as mock_execute_single_tool:
             mock_execute_single_tool.return_value = ("test_tool", {"param": "value"}, {"result": "tool output"})
             result = await act_phase(reasoning, mock_agent_state, mock_tools)
 
@@ -119,14 +119,14 @@ class TestReactLoopNode:
             assert result["type"] == "tool_execution"
             assert result["results"]["success"] is True
             assert "tool output" in mock_agent_state["context"].messages[-1]["content"]
-            assert mock_agent_state["context"].tool_results[-1].tool_name == "test_tool"
+            assert mock_agent_state["context"].tool_results[-1]["tool_name"] == "test_tool"
 
     @pytest.mark.asyncio
     async def test_act_phase_single_tool_failure(self, mock_agent_state, mock_tools):
         tool_call_str = json.dumps({"action": "use_tool", "tool_call": {"name": "test_tool", "args": {"param": "value"}}})
         reasoning = {"tool_calls": tool_call_str}
         
-        with patch("cogency.nodes.react_loop.execute_single_tool", new_callable=AsyncMock) as mock_execute_single_tool:
+        with patch("cogency.react.execute_single", new_callable=AsyncMock) as mock_execute_single_tool:
             mock_execute_single_tool.return_value = ("test_tool", {"param": "value"}, {"success": False, "error": "tool error"})
             result = await act_phase(reasoning, mock_agent_state, mock_tools)
 
@@ -140,7 +140,7 @@ class TestReactLoopNode:
         multi_tool_call_str = json.dumps({"action": "use_tools", "tool_call": {"calls": [{"name": "test_tool", "args": {"param": "value"}}]}})
         reasoning = {"tool_calls": multi_tool_call_str}
         
-        with patch("cogency.nodes.react_loop.execute_parallel_tools", new_callable=AsyncMock) as mock_execute_parallel_tools:
+        with patch("cogency.react.tool_execution.execute_parallel", new_callable=AsyncMock) as mock_execute_parallel:
             mock_execute_parallel_tools.return_value = {"success": True, "results": ["output1", "output2"]}
             result = await act_phase(reasoning, mock_agent_state, mock_tools)
 
@@ -182,7 +182,7 @@ class TestReactLoopNode:
     async def test_fallback_response(self, mock_agent_state, mock_llm):
         mock_llm.invoke.return_value = "Fallback summary"
         
-        with patch("cogency.nodes.react_loop.apply_response_shaping", new_callable=AsyncMock) as mock_apply_response_shaping:
+        with patch("cogency.react.response_shaper.apply_response_shaping", new_callable=AsyncMock) as mock_apply_response_shaping:
             mock_apply_response_shaping.return_value = "Shaped fallback summary"
             result = await _fallback_response(mock_agent_state, mock_llm, "max_iterations", response_shaper={"profile": "conversational"})
 

@@ -2,7 +2,7 @@
 """ADVANCED CHAINING - Multi-step problem solving with tool dependencies."""
 import asyncio
 from cogency import Agent
-from cogency import CalculatorTool, WeatherTool, TimezoneTool
+from cogency.tools import CalculatorTool, WeatherTool, TimezoneTool
 
 async def main():
     # Agent with multiple tools for complex problem solving

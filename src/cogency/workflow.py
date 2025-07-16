@@ -3,9 +3,9 @@ from functools import partial
 from typing import Dict, List, Callable, Optional, Any
 
 from langgraph.graph import StateGraph, END
-from cogency.nodes.react_loop import react_loop_node
-from cogency.nodes.memory import memorize
-from cogency.nodes.select_tools import select_tools
+from cogency.react.react_responder import react_loop_node
+from cogency.memory.memorize import memorize_node
+from cogency.react.filter_tools import filter_tools_node
 from cogency.common.types import AgentState, OutputMode
 from cogency.memory.base import BaseMemory
 from cogency.common.constants import NodeName
@@ -15,8 +15,8 @@ from cogency.common.constants import NodeName
 DEFAULT_ROUTING_TABLE = {
     "entry_point": NodeName.MEMORIZE.value,
     "edges": {
-        NodeName.MEMORIZE.value: {"type": "direct", "destination": NodeName.SELECT_TOOLS.value},
-        NodeName.SELECT_TOOLS.value: {"type": "direct", "destination": NodeName.REACT_LOOP.value},
+        NodeName.MEMORIZE.value: {"type": "direct", "destination": NodeName.FILTER_TOOLS.value},
+        NodeName.FILTER_TOOLS.value: {"type": "direct", "destination": NodeName.REACT_LOOP.value},
         NodeName.REACT_LOOP.value: {"type": "end"}
     }
 }
@@ -39,8 +39,8 @@ class Workflow:
         
         # Pure LangGraph composition - nodes handle their own dependencies
         node_functions = {
-            NodeName.MEMORIZE.value: partial(memorize, memory=self.memory),
-            NodeName.SELECT_TOOLS.value: partial(select_tools, llm=self.llm, tools=self.tools),
+            NodeName.MEMORIZE.value: partial(memorize_node, memory=self.memory),
+            NodeName.FILTER_TOOLS.value: partial(filter_tools_node, llm=self.llm, tools=self.tools),
             NodeName.REACT_LOOP.value: partial(react_loop_node, llm=self.llm, tools=self.tools, response_shaper=self.response_shaper)
         }
         

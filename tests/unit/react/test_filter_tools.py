@@ -2,7 +2,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock
 import json
 
-from cogency.nodes.select_tools import select_tools
+from cogency.react.filter_tools_node import filter_tools_node_node
 from cogency.common.types import AgentState
 from cogency.tools.base import BaseTool
 
@@ -38,7 +38,7 @@ class TestSelectToolsNode:
         few_tools = [Mock(spec=BaseTool, name="tool_1"), Mock(spec=BaseTool, name="tool_2")]
         mock_llm = AsyncMock()
 
-        result_state = await select_tools(mock_agent_state, mock_llm, few_tools)
+        result_state = await filter_tools_node(mock_agent_state, mock_llm, few_tools)
 
         mock_llm.invoke.assert_not_called()
         assert result_state["selected_tools"] == few_tools
@@ -46,7 +46,7 @@ class TestSelectToolsNode:
 
     @pytest.mark.asyncio
     async def test_select_tools_many_tools_success(self, mock_agent_state, mock_llm, mock_tools):
-        result_state = await select_tools(mock_agent_state, mock_llm, mock_tools)
+        result_state = await filter_tools_node(mock_agent_state, mock_llm, mock_tools)
 
         expected_prompt = (
             "Request: \"test query\"\n\nTools:\n" +
@@ -67,7 +67,7 @@ class TestSelectToolsNode:
         mock_llm_fail = AsyncMock()
         mock_llm_fail.invoke.side_effect = json.JSONDecodeError("Invalid JSON", "doc", 0)
 
-        result_state = await select_tools(mock_agent_state, mock_llm_fail, mock_tools)
+        result_state = await filter_tools_node(mock_agent_state, mock_llm_fail, mock_tools)
 
         mock_llm_fail.invoke.assert_called_once()
         assert result_state["selected_tools"] == mock_tools
@@ -75,7 +75,7 @@ class TestSelectToolsNode:
 
     @pytest.mark.asyncio
     async def test_select_tools_no_tools(self, mock_agent_state, mock_llm):
-        result_state = await select_tools(mock_agent_state, mock_llm, [])
+        result_state = await filter_tools_node(mock_agent_state, mock_llm, [])
 
         mock_llm.invoke.assert_not_called()
         assert result_state["selected_tools"] == []

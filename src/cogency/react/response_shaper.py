@@ -156,7 +156,7 @@ async def shape_response(
     return await shaper.shape(raw_response, config)
 
 
-async def apply_response_shaping(text: str, llm: BaseLLM, shaper_config: Optional[Dict[str, Any]]) -> str:
+async def shape_response(text: str, llm: BaseLLM, shaper_config: Optional[Dict[str, Any]]) -> str:
     """Apply response shaping if configured, otherwise return text unchanged."""
     if not shaper_config:
         return text

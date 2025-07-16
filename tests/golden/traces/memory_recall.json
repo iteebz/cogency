@@ -3,10 +3,10 @@
   "query": "Remember that my favorite color is blue, then tell me what my favorite color is",
   "expected_nodes": [
     "memorize",
-    "select_tools",
-    "reason"
+    "filter_tools",
+    "react_loop"
   ],
-  "expected_pattern": "memorize \u2192 select_tools \u2192 reason",
+  "expected_pattern": "memorize \u2192 filter_tools \u2192 react_loop",
   "trace_entries": [
     {
       "node": "memorize",
@@ -16,14 +16,14 @@
       "timestamp": 1752665112.758191
     },
     {
-      "node": "select_tools",
+      "node": "filter_tools",
       "message": "Selected tools",
       "data": {},
       "explanation": null,
       "timestamp": 1752665112.758194
     },
     {
-      "node": "reason",
+      "node": "react_loop",
       "message": "Generated response",
       "data": {},
       "explanation": null,

@@ -18,7 +18,8 @@ await agent.run_streaming("What's the weather in Tokyo?")
 ## with tools
 
 ```python
-from cogency import Agent, WeatherTool, CalculatorTool
+from cogency import Agent
+from cogency.tools import WeatherTool, CalculatorTool
 
 agent = Agent("assistant", tools=[WeatherTool(), CalculatorTool()])
 await agent.run_streaming("What's 15 * 23 and weather in London?")

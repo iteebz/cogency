@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from cogency.core.tracer import Tracer
+from cogency.utils.tracing import Tracer
 from cogency.common.types import ExecutionTrace
 
 @pytest.fixture

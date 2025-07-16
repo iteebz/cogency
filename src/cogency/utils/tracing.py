@@ -1,15 +1,69 @@
-"""Trace formatting and output for clean separation of concerns."""
+"""Comprehensive tracing utilities for recording and reporting."""
+from functools import wraps
+from copy import deepcopy
+from typing import Dict, Any, List, Optional
 import time
-from typing import List
+import re
 
+from cogency.utils.diff import compute_diff, generate_trace_message
 from cogency.common.types import ExecutionTrace, OutputMode
-from cogency.utils.explanation import ExplanationGenerator, ExplanationLevel, ExplanationContext, create_actionable_insights
+# Lazy imports to avoid circular dependencies
+
+
+def _safe_deepcopy(obj):
+    """Safe deepcopy that handles unpicklable objects."""
+    try:
+        return deepcopy(obj)
+    except (TypeError, AttributeError) as e:
+        # Handle unpicklable objects like SimpleQueue
+        if hasattr(obj, '__dict__'):
+            safe_dict = {}
+            for k, v in obj.__dict__.items():
+                try:
+                    safe_dict[k] = deepcopy(v)
+                except (TypeError, AttributeError):
+                    safe_dict[k] = f"<unpicklable: {type(v).__name__}>"
+            return safe_dict
+        else:
+            return f"<unpicklable: {type(obj).__name__}>"
+
+
+def trace_node(node_name: str):
+    """Decorator that adds tracing via post-hoc state diff analysis."""
+    def decorator(fn):
+        @wraps(fn)
+        async def wrapped(state, *args, **kwargs):
+            # Take safe snapshot before execution
+            before = _safe_deepcopy(state)
+            
+            # Execute pure business logic
+            result = await fn(state, *args, **kwargs)
+            
+            # Take safe snapshot after execution
+            after = _safe_deepcopy(result)
+            
+            # Compute diff and generate trace message
+            delta = compute_diff(before, after)
+            message = generate_trace_message(node_name, delta)
+            
+            # Add to trace if present
+            if state.get("trace"):
+                state["trace"].add(node_name, message, delta)
+            
+            return result
+        return wrapped
+    return decorator
+
+
+# Alias for backward compatibility
+trace = trace_node
 
 
 class Tracer:
     """Handles formatting and output of execution traces."""
 
     def __init__(self, trace: ExecutionTrace):
+        from cogency.react.explanation import ExplanationGenerator, ExplanationLevel, ExplanationContext
         self.trace = trace
         self.explainer = ExplanationGenerator(ExplanationLevel.CONCISE)
 
@@ -28,7 +82,7 @@ class Tracer:
 
     def _format_trace(self) -> str:
         """Format full trace with icons."""
-        icons = {"think": "🤔", "plan": "🧠", "act": "⚡", "reflect": "🔍", "respond": "💬", "reason": "⚡", "memorize": "🧠", "select_tools": "🔧"}
+        icons = {"think": "🤔", "plan": "🧠", "act": "⚡", "reflect": "🔍", "respond": "💬", "reason": "⚡", "memorize": "🧠", "filter_tools": "🔧"}
         lines = []
         for entry in self.trace.entries:
             icon = icons.get(entry["node"], "📝")
@@ -71,7 +125,8 @@ class Tracer:
             print(self._format_full_debug())
             print(f"\n✅ Complete")
     
-    def _build_explanation_context(self) -> ExplanationContext:
+    def _build_explanation_context(self):
+        from cogency.react.explanation import ExplanationContext
         """Build context for explanation generation."""
         # Extract context from trace entries
         user_query = "Unknown query"
@@ -100,7 +155,6 @@ class Tracer:
                 
                 # Extract reasoning depth
                 if "max_iterations" in message:
-                    import re
                     match = re.search(r'max_iterations: (\d+)', message)
                     if match:
                         reasoning_depth = int(match.group(1))
@@ -118,7 +172,7 @@ class Tracer:
             stopping_reason=stopping_reason
         )
     
-    def _generate_explanation_for_entry(self, entry: dict, context: ExplanationContext) -> str:
+    def _generate_explanation_for_entry(self, entry: dict, context: "ExplanationContext") -> str:
         """Generate explanation for a single trace entry."""
         node = entry["node"]
         message = entry["message"]
@@ -131,7 +185,7 @@ class Tracer:
             else:
                 return self.explainer.explain_memory_action("memorize", message)
         
-        elif node == "select_tools":
+        elif node == "filter_tools":
             if "selected_tools" in data:
                 tools = [tool.get("name", "unknown") for tool in data["selected_tools"]]
                 return self.explainer.explain_tool_selection(tools, len(context.tools_available))
@@ -158,6 +212,7 @@ class Tracer:
         return None
     
     def _show_actionable_insights(self):
+        from cogency.react.explanation import create_actionable_insights
         """Show actionable insights based on trace analysis."""
         context = self._build_explanation_context()
         insights = create_actionable_insights(self.trace.entries, context)
@@ -166,4 +221,3 @@ class Tracer:
             print("\n💡 Insights:")
             for insight in insights:
                 print(f"   {insight}")
-

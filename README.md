@@ -60,7 +60,8 @@ asyncio.run(main())
 **With Tools** ([`examples/basic.py`](examples/basic.py))
 ```python
 import asyncio
-from cogency import Agent, WeatherTool
+from cogency import Agent
+from cogency.tools import WeatherTool
 
 async def main():
     agent = Agent("weather_assistant", tools=[WeatherTool()])
@@ -72,7 +73,8 @@ asyncio.run(main())
 **Multi-Step Reasoning** ([`examples/complex.py`](examples/complex.py))
 ```python
 import asyncio
-from cogency import Agent, CalculatorTool, WeatherTool, TimezoneTool
+from cogency import Agent
+from cogency.tools import CalculatorTool, WeatherTool, TimezoneTool
 
 async def main():
     agent = Agent("travel_planner", tools=[CalculatorTool(), WeatherTool(), TimezoneTool()])

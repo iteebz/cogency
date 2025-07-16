@@ -4,11 +4,11 @@ from typing import List, Optional
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.common.types import AgentState
-from cogency.utils.trace import trace_node
+from cogency.utils.tracing import trace_node
 
 
-@trace_node("select_tools")
-async def select_tools(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None) -> AgentState:
+@trace_node("filter_tools")
+async def filter_tools_node(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None) -> AgentState:
     """Intelligently select a subset of tools based on the user query."""
     if not tools or len(tools) <= 3:
         state["selected_tools"] = tools or []

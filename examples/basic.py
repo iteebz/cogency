@@ -2,7 +2,8 @@
 """Test all three output modes."""
 import asyncio
 import sys
-from cogency import Agent, WeatherTool
+from cogency import Agent
+from cogency.tools import WeatherTool
 
 async def main():
     agent = Agent("weather_assistant", tools=[WeatherTool()])
