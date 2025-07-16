@@ -18,12 +18,14 @@ class Context:
         tool_results: Optional[List[Dict[str, Any]]] = None,
         max_history: Optional[int] = None,
         conversation_history: Optional[List[Dict[str, Any]]] = None,
+        user_id: str = "default",
     ):
         self.current_input = current_input
         self.messages = messages if messages is not None else []
         self.tool_results = tool_results if tool_results is not None else []
         self.max_history = max_history
         self.conversation_history = conversation_history if conversation_history is not None else []
+        self.user_id = user_id
 
     def add_message(self, role: str, content: str, trace_id: Optional[str] = None):
         """Add message to history with optional trace linkage."""

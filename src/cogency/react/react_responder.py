@@ -171,8 +171,8 @@ async def act_phase(reasoning: Dict[str, Any], state: AgentState, tools: List[Ba
     if isinstance(tool_call, MultiToolCall):
         execution_results = await execute_parallel_tools(tool_call.calls, tools, context)
     elif isinstance(tool_call, ToolCall):
-        tool_name, parsed_args, tool_output = await execute_single(
-            tool_call.name, tool_call.args, tools
+        tool_name, parsed_args, tool_output = await execute_single_tool(
+            tool_call.name, tool_call.args, tools, context
         )
         
         if isinstance(tool_output, dict) and tool_output.get("success") is False:

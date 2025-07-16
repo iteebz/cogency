@@ -27,6 +27,10 @@ class MemorizeTool(BaseTool):
         tags = kwargs.get("tags", [])
         metadata = kwargs.get("metadata", {})
         
+        # Extract user_id from context if available
+        context = kwargs.get("_context")
+        user_id = getattr(context, 'user_id', 'default') if context else 'default'
+        
         # Smart auto-tagging if no tags provided
         if not tags and hasattr(self.memory, 'should_store'):
             should_store, category = self.memory.should_store(content)
@@ -34,7 +38,7 @@ class MemorizeTool(BaseTool):
                 tags = [category]
         
         try:
-            artifact = await self.memory.memorize(content, tags=tags, metadata=metadata)
+            artifact = await self.memory.memorize(content, tags=tags, metadata=metadata, user_id=user_id)
             return {
                 "success": True,
                 "artifact_id": str(artifact.id),
@@ -82,8 +86,12 @@ class RecallTool(BaseTool):
         limit = kwargs.get("limit")
         tags = kwargs.get("tags", [])
         
+        # Extract user_id from context if available
+        context = kwargs.get("_context")
+        user_id = getattr(context, 'user_id', 'default') if context else 'default'
+        
         try:
-            artifacts = await self.memory.recall(query, limit=limit, tags=tags if tags else None)
+            artifacts = await self.memory.recall(query, limit=limit, tags=tags if tags else None, user_id=user_id)
             
             results = []
             for artifact in artifacts:

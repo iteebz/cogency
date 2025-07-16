@@ -45,7 +45,7 @@ class Agent:
     ):
         self.name = name
         self.llm = llm if llm is not None else auto_detect_llm()
-        self.memory = memory if memory is not None else FSMemory(memory_dir) # Use provided memory or create new FSMemory
+        self.memory = memory if memory is not None else FSMemory(memory_dir)
         self.default_output_mode = default_output_mode
         
         # Conversation history management - user-scoped contexts
@@ -170,7 +170,8 @@ class Agent:
         if context is None:
             context = Context(
                 current_input=query,
-                max_history=self.conversation_max_history if self.conversation_history_enabled else None
+                max_history=self.conversation_max_history if self.conversation_history_enabled else None,
+                user_id="default"
             )
         else:
             context.current_input = query
@@ -267,17 +268,18 @@ class Agent:
     
     def _get_user_context(self, user_id: Optional[str], query: str) -> Context:
         """Get or create user-scoped context with backward compatibility."""
-        if not self.conversation_history_enabled:
-            # No history - create fresh context each time
-            return Context(current_input=query)
-        
         # Use "default" as fallback user_id for backward compatibility
         effective_user_id = user_id or "default"
+        
+        if not self.conversation_history_enabled:
+            # No history - create fresh context each time
+            return Context(current_input=query, user_id=effective_user_id)
         
         if effective_user_id not in self.user_contexts:
             self.user_contexts[effective_user_id] = Context(
                 current_input=query,
-                max_history=self.conversation_max_history
+                max_history=self.conversation_max_history,
+                user_id=effective_user_id
             )
         else:
             # Update existing context with new input

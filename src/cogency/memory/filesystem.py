@@ -25,14 +25,20 @@ class FSMemory(BaseMemory):
         """Initialize filesystem memory.
         
         Args:
-            memory_dir: Directory to store memory files
+            memory_dir: Base directory to store memory files
         """
-        self.memory_dir = Path(memory_dir)
-        self.memory_dir.mkdir(exist_ok=True)
+        self.base_memory_dir = Path(memory_dir)
+        self.base_memory_dir.mkdir(exist_ok=True)
         # self.profiler = CogencyProfiler()  # Temporarily disabled for faster startup
         self._executor = ThreadPoolExecutor(max_workers=4)  # For I/O operations
         self._cache = {}  # Simple in-memory cache
         self._pending_tasks = set()  # To keep track of cache expiration tasks
+    
+    def _get_user_memory_dir(self, user_id: str = "default") -> Path:
+        """Get user-specific memory directory."""
+        user_dir = self.base_memory_dir / user_id
+        user_dir.mkdir(parents=True, exist_ok=True)
+        return user_dir
     
     def should_store(self, text: str) -> Tuple[bool, str]:
         """Smart auto-storage heuristics - NO BULLSHIT."""
@@ -59,7 +65,8 @@ class FSMemory(BaseMemory):
         memory_type: MemoryType = MemoryType.FACT,
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
-        timeout_seconds: float = 10.0
+        timeout_seconds: float = 10.0,
+        user_id: str = "default"
     ) -> MemoryArtifact:
         """Store content as JSON file."""
         artifact = MemoryArtifact(
@@ -69,8 +76,9 @@ class FSMemory(BaseMemory):
             metadata=metadata or {}
         )
         
-        # Save as JSON file with UUID as filename
-        file_path = self.memory_dir / f"{artifact.id}.json"
+        # Save as JSON file with UUID as filename in user-specific directory
+        memory_dir = self._get_user_memory_dir(user_id)
+        file_path = memory_dir / f"{artifact.id}.json"
         artifact_data = {
             "id": str(artifact.id),
             "content": artifact.content,
@@ -95,13 +103,14 @@ class FSMemory(BaseMemory):
         tags: Optional[List[str]] = None,
         memory_type: Optional[MemoryType] = None,
         since: Optional[str] = None,
+        user_id: str = "default",
         **kwargs
     ) -> List[MemoryArtifact]:
         """Search artifacts with enhanced relevance scoring and async optimization."""
         
         async def _recall_implementation():
-            # Check cache first
-            cache_key = f"{query}:{limit}:{tags}:{memory_type}:{since}"
+            # Check cache first - include user_id in cache key for isolation
+            cache_key = f"{user_id}:{query}:{limit}:{tags}:{memory_type}:{since}"
             if cache_key in self._cache:
                 return self._cache[cache_key]
             
@@ -109,8 +118,9 @@ class FSMemory(BaseMemory):
             query_lower = query.lower()
             query_words = query_lower.split()
             
-            # Get all JSON files
-            file_paths = list(self.memory_dir.glob("*.json"))
+            # Get all JSON files from user-specific directory
+            memory_dir = self._get_user_memory_dir(user_id)
+            file_paths = list(memory_dir.glob("*.json"))
             
             # Process files in parallel batches
             batch_size = 10
@@ -118,7 +128,7 @@ class FSMemory(BaseMemory):
             
             for i in range(0, len(file_paths), batch_size):
                 batch = file_paths[i:i + batch_size]
-                task = self._process_file_batch(batch, query_words, memory_type, tags, since)
+                task = self._process_file_batch(batch, query_words, memory_type, tags, since, user_id)
                 tasks.append(task)
             
             # Execute all batches concurrently
@@ -149,7 +159,7 @@ class FSMemory(BaseMemory):
     
     async def _process_file_batch(self, file_paths: List[Path], query_words: List[str], 
                                   memory_type: Optional[MemoryType], tags: Optional[List[str]], 
-                                  since: Optional[str]) -> List[MemoryArtifact]:
+                                  since: Optional[str], user_id: str) -> List[MemoryArtifact]:
         """Process a batch of files concurrently."""
         loop = asyncio.get_event_loop()
         
@@ -202,7 +212,7 @@ class FSMemory(BaseMemory):
         
         # Update access stats for all artifacts (fire and forget)
         for artifact in artifacts:
-            asyncio.create_task(self._update_access_stats(artifact))
+            asyncio.create_task(self._update_access_stats(artifact, user_id))
         
         return artifacts
     
@@ -247,9 +257,10 @@ class FSMemory(BaseMemory):
         
         return min(score, 10.0)  # Cap at 10.0
     
-    async def _update_access_stats(self, artifact: MemoryArtifact) -> None:
+    async def _update_access_stats(self, artifact: MemoryArtifact, user_id: str = "default") -> None:
         """Update access statistics for an artifact."""
-        file_path = self.memory_dir / f"{artifact.id}.json"
+        memory_dir = self._get_user_memory_dir(user_id)
+        file_path = memory_dir / f"{artifact.id}.json"
         if file_path.exists():
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
@@ -264,27 +275,39 @@ class FSMemory(BaseMemory):
             except (json.JSONDecodeError, KeyError, ValueError):
                 pass  # Skip if corrupted
 
-    async def forget(self, artifact_id: UUID) -> bool:
+    async def forget(self, artifact_id: UUID, user_id: str = "default") -> bool:
         """Remove artifact file."""
-        file_path = self.memory_dir / f"{artifact_id}.json"
+        memory_dir = self._get_user_memory_dir(user_id)
+        file_path = memory_dir / f"{artifact_id}.json"
         if file_path.exists():
             file_path.unlink()
+            # Clear cache entries that might contain this artifact
+            keys_to_remove = [k for k in self._cache.keys() if k.startswith(f"{user_id}:")]
+            for key in keys_to_remove:
+                self._cache.pop(key, None)
             return True
         return False
 
-    async def clear(self) -> None:
-        """Remove all artifact files."""
-        for file_path in self.memory_dir.glob("*.json"):
+    async def clear(self, user_id: str = "default") -> None:
+        """Remove all artifact files for a user."""
+        memory_dir = self._get_user_memory_dir(user_id)
+        for file_path in memory_dir.glob("*.json"):
             file_path.unlink()
+        # Clear cache entries for this user
+        keys_to_remove = [k for k in self._cache.keys() if k.startswith(f"{user_id}:")]
+        for key in keys_to_remove:
+            self._cache.pop(key, None)
     
-    def _get_fs_stats(self) -> Dict[str, Any]:
-        """Get filesystem-specific stats."""
-        files = list(self.memory_dir.glob("*.json"))
+    def _get_fs_stats(self, user_id: str = "default") -> Dict[str, Any]:
+        """Get filesystem-specific stats for a user."""
+        memory_dir = self._get_user_memory_dir(user_id)
+        files = list(memory_dir.glob("*.json"))
         total_size = sum(f.stat().st_size for f in files)
         return {
             "count": len(files),
             "total_size_kb": round(total_size / 1024, 1),
-            "directory": str(self.memory_dir)
+            "directory": str(memory_dir),
+            "user_id": user_id
         }
 
     def close(self):

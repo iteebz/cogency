@@ -140,6 +140,14 @@ async for chunk in agent.stream("Calculate something", mode="trace"):
     print(chunk, end="", flush=True)
 ```
 
+**Multi-User Support**: Built-in user isolation
+```python
+# Each user gets isolated memory and conversation history
+result = await agent.run("Remember my favorite color is blue", user_id="user1")
+result = await agent.run("What's my favorite color?", user_id="user1")  # "blue"
+result = await agent.run("What's my favorite color?", user_id="user2")  # No memory
+```
+
 ## Supported Providers
 
 **LLMs (Auto-detected):**
@@ -162,6 +170,7 @@ async for chunk in agent.stream("Calculate something", mode="trace"):
 - **Tool subsetting** - Intelligent filtering keeps prompts lean
 - **Stream transparency** - Watch reasoning in real-time
 - **Plug-and-play** - Drop in tools, they auto-register
+- **Multi-user isolation** - Built-in user_id support for memory and conversation history
 
 ## Contributing
 

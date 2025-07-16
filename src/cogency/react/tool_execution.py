@@ -38,13 +38,14 @@ def parse_tool_call(llm_response_content: str) -> Optional[Union[ToolCall, Multi
 
 
 @retry(max_attempts=3)
-async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseTool]) -> Tuple[str, Dict, Any]:
+async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseTool], context=None) -> Tuple[str, Dict, Any]:
     """Execute a single tool with given arguments and structured error handling.
     
     Args:
         tool_name: Name of tool to execute
         tool_args: Arguments for tool execution
         tools: Available tools
+        context: Context to pass to tools for user isolation
         
     Returns:
         Tuple of (tool_name, parsed_args, result)
@@ -52,11 +53,14 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
     # profiler = CogencyProfiler()  # Temporarily disabled for faster startup
     
     async def _execute():
-        for tool in available_tools:
+        for tool in tools:
             if tool.name == tool_name:
                 try:
+                    # Inject context for user isolation
+                    if context:
+                        tool_args["_context"] = context
                     result = await tool.run(**tool_args)
-                    return result
+                    return tool_name, tool_args, result
                 except Exception as e:
                     raise
         raise ValueError(f"Tool '{tool_name}' not found.")
@@ -83,7 +87,7 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
     
     async def _execute_parallel():
         # Execute all tools in parallel with error isolation
-        tasks = [execute_single(name, args, tools) for name, args in tool_calls]
+        tasks = [execute_single_tool(name, args, tools, context) for name, args in tool_calls]
         return await asyncio.gather(*tasks, return_exceptions=True)
     
     # Profile the parallel execution
