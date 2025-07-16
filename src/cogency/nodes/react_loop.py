@@ -113,7 +113,7 @@ def _complexity_score(user_input: str, tool_count: int) -> float:
 
 @trace_node("react_loop")
 async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, 
-                         prompt_fragments: Optional[Dict[str, str]] = None, config: Optional[Dict] = None) -> AgentState:
+                         response_shaper: Optional[Dict[str, Any]] = None, config: Optional[Dict] = None) -> AgentState:
     """ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
@@ -132,7 +132,7 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
     controller.start_reasoning()
     
     # Run multi-step ReAct loop with streaming support
-    final_response = await react_loop_with_streaming(state, llm, selected_tools, controller, streaming_callback)
+    final_response = await react_loop_with_streaming(state, llm, selected_tools, controller, streaming_callback, response_shaper)
     
     return {
         "context": final_response["context"],
@@ -143,7 +143,7 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
 
 async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
                                    controller: AdaptiveReasoningController, 
-                                   streaming_callback=None) -> Dict[str, Any]:
+                                   streaming_callback=None, response_shaper=None) -> Dict[str, Any]:
     """Streaming version of ReAct loop with polished real-time updates."""
     iteration = 0
     
@@ -152,7 +152,7 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         if not should_continue:
             if streaming_callback:
                 await streaming_callback(f"\n💬 RESPOND: Sufficient information gathered, preparing final response...\n")
-            return await _fallback_response(state, llm, stopping_reason)
+            return await _fallback_response(state, llm, stopping_reason, response_shaper)
             
         iteration += 1
         
@@ -171,20 +171,36 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         if reasoning["can_answer_directly"]:
             if streaming_callback:
                 await streaming_callback(f"💬 RESPOND: Have sufficient information to provide complete answer\n")
+            
+            # Apply response shaping if configured
+            final_text = reasoning["direct_response"]
+            if response_shaper:
+                from cogency.response_shaper import ResponseShaper
+                shaper = ResponseShaper(llm)
+                final_text = await shaper.shape(final_text, response_shaper)
+            
             return {
                 "context": state["context"],
-                "text": reasoning["direct_response"],
-                "decision": ReasoningDecision(should_respond=True, response_text=reasoning["direct_response"], task_complete=True)
+                "text": final_text,
+                "decision": ReasoningDecision(should_respond=True, response_text=final_text, task_complete=True)
             }
         
         # Check if we have tool calls to execute
         if not reasoning["tool_calls"]:
             if streaming_callback:
                 await streaming_callback(f"💬 RESPOND: No additional tools needed, responding with current knowledge\n")
+            
+            # Apply response shaping if configured
+            final_text = reasoning["response"]
+            if response_shaper:
+                from cogency.response_shaper import ResponseShaper
+                shaper = ResponseShaper(llm)
+                final_text = await shaper.shape(final_text, response_shaper)
+            
             return {
                 "context": state["context"], 
-                "text": reasoning["response"],
-                "decision": ReasoningDecision(should_respond=True, response_text=reasoning["response"], task_complete=True)
+                "text": final_text,
+                "decision": ReasoningDecision(should_respond=True, response_text=final_text, task_complete=True)
             }
         
         # Extract tool names for better streaming messages
@@ -227,7 +243,7 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         controller.update_iteration_metrics(action.get("results", {}), action.get("time", 0))
     
     # Should never reach here due to controller limits
-    return await _fallback_response(state, llm, "max_iterations")
+    return await _fallback_response(state, llm, "max_iterations", response_shaper)
 
 
 async def react_loop(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
@@ -269,7 +285,7 @@ async def react_loop(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
         controller.update_iteration_metrics(action.get("results", {}), action.get("time", 0))
     
     # Should never reach here due to controller limits
-    return await _fallback_response(state, llm, "max_iterations")
+    return await _fallback_response(state, llm, "max_iterations", response_shaper)
 
 
 async def reason_phase(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> Dict[str, Any]:
@@ -367,7 +383,7 @@ async def respond_phase(action: Dict[str, Any], state: AgentState, llm: BaseLLM)
     }
 
 
-async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason) -> Dict[str, Any]:
+async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason, response_shaper=None) -> Dict[str, Any]:
     """Generate fallback response when reasoning loop ends."""
     context = state["context"]
     
@@ -385,8 +401,15 @@ async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason) -
     final_response = await llm.invoke(final_messages)
     context.add_message("assistant", final_response)
     
+    # Apply response shaping if configured
+    final_text = final_response
+    if response_shaper:
+        from cogency.response_shaper import ResponseShaper
+        shaper = ResponseShaper(llm)
+        final_text = await shaper.shape(final_text, response_shaper)
+    
     return {
         "context": context,
-        "text": final_response,
-        "decision": ReasoningDecision(should_respond=True, response_text=final_response, task_complete=True)
+        "text": final_text,
+        "decision": ReasoningDecision(should_respond=True, response_text=final_text, task_complete=True)
     }

@@ -1,6 +1,6 @@
 """Cognitive workflow abstraction for clean Agent DX."""
 from functools import partial
-from typing import Dict, List, Callable, Optional
+from typing import Dict, List, Callable, Optional, Any
 
 from langgraph.graph import StateGraph, END
 from cogency.nodes.react_loop import react_loop_node
@@ -25,13 +25,12 @@ DEFAULT_ROUTING_TABLE = {
 class Workflow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
-    def __init__(self, llm, tools, memory: BaseMemory, routing_table: Optional[Dict] = None, prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None):
+    def __init__(self, llm, tools, memory: BaseMemory, routing_table: Optional[Dict] = None, response_shaper: Optional[Dict[str, Any]] = None):
         self.llm = llm
         self.tools = tools
         self.memory = memory
         self.routing_table = routing_table or DEFAULT_ROUTING_TABLE
-        self.prompt_fragments = prompt_fragments or {}
-        # Mode is now handled in Agent class
+        self.response_shaper = response_shaper or {}
         self.workflow = self._build_graph()
     
     def _build_graph(self) -> StateGraph:
@@ -42,7 +41,7 @@ class Workflow:
         node_functions = {
             NodeName.MEMORIZE.value: partial(memorize, memory=self.memory),
             NodeName.SELECT_TOOLS.value: partial(select_tools, llm=self.llm, tools=self.tools),
-            NodeName.REACT_LOOP.value: partial(react_loop_node, llm=self.llm, tools=self.tools, prompt_fragments=self.prompt_fragments.get("react_loop", {}))
+            NodeName.REACT_LOOP.value: partial(react_loop_node, llm=self.llm, tools=self.tools, response_shaper=self.response_shaper)
         }
         
         # Add nodes to workflow

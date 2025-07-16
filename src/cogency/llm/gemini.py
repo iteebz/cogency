@@ -115,7 +115,7 @@ class GeminiLLM(BaseLLM):
     @with_resilience(
         rate_limiter="gemini",
         circuit_breaker="gemini",
-        rate_config=RateLimiterConfig(requests_per_minute=10, burst_size=3),  # Conservative for free tier
+        rate_config=RateLimiterConfig(requests_per_minute=60, burst_size=10),  # Increased for testing
         circuit_config=CircuitBreakerConfig(failure_threshold=3, recovery_timeout=120)
     )
     @with_retry(max_attempts=3, exceptions=(Exception,))
@@ -138,7 +138,7 @@ class GeminiLLM(BaseLLM):
     @with_resilience(
         rate_limiter="gemini_stream",
         circuit_breaker="gemini",
-        rate_config=RateLimiterConfig(requests_per_minute=10, burst_size=3),
+        rate_config=RateLimiterConfig(requests_per_minute=60, burst_size=10),
         circuit_config=CircuitBreakerConfig(failure_threshold=3, recovery_timeout=120)
     )
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:

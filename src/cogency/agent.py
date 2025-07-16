@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import List, Optional, Dict, Any
 
 from cogency.context import Context
 from cogency.llm import BaseLLM, auto_detect_llm
@@ -30,7 +30,7 @@ class Agent:
         tools: Optional[List[BaseTool]] = None,
         trace: bool = True,
         memory_dir: str = ".memory",
-        prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None,
+        response_shaper: Optional[Dict[str, Any]] = None,
         default_output_mode: OutputMode = "summary",
     ):
         self.name = name
@@ -43,7 +43,7 @@ class Agent:
         self.tools = (tools if tools is not None else []) + discovered_tools
         
         self.trace = trace
-        self.workflow_builder = Workflow(self.llm, self.tools, self.memory, prompt_fragments=prompt_fragments)
+        self.workflow_builder = Workflow(self.llm, self.tools, self.memory, response_shaper=response_shaper)
         self.workflow = self.workflow_builder.workflow
         # self.monitor = get_monitor()  # Temporarily disabled for faster startup
     
