@@ -2,38 +2,74 @@
 """End-to-end test for the explanation system integrated with the full ReAct workflow."""
 
 import asyncio
-from unittest.mock import MagicMock, AsyncMock
-from cogency.agent import Agent
-from cogency.types import ExecutionTrace
+import pytest
+from unittest.mock import AsyncMock, MagicMock
+from typing import Dict, Any, List
+
+from cogency import Agent
+from cogency.llm.base import BaseLLM
+from cogency.llm.mock import MockLLM
+from cogency.nodes.react_loop import react_loop_node
+from cogency.common.types import AgentState, Context, ExecutionTrace
+from cogency.core.resilience import RateLimitedError, CircuitOpenError
+from cogency.core.metrics import get_metrics
 from cogency.core.tracer import Tracer
-from cogency.llm import BaseLLM
+from cogency.tools.base import BaseTool
 
 
 class MockLLM(BaseLLM):
     """Mock LLM for testing."""
     
-    def __init__(self, responses):
+    def __init__(self, responses, **kwargs):
+        super().__init__(**kwargs)
         self.responses = responses
         self.call_count = 0
     
-    async def invoke(self, messages):
+    async def invoke(self, messages, **kwargs):
         if self.call_count < len(self.responses):
             response = self.responses[self.call_count]
             self.call_count += 1
             return response
         return "I don't have enough information to provide a response."
 
+    async def stream(self, messages, yield_interval: float = 0.0, **kwargs):
+        response = self.responses[self.call_count]
+        self.call_count += 1
+        for char in response:
+            yield char
 
-class MockTool:
-    """Mock tool for testing."""
-    
-    def __init__(self, name, description="Mock tool", response="Mock response"):
+
+class MockTool(BaseTool):
+    """A mock tool for testing purposes."""
+    def __init__(self, name: str, description: str, response: str):
         self.name = name
         self.description = description
-        self.response = response
-    
-    async def validate_and_run(self, **kwargs):
-        return self.response
+        self._response = response
+
+    async def _run(self, *args, **kwargs) -> str:
+        return self._response
+
+    def get_schema(self) -> Dict[str, Any]:
+        """Return the tool's schema."""
+        return {
+            "name": self.name,
+            "description": self.description,
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "The query string"}
+                },
+                "required": ["query"],
+            },
+        }
+
+    def get_usage_examples(self) -> List[Dict[str, Any]]:
+        """Return usage examples for the tool."""
+        return []
+
+    async def run(self, *args, **kwargs) -> str:
+        """Run the tool."""
+        return await self._run(*args, **kwargs)
 
 
 async def test_direct_response_explanation():

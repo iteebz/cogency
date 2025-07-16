@@ -4,6 +4,9 @@ from typing import Any, Dict, List
 from cogency.tools.base import BaseTool
 
 
+from cogency.tools.registry import tool
+
+@tool
 class FileManagerTool(BaseTool):
     """File operations within a safe base directory."""
 

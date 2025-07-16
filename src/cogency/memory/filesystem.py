@@ -32,6 +32,7 @@ class FSMemory(BaseMemory):
         # self.profiler = CogencyProfiler()  # Temporarily disabled for faster startup
         self._executor = ThreadPoolExecutor(max_workers=4)  # For I/O operations
         self._cache = {}  # Simple in-memory cache
+        self._pending_tasks = set()  # To keep track of cache expiration tasks
     
     def should_store(self, text: str) -> Tuple[bool, str]:
         """Smart auto-storage heuristics - NO BULLSHIT."""
@@ -137,7 +138,9 @@ class FSMemory(BaseMemory):
             
             # Cache results for 60 seconds
             self._cache[cache_key] = artifacts
-            asyncio.create_task(self._expire_cache_entry(cache_key, 60))
+            task = asyncio.create_task(self._expire_cache_entry(cache_key, 60))
+            self._pending_tasks.add(task)
+            task.add_done_callback(self._pending_tasks.discard)
             
             return artifacts
         
@@ -207,6 +210,12 @@ class FSMemory(BaseMemory):
         """Remove cache entry after delay."""
         await asyncio.sleep(delay)
         self._cache.pop(cache_key, None)
+
+    async def _cleanup_tasks(self):
+        """Awaits all pending background tasks to ensure they complete."""
+        if self._pending_tasks:
+            await asyncio.gather(*self._pending_tasks, return_exceptions=True)
+        self._pending_tasks.clear()
     
     def _calculate_relevance(self, content: str, query_words: List[str], tags: List[str]) -> float:
         """Calculate relevance score based on content and tag matching."""
@@ -277,3 +286,7 @@ class FSMemory(BaseMemory):
             "total_size_kb": round(total_size / 1024, 1),
             "directory": str(self.memory_dir)
         }
+
+    def close(self):
+        """Shuts down the thread pool executor."""
+        self._executor.shutdown(wait=True)

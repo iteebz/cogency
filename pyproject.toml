@@ -39,7 +39,8 @@ dependencies = [
     "nomic>=1.0.0",
     "aiohttp (>=3.12.14,<4.0.0)",
     "psutil>=5.9.0",
-    "mcp>=1.0.0"
+    "mcp>=1.0.0",
+    "pytest-timeout (>=2.4.0,<3.0.0)"
 ]
 
 [tool.poetry.group.dev.dependencies]

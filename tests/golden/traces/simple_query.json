@@ -13,21 +13,21 @@
       "message": "Processing query",
       "data": {},
       "explanation": null,
-      "timestamp": 1752609616.775434
+      "timestamp": 1752665929.913569
     },
     {
       "node": "select_tools",
       "message": "Selected tools",
       "data": {},
       "explanation": null,
-      "timestamp": 1752609616.775437
+      "timestamp": 1752665929.913573
     },
     {
       "node": "reason",
       "message": "Generated response",
       "data": {},
       "explanation": null,
-      "timestamp": 1752609616.775439
+      "timestamp": 1752665929.913576
     }
   ],
   "response_type": "str"

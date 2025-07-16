@@ -50,6 +50,7 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
     """ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
+    trace = state["trace"]
     
     # Get streaming callback from config
     streaming_callback = None
@@ -63,6 +64,11 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
     
     controller = AdaptiveReasoningController(criteria)
     controller.start_reasoning()
+    
+    trace.add(
+        "react_loop",
+        f"Adaptive reasoning enabled. Max iterations: {criteria.max_iterations}"
+    )
     
     # Run multi-step ReAct loop with streaming support
     final_response = await react_loop_with_streaming(state, llm, selected_tools, controller, streaming_callback, response_shaper)
@@ -231,18 +237,12 @@ async def act_phase(reasoning: Dict[str, Any], state: AgentState, tools: List[Ba
     
     context = state["context"]
     
-    # Skip validation for now since it's designed for old format
-    # validated_response = validate_tools(tool_call_str, tools)
-    # if validated_response != tool_call_str:
-    #     tool_call_str = validated_response
-    
     tool_call = parse_tool_call(tool_call_str)
     execution_results = {}
     
     # Execute tools and add results to context (this is the OBSERVE step)
     if isinstance(tool_call, MultiToolCall):
-        tool_calls_for_execution = [(call.name, call.args) for call in tool_call.calls]
-        execution_results = await execute_parallel_tools(tool_calls_for_execution, tools, context)
+        execution_results = await execute_parallel_tools(tool_call.calls, tools, context)
     elif isinstance(tool_call, ToolCall):
         tool_name, parsed_args, tool_output = await execute_single_tool(
             tool_call.name, tool_call.args, tools

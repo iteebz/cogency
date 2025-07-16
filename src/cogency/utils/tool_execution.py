@@ -52,31 +52,14 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
     # profiler = CogencyProfiler()  # Temporarily disabled for faster startup
     
     async def _execute():
-        try:
-            for tool in tools:
-                if tool.name == tool_name:
-                    result = await tool.validate_and_run(**tool_args)
-                    return tool_name, tool_args, {
-                        "success": True,
-                        "result": result,
-                        "error": None
-                    }
-            
-            # Tool not found - return structured error
-            return tool_name, tool_args, {
-                "success": False,
-                "result": None,
-                "error": f"Tool '{tool_name}' not found in available tools",
-                "error_type": "tool_not_found"
-            }
-        
-        except Exception as e:
-            return tool_name, tool_args, {
-                "success": False,
-                "result": None,
-                "error": str(e),
-                "error_type": "execution_error"
-            }
+        for tool in available_tools:
+            if tool.name == tool_name:
+                try:
+                    result = await tool.run(**tool_args)
+                    return result
+                except Exception as e:
+                    raise
+        raise ValueError(f"Tool '{tool_name}' not found.")
     
     # return await profiler.profile_tool_execution(_execute)  # Temporarily disabled
     return await _execute()

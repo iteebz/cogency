@@ -1,1 +1,0 @@
-"""Production testing suite for Cogency framework."""
