@@ -19,8 +19,7 @@ async def main():
     
     # Show beautiful streaming by default
     print("🔄 ReAct Reasoning:")
-    async for chunk in agent.stream(query, mode=mode):
-        print(chunk, end="", flush=True)
+    await agent.run_streaming(query, mode=mode)
     
     print("\n✅ Complete!")
 

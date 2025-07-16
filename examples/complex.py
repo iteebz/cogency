@@ -32,8 +32,7 @@ async def main():
     
     # Show beautiful multi-step ReAct reasoning
     print("🔄 Multi-Step ReAct Reasoning:")
-    async for chunk in agent.stream(scenario, mode="summary"):
-        print(chunk, end="", flush=True)
+    await agent.run_streaming(scenario, mode="summary")
     
     print("\n" + "=" * 50)
     print("✅ Advanced chaining demo complete!")

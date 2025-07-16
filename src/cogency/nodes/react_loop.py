@@ -114,7 +114,7 @@ def _complexity_score(user_input: str, tool_count: int) -> float:
 @trace_node("react_loop")
 async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, 
                          prompt_fragments: Optional[Dict[str, str]] = None, config: Optional[Dict] = None) -> AgentState:
-    """ReAct Loop Node: Full multi-turn reason → act → observe cycle until task complete."""
+    """ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
     
@@ -131,7 +131,7 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
     controller = AdaptiveReasoningController(criteria)
     controller.start_reasoning()
     
-    # Run multi-turn ReAct loop with streaming support
+    # Run multi-step ReAct loop with streaming support
     final_response = await react_loop_with_streaming(state, llm, selected_tools, controller, streaming_callback)
     
     return {
@@ -232,7 +232,7 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
 
 async def react_loop(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
                     controller: AdaptiveReasoningController) -> Dict[str, Any]:
-    """True multi-turn ReAct: reason → act → observe → reason → act until agent decides it's done."""
+    """True multi-step ReAct: reason → act → observe → reason → act until agent decides it's done."""
     
     while True:
         should_continue, stopping_reason = controller.should_continue_reasoning()

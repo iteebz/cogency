@@ -94,6 +94,12 @@ class Agent:
             counter("agent.stream.errors")
             raise
     
+    async def run_streaming(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None):
+        """Run agent with beautiful streaming output to console - perfect for demos."""
+        async for chunk in self.stream(query, context, mode):
+            print(chunk, end="", flush=True)
+        print()  # Final newline
+    
     @with_metrics("agent.run", tags={"agent": "run"})
     async def run(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None) -> str:
         """Run agent - wrapper around streaming for final response."""

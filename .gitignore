@@ -51,6 +51,15 @@ build/
 # Generated documentation
 /autodocs
 
+# Environment
 .env
-.memory
+
+# Cogency runtime directories
+.memory/
+.diagnostics/
 sandbox/
+
+# Test artifacts (keep contained)
+.test_*
+.benchmark*
+*_reality_check*

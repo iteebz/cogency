@@ -8,10 +8,8 @@ async def main():
     agent = Agent("assistant")
     
     print("🤖 Hello from Cogency!")
-    print("🔄 ReAct Reasoning:")
-    async for chunk in agent.stream("Hello! Tell me about yourself."):
-        print(chunk, end="", flush=True)
-    print("\n✨ Done!")
+    await agent.run_streaming("Hello! Tell me about yourself.")
+    print("✨ Done!")
 
 if __name__ == "__main__":
     asyncio.run(main())

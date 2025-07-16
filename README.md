@@ -7,8 +7,6 @@ Cogency is a multistep reasoning framework that makes building AI agents stupidl
 ## Installation
 
 ```bash
-# Current broken until next release v0.3.1 (pending)
-# Recommended: Fork and install from source
 pip install cogency
 ```
 
@@ -21,8 +19,10 @@ from cogency import Agent
 async def main():
     # That's it. Auto-detects LLM from .env
     agent = Agent("assistant")
-    result = await agent.run("What is 25 * 43?", mode="summary")
-    print(result)
+    
+    # Beautiful streaming ReAct reasoning (NEW in 0.4.0!)
+    await agent.run_streaming("What is 25 * 43?")
+    # Shows: 🧠 REASON → ⚡ ACT → 👀 OBSERVE → 💬 RESPOND
 
 asyncio.run(main())
 ```
