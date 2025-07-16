@@ -9,6 +9,9 @@ from cogency.utils.trace import trace_node
 from cogency.utils.tool_execution import parse_tool_call, execute_single_tool, execute_parallel_tools
 from cogency.utils.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
 from cogency.schemas import ToolCall, MultiToolCall
+from cogency.react.response_parser import ReactResponseParser
+from cogency.react.streaming import ReactStreamer
+from cogency.react.response_shaper import apply_response_shaping
 
 REASON_PROMPT = """You are in a ReAct reasoning loop. Analyze the current situation and decide your next action.
 
@@ -32,76 +35,6 @@ RESPONSE_PROMPT = """Generate final response based on context and tool results.
 Be conversational and helpful. Incorporate all relevant information."""
 
 
-def _can_answer_directly(response: str) -> bool:
-    """Check if LLM response indicates it can answer directly."""
-    try:
-        import json
-        import re
-        
-        # Handle markdown code blocks
-        response_cleaned = response.strip()
-        if response_cleaned.startswith("```json"):
-            json_match = re.search(r'```json\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
-            if json_match:
-                response_cleaned = json_match.group(1).strip()
-        elif response_cleaned.startswith("```"):
-            json_match = re.search(r'```\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
-            if json_match:
-                response_cleaned = json_match.group(1).strip()
-        
-        data = json.loads(response_cleaned)
-        return data.get("action") == "respond"
-    except (json.JSONDecodeError, KeyError):
-        return False
-
-def _extract_direct_response(response: str) -> str:
-    """Extract direct answer from LLM response."""
-    try:
-        import json
-        import re
-        
-        # Handle markdown code blocks
-        response_cleaned = response.strip()
-        if response_cleaned.startswith("```json"):
-            json_match = re.search(r'```json\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
-            if json_match:
-                response_cleaned = json_match.group(1).strip()
-        elif response_cleaned.startswith("```"):
-            json_match = re.search(r'```\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
-            if json_match:
-                response_cleaned = json_match.group(1).strip()
-        
-        data = json.loads(response_cleaned)
-        return data.get("answer", "")
-    except (json.JSONDecodeError, KeyError):
-        return ""
-
-def _extract_tool_calls(response: str) -> Optional[str]:
-    """Extract tool calls from LLM response for parsing."""
-    try:
-        import json
-        import re
-        
-        # Handle markdown code blocks
-        response_cleaned = response.strip()
-        if response_cleaned.startswith("```json"):
-            # Extract JSON from markdown code block
-            json_match = re.search(r'```json\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
-            if json_match:
-                response_cleaned = json_match.group(1).strip()
-        elif response_cleaned.startswith("```"):
-            # Extract from generic code block
-            json_match = re.search(r'```\s*\n?(.*?)\n?```', response_cleaned, re.DOTALL)
-            if json_match:
-                response_cleaned = json_match.group(1).strip()
-        
-        data = json.loads(response_cleaned)
-        if data.get("action") in ["use_tool", "use_tools"]:
-            # Return the cleaned JSON for parsing by parse_tool_call
-            return response_cleaned
-    except (json.JSONDecodeError, KeyError):
-        pass
-    return None
 
 def _complexity_score(user_input: str, tool_count: int) -> float:
     """Estimate query complexity for adaptive reasoning depth."""
@@ -151,18 +84,18 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         should_continue, stopping_reason = controller.should_continue_reasoning()
         if not should_continue:
             if streaming_callback:
-                await streaming_callback(f"\n💬 RESPOND: Sufficient information gathered, preparing final response...\n")
+                await ReactStreamer.completion_message(streaming_callback)
             return await _fallback_response(state, llm, stopping_reason, response_shaper)
             
         iteration += 1
         
         # Clean visual separation between cycles
         if iteration > 1 and streaming_callback:
-            await streaming_callback(f"\n")
+            await ReactStreamer.iteration_separator(streaming_callback)
         
         # Stream reasoning phase
         if streaming_callback:
-            await streaming_callback(f"🧠 REASON: Analyzing available information and deciding next action...\n")
+            await ReactStreamer.reason_phase(streaming_callback)
         
         # REASON: What should I do next?
         reasoning = await reason_phase(state, llm, tools)
@@ -170,14 +103,10 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         # If agent decides it can answer directly (after considering all context)
         if reasoning["can_answer_directly"]:
             if streaming_callback:
-                await streaming_callback(f"💬 RESPOND: Have sufficient information to provide complete answer\n")
+                await ReactStreamer.respond_phase(streaming_callback)
             
             # Apply response shaping if configured
-            final_text = reasoning["direct_response"]
-            if response_shaper:
-                from cogency.response_shaper import ResponseShaper
-                shaper = ResponseShaper(llm)
-                final_text = await shaper.shape(final_text, response_shaper)
+            final_text = await apply_response_shaping(reasoning["direct_response"], llm, response_shaper)
             
             return {
                 "context": state["context"],
@@ -188,14 +117,10 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         # Check if we have tool calls to execute
         if not reasoning["tool_calls"]:
             if streaming_callback:
-                await streaming_callback(f"💬 RESPOND: No additional tools needed, responding with current knowledge\n")
+                await ReactStreamer.respond_phase(streaming_callback, "No additional tools needed, responding with current knowledge")
             
             # Apply response shaping if configured
-            final_text = reasoning["response"]
-            if response_shaper:
-                from cogency.response_shaper import ResponseShaper
-                shaper = ResponseShaper(llm)
-                final_text = await shaper.shape(final_text, response_shaper)
+            final_text = await apply_response_shaping(reasoning["response"], llm, response_shaper)
             
             return {
                 "context": state["context"], 
@@ -209,35 +134,15 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         
         # Stream action phase with specific tool names
         if streaming_callback:
-            if isinstance(tool_call, MultiToolCall):
-                tool_names = [call.name for call in tool_call.calls]
-                if len(tool_names) == 1:
-                    await streaming_callback(f"⚡ ACT: Calling {tool_names[0]} tool to gather needed information...\n")
-                else:
-                    tools_str = ", ".join(tool_names)
-                    await streaming_callback(f"⚡ ACT: Calling {tools_str} tools to gather needed information...\n")
-            elif isinstance(tool_call, ToolCall):
-                await streaming_callback(f"⚡ ACT: Calling {tool_call.name} tool to gather needed information...\n")
-            else:
-                await streaming_callback(f"⚡ ACT: Executing tools to gather needed information...\n")
+            await ReactStreamer.act_phase(streaming_callback, tool_call)
         
         # ACT: Execute the planned action
         action = await act_phase(reasoning, state, tools)
         
         # Stream observation phase with detailed messages
         if streaming_callback:
-            if action.get("results", {}).get("success"):
-                results = action.get("results", {}).get("results", [])
-                if isinstance(tool_call, MultiToolCall):
-                    tool_names = [call.name for call in tool_call.calls]
-                    tools_str = ", ".join(tool_names)
-                    await streaming_callback(f"👀 OBSERVE: Successfully gathered data from {tools_str} tools\n")
-                elif isinstance(tool_call, ToolCall):
-                    await streaming_callback(f"👀 OBSERVE: Successfully gathered data from {tool_call.name} tool\n")
-                else:
-                    await streaming_callback(f"👀 OBSERVE: Successfully gathered data from tools\n")
-            else:
-                await streaming_callback(f"❌ OBSERVE: Tool execution failed, will retry or use available information\n")
+            success = action.get("results", {}).get("success", False)
+            await ReactStreamer.observe_phase(streaming_callback, success, tool_call)
         
         # Update controller metrics
         controller.update_iteration_metrics(action.get("results", {}), action.get("time", 0))
@@ -304,11 +209,14 @@ async def reason_phase(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -
     llm_response = await llm.invoke(messages)
     context.add_message("assistant", llm_response)
     
+    parser = ReactResponseParser()
+    can_answer = parser.can_answer_directly(llm_response)
+    
     return {
         "response": llm_response,
-        "can_answer_directly": _can_answer_directly(llm_response),
-        "tool_calls": _extract_tool_calls(llm_response),
-        "direct_response": _extract_direct_response(llm_response) if _can_answer_directly(llm_response) else None
+        "can_answer_directly": can_answer,
+        "tool_calls": parser.extract_tool_calls(llm_response),
+        "direct_response": parser.extract_answer(llm_response) if can_answer else None
     }
 
 
@@ -402,11 +310,7 @@ async def _fallback_response(state: AgentState, llm: BaseLLM, stopping_reason, r
     context.add_message("assistant", final_response)
     
     # Apply response shaping if configured
-    final_text = final_response
-    if response_shaper:
-        from cogency.response_shaper import ResponseShaper
-        shaper = ResponseShaper(llm)
-        final_text = await shaper.shape(final_text, response_shaper)
+    final_text = await apply_response_shaping(final_response, llm, response_shaper)
     
     return {
         "context": context,

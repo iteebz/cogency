@@ -34,6 +34,9 @@ class MockTool:
         
     async def validate_and_run(self, **kwargs):
         return self.response
+    
+    def get_schema(self):
+        return f"Mock schema for {self.name}"
 
 
 async def test_adaptive_reasoning_integration():
@@ -45,7 +48,7 @@ async def test_adaptive_reasoning_integration():
     context = Context("What is 2+2?")
     trace = ExecutionTrace()
     
-    llm = MockLLM(["DIRECT_RESPONSE: 2+2 equals 4."])
+    llm = MockLLM(['{"action": "respond", "answer": "2+2 equals 4."}'])
     
     state = {
         "context": context,
@@ -82,8 +85,8 @@ async def test_adaptive_reasoning_integration():
     mock_tool = MockTool("search", "Python is a programming language")
     
     llm = MockLLM([
-        "TOOL_NEEDED: search(query='Python information')",
-        "Based on the search results, Python is a programming language."
+        '{"action": "use_tool", "tool_call": {"name": "search", "args": {"query": "Python information"}}}',
+        '{"action": "respond", "answer": "Based on the search results, Python is a programming language."}'
     ])
     
     state = {

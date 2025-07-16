@@ -1,5 +1,6 @@
 """Response shaping system - transforms raw cognitive output into final format."""
-from typing import Dict, Any, Optional
+import json
+from typing import Dict, Any, Optional, Union
 from cogency.llm import BaseLLM
 
 
@@ -9,22 +10,31 @@ class ResponseShaper:
     def __init__(self, llm: BaseLLM):
         self.llm = llm
     
-    async def shape(self, raw_response: str, config: Dict[str, Any]) -> str:
+    async def shape(self, raw_response: str, config: Dict[str, Any]) -> Union[str, Dict[str, Any]]:
         """Shape raw response according to config."""
         if not config:
             return raw_response
-            
+        
+        # Check if intent signals should be emitted
+        emit_intent_signals = config.get("emit_intent_signals", False)
+        
         # Build shaping prompt from config
-        shaping_prompt = self._build_shaping_prompt(config)
+        shaping_prompt = self._build_shaping_prompt(config, emit_intent_signals)
         
         messages = [
             {"role": "system", "content": shaping_prompt},
             {"role": "user", "content": f"Transform this response:\n\n{raw_response}"}
         ]
         
-        return await self.llm.invoke(messages)
+        shaped_response = await self.llm.invoke(messages)
+        
+        # If intent signals requested, parse and return structured response
+        if emit_intent_signals:
+            return self._parse_response_with_intent(shaped_response)
+        
+        return shaped_response
     
-    def _build_shaping_prompt(self, config: Dict[str, Any]) -> str:
+    def _build_shaping_prompt(self, config: Dict[str, Any], emit_intent_signals: bool = False) -> str:
         """Build shaping prompt from config."""
         prompt_parts = ["Transform the following response according to these specifications:"]
         
@@ -55,6 +65,16 @@ class ResponseShaper:
             for transform in config["transformations"]:
                 prompt_parts.append(f"- {transform.replace('-', ' ').title()}")
         
+        # Intent signal emission instructions
+        if emit_intent_signals:
+            prompt_parts.append("\nADDITIONALLY, wrap your response in a JSON structure:")
+            prompt_parts.append('{"content": "your_transformed_response", "intent_signals": {"primary_intent": "...", "content_type": "...", "user_context": "...", "complexity": "..."}}')
+            prompt_parts.append("\nIntent signal guidelines:")
+            prompt_parts.append("- primary_intent: showcase_work, explain_concept, show_timeline, show_code, show_writing, summarize, etc.")
+            prompt_parts.append("- content_type: project_list, code_sample, essay, timeline, summary, explanation, etc.")
+            prompt_parts.append("- user_context: professional_inquiry, casual_browsing, technical_review, etc.")
+            prompt_parts.append("- complexity: overview, detailed, comprehensive")
+        
         return "\n".join(prompt_parts)
     
     def _get_aip_format_instructions(self) -> str:
@@ -72,6 +92,40 @@ Available interface types:
 - timeline: {"type": "timeline", "data": {"events": [{"date": "2025", "title": "Event", "description": "Desc"}]}}
 
 Use expandable-section for CoT reasoning, key-insights for analysis, and mix narrative with structured data."""
+    
+    def _parse_response_with_intent(self, shaped_response: str) -> Dict[str, Any]:
+        """Parse response that includes intent signals."""
+        try:
+            # Try to parse as JSON first
+            parsed = json.loads(shaped_response)
+            if "content" in parsed and "intent_signals" in parsed:
+                return parsed
+        except json.JSONDecodeError:
+            pass
+        
+        # Fallback: extract JSON from response if wrapped in other content
+        try:
+            # Look for JSON block in response
+            start_idx = shaped_response.find('{')
+            end_idx = shaped_response.rfind('}') + 1
+            if start_idx != -1 and end_idx > start_idx:
+                json_str = shaped_response[start_idx:end_idx]
+                parsed = json.loads(json_str)
+                if "content" in parsed and "intent_signals" in parsed:
+                    return parsed
+        except (json.JSONDecodeError, ValueError):
+            pass
+        
+        # Ultimate fallback: return raw response with minimal intent signals
+        return {
+            "content": shaped_response,
+            "intent_signals": {
+                "primary_intent": "general_response",
+                "content_type": "text",
+                "user_context": "unknown", 
+                "complexity": "overview"
+            }
+        }
 
 
 # Prebuilt shaping profiles
