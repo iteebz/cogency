@@ -2,7 +2,7 @@
 import time
 from typing import List
 
-from cogency.types import ExecutionTrace, OutputMode
+from cogency.common.types import ExecutionTrace, OutputMode
 from cogency.utils.explanation import ExplanationGenerator, ExplanationLevel, ExplanationContext, create_actionable_insights
 
 

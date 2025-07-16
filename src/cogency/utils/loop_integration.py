@@ -3,7 +3,7 @@
 import time
 from typing import Dict, List, Optional, Any
 from cogency.utils.loop_detection import LoopDetector, LoopType, LoopDetectionConfig
-from cogency.types import ExecutionTrace, AgentState
+from cogency.common.types import ExecutionTrace, AgentState
 
 
 class ReasoningLoopGuard:

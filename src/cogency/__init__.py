@@ -12,7 +12,7 @@ from .workflow import Workflow
 from .core import Tracer
 from .utils import retry, parse_plan, parse_reflect, validate_tools
 from .utils.trace import trace_node
-from .types import AgentState, OutputMode, ExecutionTrace, summarize_trace, format_trace, format_full_debug
+from .common.types import AgentState, OutputMode, ExecutionTrace, summarize_trace, format_trace, format_full_debug
 
 __all__ = [
     "Agent",

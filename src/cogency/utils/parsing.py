@@ -1,7 +1,7 @@
 import json
 from typing import Any, Dict, Optional, Tuple, List, Union
 from pydantic import ValidationError
-from cogency.schemas import ToolCall, MultiToolCall, Plan
+from cogency.common.schemas import ToolCall, MultiToolCall, Plan
 
 def parse_plan(response: str) -> Optional[Dict[str, Any]]:
     """Parse plan node JSON response - PURE PARSING ONLY."""

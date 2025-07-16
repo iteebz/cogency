@@ -1,9 +1,9 @@
 """Streaming message utilities for ReAct loop phases."""
 from typing import List, Union, Callable, Awaitable
-from cogency.schemas import ToolCall, MultiToolCall
+from cogency.common.schemas import ToolCall, MultiToolCall
 
 
-class ReactStreamer:
+class MessageStreamer:
     """Utilities for streaming phase-specific messages during ReAct execution."""
     
     @staticmethod

@@ -3,14 +3,14 @@ import time
 from typing import Dict, Any, Optional, List
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
-from cogency.types import AgentState, ReasoningDecision
+from cogency.common.types import AgentState, ReasoningDecision
 from cogency.utils import validate_tools
 from cogency.utils.trace import trace_node
 from cogency.utils.tool_execution import parse_tool_call, execute_single_tool, execute_parallel_tools
 from cogency.utils.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
-from cogency.schemas import ToolCall, MultiToolCall
+from cogency.common.schemas import ToolCall, MultiToolCall
 from cogency.react.response_parser import ReactResponseParser
-from cogency.react.streaming import ReactStreamer
+from cogency.react.message_streamer import MessageStreamer
 from cogency.react.response_shaper import apply_response_shaping
 
 REASON_PROMPT = """You are in a ReAct reasoning loop. Analyze the current situation and decide your next action.
@@ -84,18 +84,18 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         should_continue, stopping_reason = controller.should_continue_reasoning()
         if not should_continue:
             if streaming_callback:
-                await ReactStreamer.completion_message(streaming_callback)
+                await MessageStreamer.completion_message(streaming_callback)
             return await _fallback_response(state, llm, stopping_reason, response_shaper)
             
         iteration += 1
         
         # Clean visual separation between cycles
         if iteration > 1 and streaming_callback:
-            await ReactStreamer.iteration_separator(streaming_callback)
+            await MessageStreamer.iteration_separator(streaming_callback)
         
         # Stream reasoning phase
         if streaming_callback:
-            await ReactStreamer.reason_phase(streaming_callback)
+            await MessageStreamer.reason_phase(streaming_callback)
         
         # REASON: What should I do next?
         reasoning = await reason_phase(state, llm, tools)
@@ -103,7 +103,7 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         # If agent decides it can answer directly (after considering all context)
         if reasoning["can_answer_directly"]:
             if streaming_callback:
-                await ReactStreamer.respond_phase(streaming_callback)
+                await MessageStreamer.respond_phase(streaming_callback)
             
             # Apply response shaping if configured
             final_text = await apply_response_shaping(reasoning["direct_response"], llm, response_shaper)
@@ -117,7 +117,7 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         # Check if we have tool calls to execute
         if not reasoning["tool_calls"]:
             if streaming_callback:
-                await ReactStreamer.respond_phase(streaming_callback, "No additional tools needed, responding with current knowledge")
+                await MessageStreamer.respond_phase(streaming_callback, "No additional tools needed, responding with current knowledge")
             
             # Apply response shaping if configured
             final_text = await apply_response_shaping(reasoning["response"], llm, response_shaper)
@@ -134,7 +134,7 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         
         # Stream action phase with specific tool names
         if streaming_callback:
-            await ReactStreamer.act_phase(streaming_callback, tool_call)
+            await MessageStreamer.act_phase(streaming_callback, tool_call)
         
         # ACT: Execute the planned action
         action = await act_phase(reasoning, state, tools)
@@ -142,7 +142,7 @@ async def react_loop_with_streaming(state: AgentState, llm: BaseLLM, tools: List
         # Stream observation phase with detailed messages
         if streaming_callback:
             success = action.get("results", {}).get("success", False)
-            await ReactStreamer.observe_phase(streaming_callback, success, tool_call)
+            await MessageStreamer.observe_phase(streaming_callback, success, tool_call)
         
         # Update controller metrics
         controller.update_iteration_metrics(action.get("results", {}), action.get("time", 0))

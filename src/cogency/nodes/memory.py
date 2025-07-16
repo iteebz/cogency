@@ -2,7 +2,7 @@
 from typing import Optional
 
 from cogency.memory.base import BaseMemory
-from cogency.types import AgentState
+from cogency.common.types import AgentState
 from cogency.utils.trace import trace_node
 
 

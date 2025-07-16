@@ -3,7 +3,7 @@ import json
 import asyncio
 from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
-from cogency.schemas import ToolCall, MultiToolCall
+from cogency.common.schemas import ToolCall, MultiToolCall
 from cogency.utils.parsing import parse_plan
 from cogency.utils import retry
 # from cogency.utils.profiling import CogencyProfiler  # Temporarily disabled for faster startup

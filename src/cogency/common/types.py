@@ -23,7 +23,7 @@ class ExecutionTrace:
     """Lean trace engine - just stores entries with serialization safety."""
     def __init__(self):
         self.entries = []
-        self._streaming_executor = None  # Set by StreamingExecutor when streaming
+        self._execution_streamer = None  # Set by ExecutionStreamer when streaming
 
     def add(self, node: str, message: str, data: dict = None, explanation: str = None):
         # Ensure data is serializable by converting to basic types
@@ -40,18 +40,12 @@ class ExecutionTrace:
         self.entries.append(entry)
         
         # Emit streaming event if streaming is active
-        if self._streaming_executor and hasattr(self._streaming_executor, 'emit_trace_update'):
+        if self._execution_streamer and hasattr(self._execution_streamer, 'emit_trace_update'):
             # Create a task to emit the update (don't block trace.add)
             import asyncio
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(self._streaming_executor.emit_trace_update(
-                        node, message, safe_data, timestamp
-                    ))
-            except RuntimeError:
-                # No event loop, skip streaming
-                pass
+            asyncio.create_task(self._execution_streamer.emit_trace_update(
+                node, message, safe_data, timestamp
+            ))
     
     def _make_serializable(self, obj):
         """Convert object to serializable form."""
