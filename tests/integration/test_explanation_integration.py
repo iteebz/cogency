@@ -5,7 +5,7 @@ import asyncio
 from unittest.mock import MagicMock, AsyncMock
 from cogency.agent import Agent
 from cogency.types import ExecutionTrace
-from cogency.tracer import Tracer
+from cogency.core.tracer import Tracer
 from cogency.llm import BaseLLM
 
 

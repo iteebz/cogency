@@ -6,7 +6,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../../src'))
 
 from cogency.types import ExecutionTrace
-from cogency.tracer import Tracer
+from cogency.core.tracer import Tracer
 
 
 def test_tracer_basic_modes():

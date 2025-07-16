@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from typing import List
 
-from cogency.streaming import StreamingExecutor, StreamEvent
+from cogency.core.streaming import StreamingExecutor, StreamEvent
 from cogency.types import ExecutionTrace, AgentState
 from cogency.context import Context
 

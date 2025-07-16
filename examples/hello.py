@@ -6,8 +6,12 @@ from cogency import Agent
 async def main():
     # That's it. Auto-detects LLM from .env, just works.
     agent = Agent("assistant")
-    result = await agent.run("Hello! Tell me about yourself.", mode="summary")
-    print(result)
+    
+    print("🤖 Hello from Cogency!")
+    print("🔄 ReAct Reasoning:")
+    async for chunk in agent.stream("Hello! Tell me about yourself."):
+        print(chunk, end="", flush=True)
+    print("\n✨ Done!")
 
 if __name__ == "__main__":
     asyncio.run(main())

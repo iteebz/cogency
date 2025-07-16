@@ -116,12 +116,13 @@ class TestReasoningLoopIntegration:
         agent, memory = agent_with_memory_tools
         
         # Simulate concurrent requests
-        tasks = [
-            agent.run(f"Calculate {i} * 2 and remember this calculation"),
-            agent.run(f"What's the timezone for user {i}?"),
-            agent.run(f"Store that I completed task {i}")
-            for i in range(5)
-        ]
+        tasks = []
+        for i in range(5):
+            tasks.extend([
+                agent.run(f"Calculate {i} * 2 and remember this calculation"),
+                agent.run(f"What's the timezone for user {i}?"),
+                agent.run(f"Store that I completed task {i}")
+            ])
         
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
