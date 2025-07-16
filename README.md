@@ -6,14 +6,59 @@ Cogency is a multistep reasoning framework that makes building AI agents stupidl
 
 ## Installation
 
+### Basic Installation
 ```bash
+# Core framework only (minimal dependencies)
 pip install cogency
+```
 
-# Set your API keys
+### With LLM Providers
+```bash
+# Individual providers
+pip install cogency[openai]      # OpenAI GPT models
+pip install cogency[anthropic]   # Claude models  
+pip install cogency[gemini]      # Google Gemini
+pip install cogency[mistral]     # Mistral AI
+
+# All LLM providers
+pip install cogency[llm]
+```
+
+### With Embedding Providers
+```bash
+# Individual embedding providers
+pip install cogency[sentence-transformers]  # Local embeddings (no API key)
+pip install cogency[nomic]                  # Nomic embeddings
+# OpenAI embeddings included with cogency[openai]
+
+# All embedding providers
+pip install cogency[embed]
+```
+
+### With Memory Backends
+```bash
+# Individual memory backends
+pip install cogency[chromadb]    # ChromaDB vector store
+pip install cogency[pgvector]    # PostgreSQL with pgvector
+pip install cogency[pinecone]    # Pinecone vector store
+
+# All memory backends
+pip install cogency[memory]
+```
+
+### Everything
+```bash
+# All optional dependencies
+pip install cogency[all]
+```
+
+### Set API Keys
+```bash
+# Set your API keys (agent auto-detects from any available key)
 echo "OPENAI_API_KEY=sk-..." >> .env
 echo "ANTHROPIC_API_KEY=sk-ant-..." >> .env
 echo "GEMINI_API_KEY=your-key-here" >> .env
-# Agent auto-detects from any available key
+echo "NOMIC_API_KEY=your-key-here" >> .env
 ```
 
 ## Quick Start

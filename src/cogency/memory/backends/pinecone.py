@@ -21,7 +21,7 @@ class PineconeStorage(BaseStorage):
     
     def __init__(self, api_key: str, index_name: str, environment: str = "us-east-1-aws", dimension: int = 1536):
         if Pinecone is None:
-            raise ImportError("pinecone-client required: pip install pinecone-client")
+            raise ImportError("Pinecone support not installed. Use `pip install cogency[pinecone]`")
         
         self.api_key = api_key
         self.index_name = index_name

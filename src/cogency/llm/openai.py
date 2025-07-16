@@ -1,6 +1,9 @@
 from typing import AsyncIterator, Dict, List, Optional, Union
 
-import openai
+try:
+    import openai
+except ImportError:
+    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`")
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator

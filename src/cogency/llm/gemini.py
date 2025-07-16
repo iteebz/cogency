@@ -1,7 +1,10 @@
 import os
 from typing import AsyncIterator, Dict, List, Optional, Union
 
-import google.generativeai as genai
+try:
+    import google.generativeai as genai
+except ImportError:
+    raise ImportError("Google Gemini support not installed. Use `pip install cogency[gemini]`")
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator

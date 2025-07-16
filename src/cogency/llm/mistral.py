@@ -1,6 +1,9 @@
 from typing import AsyncIterator, Dict, List, Optional, Union
 
-from mistralai import Mistral
+try:
+    from mistralai import Mistral
+except ImportError:
+    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`")
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator

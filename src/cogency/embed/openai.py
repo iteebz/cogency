@@ -2,7 +2,11 @@ import os
 from typing import List, Optional, Union
 
 import numpy as np
-import openai
+
+try:
+    import openai
+except ImportError:
+    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`")
 
 from cogency.llm.key_rotator import KeyRotator
 from cogency.utils.errors import ConfigurationError

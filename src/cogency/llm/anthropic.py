@@ -1,6 +1,9 @@
 from typing import AsyncIterator, Dict, List, Optional, Union
 
-import anthropic
+try:
+    import anthropic
+except ImportError:
+    raise ImportError("Anthropic support not installed. Use `pip install cogency[anthropic]`")
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator

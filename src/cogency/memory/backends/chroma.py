@@ -26,7 +26,7 @@ class ChromaDBStorage(BaseStorage):
         port: Optional[int] = None
     ):
         if chromadb is None:
-            raise ImportError("chromadb required: pip install chromadb")
+            raise ImportError("ChromaDB support not installed. Use `pip install cogency[chromadb]`")
         
         self.collection_name = collection_name
         self.persist_directory = persist_directory

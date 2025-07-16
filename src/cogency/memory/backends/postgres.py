@@ -25,7 +25,7 @@ class PGVectorStorage(BaseStorage):
         vector_dimensions: int = 1536
     ):
         if asyncpg is None:
-            raise ImportError("asyncpg required: pip install asyncpg")
+            raise ImportError("PGVector support not installed. Use `pip install cogency[pgvector]`")
         
         self.connection_string = connection_string
         self.table_name = table_name

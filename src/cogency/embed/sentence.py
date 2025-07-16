@@ -20,7 +20,7 @@ class SentenceEmbed(BaseEmbed):
             from sentence_transformers import SentenceTransformer
             self._model_instance = SentenceTransformer(self.model)
         except ImportError:
-            raise ImportError("sentence-transformers package required. Install with: pip install sentence-transformers")
+            raise ImportError("Sentence Transformers support not installed. Use `pip install cogency[sentence-transformers]`")
 
     def embed_single(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string."""
