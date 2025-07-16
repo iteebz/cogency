@@ -1,0 +1,65 @@
+<!-- Quick Start Section -->
+<section id="quickstart" class="px-6 py-24 sm:px-8 lg:px-16">
+	<div class="mx-auto max-w-4xl">
+		<div class="mb-16 text-center">
+			<h2 class="mb-4 text-3xl font-bold text-white sm:text-4xl">
+				Get started in seconds
+			</h2>
+			<p class="text-xl text-gray-300">
+				Install Cogency and build your first agent
+			</p>
+		</div>
+
+		<!-- Code example -->
+		<div
+			class="overflow-hidden rounded-xl border border-gray-700 bg-gray-900"
+		>
+			<div class="flex items-center justify-between bg-gray-800 px-6 py-3">
+				<div class="flex items-center gap-2">
+					<div class="h-3 w-3 rounded-full bg-red-500"></div>
+					<div class="h-3 w-3 rounded-full bg-yellow-500"></div>
+					<div class="h-3 w-3 rounded-full bg-green-500"></div>
+				</div>
+				<span class="text-sm text-gray-400">example.py</span>
+			</div>
+			<pre
+				class="overflow-x-auto p-6 text-sm"><code class="text-gray-300"><span class="text-pink-400">from</span> <span class="text-blue-400">cogency</span> <span class="text-pink-400">import</span> <span class="text-white">Agent</span>
+
+<span class="text-white">agent</span> <span class="text-pink-400">=</span> <span class="text-yellow-400">Agent</span><span class="text-white">(</span><span class="text-green-400">"demo"</span><span class="text-white">)</span>
+<span class="text-pink-400">await</span> <span class="text-white">agent</span><span class="text-white">.</span><span class="text-yellow-400">run_streaming</span><span class="text-white">(</span><span class="text-green-400">"What's the weather in Tokyo and time there?"</span><span class="text-white">)</span>
+
+<span class="text-gray-500"># Live multi-step reasoning, tool use, and memory</span>
+<span class="text-gray-500"># ────────── 🧠 Reasoning ──────────</span>
+<span class="text-gray-500"># I need weather data and timezone info for Tokyo...</span>
+<span class="text-gray-500"># ────────── ⚡ Acting ──────────</span>
+<span class="text-gray-500"># Calling weather(city="Tokyo")...</span></code></pre>
+		</div>
+
+		<!-- Install command -->
+		<div class="mt-8 text-center">
+			<div
+				class="inline-flex items-center rounded-lg border border-gray-600 bg-gray-800 px-6 py-3"
+			>
+				<span class="mr-3 text-gray-400">$</span>
+				<code class="font-mono text-white">pip install cogency</code>
+				<button
+					class="ml-4 text-blue-400 transition-colors hover:text-blue-300"
+				>
+					<svg
+						class="h-5 w-5"
+						fill="none"
+						stroke="currentColor"
+						viewBox="0 0 24 24"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							stroke-width="2"
+							d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+						></path>
+					</svg>
+				</button>
+			</div>
+		</div>
+	</div>
+</section>

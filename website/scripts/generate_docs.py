@@ -132,7 +132,7 @@ def main():
     """Main entry point."""
     # Default to cogency src directory (restructured)
     cogency_path = "../.."
-    output_dir = "../autodocs"
+    output_dir = "src/data/autodocs"
     
     if len(sys.argv) > 1:
         cogency_path = sys.argv[1]
