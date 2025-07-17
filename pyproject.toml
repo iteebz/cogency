@@ -35,41 +35,20 @@ dependencies = [
     "aiohttp>=3.12.14,<4.0.0",
     "psutil>=5.9.0",
     "mcp>=1.0.0",
-    "pytest-timeout>=2.4.0,<3.0.0"
+    "pytest-timeout>=2.4.0,<3.0.0",
+    "pytz>=2023.0",
+    "google-generativeai (>=0.8.5,<0.9.0)",
+    "nomic (>=3.5.3,<4.0.0)"
 ]
 
 [project.optional-dependencies]
-# LLM providers
 openai = ["openai"]
 anthropic = ["anthropic"]
-gemini = ["google-generativeai"]
 mistral = ["mistralai"]
-
-# Embedding providers
 sentence-transformers = ["sentence-transformers"]
-nomic = ["nomic>=1.0.0"]
-
-# Memory backends
 chromadb = ["chromadb"]
 pgvector = ["pgvector", "psycopg2-binary"]
 pinecone = ["pinecone-client"]
-
-# Convenience bundles
-llm = ["openai", "anthropic", "google-generativeai", "mistralai"]
-embed = ["sentence-transformers", "nomic>=1.0.0"]
-memory = ["chromadb", "pgvector", "psycopg2-binary", "pinecone-client"]
-all = [
-    "openai", 
-    "anthropic", 
-    "google-generativeai", 
-    "mistralai",
-    "sentence-transformers", 
-    "nomic>=1.0.0",
-    "chromadb", 
-    "pgvector", 
-    "psycopg2-binary", 
-    "pinecone-client"
-]
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.0.0"
