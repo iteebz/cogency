@@ -17,5 +17,8 @@ class KeyRotator:
     
     def rotate_key(self) -> str:
         """Rotate to next key immediately. Returns feedback."""
+        old_key = self.current_key
         self.get_key()
-        return "Rate limited, rotating to next key"
+        old_suffix = old_key[-8:] if old_key else "unknown"
+        new_suffix = self.current_key[-8:] if self.current_key else "unknown"
+        return f"Key *{old_suffix} rate limited, rotating to *{new_suffix}"

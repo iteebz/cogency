@@ -123,8 +123,6 @@ class GeminiLLM(BaseLLM):
     )
     @with_retry(max_attempts=3, exceptions=(Exception,))
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        self._rotate_client()
-
         # Convert messages to Gemini format (simple text concatenation for now)
         # Gemini's chat format is different - it expects conversation history
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
@@ -133,9 +131,12 @@ class GeminiLLM(BaseLLM):
             res = await self._current_model.generate_content_async(prompt, **kwargs)
             return res.text
         except Exception as e:
-            # Handle rate limiting gracefully
+            # Handle rate limiting gracefully - try rotating key
             if "429" in str(e) or "quota" in str(e).lower():
-                raise RateLimitedError(f"Gemini rate limited: {e}")
+                rotation_msg = self.handle_rate_limit(e)
+                if self.key_rotator:
+                    self._rotate_client()
+                raise RateLimitedError(f"Gemini {rotation_msg}: {e}")
             raise
 
     @with_resilience(
@@ -161,5 +162,8 @@ class GeminiLLM(BaseLLM):
         except Exception as e:
             # Handle rate limiting gracefully
             if "429" in str(e) or "quota" in str(e).lower():
-                raise RateLimitedError(f"Gemini streaming rate limited: {e}")
+                rotation_msg = self.handle_rate_limit(e)
+                if self.key_rotator:
+                    self._rotate_client()
+                raise RateLimitedError(f"Gemini {rotation_msg}: {e}")
             raise

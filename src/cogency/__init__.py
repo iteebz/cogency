@@ -9,6 +9,9 @@ from .utils import retry, parse_plan, parse_reflect, validate_tools
 from .utils.tracing import trace_node, Tracer
 from .common.types import AgentState, OutputMode, ExecutionTrace
 
+# Backwards compatibility alias
+FSMemory = FilesystemBackend
+
 __all__ = [
     "Agent",
     "BaseEmbed",
@@ -16,6 +19,7 @@ __all__ = [
     "BaseLLM",
     "MemoryBackend",
     "FilesystemBackend",
+    "FSMemory",  # Alias for compatibility
     "BaseTool",
     "Workflow",
     "Tracer",

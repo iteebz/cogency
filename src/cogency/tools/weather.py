@@ -20,7 +20,7 @@ class WeatherTool(BaseTool):
             description="Get current weather conditions for any city worldwide"
         )
 
-    async def run(self, city: str) -> Dict[str, Any]:
+    async def run(self, city: str, **kwargs) -> Dict[str, Any]:
         """Get weather for a city.
         
         Args:

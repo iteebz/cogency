@@ -12,10 +12,10 @@ from ..search import search_artifacts
 class FilesystemBackend(MemoryBackend):
     """Filesystem storage implementation."""
     
-    def __init__(self, memory_dir: str = ".memory", embedding_provider=None):
+    def __init__(self, memory_dir: str = ".cogency/memory", embedding_provider=None):
         super().__init__(embedding_provider)
         self.memory_dir = Path(memory_dir)
-        self.memory_dir.mkdir(exist_ok=True)
+        self.memory_dir.mkdir(parents=True, exist_ok=True)
     
     async def memorize(
         self,

@@ -16,7 +16,7 @@ class CalculatorTool(BaseTool):
             ),
         )
 
-    async def run(self, operation: str, x1: float = None, x2: float = None) -> Dict[str, Any]:
+    async def run(self, operation: str, x1: float = None, x2: float = None, **kwargs) -> Dict[str, Any]:
         """Perform calculator operations."""
         ops = ["add", "subtract", "multiply", "divide", "square_root"]
         if not operation or operation not in ops:

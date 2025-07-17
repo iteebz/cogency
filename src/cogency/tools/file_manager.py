@@ -10,13 +10,13 @@ from cogency.tools.registry import tool
 class FileManagerTool(BaseTool):
     """File operations within a safe base directory."""
 
-    def __init__(self, base_dir: str = "sandbox"):
+    def __init__(self, base_dir: str = ".cogency/sandbox"):
         super().__init__(
             name="file_manager",
             description="Manage files and directories - create, read, list, and delete files safely."
         )
         self.base_dir = Path(base_dir).resolve()
-        self.base_dir.mkdir(exist_ok=True)
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
     def _safe_path(self, rel_path: str) -> Path:
         """Ensure path is within base directory."""

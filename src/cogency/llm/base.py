@@ -18,6 +18,15 @@ class BaseLLM(ABC):
         self.api_key = api_key
         self.key_rotator = key_rotator
 
+    def handle_rate_limit(self, error: Exception) -> str:
+        """Handle rate limit by rotating key if available."""
+        if self.key_rotator:
+            return self.key_rotator.rotate_key()
+        else:
+            current_key = self.api_key
+            key_suffix = current_key[-8:] if current_key else "unknown"
+            return f"Key *{key_suffix} rate limited (no rotation available)"
+
     @abstractmethod
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         """Generate a response from the LLM given a list of messages.

@@ -28,7 +28,7 @@ class WebSearchTool(BaseTool):
         self._min_delay = 1.0  # Simple rate limit
 
     @handle_tool_exception
-    async def run(self, query: str, max_results: int = None) -> Dict[str, Any]:
+    async def run(self, query: str, max_results: int = None, **kwargs) -> Dict[str, Any]:
         if max_results is None:
             max_results = 5
         # Input validation

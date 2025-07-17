@@ -53,9 +53,12 @@ class Agent:
         self.conversation_max_history = max_history
         self.user_contexts: Dict[str, Context] = {}  # user_id -> Context
         
-        # Auto-discover tools including memory tools
-        discovered_tools = ToolRegistry.get_tools(memory=self.memory)
-        self.tools = (tools if tools is not None else []) + discovered_tools
+        # Auto-discover tools only if no explicit tools provided
+        if tools is not None:
+            self.tools = tools
+        else:
+            discovered_tools = ToolRegistry.get_tools(memory=self.memory)
+            self.tools = discovered_tools
         
         self.trace = trace
         self.workflow_builder = Workflow(self.llm, self.tools, self.memory, response_shaper=response_shaper)

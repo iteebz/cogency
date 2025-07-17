@@ -55,6 +55,10 @@ class ResponseShaper:
 
         if "style" in config:
             prompt_parts.append(f"- Apply {config['style']} style")
+            
+        # Personality injection
+        if "personality" in config:
+            prompt_parts.append(f"- Personality: {config['personality']}")
 
         # Constraints
         if "constraints" in config:
