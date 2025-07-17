@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import patch
 
-from cogency.memory.chromadb import ChromaDBMemory
-from cogency.memory.base import SearchType, MemoryType
+from cogency.memory.backends.chroma import ChromaBackend
+from cogency.memory.core import SearchType, MemoryType
 from .memory_crud import crud_memorize, crud_recall, crud_forget, crud_clear, mock_vector_response, assert_artifact
 
 
@@ -13,7 +13,7 @@ def chromadb_memory(mock_embedding_provider, mock_chroma_client, mock_chroma_col
     mock_chroma_client.get_or_create_collection.return_value = mock_chroma_collection
     
     with patch('chromadb.Client', return_value=mock_chroma_client):
-        memory = ChromaDBMemory(
+        memory = ChromaBackend(
             collection_name="test-collection",
             embedding_provider=mock_embedding_provider
         )
@@ -36,7 +36,7 @@ class TestChromaDBMemory:
         mock_chroma_client.get_or_create_collection.return_value = mock_chroma_collection
         
         with patch('chromadb.Client', return_value=mock_chroma_client):
-            memory = ChromaDBMemory(collection_name="test-collection")
+            memory = ChromaBackend(collection_name="test-collection")
         
         with pytest.raises(ValueError, match="Embedding provider required"):
             await crud_memorize(memory)

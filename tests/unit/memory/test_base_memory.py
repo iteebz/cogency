@@ -1,7 +1,7 @@
-"""Unit tests for BaseMemory interface and SearchType enum."""
+"""Unit tests for MemoryBackend interface and SearchType enum."""
 import pytest
 from unittest.mock import Mock, AsyncMock
-from cogency.memory.base import BaseMemory, MemoryArtifact, MemoryType, SearchType
+from cogency.memory.core import MemoryBackend, MemoryArtifact, MemoryType, SearchType
 from datetime import datetime, UTC
 from uuid import uuid4
 
@@ -24,8 +24,8 @@ class TestSearchType:
         assert SearchType("hybrid") == SearchType.HYBRID
 
 
-class MockMemory(BaseMemory):
-    """Mock memory implementation for testing BaseMemory interface."""
+class MockMemory(MemoryBackend):
+    """Mock memory implementation for testing MemoryBackend interface."""
     
     def __init__(self, embedding_provider=None):
         super().__init__(embedding_provider)
@@ -33,14 +33,14 @@ class MockMemory(BaseMemory):
         self.memorize_calls = []
         self.recall_calls = []
     
-    async def memorize(self, content, memory_type=MemoryType.FACT, tags=None, metadata=None, timeout_seconds=10.0):
+    async def memorize(self, content, memory_type=MemoryType.FACT, tags=None, metadata=None, **kwargs):
         """Mock memorize implementation."""
         self.memorize_calls.append({
             'content': content,
             'memory_type': memory_type,
             'tags': tags,
             'metadata': metadata,
-            'timeout_seconds': timeout_seconds
+            'kwargs': kwargs
         })
         
         artifact = MemoryArtifact(
@@ -77,18 +77,18 @@ class MockMemory(BaseMemory):
         return results[:limit]
 
 
-class TestBaseMemory:
-    """Test BaseMemory interface."""
+class TestMemoryBackend:
+    """Test MemoryBackend interface."""
     
-    def test_base_memory_init_with_embedding_provider(self):
-        """Test BaseMemory initialization with embedding provider."""
+    def test_memory_backend_init_with_embedding_provider(self):
+        """Test MemoryBackend initialization with embedding provider."""
         mock_provider = Mock()
         memory = MockMemory(embedding_provider=mock_provider)
         
         assert memory.embedding_provider == mock_provider
     
-    def test_base_memory_init_without_embedding_provider(self):
-        """Test BaseMemory initialization without embedding provider."""
+    def test_memory_backend_init_without_embedding_provider(self):
+        """Test MemoryBackend initialization without embedding provider."""
         memory = MockMemory()
         
         assert memory.embedding_provider is None
@@ -119,7 +119,7 @@ class TestBaseMemory:
         assert call['memory_type'] == MemoryType.CONTEXT
         assert call['tags'] == ["test", "example"]
         assert call['metadata'] == {"key": "value"}
-        assert call['timeout_seconds'] == 5.0
+        assert call['kwargs']['timeout_seconds'] == 5.0
     
     @pytest.mark.asyncio
     async def test_memorize_with_defaults(self):
@@ -136,7 +136,6 @@ class TestBaseMemory:
         assert call['memory_type'] == MemoryType.FACT
         assert call['tags'] is None
         assert call['metadata'] is None
-        assert call['timeout_seconds'] == 10.0
     
     @pytest.mark.asyncio
     async def test_recall_interface(self):
@@ -198,7 +197,7 @@ class TestBaseMemory:
         """Test forget method raises NotImplementedError by default."""
         memory = MockMemory()
         
-        with pytest.raises(NotImplementedError, match="forget\\(\\) not implemented"):
+        with pytest.raises(NotImplementedError):
             await memory.forget(uuid4())
     
     @pytest.mark.asyncio
@@ -206,29 +205,5 @@ class TestBaseMemory:
         """Test clear method raises NotImplementedError by default."""
         memory = MockMemory()
         
-        with pytest.raises(NotImplementedError, match="clear\\(\\) not implemented"):
+        with pytest.raises(NotImplementedError):
             await memory.clear()
-    
-    @pytest.mark.asyncio
-    async def test_inspect_interface(self):
-        """Test inspect method interface."""
-        memory = MockMemory()
-        
-        # Store some test data
-        await memory.memorize("First test content", tags=["test"])
-        await memory.memorize("Second test content", tags=["example"])
-        
-        stats = await memory.inspect()
-        
-        assert isinstance(stats, dict)
-        assert "count" in stats
-        assert "recent" in stats
-        assert stats["count"] == 2
-        assert len(stats["recent"]) == 2
-        
-        # Check recent items format
-        recent_item = stats["recent"][0]
-        assert "content" in recent_item
-        assert "tags" in recent_item
-        assert "created" in recent_item
-        assert len(recent_item["content"]) <= 53  # 50 chars + "..."

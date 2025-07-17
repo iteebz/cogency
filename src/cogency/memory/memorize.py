@@ -1,13 +1,13 @@
 """Memory-related nodes for the cognitive workflow."""
 from typing import Optional
 
-from cogency.memory.base import BaseMemory
+from cogency.memory.core import MemoryBackend
 from cogency.common.types import AgentState
 from cogency.utils.tracing import trace_node
 
 
 @trace_node("memorize")
-async def memorize_node(state: AgentState, *, memory: BaseMemory) -> AgentState:
+async def memorize_node(state: AgentState, *, memory: MemoryBackend) -> AgentState:
     """Memorize content if it meets certain criteria."""
     query = state["query"]
     context = state["context"]

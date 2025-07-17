@@ -6,7 +6,7 @@ from langgraph.graph import StateGraph, END
 from cogency.react.react_responder import react_loop_node
 from cogency.prepare.pre_react import pre_react_node
 from cogency.common.types import AgentState, OutputMode
-from cogency.memory.base import BaseMemory
+from cogency.memory.core import MemoryBackend
 from cogency.common.constants import NodeName
 
 
@@ -23,7 +23,7 @@ DEFAULT_ROUTING_TABLE = {
 class Workflow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
-    def __init__(self, llm, tools, memory: BaseMemory, routing_table: Optional[Dict] = None, response_shaper: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm, tools, memory: MemoryBackend, routing_table: Optional[Dict] = None, response_shaper: Optional[Dict[str, Any]] = None):
         self.llm = llm
         self.tools = tools
         self.memory = memory

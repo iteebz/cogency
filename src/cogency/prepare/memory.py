@@ -1,7 +1,7 @@
 """Memory preparation utilities."""
 from typing import Optional, List
 
-from cogency.memory.base import BaseMemory, MemoryType
+from cogency.memory.core import MemoryBackend, MemoryType
 
 
 def should_extract_memory(query: str) -> bool:
@@ -16,7 +16,7 @@ def should_extract_memory(query: str) -> bool:
 
 async def save_extracted_memory(
     memory_summary: Optional[str], 
-    memory: BaseMemory, 
+    memory: MemoryBackend, 
     user_id: str,
     tags: Optional[List[str]] = None,
     memory_type: str = "fact"

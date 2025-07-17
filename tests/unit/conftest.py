@@ -3,7 +3,7 @@ import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 from cogency.llm.mock import MockLLM
-from cogency.memory.filesystem import FSMemory
+from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
 from cogency.tools.recall import RecallTool
@@ -25,10 +25,10 @@ def mock_tool():
 
 @pytest.fixture
 def fs_memory_fixture(tmp_path):
-    """Fixture for FSMemory instance with a temporary directory."""
+    """Fixture for FilesystemBackend instance with a temporary directory."""
     memory_dir = tmp_path / ".memory"
     memory_dir.mkdir()
-    return FSMemory(memory_dir=str(memory_dir))
+    return FilesystemBackend(memory_dir=str(memory_dir))
 
 @pytest.fixture(autouse=True)
 def setup_tool_registry():

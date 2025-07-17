@@ -42,8 +42,8 @@ def tmp_memory_dir():
 @pytest.fixture
 async def fs_memory_instance(tmp_memory_dir):
     """Provides an FSMemory instance and ensures its cleanup."""
-    from cogency.memory.filesystem import FSMemory
-    memory = FSMemory(memory_dir=tmp_memory_dir)
+    from cogency.memory.backends.filesystem import FilesystemBackend
+    memory = FilesystemBackend(memory_dir=tmp_memory_dir)
     yield memory
     await memory._cleanup_tasks()
     memory._executor.shutdown(wait=True)

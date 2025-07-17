@@ -3,8 +3,8 @@
 import pytest
 from unittest.mock import patch
 
-from cogency.memory.pgvector import PGVectorMemory
-from cogency.memory.base import SearchType, MemoryType
+from cogency.memory.backends.postgres import PostgresBackend
+from cogency.memory.core import SearchType, MemoryType
 from .memory_crud import crud_memorize, crud_recall, crud_forget, crud_clear, assert_artifact
 
 
@@ -13,7 +13,7 @@ def pgvector_memory(mock_embedding_provider, mock_asyncpg_pool):
     pool, conn = mock_asyncpg_pool
     
     with patch('asyncpg.create_pool', return_value=pool):
-        memory = PGVectorMemory(
+        memory = PostgresBackend(
             connection_string="postgresql://test:test@localhost/test",
             embedding_provider=mock_embedding_provider
         )
@@ -39,7 +39,7 @@ class TestPGVectorMemory:
         pool, conn = mock_asyncpg_pool
         
         with patch('asyncpg.create_pool', return_value=pool):
-            memory = PGVectorMemory(connection_string="postgresql://test:test@localhost/test")
+            memory = PostgresBackend(connection_string="postgresql://test:test@localhost/test")
         
         with pytest.raises(ValueError, match="Embedding provider required"):
             await crud_memorize(memory)

@@ -3,14 +3,14 @@
 import pytest
 from unittest.mock import AsyncMock
 
-from cogency.memory.filesystem import FSMemory
-from cogency.memory.base import SearchType, MemoryType
+from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.core import SearchType, MemoryType
 # Removed hardcoded tag extraction - now using LLM dynamic generation
 
 
 @pytest.fixture
 def fs_memory_tags(mock_embedding_provider, tmp_path):
-    return FSMemory(
+    return FilesystemBackend(
         memory_dir=str(tmp_path / "tag_memory"),
         embedding_provider=mock_embedding_provider
     )

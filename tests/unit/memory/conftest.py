@@ -5,7 +5,7 @@ from unittest.mock import Mock, AsyncMock
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from cogency.memory.base import SearchType, MemoryType, MemoryArtifact
+from cogency.memory.core import SearchType, MemoryType, MemoryArtifact
 
 
 @pytest.fixture
@@ -20,15 +20,10 @@ def mock_embedding_provider():
 def sample_memory_artifact():
     """Sample memory artifact for testing."""
     return MemoryArtifact(
-        id="test-artifact-id",
         content="Sample memory content",
         memory_type=MemoryType.FACT,
         tags=["test", "sample"],
-        metadata={"source": "test"},
-        created_at=datetime.now(timezone.utc),
-        access_count=0,
-        last_accessed=datetime.now(timezone.utc),
-        user_id="test-user"
+        metadata={"source": "test"}
     )
 
 
@@ -86,7 +81,8 @@ class MemoryCRUDTestUtils:
         assert hasattr(artifact, 'created_at')
         assert hasattr(artifact, 'access_count')
         assert hasattr(artifact, 'last_accessed')
-        assert hasattr(artifact, 'user_id')
+        assert hasattr(artifact, 'relevance_score')
+        assert hasattr(artifact, 'confidence_score')
     
     @staticmethod
     def create_mock_query_response(num_results=2, base_score=0.9):
@@ -173,8 +169,7 @@ def test_memory_data():
         "content": "Test memory content",
         "memory_type": MemoryType.FACT,
         "tags": ["test", "sample"],
-        "metadata": {"source": "test", "importance": "high"},
-        "user_id": "test-user"
+        "metadata": {"source": "test", "importance": "high"}
     }
 
 

@@ -1,7 +1,7 @@
 """Zero-ceremony memory test utilities."""
 
 from datetime import datetime, timezone
-from cogency.memory.base import MemoryType, MemoryArtifact
+from cogency.memory.core import MemoryType, MemoryArtifact
 
 
 def create_artifact(id="test", content="test content", **kwargs):

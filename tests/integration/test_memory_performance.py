@@ -6,8 +6,8 @@ import time
 import random
 import json
 from typing import List, Dict, Any
-from cogency.memory.filesystem import FSMemory
-from cogency.memory.base import MemoryType
+from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.core import MemoryType
 import pytest
 from pathlib import Path
 
@@ -16,7 +16,7 @@ class MemoryBenchmark:
     """Benchmark memory performance and accuracy."""
 
     def __init__(self, memory_dir: Path):
-        self.memory = FSMemory(str(memory_dir))
+        self.memory = FilesystemBackend(str(memory_dir))
         self.test_data = []
 
     async def setup_test_data(self, num_items: int = 1000):

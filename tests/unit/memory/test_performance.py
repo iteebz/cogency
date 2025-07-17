@@ -5,8 +5,8 @@ import asyncio
 import time
 from unittest.mock import AsyncMock
 
-from cogency.memory.filesystem import FSMemory
-from cogency.memory.base import SearchType, MemoryType
+from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.core import SearchType, MemoryType
 
 
 @pytest.fixture
@@ -28,7 +28,7 @@ def perf_embedding_provider():
 @pytest.fixture
 def perf_memory(perf_embedding_provider, tmp_path):
     """Memory instance optimized for performance testing."""
-    return FSMemory(
+    return FilesystemBackend(
         memory_dir=str(tmp_path / "perf_memory"),
         embedding_provider=perf_embedding_provider
     )

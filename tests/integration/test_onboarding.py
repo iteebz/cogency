@@ -6,7 +6,7 @@ import os
 import tempfile
 from pathlib import Path
 from cogency import Agent
-from cogency.memory.filesystem import FSMemory
+from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.tools.calculator import CalculatorTool
 
 
@@ -38,7 +38,7 @@ class TestDeveloperExperience:
     async def test_agent_with_memory(self, tmp_memory_dir):
         """Test agent creation with memory."""
         try:
-            memory = FSMemory(tmp_memory_dir)
+            memory = FilesystemBackend(tmp_memory_dir)
             agent = Agent("memory_assistant", memory=memory)
             assert agent is not None
             assert agent.memory is not None
@@ -104,8 +104,8 @@ class TestDeveloperExperience:
         # Memory directory shouldn't exist initially
         assert not memory_path.exists()
         
-        # Creating FSMemory should auto-create directory
-        memory = FSMemory(str(memory_path))
+        # Creating FilesystemBackend should auto-create directory
+        memory = FilesystemBackend(str(memory_path))
         assert memory_path.exists()
         
         print("✅ Memory directory auto-creation works")

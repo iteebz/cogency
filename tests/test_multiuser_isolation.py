@@ -4,8 +4,8 @@ import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock
-from cogency.memory.filesystem import FSMemory
-from cogency.memory.base import MemoryType
+from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.core import MemoryType
 from cogency.context import Context
 from cogency.agent import Agent
 from cogency.tools.recall import RecallTool
@@ -24,7 +24,7 @@ class TestMultiUserIsolation:
     @pytest.fixture
     def memory(self, temp_memory_dir):
         """Create FSMemory instance for testing."""
-        return FSMemory(temp_memory_dir)
+        return FilesystemBackend(temp_memory_dir)
     
     @pytest.mark.asyncio
     async def test_memory_user_isolation(self, memory):

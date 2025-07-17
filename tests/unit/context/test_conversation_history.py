@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 from cogency.agent import Agent
 from cogency.context import Context
 from cogency.llm.mock import MockLLM
-from cogency.memory.filesystem import FSMemory
+from cogency.memory.backends.filesystem import FilesystemBackend
 
 
 class TestConversationHistory:
@@ -22,7 +22,7 @@ class TestConversationHistory:
     @pytest.fixture
     def fs_memory(self, tmp_path):
         """Create temporary filesystem memory"""
-        return FSMemory(str(tmp_path))
+        return FilesystemBackend(str(tmp_path))
 
     @pytest.fixture
     def agent_with_history(self, mock_llm, fs_memory):

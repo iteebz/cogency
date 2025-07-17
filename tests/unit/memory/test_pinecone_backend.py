@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from uuid import uuid4
 
-from cogency.memory.base import MemoryType, SearchType
+from cogency.memory.core import MemoryType, SearchType
 
 
 class TestPineconeMemory:
@@ -48,8 +48,8 @@ class TestPineconeMemory:
         with patch('cogency.memory.pinecone.Pinecone') as mock_pinecone_class:
             mock_pinecone_class.return_value = mock_pinecone_client[0]
             
-            from cogency.memory.pinecone import PineconeMemory
-            memory = PineconeMemory(
+            from cogency.memory.backends.pinecone import PineconeBackend
+            memory = PineconeBackend(
                 api_key="test-key",
                 index_name="test-index",
                 embedding_provider=mock_embedding_provider
@@ -63,19 +63,19 @@ class TestPineconeMemory:
     @pytest.mark.asyncio
     async def test_import_error_without_pinecone(self):
         """Test that ImportError is raised when pinecone is not available."""
-        with patch('cogency.memory.pinecone.Pinecone', None):
+        with patch('cogency.memory.backends.pinecone.Pinecone', None):
             with pytest.raises(ImportError, match="pinecone-client is required"):
-                from cogency.memory.pinecone import PineconeMemory
-                PineconeMemory("test-key", "test-index")
+                from cogency.memory.backends.pinecone import PineconeBackend
+                PineconeBackend("test-key", "test-index")
     
     @pytest.mark.asyncio
     async def test_init_requires_embedding_provider(self):
         """Test that embedding provider is required for Pinecone."""
-        with patch('cogency.memory.pinecone.Pinecone'):
-            from cogency.memory.pinecone import PineconeMemory
+        with patch('cogency.memory.backends.pinecone.Pinecone'):
+            from cogency.memory.backends.pinecone import PineconeBackend
             
             with pytest.raises(ValueError, match="embedding_provider is required"):
-                PineconeMemory("test-key", "test-index")  # No embedding provider
+                PineconeBackend("test-key", "test-index")  # No embedding provider
     
     @pytest.mark.asyncio
     async def test_memorize_with_embedding(self, pinecone_memory, mock_embedding_provider):
@@ -221,7 +221,7 @@ class TestPineconeMemory:
         mock_index.fetch.return_value = Mock(vectors={str(artifact_id): mock_vector})
         
         # Create mock artifact
-        from cogency.memory.base import MemoryArtifact
+        from cogency.memory.core import MemoryArtifact
         artifact = MemoryArtifact(id=artifact_id, content="Test content")
         artifact.access_count = 5
         

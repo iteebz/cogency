@@ -4,14 +4,14 @@ import json
 
 from .base import BaseTool
 from .registry import tool
-from ..memory.base import BaseMemory
+from ..memory.core import MemoryBackend
 
 
 @tool
 class RecallTool(BaseTool):
     """Tool for retrieving content from agent memory."""
 
-    def __init__(self, memory: BaseMemory):
+    def __init__(self, memory: MemoryBackend):
         super().__init__(
             name="recall",
             description="Search and retrieve previously stored information when user asks about their personal details, work, preferences, or past conversations"

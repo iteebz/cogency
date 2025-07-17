@@ -2,8 +2,8 @@ from typing import List, Optional, Dict, Any
 
 from cogency.context import Context
 from cogency.llm import BaseLLM, auto_detect_llm
-from cogency.memory.filesystem import FSMemory
-from cogency.memory.base import BaseMemory
+from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.core import MemoryBackend
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
 from cogency.common.types import AgentState, OutputMode, ExecutionTrace
@@ -35,7 +35,7 @@ class Agent:
         llm: Optional[BaseLLM] = None,
         tools: Optional[List[BaseTool]] = None,
         trace: bool = True,
-        memory: Optional[BaseMemory] = None,  # New parameter
+        memory: Optional[MemoryBackend] = None,  # New parameter
         memory_dir: str = ".memory",
         response_shaper: Optional[Dict[str, Any]] = None,
         default_output_mode: OutputMode = "summary",
@@ -45,7 +45,7 @@ class Agent:
     ):
         self.name = name
         self.llm = llm if llm is not None else auto_detect_llm()
-        self.memory = memory if memory is not None else FSMemory(memory_dir)
+        self.memory = memory if memory is not None else FilesystemBackend(memory_dir)
         self.default_output_mode = default_output_mode
         
         # Conversation history management - user-scoped contexts

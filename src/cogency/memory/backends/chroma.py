@@ -5,8 +5,7 @@ from datetime import datetime, UTC
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from .base import BaseStorage
-from ..base import MemoryArtifact, MemoryType
+from ..core import MemoryBackend, MemoryArtifact, MemoryType
 
 try:
     import chromadb
@@ -15,7 +14,7 @@ except ImportError:
     chromadb = None
 
 
-class ChromaDBStorage(BaseStorage):
+class ChromaBackend(MemoryBackend):
     """ChromaDB storage implementation."""
     
     def __init__(
@@ -23,7 +22,8 @@ class ChromaDBStorage(BaseStorage):
         collection_name: str = "memory_artifacts",
         persist_directory: Optional[str] = None,
         host: Optional[str] = None,
-        port: Optional[int] = None
+        port: Optional[int] = None,
+        embedding_provider=None
     ):
         if chromadb is None:
             raise ImportError("ChromaDB support not installed. Use `pip install cogency[chromadb]`")
@@ -35,6 +35,7 @@ class ChromaDBStorage(BaseStorage):
         self._client = None
         self._collection = None
         self._initialized = False
+        super().__init__(embedding_provider)
     
     async def _ensure_initialized(self):
         if self._initialized:
@@ -59,6 +60,66 @@ class ChromaDBStorage(BaseStorage):
             )
         
         self._initialized = True
+    
+    async def memorize(
+        self,
+        content: str,
+        memory_type: MemoryType = MemoryType.FACT,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> MemoryArtifact:
+        """Store new content in memory."""
+        artifact = MemoryArtifact(
+            content=content,
+            memory_type=memory_type,
+            tags=tags or [],
+            metadata=metadata or {}
+        )
+        
+        embedding = None
+        if self.embedding_provider:
+            try:
+                embedding = await self.embedding_provider.embed_text(content)
+            except Exception:
+                pass
+        
+        await self.store(artifact, embedding, **kwargs)
+        return artifact
+    
+    async def recall(
+        self,
+        query: str,
+        search_type=None,
+        limit: int = 10,
+        threshold: float = 0.7,
+        tags: Optional[List[str]] = None,
+        memory_type: Optional[MemoryType] = None,
+        **kwargs
+    ) -> List[MemoryArtifact]:
+        """Retrieve relevant content from memory."""
+        filters = {}
+        if tags:
+            filters['tags'] = tags
+        if memory_type:
+            filters['memory_type'] = memory_type
+        
+        artifacts = await self.load_all(**filters)
+        
+        # Simple text-based filtering for now
+        if query:
+            filtered = []
+            for artifact in artifacts:
+                if query.lower() in artifact.content.lower():
+                    artifact.relevance_score = 0.8  # Simple scoring
+                    filtered.append(artifact)
+            artifacts = filtered
+        
+        return artifacts[:limit]
+    
+    async def forget(self, artifact_id: UUID) -> bool:
+        """Remove an artifact from memory."""
+        return await self.delete(artifact_id)
     
     async def store(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
         await self._ensure_initialized()

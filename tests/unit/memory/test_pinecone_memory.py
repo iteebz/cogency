@@ -3,15 +3,15 @@
 import pytest
 from unittest.mock import patch
 
-from cogency.memory.pinecone import PineconeMemory
-from cogency.memory.base import SearchType, MemoryType
+from cogency.memory.backends.pinecone import PineconeBackend
+from cogency.memory.core import SearchType, MemoryType
 from .memory_crud import crud_memorize, crud_recall, crud_forget, crud_clear, mock_vector_response, assert_artifact
 
 
 @pytest.fixture
 def pinecone_memory(mock_embedding_provider, mock_pinecone_index):
     with patch('pinecone.Index', return_value=mock_pinecone_index):
-        memory = PineconeMemory(
+        memory = PineconeBackend(
             api_key="test-key",
             index_name="test-index",
             embedding_provider=mock_embedding_provider
@@ -33,7 +33,7 @@ class TestPineconeMemory:
     
     async def test_memorize_no_embedding_fails(self, mock_pinecone_index):
         with patch('pinecone.Index', return_value=mock_pinecone_index):
-            memory = PineconeMemory(api_key="test-key", index_name="test-index")
+            memory = PineconeBackend(api_key="test-key", index_name="test-index")
         
         with pytest.raises(ValueError, match="Embedding provider required"):
             await crud_memorize(memory)

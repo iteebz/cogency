@@ -4,16 +4,16 @@ import json
 from pathlib import Path
 from unittest.mock import Mock, AsyncMock
 
-from cogency.memory.filesystem import FSMemory
-from cogency.memory.base import MemoryArtifact, MemoryType, SearchType
+from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.core import MemoryArtifact, MemoryType, SearchType
 
 
 @pytest.fixture
 def fs_memory(tmp_path):
-    """Fixture for FSMemory instance with a temporary directory."""
+    """Fixture for FilesystemBackend instance with a temporary directory."""
     memory_dir = tmp_path / ".memory"
     memory_dir.mkdir()
-    return FSMemory(memory_dir=str(memory_dir))
+    return FilesystemBackend(memory_dir=str(memory_dir))
 
 
 @pytest.fixture
@@ -27,10 +27,10 @@ def mock_embedding_provider():
 
 @pytest.fixture
 def fs_memory_with_embeddings(tmp_path, mock_embedding_provider):
-    """Fixture for FSMemory with embedding provider."""
+    """Fixture for FilesystemBackend with embedding provider."""
     memory_dir = tmp_path / ".memory"
     memory_dir.mkdir()
-    return FSMemory(memory_dir=str(memory_dir), embedding_provider=mock_embedding_provider)
+    return FilesystemBackend(memory_dir=str(memory_dir), embedding_provider=mock_embedding_provider)
 
 
 class TestRecallBasics:

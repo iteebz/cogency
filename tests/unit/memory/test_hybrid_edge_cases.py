@@ -4,13 +4,13 @@ import pytest
 from unittest.mock import AsyncMock
 from datetime import datetime, timezone
 
-from cogency.memory.filesystem import FSMemory
-from cogency.memory.base import SearchType, MemoryType, MemoryArtifact
+from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.core import SearchType, MemoryType, MemoryArtifact
 
 
 @pytest.fixture
 def fs_memory_hybrid(mock_embedding_provider, tmp_path):
-    memory = FSMemory(
+    memory = FilesystemBackend(
         memory_dir=str(tmp_path / "test_memory"),
         embedding_provider=mock_embedding_provider
     )

@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, patch
 from uuid import uuid4
 
-from cogency.memory.base import MemoryType, SearchType
+from cogency.memory.core import MemoryType, SearchType
 
 
 class TestPGVectorMemory:
@@ -37,11 +37,11 @@ class TestPGVectorMemory:
     @pytest.fixture
     def pgvector_memory(self, mock_embedding_provider, mock_asyncpg_pool):
         """PGVector memory instance with mocked dependencies."""
-        with patch('cogency.memory.pgvector.asyncpg') as mock_asyncpg:
+        with patch('cogency.memory.backends.postgres.asyncpg') as mock_asyncpg:
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_asyncpg_pool[0])
             
-            from cogency.memory.pgvector import PGVectorMemory
-            memory = PGVectorMemory(
+            from cogency.memory.backends.postgres import PostgresBackend
+            memory = PostgresBackend(
                 connection_string="postgresql://user:pass@localhost/test",
                 embedding_provider=mock_embedding_provider
             )
@@ -53,10 +53,10 @@ class TestPGVectorMemory:
     @pytest.mark.asyncio
     async def test_import_error_without_asyncpg(self):
         """Test that ImportError is raised when asyncpg is not available."""
-        with patch('cogency.memory.pgvector.asyncpg', None):
+        with patch('cogency.memory.backends.postgres.asyncpg', None):
             with pytest.raises(ImportError, match="asyncpg is required"):
-                from cogency.memory.pgvector import PGVectorMemory
-                PGVectorMemory("postgresql://test")
+                from cogency.memory.backends.postgres import PostgresBackend
+                PostgresBackend("postgresql://test")
     
     @pytest.mark.asyncio
     async def test_memorize_with_embedding(self, pgvector_memory, mock_embedding_provider):
@@ -82,11 +82,11 @@ class TestPGVectorMemory:
     @pytest.mark.asyncio
     async def test_memorize_without_embedding_provider(self, mock_asyncpg_pool):
         """Test memorizing content without embedding provider."""
-        with patch('cogency.memory.pgvector.asyncpg') as mock_asyncpg:
+        with patch('cogency.memory.backends.postgres.asyncpg') as mock_asyncpg:
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_asyncpg_pool[0])
             
-            from cogency.memory.pgvector import PGVectorMemory
-            memory = PGVectorMemory("postgresql://test")
+            from cogency.memory.backends.postgres import PostgresBackend
+            memory = PostgresBackend("postgresql://test")
             memory._pool = mock_asyncpg_pool[0]
             memory._initialized = True
             
@@ -170,11 +170,11 @@ class TestPGVectorMemory:
     @pytest.mark.asyncio
     async def test_semantic_search_without_provider_raises_error(self, mock_asyncpg_pool):
         """Test semantic search without embedding provider raises error."""
-        with patch('cogency.memory.pgvector.asyncpg') as mock_asyncpg:
+        with patch('cogency.memory.backends.postgres.asyncpg') as mock_asyncpg:
             mock_asyncpg.create_pool = AsyncMock(return_value=mock_asyncpg_pool[0])
             
-            from cogency.memory.pgvector import PGVectorMemory
-            memory = PGVectorMemory("postgresql://test")  # No embedding provider
+            from cogency.memory.backends.postgres import PostgresBackend
+            memory = PostgresBackend("postgresql://test")  # No embedding provider
             memory._pool = mock_asyncpg_pool[0]
             memory._initialized = True
             

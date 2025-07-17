@@ -3,7 +3,7 @@ from typing import List
 
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
-from cogency.memory.base import BaseMemory
+from cogency.memory.core import MemoryBackend
 from cogency.common.types import AgentState
 from cogency.utils.tracing import trace_node
 from cogency.prepare.memory import should_extract_memory, save_extracted_memory
@@ -12,7 +12,7 @@ from cogency.prepare.extract import extract_memory_and_filter_tools
 
 
 @trace_node("pre_react")
-async def pre_react_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], memory: BaseMemory) -> AgentState:
+async def pre_react_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend) -> AgentState:
     """Pre-ReAct: Extract memory + filter tools, then prep for ReAct."""
     query = state["query"]
     context = state["context"]

@@ -6,7 +6,7 @@ import pytest
 import json
 from unittest.mock import patch
 from cogency import Agent
-from cogency.memory.filesystem import FSMemory
+from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.tools.calculator import CalculatorTool
 from cogency.tools.timezone import TimezoneTool
 from cogency.tools.recall import RecallTool
@@ -18,7 +18,7 @@ class TestReasoningLoopIntegration:
     @pytest.fixture
     async def agent_with_memory_tools(self, tmp_memory_dir):
         """Agent with memory and tools for comprehensive testing."""
-        memory = FSMemory(str(tmp_memory_dir))
+        memory = FilesystemBackend(str(tmp_memory_dir))
         await memory.clear()  # Clean slate
         
         agent = Agent(

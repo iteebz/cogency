@@ -1,7 +1,8 @@
 from .agent import Agent
 from .embed import BaseEmbed, NomicEmbed
 from .llm import BaseLLM
-from .memory import BaseMemory, FSMemory
+from .memory import MemoryBackend
+from .memory.backends.filesystem import FilesystemBackend
 from .tools.base import BaseTool
 from .workflow import Workflow
 from .utils import retry, parse_plan, parse_reflect, validate_tools
@@ -13,8 +14,8 @@ __all__ = [
     "BaseEmbed",
     "NomicEmbed",
     "BaseLLM",
-    "BaseMemory",
-    "FSMemory",
+    "MemoryBackend",
+    "FilesystemBackend",
     "BaseTool",
     "Workflow",
     "Tracer",

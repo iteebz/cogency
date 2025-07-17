@@ -3,7 +3,7 @@ import pytest
 import json
 from unittest.mock import Mock, AsyncMock
 
-from cogency.memory.filesystem import FSMemory
+from cogency.memory.backends.filesystem import FilesystemBackend
 
 
 @pytest.fixture
@@ -17,10 +17,10 @@ def mock_embedding_provider():
 
 @pytest.fixture
 def fs_memory_with_embeddings(tmp_path, mock_embedding_provider):
-    """Fixture for FSMemory with embedding provider."""
+    """Fixture for FilesystemBackend with embedding provider."""
     memory_dir = tmp_path / ".memory"
     memory_dir.mkdir()
-    return FSMemory(memory_dir=str(memory_dir), embedding_provider=mock_embedding_provider)
+    return FilesystemBackend(memory_dir=str(memory_dir), embedding_provider=mock_embedding_provider)
 
 
 class TestEmbeddingIntegration:
@@ -64,18 +64,18 @@ class TestEmbeddingIntegration:
 class TestEmbeddingInitialization:
     """Test embedding provider initialization."""
     
-    def test_fs_memory_init_with_embedding_provider(self, tmp_path, mock_embedding_provider):
-        """Test FSMemory initialization with embedding provider."""
+    def test_filesystem_backend_init_with_embedding_provider(self, tmp_path, mock_embedding_provider):
+        """Test FilesystemBackend initialization with embedding provider."""
         memory_dir = tmp_path / ".memory"
         memory_dir.mkdir()
         
-        memory = FSMemory(memory_dir=str(memory_dir), embedding_provider=mock_embedding_provider)
+        memory = FilesystemBackend(memory_dir=str(memory_dir), embedding_provider=mock_embedding_provider)
         assert memory.embedding_provider == mock_embedding_provider
     
-    def test_fs_memory_init_without_embedding_provider(self, tmp_path):
-        """Test FSMemory initialization without embedding provider."""
+    def test_filesystem_backend_init_without_embedding_provider(self, tmp_path):
+        """Test FilesystemBackend initialization without embedding provider."""
         memory_dir = tmp_path / ".memory"
         memory_dir.mkdir()
         
-        memory = FSMemory(memory_dir=str(memory_dir))
+        memory = FilesystemBackend(memory_dir=str(memory_dir))
         assert memory.embedding_provider is None

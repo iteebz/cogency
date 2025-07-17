@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 from cogency.agent import Agent
 from cogency.context import Context
 from cogency.llm.mock import MockLLM
-from cogency.memory.filesystem import FSMemory
+from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.tools.base import BaseTool
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_agent_init_defaults(mock_llm, fs_memory_fixture):
     agent = Agent(name="test_agent", llm=mock_llm, memory=fs_memory_fixture)
     assert agent.name == "test_agent"
     assert agent.llm is mock_llm
-    assert isinstance(agent.memory, FSMemory)
+    assert isinstance(agent.memory, FilesystemBackend)
     assert agent.workflow is not None
     assert isinstance(agent.tools, list)
     # Check that some default tools are present (e.g., memory tools)
