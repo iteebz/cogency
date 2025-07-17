@@ -12,7 +12,7 @@ from cogency.prepare.extract import extract_memory_and_filter_tools
 
 
 @trace_node("pre_react")
-async def pre_react_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend) -> AgentState:
+async def pre_react_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend, system_prompt: str = None) -> AgentState:
     """Pre-ReAct: Extract memory + filter tools, then prep for ReAct."""
     query = state["query"]
     context = state["context"]

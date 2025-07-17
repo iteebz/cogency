@@ -11,6 +11,7 @@ from cogency.workflow import Workflow
 from cogency.utils.tracing import Tracer
 from cogency.core.metrics import with_metrics, counter, histogram, get_metrics
 from cogency.core.resilience import RateLimitedError, CircuitOpenError
+from cogency.core.expression import compose_system_prompt
 try:
     from cogency.core.mcp_server import CogencyMCPServer
     MCP_AVAILABLE = True
@@ -25,6 +26,10 @@ class Agent:
     
     Args:
         name: Agent identifier
+        personality: Core character/identity
+        system_prompt: Direct LLM system message (overrides defaults)
+        tone: Emotional flavor (friendly, professional, casual)
+        style: Communication approach (conversational, technical, narrative)
         llm: Language model instance  
         tools: Optional list of tools for agent to use
         trace: Enable execution tracing for debugging (default: True)
@@ -32,44 +37,54 @@ class Agent:
     def __init__(
         self,
         name: str,
+        personality: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        tone: Optional[str] = None,
+        style: Optional[str] = None,
         llm: Optional[BaseLLM] = None,
         tools: Optional[List[BaseTool]] = None,
         trace: bool = True,
-        memory: Optional[MemoryBackend] = None,  # New parameter
+        memory: Optional[MemoryBackend] = None,
         memory_dir: str = ".memory",
-        response_shaper: Optional[Dict[str, Any]] = None,
         default_output_mode: OutputMode = "summary",
         enable_mcp: bool = False,
         conversation_history: bool = True,
         max_history: int = 10,
+        # Internal parameters
+        _response_shaper: Optional[Dict[str, Any]] = None,
     ):
+        # Core setup
         self.name = name
-        self.llm = llm if llm is not None else auto_detect_llm()
-        self.memory = memory if memory is not None else FilesystemBackend(memory_dir)
+        self.llm = llm or auto_detect_llm()
+        self.memory = memory or FilesystemBackend(memory_dir)
         self.default_output_mode = default_output_mode
         
-        # Conversation history management - user-scoped contexts
+        # Four orthogonal axes of expression
+        composed_system_prompt = compose_system_prompt(personality, system_prompt, tone, style)
+        
+        # Conversation history
         self.conversation_history_enabled = conversation_history
         self.conversation_max_history = max_history
-        self.user_contexts: Dict[str, Context] = {}  # user_id -> Context
+        self.user_contexts: Dict[str, Context] = {}
         
-        # Auto-discover tools only if no explicit tools provided
-        if tools is not None:
-            self.tools = tools
-        else:
-            discovered_tools = ToolRegistry.get_tools(memory=self.memory)
-            self.tools = discovered_tools
+        # Auto-discover or use provided tools
+        self.tools = tools or ToolRegistry.get_tools(memory=self.memory)
         
+        # Build cognitive workflow
         self.trace = trace
-        self.workflow_builder = Workflow(self.llm, self.tools, self.memory, response_shaper=response_shaper)
+        self.workflow_builder = Workflow(
+            self.llm, 
+            self.tools, 
+            self.memory, 
+            system_prompt=composed_system_prompt,
+            response_shaper=_response_shaper
+        )
         self.workflow = self.workflow_builder.workflow
         
-        # Initialize MCP server if enabled
+        # Optional MCP server
         if enable_mcp and not MCP_AVAILABLE:
             raise ImportError("MCP is required for enable_mcp=True but mcp package is not installed")
         self.mcp_server = CogencyMCPServer(self) if enable_mcp else None
-        
-        # self.monitor = get_monitor()  # Temporarily disabled for faster startup
     
     @with_metrics("agent.stream", tags={"agent": "stream"})
     async def stream(self, query: str, context: Optional[Context] = None, mode: Optional[OutputMode] = None, user_id: Optional[str] = None):

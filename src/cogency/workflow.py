@@ -23,12 +23,13 @@ DEFAULT_ROUTING_TABLE = {
 class Workflow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
-    def __init__(self, llm, tools, memory: MemoryBackend, routing_table: Optional[Dict] = None, response_shaper: Optional[Dict[str, Any]] = None):
+    def __init__(self, llm, tools, memory: MemoryBackend, routing_table: Optional[Dict] = None, response_shaper: Optional[Dict[str, Any]] = None, system_prompt: Optional[str] = None):
         self.llm = llm
         self.tools = tools
         self.memory = memory
         self.routing_table = routing_table or DEFAULT_ROUTING_TABLE
         self.response_shaper = response_shaper or {}
+        self.system_prompt = system_prompt
         self.workflow = self._build_graph()
     
     def _build_graph(self) -> StateGraph:
@@ -37,8 +38,8 @@ class Workflow:
         
         # Pure LangGraph composition - nodes handle their own dependencies
         node_functions = {
-            "pre_react": partial(pre_react_node, llm=self.llm, tools=self.tools, memory=self.memory),
-            NodeName.REACT_LOOP.value: partial(react_loop_node, llm=self.llm, tools=self.tools, response_shaper=self.response_shaper)
+            "pre_react": partial(pre_react_node, llm=self.llm, tools=self.tools, memory=self.memory, system_prompt=self.system_prompt),
+            NodeName.REACT_LOOP.value: partial(react_loop_node, llm=self.llm, tools=self.tools, response_shaper=self.response_shaper, system_prompt=self.system_prompt)
         }
         
         # Add nodes to workflow

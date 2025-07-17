@@ -1,6 +1,6 @@
 """Pure cognition - decide → execute → respond."""
 import time
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Callable
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.common.types import AgentState, ReasoningDecision
@@ -31,8 +31,14 @@ Response format (JSON only):
 
 Think step by step about what information you have and what you still need. Output only valid JSON."""
 
-RESPONSE_PROMPT = """Generate final response based on context and tool results.
-Be conversational and helpful. Incorporate all relevant information."""
+def build_response_prompt(system_prompt: Optional[str] = None) -> str:
+    """Build response prompt with optional system prompt integration."""
+    base_prompt = "Generate final response based on context and tool results.\nBe conversational and helpful. Incorporate all relevant information."
+    
+    if system_prompt:
+        return f"{system_prompt}\n\n{base_prompt}"
+    
+    return base_prompt
 
 
 
@@ -46,7 +52,7 @@ def _complexity_score(user_input: str, tool_count: int) -> float:
 
 @trace_node("react_loop")
 async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[BaseTool]] = None, 
-                         response_shaper: Optional[Dict[str, Any]] = None, config: Optional[Dict] = None) -> AgentState:
+                         response_shaper: Optional[Dict[str, Any]] = None, config: Optional[Dict] = None, system_prompt: Optional[str] = None) -> AgentState:
     """ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
@@ -71,7 +77,7 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
     )
     
     # Run multi-step ReAct loop 
-    final_response = await react_engine(state, llm, selected_tools, controller)
+    final_response = await react_engine(state, llm, selected_tools, controller, system_prompt, streaming_callback)
     
     # Apply response shaping at the node level
     final_text = await shape_response(final_response["text"], llm, response_shaper)
@@ -85,7 +91,8 @@ async def react_loop_node(state: AgentState, llm: BaseLLM, tools: Optional[List[
 
 
 async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool], 
-                       controller: AdaptiveReasoningController) -> Dict[str, Any]:
+                       controller: AdaptiveReasoningController, system_prompt: Optional[str] = None, 
+                       streaming_callback: Optional[Callable] = None) -> Dict[str, Any]:
     """Core ReAct reasoning engine: reason → act → observe → reason → act until task complete."""
     
     while True:
@@ -94,15 +101,31 @@ async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
             return await _fallback_response(state, llm, stopping_reason)
             
         # REASON: What should I do next?
-        reasoning = await reason_phase(state, llm, tools)
+        if streaming_callback:
+            await MessageStreamer.reason_phase(streaming_callback)
+        reasoning = await reason_phase(state, llm, tools, system_prompt)
         
         # If agent decides it can answer directly (after considering all context)
         if reasoning["can_answer_directly"]:
-            return {
-                "context": state["context"],
-                "text": reasoning["direct_response"],
-                "decision": ReasoningDecision(should_respond=True, response_text=reasoning["direct_response"], task_complete=True)
-            }
+            if streaming_callback:
+                await MessageStreamer.respond_phase(streaming_callback, "Have sufficient information to provide complete answer")
+            # Apply system prompt to direct response if needed
+            direct_response = reasoning["direct_response"]
+            if system_prompt and direct_response:
+                # Generate final response using system prompt
+                final_response_action = {"results": {"success": True}}
+                response_result = await respond_phase(final_response_action, state, llm, system_prompt)
+                return {
+                    "context": response_result["context"],
+                    "text": response_result["text"],
+                    "decision": response_result["decision"]
+                }
+            else:
+                return {
+                    "context": state["context"],
+                    "text": direct_response,
+                    "decision": ReasoningDecision(should_respond=True, response_text=direct_response, task_complete=True)
+                }
         
         # Check if we have tool calls to execute
         if not reasoning["tool_calls"]:
@@ -113,7 +136,13 @@ async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
             }
         
         # ACT: Execute the planned action
+        if streaming_callback:
+            await MessageStreamer.act_phase(streaming_callback, reasoning.get("tool_calls"))
         action = await act_phase(reasoning, state, tools)
+        
+        # OBSERVE: Check results
+        if streaming_callback:
+            await MessageStreamer.observe_phase(streaming_callback, action.get("results", {}).get("success", False), reasoning.get("tool_calls"))
         
         # OBSERVE: Results are now in context, continue reasoning about them
         # The magic happens in the next iteration where reason_phase sees the tool results
@@ -126,7 +155,7 @@ async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
     return await _fallback_response(state, llm, "max_iterations", response_shaper)
 
 
-async def reason_phase(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -> Dict[str, Any]:
+async def reason_phase(state: AgentState, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None) -> Dict[str, Any]:
     """ReAct Reason: Think about what to do next."""
     context = state["context"]
     
@@ -134,10 +163,16 @@ async def reason_phase(state: AgentState, llm: BaseLLM, tools: List[BaseTool]) -
     
     messages = list(context.messages)
     messages.append({"role": "user", "content": context.current_input})
-    messages.insert(0, {"role": "system", "content": REASON_PROMPT.format(
+    
+    # Build reasoning prompt with personality
+    reasoning_prompt = REASON_PROMPT.format(
         tool_names=tool_info,
         user_input=context.current_input
-    )})
+    )
+    if system_prompt:
+        reasoning_prompt = f"{system_prompt}\n\n{reasoning_prompt}"
+    
+    messages.insert(0, {"role": "system", "content": reasoning_prompt})
     
     llm_response = await llm.invoke(messages)
     context.add_message("assistant", llm_response)
@@ -194,7 +229,7 @@ async def act_phase(reasoning: Dict[str, Any], state: AgentState, tools: List[Ba
     }
 
 
-async def respond_phase(action: Dict[str, Any], state: AgentState, llm: BaseLLM) -> Dict[str, Any]:
+async def respond_phase(action: Dict[str, Any], state: AgentState, llm: BaseLLM, system_prompt: Optional[str] = None) -> Dict[str, Any]:
     """Generate final response based on action results."""
     context = state["context"]
     final_messages = list(context.messages)
@@ -202,11 +237,13 @@ async def respond_phase(action: Dict[str, Any], state: AgentState, llm: BaseLLM)
     # Context-aware prompt based on action success
     results = action.get("results", {})
     if results.get("success"):
-        system_prompt = RESPONSE_PROMPT
+        response_prompt = build_response_prompt(system_prompt)
     else:
-        system_prompt = "Generate helpful response acknowledging tool failures and providing alternatives."
+        response_prompt = "Generate helpful response acknowledging tool failures and providing alternatives."
+        if system_prompt:
+            response_prompt = f"{system_prompt}\n\n{response_prompt}"
     
-    final_messages.insert(0, {"role": "system", "content": system_prompt})
+    final_messages.insert(0, {"role": "system", "content": response_prompt})
     
     final_response = await llm.invoke(final_messages)
     context.add_message("assistant", final_response)
