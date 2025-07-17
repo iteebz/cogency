@@ -2,7 +2,7 @@
 """Tests for adaptive reasoning controller metrics and tracking."""
 
 import asyncio
-from cogency.utils.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria
+from cogency.react.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria
 
 
 class TestControllerInitialization:

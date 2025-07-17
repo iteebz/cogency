@@ -4,7 +4,7 @@
 import asyncio
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from cogency.utils.tool_execution import execute_single_tool, execute_parallel_tools
+from cogency.react.tool_execution import execute_single_tool, execute_parallel_tools
 from cogency.tools.base import BaseTool
 from cogency.context import Context
 
@@ -55,38 +55,23 @@ class TestSingleToolExecution:
         
         assert tool_name == "test_tool"
         assert args == {"arg1": "value1"}
-        assert result["success"] is True
-        assert "Result from test_tool" in result["result"]
-        assert result["error"] is None
+        assert "Result from test_tool" in result
         assert tool.execution_count == 1
     
     async def test_tool_not_found(self):
         """Test handling of non-existent tool."""
         tools = [MockTool("other_tool")]
         
-        tool_name, args, result = await execute_single_tool("missing_tool", {"arg1": "value1"}, tools)
-        
-        assert tool_name == "missing_tool"
-        assert args == {"arg1": "value1"}
-        assert result["success"] is False
-        assert result["result"] is None
-        assert "not found" in result["error"]
-        assert result["error_type"] == "tool_not_found"
+        with pytest.raises(ValueError, match="Tool 'missing_tool' not found"):
+            await execute_single_tool("missing_tool", {"arg1": "value1"}, tools)
     
     async def test_tool_execution_error(self):
         """Test handling of tool execution errors."""
         tool = MockTool("failing_tool", should_fail=True)
         tools = [tool]
         
-        tool_name, args, result = await execute_single_tool("failing_tool", {"arg1": "value1"}, tools)
-        
-        assert tool_name == "failing_tool"
-        assert args == {"arg1": "value1"}
-        assert result["success"] is False
-        assert result["result"] is None
-        assert "failed as configured" in result["error"]
-        assert result["error_type"] == "execution_error"
-        assert tool.execution_count == 1
+        with pytest.raises(ValueError, match="Mock tool failing_tool failed as configured"):
+            await execute_single_tool("failing_tool", {"arg1": "value1"}, tools)
 
 
 class TestParallelToolExecution:
@@ -204,12 +189,11 @@ class TestParallelToolExecution:
         """Test handling of asyncio.gather exceptions."""
         # Create a tool that raises an exception during asyncio.gather
         tool = MockTool("exception_tool")
-        original_method = tool.validate_and_run
         
         async def raise_exception(**kwargs):
             raise RuntimeError("Async exception during gather")
         
-        tool.validate_and_run = raise_exception
+        tool.run = raise_exception
         tools = [tool]
         
         context = Context("test input")

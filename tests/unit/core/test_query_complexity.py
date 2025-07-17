@@ -2,7 +2,7 @@
 """Tests for query complexity estimation."""
 
 import asyncio
-from cogency.nodes.react_loop import _complexity_score
+from cogency.react.react_responder import _complexity_score
 
 
 class TestQueryComplexityEstimation:

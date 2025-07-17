@@ -14,9 +14,9 @@ def test_key_rotator_rotate_key():
     """Test that rotate_key advances to the next key and returns feedback."""
     rotator = KeyRotator(["key1", "key2"])
     assert rotator.get_key() == "key1"
-    assert rotator.rotate_key() == "Rate limited, rotating to next key"
+    assert "rotating to" in rotator.rotate_key()
     assert rotator.current_key == "key2"
-    assert rotator.rotate_key() == "Rate limited, rotating to next key"
+    assert "rotating to" in rotator.rotate_key()
     assert rotator.current_key == "key1"
 
 def test_key_rotator_single_key():
@@ -24,5 +24,5 @@ def test_key_rotator_single_key():
     rotator = KeyRotator(["single_key"])
     assert rotator.get_key() == "single_key"
     assert rotator.get_key() == "single_key"
-    assert rotator.rotate_key() == "Rate limited, rotating to next key"
+    assert "rotating to" in rotator.rotate_key()
     assert rotator.current_key == "single_key"

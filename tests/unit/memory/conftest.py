@@ -13,6 +13,7 @@ def mock_embedding_provider():
     """Mock embedding provider that returns predictable embeddings."""
     provider = Mock()
     provider.embed = AsyncMock(return_value=[0.1, 0.2, 0.3])
+    provider.embed_text = AsyncMock(return_value=[0.1, 0.2, 0.3])
     return provider
 
 
@@ -127,10 +128,11 @@ def mock_pinecone_index():
 def mock_chroma_collection():
     """Mock ChromaDB collection for testing."""
     collection = Mock()
-    collection.add = AsyncMock()
-    collection.query = AsyncMock()
-    collection.delete = AsyncMock()
-    collection.count = AsyncMock(return_value=0)
+    collection.add = Mock()
+    collection.query = Mock()
+    collection.delete = Mock()
+    collection.count = Mock(return_value=0)
+    collection.get = Mock(return_value={"ids": [], "documents": [], "metadatas": []})
     return collection
 
 

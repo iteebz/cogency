@@ -5,19 +5,27 @@ from unittest.mock import patch
 
 from cogency.memory.backends.chroma import ChromaBackend
 from cogency.memory.core import SearchType, MemoryType
-from .memory_crud import crud_memorize, crud_recall, crud_forget, crud_clear, mock_vector_response, assert_artifact
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), '../..'))
+from memory.memory_crud import crud_memorize, crud_recall, crud_forget, crud_clear, mock_vector_response, assert_artifact
 
 
 @pytest.fixture
 def chromadb_memory(mock_embedding_provider, mock_chroma_client, mock_chroma_collection):
     mock_chroma_client.get_or_create_collection.return_value = mock_chroma_collection
+    mock_chroma_client.get_collection.side_effect = Exception("Collection not found")
+    mock_chroma_client.create_collection.return_value = mock_chroma_collection
     
     with patch('chromadb.Client', return_value=mock_chroma_client):
         memory = ChromaBackend(
             collection_name="test-collection",
             embedding_provider=mock_embedding_provider
         )
-        memory.collection = mock_chroma_collection
+        # Pre-set the collection and client to avoid async initialization issues
+        memory._client = mock_chroma_client
+        memory._collection = mock_chroma_collection
+        memory._initialized = True
     return memory
 
 

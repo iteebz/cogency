@@ -3,7 +3,7 @@
 
 import asyncio
 import time
-from cogency.utils.adaptive_reasoning import (
+from cogency.react.adaptive_reasoning import (
     AdaptiveReasoningController, 
     StoppingCriteria, 
     StoppingReason

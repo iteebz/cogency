@@ -75,7 +75,7 @@ async def test_anthropic_llm_stream(mock_anthropic_async_client):
     mock_anthropic_async_client.return_value = mock_client_instance
 
     # Mock the messages.stream method to return an AsyncMock
-    mock_messages_stream = AsyncMock()
+    mock_messages_stream = Mock()
     mock_client_instance.messages.stream = mock_messages_stream
 
     # The object that __aenter__ will return (this is the 'stream' in 'async with ... as stream:')
@@ -86,11 +86,13 @@ async def test_anthropic_llm_stream(mock_anthropic_async_client):
         yield "chunk2"
         yield "chunk3"
 
-    mock_context_manager_result.text_stream = async_chunk_generator()
+    mock_context_manager_result.text_stream = async_chunk_generator
 
     # The object returned by mock_messages_stream() should be an AsyncMock
     # and its __aenter__ should return mock_context_manager_result
-    mock_messages_stream.return_value.__aenter__.return_value = mock_context_manager_result
+    mock_context_manager = AsyncMock()
+    mock_context_manager.__aenter__.return_value = mock_context_manager_result
+    mock_messages_stream.return_value = mock_context_manager
 
     llm = AnthropicLLM(api_keys="test_key")
     chunks = []

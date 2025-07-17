@@ -17,16 +17,15 @@ async def test_agent_init_defaults(mock_llm, fs_memory_fixture):
     assert isinstance(agent.memory, FilesystemBackend)
     assert agent.workflow is not None
     assert isinstance(agent.tools, list)
-    # Check that some default tools are present (e.g., memory tools)
-    assert any(tool.name == "memorize" for tool in agent.tools)
+    # Check that recall tool is present (memorize happens in pre-react, not as a tool)
     assert any(tool.name == "recall" for tool in agent.tools)
 
 @pytest.mark.asyncio
 async def test_agent_init_custom_tools(mock_llm, mock_tool, fs_memory_fixture):
-    """Agent initializes with provided custom tools in addition to default ones."""
+    """Agent initializes with provided custom tools only (no auto-discovery)."""
     agent = Agent(name="test_agent", llm=mock_llm, tools=[mock_tool], memory=fs_memory_fixture)
     assert mock_tool in agent.tools
-    assert any(tool.name == "memorize" for tool in agent.tools) # Default tools still present
+    assert len(agent.tools) == 1  # Only custom tools, no auto-discovery
 
 @pytest.mark.asyncio
 async def test_agent_stream_basic(mock_llm, fs_memory_fixture):
