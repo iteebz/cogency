@@ -5,12 +5,14 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Downloads](https://pepy.tech/badge/cogency)](https://pepy.tech/project/cogency)
 
-> **3-line AI agents out of the box**
+> **Conversational AI agents out of the box.**
 
 ```python
 from cogency import Agent
 agent = Agent("assistant")
-await agent.run_streaming("What's the weather in Tokyo?")
+
+async for chunk in agent.stream("What's the weather in Tokyo?"):
+    print(chunk, end="", flush=True)
 ```
 
 ## 🚀 Key Features
@@ -28,6 +30,30 @@ await agent.run_streaming("What's the weather in Tokyo?")
 - **👥 Multi-tenancy** - Built-in user contexts and conversation history
 - **🏗️ Production hardened** - Resilience, rate limiting, metrics, tracing included
 
+## ✨ Beautiful Tracing
+
+Watch your agents think step-by-step:
+
+```
+👤 HUMAN: Plan a 3-day Tokyo itinerary with weather considerations.
+
+🛠️ TOOLING: web_search, weather_forecast, travel_info
+
+🧠 REASON: Need weather forecast to plan outdoor vs indoor activities
+⚡️ ACT: weather_forecast("Tokyo 3 days")
+👀 OBSERVE: Day 1: sunny 25°C, Day 2: rain 18°C, Day 3: cloudy 22°C
+
+🧠 REASON: Day 2 rain affects outdoor plans - need indoor alternatives
+⚡️ ACT: travel_info("Tokyo indoor attractions museums")
+👀 OBSERVE: TeamLab, Tokyo National Museum, Senso-ji Temple (covered)
+
+🧠 REASON: Have weather + indoor options - can create complete itinerary
+⚡️ ACT: Composing 3-day plan with weather-appropriate activities
+
+🤖 AGENT: Here's your 3-day Tokyo itinerary:
+Day 1 (Sunny): Shibuya, Harajuku, Meiji Shrine...
+```
+
 ## ✨ Example Usage
 
 **Basic Agent (3 lines)**
@@ -37,7 +63,9 @@ from cogency import Agent
 
 async def main():
     agent = Agent("assistant")
-    await agent.run_streaming("What is 25 * 43?")
+    
+    async for chunk in agent.stream("What is 25 * 43?"):
+        print(chunk, end="", flush=True)
 
 asyncio.run(main())
 ```
@@ -46,22 +74,23 @@ asyncio.run(main())
 ```python
 # Expressive agents with personality
 pirate = Agent("pirate", personality="friendly pirate who loves coding")
-await pirate.run_streaming("Tell me about AI!")
+
+async for chunk in pirate.stream("Tell me about AI!"):
+    print(chunk, end="", flush=True)
 
 # Mix personality, tone, and style
 teacher = Agent("teacher", personality="patient teacher", tone="encouraging", style="conversational")
-await teacher.run_streaming("Explain quantum computing")
+
+async for chunk in teacher.stream("Explain quantum computing"):
+    print(chunk, end="", flush=True)
 ```
 
 **Multistep Reasoning**
 ```python
 agent = Agent("travel_planner")
-await agent.run_streaming("""
-    I'm planning a trip to London:
-    1. What's the weather there?
-    2. What time is it now?
-    3. Flight costs $1,200, hotel is $180/night for 3 nights - total cost?
-""")
+
+async for chunk in agent.stream("I'm planning a trip to London: What's the weather there? What time is it now? Flight costs $1,200, hotel is $180/night for 3 nights - total cost?"):
+    print(chunk, end="", flush=True)
 ```
 
 **Custom Tools (Auto-Discovery)**
@@ -103,7 +132,7 @@ Cogency uses transparent **ReAct loops** for multistep reasoning:
 🧠 REASON → Analyze request, select tools
 ⚡️ ACT    → Execute tools, gather results  
 👀 OBSERVE → Process tool outputs
-💬 RESPOND → Generate final answer
+🤖 AGENT → Generate final answer
 ```
 
 Every step streams in real-time and is fully traceable.
@@ -149,11 +178,14 @@ print(result)  # "345"
 
 **Beautiful Streaming**
 ```python
-await agent.run_streaming("What's 15 * 23?")
-# 🧠 REASON → Let me calculate 15 * 23 using the calculator tool
-# ⚡️ ACT    → calculator(expression="15 * 23")
-# 👀 OBSERVE → Result: 345
-# 💬 RESPOND → The answer is 345
+async for chunk in agent.stream("What's 15 * 23?"):
+    print(chunk, end="", flush=True)
+
+# 👤 HUMAN: What's 15 * 23?
+# 🧠 REASON: Need to calculate 15 * 23 using calculator tool
+# ⚡️ ACT: calculator(expression="15 * 23")
+# 👀 OBSERVE: Result: 345
+# 🤖 AGENT: The answer is 345
 ```
 
 **Multi-Tenancy**
@@ -166,147 +198,25 @@ await agent.run("What's my favorite color?", user_id="user2")  # No memory
 
 ## 🔧 Supported Providers
 
-**LLMs (Auto-detected from .env)**
-- OpenAI (GPT-4, GPT-3.5)
-- Anthropic (Claude) 
-- Google (Gemini)
-- xAI (Grok)
-- Mistral
-
-**Built-in Tools**
-- Calculator - Math operations
-- Weather - Real weather data (no API key)
-- Timezone - World time (no API key)  
-- WebSearch - Internet search
-- FileManager - File operations
-
-**Memory Backends**
-- FilesystemBackend - Local JSON storage
-- ChromaDB - Vector database
-- Pinecone - Cloud vector store
-- PGVector - PostgreSQL with vectors
-
-**Embedding Providers**
-- OpenAI - text-embedding-3-large
-- Sentence Transformers - Local embeddings
-- Nomic - Nomic embeddings
-
-## 🏗️ Production Features
-
-**Resilience**
-```python
-# Built-in rate limiting, circuit breakers, retries
-agent = Agent("production_agent", 
-              enable_mcp=True,          # MCP server support
-              conversation_history=True, # Multi-turn conversations
-              trace=True)               # Full execution tracing
-```
-
-**Metrics & Monitoring**
-```python
-# OpenTelemetry integration
-from cogency.core.metrics import get_metrics
-metrics = get_metrics()  # Execution time, token usage, tool calls
-```
+**LLMs** - OpenAI, Anthropic, Google, xAI, Mistral  
+**Tools** - Calculator, Weather, Timezone, WebSearch, FileManager  
+**Memory** - Filesystem, ChromaDB, Pinecone, PGVector  
+**Embeddings** - OpenAI, Sentence Transformers, Nomic  
 
 ## 🎨 Extensibility
 
-**Custom Tools**
 ```python
-from cogency.tools.registry import tool
-
+# Custom tools auto-register
 @tool
 class MyTool(BaseTool):
     async def run(self, param: str):
         return {"result": f"Processed: {param}"}
-    
-    def get_schema(self):
-        return "my_tool(param='string')"
 
-# Auto-registers with all agents
+# Custom memory backends
+class MyMemory(MemoryBackend):
+    async def memorize(self, content: str): pass
+    async def recall(self, query: str): pass
 ```
-
-**Custom Memory Backends**
-```python
-from cogency.memory.core import MemoryBackend
-
-class MyMemoryBackend(MemoryBackend):
-    async def memorize(self, content: str, metadata: dict = None):
-        # Your implementation
-        pass
-    
-    async def recall(self, query: str, limit: int = 5):
-        # Your implementation
-        pass
-```
-
-**Custom LLM Providers**
-```python
-from cogency.llm.base import BaseLLM
-
-class MyLLM(BaseLLM):
-    async def invoke(self, messages: list):
-        # Your implementation
-        pass
-```
-
-## 🔍 Advanced Usage
-
-**System Prompts**
-```python
-# Direct system prompt override
-agent = Agent("assistant", system_prompt="You are a helpful coding assistant")
-
-# Composable personality + tone + style
-agent = Agent("writer", 
-              personality="creative writer",
-              tone="inspiring", 
-              style="narrative")
-```
-
-**Tool Subsetting**
-```python
-# Agent intelligently filters relevant tools per query
-agent = Agent("smart_agent", tools=[
-    CalculatorTool(), WeatherTool(), TimezoneTool(), 
-    WebSearchTool(), FileManagerTool()
-])
-# Only relevant tools are included in LLM context
-```
-
-**Memory Integration**
-```python
-# Memory auto-extracts during pre-react phase
-agent = Agent("memory_agent", memory=ChromaDB())
-await agent.run("I love pizza")
-await agent.run("What do I like to eat?")  # Recalls "pizza"
-```
-
-## 🤝 Contributing
-
-Framework designed for extension:
-
-```python
-# Add new tool  
-class YourTool(BaseTool):
-    async def run(self, **params):
-        # Your implementation
-        pass
-
-# Add new memory backend
-class YourMemory(MemoryBackend):
-    async def memorize(self, content: str):
-        # Your implementation
-        pass
-
-# Add new LLM provider
-class YourLLM(BaseLLM):
-    async def invoke(self, messages: list):
-        # Your implementation
-        pass
-```
-
-That's it. Auto-discovery handles the rest.
 
 ## 📄 License
 

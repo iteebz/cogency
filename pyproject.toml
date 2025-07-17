@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [project]
 name = "cogency"
 version = "0.5.0"
-description = "Cognitive Architecture for AI Agents"
+description = "Conversational AI agents out of the box."
 authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
 readme = "README.md"
 license = "MIT"

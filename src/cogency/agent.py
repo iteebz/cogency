@@ -100,6 +100,7 @@ class Agent:
         
         # Create streaming buffer for real-time updates
         streaming_buffer = []
+        first_output = True
         
         async def streaming_callback(update: str):
             """Callback to capture streaming updates in real-time."""
@@ -113,13 +114,17 @@ class Agent:
             async for event in self.workflow.astream(state, config=config):
                 # Yield any buffered streaming updates
                 while streaming_buffer:
+                    if first_output:
+                        # Add query display before first trace
+                        yield f"👤 HUMAN: {query}\n\n"
+                        first_output = False
                     yield streaming_buffer.pop(0)
                 
                 if event and "react_loop" in event:
                     # Extract final reasoning content
                     reasoning_output = event["react_loop"].get("last_node_output")
                     if reasoning_output:
-                        yield f"\n📝 {reasoning_output}"
+                        yield f"\n🤖 AGENT: {reasoning_output}\n"
             
             # Yield any remaining buffered updates
             while streaming_buffer:
@@ -157,9 +162,9 @@ class Agent:
             final_response_chunks = []
             async for chunk in self.stream(query, context, mode):
                 # Only collect final response chunks, not streaming updates
-                if "📝 " in chunk:
-                    # Extract content after the 📝 prefix
-                    final_response_chunks.append(chunk.split("📝 ", 1)[1])
+                if "🤖 AGENT: " in chunk:
+                    # Extract content after the 🤖 AGENT: prefix
+                    final_response_chunks.append(chunk.split("🤖 AGENT: ", 1)[1])
             
             final_response = "".join(final_response_chunks) if final_response_chunks else "No response generated"
             histogram("agent.run.response_length", len(final_response))

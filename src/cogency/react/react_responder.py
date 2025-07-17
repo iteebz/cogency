@@ -95,10 +95,17 @@ async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
                        streaming_callback: Optional[Callable] = None) -> Dict[str, Any]:
     """Core ReAct reasoning engine: reason → act → observe → reason → act until task complete."""
     
+    first_iteration = True
+    
     while True:
         should_continue, stopping_reason = controller.should_continue_reasoning()
         if not should_continue:
             return await _fallback_response(state, llm, stopping_reason)
+            
+        # Add separator between ReAct cycles (not before first iteration)
+        if not first_iteration and streaming_callback:
+            await PhaseStreamer.iteration_separator(streaming_callback)
+        first_iteration = False
             
         # REASON: What should I do next?
         if streaming_callback:
@@ -150,9 +157,6 @@ async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
         
         # Update controller metrics
         controller.update_iteration_metrics(action.get("results", {}), action.get("time", 0))
-    
-    # Should never reach here due to controller limits
-    return await _fallback_response(state, llm, "max_iterations", response_shaper)
 
 
 async def reason_phase(state: AgentState, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None) -> Dict[str, Any]:

@@ -20,7 +20,7 @@ If extracting memory, generate 2-5 relevant tags for categorization and search. 
 - Context (priority, performance, etc.)
 
 TOOL FILTERING:
-Only exclude tools you're confident you won't need. Conservative filtering prevents missing needed tools.
+Only exclude tools you're absolutely certain you won't need. When in doubt, include the tool. Be extremely conservative - it's better to include tools that might be useful than to exclude tools that could be needed.
 
 Input: "{query}"
 

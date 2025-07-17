@@ -70,6 +70,12 @@ class PhaseStreamer:
         await callback(PhaseFormatter.memorize(message) + "\n")
     
     @staticmethod
-    async def prepare_tooling_phase(callback: Callable[[str], Awaitable[None]], message: str) -> None:
+    async def prepare_tooling_phase(callback: Callable[[str], Awaitable[None]], tool_names: List[str], message: str = None) -> None:
         """Stream tool selection/filtering phase message."""
-        await callback(PhaseFormatter.tooling(message) + "\n")
+        if message:
+            await callback(PhaseFormatter.tooling(message) + "\n")
+        elif tool_names:
+            tools_str = ", ".join(tool_names)
+            await callback(PhaseFormatter.tooling(tools_str) + "\n")
+        else:
+            await callback(PhaseFormatter.tooling("No tools needed") + "\n")

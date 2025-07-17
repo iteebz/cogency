@@ -5,7 +5,9 @@ from cogency import Agent
 
 async def main():
     agent = Agent("weather_assistant")
-    await agent.run_streaming("What's the weather in San Francisco?")
+    
+    async for chunk in agent.stream("What's the weather in San Francisco?"):
+        print(chunk, end="", flush=True)
 
 if __name__ == "__main__":
     asyncio.run(main())

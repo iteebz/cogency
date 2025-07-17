@@ -38,7 +38,7 @@ class PhaseFormatter:
     @staticmethod
     def respond(message: str) -> str:
         """Format a response phase message."""
-        return f"💬 RESPOND: {message}"
+        return f"🤖 RESPOND: {message}"
     
     @staticmethod
     def error(message: str) -> str:
@@ -54,7 +54,7 @@ class PhaseFormatter:
             "🧠 REASON:",
             "⚡️ ACT:",
             "👀 OBSERVE:",
-            "💬 RESPOND:",
+            "🤖 RESPOND:",
             "❌ ERROR:"
         ]
         return any(message.startswith(prefix) for prefix in prefixes)

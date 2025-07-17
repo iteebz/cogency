@@ -16,21 +16,6 @@ class ToolRegistry:
             cls._tools.append(tool_class)
         return tool_class
     
-    import inspect
-
-
-class ToolRegistry:
-    """Auto-discovery registry for tools."""
-    
-    _tools: List[Type[BaseTool]] = []
-    
-    @classmethod
-    def register(cls, tool_class: Type[BaseTool]):
-        """Register a tool class for auto-discovery."""
-        if tool_class not in cls._tools:
-            cls._tools.append(tool_class)
-        return tool_class
-    
     @classmethod
     def get_tools(cls, **kwargs) -> List[BaseTool]:
         """Get all registered tool instances."""
