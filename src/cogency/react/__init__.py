@@ -4,7 +4,7 @@ from .explanation import ExplanationGenerator, ExplanationLevel, ExplanationCont
 from .filter_tools import filter_tools_node
 from .loop_detection import LoopDetector, LoopDetectionConfig, LoopType
 from .loop_integration import ReasoningLoopGuard
-from .message_streamer import MessageStreamer
+from .phase_streamer import PhaseStreamer
 from .react_responder import react_loop_node
 from .response_parser import ReactResponseParser
 from .response_shaper import ResponseShaper, SHAPING_PROFILES, shape_response
@@ -24,7 +24,7 @@ __all__ = [
     "LoopDetectionConfig",
     "LoopType",
     "ReasoningLoopGuard",
-    "MessageStreamer",
+    "PhaseStreamer",
     "react_loop_node",
     "ReactResponseParser",
     "ResponseShaper",

@@ -2,6 +2,64 @@ import json
 from typing import Any, Callable, Dict
 
 
+class PhaseFormatter:
+    """Centralized formatting for agent execution phases.
+    
+    This class provides consistent formatting for all agent execution phases,
+    ensuring that the same icons and prefixes are used across streaming output
+    and trace formatting.
+    """
+    
+    @staticmethod
+    def memorize(message: str) -> str:
+        """Format a memory extraction/saving phase message."""
+        return f"💾 MEMORIZE: {message}"
+    
+    @staticmethod
+    def tooling(message: str) -> str:
+        """Format a tool selection/filtering phase message."""
+        return f"🛠️ TOOLING: {message}"
+    
+    @staticmethod
+    def reason(message: str) -> str:
+        """Format a reasoning phase message."""
+        return f"🧠 REASON: {message}"
+    
+    @staticmethod
+    def act(message: str) -> str:
+        """Format an action phase message."""
+        return f"⚡️ ACT: {message}"
+    
+    @staticmethod
+    def observe(message: str) -> str:
+        """Format an observation phase message."""
+        return f"👀 OBSERVE: {message}"
+    
+    @staticmethod
+    def respond(message: str) -> str:
+        """Format a response phase message."""
+        return f"💬 RESPOND: {message}"
+    
+    @staticmethod
+    def error(message: str) -> str:
+        """Format an error message."""
+        return f"❌ ERROR: {message}"
+    
+    @staticmethod
+    def has_phase_prefix(message: str) -> bool:
+        """Check if a message already has a phase prefix."""
+        prefixes = [
+            "💾 MEMORIZE:",
+            "🛠️ TOOLING:",
+            "🧠 REASON:",
+            "⚡️ ACT:",
+            "👀 OBSERVE:",
+            "💬 RESPOND:",
+            "❌ ERROR:"
+        ]
+        return any(message.startswith(prefix) for prefix in prefixes)
+
+
 def _format_plan(reasoning: str, _: Dict[str, Any]) -> str:
     try:
         plan_data = json.loads(reasoning)

@@ -2,16 +2,14 @@
 """Memory tool isolation test - Smart memory behavior."""
 import asyncio
 from cogency import Agent, FSMemory
-from cogency.tools import MemorizeTool, RecallTool
 
 async def main():
     print("🧠 SMART MEMORY DEMONSTRATION")
     print("=" * 50)
     
-    # Create memory and tools explicitly
+    # Create agent with memory backend - recall tool auto-registered
     memory = FSMemory(memory_dir=".memory")
-    memory_tools = [MemorizeTool(memory), RecallTool(memory)]
-    agent = Agent("memory", tools=memory_tools)
+    agent = Agent("memory", memory=memory)
     
     # Call 1: Natural info storage - agent should auto-store
     print("📝 Sharing personal info (watch it get stored):")

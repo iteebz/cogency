@@ -978,9 +978,9 @@
           "init_signature": "(self, *args, **kwds)"
         },
         {
-          "name": "MessageStreamer",
+          "name": "PhaseStreamer",
           "docstring": "Utilities for streaming phase-specific messages during ReAct execution.",
-          "module": "cogency.react.message_streamer",
+          "module": "cogency.react.phase_streamer",
           "methods": [
             {
               "name": "act_phase",

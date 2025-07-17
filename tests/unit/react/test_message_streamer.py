@@ -1,1 +1,1 @@
-# Unit tests for cogency/src/cogency/react/message_streamer.py
+# Unit tests for cogency/src/cogency/react/phase_streamer.py

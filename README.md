@@ -5,7 +5,7 @@
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Downloads](https://pepy.tech/badge/cogency)](https://pepy.tech/project/cogency)
 
-> **3-line AI agents that just work**
+> **3-line AI agents out of the box**
 
 ```python
 from cogency import Agent
@@ -13,23 +13,22 @@ agent = Agent("assistant")
 await agent.run_streaming("What's the weather in Tokyo?")
 ```
 
-## ✨ Jaw-Dropping Features
+## 🚀 Key Features
 
 - **🤖 Agents in 3 lines** - Fully functional, tool-using agents from a single import
-- **🔥 ReAct core** - Built on explicit ReAct reasoning, not prompt spaghetti
-- **🧠 Built-in memory** - Persistent memory with extensible backends (ChromaDB, Pinecone, PGVector)
+- **🔥 Multistep ReAct core** - Built on explicit ReAct reasoning, not prompt spaghetti
+- **🧠 Built-in memory** - Persistent memory with extensible backends (Pinecone, ChromaDB, PGVector)
 - **⚡️ Zero configuration** - Auto-detects LLMs, tools, memory from environment
-- **🧬 Multi-step reasoning** - Transparent think → act → observe → respond loops
+- **🛠️ Automatic tool discovery** - Drop tools in, they auto-register and route intelligently
 - **🌊 Streaming first** - Watch agents think in real-time with full transparency
 - **✨ Clean tracing** - Every reasoning step traced and streamed with clear phase indicators
-- **🎭 Expressive personalities** - `Agent("pirate", personality="friendly pirate who codes")`
-- **🛠️ Automatic tool discovery** - Drop tools in, they auto-register and route intelligently
+- **🎭 Personality prompting** - Easily inject personality, tone, and style
 - **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Grok, Mistral out of the box
-- **🧩 Extensible design** - Add tools, memory backends, LLMs with zero friction
+- **🧩 Extensible design** - Add tools, memory backends, embedders with zero friction
 - **👥 Multi-tenancy** - Built-in user contexts and conversation history
-- **🏗️ Production ready** - Resilience, rate limiting, metrics, tracing included
+- **🏗️ Production hardened** - Resilience, rate limiting, metrics, tracing included
 
-## ✨ Beautiful API Examples
+## ✨ Example Usage
 
 **Basic Agent (3 lines)**
 ```python

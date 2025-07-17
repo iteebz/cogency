@@ -1,41 +1,19 @@
 #!/usr/bin/env python3
-"""ADVANCED CHAINING - Multi-step problem solving with tool dependencies."""
+"""Multi-step reasoning with tool chaining."""
 import asyncio
 from cogency import Agent
-from cogency.tools import CalculatorTool, WeatherTool, TimezoneTool
 
 async def main():
-    # Agent with multiple tools for complex problem solving
-    agent = Agent(
-        "travel_planner", 
-        tools=[CalculatorTool(), WeatherTool(), TimezoneTool()]
-    )
-
-    print("🎯 ADVANCED MULTI-STEP PROBLEM SOLVING")
-    print("=" * 50)
-
-    # Complex scenario requiring tool chaining and dependencies
+    agent = Agent("travel_planner")
+    
     scenario = """
-    I'm planning a business trip to London and need to prepare:
-    
-    1. First, what's the current weather in London so I know what to pack?
-    2. What time is it there right now? (I need to schedule calls)
-    3. If my flight costs $1,200 and hotel is $180 per night for 3 nights, 
-       what's my total accommodation cost?
-    4. What's the total trip cost (flight + hotel)?
-    
-    Please work through this step-by-step.
+    I'm planning a trip to London:
+    1. What's the weather there?
+    2. What time is it now?
+    3. Flight costs $1,200, hotel is $180/night for 3 nights - total cost?
     """
-
-    print(f"🤖 Scenario: {scenario}")
-    print()
     
-    # Show beautiful multi-step ReAct reasoning
-    print("🔄 Multi-Step ReAct Reasoning:")
-    await agent.run_streaming(scenario, mode="summary")
-    
-    print("\n" + "=" * 50)
-    print("✅ Advanced chaining demo complete!")
+    await agent.run_streaming(scenario)
 
 if __name__ == "__main__":
     asyncio.run(main())

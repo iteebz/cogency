@@ -4,14 +4,14 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "cogency"
-version = "0.4.1"
-description = "Agentic AI out of the box"
+version = "0.5.0"
+description = "Cognitive Architecture for AI Agents"
 authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
 readme = "README.md"
 license = "MIT"
 homepage = "https://github.com/iteebz/cogency"
 repository = "https://github.com/iteebz/cogency"
-keywords = ["ai", "agents", "reasoning", "tools", "tracing", "cognition"]
+keywords = ["ai", "agents", "reasoning", "react", "memory", "tools", "tracing", "cognition", "streaming"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",

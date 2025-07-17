@@ -10,7 +10,7 @@ from cogency.react.tool_execution import parse_tool_call, execute_single_tool, e
 from cogency.react.adaptive_reasoning import AdaptiveReasoningController, StoppingCriteria, StoppingReason
 from cogency.common.schemas import ToolCall, MultiToolCall
 from cogency.react.response_parser import ReactResponseParser
-from cogency.react.message_streamer import MessageStreamer
+from cogency.react.phase_streamer import PhaseStreamer
 from cogency.react.response_shaper import shape_response
 
 REASON_PROMPT = """You are in a ReAct reasoning loop. Analyze the current situation and decide your next action.
@@ -102,13 +102,13 @@ async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
             
         # REASON: What should I do next?
         if streaming_callback:
-            await MessageStreamer.reason_phase(streaming_callback)
+            await PhaseStreamer.reason_phase(streaming_callback)
         reasoning = await reason_phase(state, llm, tools, system_prompt)
         
         # If agent decides it can answer directly (after considering all context)
         if reasoning["can_answer_directly"]:
             if streaming_callback:
-                await MessageStreamer.respond_phase(streaming_callback, "Have sufficient information to provide complete answer")
+                await PhaseStreamer.respond_phase(streaming_callback, "Have sufficient information to provide complete answer")
             # Apply system prompt to direct response if needed
             direct_response = reasoning["direct_response"]
             if system_prompt and direct_response:
@@ -137,12 +137,12 @@ async def react_engine(state: AgentState, llm: BaseLLM, tools: List[BaseTool],
         
         # ACT: Execute the planned action
         if streaming_callback:
-            await MessageStreamer.act_phase(streaming_callback, reasoning.get("tool_calls"))
+            await PhaseStreamer.act_phase(streaming_callback, reasoning.get("tool_calls"))
         action = await act_phase(reasoning, state, tools)
         
         # OBSERVE: Check results
         if streaming_callback:
-            await MessageStreamer.observe_phase(streaming_callback, action.get("results", {}).get("success", False), reasoning.get("tool_calls"))
+            await PhaseStreamer.observe_phase(streaming_callback, action.get("results", {}).get("success", False), reasoning.get("tool_calls"))
         
         # OBSERVE: Results are now in context, continue reasoning about them
         # The magic happens in the next iteration where reason_phase sees the tool results

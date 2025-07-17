@@ -54,13 +54,5 @@ build/
 # Environment
 .env
 
-# Cogency runtime directories
-.memory/
-.diagnostics/
-sandbox/
-monitoring/
-
-# Test artifacts (keep contained)
-.test_*
-.benchmark*
-*_reality_check*
+# Cogency runtime
+.cogency
