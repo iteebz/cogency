@@ -84,7 +84,14 @@ class ResponseShaper:
 
     def _get_aip_format_instructions(self) -> str:
         """Get AIP format instructions."""
-        return """- Format as MULTI-AIP JSON - series of AIP-compliant JSON objects, each on its own line\n\nAvailable interface types:\n- markdown: {"type": "markdown", "content": "text"}\n- blog-post: {"type": "blog-post", "data": {"title": "Title", "content": "Content", "metadata": {}}}\n- card-grid: {"type": "card-grid", "data": {"cards": [{"title": "Name", "description": "Desc", "tags": [], "links": [], "metadata": {}}]}}\n- code-snippet: {"type": "code-snippet", "data": {"code": "console.log('hello')", "language": "javascript"}}\n- expandable-section: {"type": "expandable-section", "data": {"sections": [{"title": "Title", "content": "Content", "defaultExpanded": false}]}}\n- inline-reference: {"type": "inline-reference", "data": {"references": [{"id": "ref1", "title": "Title", "type": "project", "excerpt": "Brief", "content": "Full content"}]}}\n- key-insights: {"type": "key-insights", "data": {"insights": [{"title": "Insight", "description": "Description", "category": "category"}]}}\n- timeline: {"type": "timeline", "data": {"events": [{"date": "2025", "title": "Event", "description": "Desc"}]}}\n\nUse expandable-section for CoT reasoning, key-insights for analysis, and mix narrative with structured data."""
+        """- Format as MULTI-AIP JSON - series of AIP-compliant JSON objects, each on its own line\n\nDynamic interface types will be queried from AgentInterface registry."""
+        try:
+            # PROPER SEPARATION: Query AgentInterface for its own protocol
+            from agentinterface import get_format_instructions
+            return get_format_instructions()
+        except ImportError:
+            # Fallback for when AgentInterface not available
+            return "- Format as MULTI-AIP JSON - series of AIP-compliant JSON objects, each on its own line"
 
     def _parse_response_with_intent(self, shaped_response: str) -> Dict[str, Any]:
         """Parse response that includes intent signals."""
