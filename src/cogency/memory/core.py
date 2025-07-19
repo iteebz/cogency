@@ -92,54 +92,12 @@ class MemoryBackend(ABC):
         raise NotImplementedError()
         
     def should_store(self, content: str) -> tuple[bool, str]:
-        """Determine if content is worth storing based on heuristics."""
-        content_lower = content.lower().strip()
-        
-        # Skip trivial conversational content
-        trivial_patterns = [
-            "hello", "hi", "hey", "thanks", "thank you", "bye", "goodbye", 
-            "what's the weather", "how are you", "ok", "okay", "yes", "no"
-        ]
-        
-        if any(pattern in content_lower for pattern in trivial_patterns):
-            return False, ""
-        
-        # Skip very short content (likely not meaningful)
+        """Simple fallback heuristic - real analysis happens in preprocess node."""
+        # Preprocess node already handles memory extraction via LLM
+        # This is just a fallback for edge cases
         if len(content.strip()) < 10:
             return False, ""
-            
-        # Work-related patterns (check first to override generic personal patterns)
-        work_patterns = [
-            "work at", "job", "engineer", "developer", "company", "salary",
-            "career", "profession", "employed", "boss", "colleague"
-        ]
-        
-        if any(pattern in content_lower for pattern in work_patterns):
-            return True, "work"
-            
-        # Personal information patterns
-        personal_patterns = [
-            "i have", "i am", "my name is", "i'm", "years old", "live in", 
-            "born in", "from", "my age"
-        ]
-        
-        if any(pattern in content_lower for pattern in personal_patterns):
-            return True, "personal"
-            
-        # Preferences patterns
-        preference_patterns = [
-            "i like", "i love", "i prefer", "i hate", "i dislike", "favorite",
-            "prefer", "better than", "rather"
-        ]
-        
-        if any(pattern in content_lower for pattern in preference_patterns):
-            return True, "preferences"
-            
-        # Default: store if it's substantial content
-        if len(content.strip()) > 30:
-            return True, "general"
-            
-        return False, ""
+        return True, "general"
 
 
 class Memory:

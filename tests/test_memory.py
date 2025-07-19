@@ -141,32 +141,32 @@ class TestMemorySearch:
         assert len(results) >= 1
 
 
-class TestMemoryHeuristics:
-    """Test smart memory storage heuristics."""
+class TestMemoryIntelligence:
+    """Test memory storage heuristics (real analysis happens in preprocess node)."""
     
-    def test_should_store_personal_info(self, memory_backend):
-        """Should detect personal information worth storing."""
-        # Personal triggers
-        assert memory_backend.should_store("I have ADHD") == (True, "personal")
-        assert memory_backend.should_store("My name is John") == (True, "personal")
-        assert memory_backend.should_store("I am 25 years old") == (True, "personal")
+    def test_basic_content_filtering(self, memory_backend):
+        """Should filter based on basic heuristics.""" 
+        # Very short content should be filtered
+        should_store, _ = memory_backend.should_store("Hi")
+        assert should_store is False
+        
+        # Substantial content should be stored (real analysis in preprocess)
+        should_store, category = memory_backend.should_store("I work as a software engineer at Google")
+        assert should_store is True
+        assert category == "general"  # Fallback category
     
-    def test_should_store_work_info(self, memory_backend):
-        """Should detect work-related information."""
-        assert memory_backend.should_store("I work at Google") == (True, "work")
-        assert memory_backend.should_store("I'm a software engineer") == (True, "work")
-        assert memory_backend.should_store("My job involves data analysis") == (True, "work")
-    
-    def test_should_store_preferences(self, memory_backend):
-        """Should detect preferences worth remembering."""
-        assert memory_backend.should_store("I like quiet environments") == (True, "preferences")
-        assert memory_backend.should_store("I prefer coffee over tea") == (True, "preferences")
-    
-    def test_should_not_store_trivial(self, memory_backend):
-        """Should not store trivial conversational content."""
-        assert memory_backend.should_store("Hello there") == (False, "")
-        assert memory_backend.should_store("What's the weather?") == (False, "")
-        assert memory_backend.should_store("Thanks") == (False, "")
+    def test_content_length_threshold(self, memory_backend):
+        """Should have basic length filtering."""
+        test_cases = [
+            ("", False),            # Empty
+            ("OK", False),          # Too short
+            ("Thanks!", False),     # Too short
+            ("This is substantial content worth storing", True)  # Long enough
+        ]
+        
+        for content, expected in test_cases:
+            should_store, _ = memory_backend.should_store(content)
+            assert should_store == expected, f"Content length test failed for: {content}"
 
 
 class TestMemoryAutoConfiguration:
