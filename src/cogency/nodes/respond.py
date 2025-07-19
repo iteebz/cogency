@@ -2,10 +2,10 @@
 from typing import Optional, Dict, Any
 
 from cogency.llm import BaseLLM
-from cogency.common.types import AgentState, ReasoningDecision
-from cogency.utils.tracing import trace_node
-from cogency.generation.shaper import shape_response
-from cogency.streaming.messaging import AgentMessenger
+from cogency.types import AgentState, ReasoningDecision
+from cogency.tracing import trace_node
+from cogency.reasoning.shaper import shape_response
+from cogency.messaging import AgentMessenger
 
 
 def build_response_prompt(system_prompt: Optional[str] = None) -> str:

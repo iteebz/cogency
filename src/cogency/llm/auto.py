@@ -1,5 +1,5 @@
 """Auto-detection of LLM providers from environment variables."""
-from cogency.config import get_api_keys
+from cogency.cli.config import get_api_keys
 from .base import BaseLLM
 
 def auto_detect_llm() -> BaseLLM:

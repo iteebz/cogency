@@ -5,8 +5,8 @@ import asyncio
 import time
 import logging
 from cogency import Agent
-from cogency.core.resilience import RateLimitedError, CircuitOpenError
-from cogency.core.metrics import get_metrics
+from cogency.resilience import RateLimitedError, CircuitOpenError
+from cogency.monitoring.metrics import get_metrics
 
 
 async def test_edge_cases(mock_llm_response):

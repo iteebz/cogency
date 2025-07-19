@@ -2,7 +2,8 @@
 import asyncio
 from typing import AsyncIterator, Dict, Any, Optional
 from dataclasses import dataclass
-from cogency.common.types import ExecutionTrace, AgentState
+from cogency.tracing import ExecutionTrace
+from cogency.types import AgentState
 
 
 @dataclass

@@ -7,7 +7,7 @@ from mcp.types import TextContent, Tool
 from mcp.shared.session import BaseSession
 from mcp.shared.message import SessionMessage
 
-from cogency.core.mcp_server import CogencyMCPServer
+from cogency.mcp.server import CogencyMCPServer
 
 @pytest.fixture
 def mock_agent():

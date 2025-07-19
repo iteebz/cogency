@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 from ddgs import DDGS
 
 from cogency.tools.base import BaseTool
-from cogency.utils.errors import (
+from cogency.errors import (
     ToolError,
     ValidationError,
     create_success_response,

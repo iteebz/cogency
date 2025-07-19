@@ -1,5 +1,5 @@
 """Centralized API key management for all providers."""
-from cogency.config import get_api_keys
+from cogency.cli.config import get_api_keys
 from cogency.llm.key_rotator import KeyRotator
 
 

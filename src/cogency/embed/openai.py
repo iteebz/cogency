@@ -9,7 +9,7 @@ except ImportError:
     raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`")
 
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.errors import ConfigurationError
+from cogency.errors import ConfigurationError
 
 from .base import BaseEmbed
 

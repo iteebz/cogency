@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from collections import defaultdict, deque
 
-from cogency.common.types import ExecutionTrace
+from cogency.tracing import ExecutionTrace
 
 
 class LoopType(Enum):

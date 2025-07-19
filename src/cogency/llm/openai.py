@@ -7,7 +7,7 @@ except ImportError:
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.errors import ConfigurationError
+from cogency.errors import ConfigurationError
 
 
 class OpenAILLM(BaseLLM):

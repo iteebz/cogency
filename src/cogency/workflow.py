@@ -7,7 +7,7 @@ from cogency.nodes.preprocess import preprocess_node
 from cogency.nodes.reason import reason_node
 from cogency.nodes.act import act_node
 from cogency.nodes.respond import respond_node
-from cogency.common.types import AgentState, OutputMode
+from cogency.types import AgentState, OutputMode
 from cogency.memory.core import MemoryBackend
 from cogency.reasoning.adaptive import ReasonController, StoppingCriteria
 

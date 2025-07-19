@@ -6,17 +6,47 @@ from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.memory.core import MemoryBackend
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import ToolRegistry
-from cogency.common.types import AgentState, OutputMode, ExecutionTrace
+from cogency.types import AgentState, OutputMode
+from cogency.tracing import ExecutionTrace, output_trace
 from cogency.workflow import Workflow
-from cogency.utils.tracing import Tracer
-from cogency.core.metrics import with_metrics, counter, histogram, get_metrics
-from cogency.core.resilience import RateLimitedError, CircuitOpenError
-from cogency.generation.prompt_composer import compose_system_prompt
+from cogency.monitoring.metrics import with_metrics, counter, histogram, get_metrics
+from cogency.resilience import RateLimitedError, CircuitOpenError
 try:
-    from cogency.core.mcp_server import CogencyMCPServer
+    from cogency.mcp.server import CogencyMCPServer
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
+
+
+def compose_system_prompt(personality: str = None, system_prompt: str = None, tone: str = None, style: str = None) -> str:
+    """Compose the four orthogonal axes into a coherent system prompt."""
+    # If explicit system_prompt provided, use it directly
+    if system_prompt:
+        return system_prompt
+    
+    # Otherwise, compose from personality, tone, and style
+    parts = []
+    
+    # Base identity
+    if personality:
+        parts.append(f"You are {personality}.")
+    else:
+        parts.append("You are a helpful AI assistant.")
+    
+    # Communication style
+    style_parts = []
+    if tone:
+        style_parts.append(f"tone: {tone}")
+    if style:
+        style_parts.append(f"style: {style}")
+    
+    if style_parts:
+        parts.append(f"Communicate with {', '.join(style_parts)}.")
+    
+    # Core behavior
+    parts.append("Always be helpful, accurate, and thoughtful in your responses.")
+    
+    return " ".join(parts)
 
 
 class Agent:
@@ -175,8 +205,7 @@ class Agent:
             if self.trace:
                 # Create minimal trace for output
                 trace = ExecutionTrace()
-                tracer = Tracer(trace)
-                tracer.output(output_mode)
+                output_trace(trace, output_mode)
             
             counter("agent.run.success")
             return final_response

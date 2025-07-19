@@ -4,8 +4,8 @@
 import asyncio
 import time
 from cogency import Agent
-from cogency.core.resilience import RateLimitedError, CircuitOpenError
-from cogency.core.metrics import get_metrics, MetricsReporter
+from cogency.resilience import RateLimitedError, CircuitOpenError
+from cogency.monitoring.metrics import get_metrics, MetricsReporter
 
 
 async def test_production_hardening(mock_llm_response):

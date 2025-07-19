@@ -4,11 +4,11 @@ from typing import List, Optional, Dict, Any
 
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
-from cogency.common.types import AgentState, ReasoningDecision
-from cogency.utils.tracing import trace_node
+from cogency.types import AgentState, ReasoningDecision
+from cogency.tracing import trace_node
 from cogency.reasoning.parsing import ReactResponseParser
 from cogency.reasoning.adaptive import StoppingReason
-from cogency.streaming.messaging import AgentMessenger
+from cogency.messaging import AgentMessenger
 
 
 INITIAL_REASON_PROMPT = """You are in a ReAct reasoning loop. Analyze the current situation and decide your next action.

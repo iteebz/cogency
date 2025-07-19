@@ -1,4 +1,4 @@
-"""Unified messaging system for agent-user communication."""
+"""User interface - general messaging system."""
 from typing import List, Callable, Awaitable
 
 

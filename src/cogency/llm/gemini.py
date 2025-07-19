@@ -8,8 +8,8 @@ except ImportError:
 
 from cogency.llm.base import BaseLLM
 from cogency.llm.key_rotator import KeyRotator
-from cogency.utils.errors import ConfigurationError
-from cogency.core.resilience import with_resilience, with_retry, RateLimitedError, CircuitOpenError, RateLimiterConfig, CircuitBreakerConfig
+from cogency.errors import ConfigurationError
+from cogency.resilience import with_resilience, with_retry, RateLimitedError, CircuitOpenError, RateLimiterConfig, CircuitBreakerConfig
 
 
 class GeminiLLM(BaseLLM):

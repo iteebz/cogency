@@ -3,7 +3,7 @@ import os
 from unittest.mock import Mock, AsyncMock, patch
 from cogency.llm.gemini import GeminiLLM
 from cogency.utils.errors import ConfigurationError
-from cogency.core.resilience import RateLimitedError
+from cogency.resilience import RateLimitedError
 
 
 @pytest.fixture

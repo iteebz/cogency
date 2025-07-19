@@ -3,7 +3,6 @@ from .adaptive import ReasonController, StoppingCriteria, ReasoningMetrics, Stop
 from .complexity import analyze_query_complexity, get_complexity_category, estimate_iterations_needed
 from .parsing import ReactResponseParser
 from .loop_detection import LoopDetector, LoopDetectionConfig, LoopType
-from .loop_integration import ReasoningLoopGuard
 
 __all__ = [
     "ReasonController",
@@ -16,6 +15,5 @@ __all__ = [
     "ReactResponseParser",
     "LoopDetector",
     "LoopDetectionConfig",
-    "LoopType", 
-    "ReasoningLoopGuard",
+    "LoopType",
 ]

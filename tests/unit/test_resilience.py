@@ -1,6 +1,6 @@
 import pytest
 import asyncio
-from cogency.core.resilience import RateLimiter, CircuitBreaker, with_retry, RateLimiterConfig, CircuitBreakerConfig, CircuitOpenError
+from cogency.resilience import RateLimiter, CircuitBreaker, with_retry, RateLimiterConfig, CircuitBreakerConfig, CircuitOpenError
 
 @pytest.fixture
 def rate_limiter():
