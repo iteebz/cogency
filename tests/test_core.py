@@ -113,6 +113,8 @@ class TestMemoryCore:
         initial_accessed = artifact.last_accessed
         
         # Simulate access (would be done by backend)
+        import time
+        time.sleep(0.001)  # Ensure timestamp difference
         artifact.access_count += 1
         artifact.last_accessed = datetime.now(UTC)
         

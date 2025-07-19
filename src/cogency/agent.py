@@ -11,6 +11,7 @@ from cogency.tracing import ExecutionTrace, output_trace
 from cogency.workflow import Workflow
 from cogency.monitoring.metrics import with_metrics, counter, histogram, get_metrics
 from cogency.resilience import RateLimitedError, CircuitOpenError
+from cogency.reasoning.complexity import analyze_query_complexity
 try:
     from cogency.mcp.server import CogencyMCPServer
     MCP_AVAILABLE = True
@@ -260,26 +261,7 @@ class Agent:
     
     def _estimate_query_complexity(self, query: str) -> float:
         """Estimate query complexity for monitoring."""
-        complexity_score = 0.0
-        
-        # Length factor
-        complexity_score += min(0.3, len(query) / 300)
-        
-        # Complexity keywords
-        complex_keywords = ['analyze', 'compare', 'evaluate', 'research', 'comprehensive', 'detailed']
-        simple_keywords = ['what', 'when', 'where', 'who', 'define', 'is', 'are']
-        
-        complex_count = sum(1 for keyword in complex_keywords if keyword in query.lower())
-        simple_count = sum(1 for keyword in simple_keywords if keyword in query.lower())
-        
-        complexity_score += min(0.4, complex_count * 0.1)
-        complexity_score -= min(0.2, simple_count * 0.05)
-        
-        # Question complexity
-        complexity_score += min(0.2, query.count('?') * 0.1)
-        complexity_score += min(0.1, query.count(' and ') * 0.05)
-        
-        return max(0.1, min(1.0, complexity_score))
+        return analyze_query_complexity(query, len(self.tools))
     
     async def process_input(self, input_text: str, context: Optional[Context] = None) -> str:
         """Process input text and return response - used by MCP server"""

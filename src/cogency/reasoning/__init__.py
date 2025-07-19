@@ -1,8 +1,7 @@
 """Core reasoning utilities - reusable across any architecture."""
 from .adaptive import AdaptiveController, StoppingCriteria, ReasoningMetrics, StoppingReason
-from .complexity import analyze_query_complexity, get_complexity_category, estimate_iterations_needed
+from .complexity import analyze_query_complexity
 from .parsing import ReactResponseParser
-from .loop_detection import LoopDetector, LoopDetectionConfig, LoopType
 
 __all__ = [
     "AdaptiveController",
@@ -10,10 +9,5 @@ __all__ = [
     "ReasoningMetrics",
     "StoppingReason",
     "analyze_query_complexity",
-    "get_complexity_category",
-    "estimate_iterations_needed",
     "ReactResponseParser",
-    "LoopDetector",
-    "LoopDetectionConfig",
-    "LoopType",
 ]

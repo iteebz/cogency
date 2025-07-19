@@ -6,12 +6,11 @@ from cogency.tools.base import BaseTool
 from cogency.memory.core import MemoryBackend
 from cogency.types import AgentState
 from cogency.tracing import trace_node
-from cogency.memory.prepare import should_extract_memory, save_extracted_memory
+from cogency.memory.prepare import save_extracted_memory
 from cogency.memory.extract import extract_memory_and_filter_tools
 from cogency.tools.prepare import create_registry_lite, filter_tools_by_exclusion, prepare_tools_for_react
 from cogency.messaging import AgentMessenger
 from cogency.reasoning.adaptive import AdaptiveController, StoppingCriteria
-from cogency.reasoning.complexity import analyze_query_complexity
 
 
 
@@ -28,18 +27,18 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
     if config and "configurable" in config:
         streaming_callback = config["configurable"].get("streaming_callback")
     
-    # Quick heuristic check for memory extraction
-    needs_memory_extract = should_extract_memory(query)
-    
     # Pre-React phases will stream via MEMORIZE and TOOLING messages below
     
-    # Use LLM for dual flow if many tools OR memory needs extraction
-    if (tools and len(tools) > 5) or needs_memory_extract:
+    # Use LLM for intelligent analysis when we have tools (memory + complexity + filtering)
+    if tools and len(tools) > 0:
         # Create registry lite (names + descriptions only)
         registry_lite = create_registry_lite(tools)
         
-        # Single LLM call for memory extraction + tool filtering
+        # Single LLM call for memory extraction + tool filtering + complexity analysis
         result = await extract_memory_and_filter_tools(query, registry_lite, llm)
+        
+        # Extract LLM-provided complexity
+        complexity = result["complexity"]
         
         # Chain 1: Save extracted memory if not null/empty
         if result["memory_summary"] and streaming_callback:
@@ -69,8 +68,9 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
                 selected_tool_names
             )
     else:
-        # Simple case: use all tools (no filtering)
+        # Simple case: use all tools (no filtering), basic complexity
         filtered_tools = tools
+        complexity = 0.3  # Simple fallback for no-tool scenarios
         
         # Always stream tool selection
         if streaming_callback and tools:
@@ -86,7 +86,6 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
     state["selected_tools"] = prepared_tools if prepared_tools else tools  # Use all tools as fallback
     
     # Chain 4: Initialize adaptive reasoning controller
-    complexity = analyze_query_complexity(query, len(prepared_tools))
     criteria = StoppingCriteria()
     criteria.max_iterations = max(3, int(complexity * 10))  # 3-10 iterations based on complexity
     
