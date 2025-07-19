@@ -1,9 +1,19 @@
 import json
+from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
+
+from cogency.constants import ReasoningActions, StatusValues
 
 # Avoid circular import
 if TYPE_CHECKING:
     pass
+
+# Constants for filtering
+class FilterConstants:
+    """Internal message filtering constants."""
+    INTERNAL_ACTIONS = {ReasoningActions.TOOL_NEEDED, ReasoningActions.DIRECT_RESPONSE}
+    STATUS_VALUES = {StatusValues.CONTINUE, StatusValues.COMPLETE, StatusValues.ERROR}
+    SYSTEM_PREFIXES = ("TOOL_CALL:",)
 
 
 # Context: Conversation state (user input + message history)
@@ -21,10 +31,10 @@ class Context:
         user_id: str = "default",
     ):
         self.current_input = current_input
-        self.messages = messages if messages is not None else []
-        self.tool_results = tool_results if tool_results is not None else []
+        self.messages = messages or []
+        self.tool_results = tool_results or []
         self.max_history = max_history
-        self.conversation_history = conversation_history if conversation_history is not None else []
+        self.conversation_history = conversation_history or []
         self.user_id = user_id
 
     def add_message(self, role: str, content: str, trace_id: Optional[str] = None):
@@ -35,21 +45,19 @@ class Context:
         self.messages.append(message_dict)
         self._apply_history_limit()
 
+    def _apply_sliding_window(self, items: List[Any]) -> List[Any]:
+        """Apply sliding window limit to any list. Returns modified list."""
+        if self.max_history is None or len(items) <= self.max_history:
+            return items
+        return [] if self.max_history == 0 else items[-self.max_history:]
+    
     def _apply_history_limit(self):
-        """Apply sliding window if max_history is set."""
-        if self.max_history is not None and len(self.messages) > self.max_history:
-            if self.max_history == 0:
-                self.messages = []
-            else:
-                self.messages = self.messages[-self.max_history:]
+        """Apply sliding window to messages."""
+        self.messages = self._apply_sliding_window(self.messages)
     
     def _apply_conversation_history_limit(self):
-        """Apply sliding window to conversation history if max_history is set."""
-        if self.max_history is not None and len(self.conversation_history) > self.max_history:
-            if self.max_history == 0:
-                self.conversation_history = []
-            else:
-                self.conversation_history = self.conversation_history[-self.max_history:]
+        """Apply sliding window to conversation history."""
+        self.conversation_history = self._apply_sliding_window(self.conversation_history)
 
     def add_tool_result(self, tool_name: str, args: dict, output: dict):
         """Add tool execution result to history."""
@@ -60,7 +68,7 @@ class Context:
         turn = {
             "query": query,
             "response": response,
-            "timestamp": json.dumps({"time": __import__("time").time()}),  # Simple timestamp
+            "timestamp": datetime.now().isoformat(),
             "metadata": metadata or {}
         }
         self.conversation_history.append(turn)
@@ -81,23 +89,33 @@ class Context:
         for msg in self.messages:
             content = msg["content"]
             # Filter out internal JSON messages
-            try:
-                # Only try to parse if content is a string
-                if isinstance(content, str):
-                    data = json.loads(content)
-                    if data.get("action") in [
-                        "tool_needed",
-                        "direct_response",
-                    ] or data.get("status") in ["continue", "complete", "error"]:
-                        continue
-            except (json.JSONDecodeError, TypeError):
-                pass
-            # Filter out tool calls and system messages
-            if content.startswith("TOOL_CALL:") or msg["role"] == "system":
+            if self._is_internal_message(content):
+                continue
+            # Filter out system messages
+            if msg["role"] == "system":
                 continue
             clean_messages.append({"role": msg["role"], "content": content})
         return clean_messages
 
+    def _is_internal_message(self, content: str) -> bool:
+        """Check if message content is internal/system generated."""
+        if not isinstance(content, str):
+            return False
+        
+        # Check for tool call prefixes
+        if content.startswith(FilterConstants.SYSTEM_PREFIXES):
+            return True
+        
+        # Check for internal JSON
+        try:
+            data = json.loads(content)
+            return (
+                data.get("action") in FilterConstants.INTERNAL_ACTIONS or
+                data.get("status") in FilterConstants.STATUS_VALUES
+            )
+        except (json.JSONDecodeError, TypeError):
+            return False
+    
     def __repr__(self):
         return (
             f"Context(current_input='{self.current_input}', messages={len(self.messages)} messages)"

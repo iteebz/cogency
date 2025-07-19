@@ -1,6 +1,6 @@
 """Test core foundation: types, context, config, errors."""
 import pytest
-from datetime import datetime
+from datetime import datetime, UTC
 
 from cogency.context import Context
 from cogency.types import AgentState, ReasoningDecision, ToolCall
@@ -114,7 +114,7 @@ class TestMemoryCore:
         
         # Simulate access (would be done by backend)
         artifact.access_count += 1
-        artifact.last_accessed = datetime.now()
+        artifact.last_accessed = datetime.now(UTC)
         
         assert artifact.access_count == initial_count + 1
         assert artifact.last_accessed > initial_accessed

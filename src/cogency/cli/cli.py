@@ -5,10 +5,8 @@ import argparse
 import asyncio
 import sys
 
-from cogency import Agent
 
-
-async def interactive_mode(agent: Agent):
+async def interactive_mode(agent):
     """Interactive mode with magical DX."""
     print("🤖 Cogency Agent")
     print("Type 'exit' to quit")
@@ -42,6 +40,9 @@ def main():
     parser.add_argument("-i", "--interactive", action="store_true", help="Interactive mode")
     args = parser.parse_args()
 
+    # Lazy import to avoid circular dependency
+    from cogency import Agent
+    
     try:
         agent = Agent("assistant")  # Auto-detects everything
     except Exception as e:

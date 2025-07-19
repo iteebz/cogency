@@ -53,9 +53,9 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
             tool_call.name, tool_call.args, selected_tools, context
         )
         
-        if isinstance(tool_output, dict) and tool_output.get("success") is False:
+        if isinstance(tool_output, dict) and (tool_output.get("success") is False or "error" in tool_output):
             # Add error to context so agent can reason about it
-            error_msg = f"Tool {tool_name} failed: {tool_output.get('error')}"
+            error_msg = f"Tool {tool_name} failed: {tool_output.get('error', 'Unknown error')}"
             context.add_message("system", error_msg)
             execution_results = {"success": False, "errors": [error_msg]}
         else:
@@ -86,12 +86,13 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
                 error_summary = error_summary[:97] + "..."
             await AgentMessenger.observe(streaming_callback, error_summary)
     
-    # Store execution results in state
-    state["execution_results"] = {
-        "type": "tool_execution",
-        "results": execution_results,
-        "time": execution_time
-    }
+    # Store execution results in state - format expected by tests
+    if execution_results.get("success"):
+        results = execution_results.get("results", [])
+        state["execution_results"] = [{"result": result} for result in results]
+    else:
+        errors = execution_results.get("errors", ["Tool execution failed"])
+        state["execution_results"] = [{"error": error} for error in errors]
     
     # Update adaptive reasoning controller metrics if available
     controller = state.get("adaptive_controller")

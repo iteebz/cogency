@@ -42,7 +42,8 @@ class TestMemoryBackends:
         
         # Filter by tags
         personal_memories = await memory_backend.recall(
-            "anything",
+            "",
+            search_type=SearchType.TAGS,
             tags=["personal"]
         )
         

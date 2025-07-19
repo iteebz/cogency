@@ -9,7 +9,8 @@ from ..core import MemoryBackend, MemoryArtifact, MemoryType, SearchType
 
 try:
     from pinecone import Pinecone
-except ImportError:
+except (ImportError, Exception):
+    # Handle both import errors and package conflicts
     Pinecone = None
 
 

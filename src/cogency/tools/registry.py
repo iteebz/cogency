@@ -52,3 +52,8 @@ class ToolRegistry:
 def tool(cls):
     """Decorator to auto-register tools."""
     return ToolRegistry.register(cls)
+
+
+def get_registered_tools(**kwargs) -> List[BaseTool]:
+    """Get all registered tool instances."""
+    return ToolRegistry.get_tools(**kwargs)

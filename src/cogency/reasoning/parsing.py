@@ -3,6 +3,8 @@ import json
 import re
 from typing import Optional, Tuple
 
+from cogency.constants import ReasoningActions
+
 
 class ReactResponseParser:
     """Utilities for parsing LLM responses in ReAct format."""
@@ -27,10 +29,13 @@ class ReactResponseParser:
         json_match = re.search(r'JSON_DECISION:\s*(.*)', response_cleaned, re.DOTALL | re.IGNORECASE)
         if json_match:
             json_section = json_match.group(1).strip()
-            # Look for actual JSON in this section
-            json_obj_match = re.search(r'(\{.*?\})', json_section, re.DOTALL)
-            if json_obj_match:
-                json_text = json_obj_match.group(1).strip()
+            # Look for actual JSON in this section with proper brace matching
+            json_text = ReactResponseParser._extract_json_object(json_section)
+            if json_text and json_text != json_section:
+                # Only use if we actually found a JSON object
+                pass
+            else:
+                json_text = ""
         
         # Fallback: look for any JSON in the response
         if not json_text:
@@ -52,12 +57,26 @@ class ReactResponseParser:
             if json_match:
                 return json_match.group(1).strip()
         
-        # Look for JSON object pattern
-        json_match = re.search(r'(\{.*?\})', response_cleaned, re.DOTALL)
-        if json_match:
-            return json_match.group(1).strip()
+        # Look for JSON object pattern with proper brace matching
+        return ReactResponseParser._extract_json_object(response_cleaned)
+    
+    @staticmethod
+    def _extract_json_object(text: str) -> str:
+        """Extract JSON object with proper brace matching."""
+        start_idx = text.find('{')
+        if start_idx == -1:
+            return text
         
-        return response_cleaned
+        brace_count = 0
+        for i, char in enumerate(text[start_idx:], start_idx):
+            if char == '{':
+                brace_count += 1
+            elif char == '}':
+                brace_count -= 1
+                if brace_count == 0:
+                    return text[start_idx:i+1]
+        
+        return text
     
     @staticmethod
     def extract_reasoning(response: str) -> str:
@@ -71,7 +90,7 @@ class ReactResponseParser:
         try:
             _, json_text = ReactResponseParser._extract_reasoning_and_json(response)
             data = json.loads(json_text)
-            return data.get("action") == "respond"
+            return data.get("action") == ReasoningActions.RESPOND
         except (json.JSONDecodeError, KeyError):
             return False
 
@@ -86,13 +105,17 @@ class ReactResponseParser:
             return ""
 
     @staticmethod
-    def extract_tool_calls(response: str) -> Optional[str]:
-        """Extract tool calls from LLM response for parsing."""
+    def extract_tool_calls(response: str) -> Optional[list]:
+        """Extract tool calls from LLM response as parsed list."""
         try:
             _, json_text = ReactResponseParser._extract_reasoning_and_json(response)
             data = json.loads(json_text)
-            if data.get("action") in ["use_tool", "use_tools"]:
-                return json_text
+            if data.get("action") == ReasoningActions.USE_TOOL:
+                # Single tool call
+                return [data["tool_call"]]
+            elif data.get("action") == ReasoningActions.USE_TOOLS:
+                # Multiple tool calls
+                return data["tool_call"]["calls"]
         except (json.JSONDecodeError, KeyError):
             pass
         return None

@@ -62,11 +62,13 @@ class StoppingCriteria:
     error_rate_threshold: float = 0.7
 
 
-class ReasonController:
+class AdaptiveController:
     """Controls reasoning depth with intelligent stopping criteria."""
     
-    def __init__(self, criteria: StoppingCriteria = None):
+    def __init__(self, criteria: StoppingCriteria = None, max_reasoning_steps: int = None):
         self.criteria = criteria or StoppingCriteria()
+        if max_reasoning_steps is not None:
+            self.criteria.max_iterations = max_reasoning_steps
         self.metrics = ReasoningMetrics()
         self.iteration_history = []
         self.consecutive_errors = 0
@@ -77,6 +79,10 @@ class ReasonController:
         self.metrics.start_time = time.time()
         self.iteration_history = []
         self.consecutive_errors = 0
+        
+    def step(self) -> None:
+        """Increment step counter for testing purposes."""
+        self.metrics.iteration += 1
         
     def should_continue_reasoning(self, 
                                 execution_results: Dict[str, Any] = None,

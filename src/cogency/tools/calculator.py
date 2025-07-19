@@ -1,6 +1,7 @@
 import math
 from typing import Any, Dict, List
 
+from cogency.constants import CalculatorOps, ResponseKeys
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
 
@@ -15,35 +16,58 @@ class CalculatorTool(BaseTool):
                 "(add, subtract, multiply, divide) and calculate square roots."
             ),
         )
+        # Beautiful dispatch pattern - extensible and clean
+        self._operations = {
+            CalculatorOps.ADD: self._add,
+            CalculatorOps.SUBTRACT: self._subtract,
+            CalculatorOps.MULTIPLY: self._multiply,
+            CalculatorOps.DIVIDE: self._divide,
+            CalculatorOps.SQUARE_ROOT: self._square_root,
+        }
 
     async def run(self, operation: str, x1: float = None, x2: float = None, **kwargs) -> Dict[str, Any]:
-        """Perform calculator operations."""
-        ops = ["add", "subtract", "multiply", "divide", "square_root"]
-        if not operation or operation not in ops:
-            return {"error": f"Invalid operation. Use: {', '.join(ops)}"}
+        """Perform calculator operations using dispatch pattern."""
+        if not operation or operation not in self._operations:
+            available = ", ".join(CalculatorOps.all())
+            return {ResponseKeys.ERROR: f"Invalid operation. Use: {available}"}
         
-        if operation in ["add", "subtract", "multiply", "divide"] and (x1 is None or x2 is None):
-            return {"error": "Two numbers required for this operation"}
-        
-        if operation == "square_root" and x1 is None:
-            return {"error": "Number required for square root"}
-
-        if operation == "add":
-            result = x1 + x2
-        elif operation == "subtract":
-            result = x1 - x2
-        elif operation == "multiply":
-            result = x1 * x2
-        elif operation == "divide":
-            if x2 == 0:
-                return {"error": "Cannot divide by zero"}
-            result = x1 / x2
-        elif operation == "square_root":
-            if x1 < 0:
-                return {"error": "Cannot calculate square root of negative number"}
-            result = math.sqrt(x1)
-        
-        return {"result": result}
+        # Dispatch to appropriate operation method
+        operation_func = self._operations[operation]
+        return operation_func(x1, x2)
+    
+    def _add(self, x1: float, x2: float) -> Dict[str, Any]:
+        """Add two numbers."""
+        if x1 is None or x2 is None:
+            return {ResponseKeys.ERROR: "Two numbers required for addition"}
+        return {ResponseKeys.RESULT: x1 + x2}
+    
+    def _subtract(self, x1: float, x2: float) -> Dict[str, Any]:
+        """Subtract two numbers."""
+        if x1 is None or x2 is None:
+            return {ResponseKeys.ERROR: "Two numbers required for subtraction"}
+        return {ResponseKeys.RESULT: x1 - x2}
+    
+    def _multiply(self, x1: float, x2: float) -> Dict[str, Any]:
+        """Multiply two numbers."""
+        if x1 is None or x2 is None:
+            return {ResponseKeys.ERROR: "Two numbers required for multiplication"}
+        return {ResponseKeys.RESULT: x1 * x2}
+    
+    def _divide(self, x1: float, x2: float) -> Dict[str, Any]:
+        """Divide two numbers."""
+        if x1 is None or x2 is None:
+            return {ResponseKeys.ERROR: "Two numbers required for division"}
+        if x2 == 0:
+            return {ResponseKeys.ERROR: "Cannot divide by zero"}
+        return {ResponseKeys.RESULT: x1 / x2}
+    
+    def _square_root(self, x1: float, x2: float) -> Dict[str, Any]:
+        """Calculate square root of a number."""
+        if x1 is None:
+            return {ResponseKeys.ERROR: "Number required for square root"}
+        if x1 < 0:
+            return {ResponseKeys.ERROR: "Cannot calculate square root of negative number"}
+        return {ResponseKeys.RESULT: math.sqrt(x1)}
 
     def get_schema(self) -> str:
         return (

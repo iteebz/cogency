@@ -46,12 +46,23 @@ def text_relevance(content: str, query: str, tags: List[str]) -> float:
         if any(word in tag.lower() for word in query_words):
             score += 1.0
     
-    # Normalize by length
+    # Preference indicators boost relevance 
+    strong_preference_words = ["favorite", "best", "prefer"]
+    mild_preference_words = ["love", "like", "enjoy"]
+    
+    for word in strong_preference_words:
+        if word in content_lower:
+            score += 1.0
+    for word in mild_preference_words:
+        if word in content_lower:
+            score += 0.5
+    
+    # Normalize by length - penalize longer content for same matches
     content_length = len(content.split())
     if content_length > 0:
-        score = score / (content_length * 0.01)
+        score = score / (1.0 + content_length * 0.02)
     
-    return min(score, 10.0)
+    return score
 
 
 async def search_artifacts(

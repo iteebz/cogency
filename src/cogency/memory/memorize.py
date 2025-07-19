@@ -3,7 +3,7 @@ from typing import Optional
 
 from cogency.memory.core import MemoryBackend
 from cogency.types import AgentState
-from cogency.types import trace_node
+from cogency.tracing import trace_node
 
 
 @trace_node("memorize")

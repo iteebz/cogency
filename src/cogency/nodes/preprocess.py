@@ -10,7 +10,7 @@ from cogency.memory.prepare import should_extract_memory, save_extracted_memory
 from cogency.memory.extract import extract_memory_and_filter_tools
 from cogency.tools.prepare import create_registry_lite, filter_tools_by_exclusion, prepare_tools_for_react
 from cogency.messaging import AgentMessenger
-from cogency.reasoning.adaptive import ReasonController, StoppingCriteria
+from cogency.reasoning.adaptive import AdaptiveController, StoppingCriteria
 from cogency.reasoning.complexity import analyze_query_complexity
 
 
@@ -90,7 +90,7 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
     criteria = StoppingCriteria()
     criteria.max_iterations = max(3, int(complexity * 10))  # 3-10 iterations based on complexity
     
-    controller = ReasonController(criteria)
+    controller = AdaptiveController(criteria)
     controller.start_reasoning()
     
     state["adaptive_controller"] = controller

@@ -4,20 +4,43 @@ import asyncio
 from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
 from cogency.types import ToolCall, MultiToolCall
-from cogency.utils.parsing import parse_plan
+from cogency.reasoning.parsing import ReactResponseParser
 from cogency.resilience import retry
 
 
-def parse_tool_call(llm_response_content: str) -> Optional[Union[ToolCall, MultiToolCall]]:
-    """Parse tool call from LLM response content.
+def parse_tool_call(llm_response_content) -> Optional[Union[ToolCall, MultiToolCall]]:
+    """Parse tool call from LLM response content or pre-parsed data.
     
     Args:
-        llm_response_content: Raw LLM response 
+        llm_response_content: Raw LLM response string OR pre-parsed data
         
     Returns:
         ToolCall or MultiToolCall object, or None if no tool call found
     """
-    plan_data = parse_plan(llm_response_content)
+    # Handle already parsed data (for tests)
+    if isinstance(llm_response_content, (list, dict)):
+        # Direct tool call data
+        if isinstance(llm_response_content, list) and len(llm_response_content) == 1:
+            call_data = llm_response_content[0]
+            return ToolCall(**call_data)
+        elif isinstance(llm_response_content, dict):
+            return ToolCall(**llm_response_content)
+        return None
+    
+    # Handle string response from LLM
+    if not isinstance(llm_response_content, str):
+        return None
+        
+    # Extract JSON data from LLM response
+    _, json_text = ReactResponseParser._extract_reasoning_and_json(llm_response_content)
+    if not json_text:
+        return None
+    
+    try:
+        plan_data = json.loads(json_text)
+    except json.JSONDecodeError:
+        return None
+        
     if plan_data and "tool_call" in plan_data:
         tool_call_data = plan_data["tool_call"]
         

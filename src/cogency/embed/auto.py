@@ -1,5 +1,5 @@
 """Auto-detection of embedding providers from environment variables."""
-from cogency.cli.config import get_api_keys
+from cogency.config import get_api_keys
 from .base import BaseEmbed
 
 def auto_detect_embedder() -> BaseEmbed:

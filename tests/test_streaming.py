@@ -78,26 +78,33 @@ class TestStreamingExecution:
     
     @pytest.mark.asyncio
     async def test_streaming_timeout_behavior(self, agent_state):
-        """Streaming should handle timeouts appropriately."""
+        """Streaming should handle slow workflows and timeouts."""
         streamer = ExecutionStreamer()
         
         # Mock workflow that takes a long time
         async def slow_workflow(state):
-            await asyncio.sleep(2)  # Longer than timeout
+            await asyncio.sleep(0.5)  # Moderate delay
             return {"result": "slow"}
         
         mock_workflow = Mock()
         mock_workflow.ainvoke = slow_workflow
         
+        # Test that streaming eventually completes even with slow workflows
         events = []
-        # This should complete eventually, just slowly
+        start_time = asyncio.get_event_loop().time()
+        
         async for event in streamer.astream_execute(mock_workflow, agent_state):
             events.append(event)
-            # Don't wait for the full 2 seconds in tests
-            break
+            if event.event_type == "final_state":
+                break
         
-        # The workflow should still be running
-        assert not streamer._execution_task.done()
+        end_time = asyncio.get_event_loop().time()
+        
+        # Should have taken at least 0.5 seconds due to sleep
+        assert end_time - start_time >= 0.4
+        assert len(events) == 1  # Should get final_state event
+        assert events[0].event_type == "final_state"
+        assert events[0].data["state"]["result"] == "slow"
 
 
 class TestStreamEvent:

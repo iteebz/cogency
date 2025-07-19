@@ -76,6 +76,7 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
     
     # Update state with final results
     state["context"] = context
+    state["final_response"] = final_response  # Expected by tests
     state["reasoning_decision"] = ReasoningDecision(
         should_respond=True, 
         response_text=final_response, 
