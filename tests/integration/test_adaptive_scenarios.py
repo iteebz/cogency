@@ -3,8 +3,8 @@
 
 import asyncio
 import time
-from cogency.utils.adaptive_reasoning import (
-    AdaptiveReasoningController, 
+from cogency.reasoning.adaptive import (
+    ReasonController, 
     StoppingCriteria, 
     StoppingReason
 )
@@ -15,7 +15,7 @@ class TestIntegrationScenarios:
     
     def test_normal_completion_scenario(self):
         """Test normal completion with successful tool execution."""
-        controller = AdaptiveReasoningController()
+        controller = ReasonController()
         controller.start_reasoning()
         
         # Simulate successful tool execution
@@ -46,7 +46,7 @@ class TestIntegrationScenarios:
     
     def test_mixed_success_failure_scenario(self):
         """Test scenario with mixed success and failure."""
-        controller = AdaptiveReasoningController()
+        controller = ReasonController()
         controller.start_reasoning()
         
         # Simulate mixed execution results
@@ -78,7 +78,7 @@ class TestIntegrationScenarios:
     
     def test_progressive_improvement_scenario(self):
         """Test scenario with progressive improvement in confidence."""
-        controller = AdaptiveReasoningController()
+        controller = ReasonController()
         controller.start_reasoning()
         
         # Simulate progressive improvement in results
@@ -107,7 +107,7 @@ class TestIntegrationScenarios:
     def test_resource_exhaustion_scenario(self):
         """Test scenario that hits resource limits."""
         criteria = StoppingCriteria(max_total_tools=8, max_iterations=20)
-        controller = AdaptiveReasoningController(criteria)
+        controller = ReasonController(criteria)
         controller.start_reasoning()
         
         # Simulate many tool executions to exceed the limit
@@ -146,7 +146,7 @@ class TestIntegrationScenarios:
             iteration_timeout=0.05   # 50ms per iteration
         )
         
-        controller = AdaptiveReasoningController(criteria)
+        controller = ReasonController(criteria)
         controller.start_reasoning()
         
         # Simulate slow processing that exceeds the limit
@@ -163,7 +163,7 @@ class TestIntegrationScenarios:
             improvement_threshold=0.1,
             stagnation_iterations=3
         )
-        controller = AdaptiveReasoningController(criteria)
+        controller = ReasonController(criteria)
         controller.start_reasoning()
         
         # Simulate stagnant progress
@@ -193,7 +193,7 @@ class TestIntegrationScenarios:
             confidence_threshold=0.9,
             min_confidence_samples=2
         )
-        controller = AdaptiveReasoningController(criteria)
+        controller = ReasonController(criteria)
         controller.start_reasoning()
         
         # Simulate very successful tool executions

@@ -129,13 +129,30 @@ class GeminiLLM(BaseLLM):
 
         try:
             res = await self._current_model.generate_content_async(prompt, **kwargs)
-            return res.text
+            
+            # Handle different response formats from Gemini API
+            if hasattr(res, 'text') and res.text:
+                return res.text
+            elif hasattr(res, 'candidates') and res.candidates:
+                # Try to get text from first candidate
+                candidate = res.candidates[0]
+                if hasattr(candidate, 'content') and hasattr(candidate.content, 'parts'):
+                    if candidate.content.parts and hasattr(candidate.content.parts[0], 'text'):
+                        return candidate.content.parts[0].text
+            
+            # Fallback: convert to string
+            return str(res)
+            
         except Exception as e:
-            # Handle rate limiting gracefully - try rotating key
-            if "429" in str(e) or "quota" in str(e).lower():
+            error_str = str(e).lower()
+            # Handle rate limiting and invalid API keys gracefully - try rotating key
+            if any(keyword in error_str for keyword in ["429", "quota", "api key not valid", "invalid api key", "api_key_invalid"]):
                 rotation_msg = self.handle_rate_limit(e)
                 if self.key_rotator:
                     self._rotate_client()
+                    # Retry with next key for invalid API key errors
+                    if "api key" in error_str or "api_key_invalid" in error_str:
+                        return await self.invoke(messages, **kwargs)
                 raise RateLimitedError(f"Gemini {rotation_msg}: {e}")
             raise
 
@@ -160,10 +177,16 @@ class GeminiLLM(BaseLLM):
                 if chunk.text:
                     yield chunk.text
         except Exception as e:
-            # Handle rate limiting gracefully
-            if "429" in str(e) or "quota" in str(e).lower():
+            error_str = str(e).lower()
+            # Handle rate limiting and invalid API keys gracefully
+            if any(keyword in error_str for keyword in ["429", "quota", "api key not valid", "invalid api key", "api_key_invalid"]):
                 rotation_msg = self.handle_rate_limit(e)
                 if self.key_rotator:
                     self._rotate_client()
+                    # Retry with next key for invalid API key errors
+                    if "api key" in error_str or "api_key_invalid" in error_str:
+                        async for chunk in self.stream(messages, yield_interval, **kwargs):
+                            yield chunk
+                        return
                 raise RateLimitedError(f"Gemini {rotation_msg}: {e}")
             raise

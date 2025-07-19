@@ -63,9 +63,7 @@ class Tracer:
     """Handles formatting and output of execution traces."""
 
     def __init__(self, trace: ExecutionTrace):
-        from cogency.react.explanation import ExplanationGenerator, ExplanationLevel, ExplanationContext
         self.trace = trace
-        self.explainer = ExplanationGenerator(ExplanationLevel.CONCISE)
 
     def _summarize(self) -> str:
         """Generate clean summary from trace entries."""
@@ -181,28 +179,28 @@ class Tracer:
         # Node-specific explanations
         if node == "memorize":
             if "recalled" in message.lower():
-                return self.explainer.explain_memory_action("recall", message)
+                return f"RECALL: {message}"
             else:
-                return self.explainer.explain_memory_action("memorize", message)
+                return f"MEMORIZE: {message}"
         
         elif node == "filter_tools":
             if "selected_tools" in data:
                 tools = [tool.get("name", "unknown") for tool in data["selected_tools"]]
-                return self.explainer.explain_tool_selection(tools, len(context.tools_available))
+                return f"TOOLING: {', '.join(tools) if tools else 'No tools needed'}"
             else:
                 return "🔧 Analyzing available tools for this task"
         
         elif node == "reason":
             if "Adaptive reasoning started" in message:
-                return self.explainer.explain_reasoning_start(context)
+                return "REASON: Starting reasoning process"
             elif "Direct response" in message:
-                return self.explainer.explain_reasoning_decision("direct_response", message)
+                return f"REASON: {message}"
             elif "Tool calls identified" in message:
-                return self.explainer.explain_reasoning_decision("tool_needed", message)
+                return f"REASON: {message}"
             elif "Task complete" in message:
-                return self.explainer.explain_reasoning_decision("task_complete", message)
+                return f"REASON: {message}"
             elif "Stopping" in message or "stopping" in message.lower():
-                return self.explainer.explain_stopping_criteria(context.stopping_reason or "unknown", {"total_time": context.execution_time})
+                return f"COMPLETE: Task finished ({context.stopping_reason or 'unknown'})"
             elif "Tool execution" in message:
                 return f"⚡ Executed tools and gathered information"
             else:

@@ -11,13 +11,12 @@ from cogency.workflow import Workflow
 from cogency.utils.tracing import Tracer
 from cogency.core.metrics import with_metrics, counter, histogram, get_metrics
 from cogency.core.resilience import RateLimitedError, CircuitOpenError
-from cogency.core.expression import compose_system_prompt
+from cogency.generation.prompt_composer import compose_system_prompt
 try:
     from cogency.core.mcp_server import CogencyMCPServer
     MCP_AVAILABLE = True
 except ImportError:
     MCP_AVAILABLE = False
-# from cogency.core.monitoring import get_monitor  # Temporarily disabled for faster startup
 
 
 class Agent:
@@ -100,7 +99,6 @@ class Agent:
         
         # Create streaming buffer for real-time updates
         streaming_buffer = []
-        first_output = True
         
         async def streaming_callback(update: str):
             """Callback to capture streaming updates in real-time."""
@@ -109,15 +107,14 @@ class Agent:
         # Configure streaming callback - store in configurable field
         config = {"configurable": {"streaming_callback": streaming_callback}}
         
+        # Display HUMAN input immediately before processing starts
+        yield f"👤 HUMAN: {query}\n\n"
+        
         try:
             # Run workflow with streaming callback
             async for event in self.workflow.astream(state, config=config):
                 # Yield any buffered streaming updates
                 while streaming_buffer:
-                    if first_output:
-                        # Add query display before first trace
-                        yield f"👤 HUMAN: {query}\n\n"
-                        first_output = False
                     yield streaming_buffer.pop(0)
                 
                 if event and "react_loop" in event:

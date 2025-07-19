@@ -2,12 +2,11 @@ import json
 from typing import Any, Callable, Dict
 
 
-class PhaseFormatter:
-    """Centralized formatting for agent execution phases.
+class ThinkingFormatter:
+    """Live thinking stream formatting with clean emojis.
     
-    This class provides consistent formatting for all agent execution phases,
-    ensuring that the same icons and prefixes are used across streaming output
-    and trace formatting.
+    Provides consistent emoji formatting for real-time agent cognition feedback,
+    showing the user what the agent is thinking as it happens.
     """
     
     @staticmethod
@@ -46,8 +45,8 @@ class PhaseFormatter:
         return f"❌ ERROR: {message}"
     
     @staticmethod
-    def has_phase_prefix(message: str) -> bool:
-        """Check if a message already has a phase prefix."""
+    def has_thinking_prefix(message: str) -> bool:
+        """Check if a message already has a thinking prefix."""
         prefixes = [
             "💾 MEMORIZE:",
             "🛠️ TOOLING:",
