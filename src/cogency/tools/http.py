@@ -169,3 +169,9 @@ class HTTP(BaseTool):
             "http(url='https://api.example.com/data', method='get', headers={'User-Agent': 'MyApp/1.0'})",
             "http(url='https://api.example.com/update', method='put', auth={'type': 'bearer', 'token': 'xxx'})"
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        from cogency.messaging import _truncate
+        url, method = params.get("url"), params.get("method", "get").upper()
+        return f"({method} {_truncate(url, 30)})" if url else ""

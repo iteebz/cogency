@@ -22,7 +22,7 @@ class Code(BaseTool):
     def __init__(self):
         super().__init__(
             name="code",
-            description="Execute Python or JavaScript code safely with output capture and error handling",
+            description="Execute code snippets directly - for running inline Python/JS code, not files",
             emoji="🚀"
         )
         # Beautiful dispatch pattern - extensible and clean
@@ -223,3 +223,9 @@ try {{
             "code(code='console.log(Math.sqrt(16))', language='javascript')",
             "code(code='const arr = [1,2,3]; console.log(arr.map(x => x*2))', language='js')"
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        from cogency.messaging import _truncate
+        code = params.get("code", "")
+        return f"({_truncate(code, 35)})" if code else ""

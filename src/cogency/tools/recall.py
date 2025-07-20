@@ -73,3 +73,9 @@ class Recall(BaseTool):
             'recall(query="user personal information name")',
             'recall(query="previous conversation context")'
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        from cogency.messaging import _truncate
+        query = params.get("query", "")
+        return f"({_truncate(query, 30)})" if query else ""

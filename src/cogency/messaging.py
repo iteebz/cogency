@@ -59,7 +59,7 @@ def format_tool_params(tool_name: str, params: Dict[str, Any]) -> str:
         return ""
     
     try:
-        # First try to get tool-specific formatter
+        # Try to get tool-specific formatter
         from cogency.tools.registry import ToolRegistry
         for tool_class in ToolRegistry._tools:
             try:
@@ -71,37 +71,9 @@ def format_tool_params(tool_name: str, params: Dict[str, Any]) -> str:
             except:
                 continue
         
-        # Fallback to built-in formatters
-        name = tool_name.lower()
-        
-        if name == "weather":
-            return f"({params.get('city', '')})"
-        
-        elif "search" in name:
-            query = params.get("query", params.get("q", ""))
-            return f"({_truncate(query, 35)})" if query else ""
-        
-        elif name == "recall":
-            query = params.get("query", "")
-            return f"({_truncate(query, 30)})" if query else ""
-        
-        elif name == "file":
-            action, filename = params.get("action"), params.get("filename")
-            if action and filename:
-                return f"({action}, {_truncate(filename, 25)})"
-            return f"({_truncate(filename or '', 30)})" if filename else ""
-        
-        elif name == "http":
-            url, method = params.get("url"), params.get("method", "get").upper()
-            return f"({method} {_truncate(url, 30)})" if url else ""
-        
-        elif name in ["shell", "code"]:
-            cmd = params.get("command", params.get("code", ""))
-            return f"({_truncate(cmd, 35)})" if cmd else ""
-        
-        # Generic: first value
-        first_val = list(params.values())[0]
-        return f"({_truncate(str(first_val), 25)})"
+        # Generic fallback: first value only
+        first_val = list(params.values())[0] if params.values() else ""
+        return f"({_truncate(str(first_val), 25)})" if first_val else ""
     
     except:
         return ""
@@ -116,34 +88,24 @@ def contextualize_result(tool_name: str, result: Any) -> str:
         name = tool_name.lower()
         
         if isinstance(result, dict):
-            # Tool-specific
+            # Tool-specific handling
             if name == "weather" and "temperature" in result and "condition" in result:
                 return f"{result['temperature']} {result['condition']}"
-            elif name == "calculator" and "result" in result:
-                return str(result["result"])
-            elif "search" in name and "results_count" in result:
-                count = result["results_count"]
-                return f"{count} results" if count != 1 else "1 result"
-            elif name == "http" and "status_code" in result:
-                code = result["status_code"]
-                return f"{'✓' if 200 <= code < 300 else '✗'} {code}"
-            elif name == "time":
-                if "formatted" in result:
-                    return _truncate(result["formatted"], 45)
-                elif "datetime" in result:
-                    return _truncate(result["datetime"], 45)
-            elif name in ["shell", "code"]:
-                if result.get("success"):
-                    output = result.get("output", result.get("stdout", ""))
-                    return _truncate(output.strip(), 50) if output and output.strip() else "✓ success"
-                else:
-                    error = result.get("error", result.get("stderr", "failed"))
-                    return _truncate(str(error), 40)
             
-            # Generic dict
-            for key in ["result", "data", "content", "message"]:
+            # Check for common success/error patterns
+            if "error" in result:
+                return f"✗ {_truncate(str(result['error']), 40)}"
+            
+            # Standard result patterns
+            for key in ["result", "summary", "data", "content", "message"]:
                 if key in result:
                     return _truncate(str(result[key]), 50)
+            
+            # Success indicators
+            if result.get("success") is True:
+                return "✓ success"
+            elif result.get("success") is False:
+                return "✗ failed"
         
         elif isinstance(result, (list, tuple)):
             return f"{len(result)} items" if len(result) > 1 else "empty" if len(result) == 0 else str(result[0])
@@ -243,12 +205,25 @@ class AgentMessenger:
     @staticmethod
     async def agent_response(callback: Callable[[str], Awaitable[None]], response: str) -> None:
         """🤖 AGENT: Final response."""
-        await callback(f"\n🤖 {response}\n")
+        await callback(f"🤖 {response}")
     
     @staticmethod
     async def spacing(callback: Callable[[str], Awaitable[None]]) -> None:
         """Add spacing between phases."""
         await callback("\n")
+    
+    @staticmethod
+    async def tool_selection(
+        callback: Callable[[str], Awaitable[None]], 
+        tool_names: List[str], 
+        filtered: bool = False
+    ) -> None:
+        """Display intelligent tool selection."""
+        try:
+            tools_str = ", ".join(tool_names)
+            await callback(f"🛠️ Tools: {tools_str}\n")
+        except Exception:
+            pass
     
     # Legacy methods for backward compatibility during transition
     @staticmethod

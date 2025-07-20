@@ -109,3 +109,8 @@ class Weather(BaseTool):
             "weather(city='London')", 
             "weather(city='Tokyo')"
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        city = params.get('city', '')
+        return f"({city})" if city else ""

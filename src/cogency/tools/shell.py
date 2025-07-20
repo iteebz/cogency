@@ -18,12 +18,15 @@ logger = logging.getLogger(__name__)
 class Shell(BaseTool):
     """Execute system commands safely with timeout and basic sandboxing."""
 
-    def __init__(self):
+    def __init__(self, default_working_dir: str = ".cogency/sandbox"):
         super().__init__(
             name="shell",
-            description="Execute system commands safely with timeout protection and output capture",
+            description="Run shell commands and scripts - for executing files, running programs, terminal operations",
             emoji="💻"
         )
+        # Coordinate with file tool sandbox
+        self.default_working_dir = Path(default_working_dir).resolve()
+        self.default_working_dir.mkdir(parents=True, exist_ok=True)
         # Security: blocked dangerous commands
         self._blocked_commands = {
             "rm", "rmdir", "del", "format", "fdisk", "mkfs", "dd", 
@@ -76,7 +79,9 @@ class Shell(BaseTool):
                     return {"error": f"Working directory is not a directory: {working_dir}"}
                 # Basic sandbox: no system directories
                 forbidden_paths = {"/", "/bin", "/sbin", "/usr", "/etc", "/sys", "/proc", "/dev"}
-                if str(work_path) in forbidden_paths or any(str(work_path).startswith(p) for p in forbidden_paths):
+                work_path_str = str(work_path)
+                # Check if it's a forbidden system directory (but not subdirectories of allowed paths)
+                if work_path_str in forbidden_paths or any(work_path_str.startswith(p + "/") for p in forbidden_paths):
                     return {"error": f"Access to system directory forbidden: {working_dir}"}
             except Exception:
                 return {"error": f"Invalid working directory: {working_dir}"}
@@ -89,13 +94,14 @@ class Shell(BaseTool):
                 if isinstance(key, str) and isinstance(value, str):
                     process_env[key] = value
         
-        # Execute command
+        # Execute command with coordinated working directory
+        actual_working_dir = working_dir or str(self.default_working_dir)
         try:
             process = await asyncio.create_subprocess_shell(
                 command,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=working_dir,
+                cwd=actual_working_dir,
                 env=process_env,
                 limit=1024 * 1024  # 1MB output limit
             )
@@ -134,7 +140,7 @@ class Shell(BaseTool):
                 "stdout": stdout_text,
                 "stderr": stderr_text,
                 "command": command,
-                "working_dir": working_dir or os.getcwd(),
+                "working_dir": actual_working_dir,
                 "timeout": timeout
             }
             
@@ -162,3 +168,9 @@ class Shell(BaseTool):
             "shell(command='python --version')",
             "shell(command='git status', working_dir='/path/to/repo')"
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        from cogency.messaging import _truncate
+        cmd = params.get("command", "")
+        return f"({_truncate(cmd, 35)})" if cmd else ""

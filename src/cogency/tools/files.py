@@ -8,12 +8,12 @@ from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
 
 @tool
-class File(BaseTool):
+class Files(BaseTool):
     """File operations within a safe base directory."""
 
     def __init__(self, base_dir: str = ".cogency/sandbox"):
         super().__init__(
-            name="file",
+            name="files",
             description="Manage files and directories - create, read, list, and delete files safely.",
             emoji="📁"
         )
@@ -35,18 +35,18 @@ class File(BaseTool):
     async def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
         """Execute file operations."""
         try:
-            if action == "create_file":
+            if action == "create":
                 path = self._safe_path(filename)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
                 return {"result": f"Created file: {filename}", "size": len(content)}
             
-            elif action == "read_file":
+            elif action == "read":
                 path = self._safe_path(filename)
                 content = path.read_text(encoding="utf-8")
                 return {"result": f"Read file: {filename}", "content": content, "size": len(content)}
             
-            elif action == "list_files":
+            elif action == "list":
                 path = self._safe_path(filename if filename else ".")
                 items = []
                 for item in sorted(path.iterdir()):
@@ -57,7 +57,7 @@ class File(BaseTool):
                     })
                 return {"result": f"Listed {len(items)} items", "items": items}
             
-            elif action == "delete_file":
+            elif action == "delete":
                 path = self._safe_path(filename)
                 path.unlink()
                 return {"result": f"Deleted file: {filename}"}
@@ -69,12 +69,20 @@ class File(BaseTool):
             return {"error": str(e)}
 
     def get_schema(self) -> str:
-        return "file(action='create_file|read_file|list_files|delete_file', filename='path/to/file', content='file content')"
+        return "files(action=REQUIRED, filename=REQUIRED, content=optional) - action must be: create|read|list|delete"
 
     def get_usage_examples(self) -> List[str]:
         return [
-            "file(action='create_file', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
-            "file(action='read_file', filename='notes/plan.md')",
-            "file(action='list_files', filename='notes')",
-            "file(action='delete_file', filename='notes/old_file.txt')",
+            "files(action='create', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
+            "files(action='read', filename='notes/plan.md')",
+            "files(action='list', filename='notes')",
+            "files(action='delete', filename='notes/old_file.txt')",
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        from cogency.messaging import _truncate
+        action, filename = params.get("action"), params.get("filename")
+        if action and filename:
+            return f"({action}, {_truncate(filename, 25)})"
+        return f"({_truncate(filename or '', 30)})" if filename else ""

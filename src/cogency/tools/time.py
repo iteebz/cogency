@@ -165,3 +165,18 @@ class Time(BaseTool):
             "time(operation='relative', datetime_str='2024-01-15T14:30:00')",
             "time(operation='convert_timezone', datetime_str='2024-01-15T14:30:00', from_tz='UTC', to_tz='America/New_York')"
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        operation = params.get("operation", "")
+        if operation == "now":
+            tz = params.get("timezone", "UTC")
+            return f"(now, {tz})"
+        elif operation == "relative":
+            dt = params.get("datetime_str", "")
+            return f"(relative, {dt[:16]})" if dt else f"(relative)"
+        elif operation == "convert_timezone":
+            from_tz = params.get("from_tz", "")
+            to_tz = params.get("to_tz", "")
+            return f"(convert, {from_tz}→{to_tz})" if from_tz and to_tz else f"(convert)"
+        return f"({operation})" if operation else ""

@@ -31,6 +31,8 @@ def extract_tool_calls_from_json(json_data: Dict[str, Any]) -> Optional[List[Dic
     return None
 
 
+
+
 # Removed should_respond_directly - ceremony eliminated. Direct response is implicit when no tool_calls.
 
 

@@ -111,3 +111,9 @@ class Search(BaseTool):
             "search(query='latest AI developments 2024')",
             "search(query='how to install Docker', max_results=5)",
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        from cogency.messaging import _truncate
+        query = params.get("query", params.get("q", ""))
+        return f"({_truncate(query, 35)})" if query else ""

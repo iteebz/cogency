@@ -9,7 +9,7 @@ from cogency.tools.base import BaseTool
 
 # Explicit imports for clean API
 from cogency.tools.calculator import Calculator
-from cogency.tools.file import File
+from cogency.tools.files import Files
 from cogency.tools.time import Time
 from cogency.tools.date import Date
 from cogency.tools.weather import Weather
@@ -23,7 +23,7 @@ from cogency.tools.code import Code
 __all__ = [
     "BaseTool",
     "Calculator",
-    "File", 
+    "Files", 
     "Date",
     "Time",
     "Weather",

@@ -18,25 +18,26 @@ ORIGINAL QUERY: {user_input}
 AVAILABLE TOOLS: {tool_names}
 
 CRITICAL RULES:
-1. Only use tools for current/external data that you cannot know
-2. Once you have ALL information needed to answer the original query, respond immediately
-3. Do not add extra steps or features not requested by the user
-4. Review what the user actually asked for vs what you have gathered
-5. For calculator operations, do ONE calculation at a time if they depend on each other
+1. If the user asks you to CREATE, RUN, EXECUTE, or SAVE anything - you MUST use tools
+2. If the user wants files created or code executed - you MUST use appropriate tools
+3. Only respond directly if the user asks for explanations or information you already know
+4. FOLLOW TOOL SCHEMAS EXACTLY - include all required parameters
+5. Do not add extra steps or features not requested by the user
 
-Examples:
-- "What is 2+2?" → Direct answer (no calculator needed)
-- "Weather in Paris?" → Use weather tool, then respond
-- "Weather + time in Tokyo?" → Use both tools, then respond immediately
-- "Calculate 120*3 + 450" → First use calculator for 120*3, then use result for next calculation
+Action Required Analysis:
+- Does the query ask to CREATE/SAVE files? → Use file tool
+- Does the query ask to RUN/EXECUTE code? → Use appropriate execution tool  
+- Does the query ask for explanation only? → Respond directly
 
-Check: Do I have everything needed to fully answer the ORIGINAL query?
-- If YES → {{"reasoning": "I have all needed information"}}
-- If NO → Use specific tools needed
+RESPONSE FORMAT - YOU MUST OUTPUT EXACTLY THIS JSON FORMAT:
 
-{{"reasoning": "Explain your thinking in 1-2 sentences"}}
-OR
-{{"reasoning": "Why you need these tools", "tool_calls": [{{"name": "tool_name", "args": {{"param": "value"}}}}]}}"""
+For CREATE/RUN/EXECUTE requests (like the current query):
+{{"reasoning": "I need to create a Python script and run it", "tool_calls": [{{"name": "code", "args": {{"code": "def fibonacci(n): return n", "language": "python"}}}}]}}
+
+For information-only requests:
+{{"reasoning": "I have all needed information to explain this topic"}}
+
+CRITICAL: Output ONLY the JSON object. No explanations, no code blocks, no markdown."""
 
 
 
@@ -61,7 +62,19 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         state["next_node"] = "respond"
         return state
     
-    tool_info = ", ".join([f"{t.name}: {t.get_schema()}" for t in selected_tools]) if selected_tools else "no tools"
+    if selected_tools:
+        tool_info_parts = []
+        for t in selected_tools:
+            schema = t.get_schema()
+            examples = getattr(t, 'get_usage_examples', lambda: [])()
+            if examples:
+                example_str = " Examples: " + ", ".join(examples[:2])  # Show first 2 examples
+                tool_info_parts.append(f"{t.name}: {schema}.{example_str}")
+            else:
+                tool_info_parts.append(f"{t.name}: {schema}")
+        tool_info = "\n".join(tool_info_parts)
+    else:
+        tool_info = "no tools"
     
     messages = list(context.messages)
     messages.append({"role": "user", "content": context.current_input})

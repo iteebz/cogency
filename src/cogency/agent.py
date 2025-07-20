@@ -53,15 +53,41 @@ class Agent:
     
     def __init__(self, name: str, **opts):
         self.name = name
+        
+        # Handle tools - instantiate if classes are passed
+        tools = opts.get('tools')
+        if tools:
+            instantiated_tools = []
+            for tool in tools:
+                if isinstance(tool, type):
+                    # It's a class, instantiate it
+                    try:
+                        instantiated_tools.append(tool())
+                    except TypeError:
+                        # Try with memory if needed
+                        try:
+                            instantiated_tools.append(tool(memory=opts.get('memory')))
+                        except:
+                            # Skip tools that can't be instantiated
+                            continue
+                else:
+                    # It's already an instance
+                    instantiated_tools.append(tool)
+            tools = instantiated_tools
+        else:
+            tools = ToolRegistry.get_tools(memory=opts.get('memory'))
+        
         self.workflow = Workflow(
             llm=opts.get('llm') or auto_detect_llm(),
-            tools=opts.get('tools') or ToolRegistry.get_tools(memory=opts.get('memory')),
+            tools=tools,
             memory=opts.get('memory') or FilesystemBackend(opts.get('memory_dir', '.cogency/memory')),
             system_prompt=compose_system_prompt(opts),
             response_shaper=opts.get('response_shaper')
         )
         self.runner = StreamingRunner()
         self.contexts = {}
+        self.trace_enabled = opts.get('trace', False)
+        self.last_trace = None
         
         # MCP server setup if enabled
         if opts.get('enable_mcp'):
@@ -83,7 +109,7 @@ class Agent:
         self.contexts[user_id] = context
         
         # Show user input with beautiful formatting
-        yield f"👤 {query}"
+        yield f"👤 {query}\n"
         
         # Stream execution with clean callback
         state = {"query": query, "context": context, "trace": ExecutionTrace()}
@@ -114,7 +140,13 @@ class Agent:
                 yield message_queue.get_nowait()
                 
         finally:
-            await execution_task
+            final_state = await execution_task
+            self.last_trace = final_state.get("trace")
+            
+            # Print trace if enabled
+            if self.trace_enabled and self.last_trace:
+                from cogency.tracing import format_trace
+                print(f"\n🔍 TRACE:\n{format_trace(self.last_trace)}")
     
     async def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return final response."""
@@ -135,7 +167,6 @@ class Agent:
             print(chunk, end="", flush=True)
             if "🤖 AGENT: " in chunk:
                 result += chunk.split("🤖 AGENT: ", 1)[1]
-        print()
         return result.strip() or "No response generated"
     
     def _extract_response(self, state) -> str:
@@ -145,6 +176,21 @@ class Agent:
         if "context" in state and state["context"].messages:
             return state["context"].messages[-1].get("content", "No response")
         return "No response generated"
+    
+    def get_trace(self) -> Optional[str]:
+        """Get formatted trace from last execution."""
+        if not self.last_trace:
+            return None
+        from cogency.tracing import format_trace
+        return format_trace(self.last_trace)
+    
+    def enable_tracing(self):
+        """Enable tracing for debugging."""
+        self.trace_enabled = True
+    
+    def disable_tracing(self):
+        """Disable tracing."""
+        self.trace_enabled = False
     
     # MCP compatibility methods
     async def process_input(self, input_text: str, context: Optional[Context] = None) -> str:

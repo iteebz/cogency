@@ -44,6 +44,10 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
             registry_entries.append(entry)
         registry_lite = "\n\n".join(registry_entries)
         
+        # Add trace for tool registry (dev debugging)
+        if state.get("trace"):
+            state["trace"].add("preprocess", f"Built tool registry with {len(tools)} tools", {"tool_count": len(tools), "tool_names": [t.name for t in tools]})
+        
         # Single LLM call: routing + memory + tool selection
         prompt = f"""Query: "{query}"
 
@@ -104,8 +108,16 @@ Return JSON:
         else:
             filtered_tools = tools  # Fallback to all tools
         
-        # Stream tool filtering
-        # Tool selection is now silent - no ceremony
+        # Stream tool selection - show off the intelligence
+        if streaming_callback and filtered_tools:
+            if len(filtered_tools) < len(tools):
+                # Show smart filtering
+                tool_names = [f"{t.emoji} {t.name}" for t in filtered_tools]
+                await AgentMessenger.tool_selection(streaming_callback, tool_names, filtered=True)
+            elif len(filtered_tools) > 1:
+                # Show tools being prepared for ReAct
+                tool_names = [f"{t.emoji} {t.name}" for t in filtered_tools]
+                await AgentMessenger.tool_selection(streaming_callback, tool_names, filtered=False)
     else:
         # Simple case: use all tools, respond directly
         filtered_tools = tools
