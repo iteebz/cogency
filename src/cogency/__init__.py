@@ -8,7 +8,7 @@ from .workflow import Workflow
 from .resilience import retry
 # Removed validate_tools - was over-engineered ceremony
 from .tracing import trace_node, ExecutionTrace
-from .types import AgentState, OutputMode
+from .types import OutputMode
 
 # Backwards compatibility alias
 FSMemory = FilesystemBackend
@@ -26,7 +26,6 @@ __all__ = [
     "retry",
     "trace_node", 
     # "validate_tools", - removed ceremony
-    "AgentState",
     "OutputMode",
     "ExecutionTrace",
 ]

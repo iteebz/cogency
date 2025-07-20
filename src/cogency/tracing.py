@@ -184,12 +184,21 @@ def summarize_trace(trace: ExecutionTrace) -> str:
 
 
 def format_trace(trace: ExecutionTrace) -> str:
-    """Format full trace with icons."""
-    icons = {"think": "🤔", "plan": "🧠", "act": "⚡", "reflect": "🔍", "respond": "💬", "reason": "⚡"}
+    """Format full trace with icons and user-friendly names."""
+    # Map internal node names to user-friendly names
+    node_names = {
+        "preprocess": "PREPROCESS",
+        "reason": "THINK", 
+        "act": "ACTION",
+        "respond": "RESPOND"
+    }
+    icons = {"preprocess": "🔧", "reason": "🧠", "act": "⚡", "respond": "💬"}
+    
     lines = []
     for entry in trace.entries:
+        node_name = node_names.get(entry["node"], entry["node"].upper())
         icon = icons.get(entry["node"], "📝")
-        lines.append(f"   {icon} {entry['node'].upper():8} → {entry['message']}")
+        lines.append(f"   {icon} {node_name:8} → {entry['message']}")
     return "\n".join(lines)
 
 

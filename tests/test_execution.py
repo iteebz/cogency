@@ -215,7 +215,7 @@ class TestErrorHandlingAndGracefulDegradation:
         
         # Should generate fallback response
         assert "final_response" in result_state
-        assert "encountered an issue" in result_state["final_response"]
+        assert "encountered a technical issue" in result_state["final_response"]
         assert result_state["next_node"] == "END"
     
     @pytest.mark.asyncio

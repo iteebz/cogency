@@ -10,7 +10,7 @@ async def main():
         "coding_assistant",
         personality="a helpful coding assistant",
         tone="concise and practical",
-        tools=[Shell, Files, Code]
+        tools=[Shell(), Files(), Code()]
     )
     
     # Simple coding workflow demo

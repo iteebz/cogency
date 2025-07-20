@@ -1,91 +1,67 @@
-# memory
+# Memory Backends
 
-Agent memory system with clean primitives and pluggable backends.
+Agents remember conversations and learn from interactions. You can use the built-in filesystem backend or create custom ones.
 
-## design principles
-
-- **primitive-first**: minimal, composable abstractions
-- **agent-controlled**: memory operations are tools, not automatic
-- **backend-agnostic**: filesystem, vector db, whatever
-- **async-native**: parallel operations during reasoning loops
-
-## memory types
-
-### message
-Fine-grained message recall
-- exact matching for user preferences
-- tags: `["message", "user-pref"]`
-
-### summary
-Thread/session summaries  
-- context rehydration, token efficiency
-- tags: `["summary", "session:current"]`
-
-### fact
-Semantic knowledge units
-- embedding-based similarity search
-- tags: `["fact", "domain:streaming"]`
-
-### context
-Recent interaction history
-- chronological working memory
-- tags: `["context", "recent"]`
-
-## usage
-
-### basic api
+## Built-in Filesystem Backend
 
 ```python
-from cogency import FSMemory
+from cogency import Agent
 
-memory = FSMemory(memory_dir=".memory")
+# Uses .cogency/memory by default
+agent = Agent("assistant")
 
-# store
-await memory.memorize("User prefers dark mode", tags=["pref"])
-
-# retrieve  
-results = await memory.recall("user preferences")
+# Custom memory directory
+agent = Agent("assistant", memory_dir="./my_memory")
 ```
 
-### with agents
+## Custom Memory Backend
 
 ```python
-from cogency import Agent, FSMemory
-from cogency.tools.memory import MemorizeTool, RecallTool
+from cogency.memory.core import MemoryBackend
+from cogency import Agent
 
-memory = FSMemory()
-memory_tools = [MemorizeTool(memory), RecallTool(memory)]
-agent = Agent("assistant", tools=memory_tools)
-
-# agent can now remember things
-await agent.run("Remember I work at OpenAI")
-await agent.run("What do you know about my work?")
-```
-
-## backends
-
-### fsmemory
-filesystem storage with json
-
-### semanticmemory  
-embedding-based similarity search
-
-```python
-from cogency.memory import SemanticMemory
-from cogency.embed import NomicEmbed
-
-memory = SemanticMemory(embed_provider=NomicEmbed())
-```
-
-## extending
-
-implement `BaseMemory` for custom backends:
-
-```python
-class CustomMemory(BaseMemory):
-    async def memorize(self, content: str, **kwargs):
+class MyMemory(MemoryBackend):
+    async def save(self, content: str, metadata: dict = None):
+        # Your storage logic (database, cloud, etc.)
+        print(f"Saving: {content}")
+    
+    async def search(self, query: str, limit: int = 5) -> list:
+        # Your search logic
+        # Return list of {"content": str, "metadata": dict} items
+        return [
+            {"content": "Relevant memory", "metadata": {"timestamp": "2024-01-01"}}
+        ]
+    
+    async def clear(self):
+        # Optional: clear all memories
         pass
-        
-    async def recall(self, query: str, **kwargs):
-        pass
+
+# Use your custom backend
+agent = Agent("assistant", memory=MyMemory())
+```
+
+## Memory Operations
+
+Agents automatically save important information and recall it when relevant:
+
+```python
+# This conversation will be remembered
+await agent.query("My favorite color is blue")
+
+# Later, the agent will recall this when relevant
+await agent.query("What's my favorite color?")
+# Agent remembers: "Your favorite color is blue"
+```
+
+## Memory Metadata
+
+You can include metadata when saving memories:
+
+```python
+class TaggedMemory(MemoryBackend):
+    async def save(self, content: str, metadata: dict = None):
+        # Add custom metadata
+        metadata = metadata or {}
+        metadata["tags"] = ["important", "user_preference"]
+        # Save with metadata...
 ```

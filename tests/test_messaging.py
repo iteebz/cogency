@@ -35,9 +35,9 @@ def test_result_contextualization():
     # Calculator
     assert contextualize_result("calculator", {"result": 360}) == "360"
     
-    # Search
-    assert contextualize_result("search", {"results_count": 12}) == "12 results"
-    assert contextualize_result("search", {"results_count": 1}) == "1 result"
+    # Search (using actual field name from search tool)
+    assert contextualize_result("search", {"total_found": 12}) == "12 results"
+    assert contextualize_result("search", {"total_found": 1}) == "1 result"
     
     # HTTP status
     assert contextualize_result("http", {"status_code": 200}) == "✓ 200"

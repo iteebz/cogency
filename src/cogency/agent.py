@@ -54,27 +54,15 @@ class Agent:
     def __init__(self, name: str, **opts):
         self.name = name
         
-        # Handle tools - instantiate if classes are passed
+        # Handle tools - only accept instances, not classes
         tools = opts.get('tools')
-        if tools:
-            instantiated_tools = []
+        if tools is not None:
+            # Validate that all tools are instances, not classes
             for tool in tools:
                 if isinstance(tool, type):
-                    # It's a class, instantiate it
-                    try:
-                        instantiated_tools.append(tool())
-                    except TypeError:
-                        # Try with memory if needed
-                        try:
-                            instantiated_tools.append(tool(memory=opts.get('memory')))
-                        except:
-                            # Skip tools that can't be instantiated
-                            continue
-                else:
-                    # It's already an instance
-                    instantiated_tools.append(tool)
-            tools = instantiated_tools
+                    raise ValueError(f"Tool {tool.__name__} must be instantiated. Use {tool.__name__}() instead of {tool.__name__}")
         else:
+            # Auto-discover all registered tools
             tools = ToolRegistry.get_tools(memory=opts.get('memory'))
         
         self.workflow = Workflow(

@@ -101,7 +101,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         can_answer = tool_calls is None or len(tool_calls) == 0
     except Exception as e:
         # Handle LLM or parsing errors gracefully
-        error_msg = f"Reasoning failed: {str(e)}"
+        error_msg = f"I encountered an issue while thinking through your request: {str(e)}"
         context.add_message("system", error_msg)
         # Default to responding directly when reasoning fails
         can_answer = True

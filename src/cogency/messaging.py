@@ -91,6 +91,14 @@ def contextualize_result(tool_name: str, result: Any) -> str:
             # Tool-specific handling
             if name == "weather" and "temperature" in result and "condition" in result:
                 return f"{result['temperature']} {result['condition']}"
+            elif name == "search" and "total_found" in result:
+                count = result["total_found"]
+                return f"{count} result" if count == 1 else f"{count} results"
+            elif name == "calculator" and "result" in result:
+                return str(result["result"])
+            elif name == "http" and "status_code" in result:
+                status = result["status_code"]
+                return f"✓ {status}" if 200 <= status < 300 else f"✗ {status}"
             
             # Check for common success/error patterns
             if "error" in result:
