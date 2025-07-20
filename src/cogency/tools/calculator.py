@@ -2,6 +2,7 @@ import math
 from typing import Any, Dict, List
 
 from cogency.constants import CalculatorOps, ResponseKeys
+# Error handling now in BaseTool.execute() - no decorators needed
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
 

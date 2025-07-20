@@ -2,6 +2,7 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from cogency.tools.base import BaseTool
+# Error handling now in BaseTool.execute() - no decorators needed
 
 
 from cogency.tools.registry import tool

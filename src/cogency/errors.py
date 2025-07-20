@@ -66,8 +66,8 @@ def format_tool_error(error: Exception, tool_name: str, operation: str = None) -
     return error_response
 
 
-def handle_tool_exception(func):
-    """Decorator to handle exceptions in tool methods with standardized error formatting."""
+def graceful(func):
+    """Decorator for graceful error handling - converts exceptions to error responses."""
 
     async def wrapper(self, *args, **kwargs):
         try:
@@ -82,6 +82,10 @@ def handle_tool_exception(func):
             return format_tool_error(e, tool_name, operation)
 
     return wrapper
+
+
+# Alias for backward compatibility during transition
+handle_tool_exception = graceful
 
 
 def validate_required_params(params: Dict[str, Any], required: list[str], tool_name: str) -> None:

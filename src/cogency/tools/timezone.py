@@ -7,6 +7,7 @@ import pytz
 
 from .base import BaseTool
 from .registry import tool
+# Error handling now in BaseTool.execute() - no decorators needed
 
 logger = logging.getLogger(__name__)
 

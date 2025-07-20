@@ -15,12 +15,14 @@ class BaseTool(ABC):
         self.name = name
         self.description = description
 
-    async def validate_and_run(self, **kwargs: Any) -> Dict[str, Any]:
-        """Validate parameters then run the tool."""
+    async def execute(self, **kwargs: Any) -> Dict[str, Any]:
+        """Execute tool with automatic error handling - USE THIS, NOT run() directly."""
         try:
             return await self.run(**kwargs)
         except Exception as e:
-            return {"error": str(e)}
+            # Use the same beautiful error formatting as @graceful decorator
+            from cogency.errors import format_tool_error
+            return format_tool_error(e, self.name, "run")
 
     @abstractmethod
     async def run(self, **kwargs: Any) -> Dict[str, Any]:

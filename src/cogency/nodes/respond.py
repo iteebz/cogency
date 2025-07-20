@@ -5,6 +5,7 @@ from cogency.llm import BaseLLM
 from cogency.types import AgentState, ReasoningDecision
 from cogency.tracing import trace_node
 from cogency.response.core import shape_response
+# Eliminated import ceremony - using simple strings
 from cogency.messaging import AgentMessenger
 
 
@@ -44,7 +45,11 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
             fallback_prompt = f"{system_prompt}\n\n{fallback_prompt}"
         
         final_messages.insert(0, {"role": "system", "content": fallback_prompt})
-        final_response = await llm.invoke(final_messages)
+        try:
+            final_response = await llm.invoke(final_messages)
+        except Exception as e:
+            # Handle LLM errors in fallback response generation
+            final_response = f"I apologize, but I encountered an issue: {str(e)}. Based on our conversation, I tried to help with your request but ran into technical difficulties."
     else:
         # Generate response based on context and any tool results
         execution_results = state.get("execution_results", {})
@@ -59,7 +64,11 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
             response_prompt = build_response_prompt(system_prompt, has_tool_results=False)
         
         final_messages.insert(0, {"role": "system", "content": response_prompt})
-        final_response = await llm.invoke(final_messages)
+        try:
+            final_response = await llm.invoke(final_messages)
+        except Exception as e:
+            # Handle LLM errors in response generation
+            final_response = f"I apologize, but I encountered an issue generating a response: {str(e)}. Please try again."
     
     # Add response to context
     context.add_message("assistant", final_response)

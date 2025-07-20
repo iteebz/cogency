@@ -8,9 +8,9 @@ from cogency.errors import (
     ToolError,
     ValidationError,
     create_success_response,
-    handle_tool_exception,
     validate_required_params,
 )
+# Error handling now in BaseTool.execute() - no decorators needed
 
 
 from cogency.tools.registry import tool
@@ -27,7 +27,6 @@ class WebSearchTool(BaseTool):
         self._last_search_time = 0
         self._min_delay = 1.0  # Simple rate limit
 
-    @handle_tool_exception
     async def run(self, query: str, max_results: int = None, **kwargs) -> Dict[str, Any]:
         if max_results is None:
             max_results = 5

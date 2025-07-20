@@ -8,7 +8,7 @@ from cogency.types import AgentState, ReasoningDecision
 from cogency.tracing import trace_node
 from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, should_respond_directly, extract_reasoning_text
 from cogency.reasoning.adaptive import StoppingReason
-from cogency.constants import NodeNames, StateKeys
+# Eliminated import ceremony - using simple strings
 from cogency.messaging import AgentMessenger
 
 
@@ -60,7 +60,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         if not should_continue:
             # Route to respond node when reasoning should stop - let respond handle fallback
             state["stopping_reason"] = stopping_reason
-            state["next_node"] = NodeNames.RESPOND
+            state["next_node"] = "respond"
             return state
     
     tool_info = ", ".join([f"{t.name}: {t.get_schema()}" for t in selected_tools]) if selected_tools else "no tools"
@@ -79,13 +79,22 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     
     messages.insert(0, {"role": "system", "content": reasoning_prompt})
     
-    llm_response = await llm.invoke(messages)
-    context.add_message("assistant", llm_response)
-    
-    # Parse response using consolidated utilities
-    json_data = extract_json_from_response(llm_response)
-    can_answer = should_respond_directly(json_data)
-    tool_calls = extract_tool_calls_from_json(json_data)
+    try:
+        llm_response = await llm.invoke(messages)
+        context.add_message("assistant", llm_response)
+        
+        # Parse response using consolidated utilities
+        json_data = extract_json_from_response(llm_response)
+        can_answer = should_respond_directly(json_data)
+        tool_calls = extract_tool_calls_from_json(json_data)
+    except Exception as e:
+        # Handle LLM or parsing errors gracefully
+        error_msg = f"Reasoning failed: {str(e)}"
+        context.add_message("system", error_msg)
+        # Default to responding directly when reasoning fails
+        can_answer = True
+        tool_calls = None
+        llm_response = "I encountered an issue with reasoning, but I'll do my best to help you."
     
     # Extract intelligent reasoning text and stream it - HUMAN READABLE ONLY
     reasoning_text = extract_reasoning_text(llm_response)
@@ -93,19 +102,19 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         await AgentMessenger.reason(streaming_callback, reasoning_text)
     
     # Store reasoning results in state - NO JSON LEAKAGE
-    state[StateKeys.REASONING_RESPONSE] = llm_response
-    state[StateKeys.CAN_ANSWER_DIRECTLY] = can_answer
-    state[StateKeys.TOOL_CALLS] = tool_calls
+    state["reasoning_response"] = llm_response
+    state["can_answer_directly"] = can_answer
+    state["tool_calls"] = tool_calls
     # Reasoning node never provides direct responses - respond node handles ALL responses
-    state[StateKeys.DIRECT_RESPONSE] = None
+    state["direct_response"] = None
     
     # Determine next node
     if can_answer:
-        state[StateKeys.NEXT_NODE] = NodeNames.RESPOND
+        state["next_node"] = "respond"
     elif tool_calls:
-        state[StateKeys.NEXT_NODE] = NodeNames.ACT
+        state["next_node"] = "act"
     else:
-        state[StateKeys.NEXT_NODE] = NodeNames.RESPOND  # Fallback to respond if no clear action
+        state["next_node"] = "respond"  # Fallback to respond if no clear action
     
     return state
 

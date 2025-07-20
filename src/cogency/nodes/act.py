@@ -7,6 +7,7 @@ from cogency.types import AgentState
 from cogency.tracing import trace_node
 from cogency.tools.executor import parse_tool_call, execute_single_tool, execute_parallel_tools
 from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
+# Eliminated import ceremony - using simple strings
 from cogency.types import ToolCall, MultiToolCall
 from cogency.messaging import AgentMessenger
 

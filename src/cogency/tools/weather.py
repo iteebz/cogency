@@ -6,6 +6,7 @@ import httpx
 
 from .base import BaseTool
 from .registry import tool
+# Error handling now in BaseTool.execute() - no decorators needed
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,7 @@ class WeatherTool(BaseTool):
                 "name": result["name"],
                 "country": result.get("country", "")
             }
+
 
     async def run(self, city: str, **kwargs) -> Dict[str, Any]:
         """Get weather for a city.

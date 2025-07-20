@@ -86,7 +86,7 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
                         sig = inspect.signature(tool.run)
                         if '_context' in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
                             tool_args["_context"] = context
-                    result = await tool.run(**tool_args)
+                    result = await tool.execute(**tool_args)
                     return tool_name, tool_args, result
                 except Exception as e:
                     raise

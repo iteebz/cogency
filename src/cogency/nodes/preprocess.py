@@ -11,6 +11,7 @@ from cogency.memory.extract import extract_memory_and_filter_tools
 # Removed ceremony - inlined simple operations
 from cogency.messaging import AgentMessenger
 from cogency.reasoning.adaptive import AdaptiveController, StoppingCriteria
+# Eliminated import ceremony - using simple strings
 
 
 
