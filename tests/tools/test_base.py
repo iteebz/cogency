@@ -35,12 +35,12 @@ class TestToolContracts:
         """Tools must handle errors gracefully."""
         calc = Calculator()
         
-        # Invalid operation
-        result = await calc.run(operation="invalid", x1=5, x2=3)
+        # Invalid expression
+        result = await calc.run(expression="invalid expression $$")
         assert "error" in result
         
-        # Missing parameters
-        result = await calc.run(operation="add", x1=5)  # Missing x2
+        # Missing parameters - this will cause a TypeError which is caught by execute()
+        result = await calc.execute()  # Missing expression
         assert "error" in result
     
     @pytest.mark.asyncio

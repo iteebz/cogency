@@ -59,19 +59,23 @@ def format_tool_params(tool_name: str, params: Dict[str, Any]) -> str:
         return ""
     
     try:
+        # First try to get tool-specific formatter
+        from cogency.tools.registry import ToolRegistry
+        for tool_class in ToolRegistry._tools:
+            try:
+                tool = tool_class()
+                if tool.name.lower() == tool_name.lower():
+                    if hasattr(tool, 'format_params'):
+                        return tool.format_params(params)
+                    break
+            except:
+                continue
+        
+        # Fallback to built-in formatters
         name = tool_name.lower()
         
-        # Tool-specific formatting
         if name == "weather":
             return f"({params.get('city', '')})"
-        
-        elif name == "calculator":
-            op, x1, x2 = params.get("operation"), params.get("x1"), params.get("x2")
-            symbols = {"add": "+", "subtract": "-", "multiply": "×", "divide": "÷"}
-            if op in symbols and x1 is not None and x2 is not None:
-                return f"({x1} {symbols[op]} {x2})"
-            elif op == "square_root" and x1 is not None:
-                return f"(√{x1})"
         
         elif "search" in name:
             query = params.get("query", params.get("q", ""))
@@ -123,6 +127,11 @@ def contextualize_result(tool_name: str, result: Any) -> str:
             elif name == "http" and "status_code" in result:
                 code = result["status_code"]
                 return f"{'✓' if 200 <= code < 300 else '✗'} {code}"
+            elif name == "time":
+                if "formatted" in result:
+                    return _truncate(result["formatted"], 45)
+                elif "datetime" in result:
+                    return _truncate(result["datetime"], 45)
             elif name in ["shell", "code"]:
                 if result.get("success"):
                     output = result.get("output", result.get("stdout", ""))

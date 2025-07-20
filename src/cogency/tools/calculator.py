@@ -1,7 +1,6 @@
-import math
+import re
 from typing import Any, Dict, List
 
-# Error handling now in BaseTool.execute() - no decorators needed
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
 
@@ -11,75 +10,74 @@ class Calculator(BaseTool):
     def __init__(self):
         super().__init__(
             name="calculator",
-            description=(
-                "A calculator tool that can perform basic arithmetic operations "
-                "(add, subtract, multiply, divide) and calculate square roots."
-            ),
+            description="Evaluate mathematical expressions with support for +, -, *, /, √, parentheses",
             emoji="🧮"
         )
-        # Beautiful dispatch pattern - extensible and clean
-        self._operations = {
-            "add": self._add,
-            "subtract": self._subtract,
-            "multiply": self._multiply,
-            "divide": self._divide,
-            "square_root": self._square_root,
-        }
 
-    async def run(self, operation: str, x1: float = None, x2: float = None, **kwargs) -> Dict[str, Any]:
-        """Perform calculator operations using dispatch pattern."""
-        if not operation or operation not in self._operations:
-            available = ", ".join(self._operations.keys())
-            return {"error": f"Invalid operation. Use: {available}"}
-        
-        # Dispatch to appropriate operation method
-        operation_func = self._operations[operation]
-        return operation_func(x1, x2)
-    
-    def _add(self, x1: float, x2: float) -> Dict[str, Any]:
-        """Add two numbers."""
-        if x1 is None or x2 is None:
-            return {"error": "Two numbers required for addition"}
-        return {"result": x1 + x2}
-    
-    def _subtract(self, x1: float, x2: float) -> Dict[str, Any]:
-        """Subtract two numbers."""
-        if x1 is None or x2 is None:
-            return {"error": "Two numbers required for subtraction"}
-        return {"result": x1 - x2}
-    
-    def _multiply(self, x1: float, x2: float) -> Dict[str, Any]:
-        """Multiply two numbers."""
-        if x1 is None or x2 is None:
-            return {"error": "Two numbers required for multiplication"}
-        return {"result": x1 * x2}
-    
-    def _divide(self, x1: float, x2: float) -> Dict[str, Any]:
-        """Divide two numbers."""
-        if x1 is None or x2 is None:
-            return {"error": "Two numbers required for division"}
-        if x2 == 0:
+    async def run(self, expression: str, **kwargs) -> Dict[str, Any]:
+        """Evaluate mathematical expressions - Wolfram Alpha style."""
+        try:
+            # Clean the expression
+            expr = expression.strip()
+            
+            # Replace common symbols
+            expr = expr.replace("×", "*").replace("÷", "/").replace("^", "**")
+            
+            # Handle square root
+            if "√" in expr:
+                expr = re.sub(r'√(\d+(?:\.\d+)?)', r'(\1)**0.5', expr)
+                expr = re.sub(r'√\(([^)]+)\)', r'(\1)**0.5', expr)
+            
+            # Only allow safe characters (after symbol replacement)
+            allowed_chars = set("0123456789+-*/.() ")
+            if not all(c in allowed_chars for c in expr):
+                return {"error": "Expression contains invalid characters"}
+            
+            # Safe evaluation
+            safe_dict = {"__builtins__": {}}
+            result = eval(expr, safe_dict, {})
+            
+            # Format result nicely
+            if isinstance(result, float) and result.is_integer():
+                result = int(result)
+            
+            return {"result": result}
+            
+        except ZeroDivisionError:
             return {"error": "Cannot divide by zero"}
-        return {"result": x1 / x2}
-    
-    def _square_root(self, x1: float, x2: float) -> Dict[str, Any]:
-        """Calculate square root of a number."""
-        if x1 is None:
-            return {"error": "Number required for square root"}
-        if x1 < 0:
-            return {"error": "Cannot calculate square root of negative number"}
-        return {"result": math.sqrt(x1)}
+        except Exception as e:
+            return {"error": f"Invalid expression: {str(e)}"}
 
     def get_schema(self) -> str:
         return (
-            "calculator(operation='add|subtract|multiply|divide|square_root', x1=float, x2=float) - "
-            "Examples: calculator(operation='multiply', x1=180, x2=3) for 180*3, "
-            "calculator(operation='add', x1=1200, x2=540) for 1200+540"
+            "calculator(expression='math expression') - "
+            "Examples: calculator(expression='450 + 120*3'), calculator(expression='√64'), "
+            "calculator(expression='(15+27)*2'). Supports +, -, *, /, √, parentheses."
         )
 
     def get_usage_examples(self) -> List[str]:
         return [
-            "calculator(operation='add', x1=5, x2=3)",
-            "calculator(operation='multiply', x1=7, x2=8)",
-            "calculator(operation='square_root', x1=9)",
+            "calculator(expression='450 + 120*3')",
+            "calculator(expression='√64')",
+            "calculator(expression='(15+27)*2')",
         ]
+    
+    def format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display."""
+        expr = params.get("expression", "")
+        if not expr:
+            return ""
+        
+        # Clean up expression for display - no spaces, add currency symbols for large numbers
+        display_expr = expr.replace("**", "^").replace("*", "×").replace("/", "÷").replace(" ", "")
+        
+        # Add $ for currency-like numbers (heuristic: numbers >= 100)
+        import re
+        def add_currency(match):
+            num = float(match.group())
+            if num >= 100:
+                return f"${num:,.0f}" if num == int(num) else f"${num:,.2f}"
+            return match.group()
+        
+        display_expr = re.sub(r'\b\d+(?:\.\d+)?\b', add_currency, display_expr)
+        return f"({display_expr})"

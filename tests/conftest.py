@@ -55,8 +55,23 @@ def agent_state(context):
 @pytest.fixture
 def tools():
     """Standard tool set for testing."""
+    from cogency.tools.base import BaseTool
+    
+    class MockTool(BaseTool):
+        def __init__(self):
+            super().__init__(name="mock_tool", description="Mock tool for testing", emoji="🔧")
+        
+        async def run(self, **kwargs):
+            return {"result": "mock_result"}
+        
+        def get_schema(self):
+            return "mock_tool(param='value')"
+        
+        def get_usage_examples(self):
+            return ["mock_tool(param='test')"]
+    
     return [
-        Calculator(),
+        MockTool(),
         Weather()
     ]
 

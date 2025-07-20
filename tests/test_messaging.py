@@ -16,7 +16,7 @@ def test_parameter_formatting():
     assert format_tool_params("weather", {"city": "Tokyo"}) == "(Tokyo)"
     
     # Calculator
-    assert format_tool_params("calculator", {"operation": "multiply", "x1": 120, "x2": 3}) == "(120 × 3)"
+    assert format_tool_params("calculator", {"expression": "120 * 3"}) == "($120×3)"
     
     # Search truncation
     long_query = "this is a very long search query that should be truncated"

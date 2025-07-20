@@ -35,7 +35,7 @@ class TestWorkflowNodes:
         """Reason node should detect when tools are needed."""
         # Mock LLM to request tool usage - using new format with tool_calls array
         mock_llm.invoke = AsyncMock(return_value="""
-        {"reasoning": "I need to calculate something first.", "tool_calls": [{"name": "calculator", "args": {"operation": "add", "x1": 5, "x2": 3}}]}
+        {"reasoning": "I need to use a tool first.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}
         """)
         
         result_state = await reason_node(
@@ -53,8 +53,8 @@ class TestWorkflowNodes:
         """Act node should execute tool calls correctly."""
         # Set up state with tool calls
         agent_state["tool_calls"] = [{
-            "name": "calculator",
-            "args": {"operation": "add", "x1": 5, "x2": 3}
+            "name": "mock_tool",
+            "args": {"param": "value"}
         }]
         
         result_state = await act_node(agent_state, tools=tools)
@@ -64,7 +64,7 @@ class TestWorkflowNodes:
         assert results["success"] is True
         assert len(results["results"]) == 1
         # Results now include metadata, check the actual result value
-        assert results["results"][0]["result"] == 8
+        assert results["results"][0]["result"] == "mock_result"
     
     @pytest.mark.asyncio
     async def test_respond_node_formats_response(self, agent_state, mock_llm):
@@ -107,7 +107,7 @@ class TestWorkflowIntegration:
         """Test workflow when tools are needed."""
         # Mock reasoning to request calculator - using new format
         mock_llm.invoke = AsyncMock(return_value="""
-        {"reasoning": "I need to calculate 15 + 27 for the user.", "tool_calls": [{"name": "calculator", "args": {"operation": "add", "x1": 15, "x2": 27}}]}
+        {"reasoning": "I need to use a tool for the user.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}
         """)
         
         # Reason phase
@@ -119,7 +119,7 @@ class TestWorkflowIntegration:
         assert "execution_results" in state
         assert state["execution_results"]["success"] is True
         # Results now have metadata structure - check the actual result value
-        assert state["execution_results"]["results"][0]["result"] == 42
+        assert state["execution_results"]["results"][0]["result"] == "mock_result"
         
         # Mock reasoning after tool execution - using new format
         mock_llm.invoke = AsyncMock(return_value="""
@@ -196,7 +196,7 @@ class TestAdaptiveReasoning:
         agent_state["max_iterations"] = 5
         
         mock_llm.invoke = AsyncMock(return_value="""
-        {"reasoning": "I need to use tools.", "tool_calls": [{"name": "calculator", "args": {"operation": "add", "x1": 1, "x2": 2}}]}
+        {"reasoning": "I need to use tools.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}
         """)
         
         result_state = await reason_node(agent_state, llm=mock_llm, tools=tools)
