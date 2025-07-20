@@ -3,9 +3,11 @@ import json
 import asyncio
 from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
+from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
 from cogency.types import ToolCall, MultiToolCall
 from cogency.reasoning.parsing import ReactResponseParser
 from cogency.resilience import retry
+from cogency.utils.json import extract_json
 
 
 def parse_tool_call(llm_response_content) -> Optional[Union[ToolCall, MultiToolCall]]:
@@ -20,9 +22,15 @@ def parse_tool_call(llm_response_content) -> Optional[Union[ToolCall, MultiToolC
     # Handle already parsed data (for tests)
     if isinstance(llm_response_content, (list, dict)):
         # Direct tool call data
-        if isinstance(llm_response_content, list) and len(llm_response_content) == 1:
-            call_data = llm_response_content[0]
-            return ToolCall(**call_data)
+        if isinstance(llm_response_content, list):
+            if len(llm_response_content) == 1:
+                # Single tool call
+                call_data = llm_response_content[0]
+                return ToolCall(**call_data)
+            elif len(llm_response_content) > 1:
+                # Multiple tool calls
+                calls = [ToolCall(**call_data) for call_data in llm_response_content]
+                return MultiToolCall(calls=calls)
         elif isinstance(llm_response_content, dict):
             return ToolCall(**llm_response_content)
         return None
@@ -36,9 +44,9 @@ def parse_tool_call(llm_response_content) -> Optional[Union[ToolCall, MultiToolC
     if not json_text:
         return None
     
-    try:
-        plan_data = json.loads(json_text)
-    except json.JSONDecodeError:
+    # Use central JSON utility for parsing
+    plan_data = extract_json(json_text)
+    if not plan_data:
         return None
         
     if plan_data and "tool_call" in plan_data:
@@ -133,13 +141,14 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
             # Normal result - check if tool execution succeeded
             actual_tool_name, actual_args, tool_output = result
             
-            if isinstance(tool_output, dict) and tool_output.get("success") is False:
+            if not is_tool_success(tool_output):
                 # Tool execution failed
+                error_msg = get_tool_error(tool_output) or "Unknown error"
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
-                    "error": tool_output.get("error", "Unknown error"),
-                    "error_type": tool_output.get("error_type", "unknown")
+                    "error": error_msg,
+                    "error_type": "tool_execution_error"
                 }
                 failures.append(failure_result)
             else:
@@ -147,7 +156,7 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
                 success_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
-                    "result": tool_output.get("result") if isinstance(tool_output, dict) else tool_output
+                    "result": extract_tool_data(tool_output)
                 }
                 successes.append(success_result)
                 

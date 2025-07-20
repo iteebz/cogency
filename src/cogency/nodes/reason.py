@@ -8,7 +8,7 @@ from cogency.types import AgentState, ReasoningDecision
 from cogency.tracing import trace_node
 from cogency.reasoning.parsing import ReactResponseParser
 from cogency.reasoning.adaptive import StoppingReason
-from cogency.reasoning.prompts import ReasoningPrompts
+from cogency.reasoning.prompts import UNIFIED_REASON
 from cogency.constants import NodeNames, StateKeys
 from cogency.messaging import AgentMessenger
 
@@ -31,30 +31,21 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     if controller:
         should_continue, stopping_reason = controller.should_continue_reasoning()
         if not should_continue:
-            # Generate fallback response when reasoning should stop
-            return await _generate_fallback_response(state, llm, stopping_reason, system_prompt)
+            # Route to respond node when reasoning should stop - let respond handle fallback
+            state["stopping_reason"] = stopping_reason
+            state["next_node"] = NodeNames.RESPOND
+            return state
     
     tool_info = ", ".join([f"{t.name}: {t.get_schema()}" for t in selected_tools]) if selected_tools else "no tools"
     
     messages = list(context.messages)
     messages.append({"role": "user", "content": context.current_input})
     
-    # Determine if this is initial reasoning or reflection on tool results
-    has_tool_results = state.get("execution_results") is not None
-    
-    # Choose appropriate prompt based on context
-    if has_tool_results:
-        # This is reflection after tool execution
-        reasoning_prompt = ReasoningPrompts.REFLECTION.format(
-            tool_names=tool_info,
-            user_input=context.current_input
-        )
-    else:
-        # This is initial reasoning
-        reasoning_prompt = ReasoningPrompts.INITIAL_REASON.format(
-            tool_names=tool_info,
-            user_input=context.current_input
-        )
+    # Single unified reasoning prompt - handles both initial and reflection
+    reasoning_prompt = UNIFIED_REASON.format(
+        tool_names=tool_info,
+        user_input=context.current_input
+    )
     
     if system_prompt:
         reasoning_prompt = f"{system_prompt}\n\n{reasoning_prompt}"
@@ -76,7 +67,8 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     state[StateKeys.REASONING_RESPONSE] = llm_response
     state[StateKeys.CAN_ANSWER_DIRECTLY] = can_answer
     state[StateKeys.TOOL_CALLS] = parser.extract_tool_calls(llm_response)
-    state[StateKeys.DIRECT_RESPONSE] = parser.extract_answer(llm_response) if can_answer else None
+    # Reasoning node never provides direct responses - respond node handles ALL responses
+    state[StateKeys.DIRECT_RESPONSE] = None
     
     # Determine next node
     if can_answer:
@@ -89,35 +81,3 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     return state
 
 
-async def _generate_fallback_response(state: AgentState, llm: BaseLLM, stopping_reason: StoppingReason, system_prompt: Optional[str] = None) -> AgentState:
-    """Generate fallback response when reasoning loop should stop."""
-    context = state["context"]
-    
-    # Generate a proper summary based on tool results in context
-    summary_prompt = ReasoningPrompts.FALLBACK_SUMMARY.format(
-        stopping_reason=stopping_reason
-    )
-    
-    final_messages = list(context.messages)
-    final_messages.append({"role": "user", "content": summary_prompt})
-    
-    if system_prompt:
-        summary_prompt = f"{system_prompt}\n\n{summary_prompt}"
-    
-    final_messages.insert(0, {"role": "system", "content": ReasoningPrompts.FALLBACK_SYSTEM})
-    
-    final_response = await llm.invoke(final_messages)
-    context.add_message("assistant", final_response)
-    
-    # Set state for respond node
-    state[StateKeys.CONTEXT] = context
-    state["reasoning_decision"] = ReasoningDecision(
-        should_respond=True, 
-        response_text=final_response, 
-        task_complete=True
-    )
-    state["last_node_output"] = final_response
-    state[StateKeys.DIRECT_RESPONSE] = final_response
-    state[StateKeys.NEXT_NODE] = NodeNames.RESPOND
-    
-    return state

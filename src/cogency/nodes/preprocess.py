@@ -95,42 +95,18 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
     state["adaptive_controller"] = controller
     state["complexity_score"] = complexity
     
-    # Chain 5: Direct response detection for simple queries
-    if _should_bypass_react(query, prepared_tools):
-        state["next_node"] = "respond"
-        state["direct_response_bypass"] = True
+    # Chain 5: Use LLM routing decision - respond node ALWAYS handles response generation
+    if tools and len(tools) > 0:
+        # Use LLM's intelligent routing decision
+        bypass_decision = result.get("bypass_react", False)
+        if bypass_decision:
+            state["next_node"] = "respond"  # Skip ReAct, go straight to respond
+        else:
+            state["next_node"] = "reason"   # Use ReAct workflow
     else:
-        state["next_node"] = "reason"
-        state["direct_response_bypass"] = False
+        # No tools available, respond directly
+        state["next_node"] = "respond"
     
     return state
 
 
-def _should_bypass_react(query: str, tools: List[BaseTool]) -> bool:
-    """Heuristic to detect if query can be answered directly without tools."""
-    query_lower = query.lower()
-    
-    # Simple conversational queries
-    simple_patterns = [
-        "hello", "hi", "thank you", "thanks", "bye", "goodbye",
-        "how are you", "what are you", "who are you"
-    ]
-    
-    # Questions that clearly don't need tools
-    no_tool_patterns = [
-        "what is", "define", "explain", "tell me about"
-    ]
-    
-    # If no tools available, must respond directly
-    if not tools:
-        return True
-    
-    # Check for simple patterns
-    if any(pattern in query_lower for pattern in simple_patterns):
-        return True
-    
-    # Short queries under 10 words that don't seem to need tools
-    if len(query.split()) < 10 and any(pattern in query_lower for pattern in no_tool_patterns):
-        return True
-    
-    return False

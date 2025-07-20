@@ -6,6 +6,7 @@ from cogency.tools.base import BaseTool
 from cogency.types import AgentState
 from cogency.tracing import trace_node
 from cogency.tools.executor import parse_tool_call, execute_single_tool, execute_parallel_tools
+from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
 from cogency.types import ToolCall, MultiToolCall
 from cogency.messaging import AgentMessenger
 
@@ -33,66 +34,79 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
     tool_call = parse_tool_call(tool_call_str)
     execution_results = {}
     
-    # Stream ACT message with actual tool calls
+    # Stream ACT message with actual tool calls - SINGLE MESSAGE
     if streaming_callback:
         if isinstance(tool_call, MultiToolCall):
-            for call in tool_call.calls:
-                args_str = ", ".join([f"{k}={repr(v)}" for k, v in call.args.items()]) if call.args else ""
-                await AgentMessenger.act(streaming_callback, [f"{call.name}({args_str})"])
+            tool_names = [call.name for call in tool_call.calls]
+            await AgentMessenger.act(streaming_callback, tool_names)
         elif isinstance(tool_call, ToolCall):
-            args_str = ", ".join([f"{k}={repr(v)}" for k, v in tool_call.args.items()]) if tool_call.args else ""
-            await AgentMessenger.act(streaming_callback, [f"{tool_call.name}({args_str})"])
+            await AgentMessenger.act(streaming_callback, [tool_call.name])
         else:
             await AgentMessenger.act(streaming_callback, [])
     
     # Execute tools and add results to context (this is the OBSERVE step)
     if isinstance(tool_call, MultiToolCall):
-        execution_results = await execute_parallel_tools(tool_call.calls, selected_tools, context)
+        # Convert ToolCall objects to (name, args) tuples for parallel execution
+        tool_tuples = [(call.name, call.args) for call in tool_call.calls]
+        execution_results = await execute_parallel_tools(tool_tuples, selected_tools, context)
     elif isinstance(tool_call, ToolCall):
         tool_name, parsed_args, tool_output = await execute_single_tool(
             tool_call.name, tool_call.args, selected_tools, context
         )
         
-        if isinstance(tool_output, dict) and (tool_output.get("success") is False or "error" in tool_output):
+        if not is_tool_success(tool_output):
             # Add error to context so agent can reason about it
-            error_msg = f"Tool {tool_name} failed: {tool_output.get('error', 'Unknown error')}"
-            context.add_message("system", error_msg)
+            error_msg = get_tool_error(tool_output) or f"Tool {tool_name} failed"
+            context.add_message("system", f"Tool {tool_name} failed: {error_msg}")
             execution_results = {"success": False, "errors": [error_msg]}
         else:
-            # Add successful result to context
-            result = tool_output.get("result") if isinstance(tool_output, dict) else tool_output
-            context.add_message("system", f"Tool {tool_name} result: {result}")
-            context.add_tool_result(tool_name, parsed_args, result)
-            execution_results = {"success": True, "results": [result]}
+            # Tool executed successfully
+            tool_data = extract_tool_data(tool_output)
+            if tool_data is None:
+                context.add_message("system", f"Tool {tool_name} executed but returned no data")
+                execution_results = {"success": False, "errors": [f"Tool {tool_name} returned no data"]}
+            else:
+                context.add_message("system", f"Tool {tool_name} result: {tool_data}")
+                context.add_tool_result(tool_name, parsed_args, tool_data)
+                execution_results = {"success": True, "results": [tool_data]}
     
     execution_time = time.time() - start_time
     
-    # Stream OBSERVE message with actual results
+    # Stream OBSERVE message with actual results - HUMAN READABLE ONLY
     if streaming_callback:
         if execution_results.get("success"):
             results = execution_results.get("results", [])
             if results:
-                # Show first result as summary, truncate if too long
-                result_summary = str(results[0])
-                if len(result_summary) > 100:
-                    result_summary = result_summary[:97] + "..."
-                await AgentMessenger.observe(streaming_callback, result_summary)
+                # Create human-readable summary of results
+                if len(results) == 1:
+                    # Single result - show meaningful summary
+                    result = results[0]
+                    if isinstance(result, dict):
+                        # Extract key information for display
+                        if "temperature" in result:  # Weather
+                            await AgentMessenger.observe(streaming_callback, f"Weather: {result.get('temperature', 'N/A')}, {result.get('condition', 'N/A')}")
+                        elif "datetime" in result:  # Timezone
+                            await AgentMessenger.observe(streaming_callback, f"Time: {result.get('datetime', 'N/A')}")
+                        else:
+                            await AgentMessenger.observe(streaming_callback, f"Result: {str(result)[:50]}...")
+                    else:
+                        # Simple result (like calculator)
+                        await AgentMessenger.observe(streaming_callback, str(result))
+                else:
+                    # Multiple results
+                    await AgentMessenger.observe(streaming_callback, f"Got {len(results)} results")
             else:
                 await AgentMessenger.observe(streaming_callback, "Tool executed successfully")
         else:
             errors = execution_results.get("errors", ["Tool execution failed"])
             error_summary = errors[0] if errors else "Tool execution failed"
-            if len(error_summary) > 100:
-                error_summary = error_summary[:97] + "..."
             await AgentMessenger.observe(streaming_callback, error_summary)
+        
+        # Add spacing before next reasoning cycle
+        await AgentMessenger.spacing(streaming_callback)
     
-    # Store execution results in state - format expected by tests
-    if execution_results.get("success"):
-        results = execution_results.get("results", [])
-        state["execution_results"] = [{"result": result} for result in results]
-    else:
-        errors = execution_results.get("errors", ["Tool execution failed"])
-        state["execution_results"] = [{"error": error} for error in errors]
+    # Store execution results in state with consistent format
+    state["execution_results"] = execution_results
     
     # Update adaptive reasoning controller metrics if available
     controller = state.get("adaptive_controller")

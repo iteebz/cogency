@@ -12,11 +12,33 @@ OutputMode = Literal["summary", "trace", "dev", "explain"]
 
 # === AGENT STATE TYPES ===
 
-class AgentState(TypedDict):
+class AgentState(TypedDict, total=False):
+    # Core state
     context: Context
-    trace: Optional['ExecutionTrace']
+    trace: Optional[Any]  # ExecutionTrace - avoiding circular import
     query: str
     last_node_output: Optional[Any]
+    
+    # Routing and flow control
+    next_node: Optional[str]
+    direct_response: Optional[str]
+    
+    # Tool execution
+    selected_tools: Optional[List[Any]]  # List[BaseTool]
+    tool_calls: Optional[Any]
+    execution_results: Optional[List[Dict[str, Any]]]
+    
+    # Reasoning
+    reasoning_response: Optional[str]
+    reasoning_decision: Optional[Any]  # ReasoningDecision
+    can_answer_directly: Optional[bool]
+    complexity_score: Optional[float]
+    
+    # Adaptive control
+    adaptive_controller: Optional[Any]  # AdaptiveController
+    
+    # Final response
+    final_response: Optional[str]
 
 
 @dataclass

@@ -29,12 +29,9 @@ class ExecutionTrace:
         }
         self.entries.append(entry)
         
-        # Emit streaming event if streaming is active
-        if self._execution_streamer and hasattr(self._execution_streamer, 'emit_trace_update'):
-            # Create a task to emit the update (don't block trace.add)
-            asyncio.create_task(self._execution_streamer.emit_trace_update(
-                node, message, safe_data, timestamp
-            ))
+        # DISABLE tracing streaming - AgentMessenger handles user-facing messages
+        # Tracing is for dev/debug only, not user streaming
+        pass
     
     def _make_serializable(self, obj):
         """Convert object to serializable form."""

@@ -81,8 +81,17 @@ class ExecutionStreamer:
             if trace:
                 trace._execution_streamer = self
             
-            # Execute workflow
-            final_state = await workflow.ainvoke(state)
+            # Create streaming callback for AgentMessenger
+            async def streaming_callback(message: str):
+                """Callback for AgentMessenger to emit stream events."""
+                await self.event_queue.put(StreamEvent(
+                    event_type="trace_update",
+                    message=message  # Preserve newlines from AgentMessenger
+                ))
+            
+            # Execute workflow with streaming callback
+            config = {"configurable": {"streaming_callback": streaming_callback}}
+            final_state = await workflow.ainvoke(state, config=config)
             
             # Emit final state event
             await self.event_queue.put(StreamEvent(

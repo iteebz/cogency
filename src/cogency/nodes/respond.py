@@ -4,13 +4,16 @@ from typing import Optional, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.types import AgentState, ReasoningDecision
 from cogency.tracing import trace_node
-from cogency.reasoning.shaper import shape_response
+from cogency.response.shaper import shape_response
 from cogency.messaging import AgentMessenger
 
 
-def build_response_prompt(system_prompt: Optional[str] = None) -> str:
+def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results: bool = False) -> str:
     """Build response prompt with optional system prompt integration."""
-    base_prompt = "Generate final response based on context and tool results.\nBe conversational and helpful. Incorporate all relevant information."
+    if has_tool_results:
+        base_prompt = "Generate final response based on context and tool results.\nBe conversational and helpful. Incorporate all relevant information."
+    else:
+        base_prompt = "Answer the user's question directly and conversationally using your knowledge."
     
     if system_prompt:
         return f"{system_prompt}\n\n{base_prompt}"
@@ -28,37 +31,32 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
     if config and "configurable" in config:
         streaming_callback = config["configurable"].get("streaming_callback")
     
-    # Check if we have a direct response from reasoning OR direct bypass from preprocess
-    direct_response = state.get("direct_response")
-    direct_bypass = state.get("direct_response_bypass", False)
+    # ALWAYS generate response - handle tool results, direct reasoning, or knowledge-based
+    final_messages = list(context.messages)
     
-    if direct_bypass:
-        # Direct bypass from preprocess - generate response without tools
-        final_messages = list(context.messages)
-        response_prompt = build_response_prompt(system_prompt)
-        final_messages.insert(0, {"role": "system", "content": response_prompt})
-        final_response = await llm.invoke(final_messages)
-    elif direct_response and system_prompt:
-        # Apply system prompt to direct response
-        final_messages = list(context.messages)
-        response_prompt = build_response_prompt(system_prompt)
-        final_messages.insert(0, {"role": "system", "content": response_prompt})
-        final_response = await llm.invoke(final_messages)
-    elif direct_response:
-        # Use direct response as-is
-        final_response = direct_response
-    else:
-        # Generate response based on context and tool results
-        final_messages = list(context.messages)
+    # Check for stopping reason
+    stopping_reason = state.get("stopping_reason")
+    
+    if stopping_reason:
+        # Handle reasoning stopped scenario - generate fallback response
+        fallback_prompt = f"Reasoning stopped due to: {stopping_reason}. Please summarize the conversation and provide a helpful response based on the context available."
+        if system_prompt:
+            fallback_prompt = f"{system_prompt}\n\n{fallback_prompt}"
         
-        # Context-aware prompt based on execution results
-        execution_results = state.get("execution_results", {}).get("results", {})
-        if execution_results.get("success"):
-            response_prompt = build_response_prompt(system_prompt)
-        else:
+        final_messages.insert(0, {"role": "system", "content": fallback_prompt})
+        final_response = await llm.invoke(final_messages)
+    else:
+        # Generate response based on context and any tool results
+        execution_results = state.get("execution_results", {})
+        if execution_results and execution_results.get("success"):
+            response_prompt = build_response_prompt(system_prompt, has_tool_results=True)
+        elif execution_results and not execution_results.get("success"):
             response_prompt = "Generate helpful response acknowledging tool failures and providing alternatives."
             if system_prompt:
                 response_prompt = f"{system_prompt}\n\n{response_prompt}"
+        else:
+            # No tool results - answer with knowledge or based on conversation
+            response_prompt = build_response_prompt(system_prompt, has_tool_results=False)
         
         final_messages.insert(0, {"role": "system", "content": response_prompt})
         final_response = await llm.invoke(final_messages)
