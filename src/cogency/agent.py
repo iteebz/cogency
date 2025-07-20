@@ -15,18 +15,31 @@ def compose_system_prompt(opts: dict) -> str:
     if opts.get('system_prompt'):
         return opts['system_prompt']
     
-    parts = [f"You are {opts.get('personality', 'a helpful AI assistant')}."]
+    # Check if response_shaper has personality info
+    response_shaper = opts.get('response_shaper', {})
+    personality = response_shaper.get('personality') or opts.get('personality', 'a helpful AI assistant')
     
-    if opts.get('tone') or opts.get('style'):
+    parts = [f"You are {personality}."]
+    
+    # Use tone from response_shaper if available, otherwise from opts
+    tone = response_shaper.get('tone') or opts.get('tone')
+    style = response_shaper.get('style') or opts.get('style')
+    
+    if tone or style:
         style_parts = [
             f"{k}: {v}" for k, v in [
-                ("tone", opts.get('tone')), 
-                ("style", opts.get('style'))
+                ("tone", tone), 
+                ("style", style)
             ] if v
         ]
         parts.append(f"Communicate with {', '.join(style_parts)}.")
     
-    parts.append("Always be helpful, accurate, and thoughtful in your responses.")
+    # Add constraints from response_shaper
+    if response_shaper.get('constraints'):
+        for constraint in response_shaper['constraints']:
+            parts.append(f"{constraint.replace('-', ' ').title()}.")
+    
+    parts.append("Always stay in character and respond naturally.")
     return " ".join(parts)
 
 
@@ -70,7 +83,7 @@ class Agent:
         self.contexts[user_id] = context
         
         # Show user input with beautiful formatting
-        yield f"👤 HUMAN: {query}\n\n"
+        yield f"👤 {query}"
         
         # Stream execution with clean callback
         state = {"query": query, "context": context, "trace": ExecutionTrace()}
