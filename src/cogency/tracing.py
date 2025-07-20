@@ -10,13 +10,12 @@ if TYPE_CHECKING:
 
 
 class ExecutionTrace:
-    """Lean trace engine - just stores entries with serialization safety."""
+    """Dev-focused trace engine - stores execution details for debugging."""
     def __init__(self):
         self.entries = []
-        self._execution_streamer = None  # Set by ExecutionStreamer when streaming
 
     def add(self, node: str, message: str, data: dict = None, explanation: str = None):
-        # Ensure data is serializable by converting to basic types
+        """Add trace entry - DEV/DEBUG ONLY, no user streaming."""
         safe_data = self._make_serializable(data or {})
         timestamp = time.time()
         
@@ -28,10 +27,6 @@ class ExecutionTrace:
             "timestamp": timestamp
         }
         self.entries.append(entry)
-        
-        # DISABLE tracing streaming - AgentMessenger handles user-facing messages
-        # Tracing is for dev/debug only, not user streaming
-        pass
     
     def _make_serializable(self, obj):
         """Convert object to serializable form."""

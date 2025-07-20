@@ -1,6 +1,7 @@
+import asyncio
 from typing import Optional, AsyncIterator
 from cogency.workflow import Workflow
-from cogency.streaming import ExecutionStreamer
+from cogency.execution import StreamingExecutor
 from cogency.messaging import AgentMessenger
 from cogency.context import Context
 from cogency.llm import auto_detect_llm
@@ -22,7 +23,7 @@ class Agent:
             system_prompt=compose_system_prompt(opts),
             response_shaper=opts.get('response_shaper')
         )
-        self.streamer = ExecutionStreamer()
+        self.executor = StreamingExecutor()
         self.contexts = {}
         
         # MCP server setup if enabled
@@ -47,15 +48,36 @@ class Agent:
         # Show user input with beautiful formatting
         yield f"👤 HUMAN: {query}\n\n"
         
-        # Stream execution
+        # Stream execution with clean callback
         state = {"query": query, "context": context, "trace": ExecutionTrace()}
-        async for event in self.streamer.astream_execute(self.workflow.workflow, state):
-            if event.event_type == "trace_update":
-                # Output streaming messages from AgentMessenger
-                yield event.message
-            elif event.event_type == "final_state":
-                # Final response already streamed by respond_node via AgentMessenger
-                pass
+        
+        # Create a queue for streaming messages
+        message_queue = asyncio.Queue()
+        
+        async def streaming_callback(message: str):
+            """Clean streaming callback for user-facing messages."""
+            await message_queue.put(message)
+        
+        # Start execution in background
+        execution_task = asyncio.create_task(
+            self.executor.stream_execute(self.workflow.workflow, state, streaming_callback)
+        )
+        
+        # Stream messages as they come
+        try:
+            while not execution_task.done():
+                try:
+                    message = await asyncio.wait_for(message_queue.get(), timeout=0.1)
+                    yield message
+                except asyncio.TimeoutError:
+                    continue
+            
+            # Get any remaining messages
+            while not message_queue.empty():
+                yield message_queue.get_nowait()
+                
+        finally:
+            await execution_task
     
     async def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return final response."""
