@@ -5,15 +5,17 @@ from typing import Any, Dict, List
 class BaseTool(ABC):
     """Base class for all tools in the cogency framework."""
 
-    def __init__(self, name: str, description: str):
-        """Initialize the tool with a name and description.
+    def __init__(self, name: str, description: str, emoji: str = "🛠️"):
+        """Initialize the tool with a name, description, and visual emoji.
 
         Args:
             name: The name of the tool (used for tool calls)
             description: Human-readable description of what the tool does
+            emoji: Visual emoji for this tool type (defaults to generic 🛠️)
         """
         self.name = name
         self.description = description
+        self.emoji = emoji
 
     async def execute(self, **kwargs: Any) -> Dict[str, Any]:
         """Execute tool with automatic error handling - USE THIS, NOT run() directly."""

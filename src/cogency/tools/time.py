@@ -20,7 +20,8 @@ class Time(BaseTool):
     def __init__(self):
         super().__init__(
             name="time",
-            description="Time operations: current time, timezone conversion, relative time"
+            description="Time operations: current time, timezone conversion, relative time",
+            emoji="⏰"
         )
         
         self._operations = {

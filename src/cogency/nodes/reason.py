@@ -6,7 +6,7 @@ from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState, ReasoningDecision
 from cogency.tracing import trace_node
-from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, should_respond_directly, extract_reasoning_text
+from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, extract_reasoning_text
 # Eliminated import ceremony - using simple strings
 from cogency.messaging import AgentMessenger
 
@@ -31,12 +31,12 @@ Examples:
 - "Calculate 120*3 + 450" → First use calculator for 120*3, then use result for next calculation
 
 Check: Do I have everything needed to fully answer the ORIGINAL query?
-- If YES → {{"reasoning": "I have all needed information", "action": "respond"}}
+- If YES → {{"reasoning": "I have all needed information"}}
 - If NO → Use specific tools needed
 
-{{"reasoning": "Explain your thinking in 1-2 sentences", "action": "respond"}}
+{{"reasoning": "Explain your thinking in 1-2 sentences"}}
 OR
-{{"reasoning": "Why you need these tools", "action": "use_tools", "tool_calls": [{{"name": "tool_name", "args": {{"param": "value"}}}}]}}"""
+{{"reasoning": "Why you need these tools", "tool_calls": [{{"name": "tool_name", "args": {{"param": "value"}}}}]}}"""
 
 
 
@@ -83,8 +83,9 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         
         # Parse response using consolidated utilities
         json_data = extract_json_from_response(llm_response)
-        can_answer = should_respond_directly(json_data)
         tool_calls = extract_tool_calls_from_json(json_data)
+        # Direct response is implicit when no tool_calls
+        can_answer = tool_calls is None or len(tool_calls) == 0
     except Exception as e:
         # Handle LLM or parsing errors gracefully
         error_msg = f"Reasoning failed: {str(e)}"
@@ -97,7 +98,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     # Extract intelligent reasoning text and stream it - HUMAN READABLE ONLY
     reasoning_text = extract_reasoning_text(llm_response)
     if streaming_callback:
-        await AgentMessenger.reason(streaming_callback, reasoning_text)
+        await AgentMessenger.reasoning(streaming_callback, reasoning_text)
     
     # Store reasoning results in state - NO JSON LEAKAGE
     state["reasoning_response"] = llm_response

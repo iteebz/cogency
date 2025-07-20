@@ -19,7 +19,8 @@ class HTTP(BaseTool):
     def __init__(self):
         super().__init__(
             name="http",
-            description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with headers, auth, and body support"
+            description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with headers, auth, and body support",
+            emoji="🌐"
         )
         # Beautiful dispatch pattern - extensible and clean
         self._methods = {

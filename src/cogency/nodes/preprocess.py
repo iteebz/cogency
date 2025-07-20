@@ -84,10 +84,9 @@ Return JSON:
         # Chain 1: Save extracted memory if not null/empty
         if result.get("memory") and streaming_callback:
             # Stream memory extraction
-            await AgentMessenger.memorize(
-                streaming_callback,
-                f"Saving extracted insight: {result['memory'][:50]}..." if len(result['memory']) > 50 else result['memory']
-            )
+            memory_content = result['memory']
+            display_content = f"{memory_content[:50]}..." if len(memory_content) > 50 else memory_content
+            await AgentMessenger.memory_operation(streaming_callback, "save", display_content)
         
         if result.get("memory"):
             await save_extracted_memory(
@@ -106,24 +105,14 @@ Return JSON:
             filtered_tools = tools  # Fallback to all tools
         
         # Stream tool filtering
-        if streaming_callback:
-            selected_tool_names = [tool.name for tool in filtered_tools]
-            await AgentMessenger.tooling(
-                streaming_callback,
-                selected_tool_names
-            )
+        # Tool selection is now silent - no ceremony
     else:
         # Simple case: use all tools, respond directly
         filtered_tools = tools
         result = {"respond_directly": True}
         
         # Always stream tool selection
-        if streaming_callback and tools:
-            selected_tool_names = [tool.name for tool in filtered_tools]
-            await AgentMessenger.tooling(
-                streaming_callback,
-                selected_tool_names
-            )
+        # Tool selection is now silent - no ceremony
     
     # Chain 3: Prepare tools for ReAct (remove memorize, keep recall) - inline, no ceremony
     prepared_tools = [tool for tool in filtered_tools if tool.name != 'memorize']

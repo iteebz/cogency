@@ -18,7 +18,8 @@ class Weather(BaseTool):
     def __init__(self):
         super().__init__(
             name="weather",
-            description="Get current weather conditions for any city worldwide"
+            description="Get current weather conditions for any city worldwide",
+            emoji="🌤️"
         )
 
     async def _geocode_city(self, city: str) -> Dict[str, Any]:

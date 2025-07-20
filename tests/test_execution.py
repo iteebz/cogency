@@ -10,13 +10,13 @@ import pytest
 import json
 from unittest.mock import AsyncMock, Mock
 
-from cogency.tools.executor import parse_tool_call, execute_single_tool, execute_parallel_tools
+from cogency.tools.executor import parse_tool_calls, execute_single_tool, execute_parallel_tools
 from cogency.tools.result import is_tool_success
-from cogency.utils.parsing import extract_json_from_response, should_respond_directly, extract_reasoning_text
+from cogency.utils.parsing import extract_json_from_response, extract_reasoning_text
 from cogency.nodes.respond import respond_node, build_response_prompt
 from cogency.nodes.act import act_node
 from cogency.nodes.reason import reason_node
-from cogency.types import ToolCall, MultiToolCall, AgentState
+from cogency.types import ToolCall, AgentState
 from cogency.context import Context
 from cogency.tools.base import BaseTool
 
@@ -48,39 +48,39 @@ class TestToolCallParsing:
         llm_response = '''
         {
             "reasoning": "Need to calculate something",
-            "action": "use_tool",
-            "tool_call": {
-                "name": "calculator",
-                "args": {"expression": "2+2"}
-            }
+            "tool_calls": [
+                {
+                    "name": "calculator",
+                    "args": {"expression": "2+2"}
+                }
+            ]
         }
         '''
         
-        result = parse_tool_call(llm_response)
-        assert isinstance(result, ToolCall)
-        assert result.name == "calculator"
-        assert result.args == {"expression": "2+2"}
+        result = parse_tool_calls(llm_response)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert isinstance(result[0], ToolCall)
+        assert result[0].name == "calculator"
+        assert result[0].args == {"expression": "2+2"}
     
     def test_parse_multiple_tool_calls_from_json_string(self):
         """Test parsing multiple tool calls from JSON string."""
         llm_response = '''
         {
             "reasoning": "Need weather and time",
-            "action": "use_tools", 
-            "tool_call": {
-                "calls": [
-                    {"name": "weather", "args": {"location": "Paris"}},
-                    {"name": "timezone", "args": {"location": "Paris"}}
-                ]
-            }
+            "tool_calls": [
+                {"name": "weather", "args": {"location": "Paris"}},
+                {"name": "timezone", "args": {"location": "Paris"}}
+            ]
         }
         '''
         
-        result = parse_tool_call(llm_response)
-        assert isinstance(result, MultiToolCall)
-        assert len(result.calls) == 2
-        assert result.calls[0].name == "weather"
-        assert result.calls[1].name == "timezone"
+        result = parse_tool_calls(llm_response)
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0].name == "weather"
+        assert result[1].name == "timezone"
     
     def test_parse_tool_call_with_malformed_json(self):
         """Test parsing handles malformed JSON gracefully."""
@@ -91,13 +91,13 @@ class TestToolCallParsing:
         ]
         
         for response in malformed_responses:
-            result = parse_tool_call(response)
+            result = parse_tool_calls(response)
             assert result is None
         
         # Test empty tool call separately - this should raise validation error
         empty_tool_call_response = '{"reasoning": "test", "action": "use_tool", "tool_call": {}}'
         try:
-            result = parse_tool_call(empty_tool_call_response)
+            result = parse_tool_calls(empty_tool_call_response)
             assert result is None  # Should not reach here
         except Exception:
             # Expected - validation error for empty tool call
@@ -105,20 +105,21 @@ class TestToolCallParsing:
     
     def test_parse_tool_call_from_pre_parsed_data(self):
         """Test parsing from already parsed data structures."""
-        # Single tool call as dict
-        single_call = {"name": "calculator", "args": {"expression": "5*5"}}
-        result = parse_tool_call(single_call)
-        assert isinstance(result, ToolCall)
-        assert result.name == "calculator"
+        # Single tool call as dict - now wrapped in list
+        single_call = [{"name": "calculator", "args": {"expression": "5*5"}}]
+        result = parse_tool_calls(single_call)
+        assert isinstance(result, list)
+        assert len(result) == 1
+        assert result[0].name == "calculator"
         
         # Multiple tool calls as list
         multi_calls = [
             {"name": "weather", "args": {"location": "Tokyo"}},
             {"name": "calculator", "args": {"expression": "10/2"}}
         ]
-        result = parse_tool_call(multi_calls)
-        assert isinstance(result, MultiToolCall)
-        assert len(result.calls) == 2
+        result = parse_tool_calls(multi_calls)
+        assert isinstance(result, list)
+        assert len(result) == 2
     
     def test_extract_json_from_various_formats(self):
         """Test JSON extraction from different response formats."""
@@ -230,7 +231,7 @@ class TestErrorHandlingAndGracefulDegradation:
         result_state = await reason_node(state, llm=mock_llm, tools=[])
         
         # The reason node logic defaults to responding when no clear action is found
-        # Since parsing fails, should_respond_directly returns False (empty dict)
+        # Since parsing fails, empty dict means no clear action
         # and tool_calls is None, so it routes to respond as fallback
         assert result_state["next_node"] == "respond"
         assert result_state["tool_calls"] is None
@@ -372,17 +373,3 @@ class TestCriticalPathIntegration:
         response_without_reasoning = '{"action": "respond"}'
         reasoning = extract_reasoning_text(response_without_reasoning)
         assert "Analyzing the request" in reasoning  # Default fallback
-    
-    def test_should_respond_directly_detection(self):
-        """Test detection of direct response intent."""
-        # Should respond
-        respond_json = {"action": "respond", "reasoning": "I can answer directly"}
-        assert should_respond_directly(respond_json) is True
-        
-        # Should use tool
-        tool_json = {"action": "use_tool", "tool_call": {"name": "weather", "args": {}}}
-        assert should_respond_directly(tool_json) is False
-        
-        # Invalid/empty JSON
-        assert should_respond_directly(None) is False
-        assert should_respond_directly({}) is False

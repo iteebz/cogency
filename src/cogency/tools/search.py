@@ -16,13 +16,14 @@ from cogency.errors import (
 from cogency.tools.registry import tool
 
 @tool
-class WebSearch(BaseTool):
+class Search(BaseTool):
     def __init__(self):
         super().__init__(
-            name="web_search",
+            name="search",
             description=(
                 "Search the web using DuckDuckGo for current information and answers to questions."
             ),
+            emoji="🔍"
         )
         self._last_search_time = 0
         self._min_delay = 1.0  # Simple rate limit
@@ -102,11 +103,11 @@ class WebSearch(BaseTool):
         )
 
     def get_schema(self) -> str:
-        return "web_search(query='search terms', max_results=5)"
+        return "search(query='search terms', max_results=5)"
 
     def get_usage_examples(self) -> List[str]:
         return [
-            "web_search(query='Python programming tutorials', max_results=3)",
-            "web_search(query='latest AI developments 2024')",
-            "web_search(query='how to install Docker', max_results=5)",
+            "search(query='Python programming tutorials', max_results=3)",
+            "search(query='latest AI developments 2024')",
+            "search(query='how to install Docker', max_results=5)",
         ]

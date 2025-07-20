@@ -14,7 +14,8 @@ class File(BaseTool):
     def __init__(self, base_dir: str = ".cogency/sandbox"):
         super().__init__(
             name="file",
-            description="Manage files and directories - create, read, list, and delete files safely."
+            description="Manage files and directories - create, read, list, and delete files safely.",
+            emoji="📁"
         )
         self.base_dir = Path(base_dir).resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)

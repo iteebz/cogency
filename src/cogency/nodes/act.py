@@ -38,40 +38,7 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
         state["next_node"] = "reason"
         return state
     
-    # Stream beautiful ACT message with actual tool calls and params
-    if streaming_callback:
-        if len(tool_calls) == 1:
-            # Single tool call - same line
-            call = tool_calls[0]
-            if call.args:
-                key_params = []
-                for key, value in list(call.args.items())[:2]:  # Show first 2 params
-                    if isinstance(value, str) and len(value) > 20:
-                        key_params.append(f"{key}='{value[:20]}...'")
-                    else:
-                        key_params.append(f"{key}={value}")
-                param_str = f"({', '.join(key_params)})" if key_params else ""
-                display = f"{call.name}{param_str}"
-            else:
-                display = call.name
-            await AgentMessenger.act(streaming_callback, [display])
-        else:
-            # Multiple tool calls - each on new line for clarity
-            tool_displays = []
-            for call in tool_calls:
-                if call.args:
-                    key_params = []
-                    for key, value in list(call.args.items())[:2]:  # Show first 2 params
-                        if isinstance(value, str) and len(value) > 20:
-                            key_params.append(f"{key}='{value[:20]}...'")
-                        else:
-                            key_params.append(f"{key}={value}")
-                    param_str = f"({', '.join(key_params)})" if key_params else ""
-                    tool_displays.append(f"  {call.name}{param_str}")
-                else:
-                    tool_displays.append(f"  {call.name}")
-            # Send as single message with newlines for clean multi-line display
-            await AgentMessenger.act(streaming_callback, ["\n".join(tool_displays)])
+    # No more ceremony - tool execution will show the actual calls
     
     # Execute tools - always use parallel execution for consistency
     tool_tuples = [(call.name, call.args) for call in tool_calls]
@@ -79,56 +46,46 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
     
     execution_time = time.time() - start_time
     
-    # Stream OBSERVE message with actual results - HUMAN READABLE ONLY
+    # Stream tool execution with new clean format
     if streaming_callback:
         if execution_results.get("success"):
             results = execution_results.get("results", [])
-            if results:
-                # Create human-readable summary of results
-                if len(results) == 1:
-                    # Single result - extract actual data
-                    result_data = results[0] if not isinstance(results[0], dict) or "result" not in results[0] else results[0]["result"]
-                    if isinstance(result_data, dict):
-                        # Extract key information for display
-                        if "temperature" in result_data:  # Weather
-                            await AgentMessenger.observe(streaming_callback, f"Weather: {result_data.get('temperature', 'N/A')}, {result_data.get('condition', 'N/A')}")
-                        elif "datetime" in result_data:  # Timezone
-                            await AgentMessenger.observe(streaming_callback, f"Time: {result_data.get('datetime', 'N/A')}")
-                        else:
-                            await AgentMessenger.observe(streaming_callback, f"Result: {str(result_data)[:50]}...")
-                    else:
-                        # Simple result (like calculator)
-                        await AgentMessenger.observe(streaming_callback, str(result_data))
-                else:
-                    # Multiple results - show meaningful summary
-                    summaries = []
-                    for result_item in results[:3]:  # Show first 3 results
-                        # Extract actual result data from parallel execution format
-                        result_data = result_item.get("result") if isinstance(result_item, dict) and "result" in result_item else result_item
-                        
-                        if isinstance(result_data, dict):
-                            if "temperature" in result_data:  # Weather
-                                summaries.append(f"Weather: {result_data.get('condition', 'N/A')}")
-                            elif "datetime" in result_data:  # Timezone  
-                                summaries.append(f"Time: {result_data.get('datetime', 'N/A')}")
-                            else:
-                                summaries.append(f"Data received")
-                        else:
-                            summaries.append(str(result_data))
-                    
-                    if len(results) > 3:
-                        summaries.append(f"... and {len(results) - 3} more")
-                    
-                    await AgentMessenger.observe(streaming_callback, "; ".join(summaries))
+            if results and len(tool_calls) == len(results):
+                # Show each tool execution with result
+                for i, (call, result) in enumerate(zip(tool_calls, results)):
+                    # Extract actual result data
+                    result_data = result.get("result") if isinstance(result, dict) and "result" in result else result
+                    await AgentMessenger.tool_execution(
+                        streaming_callback, 
+                        call.name, 
+                        call.args or {}, 
+                        result_data, 
+                        success=True
+                    )
             else:
-                await AgentMessenger.observe(streaming_callback, "Tool executed successfully")
+                # Fallback for mismatched results
+                for call in tool_calls:
+                    await AgentMessenger.tool_execution(
+                        streaming_callback, 
+                        call.name, 
+                        call.args or {}, 
+                        "completed", 
+                        success=True
+                    )
         else:
-            errors = execution_results.get("errors", ["Tool execution failed"])
-            error_summary = errors[0] if errors else "Tool execution failed"
-            await AgentMessenger.observe(streaming_callback, error_summary)
+            # Show failed executions
+            errors = execution_results.get("errors", [])
+            for i, call in enumerate(tool_calls):
+                error_msg = errors[i] if i < len(errors) else "execution failed"
+                await AgentMessenger.tool_execution(
+                    streaming_callback, 
+                    call.name, 
+                    call.args or {}, 
+                    error_msg, 
+                    success=False
+                )
         
-        # Add spacing before next reasoning cycle
-        await AgentMessenger.spacing(streaming_callback)
+        # No spacing - keep it dense and scannable
     
     # Store execution results in state with consistent format
     state["execution_results"] = execution_results

@@ -21,7 +21,8 @@ class Shell(BaseTool):
     def __init__(self):
         super().__init__(
             name="shell",
-            description="Execute system commands safely with timeout protection and output capture"
+            description="Execute system commands safely with timeout protection and output capture",
+            emoji="💻"
         )
         # Security: blocked dangerous commands
         self._blocked_commands = {

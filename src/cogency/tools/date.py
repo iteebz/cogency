@@ -21,7 +21,8 @@ class Date(BaseTool):
     def __init__(self):
         super().__init__(
             name="date",
-            description="Date operations: parsing, formatting, arithmetic, weekday calculations"
+            description="Date operations: parsing, formatting, arithmetic, weekday calculations",
+            emoji="📅"
         )
         
         self._operations = {

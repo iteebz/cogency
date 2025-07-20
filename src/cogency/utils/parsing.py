@@ -20,15 +20,18 @@ def extract_tool_calls_from_json(json_data: Dict[str, Any]) -> Optional[List[Dic
     if not json_data:
         return None
         
+    # New format: direct tool_calls array
+    if "tool_calls" in json_data:
+        return json_data.get("tool_calls", [])
+    
+    # Legacy format support
     action = json_data.get("action")
     if action == "use_tools":
         return json_data.get("tool_calls", [])
     return None
 
 
-def should_respond_directly(json_data: Dict[str, Any]) -> bool:
-    """Check if LLM wants to respond directly."""
-    return json_data.get("action") == "respond" if json_data else False
+# Removed should_respond_directly - ceremony eliminated. Direct response is implicit when no tool_calls.
 
 
 def extract_reasoning_text(response: str) -> str:

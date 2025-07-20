@@ -13,7 +13,7 @@ from cogency.tools.file import File
 from cogency.tools.time import Time
 from cogency.tools.date import Date
 from cogency.tools.weather import Weather
-from cogency.tools.web_search import WebSearch
+from cogency.tools.search import Search
 from cogency.tools.recall import Recall
 from cogency.tools.http import HTTP
 from cogency.tools.shell import Shell
@@ -27,7 +27,7 @@ __all__ = [
     "Date",
     "Time",
     "Weather",
-    "WebSearch",
+    "Search",
     "Recall",
     "HTTP",
     "Shell",

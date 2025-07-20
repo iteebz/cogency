@@ -15,6 +15,7 @@ class Calculator(BaseTool):
                 "A calculator tool that can perform basic arithmetic operations "
                 "(add, subtract, multiply, divide) and calculate square roots."
             ),
+            emoji="🧮"
         )
         # Beautiful dispatch pattern - extensible and clean
         self._operations = {

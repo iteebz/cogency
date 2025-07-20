@@ -1,19 +1,19 @@
-"""Test WebSearch tool business logic."""
+"""Test Search tool business logic."""
 import pytest
 
-from cogency.tools.web_search import WebSearch
+from cogency.tools.search import Search
 
 
-class TestWebSearch:
-    """Test WebSearch tool business logic."""
+class TestSearch:
+    """Test Search tool business logic."""
     
     @pytest.mark.asyncio
     async def test_basic_interface(self):
-        """WebSearch tool implements required interface."""
-        search_tool = WebSearch()
+        """Search tool implements required interface."""
+        search_tool = Search()
         
         # Required attributes
-        assert search_tool.name == "web_search"
+        assert search_tool.name == "search"
         assert search_tool.description
         assert hasattr(search_tool, 'run')
         
@@ -25,8 +25,8 @@ class TestWebSearch:
     
     @pytest.mark.asyncio
     async def test_empty_query(self):
-        """WebSearch tool handles empty query."""
-        search_tool = WebSearch()
+        """Search tool handles empty query."""
+        search_tool = Search()
         
         # Tool validates and raises ValidationError for empty queries
         result = await search_tool.execute(query="")
@@ -34,8 +34,8 @@ class TestWebSearch:
     
     @pytest.mark.asyncio
     async def test_basic_search(self):
-        """WebSearch tool can perform basic search."""
-        search_tool = WebSearch()
+        """Search tool can perform basic search."""
+        search_tool = Search()
         
         # Use a simple query that should work
         result = await search_tool.run(query="test")

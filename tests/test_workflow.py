@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 from cogency.nodes.reason import reason_node
 from cogency.nodes.act import act_node
 from cogency.nodes.respond import respond_node
-from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, should_respond_directly, extract_reasoning_text
+from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, extract_reasoning_text
 from cogency.types import AgentState, ReasoningDecision
 
 
@@ -15,10 +15,9 @@ class TestWorkflowNodes:
     @pytest.mark.asyncio
     async def test_reason_node_can_answer_directly(self, agent_state, mock_llm, tools):
         """Reason node should detect when it can answer directly."""
-        # Mock LLM to return a direct response
+        # Mock LLM to return a direct response - no tool_calls means direct response
         mock_llm.invoke = AsyncMock(return_value="""
-        REASONING: I can answer this directly without tools.
-        JSON_DECISION: {"action": "respond", "answer": "This is a direct answer"}
+        {"reasoning": "I can answer this directly without tools."}
         """)
         
         result_state = await reason_node(
@@ -34,10 +33,9 @@ class TestWorkflowNodes:
     @pytest.mark.asyncio
     async def test_reason_node_needs_tools(self, agent_state, mock_llm, tools):
         """Reason node should detect when tools are needed."""
-        # Mock LLM to request tool usage
+        # Mock LLM to request tool usage - using new format with tool_calls array
         mock_llm.invoke = AsyncMock(return_value="""
-        REASONING: I need to calculate something first.
-        JSON_DECISION: {"action": "use_tool", "tool_call": {"name": "calculator", "args": {"operation": "add", "x1": 5, "x2": 3}}}
+        {"reasoning": "I need to calculate something first.", "tool_calls": [{"name": "calculator", "args": {"operation": "add", "x1": 5, "x2": 3}}]}
         """)
         
         result_state = await reason_node(
@@ -65,7 +63,8 @@ class TestWorkflowNodes:
         results = result_state["execution_results"]
         assert results["success"] is True
         assert len(results["results"]) == 1
-        assert results["results"][0] == 8
+        # Results now include metadata, check the actual result value
+        assert results["results"][0]["result"] == 8
     
     @pytest.mark.asyncio
     async def test_respond_node_formats_response(self, agent_state, mock_llm):
@@ -90,10 +89,9 @@ class TestWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_simple_direct_response_flow(self, agent_state, mock_llm, tools):
         """Test workflow when no tools are needed."""
-        # Mock reasoning to respond directly
+        # Mock reasoning to respond directly - no tool_calls means direct response
         mock_llm.invoke = AsyncMock(return_value="""
-        REASONING: This is a simple greeting, I can respond directly.
-        JSON_DECISION: {"action": "respond", "answer": "Hello! How can I help you?"}
+        {"reasoning": "This is a simple greeting, I can respond directly."}
         """)
         
         # Reason phase
@@ -107,10 +105,9 @@ class TestWorkflowIntegration:
     @pytest.mark.asyncio
     async def test_tool_usage_flow(self, agent_state, mock_llm, tools):
         """Test workflow when tools are needed."""
-        # Mock reasoning to request calculator
+        # Mock reasoning to request calculator - using new format
         mock_llm.invoke = AsyncMock(return_value="""
-        REASONING: I need to calculate 15 + 27 for the user.
-        JSON_DECISION: {"action": "use_tool", "tool_call": {"name": "calculator", "args": {"operation": "add", "x1": 15, "x2": 27}}}
+        {"reasoning": "I need to calculate 15 + 27 for the user.", "tool_calls": [{"name": "calculator", "args": {"operation": "add", "x1": 15, "x2": 27}}]}
         """)
         
         # Reason phase
@@ -121,12 +118,12 @@ class TestWorkflowIntegration:
         state = await act_node(state, tools=tools)
         assert "execution_results" in state
         assert state["execution_results"]["success"] is True
-        assert state["execution_results"]["results"][0] == 42
+        # Results now have metadata structure - check the actual result value
+        assert state["execution_results"]["results"][0]["result"] == 42
         
-        # Mock reasoning after tool execution
+        # Mock reasoning after tool execution - using new format
         mock_llm.invoke = AsyncMock(return_value="""
-        REASONING: Great, I got the calculation result. Now I can respond.
-        JSON_DECISION: {"action": "respond", "answer": "The answer is 42"}
+        {"reasoning": "Great, I got the calculation result. Now I can respond."}
         """)
         
         # Reason again (reflection)
@@ -144,23 +141,21 @@ class TestReasoningParsing:
     def test_parser_detects_direct_answer(self):
         """Parser should detect when LLM wants to respond directly."""
         response = """
-        REASONING: I can answer this directly.
-        JSON_DECISION: {"action": "respond", "answer": "Direct answer"}
+        {"reasoning": "I can answer this directly."}
         """
         
         json_data = extract_json_from_response(response)
-        assert should_respond_directly(json_data) is True
-        assert json_data["answer"] == "Direct answer"
+        assert json_data["reasoning"] == "I can answer this directly."
+        # No tool_calls means direct response
     
     def test_parser_extracts_tool_calls(self):
         """Parser should extract tool calls correctly."""
         response = """
-        REASONING: I need to use calculator.
-        JSON_DECISION: {"action": "use_tool", "tool_call": {"name": "calculator", "args": {"x": 5}}}
+        {"reasoning": "I need to use calculator.", "tool_calls": [{"name": "calculator", "args": {"x": 5}}]}
         """
         
         json_data = extract_json_from_response(response)
-        assert should_respond_directly(json_data) is False
+        assert "tool_calls" in json_data
         tool_calls = extract_tool_calls_from_json(json_data)
         assert len(tool_calls) == 1
         assert tool_calls[0]["name"] == "calculator"
@@ -168,11 +163,10 @@ class TestReasoningParsing:
     def test_parser_handles_multiple_tools(self):
         """Parser should handle multiple tool calls."""
         response = """
-        REASONING: I need multiple tools.
-        JSON_DECISION: {"action": "use_tools", "tool_call": {"calls": [
+        {"reasoning": "I need multiple tools.", "tool_calls": [
             {"name": "calculator", "args": {"x": 1}},
             {"name": "weather", "args": {"location": "SF"}}
-        ]}}
+        ]}
         """
         
         json_data = extract_json_from_response(response)
@@ -184,8 +178,7 @@ class TestReasoningParsing:
     def test_parser_extracts_reasoning_text(self):
         """Parser should extract human-readable reasoning."""
         response = """
-        REASONING: I need to think about this carefully and consider the context.
-        JSON_DECISION: {"action": "respond", "answer": "test"}
+        {"reasoning": "I need to think about this carefully and consider the context."}
         """
         
         reasoning = extract_reasoning_text(response)
@@ -198,22 +191,19 @@ class TestAdaptiveReasoning:
     @pytest.mark.asyncio
     async def test_reasoning_loop_limits(self, agent_state, mock_llm, tools):
         """Should prevent infinite reasoning loops."""
-        from cogency.reasoning.adaptive import AdaptiveController
+        # Test the max_iterations limit in reason_node
+        agent_state["current_iteration"] = 5  # At max limit
+        agent_state["max_iterations"] = 5
         
-        controller = AdaptiveController(max_reasoning_steps=2)
-        agent_state["adaptive_controller"] = controller
+        mock_llm.invoke = AsyncMock(return_value="""
+        {"reasoning": "I need to use tools.", "tool_calls": [{"name": "calculator", "args": {"operation": "add", "x1": 1, "x2": 2}}]}
+        """)
         
-        # Simulate multiple reasoning steps
-        for i in range(3):
-            should_continue, reason = controller.should_continue_reasoning()
-            if not should_continue:
-                break
-            controller.step()
+        result_state = await reason_node(agent_state, llm=mock_llm, tools=tools)
         
-        # Should stop after max steps
-        should_continue, reason = controller.should_continue_reasoning()
-        assert should_continue is False
-        assert "max_reasoning_steps" in str(reason).lower() or "limit" in str(reason).lower()
+        # Should stop reasoning and go to respond
+        assert result_state["next_node"] == "respond"
+        assert result_state["stopping_reason"] == "max_iterations_reached"
 
 
 class TestWorkflowErrorHandling:

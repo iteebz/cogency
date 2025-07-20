@@ -22,7 +22,8 @@ class Code(BaseTool):
     def __init__(self):
         super().__init__(
             name="code",
-            description="Execute Python or JavaScript code safely with output capture and error handling"
+            description="Execute Python or JavaScript code safely with output capture and error handling",
+            emoji="🚀"
         )
         # Beautiful dispatch pattern - extensible and clean
         self._languages = {
