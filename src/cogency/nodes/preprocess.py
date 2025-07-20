@@ -8,7 +8,7 @@ from cogency.types import AgentState
 from cogency.tracing import trace_node
 from cogency.memory.prepare import save_extracted_memory
 from cogency.memory.extract import extract_memory_and_filter_tools
-from cogency.tools.prepare import create_registry_lite, filter_tools_by_exclusion, prepare_tools_for_react
+# Removed ceremony - inlined simple operations
 from cogency.messaging import AgentMessenger
 from cogency.reasoning.adaptive import AdaptiveController, StoppingCriteria
 
@@ -31,8 +31,18 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
     
     # Use LLM for intelligent analysis when we have tools (memory + complexity + filtering)
     if tools and len(tools) > 0:
-        # Create registry lite (names + descriptions only)
-        registry_lite = create_registry_lite(tools)
+        # Create registry lite (names + descriptions only) - inline, no ceremony
+        registry_entries = []
+        for tool in tools:
+            entry = f"- {tool.name}: {tool.description}"
+            try:
+                schema = tool.get_schema()
+                if schema:
+                    entry += f"\n  Schema: {schema}"
+            except (AttributeError, NotImplementedError):
+                pass
+            registry_entries.append(entry)
+        registry_lite = "\n\n".join(registry_entries)
         
         # Single LLM call for memory extraction + tool filtering + complexity analysis
         result = await extract_memory_and_filter_tools(query, registry_lite, llm)
@@ -57,8 +67,9 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
                 memory_type=result.get("memory_type", "fact")
             )
         
-        # Chain 2: Filter tools by exclusion (conservative)
-        filtered_tools = filter_tools_by_exclusion(tools, result["excluded_tools"])
+        # Chain 2: Filter tools by exclusion (conservative) - inline, no ceremony
+        excluded_names = set(result["excluded_tools"]) if result["excluded_tools"] else set()
+        filtered_tools = [tool for tool in tools if tool.name not in excluded_names]
         
         # Stream tool filtering
         if streaming_callback:
@@ -80,9 +91,8 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
                 selected_tool_names
             )
     
-    # Chain 3: Prepare tools for ReAct (remove memorize, keep recall)
-    # Add zero-tools fallback to prevent react_loop breaks
-    prepared_tools = prepare_tools_for_react(filtered_tools)
+    # Chain 3: Prepare tools for ReAct (remove memorize, keep recall) - inline, no ceremony
+    prepared_tools = [tool for tool in filtered_tools if tool.name != 'memorize']
     state["selected_tools"] = prepared_tools if prepared_tools else tools  # Use all tools as fallback
     
     # Chain 4: Initialize adaptive reasoning controller

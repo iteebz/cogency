@@ -1,4 +1,4 @@
-"""Consolidated LLM utilities - no ceremony, just results."""
+"""Consolidated parsing utilities - clean extraction from LLM responses."""
 import json
 import re
 from typing import Any, Dict, List, Optional, Union

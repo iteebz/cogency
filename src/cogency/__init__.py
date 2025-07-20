@@ -6,7 +6,7 @@ from .memory.backends.filesystem import FilesystemBackend
 from .tools.base import BaseTool
 from .workflow import Workflow
 from .resilience import retry
-from .tools.validation import validate_tools
+# Removed validate_tools - was over-engineered ceremony
 from .tracing import trace_node, ExecutionTrace
 from .types import AgentState, OutputMode
 
@@ -25,7 +25,7 @@ __all__ = [
     "Workflow",
     "retry",
     "trace_node", 
-    "validate_tools",
+    # "validate_tools", - removed ceremony
     "AgentState",
     "OutputMode",
     "ExecutionTrace",

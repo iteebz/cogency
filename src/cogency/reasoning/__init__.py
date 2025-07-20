@@ -1,7 +1,6 @@
 """Core reasoning utilities - reusable across any architecture."""
 from .adaptive import AdaptiveController, StoppingCriteria, ReasoningMetrics, StoppingReason
 from .complexity import analyze_query_complexity
-from .parsing import ReactResponseParser
 
 __all__ = [
     "AdaptiveController",
@@ -9,5 +8,4 @@ __all__ = [
     "ReasoningMetrics",
     "StoppingReason",
     "analyze_query_complexity",
-    "ReactResponseParser",
 ]

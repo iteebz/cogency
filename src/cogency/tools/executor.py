@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
 from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
 from cogency.types import ToolCall, MultiToolCall
-from cogency.reasoning.parsing import ReactResponseParser
+from cogency.utils.parsing import extract_json_from_response
 from cogency.resilience import retry
 from cogency.utils.json import extract_json
 
@@ -39,13 +39,8 @@ def parse_tool_call(llm_response_content) -> Optional[Union[ToolCall, MultiToolC
     if not isinstance(llm_response_content, str):
         return None
         
-    # Extract JSON data from LLM response
-    _, json_text = ReactResponseParser._extract_reasoning_and_json(llm_response_content)
-    if not json_text:
-        return None
-    
-    # Use central JSON utility for parsing
-    plan_data = extract_json(json_text)
+    # Extract JSON data from LLM response using consolidated parsing
+    plan_data = extract_json_from_response(llm_response_content)
     if not plan_data:
         return None
         

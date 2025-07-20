@@ -7,7 +7,7 @@ from cogency.llm import auto_detect_llm
 from cogency.tools.registry import ToolRegistry
 from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.tracing import ExecutionTrace
-from cogency.response.identity import compose_system_prompt
+from cogency.response.core import compose_system_prompt
 
 
 class Agent:

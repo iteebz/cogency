@@ -79,22 +79,40 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
             if results:
                 # Create human-readable summary of results
                 if len(results) == 1:
-                    # Single result - show meaningful summary
-                    result = results[0]
-                    if isinstance(result, dict):
+                    # Single result - extract actual data
+                    result_data = results[0] if not isinstance(results[0], dict) or "result" not in results[0] else results[0]["result"]
+                    if isinstance(result_data, dict):
                         # Extract key information for display
-                        if "temperature" in result:  # Weather
-                            await AgentMessenger.observe(streaming_callback, f"Weather: {result.get('temperature', 'N/A')}, {result.get('condition', 'N/A')}")
-                        elif "datetime" in result:  # Timezone
-                            await AgentMessenger.observe(streaming_callback, f"Time: {result.get('datetime', 'N/A')}")
+                        if "temperature" in result_data:  # Weather
+                            await AgentMessenger.observe(streaming_callback, f"Weather: {result_data.get('temperature', 'N/A')}, {result_data.get('condition', 'N/A')}")
+                        elif "datetime" in result_data:  # Timezone
+                            await AgentMessenger.observe(streaming_callback, f"Time: {result_data.get('datetime', 'N/A')}")
                         else:
-                            await AgentMessenger.observe(streaming_callback, f"Result: {str(result)[:50]}...")
+                            await AgentMessenger.observe(streaming_callback, f"Result: {str(result_data)[:50]}...")
                     else:
                         # Simple result (like calculator)
-                        await AgentMessenger.observe(streaming_callback, str(result))
+                        await AgentMessenger.observe(streaming_callback, str(result_data))
                 else:
-                    # Multiple results
-                    await AgentMessenger.observe(streaming_callback, f"Got {len(results)} results")
+                    # Multiple results - show meaningful summary
+                    summaries = []
+                    for result_item in results[:3]:  # Show first 3 results
+                        # Extract actual result data from parallel execution format
+                        result_data = result_item.get("result") if isinstance(result_item, dict) and "result" in result_item else result_item
+                        
+                        if isinstance(result_data, dict):
+                            if "temperature" in result_data:  # Weather
+                                summaries.append(f"Weather: {result_data.get('condition', 'N/A')}")
+                            elif "datetime" in result_data:  # Timezone  
+                                summaries.append(f"Time: {result_data.get('datetime', 'N/A')}")
+                            else:
+                                summaries.append(f"Data received")
+                        else:
+                            summaries.append(str(result_data))
+                    
+                    if len(results) > 3:
+                        summaries.append(f"... and {len(results) - 3} more")
+                    
+                    await AgentMessenger.observe(streaming_callback, "; ".join(summaries))
             else:
                 await AgentMessenger.observe(streaming_callback, "Tool executed successfully")
         else:

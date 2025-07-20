@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.types import AgentState, ReasoningDecision
 from cogency.tracing import trace_node
-from cogency.response.shaper import shape_response
+from cogency.response.core import shape_response
 from cogency.messaging import AgentMessenger
 
 
