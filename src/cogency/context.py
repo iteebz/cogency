@@ -2,18 +2,15 @@ import json
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
-from cogency.constants import ReasoningActions, StatusValues
 
 # Avoid circular import
 if TYPE_CHECKING:
     pass
 
-# Constants for filtering
-class FilterConstants:
-    """Internal message filtering constants."""
-    INTERNAL_ACTIONS = {ReasoningActions.TOOL_NEEDED, ReasoningActions.DIRECT_RESPONSE}
-    STATUS_VALUES = {StatusValues.CONTINUE, StatusValues.COMPLETE, StatusValues.ERROR}
-    SYSTEM_PREFIXES = ("TOOL_CALL:",)
+# Internal filtering constants
+INTERNAL_ACTIONS = {"tool_needed", "direct_response"}
+STATUS_VALUES = {"continue", "complete", "error"}
+SYSTEM_PREFIXES = ("TOOL_CALL:",)
 
 
 # Context: Conversation state (user input + message history)
@@ -103,15 +100,15 @@ class Context:
             return False
         
         # Check for tool call prefixes
-        if content.startswith(FilterConstants.SYSTEM_PREFIXES):
+        if content.startswith(SYSTEM_PREFIXES):
             return True
         
         # Check for internal JSON
         try:
             data = json.loads(content)
             return (
-                data.get("action") in FilterConstants.INTERNAL_ACTIONS or
-                data.get("status") in FilterConstants.STATUS_VALUES
+                data.get("action") in INTERNAL_ACTIONS or
+                data.get("status") in STATUS_VALUES
             )
         except (json.JSONDecodeError, TypeError):
             return False

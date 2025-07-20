@@ -8,7 +8,7 @@ from ..memory.core import MemoryBackend
 
 
 @tool
-class RecallTool(BaseTool):
+class Recall(BaseTool):
     """Tool for retrieving content from agent memory."""
 
     def __init__(self, memory: MemoryBackend):

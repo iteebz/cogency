@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from .base import BaseCRUDBackend
+from .base import BaseBackend
 from ..core import MemoryArtifact, MemoryType, SearchType
 
 try:
@@ -13,7 +13,7 @@ except ImportError:
     asyncpg = None
 
 
-class PGVectorBackend(BaseCRUDBackend):
+class PGVectorBackend(BaseBackend):
     """PGVector storage implementation."""
     
     def __init__(

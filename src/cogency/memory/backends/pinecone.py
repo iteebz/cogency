@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from .base import BaseCRUDBackend
+from .base import BaseBackend
 from ..core import MemoryArtifact, MemoryType, SearchType
 
 try:
@@ -15,7 +15,7 @@ except (ImportError, Exception):
     Pinecone = None
 
 
-class PineconeBackend(BaseCRUDBackend):
+class PineconeBackend(BaseBackend):
     """Pinecone storage implementation."""
     
     def __init__(self, api_key: str, index_name: str, environment: str = "us-east-1-aws", dimension: int = 1536, embedding_provider=None):

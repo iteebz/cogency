@@ -8,20 +8,20 @@ from pathlib import Path
 from cogency.tools.base import BaseTool
 
 # Explicit imports for clean API
-from cogency.tools.calculator import CalculatorTool
-from cogency.tools.file_manager import FileManagerTool
-from cogency.tools.timezone import TimezoneTool
-from cogency.tools.weather import WeatherTool
-from cogency.tools.web_search import WebSearchTool
-from cogency.tools.recall import RecallTool
+from cogency.tools.calculator import Calculator
+from cogency.tools.file_manager import FileTool
+from cogency.tools.time import Time
+from cogency.tools.weather import Weather
+from cogency.tools.web_search import WebSearch
+from cogency.tools.recall import Recall
 
 # Export all tools for easy importing
 __all__ = [
     "BaseTool",
-    "CalculatorTool",
-    "FileManagerTool", 
-    "TimezoneTool",
-    "WeatherTool",
-    "WebSearchTool",
-    "RecallTool",
+    "Calculator",
+    "FileTool", 
+    "Time",
+    "Weather",
+    "WebSearch",
+    "Recall",
 ]

@@ -1,6 +1,23 @@
-# Cogency Examples - Target Trace Format
+# Cogency Examples
 
-This document shows the EXACT trace format all examples should match.
+Beautiful developer experience showcases for Cogency's capabilities. Each example demonstrates specific functionality with clear, focused scenarios.
+
+## Example Overview
+
+| Example | Purpose | What It Tests |
+|---------|---------|---------------|
+| `simple.py` | General usage | Basic agent without tools |
+| `hello.py` | Response shaping | Personality and tone control |
+| `basic.py` | Single tool | Weather tool usage |
+| `multitool.py` | Parallel tools | Multiple tools working together |
+| `complex.py` | Sequential reasoning | Multi-step tool dependencies |
+| `conversation.py` | Context memory | Multi-turn conversations |
+| `memory.py` | Long-term memory | Save and recall user preferences |
+| `interactive.py` | Testing utility | Command-line query testing |
+
+## Target Trace Format
+
+All examples should produce clean, readable output matching this format:
 
 ## Simple Query (no tools needed)
 ```

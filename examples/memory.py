@@ -1,18 +1,16 @@
 #!/usr/bin/env python3
-"""Memory tool isolation test - Smart memory behavior."""
+"""Memory showcase - Intelligent save and recall."""
 import asyncio
-from cogency import Agent, FSMemory
+from cogency import Agent
 
 async def main():
-    memory = FSMemory(memory_dir=".memory")
-    agent = Agent("memory", memory=memory)
+    agent = Agent("memory_assistant")
     
-    async for chunk in agent.stream("I have ADHD and work as a software engineer in SF"):
-        print(chunk, end="", flush=True)
+    print("=== Teaching the agent ===")
+    await agent.query("My favorite programming language is Python and I work at OpenAI")
     
-    print("\n\n")
-    async for chunk in agent.stream("What do you know about my work situation?"):
-        print(chunk, end="", flush=True)
+    print("\n=== Testing recall ===")
+    await agent.query("What do you know about my preferences?")
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -8,7 +8,7 @@ try:
 except ImportError:
     raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`")
 
-from cogency.llm.key_rotator import KeyRotator
+from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
 
 from .base import BaseEmbed
@@ -23,45 +23,16 @@ class OpenAIEmbed(BaseEmbed):
         model: str = "text-embedding-3-small",
         **kwargs,
     ):
-        # Auto-detect API keys from environment if not provided
-        if api_keys is None:
-            # Try numbered keys first (OPENAI_API_KEY_1, etc.)
-            detected_keys = []
-            for i in range(1, 10):  # Check 1-9
-                key = os.getenv(f'OPENAI_API_KEY_{i}')
-                if key:
-                    detected_keys.append(key)
-            
-            # Fall back to base OPENAI_API_KEY
-            if not detected_keys:
-                base_key = os.getenv('OPENAI_API_KEY')
-                if base_key:
-                    detected_keys = [base_key]
-                    
-            if detected_keys:
-                api_keys = detected_keys
-            else:
-                raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
-
-        # Handle key rotation
-        if isinstance(api_keys, list) and len(api_keys) > 1:
-            self.key_rotator = KeyRotator(api_keys)
-            api_key = None
-        elif isinstance(api_keys, list) and len(api_keys) == 1:
-            self.key_rotator = None
-            api_key = api_keys[0]
-        else:
-            self.key_rotator = None
-            api_key = api_keys
-
-        super().__init__(api_key, **kwargs)
+        # Beautiful unified key management - auto-detects, handles all scenarios
+        self.keys = KeyManager.for_provider("openai", api_keys)
+        super().__init__(self.keys.api_key, **kwargs)
         self.model = model
         self._client = None
         self._init_client()
 
     def _init_client(self):
         """Initialize OpenAI client with current key."""
-        current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
+        current_key = self.keys.get_current()
         self._client = openai.OpenAI(api_key=current_key)
 
     def _get_client(self):

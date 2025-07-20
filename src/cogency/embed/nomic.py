@@ -4,7 +4,7 @@ from typing import List, Optional, Union
 
 import numpy as np
 
-from cogency.llm.key_rotator import KeyRotator
+from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
 
 from .base import BaseEmbed
@@ -16,38 +16,9 @@ class NomicEmbed(BaseEmbed):
     """Nomic embedding provider with key rotation."""
 
     def __init__(self, api_keys: Union[str, List[str]] = None, **kwargs):
-        # Auto-detect API keys from environment if not provided
-        if api_keys is None:
-            # Try numbered keys first (NOMIC_API_KEY_1, etc.)
-            detected_keys = []
-            for i in range(1, 10):  # Check 1-9
-                key = os.getenv(f'NOMIC_API_KEY_{i}')
-                if key:
-                    detected_keys.append(key)
-            
-            # Fall back to base NOMIC_API_KEY
-            if not detected_keys:
-                base_key = os.getenv('NOMIC_API_KEY')
-                if base_key:
-                    detected_keys = [base_key]
-                    
-            if detected_keys:
-                api_keys = detected_keys
-            else:
-                raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
-
-        # Handle key rotation
-        if isinstance(api_keys, list) and len(api_keys) > 1:
-            self.key_rotator = KeyRotator(api_keys)
-            api_key = None
-        elif isinstance(api_keys, list) and len(api_keys) == 1:
-            self.key_rotator = None
-            api_key = api_keys[0]
-        else:
-            self.key_rotator = None
-            api_key = api_keys
-
-        super().__init__(api_key, **kwargs)
+        # Beautiful unified key management - auto-detects, handles all scenarios
+        self.keys = KeyManager.for_provider("nomic", api_keys)
+        super().__init__(self.keys.api_key, **kwargs)
         self._initialized = False
         self._model = "nomic-embed-text-v1.5"
         self._dimensionality = 768

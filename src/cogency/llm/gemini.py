@@ -7,7 +7,7 @@ except ImportError:
     raise ImportError("Google Gemini support not installed. Use `pip install cogency[gemini]`")
 
 from cogency.llm.base import BaseLLM
-from cogency.llm.key_rotator import KeyRotator
+from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
 from cogency.resilience import with_resilience, with_retry, RateLimitedError, CircuitOpenError, RateLimiterConfig, CircuitBreakerConfig
 
@@ -22,38 +22,9 @@ class GeminiLLM(BaseLLM):
         max_retries: int = 3,
         **kwargs,
     ):
-        # Auto-detect API keys from environment if not provided
-        if api_keys is None:
-            # Try numbered keys first (GEMINI_API_KEY_1, etc.)
-            detected_keys = []
-            for i in range(1, 4):  # Check 1-3
-                key = os.getenv(f'GEMINI_API_KEY_{i}')
-                if key:
-                    detected_keys.append(key)
-            
-            # Fall back to base GEMINI_API_KEY
-            if not detected_keys:
-                base_key = os.getenv('GEMINI_API_KEY')
-                if base_key:
-                    detected_keys = [base_key]
-                    
-            if detected_keys:
-                api_keys = detected_keys
-            else:
-                raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
-
-        # Handle the cleaner interface: if list provided, create key rotator internally
-        if isinstance(api_keys, list) and len(api_keys) > 1:
-            key_rotator = KeyRotator(api_keys)
-            api_key = None
-        elif isinstance(api_keys, list) and len(api_keys) == 1:
-            key_rotator = None
-            api_key = api_keys[0]
-        else:
-            key_rotator = None
-            api_key = api_keys
-
-        super().__init__(api_key, key_rotator)
+        # Beautiful unified key management - auto-detects, handles all scenarios
+        self.keys = KeyManager.for_provider("gemini", api_keys)
+        super().__init__(self.keys.api_key, self.keys.key_rotator)
         self.model = model
 
         # Configuration parameters
@@ -75,7 +46,7 @@ class GeminiLLM(BaseLLM):
 
     def _init_current_model(self):
         """Initializes or retrieves the current model instance based on the active key."""
-        current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
+        current_key = self.keys.get_current()
 
         if not current_key:
             raise ConfigurationError(
@@ -112,7 +83,7 @@ class GeminiLLM(BaseLLM):
 
     def _rotate_client(self):
         """Rotate to the next key and re-initialize the client."""
-        if self.key_rotator:
+        if self.keys.has_multiple():
             self._init_client()
 
     @with_resilience(

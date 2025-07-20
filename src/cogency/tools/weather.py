@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 @tool
-class WeatherTool(BaseTool):
+class Weather(BaseTool):
     """Get current weather for any city using Open-Meteo (no API key required)."""
 
     def __init__(self):

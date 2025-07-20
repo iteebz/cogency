@@ -1,13 +1,11 @@
 #!/usr/bin/env python3
-"""Basic agent with weather tool."""
+"""Basic single-tool usage - Beautiful DX showcase."""
 import asyncio
 from cogency import Agent
 
 async def main():
     agent = Agent("weather_assistant")
-    
-    async for chunk in agent.stream("What's the weather in San Francisco?"):
-        print(chunk, end="", flush=True)
+    await agent.query("What's the weather in Tokyo?")
 
 if __name__ == "__main__":
     asyncio.run(main())

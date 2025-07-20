@@ -8,7 +8,7 @@ from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
 
 @tool
-class FileManagerTool(BaseTool):
+class FileTool(BaseTool):
     """File operations within a safe base directory."""
 
     def __init__(self, base_dir: str = ".cogency/sandbox"):

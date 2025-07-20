@@ -6,7 +6,7 @@ except ImportError:
     raise ImportError("Anthropic support not installed. Use `pip install cogency[anthropic]`")
 
 from cogency.llm.base import BaseLLM
-from cogency.llm.key_rotator import KeyRotator
+from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
 
 
@@ -21,22 +21,9 @@ class AnthropicLLM(BaseLLM):
         max_retries: int = 3,
         **kwargs,
     ):
-        # Validate inputs
-        if not api_keys:
-            raise ConfigurationError("API keys must be provided", error_code="NO_API_KEYS")
-
-        # Handle the cleaner interface: if list provided, create key rotator internally
-        if isinstance(api_keys, list) and len(api_keys) > 1:
-            key_rotator = KeyRotator(api_keys)
-            api_key = None
-        elif isinstance(api_keys, list) and len(api_keys) == 1:
-            key_rotator = None
-            api_key = api_keys[0]
-        else:
-            key_rotator = None
-            api_key = api_keys
-
-        super().__init__(api_key, key_rotator)
+        # Beautiful unified key management - auto-detects, handles all scenarios
+        self.keys = KeyManager.for_provider("anthropic", api_keys)
+        super().__init__(self.keys.api_key, self.keys.key_rotator)
         self.model = model
 
         # Configuration parameters
@@ -59,7 +46,7 @@ class AnthropicLLM(BaseLLM):
 
     def _init_client(self):
         """Initializes the Anthropic client based on the active key."""
-        current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
+        current_key = self.keys.get_current()
 
         if not current_key:
             raise ConfigurationError(
@@ -75,7 +62,7 @@ class AnthropicLLM(BaseLLM):
 
     def _rotate_client(self):
         """Rotate to the next key and re-initialize the client."""
-        if self.key_rotator:
+        if self.keys.has_multiple():
             self._init_client()
 
     def _convert_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:

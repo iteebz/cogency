@@ -7,8 +7,8 @@ from typing import Dict, Any
 from cogency.context import Context
 from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.llm.mock import MockLLM
-from cogency.tools.calculator import CalculatorTool
-from cogency.tools.weather import WeatherTool
+from cogency.tools.calculator import Calculator
+from cogency.tools.weather import Weather
 from cogency.types import AgentState
 
 
@@ -56,8 +56,8 @@ def agent_state(context):
 def tools():
     """Standard tool set for testing."""
     return [
-        CalculatorTool(),
-        WeatherTool()
+        Calculator(),
+        Weather()
     ]
 
 

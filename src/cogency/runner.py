@@ -3,7 +3,7 @@ from typing import Dict, Any, Callable, Awaitable
 from cogency.types import AgentState
 
 
-class WorkflowExecutor:
+class WorkflowRunner:
     """Pure workflow execution - no streaming, no tracing concerns."""
     
     async def execute(
@@ -20,12 +20,12 @@ class WorkflowExecutor:
         return await workflow.ainvoke(state, config=config)
 
 
-class StreamingExecutor:
+class StreamingRunner:
     """Streaming wrapper for user-facing Chain-of-Thought."""
     
     def __init__(self):
-        self.executor = WorkflowExecutor()
+        self.runner = WorkflowRunner()
     
     async def stream_execute(self, workflow, state: AgentState, callback: Callable[[str], Awaitable[None]]):
         """Execute workflow with streaming callback for user updates."""
-        return await self.executor.execute(workflow, state, callback)
+        return await self.runner.execute(workflow, state, callback)

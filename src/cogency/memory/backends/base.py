@@ -1,4 +1,4 @@
-"""BaseCRUDBackend - Template method pattern to eliminate CRUD duplication."""
+"""BaseBackend - Template method pattern to eliminate CRUD duplication."""
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from uuid import UUID
@@ -7,8 +7,8 @@ from ..core import MemoryBackend, MemoryArtifact, MemoryType, SearchType
 from ..search import search_artifacts
 
 
-class BaseCRUDBackend(MemoryBackend, ABC):
-    """Base CRUD backend using template method pattern.
+class BaseBackend(MemoryBackend, ABC):
+    """Base backend using template method pattern.
     
     Implements common CRUD logic and delegates storage primitives to subclasses.
     Reduces backend implementations to 50-100 lines of pure storage code.

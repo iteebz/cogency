@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from .base import BaseCRUDBackend
+from .base import BaseBackend
 from ..core import MemoryArtifact, MemoryType
 
 logger = logging.getLogger(__name__)
 
 
-class FilesystemBackend(BaseCRUDBackend):
+class FilesystemBackend(BaseBackend):
     """Filesystem storage implementation."""
     
     def __init__(self, memory_dir: str = ".cogency/memory", embedding_provider=None):

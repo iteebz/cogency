@@ -1,7 +1,7 @@
 """Test tool execution, validation, and registry."""
 import pytest
 
-from cogency.tools.calculator import CalculatorTool
+from cogency.tools.calculator import Calculator
 from cogency.tools.base import BaseTool
 
 
@@ -11,7 +11,7 @@ class TestToolContracts:
     @pytest.mark.asyncio
     async def test_tool_basic_interface(self):
         """All tools must implement base interface."""
-        calc = CalculatorTool()
+        calc = Calculator()
         
         # Required attributes
         assert hasattr(calc, 'name')
@@ -33,7 +33,7 @@ class TestToolContracts:
     @pytest.mark.asyncio
     async def test_tool_error_handling(self):
         """Tools must handle errors gracefully."""
-        calc = CalculatorTool()
+        calc = Calculator()
         
         # Invalid operation
         result = await calc.run(operation="invalid", x1=5, x2=3)
@@ -46,19 +46,19 @@ class TestToolContracts:
     @pytest.mark.asyncio
     async def test_validate_and_run_wrapper(self):
         """validate_and_run should catch exceptions."""
-        calc = CalculatorTool()
+        calc = Calculator()
         
         # This should not raise an exception, even with bad input
         result = await calc.validate_and_run(operation=None, x1="not_a_number")
         assert "error" in result
 
 
-class TestCalculatorTool:
-    """Test calculator tool business logic."""
+class TestCalculator:
+    """Test calculator business logic."""
     
     @pytest.mark.asyncio
     async def test_basic_arithmetic(self):
-        calc = CalculatorTool()
+        calc = Calculator()
         
         # Addition
         result = await calc.run(operation="add", x1=5, x2=3)
@@ -74,7 +74,7 @@ class TestCalculatorTool:
     
     @pytest.mark.asyncio
     async def test_edge_cases(self):
-        calc = CalculatorTool()
+        calc = Calculator()
         
         # Division by zero
         result = await calc.run(operation="divide", x1=10, x2=0)
@@ -88,7 +88,7 @@ class TestCalculatorTool:
     
     @pytest.mark.asyncio
     async def test_square_root(self):
-        calc = CalculatorTool()
+        calc = Calculator()
         
         result = await calc.run(operation="square_root", x1=9)
         assert result["result"] == 3.0
@@ -139,7 +139,7 @@ class TestToolExecution:
     @pytest.mark.asyncio
     async def test_tool_execution_consistency(self):
         """Tool execution should be deterministic."""
-        calc = CalculatorTool()
+        calc = Calculator()
         
         # Same input should produce same output
         result1 = await calc.run(operation="multiply", x1=6, x2=7)
@@ -151,7 +151,7 @@ class TestToolExecution:
     @pytest.mark.asyncio
     async def test_multiple_tools_independence(self, tools):
         """Tools should not interfere with each other."""
-        calc = CalculatorTool()
+        calc = Calculator()
         
         # Execute multiple operations
         results = []

@@ -1,7 +1,7 @@
 import asyncio
 from typing import Optional, AsyncIterator
 from cogency.workflow import Workflow
-from cogency.execution import StreamingExecutor
+from cogency.runner import StreamingRunner
 from cogency.messaging import AgentMessenger
 from cogency.context import Context
 from cogency.llm import auto_detect_llm
@@ -12,18 +12,23 @@ from cogency.response.core import compose_system_prompt
 
 
 class Agent:
-    """Magical Agent - 6 lines to cognitive AI."""
+    """Magical Agent - cognitive AI made simple.
+    
+    Primary APIs:
+    - query(): Auto-prints + returns result (90% use case)  
+    - stream(): Returns async iterator for custom handling
+    """
     
     def __init__(self, name: str, **opts):
         self.name = name
         self.workflow = Workflow(
             llm=opts.get('llm') or auto_detect_llm(),
             tools=opts.get('tools') or ToolRegistry.get_tools(memory=opts.get('memory')),
-            memory=opts.get('memory') or FilesystemBackend(opts.get('memory_dir', '.memory')),
+            memory=opts.get('memory') or FilesystemBackend(opts.get('memory_dir', '.cogency/memory')),
             system_prompt=compose_system_prompt(opts),
             response_shaper=opts.get('response_shaper')
         )
-        self.executor = StreamingExecutor()
+        self.runner = StreamingRunner()
         self.contexts = {}
         
         # MCP server setup if enabled
@@ -38,7 +43,7 @@ class Agent:
     
     
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
-        """Stream agent execution with beautiful formatting."""
+        """Stream agent execution - returns async iterator for custom output handling."""
         # Get or create context
         context = self.contexts.get(user_id) or Context(query, user_id=user_id)
         context.current_input = query
@@ -60,7 +65,7 @@ class Agent:
         
         # Start execution in background
         execution_task = asyncio.create_task(
-            self.executor.stream_execute(self.workflow.workflow, state, streaming_callback)
+            self.runner.stream_execute(self.workflow.workflow, state, streaming_callback)
         )
         
         # Stream messages as they come
@@ -87,11 +92,19 @@ class Agent:
                 chunks.append(chunk.split("🤖 AGENT: ", 1)[1])
         return "".join(chunks).strip() or "No response generated"
     
-    async def run_streaming(self, query: str, user_id: str = "default"):
-        """Run agent with console output - perfect for demos."""
+    async def query(self, query: str, user_id: str = "default") -> str:
+        """Beautiful API - auto-prints streaming output + returns final response.
+        
+        Use this for demos and simple usage. For custom output handling, use stream().
+        Both methods are streaming under the hood - this just eliminates print ceremony.
+        """
+        result = ""
         async for chunk in self.stream(query, user_id):
             print(chunk, end="", flush=True)
+            if "🤖 AGENT: " in chunk:
+                result += chunk.split("🤖 AGENT: ", 1)[1]
         print()
+        return result.strip() or "No response generated"
     
     def _extract_response(self, state) -> str:
         """Extract response from final state."""

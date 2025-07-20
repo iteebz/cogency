@@ -1,10 +1,10 @@
 # Base imports always available
 from .base import BaseLLM
 from .auto import auto_detect_llm
-from .key_rotator import KeyRotator
+from ..utils.keys import KeyManager, KeyRotator  # Unified key management
 
 # Conditional imports for LLM providers
-__all__ = ["BaseLLM", "auto_detect_llm", "KeyRotator"]
+__all__ = ["BaseLLM", "auto_detect_llm", "KeyManager", "KeyRotator"]
 
 # OpenAI LLM
 try:

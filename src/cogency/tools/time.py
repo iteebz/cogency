@@ -13,13 +13,13 @@ logger = logging.getLogger(__name__)
 
 
 @tool
-class TimezoneTool(BaseTool):
-    """Get current time for any timezone/city using pytz - reliable local computation."""
+class Time(BaseTool):
+    """Time operations: timezone lookup, time formatting, time conversion - reliable local computation."""
 
     def __init__(self):
         super().__init__(
             name="timezone",
-            description="Get current time and date for any city or timezone worldwide"
+            description="Time operations: get time for any timezone/city, format times, compare times"
         )
 
     async def run(self, location: str) -> Dict[str, Any]:

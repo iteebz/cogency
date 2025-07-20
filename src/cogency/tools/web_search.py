@@ -16,7 +16,7 @@ from cogency.errors import (
 from cogency.tools.registry import tool
 
 @tool
-class WebSearchTool(BaseTool):
+class WebSearch(BaseTool):
     def __init__(self):
         super().__init__(
             name="web_search",
