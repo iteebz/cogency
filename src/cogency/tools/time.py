@@ -156,7 +156,7 @@ class Time(BaseTool):
             raise ToolError(f"Failed to convert timezone: {str(e)}")
 
     def get_schema(self) -> str:
-        return "time(operation='now|relative|convert_timezone', **kwargs)"
+        return "time(operation='now|relative|convert_timezone', timezone='UTC|London|Tokyo|...', datetime_str='...', from_tz='...', to_tz='...')"
 
     def get_usage_examples(self) -> List[str]:
         return [

@@ -21,10 +21,8 @@ def extract_tool_calls_from_json(json_data: Dict[str, Any]) -> Optional[List[Dic
         return None
         
     action = json_data.get("action")
-    if action == "use_tool":
-        return [json_data["tool_call"]]
-    elif action == "use_tools":
-        return json_data["tool_call"]["calls"]
+    if action == "use_tools":
+        return json_data.get("tool_calls", [])
     return None
 
 

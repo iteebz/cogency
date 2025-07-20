@@ -5,10 +5,10 @@ from typing import List, Optional, Dict, Any
 from cogency.tools.base import BaseTool
 from cogency.types import AgentState
 from cogency.tracing import trace_node
-from cogency.tools.executor import parse_tool_call, execute_single_tool, execute_parallel_tools
+from cogency.tools.executor import parse_tool_calls, execute_single_tool, execute_parallel_tools
 from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
 # Eliminated import ceremony - using simple strings
-from cogency.types import ToolCall, MultiToolCall
+from cogency.types import ToolCall
 from cogency.messaging import AgentMessenger
 
 
@@ -32,44 +32,50 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
     context = state["context"]
     selected_tools = state.get("selected_tools", tools)
     
-    tool_call = parse_tool_call(tool_call_str)
-    execution_results = {}
+    tool_calls = parse_tool_calls(tool_call_str)
+    if not tool_calls:
+        state["execution_results"] = {"type": "no_action", "time": time.time() - start_time}
+        state["next_node"] = "reason"
+        return state
     
-    # Stream ACT message with actual tool calls - SINGLE MESSAGE
+    # Stream beautiful ACT message with actual tool calls and params
     if streaming_callback:
-        if isinstance(tool_call, MultiToolCall):
-            tool_names = [call.name for call in tool_call.calls]
-            await AgentMessenger.act(streaming_callback, tool_names)
-        elif isinstance(tool_call, ToolCall):
-            await AgentMessenger.act(streaming_callback, [tool_call.name])
-        else:
-            await AgentMessenger.act(streaming_callback, [])
-    
-    # Execute tools and add results to context (this is the OBSERVE step)
-    if isinstance(tool_call, MultiToolCall):
-        # Convert ToolCall objects to (name, args) tuples for parallel execution
-        tool_tuples = [(call.name, call.args) for call in tool_call.calls]
-        execution_results = await execute_parallel_tools(tool_tuples, selected_tools, context)
-    elif isinstance(tool_call, ToolCall):
-        tool_name, parsed_args, tool_output = await execute_single_tool(
-            tool_call.name, tool_call.args, selected_tools, context
-        )
-        
-        if not is_tool_success(tool_output):
-            # Add error to context so agent can reason about it
-            error_msg = get_tool_error(tool_output) or f"Tool {tool_name} failed"
-            context.add_message("system", f"Tool {tool_name} failed: {error_msg}")
-            execution_results = {"success": False, "errors": [error_msg]}
-        else:
-            # Tool executed successfully
-            tool_data = extract_tool_data(tool_output)
-            if tool_data is None:
-                context.add_message("system", f"Tool {tool_name} executed but returned no data")
-                execution_results = {"success": False, "errors": [f"Tool {tool_name} returned no data"]}
+        if len(tool_calls) == 1:
+            # Single tool call - same line
+            call = tool_calls[0]
+            if call.args:
+                key_params = []
+                for key, value in list(call.args.items())[:2]:  # Show first 2 params
+                    if isinstance(value, str) and len(value) > 20:
+                        key_params.append(f"{key}='{value[:20]}...'")
+                    else:
+                        key_params.append(f"{key}={value}")
+                param_str = f"({', '.join(key_params)})" if key_params else ""
+                display = f"{call.name}{param_str}"
             else:
-                context.add_message("system", f"Tool {tool_name} result: {tool_data}")
-                context.add_tool_result(tool_name, parsed_args, tool_data)
-                execution_results = {"success": True, "results": [tool_data]}
+                display = call.name
+            await AgentMessenger.act(streaming_callback, [display])
+        else:
+            # Multiple tool calls - each on new line for clarity
+            tool_displays = []
+            for call in tool_calls:
+                if call.args:
+                    key_params = []
+                    for key, value in list(call.args.items())[:2]:  # Show first 2 params
+                        if isinstance(value, str) and len(value) > 20:
+                            key_params.append(f"{key}='{value[:20]}...'")
+                        else:
+                            key_params.append(f"{key}={value}")
+                    param_str = f"({', '.join(key_params)})" if key_params else ""
+                    tool_displays.append(f"  {call.name}{param_str}")
+                else:
+                    tool_displays.append(f"  {call.name}")
+            # Send as single message with newlines for clean multi-line display
+            await AgentMessenger.act(streaming_callback, ["\n".join(tool_displays)])
+    
+    # Execute tools - always use parallel execution for consistency
+    tool_tuples = [(call.name, call.args) for call in tool_calls]
+    execution_results = await execute_parallel_tools(tool_tuples, selected_tools, context)
     
     execution_time = time.time() - start_time
     
@@ -130,11 +136,10 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
     # Update adaptive reasoning controller metrics if available
     controller = state.get("adaptive_controller")
     if controller:
-        # Convert execution results to format expected by controller
         controller_metrics = {
-            "total_executed": 1 if isinstance(tool_call, ToolCall) else len(tool_call.calls) if isinstance(tool_call, MultiToolCall) else 0,
-            "successful_count": 1 if execution_results.get("success") else 0,
-            "failed_count": 0 if execution_results.get("success") else 1
+            "total_executed": len(tool_calls),
+            "successful_count": execution_results.get("successful_count", 0),
+            "failed_count": execution_results.get("failed_count", 0)
         }
         controller.update_iteration_metrics(controller_metrics, execution_time)
     

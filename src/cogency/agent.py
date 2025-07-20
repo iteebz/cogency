@@ -8,7 +8,26 @@ from cogency.llm import auto_detect_llm
 from cogency.tools.registry import ToolRegistry
 from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.tracing import ExecutionTrace
-from cogency.response.core import compose_system_prompt
+
+
+def compose_system_prompt(opts: dict) -> str:
+    """Compose system prompt from agent options."""
+    if opts.get('system_prompt'):
+        return opts['system_prompt']
+    
+    parts = [f"You are {opts.get('personality', 'a helpful AI assistant')}."]
+    
+    if opts.get('tone') or opts.get('style'):
+        style_parts = [
+            f"{k}: {v}" for k, v in [
+                ("tone", opts.get('tone')), 
+                ("style", opts.get('style'))
+            ] if v
+        ]
+        parts.append(f"Communicate with {', '.join(style_parts)}.")
+    
+    parts.append("Always be helpful, accurate, and thoughtful in your responses.")
+    return " ".join(parts)
 
 
 class Agent:

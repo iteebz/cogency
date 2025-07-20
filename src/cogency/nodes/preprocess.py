@@ -7,10 +7,9 @@ from cogency.memory.core import MemoryBackend
 from cogency.types import AgentState
 from cogency.tracing import trace_node
 from cogency.memory.prepare import save_extracted_memory
-from cogency.memory.extract import extract_memory_and_filter_tools
+from cogency.utils.json import extract_json
 # Removed ceremony - inlined simple operations
 from cogency.messaging import AgentMessenger
-from cogency.reasoning.adaptive import AdaptiveController, StoppingCriteria
 # Eliminated import ceremony - using simple strings
 
 
@@ -45,32 +44,66 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
             registry_entries.append(entry)
         registry_lite = "\n\n".join(registry_entries)
         
-        # Single LLM call for memory extraction + tool filtering + complexity analysis
-        result = await extract_memory_and_filter_tools(query, registry_lite, llm)
+        # Single LLM call: routing + memory + tool selection
+        prompt = f"""Query: "{query}"
+
+MEMORY: Extract if user shares facts about themselves or explicitly asks to remember something.
+- Name, job, preferences, personal context → extract 
+- "Remember that..." → extract
+- Questions, general chat → null
+
+ROUTING: Decide if you need tools or can respond directly.
+- If you might need ANY tools from the available toolkit → respond_directly: false
+- Only if you're 100% certain you need NO tools → respond_directly: true
+
+TOOL SELECTION: Select tools you might need. You have full freedom to decide.
+Available tools: {registry_lite}
+
+Return JSON:
+{{
+  "memory": "summary" | null,
+  "tags": ["tag1", "tag2"] | null,
+  "memory_type": "fact",
+  "respond_directly": true | false,
+  "selected_tools": ["tool1", "tool2"] | [],
+  "reasoning": "brief explanation"
+}}"""
+
+        response = await llm.invoke([{"role": "user", "content": prompt}])
         
-        # Extract LLM-provided complexity
-        complexity = result["complexity"]
+        fallback = {
+            "memory": None, 
+            "tags": [], 
+            "memory_type": "fact", 
+            "respond_directly": True,
+            "selected_tools": [],
+            "reasoning": ""
+        }
+        result = extract_json(response, fallback)
         
         # Chain 1: Save extracted memory if not null/empty
-        if result["memory_summary"] and streaming_callback:
+        if result.get("memory") and streaming_callback:
             # Stream memory extraction
             await AgentMessenger.memorize(
                 streaming_callback,
-                f"Saving extracted insight: {result['memory_summary'][:50]}..." if len(result['memory_summary']) > 50 else result['memory_summary']
+                f"Saving extracted insight: {result['memory'][:50]}..." if len(result['memory']) > 50 else result['memory']
             )
         
-        if result["memory_summary"]:
+        if result.get("memory"):
             await save_extracted_memory(
-                result["memory_summary"], 
+                result["memory"], 
                 memory, 
                 user_id,
                 tags=result.get("tags", []),
                 memory_type=result.get("memory_type", "fact")
             )
         
-        # Chain 2: Filter tools by exclusion (conservative) - inline, no ceremony
-        excluded_names = set(result["excluded_tools"]) if result["excluded_tools"] else set()
-        filtered_tools = [tool for tool in tools if tool.name not in excluded_names]
+        # Chain 2: Filter tools based on LLM selection
+        if result.get("selected_tools"):
+            selected_names = set(result["selected_tools"])
+            filtered_tools = [tool for tool in tools if tool.name in selected_names]
+        else:
+            filtered_tools = tools  # Fallback to all tools
         
         # Stream tool filtering
         if streaming_callback:
@@ -80,9 +113,9 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
                 selected_tool_names
             )
     else:
-        # Simple case: use all tools (no filtering), basic complexity
+        # Simple case: use all tools, respond directly
         filtered_tools = tools
-        complexity = 0.3  # Simple fallback for no-tool scenarios
+        result = {"respond_directly": True}
         
         # Always stream tool selection
         if streaming_callback and tools:
@@ -96,22 +129,14 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
     prepared_tools = [tool for tool in filtered_tools if tool.name != 'memorize']
     state["selected_tools"] = prepared_tools if prepared_tools else tools  # Use all tools as fallback
     
-    # Chain 4: Initialize adaptive reasoning controller
-    criteria = StoppingCriteria()
-    criteria.max_iterations = max(3, int(complexity * 10))  # 3-10 iterations based on complexity
+    # Simple iteration tracking
+    state["max_iterations"] = 5
+    state["current_iteration"] = 0
     
-    controller = AdaptiveController(criteria)
-    controller.start_reasoning()
-    
-    state["adaptive_controller"] = controller
-    state["complexity_score"] = complexity
-    
-    # Chain 5: Use LLM routing decision - respond node ALWAYS handles response generation
+    # Chain 5: Simple routing decision 
     if tools and len(tools) > 0:
-        # Use LLM's intelligent routing decision
-        bypass_decision = result.get("bypass_react", False)
-        if bypass_decision:
-            state["next_node"] = "respond"  # Skip ReAct, go straight to respond
+        if result.get("respond_directly", True):
+            state["next_node"] = "respond"  # Direct response
         else:
             state["next_node"] = "reason"   # Use ReAct workflow
     else:

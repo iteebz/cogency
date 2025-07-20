@@ -4,7 +4,6 @@ from typing import Optional, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.types import AgentState, ReasoningDecision
 from cogency.tracing import trace_node
-from cogency.response.core import shape_response
 # Eliminated import ceremony - using simple strings
 from cogency.messaging import AgentMessenger
 
@@ -20,6 +19,49 @@ def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results:
         return f"{system_prompt}\n\n{base_prompt}"
     
     return base_prompt
+
+
+async def shape_response(
+    raw_response: str,
+    llm: BaseLLM,
+    config: Optional[Dict[str, Any]] = None
+) -> str:
+    """Shape response according to config. Returns raw response if no config."""
+    if not config:
+        return raw_response
+
+    # Build shaping prompt from config
+    prompt_parts = ["Transform the following response according to these specifications:"]
+
+    # Format transformation
+    if "format" in config:
+        format_type = config["format"]
+        if format_type == "markdown":
+            prompt_parts.append("- Format as clean markdown")
+        elif format_type == "html":
+            prompt_parts.append("- Format as semantic HTML")
+
+    # Tone and style
+    if "tone" in config:
+        prompt_parts.append(f"- Use {config['tone']} tone")
+    if "style" in config:
+        prompt_parts.append(f"- Apply {config['style']} style")
+    if "personality" in config:
+        prompt_parts.append(f"- Personality: {config['personality']}")
+
+    # Constraints and transformations
+    for key in ["constraints", "transformations"]:
+        if key in config:
+            for item in config[key]:
+                prompt_parts.append(f"- {item.replace('-', ' ').title()}")
+
+    shaping_prompt = "\n".join(prompt_parts)
+    messages = [
+        {"role": "system", "content": shaping_prompt},
+        {"role": "user", "content": f"Transform this response:\n\n{raw_response}"}
+    ]
+
+    return await llm.invoke(messages)
 
 
 @trace_node("respond")

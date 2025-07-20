@@ -14,9 +14,11 @@ class Recall(BaseTool):
     def __init__(self, memory: MemoryBackend):
         super().__init__(
             name="recall",
-            description="Search and retrieve previously stored information when user asks about their personal details, work, preferences, or past conversations"
+            description="Search memory for relevant information when user asks about themselves, their preferences, past interactions, or references things they've mentioned before. Use when current conversation lacks context the user expects you to know."
         )
         self.memory = memory
+        if memory is None:
+            raise ValueError("Recall tool requires a memory backend, but None was provided")
 
     async def run(self, **kwargs: Any) -> Dict[str, Any]:
         """Retrieve content from memory.
@@ -65,7 +67,8 @@ class Recall(BaseTool):
     def get_usage_examples(self) -> List[str]:
         """Return example tool calls."""
         return [
-            'recall(query="my work situation")',
-            'recall(query="personal information about me")',
-            'recall(query="my preferences", tags=["preferences"])'
+            'recall(query="user preferences programming language")',
+            'recall(query="user work company job")',
+            'recall(query="user personal information name")',
+            'recall(query="previous conversation context")'
         ]

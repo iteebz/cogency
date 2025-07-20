@@ -16,7 +16,7 @@ class GeminiLLM(BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
-        model: str = "gemini-2.5-flash",
+        model: str = "gemini-2.0-flash",
         timeout: float = 15.0,
         temperature: float = 0.7,
         max_retries: int = 3,

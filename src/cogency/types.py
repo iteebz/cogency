@@ -57,11 +57,7 @@ class ToolCall(BaseModel):
     args: Dict[str, Any] = Field(default_factory=dict)
 
 
-class MultiToolCall(BaseModel):
-    calls: List[ToolCall]
-
-
 class Plan(BaseModel):
     action: str
     answer: Optional[str] = None
-    tool_call: Optional[Union[ToolCall, MultiToolCall]] = None
+    tool_calls: Optional[List[ToolCall]] = None

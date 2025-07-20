@@ -4,36 +4,26 @@ import asyncio
 from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
 from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
-from cogency.types import ToolCall, MultiToolCall
+from cogency.types import ToolCall
 from cogency.utils.parsing import extract_json_from_response
 from cogency.resilience import retry
 from cogency.utils.json import extract_json
 
 
-def parse_tool_call(llm_response_content) -> Optional[Union[ToolCall, MultiToolCall]]:
-    """Parse tool call from LLM response content or pre-parsed data.
+def parse_tool_calls(llm_response_content) -> Optional[List[ToolCall]]:
+    """Parse tool calls from LLM response content - always returns list.
     
     Args:
         llm_response_content: Raw LLM response string OR pre-parsed data
         
     Returns:
-        ToolCall or MultiToolCall object, or None if no tool call found
+        List of ToolCall objects, or None if no tool calls found
     """
     # Handle already parsed data (for tests)
-    if isinstance(llm_response_content, (list, dict)):
-        # Direct tool call data
-        if isinstance(llm_response_content, list):
-            if len(llm_response_content) == 1:
-                # Single tool call
-                call_data = llm_response_content[0]
-                return ToolCall(**call_data)
-            elif len(llm_response_content) > 1:
-                # Multiple tool calls
-                calls = [ToolCall(**call_data) for call_data in llm_response_content]
-                return MultiToolCall(calls=calls)
-        elif isinstance(llm_response_content, dict):
-            return ToolCall(**llm_response_content)
-        return None
+    if isinstance(llm_response_content, list):
+        return [ToolCall(**call_data) for call_data in llm_response_content]
+    elif isinstance(llm_response_content, dict):
+        return [ToolCall(**llm_response_content)]
     
     # Handle string response from LLM
     if not isinstance(llm_response_content, str):
@@ -44,21 +34,11 @@ def parse_tool_call(llm_response_content) -> Optional[Union[ToolCall, MultiToolC
     if not plan_data:
         return None
         
-    if plan_data and "tool_call" in plan_data:
-        tool_call_data = plan_data["tool_call"]
-        
-        # Convert dict back to proper ToolCall/MultiToolCall objects
-        if isinstance(tool_call_data, dict):
-            if "calls" in tool_call_data:
-                # MultiToolCall
-                calls = [ToolCall(**call_data) for call_data in tool_call_data["calls"]]
-                return MultiToolCall(calls=calls)
-            else:
-                # Single ToolCall
-                return ToolCall(**tool_call_data)
-        
-        # Already a proper object (shouldn't happen with current parsing)
-        return tool_call_data
+    if plan_data and "tool_calls" in plan_data:
+        tool_calls_data = plan_data["tool_calls"]
+        if isinstance(tool_calls_data, list):
+            return [ToolCall(**call_data) for call_data in tool_calls_data]
+    
     return None
 
 
@@ -84,8 +64,12 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
                         # Check if tool accepts _context parameter
                         import inspect
                         sig = inspect.signature(tool.run)
-                        if '_context' in sig.parameters or any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                        if '_context' in sig.parameters:
                             tool_args["_context"] = context
+                        elif any(p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()):
+                            # Only inject if it has **kwargs AND the operation method can handle it
+                            # For now, don't inject into tools with dispatch patterns until we have better detection
+                            pass
                     result = await tool.execute(**tool_args)
                     return tool_name, tool_args, result
                 except Exception as e:
