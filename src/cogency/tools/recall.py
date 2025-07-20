@@ -38,7 +38,7 @@ class RecallTool(BaseTool):
         user_id = getattr(context, 'user_id', 'default') if context else 'default'
         
         try:
-            artifacts = await self.memory.recall(query, limit=limit, tags=tags if tags else None, user_id=user_id)
+            artifacts = await self.memory.read(query=query, limit=limit, tags=tags if tags else None, user_id=user_id)
             
             results = []
             for artifact in artifacts:

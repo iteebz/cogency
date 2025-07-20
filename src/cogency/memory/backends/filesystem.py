@@ -6,13 +6,13 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from ..core import MemoryBackend, MemoryArtifact, MemoryType, SearchType
-from ..search import search_artifacts
+from .base import BaseCRUDBackend
+from ..core import MemoryArtifact, MemoryType
 
 logger = logging.getLogger(__name__)
 
 
-class FilesystemBackend(MemoryBackend):
+class FilesystemBackend(BaseCRUDBackend):
     """Filesystem storage implementation."""
     
     def __init__(self, memory_dir: str = ".cogency/memory", embedding_provider=None):
@@ -20,29 +20,12 @@ class FilesystemBackend(MemoryBackend):
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(parents=True, exist_ok=True)
     
-    async def memorize(
-        self,
-        content: str,
-        memory_type: MemoryType = MemoryType.FACT,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> MemoryArtifact:
-        artifact = MemoryArtifact(
-            content=content,
-            memory_type=memory_type,
-            tags=tags or [],
-            metadata=metadata or {}
-        )
-        
-        embedding = None
-        if self.embedding_provider:
-            try:
-                embedding = await self.embedding_provider.embed_text(content)
-            except Exception as e:
-                logger.warning(f"Failed to generate embedding for content: {e}")
-                # Continue without embedding - not a critical failure
-        
+    async def _ensure_ready(self) -> None:
+        """Filesystem is always ready - directory created in __init__."""
+        pass
+    
+    async def _store_artifact(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
+        """Store artifact to filesystem."""
         user_id = kwargs.get('user_id', 'default')
         user_dir = self.memory_dir / user_id
         user_dir.mkdir(exist_ok=True)
@@ -66,19 +49,30 @@ class FilesystemBackend(MemoryBackend):
         except (OSError, IOError) as e:
             logger.error(f"Failed to save memory artifact {artifact.id}: {e}")
             raise RuntimeError(f"Failed to save memory: {e}") from e
-        
-        return artifact
     
-    async def recall(
+    async def _read_by_id(self, artifact_id: UUID) -> List[MemoryArtifact]:
+        """Read single artifact by ID."""
+        # Check all user directories for the artifact
+        for user_dir in self.memory_dir.iterdir():
+            if not user_dir.is_dir():
+                continue
+            try:
+                file_path = user_dir / f"{artifact_id}.json"
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                return [self._data_to_artifact(data)]
+            except (OSError, IOError, json.JSONDecodeError, KeyError, ValueError):
+                continue
+        return []
+    
+    async def _read_filtered(
         self,
-        query: str,
-        search_type: SearchType = SearchType.AUTO,
-        limit: int = 10,
-        threshold: float = 0.7,
-        tags: Optional[List[str]] = None,
         memory_type: Optional[MemoryType] = None,
+        tags: Optional[List[str]] = None,
+        filters: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> List[MemoryArtifact]:
+        """Read filtered artifacts."""
         user_id = kwargs.get('user_id', 'default')
         user_dir = self.memory_dir / user_id
         
@@ -96,61 +90,112 @@ class FilesystemBackend(MemoryBackend):
                         continue
                     if tags and not any(tag in artifact.tags for tag in tags):
                         continue
+                    if filters:
+                        skip = False
+                        for key, value in filters.items():
+                            if not hasattr(artifact, key) or getattr(artifact, key) != value:
+                                skip = True
+                                break
+                        if skip:
+                            continue
                     
                     artifacts.append(artifact)
                 except (OSError, IOError, json.JSONDecodeError, KeyError, ValueError) as e:
                     logger.warning(f"Skipping corrupted memory file {file_path}: {e}")
                     continue
         
-        def get_embedding(artifact_id: UUID) -> Optional[List[float]]:
+        return artifacts
+    
+    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+        """Update artifact with clean updates."""
+        # Find artifact file across user directories
+        for user_dir in self.memory_dir.iterdir():
+            if not user_dir.is_dir():
+                continue
+            file_path = user_dir / f"{artifact_id}.json"
+            if not file_path.exists():
+                continue
+                
+            try:
+                with open(file_path, 'r') as f:
+                    data = json.load(f)
+                
+                # Apply updates
+                for key, value in updates.items():
+                    if key == 'tags' and isinstance(value, list):
+                        data[key] = value
+                    elif key == 'metadata' and isinstance(value, dict):
+                        data[key] = value
+                    elif key in ['access_count', 'confidence_score', 'relevance_score']:
+                        data[key] = value
+                    elif key in ['last_accessed', 'created_at']:
+                        data[key] = value.isoformat() if hasattr(value, 'isoformat') else value
+                    else:
+                        data[key] = value
+                
+                with open(file_path, 'w') as f:
+                    json.dump(data, f, indent=2)
+                
+                return True
+            except (OSError, IOError, json.JSONDecodeError, KeyError) as e:
+                logger.warning(f"Failed to update artifact {artifact_id}: {e}")
+                return False
+        
+        return False
+    
+    async def _delete_all(self) -> bool:
+        """Delete all artifacts."""
+        try:
+            for user_dir in self.memory_dir.iterdir():
+                if user_dir.is_dir():
+                    for file_path in user_dir.glob("*.json"):
+                        file_path.unlink()
+            return True
+        except OSError:
+            return False
+    
+    async def _delete_by_id(self, artifact_id: UUID) -> bool:
+        """Delete single artifact by ID."""
+        for user_dir in self.memory_dir.iterdir():
+            if not user_dir.is_dir():
+                continue
+            try:
+                file_path = user_dir / f"{artifact_id}.json"
+                file_path.unlink()
+                return True
+            except FileNotFoundError:
+                continue
+        return False
+    
+    async def _delete_by_filters(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
+        """Delete artifacts by filters."""
+        user_id = filters.get('user_id', 'default') if filters else 'default'
+        artifacts_to_delete = await self._read_filtered(tags=tags, filters=filters, user_id=user_id)
+        
+        try:
+            user_dir = self.memory_dir / user_id
+            for artifact in artifacts_to_delete:
+                file_path = user_dir / f"{artifact.id}.json"
+                file_path.unlink()
+            return True
+        except (OSError, FileNotFoundError):
+            return False
+    
+    async def _get_embedding_for_search(self, artifact_id: UUID) -> Optional[List[float]]:
+        """Get embedding for search operations."""
+        for user_dir in self.memory_dir.iterdir():
+            if not user_dir.is_dir():
+                continue
             try:
                 with open(user_dir / f"{artifact_id}.json", 'r') as f:
                     data = json.load(f)
                 return data.get("embedding")
-            except (OSError, IOError, json.JSONDecodeError) as e:
-                logger.debug(f"Could not load embedding for {artifact_id}: {e}")
-                return None
-        
-        return await search_artifacts(
-            query, artifacts, search_type, threshold,
-            self.embedding_provider, get_embedding
-        )
-    
-    
-    async def forget(self, artifact_id: UUID, user_id: str = "default") -> bool:
-        """Delete a specific memory artifact."""
-        try:
-            file_path = self.memory_dir / user_id / f"{artifact_id}.json"
-            file_path.unlink()
-            logger.debug(f"Deleted memory artifact {artifact_id} for user {user_id}")
-            return True
-        except FileNotFoundError:
-            logger.warning(f"Memory artifact {artifact_id} not found for user {user_id}")
-            return False
-        except (OSError, IOError) as e:
-            logger.error(f"Failed to delete memory artifact {artifact_id}: {e}")
-            return False
-    
-    async def clear(self, user_id: Optional[str] = None) -> None:
-        """Clear memories for a specific user or all users."""
-        try:
-            if user_id:
-                # Clear specific user's memories
-                user_dir = self.memory_dir / user_id
-                if user_dir.exists():
-                    for file_path in user_dir.glob("*.json"):
-                        file_path.unlink()
-                    logger.info(f"Cleared memories for user {user_id}")
-            else:
-                # Clear all memories
-                for file_path in self.memory_dir.rglob("*.json"):
-                    file_path.unlink()
-                logger.info("Cleared all memories")
-        except (OSError, IOError) as e:
-            logger.error(f"Failed to clear memories: {e}")
-            raise RuntimeError(f"Failed to clear memories: {e}") from e
+            except (OSError, IOError, json.JSONDecodeError):
+                continue
+        return None
     
     def _data_to_artifact(self, data: Dict) -> MemoryArtifact:
+        """Convert JSON data to MemoryArtifact."""
         artifact = MemoryArtifact(
             id=UUID(data["id"]),
             content=data["content"],

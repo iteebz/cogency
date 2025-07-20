@@ -13,7 +13,7 @@ class TestMemoryBackends:
     async def test_basic_memorize_recall_flow(self, memory_backend):
         """Basic store and retrieve should work."""
         # Store a memory
-        artifact = await memory_backend.memorize(
+        artifact = await memory_backend.create(
             "I work as a software engineer at Google",
             memory_type=MemoryType.FACT,
             tags=["work", "personal"]
@@ -24,7 +24,7 @@ class TestMemoryBackends:
         assert "work" in artifact.tags
         
         # Retrieve it
-        results = await memory_backend.recall("software engineer")
+        results = await memory_backend.read(query="software engineer")
         
         assert len(results) >= 1
         found = any("software engineer" in r.content for r in results)
@@ -35,13 +35,13 @@ class TestMemoryBackends:
         """Memory recall should support filtering."""
         # Store sample memories
         for item in sample_memory_content:
-            await memory_backend.memorize(
+            await memory_backend.create(
                 item["content"],
                 tags=item["tags"]
             )
         
         # Filter by tags
-        personal_memories = await memory_backend.recall(
+        personal_memories = await memory_backend.read(query=
             "",
             search_type=SearchType.TAGS,
             tags=["personal"]
@@ -58,14 +58,14 @@ class TestMemoryBackends:
         backend2 = FilesystemBackend(memory_dir=temp_memory_dir)
         
         # Store memory for user1
-        await backend1.memorize("user1 secret", user_id="user1")
+        await backend1.create("user1 secret", user_id="user1")
         
         # User2 shouldn't see user1's memory
-        results = await backend2.recall("secret", user_id="user2")
+        results = await backend2.read(query="secret", user_id="user2")
         assert len(results) == 0
         
         # User1 should still see their own memory
-        results = await backend1.recall("secret", user_id="user1")
+        results = await backend1.read(query="secret", user_id="user1")
         assert len(results) >= 1
     
     @pytest.mark.asyncio
@@ -73,11 +73,11 @@ class TestMemoryBackends:
         """Memory should persist across backend instances."""
         # Store memory with first backend instance
         backend1 = FilesystemBackend(memory_dir=temp_memory_dir)
-        artifact = await backend1.memorize("persistent memory test")
+        artifact = await backend1.create("persistent memory test")
         
         # Create new backend instance (simulates restart)
         backend2 = FilesystemBackend(memory_dir=temp_memory_dir)
-        results = await backend2.recall("persistent memory")
+        results = await backend2.read(query="persistent memory")
         
         assert len(results) >= 1
         assert any("persistent memory test" in r.content for r in results)
@@ -86,19 +86,19 @@ class TestMemoryBackends:
     async def test_forget_functionality(self, memory_backend):
         """Should be able to delete specific memories."""
         # Store a memory
-        artifact = await memory_backend.memorize("temporary memory")
+        artifact = await memory_backend.create("temporary memory")
         memory_id = artifact.id
         
         # Verify it exists
-        results = await memory_backend.recall("temporary")
+        results = await memory_backend.read(query="temporary")
         assert len(results) >= 1
         
         # Delete it
-        success = await memory_backend.forget(memory_id)
+        success = await memory_backend.delete(artifact_id=memory_id)
         assert success
         
         # Verify it's gone
-        results = await memory_backend.recall("temporary")
+        results = await memory_backend.read(query="temporary")
         assert len(results) == 0
 
 
@@ -109,12 +109,12 @@ class TestMemorySearch:
     async def test_semantic_search_ranking(self, memory_backend):
         """More relevant memories should rank higher."""
         # Store memories with different relevance levels
-        await memory_backend.memorize("I love programming in Python")
-        await memory_backend.memorize("I had lunch today")
-        await memory_backend.memorize("Python is my favorite programming language")
+        await memory_backend.create("I love programming in Python")
+        await memory_backend.create("I had lunch today")
+        await memory_backend.create("Python is my favorite programming language")
         
         # Search for programming-related content
-        results = await memory_backend.recall("python programming")
+        results = await memory_backend.read(query="python programming")
         
         assert len(results) >= 2
         # More specific match should rank higher
@@ -123,17 +123,17 @@ class TestMemorySearch:
     @pytest.mark.asyncio
     async def test_search_type_behavior(self, memory_backend):
         """Different search types should work."""
-        await memory_backend.memorize("I work with Python daily", tags=["tech"])
+        await memory_backend.create("I work with Python daily", tags=["tech"])
         
         # Text search should find exact matches
-        results = await memory_backend.recall(
+        results = await memory_backend.read(query=
             "Python",
             search_type=SearchType.TEXT
         )
         assert len(results) >= 1
         
         # Tag search should work
-        results = await memory_backend.recall(
+        results = await memory_backend.read(query=
             "",
             search_type=SearchType.TAGS,
             tags=["tech"]
@@ -142,31 +142,52 @@ class TestMemorySearch:
 
 
 class TestMemoryIntelligence:
-    """Test memory storage heuristics (real analysis happens in preprocess node)."""
+    """Test CRUD operations."""
     
-    def test_basic_content_filtering(self, memory_backend):
-        """Should filter based on basic heuristics.""" 
-        # Very short content should be filtered
-        should_store, _ = memory_backend.should_store("Hi")
-        assert should_store is False
+    @pytest.mark.asyncio
+    async def test_crud_operations(self, memory_backend):
+        """Test full CRUD cycle."""
+        # CREATE
+        artifact = await memory_backend.create("Test content", tags=["test"])
+        assert artifact.content == "Test content"
         
-        # Substantial content should be stored (real analysis in preprocess)
-        should_store, category = memory_backend.should_store("I work as a software engineer at Google")
-        assert should_store is True
-        assert category == "general"  # Fallback category
+        # READ by ID
+        results = await memory_backend.read(artifact_id=artifact.id)
+        assert len(results) == 1
+        assert results[0].content == "Test content"
+        
+        # UPDATE
+        success = await memory_backend.update(artifact.id, {"tags": ["updated"]})
+        assert success is True
+        
+        # Verify update
+        results = await memory_backend.read(artifact_id=artifact.id)
+        assert "updated" in results[0].tags
+        
+        # DELETE
+        success = await memory_backend.delete(artifact_id=artifact.id)
+        assert success is True
+        
+        # Verify deletion
+        results = await memory_backend.read(artifact_id=artifact.id)
+        assert len(results) == 0
     
-    def test_content_length_threshold(self, memory_backend):
-        """Should have basic length filtering."""
-        test_cases = [
-            ("", False),            # Empty
-            ("OK", False),          # Too short
-            ("Thanks!", False),     # Too short
-            ("This is substantial content worth storing", True)  # Long enough
-        ]
+    @pytest.mark.asyncio
+    async def test_flexible_delete(self, memory_backend):
+        """Test delete by filters."""
+        # Create multiple artifacts
+        await memory_backend.create("Test 1", tags=["temp"])
+        await memory_backend.create("Test 2", tags=["temp"])
+        await memory_backend.create("Test 3", tags=["keep"])
         
-        for content, expected in test_cases:
-            should_store, _ = memory_backend.should_store(content)
-            assert should_store == expected, f"Content length test failed for: {content}"
+        # Delete by tag
+        success = await memory_backend.delete(tags=["temp"])
+        assert success is True
+        
+        # Verify only non-temp artifacts remain
+        results = await memory_backend.read()
+        assert len(results) == 1
+        assert "Test 3" in results[0].content
 
 
 class TestMemoryAutoConfiguration:

@@ -140,8 +140,8 @@ class MetricsCollector:
         tags = {}
         if tag_str:
             for pair in tag_str.split(","):
-                k, v = pair.split("=", 1)
-                tags[k] = v
+                tag_key, tag_value = pair.split("=", 1)
+                tags[tag_key] = tag_value
         return name, tags
     
     def _percentile(self, values: List[float], p: float) -> float:
@@ -150,14 +150,14 @@ class MetricsCollector:
             return 0.0
         
         sorted_values = sorted(values)
-        k = (len(sorted_values) - 1) * p
-        f = int(k)
-        c = k - f
+        index = (len(sorted_values) - 1) * p
+        floor_index = int(index)
+        fractional_part = index - floor_index
         
-        if f + 1 < len(sorted_values):
-            return sorted_values[f] * (1 - c) + sorted_values[f + 1] * c
+        if floor_index + 1 < len(sorted_values):
+            return sorted_values[floor_index] * (1 - fractional_part) + sorted_values[floor_index + 1] * fractional_part
         else:
-            return sorted_values[f]
+            return sorted_values[floor_index]
 
 
 class TimerContext:

@@ -1,11 +1,11 @@
 """ChromaDB storage implementation."""
 import json
-import asyncio
-from datetime import datetime, UTC
+from datetime import datetime
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from ..core import MemoryBackend, MemoryArtifact, MemoryType, SearchType
+from .base import BaseCRUDBackend
+from ..core import MemoryArtifact, MemoryType, SearchType
 
 try:
     import chromadb
@@ -14,7 +14,7 @@ except ImportError:
     chromadb = None
 
 
-class ChromaBackend(MemoryBackend):
+class ChromaBackend(BaseCRUDBackend):
     """ChromaDB storage implementation."""
     
     def __init__(
@@ -34,11 +34,11 @@ class ChromaBackend(MemoryBackend):
         self.port = port
         self._client = None
         self._collection = None
-        self._initialized = False
         super().__init__(embedding_provider)
     
-    async def _ensure_initialized(self):
-        if self._initialized:
+    async def _ensure_ready(self):
+        """Initialize ChromaDB client and collection."""
+        if self._collection:
             return
         
         # Initialize ChromaDB client
@@ -58,74 +58,34 @@ class ChromaBackend(MemoryBackend):
                 name=self.collection_name,
                 metadata={"description": "Cogency memory artifacts"}
             )
-        
-        self._initialized = True
     
-    async def memorize(
-        self,
-        content: str,
-        memory_type: MemoryType = MemoryType.FACT,
-        tags: Optional[List[str]] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        **kwargs
-    ) -> MemoryArtifact:
-        """Store new content in memory."""
-        if not self.embedding_provider:
-            raise ValueError("Embedding provider required for ChromaDB backend")
-            
-        artifact = MemoryArtifact(
-            content=content,
-            memory_type=memory_type,
-            tags=tags or [],
-            metadata=metadata or {}
-        )
-        
-        embedding = None
-        if self.embedding_provider:
-            try:
-                embedding = await self.embedding_provider.embed_text(content)
-            except Exception:
-                pass
-        
-        await self.store(artifact, embedding, **kwargs)
-        return artifact
+    def _supports_native_search(self, search_type: SearchType) -> bool:
+        """ChromaDB supports semantic search only."""
+        return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedding_provider
     
-    async def recall(
-        self,
-        query: str,
-        search_type: SearchType = SearchType.AUTO,
-        limit: int = 10,
-        threshold: float = 0.7,
-        tags: Optional[List[str]] = None,
-        memory_type: Optional[MemoryType] = None,
-        metadata_filter: Optional[Dict[str, Any]] = None,
-        **kwargs
+    async def _native_search(
+        self, query: str, search_type: SearchType, limit: int, threshold: float,
+        tags: Optional[List[str]], memory_type: Optional[MemoryType], 
+        filters: Optional[Dict[str, Any]], **kwargs
     ) -> List[MemoryArtifact]:
-        """Retrieve relevant content from memory."""
-        # ChromaDB only supports semantic search
+        """Native ChromaDB semantic search."""
         if search_type == SearchType.TEXT:
             raise NotImplementedError("Text search not supported by ChromaDB backend")
         if search_type == SearchType.HYBRID:
             raise NotImplementedError("Hybrid search not supported by ChromaDB backend")
-            
-        await self._ensure_initialized()
         
-        if not self.embedding_provider:
-            raise ValueError("Embedding provider required for semantic search")
-            
-        # Get query embedding
         query_embedding = await self.embedding_provider.embed_text(query)
         
         # Build where filter
         where_filter = None
-        if tags or memory_type or metadata_filter:
+        if tags or memory_type or filters:
             conditions = []
             if tags:
                 conditions.append({"tags": {"$in": tags}})
             if memory_type:
                 conditions.append({"memory_type": memory_type.value})
-            if metadata_filter:
-                conditions.extend([{k: v} for k, v in metadata_filter.items()])
+            if filters:
+                conditions.extend([{k: v} for k, v in filters.items()])
             
             if len(conditions) == 1:
                 where_filter = conditions[0]
@@ -164,38 +124,8 @@ class ChromaBackend(MemoryBackend):
         
         return artifacts
     
-    async def forget(self, artifact_id: UUID = None, tags: Optional[List[str]] = None, metadata_filter: Optional[Dict[str, Any]] = None) -> bool:
-        """Remove artifact(s) from memory."""
-        await self._ensure_initialized()
-        
-        if not artifact_id and not tags and not metadata_filter:
-            raise ValueError("Must provide either artifact_id or filters (tags/metadata_filter)")
-        
-        if artifact_id:
-            return await self.delete(artifact_id)
-        
-        # Delete by filters
-        where_filter = None
-        conditions = []
-        if tags:
-            conditions.append({"tags": {"$in": tags}})
-        if metadata_filter:
-            conditions.extend([{k: v} for k, v in metadata_filter.items()])
-        
-        if len(conditions) == 1:
-            where_filter = conditions[0]
-        else:
-            where_filter = {"$and": conditions}
-        
-        try:
-            self._collection.delete(where=where_filter)
-            return True
-        except Exception:
-            return False
-    
-    async def store(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
-        await self._ensure_initialized()
-        
+    async def _store_artifact(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
+        """Store artifact in ChromaDB."""
         metadata = {
             "memory_type": artifact.memory_type.value,
             "tags": json.dumps(artifact.tags),
@@ -220,20 +150,42 @@ class ChromaBackend(MemoryBackend):
                 metadatas=[metadata]
             )
     
-    async def load_all(self, **filters) -> List[MemoryArtifact]:
-        await self._ensure_initialized()
-        
+    async def _read_by_id(self, artifact_id: UUID) -> List[MemoryArtifact]:
+        """Read single artifact by ID."""
+        try:
+            results = self._collection.get(ids=[str(artifact_id)], include=["documents", "metadatas"])
+            if results["ids"] and results["ids"][0]:
+                artifact = self._result_to_artifact(
+                    results["ids"][0],
+                    results["documents"][0],
+                    results["metadatas"][0]
+                )
+                return [artifact]
+        except Exception:
+            pass
+        return []
+    
+    async def _read_filtered(
+        self,
+        memory_type: Optional[MemoryType] = None,
+        tags: Optional[List[str]] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> List[MemoryArtifact]:
+        """Read filtered artifacts."""
         # Build where filter
         where_filter = {}
-        if filters.get('memory_type'):
-            where_filter["memory_type"] = {"$eq": filters['memory_type'].value}
-        if filters.get('since'):
+        if memory_type:
+            where_filter["memory_type"] = {"$eq": memory_type.value}
+        if filters and filters.get('since'):
             where_filter["created_at"] = {"$gte": filters['since']}
+        if filters and filters.get('metadata_filter'):
+            where_filter.update(filters['metadata_filter'])
         
         # Handle tags filter
-        if filters.get('tags'):
+        if tags:
             tag_conditions = []
-            for tag in filters['tags']:
+            for tag in tags:
                 tag_conditions.append({"$contains": tag})
             if len(tag_conditions) == 1:
                 where_filter["tags"] = tag_conditions[0]
@@ -260,33 +212,91 @@ class ChromaBackend(MemoryBackend):
         
         return artifacts
     
-    async def get_embedding(self, artifact_id: UUID) -> Optional[List[float]]:
-        await self._ensure_initialized()
+    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+        """Update artifact in ChromaDB."""
         try:
-            results = self._collection.get(ids=[str(artifact_id)], include=["embeddings"])
-            if results["embeddings"] and results["embeddings"][0]:
-                return results["embeddings"][0]
-        except Exception:
-            pass
-        return None
-    
-    async def delete(self, artifact_id: UUID) -> bool:
-        await self._ensure_initialized()
-        try:
+            # ChromaDB doesn't support direct updates, we need to delete and re-add
+            # First, get the existing artifact
+            results = self._collection.get(ids=[str(artifact_id)], include=["documents", "metadatas", "embeddings"])
+            if not results["ids"] or not results["ids"][0]:
+                return False
+            
+            # Extract current data
+            current_metadata = results["metadatas"][0]
+            current_content = results["documents"][0]
+            current_embedding = results["embeddings"][0] if results["embeddings"] else None
+            
+            # Apply updates
+            for key, value in updates.items():
+                if key == 'tags' and isinstance(value, list):
+                    current_metadata['tags'] = json.dumps(value)
+                elif key == 'metadata' and isinstance(value, dict):
+                    current_metadata['metadata'] = json.dumps(value)
+                elif key in ['access_count', 'confidence_score']:
+                    current_metadata[key] = value
+                elif key in ['last_accessed']:
+                    current_metadata[key] = value.isoformat() if hasattr(value, 'isoformat') else value
+            
+            # Delete old version
             self._collection.delete(ids=[str(artifact_id)])
+            
+            # Re-add with updates
+            if current_embedding:
+                self._collection.add(
+                    ids=[str(artifact_id)],
+                    documents=[current_content],
+                    embeddings=[current_embedding],
+                    metadatas=[current_metadata]
+                )
+            else:
+                self._collection.add(
+                    ids=[str(artifact_id)],
+                    documents=[current_content],
+                    metadatas=[current_metadata]
+                )
+            
             return True
         except Exception:
             return False
     
-    async def clear(self) -> bool:
-        await self._ensure_initialized()
+    async def _delete_all(self) -> bool:
+        """Delete all artifacts."""
         try:
             self._collection.delete()
             return True
         except Exception:
             return False
     
+    async def _delete_by_id(self, artifact_id: UUID) -> bool:
+        """Delete single artifact by ID."""
+        try:
+            self._collection.delete(ids=[str(artifact_id)])
+            return True
+        except Exception:
+            return False
+    
+    async def _delete_by_filters(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
+        """Delete artifacts by filters."""
+        where_filter = None
+        conditions = []
+        if tags:
+            conditions.append({"tags": {"$in": tags}})
+        if filters:
+            conditions.extend([{k: v} for k, v in filters.items()])
+        
+        if len(conditions) == 1:
+            where_filter = conditions[0]
+        else:
+            where_filter = {"$and": conditions}
+        
+        try:
+            self._collection.delete(where=where_filter)
+            return True
+        except Exception:
+            return False
+    
     def _result_to_artifact(self, doc_id: str, document: str, metadata: Dict) -> MemoryArtifact:
+        """Convert ChromaDB result to MemoryArtifact."""
         tags = []
         artifact_metadata = {}
         
@@ -341,18 +351,12 @@ class ChromaBackend(MemoryBackend):
     
     async def get_stats(self) -> Dict[str, Any]:
         """Get memory statistics."""
-        await self._ensure_initialized()
-        
-        try:
+        def _get_stats():
             count = self._collection.count()
             return {
                 'total_memories': count,
                 'backend': 'chromadb',
                 'collection_name': self.collection_name
             }
-        except Exception:
-            return {
-                'total_memories': 0,
-                'backend': 'chromadb',
-                'collection_name': self.collection_name
-            }
+        
+        return self._safe_stats(_get_stats, 'chromadb')

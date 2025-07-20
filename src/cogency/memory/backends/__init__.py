@@ -23,7 +23,8 @@ def _discover_backends():
                 attr = getattr(module, attr_name)
                 if (isinstance(attr, type) and 
                     issubclass(attr, MemoryBackend) and 
-                    attr != MemoryBackend):
+                    attr != MemoryBackend and
+                    attr_name != "BaseCRUDBackend"):  # Skip abstract base class
                     # Register with simplified name (remove "Backend" suffix)
                     name = attr_name.lower().replace("backend", "").replace("memory", "")
                     _BACKEND_REGISTRY[name] = attr

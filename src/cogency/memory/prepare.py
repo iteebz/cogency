@@ -22,7 +22,7 @@ async def save_extracted_memory(
     memory_type: str = "fact"
 ) -> None:
     """Save memory summary with LLM-generated tags and memory type."""
-    if memory_summary and memory_summary.strip() and hasattr(memory, 'memorize'):
+    if memory_summary and memory_summary.strip():
         # Convert string memory type to enum
         try:
             memory_type_enum = MemoryType(memory_type)
@@ -32,7 +32,7 @@ async def save_extracted_memory(
         # Use LLM-generated tags or fallback to basic tag
         final_tags = tags if tags else ["extracted"]
         
-        await memory.memorize(
+        await memory.create(
             memory_summary, 
             memory_type=memory_type_enum,
             tags=final_tags, 

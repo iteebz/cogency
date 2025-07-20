@@ -56,48 +56,81 @@ class MemoryBackend(ABC):
 
     def __init__(self, embedding_provider=None):
         self.embedding_provider = embedding_provider
+    
+    async def _safe_embed(self, content: str) -> Optional[List[float]]:
+        """Safely generate embedding with error handling."""
+        if not self.embedding_provider:
+            return None
+        try:
+            return await self.embedding_provider.embed_text(content)
+        except Exception:
+            return None
+    
+    def _safe_operation(self, operation_func, *args, **kwargs) -> bool:
+        """Safely execute operation, return True/False."""
+        try:
+            operation_func(*args, **kwargs)
+            return True
+        except Exception:
+            return False
+    
+    def _safe_stats(self, stats_func, fallback_backend_name: str, *args, **kwargs) -> Dict[str, Any]:
+        """Safely get stats with fallback."""
+        try:
+            return stats_func(*args, **kwargs)
+        except Exception:
+            return {
+                'total_memories': 0,
+                'backend': fallback_backend_name
+            }
 
     @abstractmethod
-    async def memorize(
-        self, 
+    async def create(
+        self,
         content: str,
         memory_type: MemoryType = MemoryType.FACT,
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> MemoryArtifact:
-        """Store new content in memory."""
+        """CREATE - Store new content in memory."""
         pass
 
     @abstractmethod
-    async def recall(
-        self, 
-        query: str,
+    async def read(
+        self,
+        query: str = None,
+        artifact_id: UUID = None,
         search_type: SearchType = SearchType.AUTO,
         limit: int = 10,
         threshold: float = 0.7,
         tags: Optional[List[str]] = None,
         memory_type: Optional[MemoryType] = None,
+        filters: Optional[Dict[str, Any]] = None,
         **kwargs
     ) -> List[MemoryArtifact]:
-        """Retrieve relevant content from memory."""
+        """READ - Flexible retrieval: by query, ID, tags, or filters."""
         pass
 
-    async def forget(self, artifact_id: UUID) -> bool:
-        """Remove an artifact from memory."""
-        raise NotImplementedError()
+    @abstractmethod
+    async def update(
+        self,
+        artifact_id: UUID,
+        updates: Dict[str, Any]
+    ) -> bool:
+        """UPDATE - Modify existing artifact (access_count, metadata, etc.)."""
+        pass
 
-    async def clear(self) -> None:
-        """Clear all artifacts from memory."""
-        raise NotImplementedError()
-        
-    def should_store(self, content: str) -> tuple[bool, str]:
-        """Simple fallback heuristic - real analysis happens in preprocess node."""
-        # Preprocess node already handles memory extraction via LLM
-        # This is just a fallback for edge cases
-        if len(content.strip()) < 10:
-            return False, ""
-        return True, "general"
+    @abstractmethod
+    async def delete(
+        self,
+        artifact_id: UUID = None,
+        tags: Optional[List[str]] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        delete_all: bool = False
+    ) -> bool:
+        """DELETE - Remove artifacts by ID, tags, filters, or all."""
+        pass
 
 
 class Memory:
