@@ -37,7 +37,7 @@ Watch your agents think step-by-step:
 ```
 👤 HUMAN: Plan a 3-day Tokyo itinerary with weather considerations.
 
-🛠️ TOOLING: web_search, weather_forecast, travel_info
+🔧 PREPROCESS: tool subsetting, memory operations, routing decisions
 
 🧠 REASON: Need weather forecast to plan outdoor vs indoor activities
 ⚡️ ACT: weather_forecast("Tokyo 3 days")
@@ -199,7 +199,7 @@ await agent.run("What's my favorite color?", user_id="user2")  # No memory
 ## 🔧 Supported Providers
 
 **LLMs** - OpenAI, Anthropic, Google, xAI, Mistral  
-**Tools** - Calculator, Weather, Timezone, WebSearch, FileManager  
+**Tools** - Calculator, WebSearch, FileManager, Weather, Datetime, CSV, SQL, Shell, CodeExecution  
 **Memory** - Filesystem, ChromaDB, Pinecone, PGVector  
 **Embeddings** - OpenAI, Sentence Transformers, Nomic  
 

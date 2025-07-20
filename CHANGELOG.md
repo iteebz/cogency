@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## v0.5.1 - Rearchitect + Coding Agent
+*July 20, 2025*
+
+**Decomposed nodes, zero ceremony, working coding agent.** Complete architectural overhaul with node decomposition, simplified execution, and expanded tool ecosystem.
+
+### ✨ New Features
+- **Coding Agent** - Production-ready coding assistant with file editing capabilities
+- **Emoji Messaging** - Beautiful emoji-based communication system for enhanced UX
+- **Extended Tool Suite** - Shell, code execution, HTTP requests, datetime, CSV, SQL tools
+- **Expression Calculator** - Smart mathematical expression evaluation
+- **Identity Prompting** - Enhanced personality and identity management
+
+### 🔧 Developer Experience
+- **Zero Ceremony** - Eliminated unnecessary abstractions and complexity
+- **Simplified Testing** - Complete test suite rewrite with focused, maintainable tests
+- **Graceful Error Handling** - Improved resilience and error recovery
+- **Clean Tool Execution** - Streamlined tool discovery and execution pipeline
+
+### 🏗️ Architecture
+- **Node Decomposition** - Split monolithic ReAct into focused nodes (preprocess, reason, act, respond)
+- **Eliminated Antipatterns** - Removed over-engineered abstractions and ceremonial code
+- **Codebase Reorganization** - Flattened module structure with logical separation
+- **Simplified Memory** - Streamlined CRUD operations with standardized backends
+- **Removed Complexity Analysis** - Eliminated adaptive reasoning heuristics for LLM preprocessing
+
+### 🗑️ Removed
+- **Adaptive Reasoning** - Replaced complex heuristics with LLM-based preprocessing
+- **Monitoring Overhead** - Removed unnecessary alerts, collectors, and monitoring ceremony
+- **Over-Engineering** - Eliminated abstract base classes and complex inheritance hierarchies
+- **Legacy Tests** - Nuked 9,500+ lines of overcomplicated test code
+
+---
+
 ## v0.5.0 - Memory & Personality
 *July 18, 2025*
 
