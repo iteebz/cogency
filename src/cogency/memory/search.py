@@ -92,7 +92,7 @@ async def search_artifacts(
             score += text_relevance(artifact.content, query, artifact.tags)
         
         if search_type in [SearchType.SEMANTIC, SearchType.HYBRID] and query_embedding and get_embedding:
-            artifact_embedding = get_embedding(artifact.id)
+            artifact_embedding = await get_embedding(artifact.id)
             if artifact_embedding:
                 semantic_score = cosine_similarity(query_embedding, artifact_embedding)
                 score += semantic_score * 5.0  # Scale semantic score

@@ -35,7 +35,14 @@ def should_respond_directly(json_data: Dict[str, Any]) -> bool:
 
 def extract_reasoning_text(response: str) -> str:
     """Extract reasoning text from LLM response."""
+    # First try JSON
     json_data = extract_json_from_response(response)
     if json_data and "reasoning" in json_data:
         return json_data["reasoning"]
+    
+    # Try text-based REASONING: pattern
+    reasoning_match = re.search(r'REASONING:\s*(.+?)(?=\nJSON_DECISION:|$)', response, re.DOTALL | re.IGNORECASE)
+    if reasoning_match:
+        return reasoning_match.group(1).strip()
+    
     return "Analyzing the request and determining the best approach"

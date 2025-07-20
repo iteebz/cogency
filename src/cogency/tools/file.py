@@ -8,12 +8,12 @@ from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
 
 @tool
-class FileTool(BaseTool):
+class File(BaseTool):
     """File operations within a safe base directory."""
 
     def __init__(self, base_dir: str = ".cogency/sandbox"):
         super().__init__(
-            name="file_manager",
+            name="file",
             description="Manage files and directories - create, read, list, and delete files safely."
         )
         self.base_dir = Path(base_dir).resolve()
@@ -68,12 +68,12 @@ class FileTool(BaseTool):
             return {"error": str(e)}
 
     def get_schema(self) -> str:
-        return "file_manager(action='create_file|read_file|list_files|delete_file', filename='path/to/file', content='file content')"
+        return "file(action='create_file|read_file|list_files|delete_file', filename='path/to/file', content='file content')"
 
     def get_usage_examples(self) -> List[str]:
         return [
-            "file_manager(action='create_file', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
-            "file_manager(action='read_file', filename='notes/plan.md')",
-            "file_manager(action='list_files', filename='notes')",
-            "file_manager(action='delete_file', filename='notes/old_file.txt')",
+            "file(action='create_file', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
+            "file(action='read_file', filename='notes/plan.md')",
+            "file(action='list_files', filename='notes')",
+            "file(action='delete_file', filename='notes/old_file.txt')",
         ]

@@ -79,10 +79,11 @@ class BaseBackend(MemoryBackend, ABC):
         if not artifacts:
             return []
         
-        return await search_artifacts(
+        results = await search_artifacts(
             query, artifacts, search_type, threshold,
             self.embedding_provider, self._get_embedding_for_search
-        )[:limit]
+        )
+        return results[:limit]
     
     async def update(
         self,

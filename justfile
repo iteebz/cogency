@@ -1,85 +1,59 @@
-# justfile
-# Common commands for the multi-language Cogency repository
+# justfile for Cogency - beautiful, simple, and effective.
+# Default command: list all commands
+default:
+    @just --list
 
-# Build commands
-build-python:
-    @echo "Building Python package..."
-    cd python && poetry build
+# --- DEVELOPMENT ---
 
-build-js:
-    @echo "Building JavaScript package..."
-    cd js && npm install && npm run build
+# Install all dependencies
+install:
+    @echo "Installing Python dependencies..."
+    @poetry install
 
-build-all: build-python build-js
-    @echo "All packages built."
+# Run all tests
+test: test-python
 
-# Test commands
+# Run Python tests
 test-python:
     @echo "Running Python tests..."
-    cd python && poetry run pytest
+    @poetry run pytest tests/
 
-test-js:
-    @echo "Running JavaScript tests..."
-    cd js && npm test
+# --- QUALITY ---
 
-test: test-python
-test-all: test-python test-js
-    @echo "All tests passed."
-
-# Publish commands (requires proper authentication/configuration)
-publish-python:
-    @echo "Publishing Python package to PyPI..."
-    cd python && poetry publish
-
-publish-js:
-    @echo "Publishing JavaScript package to NPM..."
-    cd js && npm publish
-
-# Version syncing (placeholder - implement scripts/sync_versions.py)
-sync-versions:
-    @echo "Syncing versions between Python and JS packages..."
-    @python scripts/sync_versions.py || echo "Warning: scripts/sync_versions.py not found or failed. Please implement it."
-
-# Formatting and Linting
-format-python:
+# Format code with ruff
+format:
     @echo "Formatting Python code with ruff..."
-    cd python && poetry run ruff format .
+    @poetry run ruff format .
 
-lint-python:
+# Lint code with ruff
+lint:
     @echo "Linting Python code with ruff..."
-    cd python && poetry run ruff check .
+    @poetry run ruff check .
 
-fix-python:
+# Fix linting issues with ruff
+fix:
     @echo "Fixing Python linting issues with ruff..."
-    cd python && poetry run ruff check . --fix
+    @poetry run ruff check . --fix
 
-format: format-python
-lint: lint-python
-fix: fix-python
+# --- DISTRIBUTION ---
 
-# Clean commands
-clean-python:
-    @echo "Cleaning Python build artifacts..."
-    cd python && rm -rf dist build .pytest_cache .mypy_cache .ruff_cache
+# Build the Python package
+build:
+    @echo "Building Python package..."
+    @poetry build
 
-clean-js:
-    @echo "Cleaning JavaScript build artifacts..."
-    cd js && rm -rf dist node_modules
+# Publish the Python package to PyPI
+publish:
+    @echo "Publishing Python package to PyPI..."
+    @poetry publish
 
-clean-all: clean-python clean-js
-    @echo "All build artifacts cleaned."
+# --- MISCELLANEOUS ---
 
-# Install dependencies
-install-python:
-    @echo "Installing Python dependencies..."
-    cd python && poetry install
+# Clean build artifacts
+clean:
+    @echo "Cleaning build artifacts..."
+    @rm -rf dist build .pytest_cache .mypy_cache .ruff_cache
 
-install-js:
-    @echo "Installing JavaScript dependencies..."
-    cd js && npm install
-
-install-all: install-python install-js
-    @echo "All dependencies installed."
-
+# Show recent commits
 commits:
     @git --no-pager log --pretty=format:"%ar %s"
