@@ -6,7 +6,7 @@ from cogency.tools.base import BaseTool
 from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
 from cogency.types import ToolCall
 from cogency.utils.parsing import extract_json_from_response
-from cogency.resilience import retry
+from cogency.resilience import safe
 from cogency.utils.json import extract_json
 
 
@@ -42,7 +42,6 @@ def parse_tool_calls(llm_response_content) -> Optional[List[ToolCall]]:
     return None
 
 
-@retry(max_attempts=3)
 async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseTool], context=None) -> Tuple[str, Dict, Any]:
     """Execute a single tool with given arguments and structured error handling.
     
@@ -73,14 +72,97 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
                     result = await tool.execute(**tool_args)
                     return tool_name, tool_args, result
                 except Exception as e:
-                    raise
+                    return tool_name, tool_args, {"error": f"Tool execution failed: {str(e)}", "success": False}
         raise ValueError(f"Tool '{tool_name}' not found.")
     
     return await _execute()
 
 
+def has_dependency_risk(tool_calls: List[Tuple[str, Dict]]) -> bool:
+    """Detect obvious dependency patterns that need sequential execution."""
+    tool_names = [name for name, _ in tool_calls]
+    
+    file_ops = {"create_file", "write_file", "edit_file", "delete_file"}
+    shell_ops = {"run_shell", "execute_command", "bash"}
+    
+    has_file = any(name in file_ops for name in tool_names)
+    has_shell = any(name in shell_ops for name in tool_names)
+    
+    return has_file and has_shell
+
+
+async def execute_sequential_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> Dict[str, Any]:
+    """Execute multiple tools sequentially with robust error handling."""
+    if not tool_calls:
+        return {"success": True, "results": [], "errors": [], "summary": "No tools to execute"}
+    
+    successes = []
+    failures = []
+    
+    for tool_name, tool_args in tool_calls:
+        try:
+            result = await execute_single_tool(tool_name, tool_args, tools, context)
+            actual_tool_name, actual_args, tool_output = result
+            
+            if not is_tool_success(tool_output):
+                error_msg = get_tool_error(tool_output) or "Unknown error"
+                failure_result = {
+                    "tool_name": actual_tool_name,
+                    "args": actual_args,
+                    "error": error_msg,
+                    "error_type": "tool_execution_error"
+                }
+                failures.append(failure_result)
+            else:
+                success_result = {
+                    "tool_name": actual_tool_name,
+                    "args": actual_args,
+                    "result": extract_tool_data(tool_output)
+                }
+                successes.append(success_result)
+                context.add_tool_result(actual_tool_name, actual_args, success_result["result"])
+                
+        except Exception as e:
+            failure_result = {
+                "tool_name": tool_name,
+                "args": tool_args,
+                "error": str(e),
+                "error_type": "execution_error"
+            }
+            failures.append(failure_result)
+    
+    # Generate summary
+    summary_parts = []
+    if successes:
+        summary_parts.append(f"{len(successes)} tools executed successfully")
+    if failures:
+        summary_parts.append(f"{len(failures)} tools failed")
+    
+    summary = "; ".join(summary_parts) if summary_parts else "No tools executed"
+    
+    # Add execution log to context
+    combined_output = "Sequential execution results:\n"
+    for success in successes:
+        combined_output += f"✅ {success['tool_name']}: {success['result']}\n"
+    for failure in failures:
+        combined_output += f"❌ {failure['tool_name']}: {failure['error']}\n"
+    
+    context.add_message("system", combined_output)
+    
+    return {
+        "success": len(failures) == 0,
+        "results": successes,
+        "errors": failures,
+        "summary": summary,
+        "total_executed": len(tool_calls),
+        "successful_count": len(successes),
+        "failed_count": len(failures),
+        "execution_mode": "sequential"
+    }
+
+
 async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> Dict[str, Any]:
-    """Execute multiple tools in parallel with robust error handling and result aggregation.
+    """Execute multiple tools with smart parallel/sequential detection.
     
     Args:
         tool_calls: List of (tool_name, tool_args) tuples
@@ -92,6 +174,12 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
     """
     if not tool_calls:
         return {"success": True, "results": [], "errors": [], "summary": "No tools to execute"}
+    
+    # Smart dependency detection
+    if has_dependency_risk(tool_calls):
+        tool_names = [name for name, _ in tool_calls]
+        context.add_message("system", f"🔒 Dependency detected in tools {tool_names} - switching to sequential execution")
+        return await execute_sequential_tools(tool_calls, tools, context)
     
     async def _execute_parallel():
         # Execute all tools in parallel with error isolation
@@ -116,7 +204,7 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
                 "error_type": "execution_error"
             }
             failures.append(failure_result)
-        else:
+        elif isinstance(result, tuple) and len(result) == 3:
             # Normal result - check if tool execution succeeded
             actual_tool_name, actual_args, tool_output = result
             
@@ -141,6 +229,15 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
                 
                 # Add to context
                 context.add_tool_result(actual_tool_name, actual_args, success_result["result"])
+        else:
+            # Unexpected result type
+            failure_result = {
+                "tool_name": tool_name,
+                "args": tool_args,
+                "error": f"Unexpected result type: {type(result)}",
+                "error_type": "execution_error"
+            }
+            failures.append(failure_result)
     
     # Generate aggregated summary
     summary_parts = []
@@ -169,5 +266,6 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
         "summary": summary,
         "total_executed": len(tool_calls),
         "successful_count": len(successes),
-        "failed_count": len(failures)
+        "failed_count": len(failures),
+        "execution_mode": "parallel"
     }

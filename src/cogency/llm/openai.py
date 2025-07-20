@@ -8,6 +8,7 @@ except ImportError:
 from cogency.llm.base import BaseLLM
 from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
+from cogency.resilience import safe
 
 
 class OpenAILLM(BaseLLM):
@@ -66,6 +67,7 @@ class OpenAILLM(BaseLLM):
         """Convert to provider format."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
+    @safe()
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         self._rotate_client()
         msgs = self._convert_msgs(messages)
@@ -77,6 +79,7 @@ class OpenAILLM(BaseLLM):
         )
         return res.choices[0].message.content
 
+    @safe()
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         self._rotate_client()
         msgs = self._convert_msgs(messages)

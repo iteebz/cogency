@@ -54,6 +54,15 @@ class Agent:
     def __init__(self, name: str, **opts):
         self.name = name
         
+        # Handle memory flag - clean API for memory control
+        memory_enabled = opts.get('memory', True)  # Default: enabled
+        if memory_enabled:
+            # Memory enabled: create backend and add Recall tool
+            memory_backend = opts.get('memory_backend') or FilesystemBackend(opts.get('memory_dir', '.cogency/memory'))
+        else:
+            # Memory disabled: no backend, no recall
+            memory_backend = None
+        
         # Handle tools - only accept instances, not classes
         tools = opts.get('tools')
         if tools is not None:
@@ -63,12 +72,23 @@ class Agent:
                     raise ValueError(f"Tool {tool.__name__} must be instantiated. Use {tool.__name__}() instead of {tool.__name__}")
         else:
             # Auto-discover all registered tools
-            tools = ToolRegistry.get_tools(memory=opts.get('memory'))
+            tools = ToolRegistry.get_tools(memory=memory_backend)
+        
+        # Add Recall tool if memory is enabled and not already in tools
+        if memory_enabled and memory_backend:
+            from cogency.tools.recall import Recall
+            # Check if Recall is already in tools
+            has_recall = any(isinstance(tool, Recall) for tool in tools)
+            if not has_recall:
+                tools.append(Recall(memory_backend))
+        
+        # Get LLM (already @safe protected)
+        llm = opts.get('llm') or auto_detect_llm()
         
         self.workflow = Workflow(
-            llm=opts.get('llm') or auto_detect_llm(),
+            llm=llm,
             tools=tools,
-            memory=opts.get('memory') or FilesystemBackend(opts.get('memory_dir', '.cogency/memory')),
+            memory=memory_backend,
             system_prompt=compose_system_prompt(opts),
             response_shaper=opts.get('response_shaper')
         )
@@ -90,6 +110,24 @@ class Agent:
     
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution - returns async iterator for custom output handling."""
+        # Input validation - basic sanitization
+        if not query or not query.strip():
+            yield "⚠️ Empty query not allowed\n"
+            return
+        
+        if len(query) > 10000:  # Reasonable limit
+            yield "⚠️ Query too long (max 10,000 characters)\n"
+            return
+        
+        # Basic prompt injection detection
+        suspicious_patterns = [
+            "ignore previous", "forget", "system:", "assistant:", 
+            "<system>", "</system>", "\n\nHuman:", "\n\nAssistant:"
+        ]
+        if any(pattern in query.lower() for pattern in suspicious_patterns):
+            yield "⚠️ Suspicious input detected\n"
+            return
+        
         # Get or create context
         context = self.contexts.get(user_id) or Context(query, user_id=user_id)
         context.current_input = query
@@ -140,8 +178,8 @@ class Agent:
         """Run agent and return final response."""
         chunks = []
         async for chunk in self.stream(query, user_id):
-            if "🤖 AGENT: " in chunk:
-                chunks.append(chunk.split("🤖 AGENT: ", 1)[1])
+            if "🤖 " in chunk:
+                chunks.append(chunk.split("🤖 ", 1)[1])
         return "".join(chunks).strip() or "No response generated"
     
     async def query(self, query: str, user_id: str = "default") -> str:
@@ -153,8 +191,8 @@ class Agent:
         result = ""
         async for chunk in self.stream(query, user_id):
             print(chunk, end="", flush=True)
-            if "🤖 AGENT: " in chunk:
-                result += chunk.split("🤖 AGENT: ", 1)[1]
+            if "🤖 " in chunk:
+                result += chunk.split("🤖 ", 1)[1]
         return result.strip() or "No response generated"
     
     def _extract_response(self, state) -> str:

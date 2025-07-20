@@ -23,7 +23,7 @@ class Context:
         current_input: str,
         messages: List[Dict[str, str]] = None,
         tool_results: Optional[List[Dict[str, Any]]] = None,
-        max_history: Optional[int] = None,
+        max_history: Optional[int] = 20,  # Default limit: 20 messages (rolling window)
         conversation_history: Optional[List[Dict[str, Any]]] = None,
         user_id: str = "default",
     ):
@@ -33,6 +33,10 @@ class Context:
         self.max_history = max_history
         self.conversation_history = conversation_history or []
         self.user_id = user_id
+        
+        # Apply initial limit if messages were provided
+        if self.messages:
+            self._apply_history_limit()
 
     def add_message(self, role: str, content: str, trace_id: Optional[str] = None):
         """Add message to history with optional trace linkage."""

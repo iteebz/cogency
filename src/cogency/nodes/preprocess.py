@@ -85,14 +85,14 @@ Return JSON:
         }
         result = extract_json(response, fallback)
         
-        # Chain 1: Save extracted memory if not null/empty
-        if result.get("memory") and streaming_callback:
-            # Stream memory extraction
-            memory_content = result['memory']
-            display_content = f"{memory_content[:50]}..." if len(memory_content) > 50 else memory_content
-            await AgentMessenger.memory_operation(streaming_callback, "save", display_content)
-        
-        if result.get("memory"):
+        # Chain 1: Save extracted memory if not null/empty and memory is enabled
+        if memory and result.get("memory"):
+            if streaming_callback:
+                # Stream memory extraction
+                memory_content = result['memory']
+                display_content = f"{memory_content[:50]}..." if len(memory_content) > 50 else memory_content
+                await AgentMessenger.memory_operation(streaming_callback, "save", display_content)
+            
             await save_extracted_memory(
                 result["memory"], 
                 memory, 

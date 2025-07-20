@@ -120,3 +120,79 @@ class TestMemoryCore:
         
         assert artifact.access_count == initial_count + 1
         assert artifact.last_accessed > initial_accessed
+
+
+class TestAgent:
+    """Test Agent initialization and configuration."""
+    
+    def test_agent_memory_flag_enabled_by_default(self):
+        """Agent should have memory enabled by default."""
+        from cogency import Agent
+        from cogency.tools.recall import Recall
+        
+        agent = Agent("test")
+        
+        # Should have memory backend
+        assert agent.workflow.memory is not None
+        
+        # Should have Recall tool in tools
+        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        assert len(recall_tools) == 1
+    
+    def test_agent_memory_flag_explicit_true(self):
+        """Agent with memory=True should have memory enabled."""
+        from cogency import Agent
+        from cogency.tools.recall import Recall
+        
+        agent = Agent("test", memory=True)
+        
+        # Should have memory backend
+        assert agent.workflow.memory is not None
+        
+        # Should have Recall tool in tools
+        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        assert len(recall_tools) == 1
+    
+    def test_agent_memory_flag_disabled(self):
+        """Agent with memory=False should have no memory."""
+        from cogency import Agent
+        from cogency.tools.recall import Recall
+        
+        agent = Agent("test", memory=False)
+        
+        # Should have no memory backend
+        assert agent.workflow.memory is None
+        
+        # Should not have Recall tool in tools
+        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        assert len(recall_tools) == 0
+    
+    def test_agent_memory_flag_with_custom_tools(self):
+        """Agent with custom tools should still respect memory flag."""
+        from cogency import Agent
+        from cogency.tools.calculator import Calculator
+        from cogency.tools.recall import Recall
+        
+        # Memory enabled with custom tools
+        agent = Agent("test", memory=True, tools=[Calculator()])
+        
+        # Should have memory backend
+        assert agent.workflow.memory is not None
+        
+        # Should have both Calculator and Recall tools
+        calc_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Calculator)]
+        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        assert len(calc_tools) == 1
+        assert len(recall_tools) == 1
+        
+        # Memory disabled with custom tools
+        agent = Agent("test", memory=False, tools=[Calculator()])
+        
+        # Should have no memory backend
+        assert agent.workflow.memory is None
+        
+        # Should have only Calculator tool, no Recall
+        calc_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Calculator)]
+        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        assert len(calc_tools) == 1
+        assert len(recall_tools) == 0

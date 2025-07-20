@@ -9,7 +9,7 @@ except ImportError:
 from cogency.llm.base import BaseLLM
 from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
-from cogency.resilience import with_resilience, with_retry, RateLimitedError, CircuitOpenError, RateLimiterConfig, CircuitBreakerConfig
+from cogency.resilience import safe
 
 
 class GeminiLLM(BaseLLM):
@@ -86,13 +86,7 @@ class GeminiLLM(BaseLLM):
         if self.keys.has_multiple():
             self._init_client()
 
-    @with_resilience(
-        rate_limiter="gemini",
-        circuit_breaker="gemini",
-        rate_config=RateLimiterConfig(requests_per_minute=60, burst_size=10),  # Increased for testing
-        circuit_config=CircuitBreakerConfig(failure_threshold=3, recovery_timeout=120)
-    )
-    @with_retry(max_attempts=3, exceptions=(Exception,))
+    @safe()
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         # Convert messages to Gemini format (simple text concatenation for now)
         # Gemini's chat format is different - it expects conversation history
@@ -124,15 +118,9 @@ class GeminiLLM(BaseLLM):
                     # Retry with next key for invalid API key errors
                     if "api key" in error_str or "api_key_invalid" in error_str:
                         return await self.invoke(messages, **kwargs)
-                raise RateLimitedError(f"Gemini {rotation_msg}: {e}")
             raise
 
-    @with_resilience(
-        rate_limiter="gemini_stream",
-        circuit_breaker="gemini",
-        rate_config=RateLimiterConfig(requests_per_minute=60, burst_size=10),
-        circuit_config=CircuitBreakerConfig(failure_threshold=3, recovery_timeout=120)
-    )
+    @safe()
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         self._rotate_client()
 
@@ -159,5 +147,4 @@ class GeminiLLM(BaseLLM):
                         async for chunk in self.stream(messages, yield_interval, **kwargs):
                             yield chunk
                         return
-                raise RateLimitedError(f"Gemini {rotation_msg}: {e}")
             raise
