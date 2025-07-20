@@ -18,6 +18,8 @@ from cogency.tools.recall import Recall
 from cogency.tools.http import HTTP
 from cogency.tools.shell import Shell
 from cogency.tools.code import Code
+from cogency.tools.sql import SQL
+from cogency.tools.csv import CSV
 
 # Export all tools for easy importing
 __all__ = [
@@ -32,4 +34,6 @@ __all__ = [
     "HTTP",
     "Shell",
     "Code",
+    "SQL",
+    "CSV",
 ]

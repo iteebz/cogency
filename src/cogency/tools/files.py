@@ -14,7 +14,7 @@ class Files(BaseTool):
     def __init__(self, base_dir: str = ".cogency/sandbox"):
         super().__init__(
             name="files",
-            description="Manage files and directories - create, read, list, and delete files safely.",
+            description="Manage files and directories - create, read, edit, list, and delete files safely.",
             emoji="📁"
         )
         self.base_dir = Path(base_dir).resolve()
@@ -32,7 +32,7 @@ class Files(BaseTool):
         
         return path
 
-    async def run(self, action: str, filename: str = "", content: str = "") -> Dict[str, Any]:
+    async def run(self, action: str, filename: str = "", content: str = "", line: int = None, start: int = None, end: int = None) -> Dict[str, Any]:
         """Execute file operations."""
         try:
             if action == "create":
@@ -45,6 +45,38 @@ class Files(BaseTool):
                 path = self._safe_path(filename)
                 content = path.read_text(encoding="utf-8")
                 return {"result": f"Read file: {filename}", "content": content, "size": len(content)}
+            
+            elif action == "edit":
+                path = self._safe_path(filename)
+                if not path.exists():
+                    return {"error": f"File not found: {filename}"}
+                
+                lines = path.read_text(encoding="utf-8").splitlines()
+                
+                if line is not None:
+                    # Single line edit
+                    if line < 1 or line > len(lines):
+                        return {"error": f"Line {line} out of range (1-{len(lines)})"}
+                    lines[line - 1] = content
+                    result_msg = f"Edited line {line}"
+                
+                elif start is not None and end is not None:
+                    # Range edit
+                    if start < 1 or end < 1 or start > len(lines) or end > len(lines) or start > end:
+                        return {"error": f"Invalid range {start}-{end} (file has {len(lines)} lines)"}
+                    # Replace lines start to end (inclusive) with new content
+                    new_lines = content.splitlines() if content else []
+                    lines[start-1:end] = new_lines
+                    result_msg = f"Edited lines {start}-{end}"
+                
+                else:
+                    # Full file replace
+                    lines = content.splitlines()
+                    result_msg = "Replaced entire file"
+                
+                new_content = "\n".join(lines)
+                path.write_text(new_content, encoding="utf-8")
+                return {"result": f"{result_msg} in {filename}", "size": len(new_content)}
             
             elif action == "list":
                 path = self._safe_path(filename if filename else ".")
@@ -69,12 +101,14 @@ class Files(BaseTool):
             return {"error": str(e)}
 
     def get_schema(self) -> str:
-        return "files(action=REQUIRED, filename=REQUIRED, content=optional) - action must be: create|read|list|delete"
+        return "files(action=REQUIRED, filename=REQUIRED, content=optional, line=optional, start=optional, end=optional) - action must be: create|read|edit|list|delete"
 
     def get_usage_examples(self) -> List[str]:
         return [
             "files(action='create', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
             "files(action='read', filename='notes/plan.md')",
+            "files(action='edit', filename='app.py', line=10, content='new_line')",
+            "files(action='edit', filename='app.py', start=5, end=8, content='new\\nlines')",
             "files(action='list', filename='notes')",
             "files(action='delete', filename='notes/old_file.txt')",
         ]
