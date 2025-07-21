@@ -39,7 +39,8 @@ dependencies = [
     "pytz>=2023.0",
     "python-dateutil>=2.8.0",
     "google-generativeai (>=0.8.5,<0.9.0)",
-    "nomic (>=3.5.3,<4.0.0)"
+    "nomic (>=3.5.3,<4.0.0)",
+    "trafilatura (>=2.0.0,<3.0.0)"
 ]
 
 [project.optional-dependencies]

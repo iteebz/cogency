@@ -20,6 +20,7 @@ from cogency.tools.shell import Shell
 from cogency.tools.code import Code
 from cogency.tools.sql import SQL
 from cogency.tools.csv import CSV
+from cogency.tools.scrape import Scrape
 
 # Export all tools for easy importing
 __all__ = [
@@ -36,4 +37,5 @@ __all__ = [
     "Code",
     "SQL",
     "CSV",
+    "Scrape",
 ]
