@@ -66,7 +66,3 @@ Each example builds conceptually while demonstrating tool subsetting:
 - **coding.py**: 3 tools (focused coding environment)
 
 Shows tool subsetting as a real feature, not just theory.
-
-## Archived Examples
-
-Previous examples are preserved in `archive/` folder for reference.

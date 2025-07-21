@@ -1,10 +1,6 @@
 # Centralized Tool Registry
 # Tools are auto-discovered from this module
 
-import importlib
-import inspect
-from pathlib import Path
-
 from cogency.tools.base import BaseTool
 
 # Explicit imports for clean API
@@ -20,7 +16,7 @@ from cogency.tools.shell import Shell
 from cogency.tools.code import Code
 from cogency.tools.sql import SQL
 from cogency.tools.csv import CSV
-# from cogency.tools.scrape import Scrape  # Missing trafilatura dependency
+from cogency.tools.scrape import Scrape
 
 # Export all tools for easy importing
 __all__ = [
@@ -37,5 +33,5 @@ __all__ = [
     "Code",
     "SQL",
     "CSV",
-    # "Scrape",  # Missing trafilatura dependency
+    "Scrape",
 ]
