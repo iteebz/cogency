@@ -4,11 +4,7 @@ import json
 
 
 def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
-    """Extract mode switching from LLM response.
-    
-    Returns:
-        (switch_to, switch_reason) or (None, None) if no switch requested
-    """
+    """Extract mode switching directives from LLM response."""
     try:
         # Try to extract JSON from response
         start = llm_response.find('{')
@@ -34,17 +30,7 @@ def should_switch(
     switch_reason: Optional[str],
     current_iteration: int = 0
 ) -> bool:
-    """Determine if mode switch should be executed.
-    
-    Args:
-        current_mode: Current react mode ('fast' or 'deep')
-        switch_to: Requested switch mode ('fast' or 'deep')
-        switch_reason: Reason for switching
-        current_iteration: Current iteration (prevent early/late switching)
-    
-    Returns:
-        True if switch should be executed
-    """
+    """Determine if a mode switch should occur based on request and context."""
     if not switch_to or not switch_reason:
         return False
         
@@ -72,16 +58,7 @@ def switch_mode(
     new_mode: str, 
     switch_reason: str
 ) -> Dict[str, Any]:
-    """Execute bidirectional mode switch with context preservation.
-    
-    Args:
-        state: Current agent state
-        new_mode: Target mode ('fast' or 'deep')  
-        switch_reason: Reason for switching
-        
-    Returns:
-        Updated state with new mode and preserved context
-    """
+    """Switch reasoning mode while preserving cognitive context."""
     # Update react mode
     state['react_mode'] = new_mode
     
@@ -113,14 +90,7 @@ def switch_mode(
 
 
 def switch_prompt(current_mode: str) -> str:
-    """Get prompt addition for bidirectional mode switching.
-    
-    Args:
-        current_mode: Current react mode ('fast' or 'deep')
-        
-    Returns:
-        Prompt text for mode switching capability
-    """
+    """Get mode-specific prompt addition for bidirectional switching."""
     if current_mode == 'deep':
         return """
 COGNITIVE ADJUSTMENT: If this task is simpler than expected, you can downshift to fast mode.

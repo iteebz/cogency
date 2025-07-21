@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Dict, Any, List
 import importlib.util
 
+# No need for external TOML parsers
+
 
 def load_cogency_module(cogency_python_path: str):
     """Load the cogency package from the OSS repo."""
@@ -79,10 +81,25 @@ def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
     if not cogency:
         return {}
     
+    # Get version from Poetry
+    version = "0.5.1"  # Hardcode the current version for now
+    
+    # Alternative: Get version from pyproject.toml with simple text parsing
+    try:
+        pyproject_path = Path(cogency_python_path) / "pyproject.toml"
+        if pyproject_path.exists():
+            with open(pyproject_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    if line.strip().startswith("version = "):
+                        version = line.split("=")[1].strip().strip('"\'')
+                        break
+    except Exception as e:
+        print(f"Warning: Could not read version from pyproject.toml: {e}")
+    
     docs = {
         "package": {
             "name": "cogency",
-            "version": getattr(cogency, "__version__", "unknown"),
+            "version": version,
             "docstring": inspect.getdoc(cogency) or ""
         },
         "modules": {}
@@ -90,8 +107,8 @@ def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
     
     # Core modules to document
     module_names = [
-        "agent", "llm", "tools", "memory", "react",
-        "context", "config", "common", "embed", "utils"
+        "agent", "llm", "tools", "memory",
+        "context", "embed", "utils", "nodes"
     ]
     
     for module_name in module_names:
@@ -132,7 +149,7 @@ def main():
     """Main entry point."""
     # Default to cogency src directory (restructured)
     cogency_path = "../.."
-    output_dir = "src/data/autodocs"
+    output_dir = "src/data/api"
     
     if len(sys.argv) > 1:
         cogency_path = sys.argv[1]
@@ -154,7 +171,7 @@ def main():
     output_path.mkdir(parents=True, exist_ok=True)
     
     # Write to JSON file
-    output_file = output_path / "api_docs.json"
+    output_file = output_path / "docs.json"
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(docs, f, indent=2, ensure_ascii=False)
     

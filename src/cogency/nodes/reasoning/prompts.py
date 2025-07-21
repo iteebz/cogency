@@ -43,7 +43,7 @@ CRITICAL: Output ONLY the JSON object. No explanations, no code blocks, no markd
 
 
 def fast_react_prompt(tool_info: str, query: str) -> str:
-    """Pure ReAct prompt for fast mode - efficient direct execution."""
+    """Streamlined ReAct prompt for efficient direct execution."""
     return f"""QUERY: {query}
 TOOLS: {tool_info}
 
@@ -55,7 +55,7 @@ JSON: {{"reasoning": "brief", "strategy": "approach", "switch_to": null|"deep", 
 
 
 def switch_prompt(mode: str) -> str:
-    """Get mode switch prompt based on current mode."""
+    """Get mode-specific switching directive for prompt."""
     if mode == "fast":
         return '\nEscalate if complex: "switch_to": "deep"'
     else:  # deep mode
@@ -71,7 +71,7 @@ def build_prompt(
     cognition: dict,
     attempts_summary: str
 ) -> str:
-    """Build adaptive reasoning prompt based on mode."""
+    """Build mode-specific reasoning prompt with appropriate reflection."""
     from cogency.nodes.reasoning.reflection import reflection_prompt, needs_reflection
     
     if react_mode == "deep" and needs_reflection("deep", current_iteration):

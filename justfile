@@ -124,10 +124,11 @@ bump level="patch":
 # 🧹 MAINTENANCE
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Clean build artifacts
+# Clean build artifacts and cache directories
 clean:
-    @echo "Cleaning build artifacts..."
-    @rm -rf dist build .pytest_cache .mypy_cache .ruff_cache
+    @echo "Cleaning build artifacts and cache directories..."
+    @rm -rf dist build .pytest_cache .mypy_cache .ruff_cache __pycache__ .venv .astro node_modules
+    @find . -type d -name "__pycache__" -exec rm -rf {} +
 
 # Show recent commits
 commits count="10":

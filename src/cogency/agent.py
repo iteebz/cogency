@@ -21,11 +21,13 @@ def build_prompt(opts: dict) -> str:
 
 
 class Agent:
-    """Magical Agent - cognitive AI made simple.
+    """Cognitive agent with streaming execution and tool integration.
     
-    - Agent(name, trace=True, verbose=True)
-    - run(): Returns result
-    - stream(): Returns async iterator
+    Simple API for building intelligent agents with:
+    - Streaming execution
+    - Tool integration
+    - Memory management
+    - Adaptive reasoning
     """
     
     def __init__(self, name: str, trace: bool = False, verbose: bool = True, **opts):
@@ -173,9 +175,11 @@ class Agent:
     
     # MCP compatibility methods
     async def process(self, input_text: str, context: Optional[Context] = None) -> str:
+        """Process input text with optional context (MCP compatibility)."""
         return await self.run(input_text, context.user_id if context else "default")
     
     async def serve_mcp(self, transport: str = "stdio", host: str = "localhost", port: int = 8765):
+        """Start MCP server with specified transport (stdio or websocket)."""
         if not self.mcp_server:
             raise ValueError("MCP server not enabled. Set enable_mcp=True in Agent constructor")
         if transport == "stdio":

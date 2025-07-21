@@ -55,7 +55,7 @@ def update_cognition(
         if len(cognition["strategy_history"]) > max_history:
             cognition["strategy_history"] = cognition["strategy_history"][-max_history:]
     else:
-        # Deep mode: keep more history, but still limit for now (dynamic relevance scoring TODO)
+        # Deep mode: keep more history, but still limit for now (future enhancement: implement dynamic relevance scoring)
         if len(cognition["action_history"]) > max_history:
             cognition["action_history"] = cognition["action_history"][-max_history:]
         if len(cognition["strategy_history"]) > max_history:

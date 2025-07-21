@@ -3,7 +3,7 @@ from typing import Optional, Dict, Any
 
 from cogency.llm import BaseLLM
 from cogency.state import State
-# ReasoningDecision removed - was bullshit that didn't align with adaptive reasoning
+# ReasoningDecision component removed - implementation didn't align with adaptive reasoning approach
 
 
 

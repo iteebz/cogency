@@ -27,7 +27,7 @@ from cogency.nodes.reasoning.reflection import reflection_prompt, reflection, fo
 from cogency.nodes.reasoning.prompts import build_prompt
 
 async def reason(state: State, *, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Reason: analyze context and decide next action (explicit reflection in deep mode)."""
+    """Analyze context and decide next action with adaptive reasoning."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
     

@@ -75,11 +75,11 @@ function formatSignature(signature: string, name: string): string {
 
 export async function getStaticPaths() {
   try {
-    // Read the autodocs JSON
-    const docsPath = path.join(process.cwd(), 'src/data/autodocs/api_docs.json');
+    // Read the API docs JSON
+    const docsPath = path.join(process.cwd(), 'src/data/api/docs.json');
     
     if (!fs.existsSync(docsPath)) {
-      console.warn('Autodocs not found at:', docsPath);
+      console.warn('API docs not found at:', docsPath);
       return [];
     }
     

@@ -1,4 +1,4 @@
-"""LLM-based memory relevance scoring - no heuristics bullshit."""
+"""LLM-based memory relevance scoring - pure semantic approach without heuristic approximations."""
 from typing import Dict, Any, List, Optional
 import json
 
