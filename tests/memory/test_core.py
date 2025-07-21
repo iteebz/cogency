@@ -46,14 +46,14 @@ class TestMemoryCore:
     def test_memory_type_enum(self):
         """Test memory type enumeration."""
         assert MemoryType.FACT
-        assert MemoryType.PREFERENCE
+        assert MemoryType.EPISODIC
         assert MemoryType.EXPERIENCE
         
         # Should be able to create memories with different types
         fact = Memory(content="fact", memory_type=MemoryType.FACT)
-        preference = Memory(content="preference", memory_type=MemoryType.PREFERENCE)
+        episodic = Memory(content="episodic", memory_type=MemoryType.EPISODIC)
         experience = Memory(content="experience", memory_type=MemoryType.EXPERIENCE)
         
         assert fact.memory_type == MemoryType.FACT
-        assert preference.memory_type == MemoryType.PREFERENCE
+        assert episodic.memory_type == MemoryType.EPISODIC
         assert experience.memory_type == MemoryType.EXPERIENCE

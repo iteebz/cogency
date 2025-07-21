@@ -1,11 +1,6 @@
 """Tests for UltraThink planning capabilities."""
 import pytest
-from cogency.nodes.reasoning.planning import (
-    extract_planning_strategy,
-    validate_planning_quality,
-    create_multi_step_plan,
-    format_plan_for_display
-)
+from cogency.nodes.reasoning.planning import extract_planning_strategy, validate_planning_quality, create_multi_step_plan, format_plan_for_display
 
 
 class TestExtractPlanningStrategy:

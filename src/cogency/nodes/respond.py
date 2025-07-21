@@ -73,7 +73,7 @@ async def respond(state: State, *, llm: BaseLLM, system_prompt: Optional[str] = 
                 response_prompt = f"{system_prompt}\n\n{response_prompt}"
         else:
             # No tool results - answer with knowledge or based on conversation
-            response_prompt = build_prompt(system_prompt, has_log_tools=False, identity=identity, json_schema=json_schema)
+            response_prompt = build_prompt(system_prompt, has_tool_results=False, identity=identity, json_schema=json_schema)
         
         final_messages.insert(0, {"role": "system", "content": response_prompt})
         try:

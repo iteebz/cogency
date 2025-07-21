@@ -4,12 +4,7 @@ from typing import Any, Dict, List
 from ddgs import DDGS
 
 from cogency.tools.base import BaseTool
-from cogency.errors import (
-    ToolError,
-    ValidationError,
-    success_response,
-    validate_params,
-)
+from cogency.errors import ToolError, ValidationError, success_response, validate_params
 # Error handling now in BaseTool.execute() - no decorators needed
 
 

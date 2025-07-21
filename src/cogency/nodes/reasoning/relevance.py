@@ -79,7 +79,7 @@ Score based on:
     return memory_items[:max_items]
 
 
-def get_relevant_context(
+def relevant_context(
     cognition: Dict[str, Any],
     current_query: str,
     react_mode: str,

@@ -22,6 +22,9 @@ class BaseEmbed(ABC):
     def embed_array(self, texts: list[str], **kwargs) -> np.ndarray:
         """Embed texts and return as 2D numpy array"""
         embeddings = self.embed_many(texts, **kwargs)
+        if not embeddings:
+            # Return empty array with correct shape for 2D consistency
+            return np.empty((0, self.dimensionality), dtype=np.float32)
         return np.array(embeddings)
 
     @property

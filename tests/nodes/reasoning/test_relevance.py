@@ -1,10 +1,7 @@
 """Tests for LLM-based memory relevance scoring."""
 import pytest
 from unittest.mock import Mock, AsyncMock
-from cogency.nodes.reasoning.relevance import (
-    score_memory_relevance,
-    get_relevant_context
-)
+from cogency.nodes.reasoning.relevance import score_memory_relevance, relevant_context
 
 
 class MockLLM:
@@ -116,7 +113,7 @@ class TestGetRelevantContext:
             'failed_attempts': ['fail1', 'fail2', 'fail3']
         }
         
-        context = get_relevant_context(
+        context = relevant_context(
             cognition,
             "test query",
             "fast", 
@@ -140,7 +137,7 @@ class TestGetRelevantContext:
         llm_response = '''{"0": 0.9, "1": 0.5, "2": 0.8, "3": 0.3, "4": 0.7}'''
         llm_client = MockLLM(llm_response)
         
-        context = get_relevant_context(
+        context = relevant_context(
             cognition,
             "help with python programming",
             "deep",
@@ -164,7 +161,7 @@ class TestGetRelevantContext:
         llm_client = Mock()
         llm_client.run.side_effect = Exception("LLM error")
         
-        context = get_relevant_context(
+        context = relevant_context(
             cognition,
             "test query", 
             "deep",
@@ -180,7 +177,7 @@ class TestGetRelevantContext:
         """Test handling empty cognitive state."""
         cognition = {}
         
-        context = get_relevant_context(
+        context = relevant_context(
             cognition,
             "test query",
             "fast",

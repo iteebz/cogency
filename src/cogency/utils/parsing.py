@@ -28,7 +28,7 @@ def parse_json(response: str, fallback: Optional[Dict[str, Any]] = None) -> Dict
         return fallback or {}
     
     # Clean and extract JSON text
-    json_text = _clean_json_response(response.strip())
+    json_text = _clean_json(response.strip())
     if not json_text:
         return fallback or {}
     
@@ -72,9 +72,7 @@ def _extract_json(text: str) -> str:
     return text
 
 
-def parse_json(response: str) -> Optional[Dict[str, Any]]:
-    """Extract JSON from LLM response. Return None if no valid JSON."""
-    return parse_json(response)
+# This function is already defined above
 
 
 def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
@@ -84,6 +82,10 @@ def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]
         
     # New format: direct tool_calls array
     if "tool_calls" in json_data:
+        # Check if action is not "use_tools" (legacy format check)
+        action = json_data.get("action")
+        if action is not None and action != "use_tools":
+            return None
         return json_data.get("tool_calls", [])
     
     # Legacy format support
@@ -101,7 +103,7 @@ def get_reasoning(response: str) -> str:
         return json_data["reasoning"]
     
     # Try text-based REASONING: pattern
-    reasoning_match = re.search(r'REASONING:\s*(.+?)(?=\nJSON_DECISION:|$)', response, re.DOTALL | re.IGNORECASE)
+    reasoning_match = re.search(r'REASONING:\s*(.*?)(?=\s*JSON_DECISION:|$)', response, re.DOTALL | re.IGNORECASE)
     if reasoning_match:
         return reasoning_match.group(1).strip()
     

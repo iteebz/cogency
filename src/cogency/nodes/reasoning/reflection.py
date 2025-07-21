@@ -2,7 +2,7 @@
 from typing import Dict, Any, Optional
 
 
-def get_reflection_prompt(
+def reflection_prompt(
     tool_info: str,
     query: str,
     current_iteration: int,
@@ -55,7 +55,7 @@ Output JSON with structured reasoning:
 Use tools if needed or provide direct response if you can answer completely."""
 
 
-def get_reflection(llm_response: str) -> Dict[str, Optional[str]]:
+def reflection(llm_response: str) -> Dict[str, Optional[str]]:
     """Extract reflection phases from LLM response.
     
     Returns:

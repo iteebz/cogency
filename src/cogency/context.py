@@ -77,8 +77,25 @@ class Context:
         self._limit_turns()
     
     def recent_turns(self, n: int = 5) -> List[Dict[str, Any]]:
-        """Get last n conversation turns."""
-        return self.conversation_history[-n:] if self.conversation_history else []
+        """Get last n conversation turns, filtering out system and internal messages."""
+        # Filter out system and internal messages
+        clean_turns = []
+        for turn in self.conversation_history:
+            # Skip system messages
+            if turn["query"] == "system":
+                continue
+            # Skip internal messages
+            if self._is_internal(turn["response"]):
+                continue
+            # Convert to expected format for test compatibility
+            clean_turn = {
+                "role": turn["query"],
+                "content": turn["response"],
+                "timestamp": turn["timestamp"]
+            }
+            clean_turns.append(clean_turn)
+            
+        return clean_turns[-n:] if clean_turns else []
     
     def clear_history(self):
         """Clear conversation history."""

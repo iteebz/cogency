@@ -23,6 +23,8 @@ class BaseBackend(MemoryBackend, ABC):
         **kwargs
     ) -> Memory:
         """CREATE - Standard artifact creation with storage delegation."""
+        await self._ready()
+        
         artifact = Memory(
             content=content,
             memory_type=memory_type,
@@ -55,7 +57,7 @@ class BaseBackend(MemoryBackend, ABC):
         
         # No query - return filtered artifacts
         if not query:
-            return await self._read_filtered(
+            return await self._read_filter(
                 memory_type=memory_type,
                 tags=tags,
                 filters=filters,
@@ -69,7 +71,7 @@ class BaseBackend(MemoryBackend, ABC):
             )
         
         # Fallback to search module
-        artifacts = await self._read_filtered(
+        artifacts = await self._read_filter(
             memory_type=memory_type,
             tags=tags,
             filters=filters,
@@ -98,7 +100,7 @@ class BaseBackend(MemoryBackend, ABC):
         if not clean_updates:
             return True
         
-        return await self._update_artifact(artifact_id, clean_updates)
+        return await self._update(artifact_id, clean_updates)
     
     async def delete(
         self,

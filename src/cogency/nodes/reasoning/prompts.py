@@ -42,7 +42,7 @@ For information-only requests:
 CRITICAL: Output ONLY the JSON object. No explanations, no code blocks, no markdown."""
 
 
-def get_fast_react_prompt(tool_info: str, query: str) -> str:
+def fast_react_prompt(tool_info: str, query: str) -> str:
     """Pure ReAct prompt for fast mode - efficient direct execution."""
     return f"""QUERY: {query}
 TOOLS: {tool_info}
@@ -54,8 +54,8 @@ Escalate if complex: "switch_to": "deep", "switch_reason": "why"
 JSON: {{"reasoning": "brief", "strategy": "approach", "switch_to": null|"deep", "switch_reason": null|"why"}}"""
 
 
-def get_switch_prompt(mode: str) -> str:
-    """Get mode switch prompt addition based on current mode."""
+def switch_prompt(mode: str) -> str:
+    """Get mode switch prompt based on current mode."""
     if mode == "fast":
         return '\nEscalate if complex: "switch_to": "deep"'
     else:  # deep mode
@@ -72,14 +72,14 @@ def build_prompt(
     attempts_summary: str
 ) -> str:
     """Build adaptive reasoning prompt based on mode."""
-    from cogency.nodes.reasoning.reflection import get_reflection_prompt, needs_reflection
+    from cogency.nodes.reasoning.reflection import reflection_prompt, needs_reflection
     
     if react_mode == "deep" and needs_reflection("deep", current_iteration):
         # Deep react: UltraThink-style reflection + planning + execution
         try:
-            return get_reflection_prompt(
+            return reflection_prompt(
                 tool_info,
-                query,
+                current_input,
                 current_iteration + 1,
                 max_iterations,
                 cognition.get("current_strategy", "initial_approach"),
@@ -90,13 +90,13 @@ def build_prompt(
             # Fallback to legacy deep reasoning
             return REASON_PROMPT.format(
                 tool_names=tool_info,
-                user_input=query,
+                user_input=current_input,
                 current_iteration=current_iteration + 1,
                 max_iterations=max_iterations,
                 current_strategy=cognition.get("current_strategy", "initial_approach"),
                 previous_attempts=attempts_summary,
                 last_tool_quality=cognition.get("last_tool_quality", "unknown")
-            ) + get_mode_switch_addition("deep")
+            ) + switch_prompt("deep")
     else:
         # Fast react: Pure ReAct with switching capability
-        return get_fast_react_prompt(tool_info, query) + get_mode_switch_addition("fast")
+        return fast_react_prompt(tool_info, current_input) + switch_prompt("fast")

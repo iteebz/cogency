@@ -20,10 +20,10 @@ class TestContext:
         context.add_turn("assistant", "response 1")
         context.add_turn("user", "message 2")
         
-        # Should have exactly 2 messages due to limit
-        assert len(context.messages) == 2
-        assert context.messages[0]["content"] == "response 1"
-        assert context.messages[1]["content"] == "message 2"
+        # Should have exactly 2 conversation turns due to limit
+        assert len(context.conversation_history) == 2
+        assert context.conversation_history[0]["query"] == "assistant"
+        assert context.conversation_history[1]["query"] == "user"
     
     def test_clean_conversation_filtering(self):
         context = Context("test")
@@ -38,7 +38,9 @@ class TestContext:
         clean = context.recent_turns()
         
         assert len(clean) == 2
+        assert clean[0]["role"] == "user"
         assert clean[0]["content"] == "regular user message"
+        assert clean[1]["role"] == "assistant"
         assert clean[1]["content"] == "regular response"
     
     def test_tool_results_tracking(self):
@@ -46,6 +48,6 @@ class TestContext:
         
         context.add_result("calculator", {"x": 5, "y": 3}, {"result": 8})
         
-        assert len(context.tool_results) == 1
-        assert context.tool_results[0]["tool_name"] == "calculator"
-        assert context.tool_results[0]["output"]["result"] == 8
+        assert len(context.log_tools) == 1
+        assert context.log_tools[0]["tool_name"] == "calculator"
+        assert context.log_tools[0]["output"]["result"] == 8

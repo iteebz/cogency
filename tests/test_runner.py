@@ -46,7 +46,7 @@ class TestStreamRunner:
     @pytest.mark.asyncio
     async def test_streaming_execution(self, agent_state):
         """Streaming execution should work."""
-        runner = StreamingRunner()
+        runner = StreamRunner()
         
         # Mock workflow that completes successfully
         mock_workflow = Mock()

@@ -43,8 +43,8 @@ class Flow:
         # Pure LangGraph composition - nodes handle their own dependencies
         node_functions = {
             "preprocess": partial(preprocess, llm=self.llm, tools=self.tools, memory=self.memory, system_prompt=self.system_prompt),
-            "reason": partial(reason_node, llm=self.llm, tools=self.tools, system_prompt=self.system_prompt),
-            "act": partial(act_node, tools=self.tools),
+            "reason": partial(reason, llm=self.llm, tools=self.tools, system_prompt=self.system_prompt),
+            "act": partial(act, tools=self.tools),
             "respond": partial(respond, llm=self.llm, system_prompt=self.system_prompt, identity=self.identity, json_schema=self.json_schema)
         }
         

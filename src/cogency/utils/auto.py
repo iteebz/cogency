@@ -39,7 +39,7 @@ def detect_provider(provider_map: Dict[str, Any], provider_type: str = "provider
         RuntimeError: If no providers installed or no API keys found.
     """
     for provider_name, provider_class in provider_map.items():
-        api_keys = next_keys(provider_name)
+        api_keys = next_key(provider_name)
         if api_keys:
             return provider_class(api_keys=api_keys)
 

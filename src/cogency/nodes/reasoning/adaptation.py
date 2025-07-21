@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional, Tuple
 import json
 
 
-def get_mode_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
+def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
     """Extract mode switching from LLM response.
     
     Returns:
@@ -112,7 +112,7 @@ def switch_mode(
     return state
 
 
-def get_switch_prompt(current_mode: str) -> str:
+def switch_prompt(current_mode: str) -> str:
     """Get prompt addition for bidirectional mode switching.
     
     Args:

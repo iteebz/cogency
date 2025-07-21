@@ -24,7 +24,7 @@ class FileBackend(BaseBackend):
         """Filesystem is always ready - directory created in __init__."""
         pass
     
-    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store_artifact(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact to filesystem."""
         user_id = kwargs.get('user_id', 'default')
         user_dir = self.memory_dir / user_id
@@ -154,7 +154,7 @@ class FileBackend(BaseBackend):
         except OSError:
             return False
     
-    async def _delete_id(self, artifact_id: UUID) -> bool:
+    async def _delete_by_id(self, artifact_id: UUID) -> bool:
         """Delete single artifact by ID."""
         for user_dir in self.memory_dir.iterdir():
             if not user_dir.is_dir():
@@ -167,7 +167,7 @@ class FileBackend(BaseBackend):
                 continue
         return False
     
-    async def _delete_filter(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
+    async def _delete_by_filters(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
         """Delete artifacts by filters."""
         user_id = filters.get('user_id', 'default') if filters else 'default'
         artifacts_to_delete = await self._read_filter(tags=tags, filters=filters, user_id=user_id)

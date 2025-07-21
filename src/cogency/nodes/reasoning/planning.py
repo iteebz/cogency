@@ -2,7 +2,7 @@
 from typing import Dict, Any, Optional, List
 
 
-def get_planning_prompt_section() -> str:
+def planning_prompt() -> str:
     """Get the planning section for deep mode prompts."""
     return """📋 PLANNING PHASE: 
 Based on my reflection, what's my next strategy? What specific approach should I take?

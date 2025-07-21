@@ -19,16 +19,11 @@ from cogency.nodes.reasoning import (
 )
 from cogency.nodes.reasoning.loop_detection import detect_fast_loop
 from cogency.nodes.reasoning.adaptation import (
-    get_mode_switch,
+    parse_switch,
     should_switch,
     switch_mode,
 )
-from cogency.nodes.reasoning.reflection import (
-    get_reflection_prompt,
-    get_reflection,
-    format_reflection,
-    needs_reflection
-)
+from cogency.nodes.reasoning.reflection import reflection_prompt, reflection, format_reflection, needs_reflection
 from cogency.nodes.reasoning.prompts import build_prompt
 
 async def reason(state: State, *, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
@@ -95,7 +90,7 @@ async def reason(state: State, *, llm: BaseLLM, tools: List[BaseTool], system_pr
         # Deep mode: use explicit reflection phases
         current_strategy = cognition.get("current_strategy", "unknown")
         last_tool_quality = cognition.get("last_tool_quality", "unknown")
-        reasoning_prompt = get_reflection_prompt(
+        reasoning_prompt = reflection_prompt(
             tool_info,
             context.query,
             current_iteration,
@@ -130,7 +125,7 @@ async def reason(state: State, *, llm: BaseLLM, tools: List[BaseTool], system_pr
         tool_calls = parse_tool_calls(json_data)
         
         # Check for bidirectional mode switching
-        switch_to, switch_reason = get_mode_switch(llm_response)
+        switch_to, switch_reason = parse_switch(llm_response)
         if should_switch(react_mode, switch_to, switch_reason, current_iteration):
             await state.output.send("trace", f"Mode switch: {react_mode} → {switch_to} ({switch_reason})", node="reason")
             state = switch_mode(state, switch_to, switch_reason)
@@ -151,7 +146,7 @@ async def reason(state: State, *, llm: BaseLLM, tools: List[BaseTool], system_pr
     # Extract and stream reasoning - with reflection phases for deep mode
     if needs_reflection(react_mode, current_iteration):
         # Deep mode: extract and display reflection phases
-        reflection_phases = get_reflection(llm_response)
+        reflection_phases = reflection(llm_response)
         reflection_display = format_reflection(reflection_phases)
         await state.output.send("update", reflection_display)
         

@@ -1,11 +1,6 @@
 """Tests for UltraThink reflection phases."""
 import pytest
-from cogency.nodes.reasoning.reflection import (
-    get_reflection_prompt,
-    get_reflection,
-    format_reflection,
-    needs_reflection
-)
+from cogency.nodes.reasoning.reflection import reflection_prompt, reflection, format_reflection, needs_reflection
 
 
 class TestDeepReflectionPrompt:
@@ -13,9 +8,9 @@ class TestDeepReflectionPrompt:
     
     def test_prompt_structure(self):
         """Test reflection prompt has proper UltraThink structure."""
-        prompt = get_reflection_prompt(
+        prompt = reflection_prompt(
             tool_info="search: Find information",
-            current_input="What is the capital of France?",
+            query="What is the capital of France?",
             current_iteration=2,
             max_iterations=5,
             current_strategy="search_approach",
@@ -35,7 +30,7 @@ class TestDeepReflectionPrompt:
     
     def test_mode_switching_in_prompt(self):
         """Test prompt includes mode switching capability."""
-        prompt = get_reflection_prompt(
+        prompt = reflection_prompt(
             "tools", "query", 1, 5, "strategy", "attempts", "quality"
         )
         
@@ -58,7 +53,7 @@ class TestExtractReflectionPhases:
           "strategy": "search_then_analyze"
         }'''
         
-        phases = get_reflection(response)
+        phases = reflection(response)
         assert phases['reflection'] == "I've learned that this requires search first"
         assert phases['planning'] == "I'll search for information then analyze"
         assert phases['execution_reasoning'] == "Starting with a targeted search"
@@ -75,7 +70,7 @@ class TestExtractReflectionPhases:
         🎯 EXECUTION PHASE:
         I'll start with a comprehensive search.'''
         
-        phases = get_reflection(response)
+        phases = reflection(response)
         assert "more analysis than I initially thought" in phases['reflection']
         assert phases['strategy'] == 'extracted_from_text'
     
@@ -83,7 +78,7 @@ class TestExtractReflectionPhases:
         """Test graceful handling when no phases found."""
         response = '''I'll just proceed with the search directly.'''
         
-        phases = get_reflection(response)
+        phases = reflection(response)
         assert phases['reflection'] is None
         assert phases['planning'] is None
         assert phases['execution_reasoning'] is None

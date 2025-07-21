@@ -1,14 +1,44 @@
-# justfile for Cogency - beautiful, simple, and effective.
+# Cogency - A beautiful, simple, and effective justfile
 # Default command: list all commands
 default:
     @just --list
 
-# --- DEVELOPMENT ---
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# ⚙️  SETUP & ENVIRONMENT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Install all dependencies
 install:
     @echo "Installing Python dependencies..."
     @poetry install
+
+# Create a virtual environment if it doesn't exist
+venv:
+    @poetry env use python3
+    @echo "Virtual environment created. Activate with 'poetry shell'"
+
+# Update all dependencies
+update:
+    @echo "Updating dependencies..."
+    @poetry update
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 🚀 DEVELOPMENT
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Run the MCP server
+mcp-server transport="stdio":
+    @echo "Starting MCP server with {{transport}} transport..."
+    @poetry run python -c "import asyncio; from cogency import Agent; asyncio.run(Agent(enable_mcp=True).serve_mcp('{{transport}}'))"
+
+# Run a specific example (hello, memory, research, coding)
+example name="hello":
+    @echo "Running example: {{name}}..."
+    @poetry run python examples/{{name}}.py
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 🧪 TESTING
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Run all tests
 test: test-python
@@ -18,7 +48,24 @@ test-python:
     @echo "Running Python tests..."
     @poetry run pytest tests/
 
-# --- QUALITY ---
+# Run tests with coverage
+test-cov:
+    @echo "Running tests with coverage..."
+    @poetry run pytest --cov=src/cogency tests/
+    
+# Run tests with verbose output
+test-verbose:
+    @echo "Running tests with verbose output..."
+    @poetry run pytest -v tests/
+    
+# Run a specific test file or test
+test-file file="":
+    @echo "Running specific test: {{file}}..."
+    @poetry run pytest -v tests/{{file}}
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 🔍 CODE QUALITY
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Format code with ruff
 format:
@@ -35,7 +82,27 @@ fix:
     @echo "Fixing Python linting issues with ruff..."
     @poetry run ruff check . --fix
 
-# --- DISTRIBUTION ---
+# Run all quality checks (format, lint, test)
+check: format lint test
+    @echo "All checks passed!"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 📚 DOCUMENTATION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Generate API documentation
+docs:
+    @echo "Generating API documentation..."
+    @cd website && poetry run python scripts/generate_docs.py
+
+# Serve website documentation locally
+website-serve:
+    @echo "Starting website development server..."
+    @cd website && npm run dev
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 📦 DISTRIBUTION
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Build the Python package
 build:
@@ -43,11 +110,19 @@ build:
     @poetry build
 
 # Publish the Python package to PyPI
-publish:
+publish: check build
     @echo "Publishing Python package to PyPI..."
     @poetry publish
 
-# --- MISCELLANEOUS ---
+# Bump version (patch, minor, major)
+bump level="patch":
+    @echo "Bumping {{level}} version..."
+    @poetry version {{level}}
+    @echo "New version: $(poetry version -s)"
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 🧹 MAINTENANCE
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Clean build artifacts
 clean:
@@ -55,5 +130,13 @@ clean:
     @rm -rf dist build .pytest_cache .mypy_cache .ruff_cache
 
 # Show recent commits
-commits:
-    @git --no-pager log --pretty=format:"%ar %s"
+commits count="10":
+    @git --no-pager log -{{count}} --pretty=format:"%ar %s"
+
+# Run CI checks locally
+ci: format lint test build
+    @echo "CI checks completed successfully!"
+    
+# Fix test issues (format, lint, and run tests)
+fix-tests: format fix test
+    @echo "Tests fixed and verified!"
