@@ -2,7 +2,7 @@
 from typing import Dict, Any
 
 
-def assess_tool_quality(execution_results: Dict[str, Any]) -> str:
+def assess_tools(execution_results: Dict[str, Any]) -> str:
     """Assess quality of tool execution results."""
     if not execution_results:
         return "unknown"

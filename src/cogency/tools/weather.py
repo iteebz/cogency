@@ -98,11 +98,11 @@ class Weather(BaseTool):
                 "feels_like": f"{current['apparent_temperature']}°C"
             }
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return the tool call schema."""
         return "weather(city='string')"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "weather(city='New York')",

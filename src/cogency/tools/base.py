@@ -23,8 +23,8 @@ class BaseTool(ABC):
             return await self.run(**kwargs)
         except Exception as e:
             # Use the same beautiful error formatting as @graceful decorator
-            from cogency.errors import format_tool_error
-            return format_tool_error(e, self.name, "run")
+            from cogency.errors import format_error
+            return format_error(e, self.name, "run")
 
     @abstractmethod
     async def run(self, **kwargs: Any) -> Dict[str, Any]:
@@ -36,7 +36,7 @@ class BaseTool(ABC):
         pass
 
     @abstractmethod
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return tool call schema for LLM formatting.
 
         Returns:
@@ -45,7 +45,7 @@ class BaseTool(ABC):
         pass
 
     @abstractmethod
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example tool calls for LLM guidance.
 
         Returns:

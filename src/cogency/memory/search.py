@@ -3,10 +3,10 @@ import numpy as np
 from typing import List, Optional, Callable
 from uuid import UUID
 
-from .core import MemoryArtifact, SearchType
+from .core import Memory, SearchType
 
 
-def cosine_similarity(a: List[float], b: List[float]) -> float:
+def cos_sim(a: List[float], b: List[float]) -> float:
     """Calculate cosine similarity between two vectors."""
     try:
         a_np = np.array(a)
@@ -24,7 +24,7 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
         return 0.0
 
 
-def text_relevance(content: str, query: str, tags: List[str]) -> float:
+def text_score(content: str, query: str, tags: List[str]) -> float:
     """Calculate text-based relevance score."""
     if not query:
         return 0.0
@@ -65,14 +65,14 @@ def text_relevance(content: str, query: str, tags: List[str]) -> float:
     return score
 
 
-async def search_artifacts(
+async def search(
     query: str,
-    artifacts: List[MemoryArtifact],
+    artifacts: List[Memory],
     search_type: SearchType,
     threshold: float,
     embedding_provider=None,
     get_embedding: Optional[Callable[[UUID], Optional[List[float]]]] = None
-) -> List[MemoryArtifact]:
+) -> List[Memory]:
     """Execute search across artifacts."""
     if search_type == SearchType.TAGS:
         return artifacts  # Already filtered by caller
@@ -89,12 +89,12 @@ async def search_artifacts(
         score = 0.0
         
         if search_type in [SearchType.TEXT, SearchType.HYBRID, SearchType.AUTO]:
-            score += text_relevance(artifact.content, query, artifact.tags)
+            score += text_score(artifact.content, query, artifact.tags)
         
         if search_type in [SearchType.SEMANTIC, SearchType.HYBRID] and query_embedding and get_embedding:
             artifact_embedding = await get_embedding(artifact.id)
             if artifact_embedding:
-                semantic_score = cosine_similarity(query_embedding, artifact_embedding)
+                semantic_score = cos_sim(query_embedding, artifact_embedding)
                 score += semantic_score * 5.0  # Scale semantic score
         
         artifact.relevance_score = score

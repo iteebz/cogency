@@ -1,9 +1,9 @@
 # Base imports always available
-from .auto import auto_detect_embedder
+from .auto import detect_embedder
 from .base import BaseEmbed
 
 # Conditional imports for embedding providers
-__all__ = ["BaseEmbed", "auto_detect_embedder"]
+__all__ = ["BaseEmbed", "detect_embedder"]
 
 # OpenAI embeddings
 try:

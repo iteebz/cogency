@@ -25,7 +25,7 @@ class SearchType(Enum):
 
 
 @dataclass
-class MemoryArtifact:
+class Memory:
     """A memory artifact with content and metadata."""
     content: str
     memory_type: MemoryType = MemoryType.FACT
@@ -38,7 +38,7 @@ class MemoryArtifact:
     access_count: int = 0
     last_accessed: datetime = field(default_factory=lambda: datetime.now(UTC))
     
-    def decay_score(self) -> float:
+    def decay(self) -> float:
         """Calculate decay based on recency and confidence."""
         now = datetime.now(UTC)
         days_since_created = (now - self.created_at).days
@@ -57,7 +57,7 @@ class MemoryBackend(ABC):
     def __init__(self, embedding_provider=None):
         self.embedding_provider = embedding_provider
     
-    async def _safe_embed(self, content: str) -> Optional[List[float]]:
+    async def _embed(self, content: str) -> Optional[List[float]]:
         """Safely generate embedding with error handling."""
         if not self.embedding_provider:
             return None
@@ -66,7 +66,7 @@ class MemoryBackend(ABC):
         except Exception:
             return None
     
-    def _safe_operation(self, operation_func, *args, **kwargs) -> bool:
+    def _operate(self, operation_func, *args, **kwargs) -> bool:
         """Safely execute operation, return True/False."""
         try:
             operation_func(*args, **kwargs)
@@ -74,7 +74,7 @@ class MemoryBackend(ABC):
         except Exception:
             return False
     
-    def _safe_stats(self, stats_func, fallback_backend_name: str, *args, **kwargs) -> Dict[str, Any]:
+    def _stats(self, stats_func, fallback_backend_name: str, *args, **kwargs) -> Dict[str, Any]:
         """Safely get stats with fallback."""
         try:
             return stats_func(*args, **kwargs)
@@ -92,7 +92,7 @@ class MemoryBackend(ABC):
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> MemoryArtifact:
+    ) -> Memory:
         """CREATE - Store new content in memory."""
         pass
 
@@ -108,7 +108,7 @@ class MemoryBackend(ABC):
         memory_type: Optional[MemoryType] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """READ - Flexible retrieval: by query, ID, tags, or filters."""
         pass
 

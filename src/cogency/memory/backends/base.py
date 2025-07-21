@@ -3,8 +3,8 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from uuid import UUID
 
-from ..core import MemoryBackend, MemoryArtifact, MemoryType, SearchType
-from ..search import search_artifacts
+from ..core import MemoryBackend, Memory, MemoryType, SearchType
+from ..search import search
 
 
 class BaseBackend(MemoryBackend, ABC):
@@ -21,16 +21,16 @@ class BaseBackend(MemoryBackend, ABC):
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> MemoryArtifact:
+    ) -> Memory:
         """CREATE - Standard artifact creation with storage delegation."""
-        artifact = MemoryArtifact(
+        artifact = Memory(
             content=content,
             memory_type=memory_type,
             tags=tags or [],
             metadata=metadata or {}
         )
         
-        embedding = await self._safe_embed(content)
+        embedding = await self._embed(content)
         await self._store_artifact(artifact, embedding, **kwargs)
         return artifact
     
@@ -45,9 +45,9 @@ class BaseBackend(MemoryBackend, ABC):
         memory_type: Optional[MemoryType] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """READ - Unified retrieval with storage delegation."""
-        await self._ensure_ready()
+        await self._ready()
         
         # Read by specific artifact_id
         if artifact_id:
@@ -63,8 +63,8 @@ class BaseBackend(MemoryBackend, ABC):
             )
         
         # Query-based search with storage-specific optimizations
-        if self._supports_native_search(search_type):
-            return await self._native_search(
+        if self._has_search(search_type):
+            return await self._search(
                 query, search_type, limit, threshold, tags, memory_type, filters, **kwargs
             )
         
@@ -79,9 +79,9 @@ class BaseBackend(MemoryBackend, ABC):
         if not artifacts:
             return []
         
-        results = await search_artifacts(
+        results = await search(
             query, artifacts, search_type, threshold,
-            self.embedding_provider, self._get_embedding_for_search
+            self.embedding_provider, self._get_embedding
         )
         return results[:limit]
     
@@ -91,7 +91,7 @@ class BaseBackend(MemoryBackend, ABC):
         updates: Dict[str, Any]
     ) -> bool:
         """UPDATE - Standard update logic with storage delegation."""
-        await self._ensure_ready()
+        await self._ready()
         
         # Filter internal keys
         clean_updates = {k: v for k, v in updates.items() if k != 'user_id'}
@@ -108,7 +108,7 @@ class BaseBackend(MemoryBackend, ABC):
         delete_all: bool = False
     ) -> bool:
         """DELETE - Unified deletion with storage delegation."""
-        await self._ensure_ready()
+        await self._ready()
         
         if delete_all:
             return await self._delete_all()
@@ -124,33 +124,33 @@ class BaseBackend(MemoryBackend, ABC):
     # Storage primitives - implement these in subclasses
     
     @abstractmethod
-    async def _ensure_ready(self) -> None:
+    async def _ready(self) -> None:
         """Ensure backend is initialized and ready."""
         pass
     
     @abstractmethod
-    async def _store_artifact(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store_artifact(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact with embedding."""
         pass
     
     @abstractmethod
-    async def _read_by_id(self, artifact_id: UUID) -> List[MemoryArtifact]:
+    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         pass
     
     @abstractmethod
-    async def _read_filtered(
+    async def _read_filter(
         self,
         memory_type: Optional[MemoryType] = None,
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Read filtered artifacts."""
         pass
     
     @abstractmethod
-    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+    async def _update(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
         """Update artifact with clean updates."""
         pass
     
@@ -171,18 +171,18 @@ class BaseBackend(MemoryBackend, ABC):
     
     # Optional overrides for storage-specific optimizations
     
-    def _supports_native_search(self, search_type: SearchType) -> bool:
+    def _has_search(self, search_type: SearchType) -> bool:
         """Override if backend has native search capabilities."""
         return False
     
-    async def _native_search(
+    async def _search(
         self, query: str, search_type: SearchType, limit: int, threshold: float,
         tags: Optional[List[str]], memory_type: Optional[MemoryType], 
         filters: Optional[Dict[str, Any]], **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Override for native search implementation."""
         raise NotImplementedError("Native search not implemented")
     
-    async def _get_embedding_for_search(self, artifact_id: UUID) -> Optional[List[float]]:
+    async def _get_embedding(self, artifact_id: UUID) -> Optional[List[float]]:
         """Override for efficient embedding retrieval during search."""
         return None

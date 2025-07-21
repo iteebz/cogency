@@ -33,7 +33,7 @@
           "init_signature": "(self, name: str, llm: Optional[cogency.llm.base.BaseLLM] = None, tools: Optional[List[cogency.tools.base.BaseTool]] = None, trace: bool = True, memory_dir: str = '.memory', prompt_fragments: Optional[Dict[str, Dict[str, str]]] = None, default_output_mode: Literal['summary', 'trace', 'dev', 'explain'] = 'summary')"
         },
         {
-          "name": "AgentState",
+          "name": "State",
           "docstring": "dict() -> new empty dictionary\ndict(mapping) -> new dictionary initialized from a mapping object's\n    (key, value) pairs\ndict(iterable) -> new dictionary initialized as if via:\n    d = {}\n    for k, v in iterable:\n        d[k] = v\ndict(**kwargs) -> new dictionary initialized with the name=value pairs\n    in the keyword argument list.  For example:  dict(one=1, two=2)",
           "module": "cogency.types",
           "methods": [],
@@ -668,19 +668,19 @@
           "name": "memorize",
           "docstring": "Memorize content if it meets certain criteria.",
           "module": "cogency.nodes.memory",
-          "signature": "(state: cogency.types.AgentState, *, memory: cogency.memory.base.BaseMemory) -> cogency.types.AgentState"
+          "signature": "(state: cogency.types.State, *, memory: cogency.memory.base.BaseMemory) -> cogency.types.State"
         },
         {
           "name": "react_loop_node",
           "docstring": "ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete.",
           "module": "cogency.nodes.react_loop",
-          "signature": "(state: cogency.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None, config: Optional[Dict] = None) -> cogency.types.AgentState"
+          "signature": "(state: cogency.types.State, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None, prompt_fragments: Optional[Dict[str, str]] = None, config: Optional[Dict] = None) -> cogency.types.State"
         },
         {
           "name": "select_tools",
           "docstring": "Intelligently select a subset of tools based on the user query.",
           "module": "cogency.nodes.select_tools",
-          "signature": "(state: cogency.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None) -> cogency.types.AgentState"
+          "signature": "(state: cogency.types.State, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None) -> cogency.types.State"
         }
       ]
     },
@@ -830,7 +830,7 @@
       "docstring": "",
       "classes": [
         {
-          "name": "AgentState",
+          "name": "State",
           "docstring": "dict() -> new empty dictionary\ndict(mapping) -> new dictionary initialized from a mapping object's\n    (key, value) pairs\ndict(iterable) -> new dictionary initialized as if via:\n    d = {}\n    for k, v in iterable:\n        d[k] = v\ndict(**kwargs) -> new dictionary initialized with the name=value pairs\n    in the keyword argument list.  For example:  dict(one=1, two=2)",
           "module": "cogency.types",
           "methods": [],

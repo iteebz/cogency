@@ -257,11 +257,11 @@ class SQL(BaseTool):
         except Exception as e:
             return {"error": f"MySQL error: {str(e)}"}
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return the tool call schema."""
         return "sql(query='string', connection='string', timeout=30, params=list)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "sql(query='SELECT * FROM users LIMIT 5', connection='sqlite:///app.db')",

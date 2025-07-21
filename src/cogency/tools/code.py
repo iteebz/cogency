@@ -207,11 +207,11 @@ try {{
         except Exception as e:
             return {"error": f"Code execution failed: {str(e)}"}
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return the tool call schema."""
         return "code(code='string', language='python|javascript|js', timeout=30)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "code(code='print(2 + 2)', language='python')",

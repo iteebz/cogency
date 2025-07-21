@@ -7,8 +7,8 @@ from cogency.tools.base import BaseTool
 from cogency.errors import (
     ToolError,
     ValidationError,
-    create_success_response,
-    validate_required_params,
+    success_response,
+    validate_params,
 )
 # Error handling now in BaseTool.execute() - no decorators needed
 
@@ -32,7 +32,7 @@ class Search(BaseTool):
         if max_results is None:
             max_results = 5
         # Input validation
-        validate_required_params({"query": query}, ["query"], self.name)
+        validate_params({"query": query}, ["query"], self.name)
 
         if not isinstance(max_results, int) or max_results <= 0:
             raise ValidationError(
@@ -77,7 +77,7 @@ class Search(BaseTool):
             )
 
         if not formatted_results:
-            return create_success_response(
+            return success_response(
                 {
                     "results": [],
                     "query": query,
@@ -92,7 +92,7 @@ class Search(BaseTool):
             top_result = formatted_results[0]
             summary += f" - Top result: {top_result['title']}"
         
-        return create_success_response(
+        return success_response(
             {
                 "summary": summary,
                 "query": query,
@@ -102,10 +102,10 @@ class Search(BaseTool):
             summary,
         )
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         return "search(query='search terms', max_results=5)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         return [
             "search(query='Python programming tutorials', max_results=3)",
             "search(query='latest AI developments 2024')",

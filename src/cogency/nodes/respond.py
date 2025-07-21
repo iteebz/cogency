@@ -2,12 +2,12 @@
 from typing import Optional, Dict, Any
 
 from cogency.llm import BaseLLM
-from cogency.state import AgentState
+from cogency.state import State
 # ReasoningDecision removed - was bullshit that didn't align with adaptive reasoning
 
 
 
-def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results: bool = False, identity: Optional[str] = None, json_schema: Optional[str] = None) -> str:
+def build_prompt(system_prompt: Optional[str] = None, has_tool_results: bool = False, identity: Optional[str] = None, json_schema: Optional[str] = None) -> str:
     """Build clean system prompt with identity and optional JSON schema."""
     if has_tool_results:
         base_prompt = "Generate final response based on context and tool results.\nBe conversational and helpful. Incorporate all relevant information."
@@ -30,11 +30,11 @@ def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results:
 
 
 
-async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Optional[str] = None, identity: Optional[str] = None, json_schema: Optional[str] = None, config: Optional[Dict] = None) -> AgentState:
+async def respond(state: State, *, llm: BaseLLM, system_prompt: Optional[str] = None, identity: Optional[str] = None, json_schema: Optional[str] = None, config: Optional[Dict] = None) -> State:
     """Respond: generate final formatted response with personality."""
     context = state["context"]
     
-    # Streaming handled by OutputManager
+    # Streaming handled by Output
     
     # ALWAYS generate response - handle tool results, direct reasoning, or knowledge-based
     final_messages = list(context.messages)
@@ -66,14 +66,14 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
         if execution_results and execution_results.get("success"):
             if json_schema:
                 await state.output.send("trace", "Applying JSON schema constraint", node="respond")
-            response_prompt = build_response_prompt(system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema)
+            response_prompt = build_prompt(system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema)
         elif execution_results and not execution_results.get("success"):
             response_prompt = "Generate helpful response acknowledging tool failures and providing alternatives."
             if system_prompt:
                 response_prompt = f"{system_prompt}\n\n{response_prompt}"
         else:
             # No tool results - answer with knowledge or based on conversation
-            response_prompt = build_response_prompt(system_prompt, has_tool_results=False, identity=identity, json_schema=json_schema)
+            response_prompt = build_prompt(system_prompt, has_log_tools=False, identity=identity, json_schema=json_schema)
         
         final_messages.insert(0, {"role": "system", "content": response_prompt})
         try:

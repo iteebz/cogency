@@ -6,7 +6,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from .base import BaseBackend
-from ..core import MemoryArtifact, MemoryType, SearchType
+from ..core import Memory, MemoryType, SearchType
 
 try:
     from pinecone import Pinecone
@@ -30,7 +30,7 @@ class PineconeBackend(BaseBackend):
         self._client = None
         self._index = None
     
-    async def _ensure_ready(self):
+    async def _ready(self):
         """Initialize Pinecone client and index."""
         if self._index:
             return
@@ -45,15 +45,15 @@ class PineconeBackend(BaseBackend):
         
         self._index = self._client.Index(self.index_name)
     
-    def _supports_native_search(self, search_type: SearchType) -> bool:
+    def _has_search(self, search_type: SearchType) -> bool:
         """Pinecone supports semantic search only."""
         return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedding_provider
     
-    async def _native_search(
+    async def _search(
         self, query: str, search_type: SearchType, limit: int, threshold: float,
         tags: Optional[List[str]], memory_type: Optional[MemoryType], 
         filters: Optional[Dict[str, Any]], **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Native Pinecone semantic search."""
         query_embedding = await self.embedding_provider.embed_text(query)
         
@@ -90,7 +90,7 @@ class PineconeBackend(BaseBackend):
         
         return artifacts
     
-    async def _store_artifact(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact in Pinecone."""
         if not embedding:
             raise ValueError("Pinecone requires embeddings")
@@ -108,7 +108,7 @@ class PineconeBackend(BaseBackend):
         
         self._index.upsert(vectors=[(str(artifact.id), embedding, metadata)])
     
-    async def _read_by_id(self, artifact_id: UUID) -> List[MemoryArtifact]:
+    async def _read_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         try:
             fetch_result = self._index.fetch(ids=[str(artifact_id)])
@@ -120,13 +120,13 @@ class PineconeBackend(BaseBackend):
             pass
         return []
     
-    async def _read_filtered(
+    async def _read_filter(
         self,
         memory_type: Optional[MemoryType] = None,
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Read filtered artifacts."""
         # Build Pinecone filter
         pinecone_filter = {}
@@ -151,7 +151,7 @@ class PineconeBackend(BaseBackend):
         
         return artifacts
     
-    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+    async def _update(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
         """Update artifact in Pinecone."""
         try:
             # Get existing vector
@@ -187,7 +187,7 @@ class PineconeBackend(BaseBackend):
         except Exception:
             return False
     
-    async def _delete_by_id(self, artifact_id: UUID) -> bool:
+    async def _delete_id(self, artifact_id: UUID) -> bool:
         """Delete single artifact by ID."""
         try:
             self._index.delete(ids=[str(artifact_id)])
@@ -195,7 +195,7 @@ class PineconeBackend(BaseBackend):
         except Exception:
             return False
     
-    async def _delete_by_filters(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
+    async def _delete_filter(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
         """Delete artifacts by filters."""
         pinecone_filter = {}
         if tags:
@@ -210,8 +210,8 @@ class PineconeBackend(BaseBackend):
         except Exception:
             return False
     
-    def _vector_to_artifact(self, vector_id: str, vector_data) -> MemoryArtifact:
-        """Convert Pinecone vector data to MemoryArtifact."""
+    def _vector_to_artifact(self, vector: Dict) -> Memory:
+        """Convert Pinecone vector data to Memory."""
         metadata = vector_data.metadata
         
         # Parse tags (handle both string and list)
@@ -230,7 +230,7 @@ class PineconeBackend(BaseBackend):
             except json.JSONDecodeError:
                 pass
         
-        artifact = MemoryArtifact(
+        artifact = Memory(
             id=UUID(vector_id),
             content=metadata["content"],
             memory_type=MemoryType(metadata.get("memory_type", MemoryType.FACT.value)),
@@ -254,8 +254,8 @@ class PineconeBackend(BaseBackend):
         
         return artifact
     
-    def _match_to_artifact(self, match) -> MemoryArtifact:
-        """Convert Pinecone match to MemoryArtifact."""
+    def _match_to_artifact(self, match) -> Memory:
+        """Convert Pinecone match to Memory."""
         metadata = match.metadata
         
         # Parse tags (handle both string and list)
@@ -274,7 +274,7 @@ class PineconeBackend(BaseBackend):
             except json.JSONDecodeError:
                 pass
         
-        artifact = MemoryArtifact(
+        artifact = Memory(
             id=UUID(match.id),
             content=metadata["content"],
             memory_type=MemoryType(metadata.get("memory_type", MemoryType.FACT.value)),
@@ -310,4 +310,4 @@ class PineconeBackend(BaseBackend):
                 'index_fullness': stats.index_fullness
             }
         
-        return self._safe_stats(_get_stats, 'pinecone')
+        return self._stats(_get_stats, 'pinecone')

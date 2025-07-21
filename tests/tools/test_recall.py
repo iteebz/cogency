@@ -20,8 +20,8 @@ class TestRecall:
         assert hasattr(recall_tool, 'run')
         
         # Schema and examples
-        schema = recall_tool.get_schema()
-        examples = recall_tool.get_usage_examples()
+        schema = recall_tool.schema()
+        examples = recall_tool.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

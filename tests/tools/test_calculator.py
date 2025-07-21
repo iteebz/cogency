@@ -169,3 +169,35 @@ class TestCalculator:
         # Mixed spacing
         result = await calc.run(expression="5+ 3*2")
         assert result["result"] == 11
+
+    @pytest.mark.asyncio
+    async def test_execution_consistency(self):
+        """Tool execution should be deterministic."""
+        calc = Calculator()
+        
+        # Same input should produce same output
+        result1 = await calc.run(expression="6 * 7")
+        result2 = await calc.run(expression="6 * 7")
+        
+        assert result1 == result2
+        assert result1["result"] == 42
+    
+    @pytest.mark.asyncio
+    async def test_schema_and_examples(self):
+        """Tool schema and examples should be well-defined."""
+        calc = Calculator()
+        
+        schema = calc.get_schema()
+        examples = calc.get_usage_examples()
+        
+        assert "expression" in schema
+        assert isinstance(examples, list)
+        assert len(examples) > 0
+        assert "expression" in examples[0]
+        
+        # Test that the example is valid JSON
+        import json
+        try:
+            json.loads(examples[0])
+        except json.JSONDecodeError:
+            pytest.fail("Tool usage example is not valid JSON.")

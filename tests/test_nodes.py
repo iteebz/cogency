@@ -10,13 +10,13 @@ import pytest
 import json
 from unittest.mock import AsyncMock, Mock
 
-from cogency.tools.executor import parse_tool_calls, execute_single_tool, execute_parallel_tools
-from cogency.tools.result import is_tool_success
-from cogency.utils.parsing import extract_json_from_response, extract_reasoning_text
-from cogency.nodes.respond import respond_node, build_response_prompt
-from cogency.nodes.act import act_node
-from cogency.nodes.reason import reason_node
-from cogency.state import AgentState
+from cogency.tools.executor import parse_tool_calls, execute_single_tool, run_tools
+from cogency.tools.result import is_success
+from cogency.utils.parsing import parse_json, get_reasoning
+from cogency.nodes.respond import respond, build_prompt as build_response_prompt
+from cogency.nodes.act import act
+from cogency.nodes.reason import reason
+from cogency.state import State
 from cogency.context import Context
 from cogency.tools.base import BaseTool
 
@@ -33,10 +33,10 @@ class MockTool(BaseTool):
             raise Exception("Tool execution failed")
         return {"result": f"success from {self.name}"}
     
-    def get_schema(self):
+    def schema(self):
         return "test tool schema"
     
-    def get_usage_examples(self):
+    def examples(self):
         return [f'{{"name": "{self.name}", "args": {{"test": "value"}}}}']
 
 
@@ -125,7 +125,7 @@ class TestToolCallParsing:
         """Test JSON extraction from different response formats."""
         # Clean JSON
         clean_json = '{"action": "respond", "reasoning": "I can answer directly"}'
-        result = extract_json_from_response(clean_json)
+        result = parse_json(clean_json)
         assert result["action"] == "respond"
         
         # JSON with surrounding text
@@ -134,13 +134,13 @@ class TestToolCallParsing:
         {"action": "use_tool", "tool_call": {"name": "weather", "args": {"location": "NYC"}}}
         That should work.
         '''
-        result = extract_json_from_response(surrounded_json)
+        result = parse_json(surrounded_json)
         assert result["action"] == "use_tool"
         assert result["tool_call"]["name"] == "weather"
         
         # No JSON - the utility returns empty dict as fallback, not None
         no_json = "This is just regular text without any JSON."
-        result = extract_json_from_response(no_json)
+        result = parse_json(no_json)
         assert result == {}  # Empty dict fallback, not None
 
 
@@ -158,13 +158,13 @@ class TestErrorHandlingAndGracefulDegradation:
         name, args, result = await execute_single_tool("failing_tool", {}, tools)
         assert name == "failing_tool"
         assert "error" in result  # Should contain error information
-        assert not is_tool_success(result)  # Should be marked as failure
+        assert not is_success(result)  # Should be marked as failure
         
         # Test tool that works
         name, args, result = await execute_single_tool("working_tool", {"test": "value"}, tools)
         assert name == "working_tool"
         assert result["result"] == "success from working_tool"
-        assert is_tool_success(result)  # Should be marked as success
+        assert is_success(result)  # Should be marked as success
         
         # Test non-existent tool
         with pytest.raises(ValueError, match="Tool 'nonexistent' not found"):
@@ -179,7 +179,7 @@ class TestErrorHandlingAndGracefulDegradation:
         tools = [failing_tool, working_tool1, working_tool2]
         
         context = Mock()
-        context.add_tool_result = Mock()
+        context.add_result = Mock()
         context.add_message = Mock()
         
         tool_calls = [
@@ -188,7 +188,7 @@ class TestErrorHandlingAndGracefulDegradation:
             ("working_tool2", {"arg3": "value3"})
         ]
         
-        result = await execute_parallel_tools(tool_calls, tools, context)
+        result = await run_tools(tool_calls, tools, context)
         
         # Should have mixed results
         assert result["success"] is False  # Overall failure due to one failing tool
@@ -198,7 +198,7 @@ class TestErrorHandlingAndGracefulDegradation:
         assert len(result["errors"]) == 1   # One error
         
         # Context should be updated with successful results
-        assert context.add_tool_result.call_count == 2
+        assert context.add_result.call_count == 2
         assert context.add_message.call_count == 1  # Summary message
     
     @pytest.mark.asyncio
@@ -214,12 +214,12 @@ class TestErrorHandlingAndGracefulDegradation:
         
         failing_llm = FailingMockLLM()
         
-        from cogency.output import OutputManager
+        from cogency.output import Output
         
-        context = Context(current_input="test query", messages=[], user_id="test_user")
-        state = AgentState(context=context, query="test query", output=OutputManager())
+        context = Context(query="test query", messages=[], user_id="test_user")
+        state = State(context=context, query="test query", output=Output())
         
-        result_state = await respond_node(state, llm=failing_llm)
+        result_state = await respond(state, llm=failing_llm)
         
         # Should generate fallback response
         assert "final_response" in result_state
@@ -233,12 +233,12 @@ class TestErrorHandlingAndGracefulDegradation:
         mock_llm = AsyncMock()
         mock_llm.run.return_value = "This is not JSON and cannot be parsed"
         
-        from cogency.output import OutputManager
+        from cogency.output import Output
         
-        context = Context(current_input="test query", messages=[], user_id="test_user")
-        state = AgentState(context=context, query="test query", output=OutputManager())
+        context = Context(query="test query", messages=[], user_id="test_user")
+        state = State(context=context, query="test query", output=Output())
         
-        result_state = await reason_node(state, llm=mock_llm, tools=[])
+        result_state = await reason(state, llm=mock_llm, tools=[])
         
         # The reason node logic defaults to responding when no clear action is found
         # Since parsing fails, empty dict means no clear action
@@ -259,12 +259,12 @@ class TestRespondNodeJSONPrevention:
             yield "Here's your answer: The weather is sunny. No JSON here!"
         mock_llm.stream = mock_stream
         
-        from cogency.output import OutputManager
+        from cogency.output import Output
         
-        context = Context(current_input="What's the weather?", messages=[], user_id="test_user")
-        state = AgentState(context=context, query="test query", output=OutputManager())
+        context = Context(query="What's the weather?", messages=[], user_id="test_user")
+        state = State(context=context, query="test query", output=Output())
         
-        result_state = await respond_node(state, llm=mock_llm)
+        result_state = await respond(state, llm=mock_llm)
         
         final_response = result_state["final_response"]
         
@@ -286,17 +286,17 @@ class TestRespondNodeJSONPrevention:
             yield "Based on the weather data, it's currently 72°F and sunny in San Francisco."
         mock_llm.stream = mock_stream
         
-        from cogency.output import OutputManager
+        from cogency.output import Output
         
-        context = Context(current_input="What's the weather in SF?", messages=[], user_id="test_user")
-        state = AgentState(
+        context = Context(query="What's the weather in SF?", messages=[], user_id="test_user")
+        state = State(
             context=context, 
             query="test query",
-            output=OutputManager()
+            output=Output()
         )
         state.flow["execution_results"] = {"success": True, "results": [{"temperature": "72°F", "condition": "sunny"}]}
         
-        result_state = await respond_node(state, llm=mock_llm)
+        result_state = await respond(state, llm=mock_llm)
         
         final_response = result_state["final_response"]
         
@@ -336,20 +336,20 @@ class TestCriticalPathIntegration:
         working_tool = MockTool("test_tool", should_fail=False)
         tools = [working_tool]
         
-        from cogency.output import OutputManager
+        from cogency.output import Output
         
-        context = Context(current_input="test query", messages=[], user_id="test_user")
+        context = Context(query="test query", messages=[], user_id="test_user")
         context.add_message = Mock()
-        context.add_tool_result = Mock()
+        context.add_result = Mock()
         
-        state = AgentState(
+        state = State(
             context=context,
             query="test query",
-            output=OutputManager()
+            output=Output()
         )
         state.flow["tool_calls"] = '{"name": "test_tool", "args": {"test": "value"}}'
         
-        result_state = await act_node(state, tools=tools)
+        result_state = await act(state, tools=tools)
         
         # Should always route back to reason
         assert result_state["next_node"] == "reason"
@@ -358,13 +358,13 @@ class TestCriticalPathIntegration:
     @pytest.mark.asyncio
     async def test_act_node_handles_no_tool_calls(self):
         """Test act node handles missing tool calls gracefully."""
-        from cogency.output import OutputManager
+        from cogency.output import Output
         
-        context = Context(current_input="test query", messages=[], user_id="test_user")
-        state = AgentState(context=context, query="test query", output=OutputManager())
+        context = Context(query="test query", messages=[], user_id="test_user")
+        state = State(context=context, query="test query", output=Output())
         # No tool_calls in state
         
-        result_state = await act_node(state, tools=[])
+        result_state = await act(state, tools=[])
         
         # Should route back to reason with no_action result
         assert result_state["next_node"] == "reason"
@@ -381,15 +381,15 @@ class TestCriticalPathIntegration:
         }
         '''
         
-        reasoning = extract_reasoning_text(response_with_reasoning)
+        reasoning = get_reasoning(response_with_reasoning)
         assert reasoning == "I need to check the weather first before answering"
         
         # Response without JSON
         response_without_json = "Let me think about this carefully..."
-        reasoning = extract_reasoning_text(response_without_json)
+        reasoning = get_reasoning(response_without_json)
         assert "Analyzing the request" in reasoning  # Default fallback
         
         # JSON without reasoning field
         response_without_reasoning = '{"action": "respond"}'
-        reasoning = extract_reasoning_text(response_without_reasoning)
+        reasoning = get_reasoning(response_without_reasoning)
         assert "Analyzing the request" in reasoning  # Default fallback

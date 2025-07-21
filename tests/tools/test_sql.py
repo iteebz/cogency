@@ -20,8 +20,8 @@ class TestSQL:
         assert hasattr(sql, 'run')
         
         # Schema and examples
-        schema = sql.get_schema()
-        examples = sql.get_usage_examples()
+        schema = sql.schema()
+        examples = sql.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

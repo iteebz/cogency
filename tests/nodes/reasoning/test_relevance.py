@@ -111,13 +111,13 @@ class TestGetRelevantContext:
     
     def test_fast_mode_fifo(self):
         """Test fast mode uses simple FIFO."""
-        cognitive_state = {
+        cognition = {
             'action_history': ['action1', 'action2', 'action3', 'action4'],
             'failed_attempts': ['fail1', 'fail2', 'fail3']
         }
         
         context = get_relevant_context(
-            cognitive_state,
+            cognition,
             "test query",
             "fast", 
             None  # No LLM needed for fast mode
@@ -131,7 +131,7 @@ class TestGetRelevantContext:
     
     def test_deep_mode_llm_scoring(self):
         """Test deep mode uses LLM-based relevance scoring."""
-        cognitive_state = {
+        cognition = {
             'action_history': ['search python', 'analyze data', 'write code'],
             'failed_attempts': ['failed search', 'syntax error']
         }
@@ -141,7 +141,7 @@ class TestGetRelevantContext:
         llm_client = MockLLM(llm_response)
         
         context = get_relevant_context(
-            cognitive_state,
+            cognition,
             "help with python programming",
             "deep",
             llm_client
@@ -155,7 +155,7 @@ class TestGetRelevantContext:
     
     def test_deep_mode_fallback(self):
         """Test deep mode fallback when LLM fails."""
-        cognitive_state = {
+        cognition = {
             'action_history': ['action1', 'action2'],
             'failed_attempts': ['fail1']
         }
@@ -165,7 +165,7 @@ class TestGetRelevantContext:
         llm_client.run.side_effect = Exception("LLM error")
         
         context = get_relevant_context(
-            cognitive_state,
+            cognition,
             "test query", 
             "deep",
             llm_client
@@ -176,12 +176,12 @@ class TestGetRelevantContext:
         assert 'recent_failures' in context
         assert len(context['recent_actions']) <= 10  # Deep mode limit
     
-    def test_empty_cognitive_state(self):
+    def test_empty_cognition(self):
         """Test handling empty cognitive state."""
-        cognitive_state = {}
+        cognition = {}
         
         context = get_relevant_context(
-            cognitive_state,
+            cognition,
             "test query",
             "fast",
             None

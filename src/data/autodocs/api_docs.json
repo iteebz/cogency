@@ -43,7 +43,7 @@
           "init_signature": "(self, name: str, llm: Optional[cogency.llm.base.BaseLLM] = None, tools: Optional[List[cogency.tools.base.BaseTool]] = None, trace: bool = True, memory: Optional[cogency.memory.base.BaseMemory] = None, memory_dir: str = '.memory', response_shaper: Optional[Dict[str, Any]] = None, default_output_mode: Literal['summary', 'trace', 'dev', 'explain'] = 'summary', enable_mcp: bool = False)"
         },
         {
-          "name": "AgentState",
+          "name": "State",
           "docstring": "dict() -> new empty dictionary\ndict(mapping) -> new dictionary initialized from a mapping object's\n    (key, value) pairs\ndict(iterable) -> new dictionary initialized as if via:\n    d = {}\n    for k, v in iterable:\n        d[k] = v\ndict(**kwargs) -> new dictionary initialized with the name=value pairs\n    in the keyword argument list.  For example:  dict(one=1, two=2)",
           "module": "cogency.common.types",
           "methods": [],
@@ -812,7 +812,7 @@
           "name": "memorize_node",
           "docstring": "Memorize content if it meets certain criteria.",
           "module": "cogency.memory.memorize",
-          "signature": "(state: cogency.common.types.AgentState, *, memory: cogency.memory.base.BaseMemory) -> cogency.common.types.AgentState"
+          "signature": "(state: cogency.common.types.State, *, memory: cogency.memory.base.BaseMemory) -> cogency.common.types.State"
         }
       ]
     },
@@ -1051,7 +1051,7 @@
             {
               "name": "check_reasoning_step",
               "docstring": "Check for loops after reasoning step.",
-              "signature": "(self, state: cogency.common.types.AgentState, iteration: int, llm_response: str, tool_calls: List[str] = None, execution_results: Dict = None) -> Dict[str, Any]"
+              "signature": "(self, state: cogency.common.types.State, iteration: int, llm_response: str, tool_calls: List[str] = None, execution_results: Dict = None) -> Dict[str, Any]"
             },
             {
               "name": "check_tool_execution",
@@ -1134,7 +1134,7 @@
           "name": "filter_tools_node",
           "docstring": "Intelligently select a subset of tools based on the user query.",
           "module": "cogency.react.filter_tools",
-          "signature": "(state: cogency.common.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None) -> cogency.common.types.AgentState"
+          "signature": "(state: cogency.common.types.State, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None) -> cogency.common.types.State"
         },
         {
           "name": "parse_tool_call",
@@ -1146,7 +1146,7 @@
           "name": "react_loop_node",
           "docstring": "ReAct Loop Node: Full multi-step reason → act → observe cycle until task complete.",
           "module": "cogency.react.react_responder",
-          "signature": "(state: cogency.common.types.AgentState, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None, response_shaper: Optional[Dict[str, Any]] = None, config: Optional[Dict] = None) -> cogency.common.types.AgentState"
+          "signature": "(state: cogency.common.types.State, llm: cogency.llm.base.BaseLLM, tools: Optional[List[cogency.tools.base.BaseTool]] = None, response_shaper: Optional[Dict[str, Any]] = None, config: Optional[Dict] = None) -> cogency.common.types.State"
         },
         {
           "name": "shape_response",

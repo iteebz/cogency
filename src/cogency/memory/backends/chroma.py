@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from .base import BaseBackend
-from ..core import MemoryArtifact, MemoryType, SearchType
+from ..core import Memory, MemoryType, SearchType
 
 try:
     import chromadb
@@ -36,7 +36,7 @@ class ChromaBackend(BaseBackend):
         self._collection = None
         super().__init__(embedding_provider)
     
-    async def _ensure_ready(self):
+    async def _ready(self):
         """Initialize ChromaDB client and collection."""
         if self._collection:
             return
@@ -59,15 +59,15 @@ class ChromaBackend(BaseBackend):
                 metadata={"description": "Cogency memory artifacts"}
             )
     
-    def _supports_native_search(self, search_type: SearchType) -> bool:
+    def _has_search(self, search_type: SearchType) -> bool:
         """ChromaDB supports semantic search only."""
         return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedding_provider
     
-    async def _native_search(
+    async def _search(
         self, query: str, search_type: SearchType, limit: int, threshold: float,
         tags: Optional[List[str]], memory_type: Optional[MemoryType], 
         filters: Optional[Dict[str, Any]], **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Native ChromaDB semantic search."""
         if search_type == SearchType.TEXT:
             raise NotImplementedError("Text search not supported by ChromaDB backend")
@@ -124,7 +124,7 @@ class ChromaBackend(BaseBackend):
         
         return artifacts
     
-    async def _store_artifact(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact in ChromaDB."""
         metadata = {
             "memory_type": artifact.memory_type.value,
@@ -150,7 +150,7 @@ class ChromaBackend(BaseBackend):
                 metadatas=[metadata]
             )
     
-    async def _read_by_id(self, artifact_id: UUID) -> List[MemoryArtifact]:
+    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         try:
             results = self._collection.get(ids=[str(artifact_id)], include=["documents", "metadatas"])
@@ -171,7 +171,7 @@ class ChromaBackend(BaseBackend):
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Read filtered artifacts."""
         # Build where filter
         where_filter = {}
@@ -295,8 +295,8 @@ class ChromaBackend(BaseBackend):
         except Exception:
             return False
     
-    def _result_to_artifact(self, doc_id: str, document: str, metadata: Dict) -> MemoryArtifact:
-        """Convert ChromaDB result to MemoryArtifact."""
+    def _result_to_artifact(self, doc_id: str, document: str, metadata: Dict) -> Memory:
+        """Convert ChromaDB result to Memory."""
         tags = []
         artifact_metadata = {}
         
@@ -325,7 +325,7 @@ class ChromaBackend(BaseBackend):
             from uuid import uuid5, NAMESPACE_DNS
             artifact_id = uuid5(NAMESPACE_DNS, doc_id)
         
-        artifact = MemoryArtifact(
+        artifact = Memory(
             id=artifact_id,
             content=document,
             memory_type=MemoryType(metadata.get("memory_type", MemoryType.FACT.value)),
@@ -359,4 +359,4 @@ class ChromaBackend(BaseBackend):
                 'collection_name': self.collection_name
             }
         
-        return self._safe_stats(_get_stats, 'chromadb')
+        return self._stats(_get_stats, 'chromadb')

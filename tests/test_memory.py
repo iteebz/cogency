@@ -3,7 +3,7 @@ import pytest
 from uuid import uuid4
 
 from cogency.memory.core import MemoryType, SearchType
-from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.backends.filesystem import FileBackend
 
 
 class TestMemoryBackends:
@@ -54,8 +54,8 @@ class TestMemoryBackends:
     @pytest.mark.asyncio
     async def test_user_isolation(self, temp_memory_dir):
         """Different users should have isolated memory."""
-        backend1 = FilesystemBackend(memory_dir=temp_memory_dir)
-        backend2 = FilesystemBackend(memory_dir=temp_memory_dir)
+        backend1 = FileBackend(memory_dir=temp_memory_dir)
+        backend2 = FileBackend(memory_dir=temp_memory_dir)
         
         # Store memory for user1
         await backend1.create("user1 secret", user_id="user1")
@@ -72,11 +72,11 @@ class TestMemoryBackends:
     async def test_memory_persistence(self, temp_memory_dir):
         """Memory should persist across backend instances."""
         # Store memory with first backend instance
-        backend1 = FilesystemBackend(memory_dir=temp_memory_dir)
+        backend1 = FileBackend(memory_dir=temp_memory_dir)
         artifact = await backend1.create("persistent memory test")
         
         # Create new backend instance (simulates restart)
-        backend2 = FilesystemBackend(memory_dir=temp_memory_dir)
+        backend2 = FileBackend(memory_dir=temp_memory_dir)
         results = await backend2.read(query="persistent memory")
         
         assert len(results) >= 1
@@ -193,13 +193,13 @@ class TestMemoryIntelligence:
 class TestMemoryAutoConfiguration:
     """Test Memory.create() auto-magical backend creation."""
     
-    def test_filesystem_backend_creation(self, temp_memory_dir):
+    def test_file_backend_creation(self, temp_memory_dir):
         """Should auto-create filesystem backend."""
         from cogency.memory.core import Memory
         
         backend = Memory.create("filesystem", memory_dir=temp_memory_dir)
         
-        assert isinstance(backend, FilesystemBackend)
+        assert isinstance(backend, FileBackend)
         assert backend.memory_dir.name == temp_memory_dir.split("/")[-1]
     
     def test_list_available_backends(self):

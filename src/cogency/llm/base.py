@@ -24,7 +24,7 @@ class BaseLLM(ABC):
         self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
 
-    def get_api_key(self) -> str:
+    def next_key(self) -> str:
         """Get next API key - rotates automatically on every call."""
         return self.keys.get_next()
 
@@ -45,7 +45,7 @@ class BaseLLM(ABC):
         """LangGraph compatibility method - wrapper around invoke()."""
         return await self.run(messages, **kwargs)
 
-    def _convert_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    def _format_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """Convert to provider format (standard role/content structure)."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]
 

@@ -62,7 +62,7 @@ class NomicEmbed(BaseEmbed):
             except ImportError:
                 raise ImportError("nomic package required. Install with: pip install nomic")
 
-    def embed_single(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """
         Embed a single text string
 
@@ -73,9 +73,9 @@ class NomicEmbed(BaseEmbed):
         Returns:
             Embedding vector as numpy array
         """
-        return self.embed_batch([text], **kwargs)[0]
+        return self.embed_many([text], **kwargs)[0]
 
-    def embed_batch(
+    def embed_many(
         self, texts: list[str], batch_size: Optional[int] = None, **kwargs
     ) -> list[np.ndarray]:
         """

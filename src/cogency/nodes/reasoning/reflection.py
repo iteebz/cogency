@@ -2,9 +2,9 @@
 from typing import Dict, Any, Optional
 
 
-def get_deep_reflection_prompt(
+def get_reflection_prompt(
     tool_info: str,
-    current_input: str,
+    query: str,
     current_iteration: int,
     max_iterations: int,
     current_strategy: str,
@@ -17,7 +17,7 @@ def get_deep_reflection_prompt(
     """
     return f"""You are in DEEP REACT mode - use explicit reflection phases for sophisticated reasoning.
 
-ORIGINAL QUERY: {current_input}
+ORIGINAL QUERY: {query}
 AVAILABLE TOOLS: {tool_info}
 
 ITERATION: {current_iteration}/{max_iterations}
@@ -55,7 +55,7 @@ Output JSON with structured reasoning:
 Use tools if needed or provide direct response if you can answer completely."""
 
 
-def extract_reflection_phases(llm_response: str) -> Dict[str, Optional[str]]:
+def get_reflection(llm_response: str) -> Dict[str, Optional[str]]:
     """Extract reflection phases from LLM response.
     
     Returns:
@@ -110,7 +110,7 @@ def extract_reflection_phases(llm_response: str) -> Dict[str, Optional[str]]:
     }
 
 
-def format_reflection_for_display(phases: Dict[str, Optional[str]]) -> str:
+def format_reflection(phases: Dict[str, Optional[str]]) -> str:
     """Format reflection phases for human-readable display.
     
     Args:
@@ -133,7 +133,7 @@ def format_reflection_for_display(phases: Dict[str, Optional[str]]) -> str:
     return '\n\n'.join(parts) if parts else "Thinking through the problem..."
 
 
-def should_use_reflection(react_mode: str, current_iteration: int = 0) -> bool:
+def needs_reflection(react_mode: str, current_iteration: int = 0) -> bool:
     """Determine if explicit reflection should be used.
     
     Args:

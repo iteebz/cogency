@@ -38,7 +38,7 @@ class ConfigurationError(CogencyError):
     pass
 
 
-def format_tool_error(error: Exception, tool_name: str, operation: str = None) -> Dict[str, Any]:
+def format_error(error: Exception, tool_name: str, operation: str = None) -> Dict[str, Any]:
     """Standardized error formatting for tool responses.
 
     Args:
@@ -79,7 +79,7 @@ def graceful(func):
             # Log the full traceback for debugging
             logging.error(f"Error in {tool_name}.{operation}: {e}", exc_info=True)
 
-            return format_tool_error(e, tool_name, operation)
+            return format_error(e, tool_name, operation)
 
     return wrapper
 
@@ -88,7 +88,7 @@ def graceful(func):
 handle_tool_exception = graceful
 
 
-def validate_required_params(params: Dict[str, Any], required: list[str], tool_name: str) -> None:
+def validate_params(params: Dict[str, Any], required: list[str], tool_name: str) -> None:
     """Validate that all required parameters are present and not empty.
 
     Args:
@@ -125,7 +125,7 @@ def validate_required_params(params: Dict[str, Any], required: list[str], tool_n
         )
 
 
-def create_success_response(data: Dict[str, Any], message: str = None) -> Dict[str, Any]:
+def success_response(data: Dict[str, Any], message: str = None) -> Dict[str, Any]:
     """Create standardized success response format.
 
     Args:

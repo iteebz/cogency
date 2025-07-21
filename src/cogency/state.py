@@ -1,18 +1,18 @@
-"""Cogency AgentState - with a beautiful API."""
+"""Cogency State container."""
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
 from cogency.context import Context
-from cogency.output import OutputManager
+from cogency.output import Output
 
 
 @dataclass
-class AgentState:
-    """Agent state with beautiful API - world-class DX."""
+class State:
+    """Agent state with dict-like access."""
     # WORLD-CLASS MINIMALISM
     context: Context
     query: str
-    output: OutputManager = field(default_factory=OutputManager)
+    output: Output = field(default_factory=Output)
     flow: Dict[str, Any] = field(default_factory=dict)  # Ephemeral workflow data
 
     # Dict-like access for compatibility - checks flow first, then core fields

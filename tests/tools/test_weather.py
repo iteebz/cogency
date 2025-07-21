@@ -18,8 +18,8 @@ class TestWeather:
         assert hasattr(weather_tool, 'run')
         
         # Schema and examples
-        schema = weather_tool.get_schema()
-        examples = weather_tool.get_usage_examples()
+        schema = weather_tool.schema()
+        examples = weather_tool.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

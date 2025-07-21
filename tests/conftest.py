@@ -5,11 +5,11 @@ from pathlib import Path
 from typing import Dict, Any
 
 from cogency.context import Context
-from cogency.memory.backends.filesystem import FilesystemBackend
+from cogency.memory.backends.filesystem import FileBackend
 from cogency.llm.mock import MockLLM
 from cogency.tools.calculator import Calculator
 from cogency.tools.weather import Weather
-from cogency.state import AgentState
+from cogency.state import State
 
 
 @pytest.fixture
@@ -22,7 +22,7 @@ def temp_memory_dir():
 @pytest.fixture
 def memory_backend(temp_memory_dir):
     """Filesystem memory backend for testing."""
-    return FilesystemBackend(memory_dir=temp_memory_dir)
+    return FileBackend(memory_dir=temp_memory_dir)
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def mock_llm():
 def context():
     """Basic agent context for testing."""
     return Context(
-        current_input="test query",
+        query="test query",
         messages=[],
         user_id="test_user"
     )
@@ -44,11 +44,11 @@ def context():
 @pytest.fixture
 def agent_state(context):
     """Basic agent state for workflow testing."""
-    from cogency.output import OutputManager
-    return AgentState(
+    from cogency.output import Output
+    return State(
         context=context,
         query="test query",
-        output=OutputManager()
+        output=Output()
     )
 
 
@@ -64,10 +64,10 @@ def tools():
         async def run(self, **kwargs):
             return {"result": "mock_result"}
         
-        def get_schema(self):
+        def schema(self):
             return "mock_tool(param='value')"
         
-        def get_usage_examples(self):
+        def examples(self):
             return ["mock_tool(param='test')"]
     
     return [

@@ -10,7 +10,7 @@ class ToolRegistry:
     _tools: List[Type[BaseTool]] = []
     
     @classmethod
-    def register(cls, tool_class: Type[BaseTool]):
+    def add(cls, tool_class: Type[BaseTool]):
         """Register a tool class for auto-discovery."""
         if tool_class not in cls._tools:
             cls._tools.append(tool_class)
@@ -51,9 +51,9 @@ class ToolRegistry:
 
 def tool(cls):
     """Decorator to auto-register tools."""
-    return ToolRegistry.register(cls)
+    return ToolRegistry.add(cls)
 
 
-def get_registered_tools(**kwargs) -> List[BaseTool]:
+def get_tools(**kwargs) -> List[BaseTool]:
     """Get all registered tool instances."""
     return ToolRegistry.get_tools(**kwargs)

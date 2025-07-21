@@ -1,10 +1,10 @@
 """Tests for bidirectional mode switching logic."""
 import pytest
 from cogency.nodes.reasoning.adaptation import (
-    extract_mode_switch,
-    should_switch_modes,
-    execute_mode_switch,
-    get_mode_switch_prompt_addition
+    get_mode_switch,
+    should_switch,
+    switch_mode,
+    get_switch_prompt
 )
 
 
@@ -16,7 +16,7 @@ class TestModeSwitch:
         response = '''This task requires deeper analysis than I thought.
         {"switch_to": "deep", "switch_reason": "complex synthesis needed"}'''
         
-        mode, reason = extract_mode_switch(response)
+        mode, reason = get_mode_switch(response)
         assert mode == "deep"
         assert reason == "complex synthesis needed"
     
@@ -25,7 +25,7 @@ class TestModeSwitch:
         response = '''Actually this is just a simple lookup.
         {"switch_to": "fast", "switch_reason": "simpler than expected"}'''
         
-        mode, reason = extract_mode_switch(response)
+        mode, reason = get_mode_switch(response)
         assert mode == "fast"
         assert reason == "simpler than expected"
     
@@ -34,7 +34,7 @@ class TestModeSwitch:
         response = '''I'll continue with the current approach.
         {"reasoning": "making progress with current strategy"}'''
         
-        mode, reason = extract_mode_switch(response)
+        mode, reason = get_mode_switch(response)
         assert mode is None
         assert reason is None
     
@@ -42,7 +42,7 @@ class TestModeSwitch:
         """Test graceful handling of invalid JSON."""
         response = '''{"switch_to": "deep", invalid json'''
         
-        mode, reason = extract_mode_switch(response)
+        mode, reason = get_mode_switch(response)
         assert mode is None
         assert reason is None
 
@@ -52,7 +52,7 @@ class TestShouldSwitch:
     
     def test_should_switch_fast_to_deep(self):
         """Test switching from fast to deep mode."""
-        should_switch = should_switch_modes(
+        should_switch = should_switch(
             current_mode="fast",
             switch_to="deep", 
             switch_reason="needs complex analysis",
@@ -62,7 +62,7 @@ class TestShouldSwitch:
     
     def test_should_switch_deep_to_fast(self):
         """Test switching from deep to fast mode."""
-        should_switch = should_switch_modes(
+        should_switch = should_switch(
             current_mode="deep",
             switch_to="fast",
             switch_reason="simpler than expected", 
@@ -72,7 +72,7 @@ class TestShouldSwitch:
     
     def test_no_switch_same_mode(self):
         """Test no switching when requesting same mode."""
-        should_switch = should_switch_modes(
+        should_switch = should_switch(
             current_mode="fast",
             switch_to="fast",
             switch_reason="continue current approach",
@@ -82,7 +82,7 @@ class TestShouldSwitch:
     
     def test_no_switch_late_iteration(self):
         """Test preventing switches in late iterations."""
-        should_switch = should_switch_modes(
+        should_switch = should_switch(
             current_mode="fast", 
             switch_to="deep",
             switch_reason="needs analysis",
@@ -98,45 +98,45 @@ class TestExecuteSwitch:
         """Test switching to deep mode updates state correctly."""
         state = {
             'react_mode': 'fast',
-            'cognitive_state': {
+            'cognition': {
                 'react_mode': 'fast',
                 'max_history': 3,
                 'max_failures': 5
             }
         }
         
-        updated_state = execute_mode_switch(
+        updated_state = switch_mode(
             state, 
             new_mode="deep",
             switch_reason="complex task detected"
         )
         
         assert updated_state['react_mode'] == 'deep'
-        assert updated_state['cognitive_state']['react_mode'] == 'deep'
-        assert updated_state['cognitive_state']['max_history'] == 10
-        assert updated_state['cognitive_state']['max_failures'] == 15
+        assert updated_state['cognition']['react_mode'] == 'deep'
+        assert updated_state['cognition']['max_history'] == 10
+        assert updated_state['cognition']['max_failures'] == 15
     
     def test_execute_switch_to_fast(self):
         """Test switching to fast mode updates state correctly."""
         state = {
             'react_mode': 'deep', 
-            'cognitive_state': {
+            'cognition': {
                 'react_mode': 'deep',
                 'max_history': 10,
                 'max_failures': 15
             }
         }
         
-        updated_state = execute_mode_switch(
+        updated_state = switch_mode(
             state,
             new_mode="fast", 
             switch_reason="task simpler than expected"
         )
         
         assert updated_state['react_mode'] == 'fast'
-        assert updated_state['cognitive_state']['react_mode'] == 'fast'
-        assert updated_state['cognitive_state']['max_history'] == 3
-        assert updated_state['cognitive_state']['max_failures'] == 5
+        assert updated_state['cognition']['react_mode'] == 'fast'
+        assert updated_state['cognition']['max_history'] == 3
+        assert updated_state['cognition']['max_failures'] == 5
 
 
 class TestPromptAddition:
@@ -144,14 +144,14 @@ class TestPromptAddition:
     
     def test_fast_mode_prompt_addition(self):
         """Test fast mode gets switching capability."""
-        addition = get_mode_switch_prompt_addition("fast")
+        addition = get_switch_prompt("fast")
         
         assert "deep" in addition.lower()
         assert "complex" in addition.lower() or "analysis" in addition.lower()
     
     def test_deep_mode_prompt_addition(self):
         """Test deep mode gets downshift capability."""
-        addition = get_mode_switch_prompt_addition("deep")
+        addition = get_switch_prompt("deep")
         
         assert "fast" in addition.lower()
         assert "simple" in addition.lower() or "efficient" in addition.lower()

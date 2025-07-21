@@ -18,8 +18,8 @@ class TestHTTP:
         assert hasattr(http, 'run')
         
         # Schema and examples
-        schema = http.get_schema()
-        examples = http.get_usage_examples()
+        schema = http.schema()
+        examples = http.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

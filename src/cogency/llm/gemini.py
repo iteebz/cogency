@@ -41,7 +41,7 @@ class GeminiLLM(BaseLLM):
 
     def _get_client(self):
         """Get client instance with current API key."""
-        current_key = self.get_api_key()
+        current_key = self.next_key()
         
         if current_key not in self._clients:
             self._clients[current_key] = genai.Client(api_key=current_key)

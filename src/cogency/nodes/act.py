@@ -3,10 +3,10 @@ import time
 from typing import List, Optional, Dict, Any
 
 from cogency.tools.base import BaseTool
-from cogency.state import AgentState
-from cogency.tools.executor import parse_tool_calls, execute_parallel_tools
+from cogency.state import State
+from cogency.tools.executor import parse_tool_calls, run_tools
 
-async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional[Dict] = None) -> AgentState:
+async def act(state: State, *, tools: List[BaseTool], config: Optional[Dict] = None) -> State:
     """Act: execute tools based on reasoning decision."""
     start_time = time.time()
     
@@ -24,9 +24,9 @@ async def act_node(state: AgentState, *, tools: List[BaseTool], config: Optional
     
     tool_tuples = [(call["name"], call["args"]) for call in tool_calls]
     await state.output.send("trace", f"Executing {len(tool_calls)} tools: {[c['name'] for c in tool_calls]}", node="act")
-    execution_results = await execute_parallel_tools(tool_tuples, selected_tools, context)
+    execution_results = await run_tools(tool_tuples, selected_tools, context)
     
-    # Stream results via OutputManager
+    # Stream results via Output
     for call, result in zip(tool_calls, execution_results.get("results", [])):
         await state.output.send(
             "tool_execution",

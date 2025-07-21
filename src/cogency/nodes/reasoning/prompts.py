@@ -42,9 +42,9 @@ For information-only requests:
 CRITICAL: Output ONLY the JSON object. No explanations, no code blocks, no markdown."""
 
 
-def get_fast_react_prompt(tool_info: str, current_input: str) -> str:
+def get_fast_react_prompt(tool_info: str, query: str) -> str:
     """Pure ReAct prompt for fast mode - efficient direct execution."""
-    return f"""QUERY: {current_input}
+    return f"""QUERY: {query}
 TOOLS: {tool_info}
 
 ReAct fast: think → act → observe. Use tools if needed.
@@ -54,7 +54,7 @@ Escalate if complex: "switch_to": "deep", "switch_reason": "why"
 JSON: {{"reasoning": "brief", "strategy": "approach", "switch_to": null|"deep", "switch_reason": null|"why"}}"""
 
 
-def get_mode_switch_addition(mode: str) -> str:
+def get_switch_prompt(mode: str) -> str:
     """Get mode switch prompt addition based on current mode."""
     if mode == "fast":
         return '\nEscalate if complex: "switch_to": "deep"'
@@ -62,41 +62,41 @@ def get_mode_switch_addition(mode: str) -> str:
         return '\nDownshift if simple: "switch_to": "fast"'
 
 
-def build_reasoning_prompt(
+def build_prompt(
     react_mode: str,
     current_iteration: int,
     tool_info: str,
     current_input: str,
     max_iterations: int,
-    cognitive_state: dict,
+    cognition: dict,
     attempts_summary: str
 ) -> str:
     """Build adaptive reasoning prompt based on mode."""
-    from cogency.nodes.reasoning.reflection import get_deep_reflection_prompt, should_use_reflection
+    from cogency.nodes.reasoning.reflection import get_reflection_prompt, needs_reflection
     
-    if react_mode == "deep" and should_use_reflection("deep", current_iteration):
+    if react_mode == "deep" and needs_reflection("deep", current_iteration):
         # Deep react: UltraThink-style reflection + planning + execution
         try:
-            return get_deep_reflection_prompt(
+            return get_reflection_prompt(
                 tool_info,
-                current_input,
+                query,
                 current_iteration + 1,
                 max_iterations,
-                cognitive_state.get("current_strategy", "initial_approach"),
+                cognition.get("current_strategy", "initial_approach"),
                 attempts_summary,
-                cognitive_state.get("last_tool_quality", "unknown")
+                cognition.get("last_tool_quality", "unknown")
             )
         except Exception:
             # Fallback to legacy deep reasoning
             return REASON_PROMPT.format(
                 tool_names=tool_info,
-                user_input=current_input,
+                user_input=query,
                 current_iteration=current_iteration + 1,
                 max_iterations=max_iterations,
-                current_strategy=cognitive_state.get("current_strategy", "initial_approach"),
+                current_strategy=cognition.get("current_strategy", "initial_approach"),
                 previous_attempts=attempts_summary,
-                last_tool_quality=cognitive_state.get("last_tool_quality", "unknown")
+                last_tool_quality=cognition.get("last_tool_quality", "unknown")
             ) + get_mode_switch_addition("deep")
     else:
         # Fast react: Pure ReAct with switching capability
-        return get_fast_react_prompt(tool_info, current_input) + get_mode_switch_addition("fast")
+        return get_fast_react_prompt(tool_info, query) + get_mode_switch_addition("fast")

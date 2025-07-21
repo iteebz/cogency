@@ -3,34 +3,35 @@ from typing import List, Optional, Dict, Any
 
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
-from cogency.state import AgentState
+from cogency.state import State
 
-from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, extract_reasoning_text
+from cogency.utils.parsing import parse_json, parse_tool_calls, get_reasoning
 from cogency.nodes.reasoning import (
-    initialize_cognitive_state,
-    update_cognitive_state,
-    create_action_fingerprint,
-    detect_action_loop,
-    assess_tool_quality,
-    create_attempts_summary,
-    track_failed_attempt,
-    REASON_PROMPT
+    init_cognition,
+    update_cognition,
+    action_fingerprint,
+    detect_loop,
+    assess_tools,
+    summarize_attempts,
+    track_failure,
+    REASON_PROMPT,
+    cognition
 )
-from cogency.nodes.reasoning.loop_detection import detect_fast_mode_loop
+from cogency.nodes.reasoning.loop_detection import detect_fast_loop
 from cogency.nodes.reasoning.adaptation import (
-    extract_mode_switch,
-    should_switch_modes,
-    execute_mode_switch
+    get_mode_switch,
+    should_switch,
+    switch_mode,
 )
 from cogency.nodes.reasoning.reflection import (
-    get_deep_reflection_prompt,
-    extract_reflection_phases,
-    format_reflection_for_display,
-    should_use_reflection
+    get_reflection_prompt,
+    get_reflection,
+    format_reflection,
+    needs_reflection
 )
-from cogency.nodes.reasoning.prompts import build_reasoning_prompt
+from cogency.nodes.reasoning.prompts import build_prompt
 
-async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
+async def reason(state: State, *, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
     """Reason: analyze context and decide next action (explicit reflection in deep mode)."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
@@ -41,18 +42,18 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     
     # Initialize cognitive state with adaptive features based on react_mode
     react_mode = state.get("react_mode", "fast")
-    cognitive_state = initialize_cognitive_state(state, react_mode=react_mode)
+    cognition = init_cognition(state, react_mode=react_mode)
     
     # Adaptive loop detection based on mode
     if react_mode == "deep":
         try:
-            loop_detected = detect_action_loop(cognitive_state)
+            loop_detected = detect_loop(cognition)
         except Exception:
             loop_detected = False  # Fallback to no loop detection if it fails
     else:
         # Fast react: lightweight loop detection with lower threshold
         try:
-            loop_detected = detect_fast_mode_loop(cognitive_state)
+            loop_detected = detect_fast_loop(cognition)
         except Exception:
             loop_detected = False  # Fallback gracefully
     
@@ -71,8 +72,8 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     if selected_tools:
         tool_info_parts = []
         for t in selected_tools:
-            schema = t.get_schema()
-            examples = getattr(t, 'get_usage_examples', lambda: [])()
+            schema = t.schema()
+            examples = getattr(t, 'examples', lambda: [])()
             if examples:
                 example_str = " Examples: " + ", ".join(examples[:2])  # Show first 2 examples
                 tool_info_parts.append(f"{t.name}: {schema}.{example_str}")
@@ -83,20 +84,20 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         tool_info = "no tools"
     
     messages = list(context.messages)
-    messages.append({"role": "user", "content": context.current_input})
+    messages.append({"role": "user", "content": context.query})
     
     # Create attempts summary from failed attempts
-    failed_attempts = cognitive_state.get("failed_attempts", [])
-    attempts_summary = create_attempts_summary(failed_attempts)
+    failed_attempts = cognition.get("failed_attempts", [])
+    attempts_summary = summarize_attempts(failed_attempts)
     
     # Build adaptive reasoning prompt - with reflection for deep mode
-    if should_use_reflection(react_mode, current_iteration):
+    if needs_reflection(react_mode, current_iteration):
         # Deep mode: use explicit reflection phases
-        current_strategy = cognitive_state.get("current_strategy", "unknown")
-        last_tool_quality = cognitive_state.get("last_tool_quality", "unknown")
-        reasoning_prompt = get_deep_reflection_prompt(
+        current_strategy = cognition.get("current_strategy", "unknown")
+        last_tool_quality = cognition.get("last_tool_quality", "unknown")
+        reasoning_prompt = get_reflection_prompt(
             tool_info,
-            context.current_input,
+            context.query,
             current_iteration,
             max_iterations,
             current_strategy,
@@ -105,13 +106,13 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         )
     else:
         # Fast mode: use standard reasoning
-        reasoning_prompt = build_reasoning_prompt(
+        reasoning_prompt = build_prompt(
             react_mode,
             current_iteration,
             tool_info,
-            context.current_input,
+            context.query,
             max_iterations,
-            cognitive_state,
+            cognition,
             attempts_summary
         )
     
@@ -125,14 +126,14 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         context.add_message("assistant", llm_response)
         
         # Parse response using consolidated utilities
-        json_data = extract_json_from_response(llm_response)
-        tool_calls = extract_tool_calls_from_json(json_data)
+        json_data = parse_json(llm_response)
+        tool_calls = parse_tool_calls(json_data)
         
         # Check for bidirectional mode switching
-        switch_to, switch_reason = extract_mode_switch(llm_response)
-        if should_switch_modes(react_mode, switch_to, switch_reason, current_iteration):
+        switch_to, switch_reason = get_mode_switch(llm_response)
+        if should_switch(react_mode, switch_to, switch_reason, current_iteration):
             await state.output.send("trace", f"Mode switch: {react_mode} → {switch_to} ({switch_reason})", node="reason")
-            state = execute_mode_switch(state, switch_to, switch_reason)
+            state = switch_mode(state, switch_to, switch_reason)
             # Update react_mode for this iteration
             react_mode = switch_to
         
@@ -148,21 +149,21 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         llm_response = "I encountered an issue with reasoning, but I'll do my best to help you."
     
     # Extract and stream reasoning - with reflection phases for deep mode
-    if should_use_reflection(react_mode, current_iteration):
+    if needs_reflection(react_mode, current_iteration):
         # Deep mode: extract and display reflection phases
-        reflection_phases = extract_reflection_phases(llm_response)
-        reflection_display = format_reflection_for_display(reflection_phases)
+        reflection_phases = get_reflection(llm_response)
+        reflection_display = format_reflection(reflection_phases)
         await state.output.send("update", reflection_display)
         
         # Store reflection data for tracing
-        cognitive_state["last_reflection"] = reflection_phases
+        cognition["last_reflection"] = reflection_phases
         await state.output.send("trace", f"Deep reflection: strategy={reflection_phases.get('strategy', 'unknown')}", node="reason")
         
         # Extract strategy from reflection phases
         current_strategy = reflection_phases.get("strategy", "unknown")
     else:
         # Fast mode: standard reasoning extraction
-        reasoning_text = extract_reasoning_text(llm_response)
+        reasoning_text = get_reasoning(llm_response)
         await state.output.send("update", reasoning_text)
         
         # Extract strategy from JSON
@@ -181,8 +182,8 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     # Assess previous tool execution results if available
     execution_results = state.get("execution_results")
     if execution_results:
-        tool_quality = assess_tool_quality(execution_results)
-        cognitive_state["last_tool_quality"] = tool_quality
+        tool_quality = assess_tools(execution_results)
+        cognition["last_tool_quality"] = tool_quality
         
         # Trace tool quality assessment
         await state.output.send("trace", f"Tool performance assessment: {tool_quality}", node="reason")
@@ -193,12 +194,12 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
             if prev_tool_calls:
                 failed_tools = [call.get("function", {}).get("name", "unknown") for call in prev_tool_calls]
                 await state.output.send("trace", f"Tracking failed attempt: {', '.join(failed_tools)}", node="reason")
-                track_failed_attempt(cognitive_state, prev_tool_calls, tool_quality, current_iteration)
+                track_failure(cognition, prev_tool_calls, tool_quality, current_iteration)
     
     # Update cognitive state for next iteration
     if tool_calls:
-        action_fingerprint = create_action_fingerprint(tool_calls)
-        update_cognitive_state(cognitive_state, tool_calls, current_strategy, action_fingerprint)
+        fingerprint = action_fingerprint(tool_calls)
+        update_cognition(cognition, tool_calls, current_strategy, fingerprint)
     
     # Store current tool calls for next iteration's assessment
     state["prev_tool_calls"] = tool_calls

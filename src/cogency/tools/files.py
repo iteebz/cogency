@@ -100,10 +100,10 @@ class Files(BaseTool):
         except Exception as e:
             return {"error": str(e)}
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         return "files(action='create|read|edit|list|delete', filename='path', content='text', line=int, start=int, end=int)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         return [
             "files(action='create', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
             "files(action='read', filename='notes/plan.md')",

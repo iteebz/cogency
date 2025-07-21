@@ -20,17 +20,17 @@ class TestBaseLLMContract:
         keys = ["key1", "key2", "key3"]
         llm = MockLLM(api_keys=keys)
         assert llm.keys.has_multiple()
-        assert llm.get_api_key() in keys
+        assert llm.next_key() in keys
     
     def test_base_llm_key_rotation(self):
-        """Test automatic key rotation on get_api_key() calls."""
+        """Test automatic key rotation on next_key() calls."""
         keys = ["key1", "key2", "key3"]
         llm = MockLLM(api_keys=keys)
         
         # Track keys used across multiple calls
         used_keys = []
         for _ in range(6):  # More than number of keys to see cycling
-            used_keys.append(llm.get_api_key())
+            used_keys.append(llm.next_key())
         
         # Should have rotated through all keys
         unique_keys = set(used_keys)
@@ -92,7 +92,7 @@ class TestKeyRotationIntegration:
         # Track API key calls
         api_keys_used = []
         for _ in range(6):  # More than number of keys to see cycling
-            key = llm.get_api_key()
+            key = llm.next_key()
             api_keys_used.append(key)
         
         # Should have rotated through all keys

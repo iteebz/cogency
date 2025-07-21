@@ -48,7 +48,7 @@ class MistralEmbed(BaseEmbed):
         if self.keys.has_multiple():
             self._init_client()
 
-    def embed_single(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string."""
         self._rotate_client()
         response = self._client.embeddings.create(
@@ -58,7 +58,7 @@ class MistralEmbed(BaseEmbed):
         )
         return np.array(response.data[0].embedding)
 
-    def embed_batch(self, texts: List[str], **kwargs) -> List[np.ndarray]:
+    def embed_many(self, texts: List[str], **kwargs) -> List[np.ndarray]:
         """Embed multiple texts."""
         self._rotate_client()
         response = self._client.embeddings.create(

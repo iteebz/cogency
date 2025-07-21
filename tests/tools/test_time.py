@@ -19,8 +19,8 @@ class TestTime:
         assert hasattr(time_tool, 'run')
         
         # Schema and examples
-        schema = time_tool.get_schema()
-        examples = time_tool.get_usage_examples()
+        schema = time_tool.schema()
+        examples = time_tool.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

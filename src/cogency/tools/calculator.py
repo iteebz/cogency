@@ -48,10 +48,10 @@ class Calculator(BaseTool):
         except Exception as e:
             return {"error": f"Invalid expression: {str(e)}"}
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         return "calculator(expression='math expression')"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         return [
             "calculator(expression='450 + 120*3')",
             "calculator(expression='√64')",

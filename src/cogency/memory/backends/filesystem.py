@@ -7,12 +7,12 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from .base import BaseBackend
-from ..core import MemoryArtifact, MemoryType
+from ..core import Memory, MemoryType
 
 logger = logging.getLogger(__name__)
 
 
-class FilesystemBackend(BaseBackend):
+class FileBackend(BaseBackend):
     """Filesystem storage implementation."""
     
     def __init__(self, memory_dir: str = ".cogency/memory", embedding_provider=None):
@@ -20,11 +20,11 @@ class FilesystemBackend(BaseBackend):
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(parents=True, exist_ok=True)
     
-    async def _ensure_ready(self) -> None:
+    async def _ready(self) -> None:
         """Filesystem is always ready - directory created in __init__."""
         pass
     
-    async def _store_artifact(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact to filesystem."""
         user_id = kwargs.get('user_id', 'default')
         user_dir = self.memory_dir / user_id
@@ -50,7 +50,7 @@ class FilesystemBackend(BaseBackend):
             logger.error(f"Failed to save memory artifact {artifact.id}: {e}")
             raise RuntimeError(f"Failed to save memory: {e}") from e
     
-    async def _read_by_id(self, artifact_id: UUID) -> List[MemoryArtifact]:
+    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         # Check all user directories for the artifact
         for user_dir in self.memory_dir.iterdir():
@@ -60,18 +60,18 @@ class FilesystemBackend(BaseBackend):
                 file_path = user_dir / f"{artifact_id}.json"
                 with open(file_path, 'r') as f:
                     data = json.load(f)
-                return [self._data_to_artifact(data)]
+                return [self._to_artifact(data)]
             except (OSError, IOError, json.JSONDecodeError, KeyError, ValueError):
                 continue
         return []
     
-    async def _read_filtered(
+    async def _read_filter(
         self,
         memory_type: Optional[MemoryType] = None,
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Read filtered artifacts."""
         user_id = kwargs.get('user_id', 'default')
         user_dir = self.memory_dir / user_id
@@ -83,7 +83,7 @@ class FilesystemBackend(BaseBackend):
                     with open(file_path, 'r') as f:
                         data = json.load(f)
                     
-                    artifact = self._data_to_artifact(data)
+                    artifact = self._to_artifact(data)
                     
                     # Apply filters
                     if memory_type and artifact.memory_type != memory_type:
@@ -106,7 +106,7 @@ class FilesystemBackend(BaseBackend):
         
         return artifacts
     
-    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+    async def _update(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
         """Update artifact with clean updates."""
         # Find artifact file across user directories
         for user_dir in self.memory_dir.iterdir():
@@ -154,7 +154,7 @@ class FilesystemBackend(BaseBackend):
         except OSError:
             return False
     
-    async def _delete_by_id(self, artifact_id: UUID) -> bool:
+    async def _delete_id(self, artifact_id: UUID) -> bool:
         """Delete single artifact by ID."""
         for user_dir in self.memory_dir.iterdir():
             if not user_dir.is_dir():
@@ -167,10 +167,10 @@ class FilesystemBackend(BaseBackend):
                 continue
         return False
     
-    async def _delete_by_filters(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
+    async def _delete_filter(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
         """Delete artifacts by filters."""
         user_id = filters.get('user_id', 'default') if filters else 'default'
-        artifacts_to_delete = await self._read_filtered(tags=tags, filters=filters, user_id=user_id)
+        artifacts_to_delete = await self._read_filter(tags=tags, filters=filters, user_id=user_id)
         
         try:
             user_dir = self.memory_dir / user_id
@@ -181,7 +181,7 @@ class FilesystemBackend(BaseBackend):
         except (OSError, FileNotFoundError):
             return False
     
-    async def _get_embedding_for_search(self, artifact_id: UUID) -> Optional[List[float]]:
+    async def _get_embedding(self, artifact_id: UUID) -> Optional[List[float]]:
         """Get embedding for search operations."""
         for user_dir in self.memory_dir.iterdir():
             if not user_dir.is_dir():
@@ -194,9 +194,9 @@ class FilesystemBackend(BaseBackend):
                 continue
         return None
     
-    def _data_to_artifact(self, data: Dict) -> MemoryArtifact:
-        """Convert JSON data to MemoryArtifact."""
-        artifact = MemoryArtifact(
+    def _to_artifact(self, data: Dict) -> Memory:
+        """Convert JSON data to Memory."""
+        artifact = Memory(
             id=UUID(data["id"]),
             content=data["content"],
             memory_type=MemoryType(data["memory_type"]),

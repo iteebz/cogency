@@ -22,11 +22,11 @@ class SentenceEmbed(BaseEmbed):
         except ImportError:
             raise ImportError("Sentence Transformers support not installed. Use `pip install cogency[sentence-transformers]`")
 
-    def embed_single(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string."""
         return self._model_instance.encode(text, **kwargs)
 
-    def embed_batch(self, texts: List[str], **kwargs) -> List[np.ndarray]:
+    def embed_many(self, texts: List[str], **kwargs) -> List[np.ndarray]:
         """Embed multiple texts."""
         embeddings = self._model_instance.encode(texts, **kwargs)
         return [np.array(emb) for emb in embeddings]

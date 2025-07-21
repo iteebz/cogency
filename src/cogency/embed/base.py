@@ -10,18 +10,18 @@ class BaseEmbed(ABC):
         self.api_key = api_key
 
     @abstractmethod
-    def embed_single(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string"""
         pass
 
     @abstractmethod
-    def embed_batch(self, texts: list[str], **kwargs) -> list[np.ndarray]:
+    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
         """Embed multiple texts"""
         pass
 
-    def embed_as_array(self, texts: list[str], **kwargs) -> np.ndarray:
+    def embed_array(self, texts: list[str], **kwargs) -> np.ndarray:
         """Embed texts and return as 2D numpy array"""
-        embeddings = self.embed_batch(texts, **kwargs)
+        embeddings = self.embed_many(texts, **kwargs)
         return np.array(embeddings)
 
     @property

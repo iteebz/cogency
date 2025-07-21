@@ -90,11 +90,11 @@ class Scrape(BaseTool):
                 "url": url
             }
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return tool call schema for LLM formatting."""
         return "scrape(url='string', favor_precision=True)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example tool calls for LLM guidance."""
         return [
             'scrape(url="https://news.ycombinator.com/item?id=12345")',

@@ -4,7 +4,7 @@ from typing import Optional, List
 from cogency.memory.core import MemoryBackend, MemoryType
 
 
-def should_extract_memory(query: str) -> bool:
+def should_extract(query: str) -> bool:
     """Simple heuristic: extract if query contains insights, novel info, or actionable patterns."""
     extract_indicators = [
         'learn', 'remember', 'important', 'note', 'save', 'store',
@@ -14,7 +14,7 @@ def should_extract_memory(query: str) -> bool:
     return any(indicator in query.lower() for indicator in extract_indicators)
 
 
-async def save_extracted_memory(
+async def save_memory(
     memory_summary: Optional[str], 
     memory: MemoryBackend, 
     user_id: str,

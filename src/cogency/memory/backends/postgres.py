@@ -5,7 +5,7 @@ from typing import List, Optional, Dict, Any
 from uuid import UUID
 
 from .base import BaseBackend
-from ..core import MemoryArtifact, MemoryType, SearchType
+from ..core import Memory, MemoryType, SearchType
 
 try:
     import asyncpg
@@ -32,7 +32,7 @@ class PGVectorBackend(BaseBackend):
         self.vector_dimensions = vector_dimensions
         self._pool = None
     
-    async def _ensure_ready(self):
+    async def _ready(self):
         """Initialize PGVector database and table."""
         if self._pool:
             return
@@ -73,20 +73,20 @@ class PGVectorBackend(BaseBackend):
                 ON {self.table_name} USING gin(tags);
             """)
     
-    def _supports_native_search(self, search_type: SearchType) -> bool:
+    def _has_search(self, search_type: SearchType) -> bool:
         """PGVector supports semantic search when embeddings available."""
         return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedding_provider
     
-    async def _native_search(
+    async def _search(
         self, query: str, search_type: SearchType, limit: int, threshold: float,
         tags: Optional[List[str]], memory_type: Optional[MemoryType], 
         filters: Optional[Dict[str, Any]], **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Native PGVector semantic search."""
         query_embedding = await self.embedding_provider.embed_text(query)
         return await self._vector_search(query_embedding, limit, threshold)
     
-    async def _store_artifact(self, artifact: MemoryArtifact, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact in PGVector."""
         embedding_vector = None
         if embedding:
@@ -111,7 +111,7 @@ class PGVectorBackend(BaseBackend):
                 artifact.last_accessed
             )
     
-    async def _read_by_id(self, artifact_id: UUID) -> List[MemoryArtifact]:
+    async def _read_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(f"""
@@ -125,13 +125,13 @@ class PGVectorBackend(BaseBackend):
                 return [self._row_to_artifact(row)]
             return []
     
-    async def _read_filtered(
+    async def _read_filter(
         self,
         memory_type: Optional[MemoryType] = None,
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Read filtered artifacts."""
         # Build where conditions
         where_conditions = []
@@ -175,7 +175,7 @@ class PGVectorBackend(BaseBackend):
         
         return [self._row_to_artifact(row) for row in rows]
     
-    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+    async def _update(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
         """Update artifact in PGVector."""
         # Build update query dynamically
         set_clauses = []
@@ -223,7 +223,7 @@ class PGVectorBackend(BaseBackend):
         except Exception:
             return False
     
-    async def _delete_by_id(self, artifact_id: UUID) -> bool:
+    async def _delete_id(self, artifact_id: UUID) -> bool:
         """Delete single artifact by ID."""
         try:
             async with self._pool.acquire() as conn:
@@ -234,7 +234,7 @@ class PGVectorBackend(BaseBackend):
         except Exception:
             return False
     
-    async def _delete_by_filters(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
+    async def _delete_filter(self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]) -> bool:
         """Delete artifacts by filters."""
         where_conditions = []
         params = []
@@ -270,7 +270,7 @@ class PGVectorBackend(BaseBackend):
         query_embedding: List[float], 
         limit: int, 
         threshold: float
-    ) -> List[MemoryArtifact]:
+    ) -> List[Memory]:
         """Perform vector similarity search using PGVector."""
         embedding_vector = f"[{','.join(map(str, query_embedding))}]"
         
@@ -294,11 +294,11 @@ class PGVectorBackend(BaseBackend):
         
         return results
     
-    def _row_to_artifact(self, row) -> MemoryArtifact:
-        """Convert database row to MemoryArtifact."""
+    def _row_to_artifact(self, row: Dict) -> Memory:
+        """Convert database row to Memory."""
         metadata = json.loads(row['metadata']) if row['metadata'] else {}
         
-        artifact = MemoryArtifact(
+        artifact = Memory(
             id=row['id'],
             content=row['content'],
             memory_type=MemoryType(row['memory_type']),

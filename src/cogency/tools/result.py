@@ -11,7 +11,7 @@ class ToolResult:
         self.error = error
         self.metadata = metadata or {}
     
-    def to_dict(self) -> Dict[str, Any]:
+    def as_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         result = {"success": self.success}
         if self.success:
@@ -23,7 +23,7 @@ class ToolResult:
         return result
     
     @classmethod
-    def success(cls, data: Any, metadata: Optional[Dict[str, Any]] = None) -> "ToolResult":
+    def ok(cls, data: Any, metadata: Optional[Dict[str, Any]] = None) -> "ToolResult":
         """Create successful result."""
         return cls(success=True, data=data, metadata=metadata)
     
@@ -38,12 +38,12 @@ class ToolResult:
     
     def __repr__(self) -> str:
         if self.success:
-            return f"ToolResult.success(data={repr(self.data)})"
+            return f"ToolResult.ok(data={repr(self.data)})"
         else:
             return f"ToolResult.failure(error={repr(self.error)})"
 
 
-def extract_tool_data(tool_output: Any) -> Any:
+def get_data(tool_output: Any) -> Any:
     """Extract data from any tool output format - handles legacy and new patterns."""
     if isinstance(tool_output, ToolResult):
         return tool_output.data if tool_output.success else None
@@ -66,7 +66,7 @@ def extract_tool_data(tool_output: Any) -> Any:
         return tool_output
 
 
-def is_tool_success(tool_output: Any) -> bool:
+def is_success(tool_output: Any) -> bool:
     """Check if tool output represents success - handles all patterns."""
     if isinstance(tool_output, ToolResult):
         return tool_output.success
@@ -83,7 +83,7 @@ def is_tool_success(tool_output: Any) -> bool:
         return tool_output is not None
 
 
-def get_tool_error(tool_output: Any) -> Optional[str]:
+def get_error(tool_output: Any) -> Optional[str]:
     """Extract error message from tool output - handles all patterns."""
     if isinstance(tool_output, ToolResult):
         return tool_output.error if not tool_output.success else None

@@ -4,16 +4,16 @@ from typing import List, Optional, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.memory.core import MemoryBackend
-from cogency.state import AgentState
+from cogency.state import State
 from cogency.output import emoji
 
-from cogency.memory.prepare import save_extracted_memory
-from cogency.utils.json import extract_json
+from cogency.memory.prepare import save_memory
+from cogency.utils.parsing import parse_json
 
 
 
 
-async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend, system_prompt: str = None, config: Optional[Dict] = None) -> AgentState:
+async def preprocess(state: State, *, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend, system_prompt: str = None, config: Optional[Dict] = None) -> State:
     """Preprocess: routing decisions, memory extraction, tool selection."""
     query = state["query"]
     context = state["context"]
@@ -29,7 +29,7 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
         for tool in tools:
             entry = f"- {tool.name}: {tool.description}"
             try:
-                schema = tool.get_schema()
+                schema = tool.schema()
                 if schema:
                     entry += f"\n  Schema: {schema}"
             except (AttributeError, NotImplementedError):
@@ -73,7 +73,7 @@ JSON:
             "selected_tools": [],
             "reasoning": ""
         }
-        result = extract_json(response, fallback)
+        result = parse_json(response)
         
         # Chain 1: Save extracted memory if not null/empty and memory is enabled
         if memory and result.get("memory"):
@@ -83,7 +83,7 @@ JSON:
             memory_emoji = emoji['memory']
             await state.output.send("update", f"{memory_emoji} {display_content}")
             
-            await save_extracted_memory(
+            await save_memory(
                 result["memory"], 
                 memory, 
                 user_id,

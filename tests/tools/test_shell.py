@@ -18,8 +18,8 @@ class TestShell:
         assert hasattr(shell, 'run')
         
         # Schema and examples
-        schema = shell.get_schema()
-        examples = shell.get_usage_examples()
+        schema = shell.schema()
+        examples = shell.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

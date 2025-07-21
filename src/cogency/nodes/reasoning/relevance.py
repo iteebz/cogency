@@ -80,7 +80,7 @@ Score based on:
 
 
 def get_relevant_context(
-    cognitive_state: Dict[str, Any],
+    cognition: Dict[str, Any],
     current_query: str,
     react_mode: str,
     llm_client
@@ -88,7 +88,7 @@ def get_relevant_context(
     """Get relevant context based on react mode.
     
     Args:
-        cognitive_state: Current cognitive state
+        cognition: Current cognitive state
         current_query: Current user query
         react_mode: 'fast' or 'deep'
         llm_client: LLM client for scoring (deep mode only)
@@ -96,8 +96,8 @@ def get_relevant_context(
     Returns:
         List of relevant context items
     """
-    action_history = cognitive_state.get("action_history", [])
-    failed_attempts = cognitive_state.get("failed_attempts", [])
+    action_history = cognition.get("action_history", [])
+    failed_attempts = cognition.get("failed_attempts", [])
     
     if react_mode == "fast":
         # Fast mode: Simple FIFO, no LLM scoring

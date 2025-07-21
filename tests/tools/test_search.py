@@ -18,8 +18,8 @@ class TestSearch:
         assert hasattr(search_tool, 'run')
         
         # Schema and examples
-        schema = search_tool.get_schema()
-        examples = search_tool.get_usage_examples()
+        schema = search_tool.schema()
+        examples = search_tool.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

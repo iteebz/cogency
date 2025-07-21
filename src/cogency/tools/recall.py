@@ -62,10 +62,10 @@ class Recall(BaseTool):
         except Exception as e:
             return {"error": f"Failed to recall content: {str(e)}"}
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         return "recall(query='search terms', limit=5, tags=['tag1'])"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example tool calls."""
         return [
             'recall(query="user preferences programming language")',

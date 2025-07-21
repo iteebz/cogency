@@ -14,58 +14,59 @@ SYSTEM_PREFIXES = ("TOOL_CALL:",)
 
 
 # Context: Conversation state (user input + message history)
-# AgentState: LangGraph flow state container (includes Context + execution trace)
+# State: LangGraph flow state container (includes Context + execution trace)
 class Context:
-    """Agent operational context."""
+    """Agent conversation context."""
 
     def __init__(
         self,
-        current_input: str,
+        query: str,
         messages: List[Dict[str, str]] = None,
         tool_results: Optional[List[Dict[str, Any]]] = None,
         max_history: Optional[int] = 20,  # Default limit: 20 messages (rolling window)
         conversation_history: Optional[List[Dict[str, Any]]] = None,
         user_id: str = "default",
     ):
-        self.current_input = current_input
+        self.query = query
         self.messages = messages or []
         self.tool_results = tool_results or []
         self.max_history = max_history
         self.conversation_history = conversation_history or []
         self.user_id = user_id
+        self.log_tools = []
         
         # Apply initial limit if messages were provided
         if self.messages:
-            self._apply_history_limit()
+            self._limit_history()
 
     def add_message(self, role: str, content: str, trace_id: Optional[str] = None):
-        """Add message to history with optional trace linkage."""
+        """Add message to history."""
         message_dict = {"role": role, "content": content}
         if trace_id:
             message_dict["trace_id"] = trace_id
         self.messages.append(message_dict)
-        self._apply_history_limit()
+        self._limit_history()
 
-    def _apply_sliding_window(self, items: List[Any]) -> List[Any]:
-        """Apply sliding window limit to any list. Returns modified list."""
+    def _apply_limit(self, items: List[Any]) -> List[Any]:
+        """Apply sliding window limit to list."""
         if self.max_history is None or len(items) <= self.max_history:
             return items
         return [] if self.max_history == 0 else items[-self.max_history:]
     
-    def _apply_history_limit(self):
-        """Apply sliding window to messages."""
-        self.messages = self._apply_sliding_window(self.messages)
+    def _limit_history(self):
+        """Limit message history."""
+        self.messages = self._apply_limit(self.messages)
     
-    def _apply_conversation_history_limit(self):
-        """Apply sliding window to conversation history."""
-        self.conversation_history = self._apply_sliding_window(self.conversation_history)
+    def _limit_turns(self):
+        """Limit conversation turns."""
+        self.conversation_history = self._apply_limit(self.conversation_history)
 
-    def add_tool_result(self, tool_name: str, args: dict, output: dict):
-        """Add tool execution result to history."""
-        self.tool_results.append({"tool_name": tool_name, "args": args, "output": output})
+    def add_result(self, tool_name: str, args: dict, output: dict):
+        """Add tool result to history."""
+        self.log_tools.append({"tool_name": tool_name, "args": args, "output": output})
     
-    def add_conversation_turn(self, query: str, response: str, metadata: Optional[Dict[str, Any]] = None):
-        """Add a conversation turn to history."""
+    def add_turn(self, query: str, response: str, metadata: Optional[Dict[str, Any]] = None):
+        """Add conversation turn."""
         turn = {
             "query": query,
             "response": response,
@@ -73,24 +74,24 @@ class Context:
             "metadata": metadata or {}
         }
         self.conversation_history.append(turn)
-        self._apply_conversation_history_limit()
+        self._limit_turns()
     
-    def get_recent_conversation(self, n: int = 5) -> List[Dict[str, Any]]:
-        """Get the last n conversation turns."""
+    def recent_turns(self, n: int = 5) -> List[Dict[str, Any]]:
+        """Get last n conversation turns."""
         return self.conversation_history[-n:] if self.conversation_history else []
     
-    def clear_conversation_history(self):
-        """Clear all conversation history."""
+    def clear_history(self):
+        """Clear conversation history."""
         self.conversation_history = []
 
     def get_clean_conversation(self) -> List[Dict[str, str]]:
-        """Returns conversation without execution trace data and internal JSON."""
+        """Get conversation without system messages."""
 
         clean_messages = []
         for msg in self.messages:
             content = msg["content"]
             # Filter out internal JSON messages
-            if self._is_internal_message(content):
+            if self._is_internal(content):
                 continue
             # Filter out system messages
             if msg["role"] == "system":
@@ -98,8 +99,8 @@ class Context:
             clean_messages.append({"role": msg["role"], "content": content})
         return clean_messages
 
-    def _is_internal_message(self, content: str) -> bool:
-        """Check if message content is internal/system generated."""
+    def _is_internal(self, content: str) -> bool:
+        """Detect internal system messages."""
         if not isinstance(content, str):
             return False
         
@@ -119,5 +120,5 @@ class Context:
     
     def __repr__(self):
         return (
-            f"Context(current_input='{self.current_input}', messages={len(self.messages)} messages)"
+            f"Context(query='{self.query}', messages={len(self.messages)} messages)"
         )

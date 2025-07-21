@@ -1,26 +1,26 @@
-"""Test end-to-end flow: preprocess → reason → act → respond."""
+"""Test flow: preprocess → reason → act → respond."""
 import pytest
 from unittest.mock import AsyncMock
 
-from cogency.nodes.reason import reason_node
-from cogency.nodes.act import act_node
-from cogency.nodes.respond import respond_node
-from cogency import AgentState
+from cogency.nodes.reason import reason
+from cogency.nodes.act import act
+from cogency.nodes.respond import respond
+from cogency import State
 
 @pytest.fixture
 def agent_state(context): # Using the context fixture from conftest.py
-    """Provides a basic AgentState for tests."""
-    from cogency.output import OutputManager
-    return AgentState(context=context, query="Hello", output=OutputManager())
+    """Basic State fixture."""
+    from cogency.output import Output
+    return State(context=context, query="Hello", output=Output())
 
 class TestFlowNodes:
-    """Test individual flow nodes with the new decoupled architecture."""
+    """Test individual flow nodes."""
     
     @pytest.mark.asyncio
     async def test_reason_node_can_answer_directly(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(return_value='{"reasoning": "I can answer this directly."}')
         
-        result = await reason_node(agent_state, llm=mock_llm, tools=tools)
+        result = await reason(agent_state, llm=mock_llm, tools=tools)
         
         assert result["next_node"] == "respond"
         assert "tool_calls" not in result or not result["tool_calls"]
@@ -29,7 +29,7 @@ class TestFlowNodes:
     async def test_reason_node_needs_tools(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(return_value='{"reasoning": "I need a tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}')
         
-        result = await reason_node(agent_state, llm=mock_llm, tools=tools)
+        result = await reason(agent_state, llm=mock_llm, tools=tools)
         
         assert result["next_node"] == "act"
         assert result["tool_calls"]
@@ -48,7 +48,7 @@ class TestFlowNodes:
         for key, value in state_from_reason.items():
             full_state.flow[key] = value
 
-        result = await act_node(full_state, tools=tools)
+        result = await act(full_state, tools=tools)
         
         assert "execution_results" in result
         assert result["execution_results"]["success"]
@@ -56,20 +56,20 @@ class TestFlowNodes:
     @pytest.mark.asyncio
     async def test_respond_node_formats_response(self, agent_state, mock_llm):
         # Respond node now gets a simple state, no complex reasoning decision needed
-        result = await respond_node(agent_state, llm=mock_llm)
+        result = await respond(agent_state, llm=mock_llm)
         
         assert "final_response" in result
         assert result["final_response"] # Should not be empty
 
 class TestFlowIntegration:
-    """Test complete flow integration by simulating the graph."""
+    """Test flow integration through graph simulation."""
     
     @pytest.mark.asyncio
     async def test_simple_direct_response_flow(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(return_value='{"reasoning": "Simple greeting."}')
         
         # 1. Reason
-        reason_result = await reason_node(agent_state, llm=mock_llm, tools=tools)
+        reason_result = await reason(agent_state, llm=mock_llm, tools=tools)
         assert reason_result["next_node"] == "respond"
         
         # 2. Respond
@@ -84,14 +84,14 @@ class TestFlowIntegration:
             current_state.flow["can_answer_directly"] = reason_result["can_answer_directly"]
         if "tool_calls" in reason_result:
             current_state.flow["tool_calls"] = reason_result["tool_calls"]
-        respond_result = await respond_node(current_state, llm=mock_llm)
+        respond_result = await respond(current_state, llm=mock_llm)
         assert "final_response" in respond_result
 
     @pytest.mark.asyncio
     async def test_tool_usage_flow(self, agent_state, mock_llm, tools):
         # 1. Reason (needs tools)
         mock_llm.run = AsyncMock(return_value='{"reasoning": "I need the mock tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}')
-        reason_result = await reason_node(agent_state, llm=mock_llm, tools=tools)
+        reason_result = await reason(agent_state, llm=mock_llm, tools=tools)
         assert reason_result["next_node"] == "act"
 
         # 2. Act
@@ -107,7 +107,7 @@ class TestFlowIntegration:
             state_for_act.flow["tool_calls"] = reason_result["tool_calls"]
         state_for_act.flow["selected_tools"] = tools
         state_for_act.flow["selected_tools"] = tools
-        act_result = await act_node(state_for_act, tools=tools)
+        act_result = await act(state_for_act, tools=tools)
         assert act_result["execution_results"]["success"]
 
         # 3. Reason (reflect on results)
@@ -116,7 +116,7 @@ class TestFlowIntegration:
         # Add the act_result items to the flow dict
         for key in act_result.flow:
             state_for_reflection.flow[key] = act_result.flow[key]
-        reflection_result = await reason_node(state_for_reflection, llm=mock_llm, tools=tools)
+        reflection_result = await reason(state_for_reflection, llm=mock_llm, tools=tools)
         assert reflection_result["next_node"] == "respond"
 
         # 4. Respond
@@ -124,5 +124,5 @@ class TestFlowIntegration:
         # Add the reflection_result items to the flow dict
         for key in reflection_result.flow:
             state_for_respond.flow[key] = reflection_result.flow[key]
-        respond_result = await respond_node(state_for_respond, llm=mock_llm)
+        respond_result = await respond(state_for_respond, llm=mock_llm)
         assert "final_response" in respond_result

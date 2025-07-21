@@ -20,12 +20,12 @@ class TestToolContracts:
         
         # Required methods
         assert hasattr(calc, 'run')
-        assert hasattr(calc, 'get_schema')
-        assert hasattr(calc, 'get_usage_examples')
+        assert hasattr(calc, 'schema')
+        assert hasattr(calc, 'examples')
         
         # Schema and examples should be non-empty
-        schema = calc.get_schema()
-        examples = calc.get_usage_examples()
+        schema = calc.schema()
+        examples = calc.examples()
         
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
@@ -36,7 +36,7 @@ class TestToolContracts:
         calc = Calculator()
         
         # Invalid expression
-        result = await calc.run(expression="invalid expression $$")
+        result = await calc.run(expression="invalid expression $")
         assert "error" in result
         
         # Missing parameters - this will cause a TypeError which is caught by execute()

@@ -19,8 +19,8 @@ class TestDate:
         assert hasattr(date_tool, 'run')
         
         # Schema and examples
-        schema = date_tool.get_schema()
-        examples = date_tool.get_usage_examples()
+        schema = date_tool.schema()
+        examples = date_tool.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

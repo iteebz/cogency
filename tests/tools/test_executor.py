@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import AsyncMock, Mock
 
-from cogency.tools.executor import has_dependency_risk, execute_parallel_tools
+from cogency.tools.executor import needs_sequential, run_tools
 from cogency.context import Context
 
 
@@ -16,7 +16,7 @@ class TestSmartParallelDetection:
             ("weather", {"city": "SF"}),
             ("calculate", {"expr": "2+2"})
         ]
-        assert has_dependency_risk(tool_calls) is False
+        assert needs_sequential(tool_calls) is False
     
     def test_dependency_risk_with_file_and_shell(self):
         """File ops + shell ops should be detected as risky."""
@@ -24,7 +24,7 @@ class TestSmartParallelDetection:
             ("create_file", {"path": "test.py", "content": "print('hello')"}),
             ("run_shell", {"command": "python test.py"})
         ]
-        assert has_dependency_risk(tool_calls) is True
+        assert needs_sequential(tool_calls) is True
     
     def test_no_dependency_risk_with_file_ops_only(self):
         """Multiple file ops without shell should run parallel."""
@@ -32,7 +32,7 @@ class TestSmartParallelDetection:
             ("create_file", {"path": "a.txt", "content": "file a"}),
             ("create_file", {"path": "b.txt", "content": "file b"})
         ]
-        assert has_dependency_risk(tool_calls) is False
+        assert needs_sequential(tool_calls) is False
     
     def test_no_dependency_risk_with_shell_ops_only(self):
         """Multiple shell ops without file creation should run parallel."""
@@ -40,7 +40,7 @@ class TestSmartParallelDetection:
             ("run_shell", {"command": "echo hello"}),
             ("run_shell", {"command": "date"})
         ]
-        assert has_dependency_risk(tool_calls) is False
+        assert needs_sequential(tool_calls) is False
 
 
 class TestSmartParallelExecution:
@@ -68,7 +68,7 @@ class TestSmartParallelExecution:
             ("weather", {"city": "SF"})
         ]
         
-        result = await execute_parallel_tools(tool_calls, tools, context)
+        result = await run_tools(tool_calls, tools, context)
         
         # Should execute in parallel mode
         assert result["execution_mode"] == "parallel"
@@ -97,7 +97,7 @@ class TestSmartParallelExecution:
             ("run_shell", {"command": "python test.py"})
         ]
         
-        result = await execute_parallel_tools(tool_calls, tools, context)
+        result = await run_tools(tool_calls, tools, context)
         
         # Should execute in sequential mode
         assert result["execution_mode"] == "sequential"

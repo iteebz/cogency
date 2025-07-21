@@ -20,8 +20,8 @@ class TestFiles:
         assert hasattr(files_tool, 'run')
         
         # Schema and examples
-        schema = files_tool.get_schema()
-        examples = files_tool.get_usage_examples()
+        schema = files_tool.schema()
+        examples = files_tool.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

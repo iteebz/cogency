@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 load_dotenv()
 
 
-def get_api_keys(provider: str) -> list:
+def next_key(provider: str) -> list:
     """Get API keys for a given provider from environment variables."""
     keys = []
     base_key = os.getenv(f"{provider.upper()}_API_KEY")
@@ -39,7 +39,7 @@ def detect_provider(provider_map: Dict[str, Any], provider_type: str = "provider
         RuntimeError: If no providers installed or no API keys found.
     """
     for provider_name, provider_class in provider_map.items():
-        api_keys = get_api_keys(provider_name)
+        api_keys = next_keys(provider_name)
         if api_keys:
             return provider_class(api_keys=api_keys)
 

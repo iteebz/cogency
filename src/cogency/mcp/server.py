@@ -19,7 +19,7 @@ class AgentInteractionRequest(BaseModel):
     context: Dict[str, Any] = {}
 
 
-class CogencyMCPServer:
+class MCPServer:
     """MCP Server for Cogency Agent communication"""
     
     def __init__(self, agent):
@@ -76,32 +76,32 @@ class CogencyMCPServer:
         async def call_tool(name: str, arguments: Dict[str, Any]) -> List[TextContent]:
             """Call a tool"""
             if name == "agent_interact":
-                return await self._handle_agent_interact(arguments)
+                return await self._interact(arguments)
             elif name == "agent_query":
-                return await self._handle_agent_query(arguments)
+                return await self._query(arguments)
             else:
                 raise McpError(ErrorData(code=404, message=f"Unknown tool: {name}"))
     
-    async def _handle_agent_interact(self, arguments: Dict[str, Any]) -> List[TextContent]:
+    async def _interact(self, arguments: Dict[str, Any]) -> List[TextContent]:
         """Handle agent interaction"""
         input_text = arguments.get("input_text", "")
         context = arguments.get("context", {})
         
         try:
             # Process through the agent
-            response = await self.agent.process_input(input_text, context)
+            response = await self.agent.process(input_text, context)
             return [TextContent(type="text", text=response)]
         except Exception as e:
             return [TextContent(type="text", text=f"Error: {str(e)}")]
     
-    async def _handle_agent_query(self, arguments: Dict[str, Any]) -> List[TextContent]:
+    async def _query(self, arguments: Dict[str, Any]) -> List[TextContent]:
         """Handle agent query"""
         query = arguments.get("query", "")
         context = arguments.get("context", {})
         
         try:
             # Process through the agent
-            response = await self.agent.process_input(query, context)
+            response = await self.agent.process(query, context)
             return [TextContent(type="text", text=response)]
         except Exception as e:
             return [TextContent(type="text", text=f"Error: {str(e)}")]

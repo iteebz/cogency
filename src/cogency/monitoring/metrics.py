@@ -33,7 +33,7 @@ class MetricsSummary:
     tags: Dict[str, str] = field(default_factory=dict)
 
 
-class MetricsCollector:
+class Metrics:
     """High-performance metrics collector."""
     
     def __init__(self, max_points: int = 10000):
@@ -46,20 +46,20 @@ class MetricsCollector:
     
     def counter(self, name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None):
         """Increment counter metric."""
-        key = self._make_key(name, tags or {})
+        key = self._key(name, tags or {})
         with self.lock:
             self.counters[key] += value
     
     def gauge(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
         """Set gauge metric."""
-        key = self._make_key(name, tags or {})
+        key = self._key(name, tags or {})
         with self.lock:
             self.gauges[key] = value
     
     def histogram(self, name: str, value: float, tags: Optional[Dict[str, str]] = None):
         """Record histogram value."""
         point = MetricPoint(name, value, tags or {})
-        key = self._make_key(name, tags or {})
+        key = self._key(name, tags or {})
         with self.lock:
             self.points[key].append(point)
     
@@ -69,7 +69,7 @@ class MetricsCollector:
     
     def get_summary(self, name: str, tags: Optional[Dict[str, str]] = None) -> Optional[MetricsSummary]:
         """Get statistical summary of histogram data."""
-        key = self._make_key(name, tags or {})
+        key = self._key(name, tags or {})
         with self.lock:
             if key not in self.points or not self.points[key]:
                 return None
@@ -86,12 +86,12 @@ class MetricsCollector:
                 max=max(values),
                 avg=statistics.mean(values),
                 p50=statistics.median(values),
-                p95=self._percentile(values, 0.95),
-                p99=self._percentile(values, 0.99),
+                p95=self._pct(values, 0.95),
+                p99=self._pct(values, 0.99),
                 tags=tags or {}
             )
     
-    def get_all_summaries(self) -> List[MetricsSummary]:
+    def all_summaries(self) -> List[MetricsSummary]:
         """Get summaries for all metrics."""
         summaries = []
         with self.lock:
@@ -100,8 +100,8 @@ class MetricsCollector:
                 if key in processed_keys:
                     continue
                 
-                name, tags = self._parse_key(key)
-                summary = self.get_summary(name, tags)
+                name, tags = self._parse(key)
+                summary = self.summary(name, tags)
                 if summary:
                     summaries.append(summary)
                     processed_keys.add(key)
@@ -124,14 +124,14 @@ class MetricsCollector:
                 "histograms": {k: [p.value for p in v] for k, v in self.points.items()}
             }
     
-    def _make_key(self, name: str, tags: Dict[str, str]) -> str:
+    def _key(self, name: str, tags: Dict[str, str]) -> str:
         """Create unique key for metric."""
         if not tags:
             return name
         tag_str = ",".join(f"{k}={v}" for k, v in sorted(tags.items()))
         return f"{name}#{tag_str}"
     
-    def _parse_key(self, key: str) -> tuple:
+    def _parse(self, key: str) -> tuple:
         """Parse key back to name and tags."""
         if "#" not in key:
             return key, {}
@@ -144,7 +144,7 @@ class MetricsCollector:
                 tags[tag_key] = tag_value
         return name, tags
     
-    def _percentile(self, values: List[float], p: float) -> float:
+    def _pct(self, values: List[float], p: float) -> float:
         """Calculate percentile."""
         if not values:
             return 0.0
@@ -163,7 +163,7 @@ class MetricsCollector:
 class TimerContext:
     """Timer context manager."""
     
-    def __init__(self, collector: MetricsCollector, name: str, tags: Dict[str, str]):
+    def __init__(self, collector: Metrics, name: str, tags: Dict[str, str]):
         self.collector = collector
         self.name = name
         self.tags = tags
@@ -182,13 +182,13 @@ class TimerContext:
 class MetricsReporter:
     """Report metrics to various backends."""
     
-    def __init__(self, collector: MetricsCollector):
+    def __init__(self, collector: Metrics):
         self.collector = collector
         self.logger = logging.getLogger("metrics.reporter")
     
     def log_summary(self):
         """Log metrics summary."""
-        summaries = self.collector.get_all_summaries()
+        summaries = self.collector.all_summaries()
         if not summaries:
             return
         
@@ -199,7 +199,7 @@ class MetricsReporter:
                 f"avg={summary.avg:.3f}, p95={summary.p95:.3f}, p99={summary.p99:.3f}"
             )
     
-    def export_json(self, filepath: str):
+    def to_json(self, filepath: str):
         """Export metrics to JSON file."""
         data = {
             "timestamp": time.time(),
@@ -216,7 +216,7 @@ class MetricsReporter:
                     "p99": s.p99,
                     "tags": s.tags
                 }
-                for s in self.collector.get_all_summaries()
+                for s in self.collector.all_summaries()
             ],
             "raw": self.collector.to_dict()
         }
@@ -224,7 +224,7 @@ class MetricsReporter:
         with open(filepath, 'w') as f:
             json.dump(data, f, indent=2)
     
-    async def start_background_reporting(self, interval: float = 60.0):
+    async def start_reporting(self, interval: float = 60.0):
         """Start background metrics reporting."""
         while True:
             try:
@@ -236,10 +236,10 @@ class MetricsReporter:
 
 
 # Global metrics collector
-_metrics = MetricsCollector()
+_metrics = Metrics()
 
 
-def get_metrics() -> MetricsCollector:
+def get_metrics() -> Metrics:
     """Get global metrics collector."""
     return _metrics
 
@@ -264,7 +264,7 @@ def timer(name: str, tags: Optional[Dict[str, str]] = None):
     return _metrics.timer(name, tags)
 
 
-def with_metrics(metric_name: str, tags: Optional[Dict[str, str]] = None):
+def measure(metric_name: str, tags: Optional[Dict[str, str]] = None):
     """Decorator to automatically time function execution."""
     def decorator(func):
         if asyncio.iscoroutinefunction(func):

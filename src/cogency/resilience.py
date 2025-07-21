@@ -42,7 +42,7 @@ def safe(max_retries: int = 3, backoff_factor: float = 2.0):
         if func.__name__ == 'stream':
             # Stream method - async generator
             @wraps(func)
-            async def stream_wrapper(*args, **kwargs):
+            async def safe_stream(*args, **kwargs):
                 for attempt in range(max_retries):
                     try:
                         async for chunk in func(*args, **kwargs):
@@ -53,11 +53,11 @@ def safe(max_retries: int = 3, backoff_factor: float = 2.0):
                             yield f"Stream error after {max_retries} attempts: {str(e)}"
                             return
                         await asyncio.sleep(backoff_factor ** attempt)
-            return stream_wrapper
+            return safe_stream
         else:
             # Run method - async function returning string
             @wraps(func)
-            async def run_wrapper(*args, **kwargs):
+            async def safe_run(*args, **kwargs):
                 for attempt in range(max_retries):
                     try:
                         return await func(*args, **kwargs)
@@ -65,7 +65,7 @@ def safe(max_retries: int = 3, backoff_factor: float = 2.0):
                         if attempt == max_retries - 1:
                             return f"Error after {max_retries} attempts: {str(e)}"
                         await asyncio.sleep(backoff_factor ** attempt)
-            return run_wrapper
+            return safe_run
     return decorator
 
 

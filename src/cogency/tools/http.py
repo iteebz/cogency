@@ -152,11 +152,11 @@ class HTTP(BaseTool):
         """PATCH request."""
         return await self._execute_request("patch", url, headers, body, json_data, auth, timeout)
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return the tool call schema."""
         return "http(url='string', method='get|post|put|delete|patch', headers=dict, body='string', json_data=dict, auth=dict, timeout=30)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "http(url='https://api.github.com/users/octocat', method='get')",

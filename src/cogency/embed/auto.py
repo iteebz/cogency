@@ -2,7 +2,7 @@
 from cogency.utils.auto import detect_provider
 from .base import BaseEmbed
 
-def auto_detect_embedder() -> BaseEmbed:
+def detect_embedder() -> BaseEmbed:
     """Auto-detect embedding provider from environment variables.
     
     Fallback chain:

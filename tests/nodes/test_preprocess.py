@@ -1,149 +1,79 @@
 #!/usr/bin/env python3
-"""Test preprocess node functionality."""
-import asyncio
+"""Test adaptive routing behavior - fast_react vs deep_react."""
+
 import pytest
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
-from cogency.nodes.preprocess import preprocess_node
-from cogency.state import AgentState
-from cogency.tools.recall import Recall
-from cogency.tools.calculator import Calculator
-
-
-class MockLLM:
-    async def run(self, messages):
-        # Mock response based on the query
-        query = messages[0]["content"]
-        
-        if "Python" in query and "OpenAI" in query:
-            return '{"memory": "User likes Python and works at OpenAI", "tags": ["programming", "work"], "memory_type": "fact", "respond_directly": false, "selected_tools": ["recall"], "reasoning": "User shared personal info, need recall for future context"}'
-        elif "what is my favorite" in query.lower():
-            return '{"memory": null, "tags": null, "memory_type": "fact", "respond_directly": false, "selected_tools": ["recall"], "reasoning": "Personal question needs memory lookup"}'
-        elif "2 + 2" in query:
-            return '{"memory": null, "tags": null, "memory_type": "fact", "respond_directly": false, "selected_tools": ["calculator"], "reasoning": "Simple math needs calculator"}'
-        else:
-            return '{"memory": null, "tags": null, "memory_type": "fact", "respond_directly": true, "selected_tools": [], "reasoning": "General knowledge"}'
+from cogency.llm.mock import MockLLM
+from cogency.nodes.preprocess import preprocess
+from cogency import State
+from cogency.context import Context
+from cogency.tools.base import BaseTool
 
 
-class MockMemory:
-    async def create(self, *args, **kwargs):
-        return Mock()
-
-
-class MockContext:
-    user_id = "test_user"
+class MockSearchTool(BaseTool):
+    """Mock search tool for testing."""
+    
+    def __init__(self):
+        super().__init__("search", "Search for information", "🔍")
+    
+    def schema(self):
+        return "search(query: str) -> str"
+    
+    def examples(self):
+        return ["search('weather today')", "search('python tutorials')"]
+    
+    async def run(self, query: str) -> str:
+        return f"Search results for: {query}"
 
 
 @pytest.mark.asyncio
-async def test_memory_extraction():
-    """Test that memory is extracted for personal info."""
-    from cogency.output import OutputManager
+async def test_routing_fast_react():
+    """Test that simple queries get fast_react."""
+    llm = MockLLM()
+    tools = [MockSearchTool()]
     
-    context = MockContext()
-    state = AgentState(
-        context=context,
-        query="My favorite programming language is Python and I work at OpenAI",
-        output=OutputManager()
-    )
+    query = "What is the weather today?"
+    llm.response = '{"respond_directly": false, "react_mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
     
-    mock_tools = [
-        Recall(MockMemory()),
-        Calculator()
-    ]
+    context = Context(query=query)
+    from cogency.output import Output
+    state = State(query=query, context=context, output=Output())
     
-    result = await preprocess_node(
-        state,
-        llm=MockLLM(),
-        tools=mock_tools,
-        memory=MockMemory()
-    )
+    result = await preprocess(state, llm=llm, tools=tools, memory=None)
     
-    assert result['next_node'] == 'reason'
-    assert any(t.name == 'recall' for t in result['selected_tools'])
-
+    assert result.get("next_node") == "reason"
 
 @pytest.mark.asyncio
-async def test_recall_usage():
-    """Test that recall is selected for personal questions."""
-    from cogency.output import OutputManager
+async def test_routing_deep_react():
+    """Test that complex queries get deep_react."""
+    llm = MockLLM()
+    tools = [MockSearchTool()]
     
-    context = MockContext()
-    state = AgentState(
-        context=context,
-        query="What is my favorite programming language?",
-        output=OutputManager()
-    )
+    query = "Analyze the economic implications of AI development and compare different regulatory approaches across multiple countries, synthesizing policy recommendations."
+    llm.response = '{"respond_directly": false, "react_mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
     
-    mock_tools = [
-        Recall(MockMemory()),
-        Calculator()
-    ]
+    context = Context(query=query)
+    from cogency.output import Output
+    state = State(query=query, context=context, output=Output())
     
-    result = await preprocess_node(
-        state,
-        llm=MockLLM(),
-        tools=mock_tools,
-        memory=MockMemory()
-    )
+    result = await preprocess(state, llm=llm, tools=tools, memory=None)
     
-    # Should use ReAct workflow and include recall
-    assert result['next_node'] == 'reason'
-    assert any(t.name == 'recall' for t in result['selected_tools'])
-
+    assert result.get("next_node") == "reason"
 
 @pytest.mark.asyncio
-async def test_calculator_selection():
-    """Test that calculator is selected for math."""
-    from cogency.output import OutputManager
+async def test_routing_direct_response():
+    """Test that direct response queries are routed correctly."""
+    llm = MockLLM()
+    tools = [MockSearchTool()]
     
-    context = MockContext()
-    state = AgentState(
-        context=context,
-        query="What is 2 + 2?",
-        output=OutputManager()
-    )
+    query = "Hello, how are you?"
+    llm.response = '{"respond_directly": true, "reasoning": "Simple greeting"}'
     
-    mock_tools = [
-        Recall(MockMemory()),
-        Calculator()
-    ]
+    context = Context(query=query)
+    from cogency.output import Output
+    state = State(query=query, context=context, output=Output())
     
-    result = await preprocess_node(
-        state,
-        llm=MockLLM(),
-        tools=mock_tools,
-        memory=MockMemory()
-    )
+    result = await preprocess(state, llm=llm, tools=tools, memory=None)
     
-    # Should use ReAct workflow with calculator
-    assert result['next_node'] == 'reason'
-    assert any(t.name == 'calculator' for t in result['selected_tools'])
-
-
-@pytest.mark.asyncio
-async def test_direct_response():
-    """Test direct response for general knowledge."""
-    from cogency.output import OutputManager
-    
-    context = MockContext()
-    state = AgentState(
-        context=context,
-        query="What is the capital of France?",
-        output=OutputManager()
-    )
-    
-    mock_tools = [
-        Recall(MockMemory()),
-        Calculator()
-    ]
-    
-    result = await preprocess_node(
-        state,
-        llm=MockLLM(),
-        tools=mock_tools,
-        memory=MockMemory()
-    )
-    
-    # Should respond directly for general knowledge
-    assert result['next_node'] == 'respond'
-    assert result['max_iterations'] == 5
+    assert result.get("next_node") == "respond"

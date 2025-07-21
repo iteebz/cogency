@@ -25,7 +25,7 @@ class ProfileMetrics:
     metadata: Dict[str, Any]
 
 
-class SystemProfiler:
+class Profiler:
     """Production-grade system profiler for cognitive operations."""
     
     def __init__(self, sample_interval: float = 0.1):
@@ -128,7 +128,7 @@ class SystemProfiler:
         
         return sorted(bottlenecks, key=lambda x: x.duration, reverse=True)
     
-    def get_summary(self) -> Dict[str, Any]:
+    def summary(self) -> Dict[str, Any]:
         """Generate performance summary report."""
         if not self.metrics:
             return {"message": "No profiling data available"}
@@ -160,10 +160,10 @@ class SystemProfiler:
         
         return summary
     
-    def export_report(self, filepath: str):
+    def to_json(self, filepath: str):
         """Export detailed profiling report to JSON."""
         report = {
-            "summary": self.get_summary(),
+            "summary": self.summary(),
             "bottlenecks": [
                 {
                     "operation": b.operation_name,
@@ -197,21 +197,21 @@ class SystemProfiler:
 
 
 # Global profiler instance
-_profiler = SystemProfiler()
+_profiler = Profiler()
 
 
-def get_profiler() -> SystemProfiler:
+def get_profiler() -> Profiler:
     """Get the global profiler instance."""
     return _profiler
 
 
-async def profile_async_operation(operation_name: str, func: Callable, *args, **kwargs):
+async def profile_async(operation_name: str, func: Callable, *args, **kwargs):
     """Profile an async operation with automatic context management."""
     async with _profiler.profile(operation_name, {"args": str(args), "kwargs": str(kwargs)}):
         return await func(*args, **kwargs)
 
 
-def profile_sync_operation(operation_name: str, func: Callable, *args, **kwargs):
+def profile_sync(operation_name: str, func: Callable, *args, **kwargs):
     """Profile a sync operation with automatic context management."""
     import asyncio
     
@@ -230,23 +230,23 @@ class CogencyProfiler:
     
     async def profile_reasoning_loop(self, func, *args, **kwargs):
         """Profile the complete reasoning loop."""
-        return await profile_async_operation("reasoning_loop", func, *args, **kwargs)
+        return await profile_async("reasoning_loop", func, *args, **kwargs)
     
     async def profile_tool_execution(self, func, *args, **kwargs):
         """Profile tool execution operations."""
-        return await profile_async_operation("tool_execution", func, *args, **kwargs)
+        return await profile_async("tool_execution", func, *args, **kwargs)
     
     async def profile_memory_access(self, func, *args, **kwargs):
         """Profile memory access operations."""
-        return await profile_async_operation("memory_access", func, *args, **kwargs)
+        return await profile_async("memory_access", func, *args, **kwargs)
     
     async def profile_llm_inference(self, func, *args, **kwargs):
         """Profile LLM inference operations."""
-        return await profile_async_operation("llm_inference", func, *args, **kwargs)
+        return await profile_async("llm_inference", func, *args, **kwargs)
     
-    def get_cogency_bottlenecks(self) -> Dict[str, List[ProfileMetrics]]:
+    def cogency_bottlenecks(self) -> Dict[str, List[ProfileMetrics]]:
         """Get bottlenecks categorized by cogency operations."""
-        all_bottlenecks = self.profiler.get_bottlenecks()
+        all_bottlenecks = self.profiler.bottlenecks()
         
         categorized = {
             "reasoning": [],

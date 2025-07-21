@@ -19,8 +19,8 @@ class TestScrape:
         assert hasattr(scrape, 'run')
         
         # Schema and examples
-        schema = scrape.get_schema()
-        examples = scrape.get_usage_examples()
+        schema = scrape.schema()
+        examples = scrape.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

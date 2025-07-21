@@ -2,7 +2,7 @@
 from typing import List, Any, Dict
 
 
-def create_action_fingerprint(tool_calls: List[Any]) -> str:
+def action_fingerprint(tool_calls: List[Any]) -> str:
     """Create a fingerprint of tool calls for loop detection."""
     if not tool_calls:
         return "no_action"
@@ -25,9 +25,9 @@ def create_action_fingerprint(tool_calls: List[Any]) -> str:
     return "|".join(fingerprints)
 
 
-def detect_action_loop(cognitive_state: Dict[str, Any]) -> bool:
+def detect_loop(cognition: Dict[str, Any]) -> bool:
     """Detect if agent is stuck in an action loop."""
-    action_history = cognitive_state.get("action_history", [])
+    action_history = cognition.get("action_history", [])
     
     if len(action_history) < 3:
         return False
@@ -45,9 +45,9 @@ def detect_action_loop(cognitive_state: Dict[str, Any]) -> bool:
     return False
 
 
-def detect_fast_mode_loop(cognitive_state: Dict[str, Any]) -> bool:
+def detect_fast_loop(cognition: Dict[str, Any]) -> bool:
     """Lightweight loop detection for fast mode - lower threshold."""
-    action_history = cognitive_state.get("action_history", [])
+    action_history = cognition.get("action_history", [])
     
     # Fast mode: detect loops earlier with just 2 actions
     if len(action_history) < 2:

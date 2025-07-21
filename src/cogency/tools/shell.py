@@ -151,11 +151,11 @@ class Shell(BaseTool):
         except Exception as e:
             return {"error": f"Command execution failed: {str(e)}"}
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return the tool call schema."""
         return "shell(command='string', timeout=30, working_dir='path', env=dict)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "shell(command='ls -la')",

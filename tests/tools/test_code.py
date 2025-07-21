@@ -18,8 +18,8 @@ class TestCode:
         assert hasattr(code, 'run')
         
         # Schema and examples
-        schema = code.get_schema()
-        examples = code.get_usage_examples()
+        schema = code.schema()
+        examples = code.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

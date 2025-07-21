@@ -3,7 +3,7 @@ from typing import Dict, Any, Optional, Tuple
 import json
 
 
-def extract_mode_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
+def get_mode_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
     """Extract mode switching from LLM response.
     
     Returns:
@@ -28,7 +28,7 @@ def extract_mode_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]
     return None, None
 
 
-def should_switch_modes(
+def should_switch(
     current_mode: str, 
     switch_to: Optional[str], 
     switch_reason: Optional[str],
@@ -67,7 +67,7 @@ def should_switch_modes(
     return True
 
 
-def execute_mode_switch(
+def switch_mode(
     state: Dict[str, Any], 
     new_mode: str, 
     switch_reason: str
@@ -86,17 +86,17 @@ def execute_mode_switch(
     state['react_mode'] = new_mode
     
     # Preserve cognitive state but update mode-specific limits
-    if 'cognitive_state' in state:
-        cognitive_state = state['cognitive_state']
-        cognitive_state['react_mode'] = new_mode
+    if 'cognition' in state:
+        cognition = state['cognition']
+        cognition['react_mode'] = new_mode
         
         # Adjust memory limits for new mode
         if new_mode == 'fast':
-            cognitive_state['max_history'] = 3
-            cognitive_state['max_failures'] = 5
+            cognition['max_history'] = 3
+            cognition['max_failures'] = 5
         else:  # deep
-            cognitive_state['max_history'] = 10
-            cognitive_state['max_failures'] = 15
+            cognition['max_history'] = 10
+            cognition['max_failures'] = 15
     
     # Track mode switch for tracing
     mode_switches = state.get('mode_switches', [])
@@ -112,7 +112,7 @@ def execute_mode_switch(
     return state
 
 
-def get_mode_switch_prompt_addition(current_mode: str) -> str:
+def get_switch_prompt(current_mode: str) -> str:
     """Get prompt addition for bidirectional mode switching.
     
     Args:

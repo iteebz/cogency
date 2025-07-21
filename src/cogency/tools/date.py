@@ -190,10 +190,10 @@ class Date(BaseTool):
         except Exception as e:
             raise ToolError(f"Failed to get weekday: {str(e)}")
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         return "date(operation='parse|format|add|subtract|diff|is_weekend|weekday', **kwargs)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         return [
             "date(operation='parse', date_string='2024-01-15')",
             "date(operation='format', date_str='2024-01-15', format='%B %d, %Y')",

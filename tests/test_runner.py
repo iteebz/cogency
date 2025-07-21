@@ -3,8 +3,8 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, Mock
 
-from cogency.runner import StreamingRunner, FlowRunner
-from cogency import AgentState
+from cogency.runner import StreamRunner, FlowRunner
+from cogency import State
 
 
 class TestFlowRunner:
@@ -40,7 +40,7 @@ class TestFlowRunner:
         assert result["result"] == "success"
 
 
-class TestStreamingRunner:
+class TestStreamRunner:
     """Test streaming execution behavior."""
     
     @pytest.mark.asyncio
@@ -55,6 +55,6 @@ class TestStreamingRunner:
         # Mock callback
         callback = AsyncMock()
         
-        result = await runner.stream_execute(mock_workflow, agent_state, callback)
+        result = await runner.stream(mock_workflow, agent_state, callback)
         
         assert result["result"] == "success"

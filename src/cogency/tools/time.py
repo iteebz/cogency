@@ -156,10 +156,10 @@ class Time(BaseTool):
         except Exception as e:
             raise ToolError(f"Failed to convert timezone: {str(e)}")
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         return "time(operation='now|relative|convert_timezone', timezone='UTC|London|Tokyo|...', datetime_str='...', from_tz='...', to_tz='...')"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         return [
             "time(operation='now', timezone='Europe/London')",
             "time(operation='relative', datetime_str='2024-01-15T14:30:00')",

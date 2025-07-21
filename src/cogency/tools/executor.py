@@ -1,25 +1,17 @@
-"""Tool execution utilities for clean separation of parsing and execution."""
+"""Tool execution utilities."""
 import json
 import asyncio
 from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
-from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
+from cogency.tools.result import get_data, is_success, get_error
 # ToolCall import removed - using simple dicts instead
-from cogency.utils.parsing import extract_json_from_response
+from cogency.utils.parsing import parse_json
 from cogency.resilience import safe
-from cogency.utils.json import extract_json
 from cogency.output import emoji
 
 
 def parse_tool_calls(llm_response_content) -> Optional[List[Dict[str, Any]]]:
-    """Parse tool calls from LLM response content - always returns list.
-    
-    Args:
-        llm_response_content: Raw LLM response string OR pre-parsed data
-        
-    Returns:
-        List of tool call dicts, or None if no tool calls found
-    """
+    """Extract tool calls from LLM response."""
     # Handle already parsed data (for tests)
     if isinstance(llm_response_content, list):
         return llm_response_content
@@ -31,7 +23,7 @@ def parse_tool_calls(llm_response_content) -> Optional[List[Dict[str, Any]]]:
         return None
         
     # Extract JSON data from LLM response using consolidated parsing
-    plan_data = extract_json_from_response(llm_response_content)
+    plan_data = parse_json(llm_response_content)
     if not plan_data:
         return None
         
@@ -44,17 +36,7 @@ def parse_tool_calls(llm_response_content) -> Optional[List[Dict[str, Any]]]:
 
 
 async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseTool], context=None) -> Tuple[str, Dict, Any]:
-    """Execute a single tool with given arguments and structured error handling.
-    
-    Args:
-        tool_name: Name of tool to execute
-        tool_args: Arguments for tool execution
-        tools: Available tools
-        context: Context to pass to tools for user isolation
-        
-    Returns:
-        Tuple of (tool_name, parsed_args, result)
-    """
+    """Execute a tool with structured error handling."""
     async def _execute():
         for tool in tools:
             if tool.name == tool_name:
@@ -79,8 +61,8 @@ async def execute_single_tool(tool_name: str, tool_args: dict, tools: List[BaseT
     return await _execute()
 
 
-def has_dependency_risk(tool_calls: List[Tuple[str, Dict]]) -> bool:
-    """Detect obvious dependency patterns that need sequential execution."""
+def needs_sequential(tool_calls: List[Tuple[str, Dict]]) -> bool:
+    """Detect dependencies requiring sequential execution."""
     tool_names = [name for name, _ in tool_calls]
     
     file_ops = {"create_file", "write_file", "edit_file", "delete_file"}
@@ -93,7 +75,7 @@ def has_dependency_risk(tool_calls: List[Tuple[str, Dict]]) -> bool:
 
 
 async def execute_sequential_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> Dict[str, Any]:
-    """Execute multiple tools sequentially with robust error handling."""
+    """Run tools in sequence with error isolation."""
     if not tool_calls:
         return {"success": True, "results": [], "errors": [], "summary": "No tools to execute"}
     
@@ -105,8 +87,8 @@ async def execute_sequential_tools(tool_calls: List[Tuple[str, Dict]], tools: Li
             result = await execute_single_tool(tool_name, tool_args, tools, context)
             actual_tool_name, actual_args, tool_output = result
             
-            if not is_tool_success(tool_output):
-                error_msg = get_tool_error(tool_output) or "Unknown error"
+            if not is_success(tool_output):
+                error_msg = get_error(tool_output) or "Unknown error"
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -118,10 +100,10 @@ async def execute_sequential_tools(tool_calls: List[Tuple[str, Dict]], tools: Li
                 success_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
-                    "result": extract_tool_data(tool_output)
+                    "result": get_data(tool_output)
                 }
                 successes.append(success_result)
-                context.add_tool_result(actual_tool_name, actual_args, success_result["result"])
+                context.add_result(actual_tool_name, actual_args, success_result["result"])
                 
         except Exception as e:
             failure_result = {
@@ -164,22 +146,13 @@ async def execute_sequential_tools(tool_calls: List[Tuple[str, Dict]], tools: Li
     }
 
 
-async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> Dict[str, Any]:
-    """Execute multiple tools with smart parallel/sequential detection.
-    
-    Args:
-        tool_calls: List of (tool_name, tool_args) tuples
-        tools: Available tools
-        context: Context to add results to
-        
-    Returns:
-        Aggregated results with success/failure statistics
-    """
+async def run_tools(tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context) -> Dict[str, Any]:
+    """Execute tools with auto parallel/sequential detection."""
     if not tool_calls:
         return {"success": True, "results": [], "errors": [], "summary": "No tools to execute"}
     
     # Smart dependency detection
-    if has_dependency_risk(tool_calls):
+    if needs_sequential(tool_calls):
         tool_names = [name for name, _ in tool_calls]
         dependency_emoji = emoji['dependency']
         context.add_message("system", f"{dependency_emoji} Dependency detected in tools {tool_names} - switching to sequential execution")
@@ -212,9 +185,9 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
             # Normal result - check if tool execution succeeded
             actual_tool_name, actual_args, tool_output = result
             
-            if not is_tool_success(tool_output):
+            if not is_success(tool_output):
                 # Tool execution failed
-                error_msg = get_tool_error(tool_output) or "Unknown error"
+                error_msg = get_error(tool_output) or "Unknown error"
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -227,12 +200,12 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
                 success_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
-                    "result": extract_tool_data(tool_output)
+                    "result": get_data(tool_output)
                 }
                 successes.append(success_result)
                 
                 # Add to context
-                context.add_tool_result(actual_tool_name, actual_args, success_result["result"])
+                context.add_result(actual_tool_name, actual_args, success_result["result"])
         else:
             # Unexpected result type
             failure_result = {

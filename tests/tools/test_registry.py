@@ -9,9 +9,9 @@ class TestToolRegistry:
     
     def test_tool_decorator_registration(self):
         """@tool decorator should register tools."""
-        from cogency.tools.registry import get_registered_tools
+        from cogency.tools.registry import get_tools
         
-        tools = get_registered_tools()
+        tools = get_tools()
         tool_names = [t.name for t in tools]
         
         # Calculator should be auto-registered via @tool decorator
@@ -19,9 +19,9 @@ class TestToolRegistry:
     
     def test_tool_discovery_contract(self):
         """All registered tools should follow contracts."""
-        from cogency.tools.registry import get_registered_tools
+        from cogency.tools.registry import get_tools
         
-        tools = get_registered_tools()
+        tools = get_tools()
         
         for tool in tools:
             # Must inherit from BaseTool
@@ -32,9 +32,9 @@ class TestToolRegistry:
             assert hasattr(tool, 'description') and tool.description
             
             # Schema must be informative
-            schema = tool.get_schema()
+            schema = tool.schema()
             assert len(schema) > 20  # Non-trivial schema
             
             # Must have examples
-            examples = tool.get_usage_examples()
+            examples = tool.examples()
             assert len(examples) > 0

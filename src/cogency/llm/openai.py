@@ -42,14 +42,14 @@ class OpenAILLM(BaseLLM):
     def _get_client(self):
         """Get client instance with current API key."""
         # Update the API key on the existing client
-        self._client.api_key = self.get_api_key()
+        self._client.api_key = self.next_key()
         return self._client
 
 
     @safe()
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        msgs = self._convert_msgs(messages)
+        msgs = self._format_msgs(messages)
         res = await client.chat.completions.create(
             model=self.model,
             messages=msgs,
@@ -61,7 +61,7 @@ class OpenAILLM(BaseLLM):
     @safe()
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
-        msgs = self._convert_msgs(messages)
+        msgs = self._format_msgs(messages)
         stream = await client.chat.completions.create(
             model=self.model,
             messages=msgs,

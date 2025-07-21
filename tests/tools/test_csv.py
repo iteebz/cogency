@@ -20,8 +20,8 @@ class TestCSV:
         assert hasattr(csv_tool, 'run')
         
         # Schema and examples
-        schema = csv_tool.get_schema()
-        examples = csv_tool.get_usage_examples()
+        schema = csv_tool.schema()
+        examples = csv_tool.examples()
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
     

@@ -2,7 +2,7 @@
 from cogency.utils.auto import detect_provider
 from .base import BaseLLM
 
-def auto_detect_llm() -> BaseLLM:
+def detect_llm() -> BaseLLM:
     """Auto-detect LLM provider from environment variables.
     
     Fallback chain:

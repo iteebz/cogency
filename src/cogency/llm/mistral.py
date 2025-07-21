@@ -38,14 +38,14 @@ class MistralLLM(BaseLLM):
 
     def _get_client(self):
         """Get client instance with current API key."""
-        key = self.get_api_key()
+        key = self.next_key()
         return Mistral(api_key=key)
 
 
     @safe()
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        mistral_messages = self._convert_msgs(messages)
+        mistral_messages = self._format_msgs(messages)
 
         res = await client.chat.complete_async(
             model=self.model,
@@ -58,7 +58,7 @@ class MistralLLM(BaseLLM):
     @safe()
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
-        mistral_messages = self._convert_msgs(messages)
+        mistral_messages = self._format_msgs(messages)
 
         stream = await client.chat.stream_async(
             model=self.model,

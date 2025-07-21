@@ -4,7 +4,7 @@ import asyncio
 from cogency import Agent
 from cogency.llm.mock import MockLLM
 
-async def test_clean_api():
+async def test_api():
     """Test the beautiful new API."""
     print("🧪 Testing Clean Agent API")
     
@@ -28,19 +28,19 @@ async def test_clean_api():
     print(f"Agent 2: trace={trace_agent.trace}, verbose={trace_agent.verbose}")
     print(f"Agent 3: trace={silent_agent.trace}, verbose={silent_agent.verbose}")
     
-    # Test the OutputManager integration
-    print("\n4. Testing OutputManager integration")
-    from cogency.output import OutputManager
+    # Test the Output integration
+    print("\n4. Testing Output integration")
+    from cogency.output import Output
     
-    output = OutputManager(trace=True, verbose=True)
-    print(f"OutputManager created: trace_enabled={output.trace_enabled}, verbose_enabled={output.verbose_enabled}")
+    output = Output(trace=True, verbose=True)
+    print(f"Output created: tracing={output.tracing}, verbose={output.verbose}")
     
     # Test trace collection
     await output.trace("Test trace message", node="test")
-    traces = output.get_traces()
+    traces = output.traces()
     print(f"Collected {len(traces)} trace entries")
     
     print("\n🎉 Clean API test completed successfully!")
 
 if __name__ == "__main__":
-    asyncio.run(test_clean_api())
+    asyncio.run(test_api())

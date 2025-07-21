@@ -357,11 +357,11 @@ class CSV(BaseTool):
         except Exception as e:
             return {"error": f"Failed to transform CSV: {str(e)}"}
 
-    def get_schema(self) -> str:
+    def schema(self) -> str:
         """Return the tool call schema."""
         return "csv(operation='read|write|filter|analyze|transform|append', file_path='string', data=list, delimiter=',', headers=list, filter_condition='string', limit=int)"
 
-    def get_usage_examples(self) -> List[str]:
+    def examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "csv(operation='read', file_path='data.csv')",

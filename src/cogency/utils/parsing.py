@@ -2,20 +2,82 @@
 import json
 import re
 from typing import Any, Dict, List, Optional, Union
-from cogency.utils.json import extract_json
 
 
-async def call_llm_simple(llm, messages: List[Dict[str, str]]) -> str:
+async def call_llm(llm, messages: List[Dict[str, str]]) -> str:
     """Call LLM and return response. That's it."""
     return await llm.run(messages)
 
 
-def extract_json_from_response(response: str) -> Optional[Dict[str, Any]]:
+def parse_json(response: str, fallback: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Extract JSON from LLM response with markdown cleaning and error handling.
+    
+    Handles:
+    - Markdown code fences (```json and ```)
+    - Proper brace matching for JSON objects
+    - Graceful fallback on parsing errors
+    
+    Args:
+        response: Raw LLM response string
+        fallback: Default dict to return on parsing errors
+        
+    Returns:
+        Parsed JSON dict or fallback
+    """
+    if not response or not isinstance(response, str):
+        return fallback or {}
+    
+    # Clean and extract JSON text
+    json_text = _clean_json_response(response.strip())
+    if not json_text:
+        return fallback or {}
+    
+    try:
+        return json.loads(json_text)
+    except json.JSONDecodeError:
+        return fallback or {}
+
+
+def _clean_json(response: str) -> str:
+    """Extract JSON from markdown code blocks with brace matching."""
+    # Remove markdown code fences
+    if response.startswith("```json"):
+        json_match = re.search(r'```json\s*\n?(.*?)\n?```', response, re.DOTALL)
+        if json_match:
+            response = json_match.group(1).strip()
+    elif response.startswith("```"):
+        json_match = re.search(r'```\s*\n?(.*?)\n?```', response, re.DOTALL)
+        if json_match:
+            response = json_match.group(1).strip()
+    
+    # Extract JSON object with proper brace matching
+    return _extract_json(response)
+
+
+def _extract_json(text: str) -> str:
+    """Extract JSON object with proper brace matching."""
+    start_idx = text.find('{')
+    if start_idx == -1:
+        return text
+    
+    brace_count = 0
+    for i, char in enumerate(text[start_idx:], start_idx):
+        if char == '{':
+            brace_count += 1
+        elif char == '}':
+            brace_count -= 1
+            if brace_count == 0:
+                return text[start_idx:i+1]
+    
+    return text
+
+
+def parse_json(response: str) -> Optional[Dict[str, Any]]:
     """Extract JSON from LLM response. Return None if no valid JSON."""
-    return extract_json(response)
+    return parse_json(response)
 
 
-def extract_tool_calls_from_json(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
+def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
     """Extract tool calls from parsed JSON. Return None if no tool calls."""
     if not json_data:
         return None
@@ -31,15 +93,10 @@ def extract_tool_calls_from_json(json_data: Dict[str, Any]) -> Optional[List[Dic
     return None
 
 
-
-
-# Removed should_respond_directly - ceremony eliminated. Direct response is implicit when no tool_calls.
-
-
-def extract_reasoning_text(response: str) -> str:
+def get_reasoning(response: str) -> str:
     """Extract reasoning text from LLM response."""
     # First try JSON
-    json_data = extract_json_from_response(response)
+    json_data = parse_json(response)
     if json_data and "reasoning" in json_data:
         return json_data["reasoning"]
     
