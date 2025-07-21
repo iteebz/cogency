@@ -1,9 +1,9 @@
-"""Formatting utilities for consistent display across Cogency."""
+"""Formatting utilities for consistent display across Cogency"""
 from typing import Any, Dict, List, Optional, Union
 
 
 def truncate(text: str, max_len: int = 30) -> str:
-    """Smart truncation preserving meaning in URLs, paths, and text."""
+    """Intelligently truncate text while preserving context for URLs and paths"""
     if not text or not isinstance(text, str):
         return ""
         
@@ -75,7 +75,7 @@ def truncate(text: str, max_len: int = 30) -> str:
 
 
 def format_tool_params(params: Dict[str, Any]) -> str:
-    """Format tool parameters for display, showing first value only."""
+    """Format tool parameters for concise display in logs"""
     if not params:
         return ""
     
@@ -88,7 +88,7 @@ def format_tool_params(params: Dict[str, Any]) -> str:
 
 
 def summarize_tool_result(result: Any) -> str:
-    """Extract meaningful info from tool results for concise display."""
+    """Extract key information from tool results for compact display"""
     if result is None:
         return "completed"
     

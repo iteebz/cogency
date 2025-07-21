@@ -10,25 +10,8 @@ from cogency.state import State
 from cogency.output import Output
 
 
-def build_prompt(opts: dict) -> str:
-    """Build system prompt from options."""
-    if opts.get('system_prompt'):
-        return opts['system_prompt']
-    
-    # Simple default - everything else handled in respond node
-    identity = opts.get('identity', 'a helpful AI assistant')
-    return f"You are {identity}."
-
-
 class Agent:
-    """Cognitive agent with streaming execution and tool integration.
-    
-    Simple API for building intelligent agents with:
-    - Streaming execution
-    - Tool integration
-    - Memory management
-    - Adaptive reasoning
-    """
+    """Cognitive agent with streaming execution, tool integration, memory and adaptive reasoning"""
     
     def __init__(self, name: str, trace: bool = False, verbose: bool = True, **opts):
         self.name = name
@@ -70,7 +53,7 @@ class Agent:
             llm=llm,
             tools=tools,
             memory=memory_backend,
-            system_prompt=build_prompt(opts),
+            system_prompt=opts.get('system_prompt') or f"You are {opts.get('identity', 'a helpful AI assistant')}.",
             identity=opts.get('identity'),
             json_schema=opts.get('json_schema')
         )
@@ -89,7 +72,7 @@ class Agent:
             self.mcp_server = None
     
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
-        """Stream agent execution with input validation."""
+        """Stream agent execution with input validation and security checks"""
         # Input validation - basic sanitization
         if not query or not query.strip():
             yield "⚠️ Empty query not allowed\n"
@@ -160,7 +143,7 @@ class Agent:
             await execution_task
     
     async def run(self, query: str, user_id: str = "default") -> str:
-        """Run agent and return response."""
+        """Run agent and return complete response as string"""
         chunks = []
         async for chunk in self.stream(query, user_id):
             if "🤖 " in chunk:
@@ -168,18 +151,18 @@ class Agent:
         return "".join(chunks).strip() or "No response generated"
     
     def traces(self) -> List[Dict[str, Any]]:
-        """Get traces from last execution."""
+        """Get traces from last execution for debugging"""
         if self.last_output_manager:
             return self.last_output_manager.traces()
         return []
     
     # MCP compatibility methods
     async def process(self, input_text: str, context: Optional[Context] = None) -> str:
-        """Process input text with optional context (MCP compatibility)."""
+        """Process input text with optional context for MCP compatibility"""
         return await self.run(input_text, context.user_id if context else "default")
     
     async def serve_mcp(self, transport: str = "stdio", host: str = "localhost", port: int = 8765):
-        """Start MCP server with specified transport (stdio or websocket)."""
+        """Start MCP server with specified transport type"""
         if not self.mcp_server:
             raise ValueError("MCP server not enabled. Set enable_mcp=True in Agent constructor")
         if transport == "stdio":

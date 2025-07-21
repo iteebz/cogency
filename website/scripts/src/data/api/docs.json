@@ -1,0 +1,1162 @@
+{
+  "package": {
+    "name": "cogency",
+    "version": "0.5.1",
+    "docstring": "Cogency - A framework for building intelligent agents."
+  },
+  "modules": {
+    "agent": {
+      "name": "agent",
+      "docstring": "",
+      "classes": [
+        {
+          "name": "Agent",
+          "docstring": "Cognitive agent with streaming execution, tool integration, memory and adaptive reasoning.",
+          "module": "cogency.agent",
+          "methods": [
+            {
+              "name": "process",
+              "docstring": "Process input text with optional context for MCP compatibility",
+              "signature": "(self, input_text: str, context: Optional[cogency.context.Context] = None) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Run agent and return complete response as string.",
+              "signature": "(self, query: str, user_id: str = 'default') -> str"
+            },
+            {
+              "name": "serve_mcp",
+              "docstring": "Start MCP server with specified transport type",
+              "signature": "(self, transport: str = 'stdio', host: str = 'localhost', port: int = 8765)"
+            },
+            {
+              "name": "stream",
+              "docstring": "Stream agent execution with input validation and security checks.",
+              "signature": "(self, query: str, user_id: str = 'default') -> AsyncIterator[str]"
+            },
+            {
+              "name": "traces",
+              "docstring": "Get traces from last execution for debugging",
+              "signature": "(self) -> List[Dict[str, Any]]"
+            }
+          ],
+          "init_signature": "(self, name: str, trace: bool = False, verbose: bool = True, **opts)"
+        },
+        {
+          "name": "Context",
+          "docstring": "Agent conversation context.",
+          "module": "cogency.context",
+          "methods": [
+            {
+              "name": "add_message",
+              "docstring": "Add message to history.",
+              "signature": "(self, role: str, content: str, trace_id: Optional[str] = None)"
+            },
+            {
+              "name": "add_result",
+              "docstring": "Add tool result to history.",
+              "signature": "(self, tool_name: str, args: dict, output: dict)"
+            },
+            {
+              "name": "add_turn",
+              "docstring": "Add conversation turn.",
+              "signature": "(self, query: str, response: str, metadata: Optional[Dict[str, Any]] = None)"
+            },
+            {
+              "name": "clear_history",
+              "docstring": "Clear conversation history.",
+              "signature": "(self)"
+            },
+            {
+              "name": "get_clean_conversation",
+              "docstring": "Get conversation without system messages.",
+              "signature": "(self) -> List[Dict[str, str]]"
+            },
+            {
+              "name": "recent_turns",
+              "docstring": "Get last n conversation turns, filtering out system and internal messages.",
+              "signature": "(self, n: int = 5) -> List[Dict[str, Any]]"
+            }
+          ],
+          "init_signature": "(self, query: str, messages: List[Dict[str, str]] = None, tool_results: Optional[List[Dict[str, Any]]] = None, max_history: Optional[int] = 20, conversation_history: Optional[List[Dict[str, Any]]] = None, user_id: str = 'default')"
+        },
+        {
+          "name": "FileBackend",
+          "docstring": "Filesystem storage implementation.",
+          "module": "cogency.memory.backends.filesystem",
+          "methods": [
+            {
+              "name": "create",
+              "docstring": "CREATE - Standard artifact creation with storage delegation.",
+              "signature": "(self, content: str, memory_type: cogency.memory.core.MemoryType = <MemoryType.FACT: 'fact'>, tags: Optional[List[str]] = None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> cogency.memory.core.Memory"
+            },
+            {
+              "name": "delete",
+              "docstring": "DELETE - Unified deletion with storage delegation.",
+              "signature": "(self, artifact_id: uuid.UUID = None, tags: Optional[List[str]] = None, filters: Optional[Dict[str, Any]] = None, delete_all: bool = False) -> bool"
+            },
+            {
+              "name": "read",
+              "docstring": "READ - Unified retrieval with storage delegation.",
+              "signature": "(self, query: str = None, artifact_id: uuid.UUID = None, search_type: cogency.memory.core.SearchType = <SearchType.AUTO: 'auto'>, limit: int = 10, threshold: float = 0.7, tags: Optional[List[str]] = None, memory_type: Optional[cogency.memory.core.MemoryType] = None, filters: Optional[Dict[str, Any]] = None, **kwargs) -> List[cogency.memory.core.Memory]"
+            },
+            {
+              "name": "update",
+              "docstring": "UPDATE - Standard update logic with storage delegation.",
+              "signature": "(self, artifact_id: uuid.UUID, updates: Dict[str, Any]) -> bool"
+            }
+          ],
+          "init_signature": "(self, memory_dir: str = '.cogency/memory', embedding_provider=None)"
+        },
+        {
+          "name": "Flow",
+          "docstring": "LangGraph wrapper for agent workflow.",
+          "module": "cogency.flow",
+          "methods": [],
+          "init_signature": "(self, llm, tools, memory: cogency.memory.core.MemoryBackend, routing_table: Optional[Dict] = None, identity: Optional[str] = None, json_schema: Optional[str] = None, system_prompt: Optional[str] = None)"
+        },
+        {
+          "name": "Output",
+          "docstring": "Single source of truth for all agent output with tracing and formatting",
+          "module": "cogency.output",
+          "methods": [
+            {
+              "name": "log_tool",
+              "docstring": "Log tool execution with status emoji and formatted result",
+              "signature": "(self, tool_name: str, result: Any, success: bool = True)"
+            },
+            {
+              "name": "reset_traces",
+              "docstring": "Clear all trace entries",
+              "signature": "(self) -> None"
+            },
+            {
+              "name": "send",
+              "docstring": "Route messages to appropriate output methods by type",
+              "signature": "(self, message_type: str, content: str, node: Optional[str] = None, **kwargs)"
+            },
+            {
+              "name": "tool_emoji",
+              "docstring": "Get tool-specific emoji for display",
+              "signature": "(self, tool_name: str) -> str"
+            },
+            {
+              "name": "trace",
+              "docstring": "Record trace entries for debugging and stream to callback if available",
+              "signature": "(self, message: str, node: Optional[str] = None, **kwargs)"
+            },
+            {
+              "name": "traces",
+              "docstring": "Get copy of all collected trace entries",
+              "signature": "(self) -> List[Dict[str, Any]]"
+            },
+            {
+              "name": "update",
+              "docstring": "Display user progress updates with appropriate emoji",
+              "signature": "(self, message: str, type: str = 'info', **kwargs)"
+            }
+          ],
+          "init_signature": "(self, trace: bool = False, verbose: bool = True, callback: Optional[Callable[[str], NoneType]] = None)"
+        },
+        {
+          "name": "State",
+          "docstring": "Agent state with dict-like access.",
+          "module": "cogency.state",
+          "methods": [
+            {
+              "name": "get",
+              "docstring": "Get value from state by key, checking flow first then attributes.",
+              "signature": "(self, key: str, default: Any = None) -> Any"
+            }
+          ],
+          "init_signature": "(self, context: cogency.context.Context, query: str, output: cogency.output.Output = <factory>, flow: Dict[str, Any] = <factory>) -> None"
+        },
+        {
+          "name": "StreamRunner",
+          "docstring": "Streaming wrapper for user-facing Chain-of-Thought.",
+          "module": "cogency.runner",
+          "methods": [
+            {
+              "name": "stream",
+              "docstring": "Execute flow with streaming callback for user updates.",
+              "signature": "(self, flow, state: cogency.state.State, stream_cb: Callable[[str], Awaitable[NoneType]])"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "ToolRegistry",
+          "docstring": "Auto-discovery registry for tools.",
+          "module": "cogency.tools.registry",
+          "methods": [],
+          "init_signature": "(self, /, *args, **kwargs)"
+        }
+      ],
+      "functions": [
+        {
+          "name": "detect_llm",
+          "docstring": "Auto-detect LLM provider from environment variables.",
+          "module": "cogency.llm.auto",
+          "signature": "() -> cogency.llm.base.BaseLLM"
+        }
+      ]
+    },
+    "llm": {
+      "name": "llm",
+      "docstring": "",
+      "classes": [
+        {
+          "name": "AnthropicLLM",
+          "docstring": "Base class for all LLM implementations in the cogency framework.",
+          "module": "cogency.llm.anthropic",
+          "methods": [
+            {
+              "name": "ainvoke",
+              "docstring": "LangGraph compatibility method - wrapper around invoke().",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "next_key",
+              "docstring": "Get next API key - rotates automatically on every call.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "A response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "stream",
+              "docstring": "A streaming response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, model: str = 'claude-3-5-sonnet-20241022', timeout: float = 15.0, temperature: float = 0.7, max_tokens: int = 4096, max_retries: int = 3, **kwargs)"
+        },
+        {
+          "name": "BaseLLM",
+          "docstring": "Base class for all LLM implementations in the cogency framework.",
+          "module": "cogency.llm.base",
+          "methods": [
+            {
+              "name": "ainvoke",
+              "docstring": "LangGraph compatibility method - wrapper around invoke().",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "next_key",
+              "docstring": "Get next API key - rotates automatically on every call.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "A response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "stream",
+              "docstring": "A streaming response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]"
+            }
+          ],
+          "init_signature": "(self, provider_name: str, api_keys: Union[str, List[str]] = None, **kwargs)"
+        },
+        {
+          "name": "KeyManager",
+          "docstring": "Unified key management - auto-detects, handles rotation, eliminates provider DRY.",
+          "module": "cogency.utils.keys",
+          "methods": [
+            {
+              "name": "get_current",
+              "docstring": "Get the current active key.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "get_next",
+              "docstring": "Get next key in rotation - advances every call.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "has_multiple",
+              "docstring": "Check if we have multiple keys available for rotation.",
+              "signature": "(self) -> bool"
+            },
+            {
+              "name": "rotate_key",
+              "docstring": "Rotate to next key if rotator exists. Returns feedback message.",
+              "signature": "(self) -> Optional[str]"
+            }
+          ],
+          "init_signature": "(self, api_key: Optional[str] = None, key_rotator: Optional[cogency.utils.keys.KeyRotator] = None)"
+        },
+        {
+          "name": "KeyRotator",
+          "docstring": "Simple key rotator for API rate limit avoidance.",
+          "module": "cogency.utils.keys",
+          "methods": [
+            {
+              "name": "get_current_key",
+              "docstring": "Get current key without advancing.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "get_next_key",
+              "docstring": "Get next key in rotation - advances every call.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "rotate_key",
+              "docstring": "Rotate to next key immediately. Returns feedback.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self, keys: List[str])"
+        },
+        {
+          "name": "MistralLLM",
+          "docstring": "Base class for all LLM implementations in the cogency framework.",
+          "module": "cogency.llm.mistral",
+          "methods": [
+            {
+              "name": "ainvoke",
+              "docstring": "LangGraph compatibility method - wrapper around invoke().",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "next_key",
+              "docstring": "Get next API key - rotates automatically on every call.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "A response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "stream",
+              "docstring": "A streaming response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, model: str = 'mistral-large-latest', timeout: float = 15.0, temperature: float = 0.7, max_tokens: int = 4096, max_retries: int = 3, **kwargs)"
+        },
+        {
+          "name": "OpenAILLM",
+          "docstring": "Base class for all LLM implementations in the cogency framework.",
+          "module": "cogency.llm.openai",
+          "methods": [
+            {
+              "name": "ainvoke",
+              "docstring": "LangGraph compatibility method - wrapper around invoke().",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "next_key",
+              "docstring": "Get next API key - rotates automatically on every call.",
+              "signature": "(self) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "A response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], **kwargs) -> str"
+            },
+            {
+              "name": "stream",
+              "docstring": "A streaming response from the LLM given a list of messages.",
+              "signature": "(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, model: str = 'gpt-4o', timeout: float = 15.0, temperature: float = 0.7, max_retries: int = 3, **kwargs)"
+        }
+      ],
+      "functions": [
+        {
+          "name": "detect_llm",
+          "docstring": "Auto-detect LLM provider from environment variables.",
+          "module": "cogency.llm.auto",
+          "signature": "() -> cogency.llm.base.BaseLLM"
+        }
+      ]
+    },
+    "tools": {
+      "name": "tools",
+      "docstring": "",
+      "classes": [
+        {
+          "name": "BaseTool",
+          "docstring": "Base class for all tools in the cogency framework.",
+          "module": "cogency.tools.base",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return result.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "run",
+              "docstring": "The tool with the given parameters.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return result.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self, name: str, description: str, emoji: str = '🛠️')"
+        },
+        {
+          "name": "CSV",
+          "docstring": "Read, write, and manipulate CSV files with various operations.",
+          "module": "cogency.tools.csv",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example usage patterns.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "CSV operation using dispatch pattern.",
+              "signature": "(self, operation: str, file_path: str, data: Optional[List[Dict]] = None, delimiter: str = ',', headers: Optional[List[str]] = None, filter_condition: Optional[str] = None, limit: Optional[int] = None, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return the tool call schema.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Calculator",
+          "docstring": "Base class for all tools in the cogency framework.",
+          "module": "cogency.tools.calculator",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return result.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Evaluate mathematical expressions - Wolfram Alpha style.",
+              "signature": "(self, expression: str, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return result.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Code",
+          "docstring": "Execute Python and JavaScript code safely in isolated environment.",
+          "module": "cogency.tools.code",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example usage patterns.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Code using dispatch pattern.",
+              "signature": "(self, code: str, language: str = 'python', timeout: int = 30, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return the tool call schema.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Date",
+          "docstring": "Date operations: parsing, formatting, arithmetic, weekday calculations.",
+          "module": "cogency.tools.date",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return result.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "run",
+              "docstring": "Date operation.",
+              "signature": "(self, operation: str = 'parse', **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return result.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Files",
+          "docstring": "File operations within a safe base directory.",
+          "module": "cogency.tools.files",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return result.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Execute file operations.",
+              "signature": "(self, action: str, filename: str = '', content: str = '', line: int = None, start: int = None, end: int = None) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return result.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self, base_dir: str = '.cogency/sandbox')"
+        },
+        {
+          "name": "HTTP",
+          "docstring": "HTTP client for API calls, webhooks, and web requests with full verb support.",
+          "module": "cogency.tools.http",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example usage patterns.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "HTTP request using dispatch pattern.",
+              "signature": "(self, url: str, method: str = 'get', headers: Optional[Dict] = None, body: Optional[str] = None, json_data: Optional[Dict] = None, auth: Optional[Dict] = None, timeout: int = 30, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return the tool call schema.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Recall",
+          "docstring": "Tool for retrieving content from agent memory.",
+          "module": "cogency.tools.recall",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example tool calls.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Retrieve content from memory.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return result.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self, memory: cogency.memory.core.MemoryBackend)"
+        },
+        {
+          "name": "SQL",
+          "docstring": "Execute SQL queries across multiple database types with connection management.",
+          "module": "cogency.tools.sql",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example usage patterns.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "SQL query using dispatch pattern.",
+              "signature": "(self, query: str, connection: str, timeout: int = 30, params: Optional[List] = None, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return the tool call schema.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Scrape",
+          "docstring": "Extract clean text content from web pages using trafilatura.",
+          "module": "cogency.tools.scrape",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example tool calls for LLM guidance.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "run",
+              "docstring": "Extract clean content from a web page.",
+              "signature": "(self, url: str, favor_precision: bool = True, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return tool call schema for LLM formatting.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Search",
+          "docstring": "Base class for all tools in the cogency framework.",
+          "module": "cogency.tools.search",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return result.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "The tool with the given parameters.",
+              "signature": "(self, query: str, max_results: int = None, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return result.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Shell",
+          "docstring": "Execute system commands safely with timeout and basic sandboxing.",
+          "module": "cogency.tools.shell",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example usage patterns.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Shell command with safety checks.",
+              "signature": "(self, command: str, timeout: int = 30, working_dir: Optional[str] = None, env: Optional[Dict[str, str]] = None, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return the tool call schema.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self, default_working_dir: str = '.cogency/sandbox')"
+        },
+        {
+          "name": "Time",
+          "docstring": "Time operations: current time, timezone conversion, relative time.",
+          "module": "cogency.tools.time",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return result.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Time operation.",
+              "signature": "(self, operation: str = 'now', **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return result.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        },
+        {
+          "name": "Weather",
+          "docstring": "Get current weather for any city using Open-Meteo (no API key required).",
+          "module": "cogency.tools.weather",
+          "methods": [
+            {
+              "name": "examples",
+              "docstring": "Return example usage patterns.",
+              "signature": "(self) -> List[str]"
+            },
+            {
+              "name": "execute",
+              "docstring": "Execute tool with automatic error handling - USE THIS, NOT run() directly.",
+              "signature": "(self, **kwargs: Any) -> Dict[str, Any]"
+            },
+            {
+              "name": "format_params",
+              "docstring": "Format parameters for display.",
+              "signature": "(self, params: Dict[str, Any]) -> str"
+            },
+            {
+              "name": "run",
+              "docstring": "Get weather for a city.",
+              "signature": "(self, city: str, **kwargs) -> Dict[str, Any]"
+            },
+            {
+              "name": "schema",
+              "docstring": "Return the tool call schema.",
+              "signature": "(self) -> str"
+            }
+          ],
+          "init_signature": "(self)"
+        }
+      ],
+      "functions": []
+    },
+    "memory": {
+      "name": "memory",
+      "docstring": "Memory primitives for Cogency agents.",
+      "classes": [
+        {
+          "name": "Memory",
+          "docstring": "A memory artifact with content and metadata.",
+          "module": "cogency.memory.core",
+          "methods": [
+            {
+              "name": "decay",
+              "docstring": "Calculate decay based on recency and confidence.",
+              "signature": "(self) -> float"
+            }
+          ],
+          "init_signature": "(self, content: str, memory_type: cogency.memory.core.MemoryType = <MemoryType.FACT: 'fact'>, tags: List[str] = <factory>, metadata: Dict[str, Any] = <factory>, id: uuid.UUID = <factory>, created_at: datetime.datetime = <factory>, relevance_score: float = 0.0, confidence_score: float = 1.0, access_count: int = 0, last_accessed: datetime.datetime = <factory>) -> None"
+        },
+        {
+          "name": "MemoryBackend",
+          "docstring": "Abstract base class for memory backends.",
+          "module": "cogency.memory.core",
+          "methods": [
+            {
+              "name": "create",
+              "docstring": "CREATE - Store new content in memory.",
+              "signature": "(self, content: str, memory_type: cogency.memory.core.MemoryType = <MemoryType.FACT: 'fact'>, tags: Optional[List[str]] = None, metadata: Optional[Dict[str, Any]] = None, **kwargs) -> cogency.memory.core.Memory"
+            },
+            {
+              "name": "delete",
+              "docstring": "DELETE - Remove artifacts by ID, tags, filters, or all.",
+              "signature": "(self, artifact_id: uuid.UUID = None, tags: Optional[List[str]] = None, filters: Optional[Dict[str, Any]] = None, delete_all: bool = False) -> bool"
+            },
+            {
+              "name": "read",
+              "docstring": "READ - Flexible retrieval: by query, ID, tags, or filters.",
+              "signature": "(self, query: str = None, artifact_id: uuid.UUID = None, search_type: cogency.memory.core.SearchType = <SearchType.AUTO: 'auto'>, limit: int = 10, threshold: float = 0.7, tags: Optional[List[str]] = None, memory_type: Optional[cogency.memory.core.MemoryType] = None, filters: Optional[Dict[str, Any]] = None, **kwargs) -> List[cogency.memory.core.Memory]"
+            },
+            {
+              "name": "update",
+              "docstring": "UPDATE - Modify existing artifact (access_count, metadata, etc.).",
+              "signature": "(self, artifact_id: uuid.UUID, updates: Dict[str, Any]) -> bool"
+            }
+          ],
+          "init_signature": "(self, embedding_provider=None)"
+        },
+        {
+          "name": "MemoryType",
+          "docstring": "Types of memory for different agent use cases.",
+          "module": "cogency.memory.core",
+          "methods": [],
+          "init_signature": "(self, *args, **kwds)"
+        },
+        {
+          "name": "SearchType",
+          "docstring": "Search methods for memory recall.",
+          "module": "cogency.memory.core",
+          "methods": [],
+          "init_signature": "(self, *args, **kwds)"
+        }
+      ],
+      "functions": []
+    },
+    "context": {
+      "name": "context",
+      "docstring": "",
+      "classes": [
+        {
+          "name": "Context",
+          "docstring": "Agent conversation context.",
+          "module": "cogency.context",
+          "methods": [
+            {
+              "name": "add_message",
+              "docstring": "Add message to history.",
+              "signature": "(self, role: str, content: str, trace_id: Optional[str] = None)"
+            },
+            {
+              "name": "add_result",
+              "docstring": "Add tool result to history.",
+              "signature": "(self, tool_name: str, args: dict, output: dict)"
+            },
+            {
+              "name": "add_turn",
+              "docstring": "Add conversation turn.",
+              "signature": "(self, query: str, response: str, metadata: Optional[Dict[str, Any]] = None)"
+            },
+            {
+              "name": "clear_history",
+              "docstring": "Clear conversation history.",
+              "signature": "(self)"
+            },
+            {
+              "name": "get_clean_conversation",
+              "docstring": "Get conversation without system messages.",
+              "signature": "(self) -> List[Dict[str, str]]"
+            },
+            {
+              "name": "recent_turns",
+              "docstring": "Get last n conversation turns, filtering out system and internal messages.",
+              "signature": "(self, n: int = 5) -> List[Dict[str, Any]]"
+            }
+          ],
+          "init_signature": "(self, query: str, messages: List[Dict[str, str]] = None, tool_results: Optional[List[Dict[str, Any]]] = None, max_history: Optional[int] = 20, conversation_history: Optional[List[Dict[str, Any]]] = None, user_id: str = 'default')"
+        }
+      ],
+      "functions": []
+    },
+    "embed": {
+      "name": "embed",
+      "docstring": "",
+      "classes": [
+        {
+          "name": "BaseEmbed",
+          "docstring": "Base class for embedding providers",
+          "module": "cogency.embed.base",
+          "methods": [
+            {
+              "name": "embed_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_many",
+              "docstring": "Embed multiple texts",
+              "signature": "(self, texts: list[str], **kwargs) -> list[numpy.ndarray]"
+            },
+            {
+              "name": "embed_one",
+              "docstring": "Embed a single text string",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            }
+          ],
+          "init_signature": "(self, api_key: str = None, **kwargs)"
+        },
+        {
+          "name": "MistralEmbed",
+          "docstring": "Mistral embedding provider with key rotation.",
+          "module": "cogency.embed.mistral",
+          "methods": [
+            {
+              "name": "embed_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_many",
+              "docstring": "Embed multiple texts.",
+              "signature": "(self, texts: List[str], **kwargs) -> List[numpy.ndarray]"
+            },
+            {
+              "name": "embed_one",
+              "docstring": "Embed a single text string.",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, model: str = 'mistral-embed', **kwargs)"
+        },
+        {
+          "name": "NomicEmbed",
+          "docstring": "Nomic embedding provider with key rotation.",
+          "module": "cogency.embed.nomic",
+          "methods": [
+            {
+              "name": "embed_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_many",
+              "docstring": "Embed multiple texts with automatic batching.",
+              "signature": "(self, texts: list[str], batch_size: Optional[int] = None, **kwargs) -> list[numpy.ndarray]"
+            },
+            {
+              "name": "embed_one",
+              "docstring": "Embed a single text string.",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "set_model",
+              "docstring": "Set the embedding model and dimensionality.",
+              "signature": "(self, model: str, dims: int = 768)"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, **kwargs)"
+        },
+        {
+          "name": "OpenAIEmbed",
+          "docstring": "OpenAI embedding provider with key rotation.",
+          "module": "cogency.embed.openai",
+          "methods": [
+            {
+              "name": "embed_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_many",
+              "docstring": "Embed multiple texts.",
+              "signature": "(self, texts: List[str], **kwargs) -> List[numpy.ndarray]"
+            },
+            {
+              "name": "embed_one",
+              "docstring": "Embed a single text string.",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            }
+          ],
+          "init_signature": "(self, api_keys: Union[str, List[str]] = None, model: str = 'text-embedding-3-small', **kwargs)"
+        },
+        {
+          "name": "SentenceEmbed",
+          "docstring": "Sentence Transformers embedding provider - local, no API keys needed.",
+          "module": "cogency.embed.sentence",
+          "methods": [
+            {
+              "name": "embed_array",
+              "docstring": "Embed texts and return as 2D numpy array",
+              "signature": "(self, texts: list[str], **kwargs) -> numpy.ndarray"
+            },
+            {
+              "name": "embed_many",
+              "docstring": "Embed multiple texts.",
+              "signature": "(self, texts: List[str], **kwargs) -> List[numpy.ndarray]"
+            },
+            {
+              "name": "embed_one",
+              "docstring": "Embed a single text string.",
+              "signature": "(self, text: str, **kwargs) -> numpy.ndarray"
+            }
+          ],
+          "init_signature": "(self, model: str = 'all-MiniLM-L6-v2', **kwargs)"
+        }
+      ],
+      "functions": [
+        {
+          "name": "detect_embedder",
+          "docstring": "Auto-detect embedding provider from environment variables.",
+          "module": "cogency.embed.auto",
+          "signature": "() -> cogency.embed.base.BaseEmbed"
+        }
+      ]
+    },
+    "utils": {
+      "name": "utils",
+      "docstring": "Shared utilities for robust LLM response handling.",
+      "classes": [],
+      "functions": [
+        {
+          "name": "config_code",
+          "docstring": "Print configuration code block.",
+          "module": "cogency.utils.terminal",
+          "signature": "(code: str) -> None"
+        },
+        {
+          "name": "config_item",
+          "docstring": "Print configuration item.",
+          "module": "cogency.utils.terminal",
+          "signature": "(name: str, description: str) -> None"
+        },
+        {
+          "name": "demo_header",
+          "docstring": "Print clean demo header with emoji and separator.",
+          "module": "cogency.utils.terminal",
+          "signature": "(title: str, width: int = 35) -> None"
+        },
+        {
+          "name": "info",
+          "docstring": "Print info message with emoji.",
+          "module": "cogency.utils.terminal",
+          "signature": "(message: str) -> None"
+        },
+        {
+          "name": "interactive_mode",
+          "docstring": "Interactive mode with magical DX.",
+          "module": "cogency.utils.cli",
+          "signature": "(agent)"
+        },
+        {
+          "name": "main",
+          "docstring": "Magical CLI entry point.",
+          "module": "cogency.utils.cli",
+          "signature": "()"
+        },
+        {
+          "name": "parse_json",
+          "docstring": "Extract JSON from LLM response with markdown cleaning and error handling.",
+          "module": "cogency.utils.parsing",
+          "signature": "(response: str, fallback: Optional[Dict[str, Any]] = None) -> Dict[str, Any]"
+        },
+        {
+          "name": "section",
+          "docstring": "Print section header.",
+          "module": "cogency.utils.terminal",
+          "signature": "(title: str) -> None"
+        },
+        {
+          "name": "separator",
+          "docstring": "Print separator line.",
+          "module": "cogency.utils.terminal",
+          "signature": "(width: int = 50) -> None"
+        },
+        {
+          "name": "showcase",
+          "docstring": "Print demo showcase section with bullet points.",
+          "module": "cogency.utils.terminal",
+          "signature": "(title: str, items: List[str]) -> None"
+        },
+        {
+          "name": "stream_response",
+          "docstring": "Stream response with smooth character-by-character output.",
+          "module": "cogency.utils.terminal",
+          "signature": "(stream: AsyncIterator[str], char_delay: float = 0.005, rich: bool = True, prefix: str = '🤖: ') -> str"
+        },
+        {
+          "name": "tips",
+          "docstring": "Print tips section with bullet points.",
+          "module": "cogency.utils.terminal",
+          "signature": "(items: List[str]) -> None"
+        }
+      ]
+    },
+    "nodes": {
+      "name": "nodes",
+      "docstring": "",
+      "classes": [],
+      "functions": []
+    }
+  }
+}

@@ -1,8 +1,4 @@
-"""Output management for Cogency agents.
-
-This module provides a centralized output management system for Cogency agents,
-handling tracing, user updates, and tool execution logging with consistent formatting.
-"""
+"""Centralized output management for Cogency agents with tracing and formatting"""
 from typing import Optional, Callable, List, Dict, Any, Union
 import asyncio
 from cogency.utils.formatting import truncate, summarize_tool_result
@@ -33,61 +29,22 @@ emoji = {
 
 
 def tool_emoji(tool_name: str) -> str:
-    """Get tool emoji with fallback.
-    
-    Args:
-        tool_name: Name of the tool to get emoji for
-        
-    Returns:
-        str: Emoji character for the tool or default lightning bolt
-    """
+    """Get tool emoji with fallback to lightning bolt"""
     return emoji.get(tool_name.lower(), "⚡")
 
 
 class Output:
-    """Single source of truth for all agent output.
-    
-    This class centralizes all output operations for Cogency agents, including:
-    - Trace collection for debugging and development
-    - User-facing progress updates
-    - Tool execution logging
-    - Consistent formatting and emoji usage
-    
-    Attributes:
-        tracing: Whether to collect trace entries
-        verbose: Whether to display user-facing updates
-        callback: Optional streaming callback function
-        entries: List of collected trace entries
-    """
+    """Single source of truth for all agent output with tracing and formatting"""
     
     def __init__(self, trace: bool = False, verbose: bool = True, callback: Optional[Callable[[str], None]] = None):
-        """Initialize Output manager.
-        
-        Args:
-            trace: Whether to collect trace entries
-            verbose: Whether to display user-facing updates
-            callback: Optional streaming callback function for real-time updates
-        """
+        """Initialize output manager with tracing and verbosity settings"""
         self.tracing = trace
         self.verbose = verbose
         self.callback = callback
         self.entries: List[Dict[str, Any]] = []  # Collected traces
     
     async def trace(self, message: str, node: Optional[str] = None, **kwargs):
-        """Developer trace output with collection.
-        
-        Records trace entries for debugging and development purposes.
-        If a callback is provided and tracing is enabled, also streams
-        the trace message to the callback.
-        
-        Args:
-            message: The trace message to record
-            node: Optional node identifier (e.g., "reason", "act")
-            **kwargs: Additional metadata to store with the trace
-            
-        Returns:
-            None
-        """
+        """Record trace entries for debugging and stream to callback if available"""
         if not self.tracing:
             return
             
@@ -103,19 +60,7 @@ class Output:
             await self.callback(formatted)
     
     async def update(self, message: str, type: str = "info", **kwargs):
-        """Display user progress updates.
-        
-        Shows user-facing progress updates if verbose mode is enabled
-        and a callback is available.
-        
-        Args:
-            message: The update message to display
-            type: Message type for emoji selection (info, reasoning, tool, etc.)
-            **kwargs: Additional parameters (unused)
-            
-        Returns:
-            None
-        """
+        """Display user progress updates with appropriate emoji"""
         if not self.verbose or not self.callback:
             return
             
@@ -124,19 +69,7 @@ class Output:
         await self.callback(formatted)
     
     async def log_tool(self, tool_name: str, result: Any, success: bool = True):
-        """Log tool execution with status.
-        
-        Displays tool execution results with appropriate formatting
-        and emoji indicators.
-        
-        Args:
-            tool_name: Name of the executed tool
-            result: Result data from tool execution
-            success: Whether the tool execution was successful
-            
-        Returns:
-            None
-        """
+        """Log tool execution with status emoji and formatted result"""
         if not self.verbose or not self.callback:
             return
             
@@ -147,14 +80,7 @@ class Output:
         await self.callback(formatted)
     
     def _emoji_for(self, type: str) -> str:
-        """Map message type to emoji.
-        
-        Args:
-            type: Message type identifier
-            
-        Returns:
-            str: Emoji character for the message type
-        """
+        """Map message type to appropriate emoji"""
         emoji_map = {
             "reasoning": "🤔",
             "tool": "🛠️", 
@@ -166,47 +92,19 @@ class Output:
         return emoji_map.get(type, "🤖")
     
     def tool_emoji(self, tool_name: str) -> str:
-        """Get tool-specific emoji.
-        
-        Args:
-            tool_name: Name of the tool
-            
-        Returns:
-            str: Emoji character for the tool
-        """
+        """Get tool-specific emoji for display"""
         return tool_emoji(tool_name)
     
     def traces(self) -> List[Dict[str, Any]]:
-        """Get trace entries.
-        
-        Returns:
-            List[Dict[str, Any]]: Copy of all collected trace entries
-        """
+        """Get copy of all collected trace entries"""
         return self.entries.copy()
     
     def reset_traces(self) -> None:
-        """Clear all trace entries.
-        
-        Returns:
-            None
-        """
+        """Clear all trace entries"""
         self.entries.clear()
     
     async def send(self, message_type: str, content: str, node: Optional[str] = None, **kwargs):
-        """Route messages to appropriate output methods by type.
-        
-        Unified interface for sending different types of messages through
-        the output system.
-        
-        Args:
-            message_type: Type of message ("trace", "update", "tool_execution", etc.)
-            content: Message content
-            node: Optional node identifier
-            **kwargs: Additional parameters for specific message types
-            
-        Returns:
-            None
-        """
+        """Route messages to appropriate output methods by type"""
         if message_type == "trace":
             await self.trace(content, node=node, **kwargs)
         elif message_type == "update":

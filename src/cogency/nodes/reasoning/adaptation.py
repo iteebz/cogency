@@ -1,10 +1,10 @@
-"""Bidirectional mode switching logic - the core innovation."""
+"""Bidirectional mode switching logic for adaptive reasoning"""
 from typing import Dict, Any, Optional, Tuple
 import json
 
 
 def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
-    """Extract mode switching directives from LLM response."""
+    """Extract mode switching directives from LLM JSON response"""
     try:
         # Try to extract JSON from response
         start = llm_response.find('{')
@@ -30,7 +30,7 @@ def should_switch(
     switch_reason: Optional[str],
     current_iteration: int = 0
 ) -> bool:
-    """Determine if a mode switch should occur based on request and context."""
+    """Determine if mode switch should occur based on request and iteration context"""
     if not switch_to or not switch_reason:
         return False
         
@@ -58,7 +58,7 @@ def switch_mode(
     new_mode: str, 
     switch_reason: str
 ) -> Dict[str, Any]:
-    """Switch reasoning mode while preserving cognitive context."""
+    """Switch reasoning mode while preserving cognitive context and tracking history"""
     # Update react mode
     state['react_mode'] = new_mode
     
@@ -90,7 +90,7 @@ def switch_mode(
 
 
 def switch_prompt(current_mode: str) -> str:
-    """Get mode-specific prompt addition for bidirectional switching."""
+    """Get mode-specific prompt addition for bidirectional cognitive switching"""
     if current_mode == 'deep':
         return """
 COGNITIVE ADJUSTMENT: If this task is simpler than expected, you can downshift to fast mode.

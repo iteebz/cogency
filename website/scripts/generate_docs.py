@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""
-Generate API documentation from cogency OSS project.
-Extracts docs via Python inspection and outputs JSON for Astro.
-
-Run from website: python scripts/generate_docs.py
-Or with poetry: cd ../../ && poetry run python website/scripts/generate_docs.py
-"""
+"""Generate API documentation from cogency OSS project via Python inspection"""
 
 import json
 import sys
@@ -19,7 +13,7 @@ import importlib.util
 
 
 def load_cogency_module(cogency_python_path: str):
-    """Load the cogency package from the OSS repo."""
+    """Load the cogency package from the specified path"""
     cogency_src = Path(cogency_python_path) / "src"
     sys.path.insert(0, str(cogency_src))
     
@@ -32,7 +26,7 @@ def load_cogency_module(cogency_python_path: str):
 
 
 def extract_class_info(cls) -> Dict[str, Any]:
-    """Extract documentation info from a class."""
+    """Extract class documentation including methods and signatures"""
     info = {
         "name": cls.__name__,
         "docstring": inspect.getdoc(cls) or "",
@@ -61,7 +55,7 @@ def extract_class_info(cls) -> Dict[str, Any]:
 
 
 def extract_function_info(func) -> Dict[str, Any]:
-    """Extract documentation info from a function."""
+    """Extract function documentation and signature"""
     try:
         signature = str(inspect.signature(func))
     except (ValueError, TypeError):
@@ -76,7 +70,7 @@ def extract_function_info(func) -> Dict[str, Any]:
 
 
 def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
-    """Generate comprehensive API documentation."""
+    """Generate API documentation for all modules and classes"""
     cogency = load_cogency_module(cogency_python_path)
     if not cogency:
         return {}
@@ -146,7 +140,7 @@ def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
 
 
 def main():
-    """Main entry point."""
+    """Process command line args and generate documentation"""
     # Default to cogency src directory (restructured)
     cogency_path = "../.."
     output_dir = "src/data/api"

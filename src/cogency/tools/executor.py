@@ -4,7 +4,7 @@ import asyncio
 from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
 from cogency.tools.result import get_data, is_success, get_error
-# ToolCall import removed - using simple dicts instead
+# Using simple dicts for tool calls instead of ToolCall class
 from cogency.utils.parsing import parse_json
 from cogency.resilience import safe
 from cogency.output import emoji
