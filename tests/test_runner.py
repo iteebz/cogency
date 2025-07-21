@@ -4,7 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock, Mock
 
 from cogency.runner import StreamingRunner, FlowRunner
-from cogency.types import AgentState
+from cogency import AgentState
 
 
 class TestFlowRunner:

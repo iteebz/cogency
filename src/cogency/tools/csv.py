@@ -378,7 +378,7 @@ class CSV(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.messaging import _truncate
+        from cogency.output import truncate
         operation = params.get("operation", "")
         file_path = params.get("file_path", "")
-        return f"({operation}: {_truncate(file_path, 25)})" if operation and file_path else ""
+        return f"({operation}: {truncate(file_path, 25)})" if operation and file_path else ""

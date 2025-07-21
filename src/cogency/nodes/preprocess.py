@@ -4,28 +4,20 @@ from typing import List, Optional, Dict, Any
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.memory.core import MemoryBackend
-from cogency.types import AgentState
-from cogency.tracing import trace_node
+from cogency.state import AgentState
+
 from cogency.memory.prepare import save_extracted_memory
 from cogency.utils.json import extract_json
-# Removed ceremony - inlined simple operations
-from cogency.messaging import AgentMessenger
-# Eliminated import ceremony - using simple strings
 
 
 
 
-@trace_node("preprocess")
 async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend, system_prompt: str = None, config: Optional[Dict] = None) -> AgentState:
     """Preprocess: routing decisions, memory extraction, tool selection."""
     query = state["query"]
     context = state["context"]
     user_id = getattr(context, 'user_id', 'default')
     
-    # Get streaming callback if available
-    streaming_callback = None
-    if config and "configurable" in config:
-        streaming_callback = config["configurable"].get("streaming_callback")
     
     # Pre-React phases will stream via MEMORIZE and TOOLING messages below
     
@@ -45,8 +37,7 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
         registry_lite = "\n\n".join(registry_entries)
         
         # Add trace for tool registry (dev debugging)
-        if state.get("trace"):
-            state["trace"].add("preprocess", f"Built tool registry with {len(tools)} tools", {"tool_count": len(tools), "tool_names": [t.name for t in tools]})
+        await state.output.send("trace", f"Built tool registry with {len(tools)} tools", node="preprocess", tool_count=len(tools), tool_names=[t.name for t in tools])
         
         # Single LLM call: routing + memory + tool selection + complexity analysis
         prompt = f"""Query: "{query}"
@@ -93,11 +84,10 @@ Return JSON:
         
         # Chain 1: Save extracted memory if not null/empty and memory is enabled
         if memory and result.get("memory"):
-            if streaming_callback:
-                # Stream memory extraction
-                memory_content = result['memory']
-                display_content = f"{memory_content[:50]}..." if len(memory_content) > 50 else memory_content
-                await AgentMessenger.memory_operation(streaming_callback, "save", display_content)
+            # Stream memory extraction using clean API
+            memory_content = result['memory']
+            display_content = f"{memory_content[:50]}..." if len(memory_content) > 50 else memory_content
+            await state.output.send("update", f"💾 {display_content}")
             
             await save_extracted_memory(
                 result["memory"], 
@@ -114,16 +104,16 @@ Return JSON:
         else:
             filtered_tools = tools  # Fallback to all tools
         
-        # Stream tool selection - show off the intelligence
-        if streaming_callback and filtered_tools:
+        # Stream tool selection using clean API
+        if filtered_tools:
             if len(filtered_tools) < len(tools):
                 # Show smart filtering
                 tool_names = [f"{t.emoji} {t.name}" for t in filtered_tools]
-                await AgentMessenger.tool_selection(streaming_callback, tool_names, filtered=True)
+                await state.output.send("update", f"🛠️ Tools: {', '.join([t.name for t in filtered_tools])}")
             elif len(filtered_tools) > 1:
                 # Show tools being prepared for ReAct
                 tool_names = [f"{t.emoji} {t.name}" for t in filtered_tools]
-                await AgentMessenger.tool_selection(streaming_callback, tool_names, filtered=False)
+                await state.output.send("update", f"🛠️ Tools: {', '.join([t.name for t in filtered_tools])}")
     else:
         # Simple case: use all tools, respond directly
         filtered_tools = tools
@@ -134,22 +124,29 @@ Return JSON:
     
     # Chain 3: Prepare tools for ReAct (remove memorize, keep recall) - inline, no ceremony
     prepared_tools = [tool for tool in filtered_tools if tool.name != 'memorize']
-    state["selected_tools"] = prepared_tools if prepared_tools else tools  # Use all tools as fallback
-    
-    # Simple iteration tracking
-    state["max_iterations"] = 5
-    state["current_iteration"] = 0
+    selected_tools = prepared_tools if prepared_tools else tools  # Use all tools as fallback
     
     # Chain 5: 3-way routing decision 
     if tools and len(tools) > 0:
         if result.get("respond_directly", True):
-            state["next_node"] = "respond"  # Direct response
+            next_node = "respond"  # Direct response
         else:
-            state["next_node"] = "reason"   # Use ReAct workflow
-            state["react_mode"] = result.get("react_mode", "fast")  # Cognitive complexity
+            next_node = "reason"   # Use ReAct workflow
+            react_mode = result.get("react_mode", "fast")  # Cognitive complexity
+            
+            # Trace complexity assessment and mode decision
+            complexity = result.get("complexity_level", "unknown")
+            await state.output.send("trace", f"Complexity: {complexity} → {react_mode.upper()} mode selected", node="preprocess")
     else:
         # No tools available, respond directly
-        state["next_node"] = "respond"
+        next_node = "respond"
+    
+    # Update flow state - ephemeral workflow data
+    state["selected_tools"] = selected_tools
+    state["react_mode"] = result.get("react_mode", "fast")
+    state["max_iterations"] = 5
+    state["current_iteration"] = 0
+    state["next_node"] = next_node
     
     return state
 

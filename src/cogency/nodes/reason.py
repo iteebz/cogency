@@ -3,10 +3,9 @@ from typing import List, Optional, Dict, Any
 
 from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
-from cogency.types import AgentState
-from cogency.tracing import trace_node
+from cogency.state import AgentState
+
 from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, extract_reasoning_text
-from cogency.messaging import AgentMessenger
 from cogency.nodes.reasoning import (
     initialize_cognitive_state,
     update_cognitive_state,
@@ -40,15 +39,10 @@ from cogency.nodes.reasoning.prompts import build_reasoning_prompt
 
 
 
-@trace_node("reason")
-async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, config: Optional[Dict] = None) -> AgentState:
+async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
     """Reason: analyze context and decide next action (includes implicit reflection)."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
-    # Get streaming callback if available
-    streaming_callback = None
-    if config and "configurable" in config:
-        streaming_callback = config["configurable"].get("streaming_callback")
     
     # Simple iteration tracking
     current_iteration = state.get("current_iteration", 0)
@@ -78,6 +72,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         return state
     elif loop_detected:
         # Stop reasoning if loop detected
+        await state.output.send("trace", "Loop detected - stopping reasoning", node="reason")
         state["stopping_reason"] = "reasoning_loop_detected"
         state["next_node"] = "respond"
         return state
@@ -136,6 +131,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         # Check for bidirectional mode switching
         switch_to, switch_reason = extract_mode_switch(llm_response)
         if should_switch_modes(react_mode, switch_to, switch_reason, current_iteration):
+            await state.output.send("trace", f"Mode switch: {react_mode} → {switch_to} ({switch_reason})", node="reason")
             state = execute_mode_switch(state, switch_to, switch_reason)
             # Update react_mode for this iteration
             react_mode = switch_to
@@ -153,8 +149,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     
     # Extract intelligent reasoning text and stream it - HUMAN READABLE ONLY
     reasoning_text = extract_reasoning_text(llm_response)
-    if streaming_callback:
-        await AgentMessenger.reasoning(streaming_callback, reasoning_text)
+    await state.output.send("update", reasoning_text)
     
     # Store reasoning results in state - NO JSON LEAKAGE
     state["reasoning_response"] = llm_response
@@ -169,10 +164,15 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         tool_quality = assess_tool_quality(execution_results)
         cognitive_state["last_tool_quality"] = tool_quality
         
+        # Trace tool quality assessment
+        await state.output.send("trace", f"Tool performance assessment: {tool_quality}", node="reason")
+        
         # Track failed attempts for loop prevention
         if tool_quality in ["failed", "poor"]:
             prev_tool_calls = state.get("prev_tool_calls", [])
             if prev_tool_calls:
+                failed_tools = [call.get("function", {}).get("name", "unknown") for call in prev_tool_calls]
+                await state.output.send("trace", f"Tracking failed attempt: {', '.join(failed_tools)}", node="reason")
                 track_failed_attempt(cognitive_state, prev_tool_calls, tool_quality, current_iteration)
     
     # Update cognitive state for next iteration

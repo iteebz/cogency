@@ -16,7 +16,7 @@ from cogency.utils.parsing import extract_json_from_response, extract_reasoning_
 from cogency.nodes.respond import respond_node, build_response_prompt
 from cogency.nodes.act import act_node
 from cogency.nodes.reason import reason_node
-from cogency.types import ToolCall, AgentState
+from cogency.state import AgentState
 from cogency.context import Context
 from cogency.tools.base import BaseTool
 
@@ -60,9 +60,9 @@ class TestToolCallParsing:
         result = parse_tool_calls(llm_response)
         assert isinstance(result, list)
         assert len(result) == 1
-        assert isinstance(result[0], ToolCall)
-        assert result[0].name == "calculator"
-        assert result[0].args == {"expression": "2+2"}
+        assert isinstance(result[0], dict)
+        assert result[0]["name"] == "calculator"
+        assert result[0]["args"] == {"expression": "2+2"}
     
     def test_parse_multiple_tool_calls_from_json_string(self):
         """Test parsing multiple tool calls from JSON string."""
@@ -79,8 +79,8 @@ class TestToolCallParsing:
         result = parse_tool_calls(llm_response)
         assert isinstance(result, list)
         assert len(result) == 2
-        assert result[0].name == "weather"
-        assert result[1].name == "timezone"
+        assert result[0]["name"] == "weather"
+        assert result[1]["name"] == "timezone"
     
     def test_parse_tool_call_with_malformed_json(self):
         """Test parsing handles malformed JSON gracefully."""
@@ -110,7 +110,7 @@ class TestToolCallParsing:
         result = parse_tool_calls(single_call)
         assert isinstance(result, list)
         assert len(result) == 1
-        assert result[0].name == "calculator"
+        assert result[0]["name"] == "calculator"
         
         # Multiple tool calls as list
         multi_calls = [
@@ -214,8 +214,10 @@ class TestErrorHandlingAndGracefulDegradation:
         
         failing_llm = FailingMockLLM()
         
+        from cogency.output import OutputManager
+        
         context = Context(current_input="test query", messages=[], user_id="test_user")
-        state = AgentState(context=context, trace=None, query="test query")
+        state = AgentState(context=context, query="test query", output=OutputManager())
         
         result_state = await respond_node(state, llm=failing_llm)
         
@@ -231,8 +233,10 @@ class TestErrorHandlingAndGracefulDegradation:
         mock_llm = AsyncMock()
         mock_llm.run.return_value = "This is not JSON and cannot be parsed"
         
+        from cogency.output import OutputManager
+        
         context = Context(current_input="test query", messages=[], user_id="test_user")
-        state = AgentState(context=context, trace=None, query="test query")
+        state = AgentState(context=context, query="test query", output=OutputManager())
         
         result_state = await reason_node(state, llm=mock_llm, tools=[])
         
@@ -255,8 +259,10 @@ class TestRespondNodeJSONPrevention:
             yield "Here's your answer: The weather is sunny. No JSON here!"
         mock_llm.stream = mock_stream
         
+        from cogency.output import OutputManager
+        
         context = Context(current_input="What's the weather?", messages=[], user_id="test_user")
-        state = AgentState(context=context, trace=None, query="test query")
+        state = AgentState(context=context, query="test query", output=OutputManager())
         
         result_state = await respond_node(state, llm=mock_llm)
         
@@ -280,13 +286,15 @@ class TestRespondNodeJSONPrevention:
             yield "Based on the weather data, it's currently 72°F and sunny in San Francisco."
         mock_llm.stream = mock_stream
         
+        from cogency.output import OutputManager
+        
         context = Context(current_input="What's the weather in SF?", messages=[], user_id="test_user")
         state = AgentState(
             context=context, 
-            trace=None, 
             query="test query",
-            execution_results={"success": True, "results": [{"temperature": "72°F", "condition": "sunny"}]}
+            output=OutputManager()
         )
+        state.flow["execution_results"] = {"success": True, "results": [{"temperature": "72°F", "condition": "sunny"}]}
         
         result_state = await respond_node(state, llm=mock_llm)
         
@@ -328,16 +336,18 @@ class TestCriticalPathIntegration:
         working_tool = MockTool("test_tool", should_fail=False)
         tools = [working_tool]
         
+        from cogency.output import OutputManager
+        
         context = Context(current_input="test query", messages=[], user_id="test_user")
         context.add_message = Mock()
         context.add_tool_result = Mock()
         
         state = AgentState(
             context=context,
-            trace=None,
             query="test query",
-            tool_calls='{"name": "test_tool", "args": {"test": "value"}}'
+            output=OutputManager()
         )
+        state.flow["tool_calls"] = '{"name": "test_tool", "args": {"test": "value"}}'
         
         result_state = await act_node(state, tools=tools)
         
@@ -348,8 +358,10 @@ class TestCriticalPathIntegration:
     @pytest.mark.asyncio
     async def test_act_node_handles_no_tool_calls(self):
         """Test act node handles missing tool calls gracefully."""
+        from cogency.output import OutputManager
+        
         context = Context(current_input="test query", messages=[], user_id="test_user")
-        state = AgentState(context=context, trace=None, query="test query")
+        state = AgentState(context=context, query="test query", output=OutputManager())
         # No tool_calls in state
         
         result_state = await act_node(state, tools=[])

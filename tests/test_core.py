@@ -3,7 +3,7 @@ import pytest
 from datetime import datetime, UTC
 
 from cogency.context import Context
-from cogency.types import AgentState, ReasoningDecision, ToolCall
+from cogency.state import AgentState
 from cogency.memory.core import MemoryArtifact, MemoryType
 
 
@@ -54,29 +54,38 @@ class TestContext:
         assert context.tool_results[0]["output"]["result"] == 8
 
 
-class TestTypes:
-    """Test type definitions and contracts."""
+class TestSimpleDicts:
+    """Test simple dict structures replacing complex types."""
     
-    def test_reasoning_decision_creation(self):
-        decision = ReasoningDecision(should_respond=True, response_text="test response")
+    def test_reasoning_decision_dict(self):
+        decision = {
+            "should_respond": True, 
+            "response_text": "test response",
+            "tool_calls": None,
+            "task_complete": False
+        }
         
-        assert decision.should_respond is True
-        assert decision.response_text == "test response"
-        assert decision.tool_calls is None
-        assert decision.task_complete is False
+        assert decision["should_respond"] is True
+        assert decision["response_text"] == "test response"
+        assert decision["tool_calls"] is None
+        assert decision["task_complete"] is False
     
-    def test_tool_call_structure(self):
-        tool_call = ToolCall(name="calculator", args={"operation": "add", "x": 1, "y": 2})
+    def test_tool_call_dict(self):
+        tool_call = {
+            "name": "calculator", 
+            "args": {"operation": "add", "x": 1, "y": 2}
+        }
         
-        assert tool_call.name == "calculator"
-        assert tool_call.args["operation"] == "add"
+        assert tool_call["name"] == "calculator"
+        assert tool_call["args"]["operation"] == "add"
     
     def test_agent_state_contract(self, context):
+        from cogency.output import OutputManager
+        
         state = AgentState(
             context=context,
-            trace=None,
             query="test query",
-            last_node_output=None
+            output=OutputManager()
         )
         
         assert state["context"] == context
@@ -129,8 +138,9 @@ class TestAgent:
         """Agent should have memory enabled by default."""
         from cogency import Agent
         from cogency.tools.recall import Recall
+        from cogency.llm.mock import MockLLM
         
-        agent = Agent("test")
+        agent = Agent("test", llm=MockLLM())
         
         # Should have memory backend
         assert agent.flow.memory is not None
@@ -143,8 +153,9 @@ class TestAgent:
         """Agent with memory=True should have memory enabled."""
         from cogency import Agent
         from cogency.tools.recall import Recall
+        from cogency.llm.mock import MockLLM
         
-        agent = Agent("test", memory=True)
+        agent = Agent("test", memory=True, llm=MockLLM())
         
         # Should have memory backend
         assert agent.flow.memory is not None
@@ -157,8 +168,9 @@ class TestAgent:
         """Agent with memory=False should have no memory."""
         from cogency import Agent
         from cogency.tools.recall import Recall
+        from cogency.llm.mock import MockLLM
         
-        agent = Agent("test", memory=False)
+        agent = Agent("test", memory=False, llm=MockLLM())
         
         # Should have no memory backend
         assert agent.flow.memory is None
@@ -172,9 +184,10 @@ class TestAgent:
         from cogency import Agent
         from cogency.tools.calculator import Calculator
         from cogency.tools.recall import Recall
+        from cogency.llm.mock import MockLLM
         
         # Memory enabled with custom tools
-        agent = Agent("test", memory=True, tools=[Calculator()])
+        agent = Agent("test", memory=True, tools=[Calculator()], llm=MockLLM())
         
         # Should have memory backend
         assert agent.flow.memory is not None
@@ -186,7 +199,7 @@ class TestAgent:
         assert len(recall_tools) == 1
         
         # Memory disabled with custom tools
-        agent = Agent("test", memory=False, tools=[Calculator()])
+        agent = Agent("test", memory=False, tools=[Calculator()], llm=MockLLM())
         
         # Should have no memory backend
         assert agent.flow.memory is None

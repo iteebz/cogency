@@ -3,7 +3,7 @@
 import asyncio
 from cogency import Agent
 from cogency.tools import Shell, Files, Code
-from cogency.utils.terminal import demo_header, stream_response, section, showcase, separator
+from cogency.utils import demo_header, stream_response, section, showcase, separator, parse_trace_args
 
 async def main():
     demo_header("🚀 Cogency Coding Demo", 30)
@@ -11,7 +11,8 @@ async def main():
     # Create specialized coding agent with focused tool subset
     coding_agent = Agent("coding_assistant",
         identity="expert Python developer and code reviewer",
-        tools=[Code(), Files(), Shell()]  # Focused coding environment
+        tools=[Code(), Files(), Shell()],  # Focused coding environment
+        trace=parse_trace_args()
     )
     
     section("Complete Coding Workflow")

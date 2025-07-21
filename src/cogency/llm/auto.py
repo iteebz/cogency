@@ -1,5 +1,5 @@
 """Auto-detection of LLM providers from environment variables."""
-from cogency.config import get_api_keys
+from cogency.utils.auto import detect_provider
 from .base import BaseLLM
 
 def auto_detect_llm() -> BaseLLM:
@@ -44,7 +44,7 @@ def auto_detect_llm() -> BaseLLM:
     
     # Try Grok
     try:
-        from .grok import GrokLLM
+        from .xai import GrokLLM
         provider_map["grok"] = GrokLLM
     except ImportError:
         pass
@@ -56,28 +56,4 @@ def auto_detect_llm() -> BaseLLM:
     except ImportError:
         pass
 
-    for provider_name, llm_class in provider_map.items():
-        api_keys = get_api_keys(provider_name)
-        if api_keys:
-            return llm_class(api_keys=api_keys)
-
-    # Clear error message with setup instructions
-    available_providers = list(provider_map.keys())
-    if not available_providers:
-        raise RuntimeError(
-            "No LLM providers installed. Install at least one:\n"
-            "  - pip install cogency[openai]\n"
-            "  - pip install cogency[anthropic]\n"
-            "  - pip install cogency[gemini]\n"
-            "  - pip install cogency[mistral]"
-        )
-    
-    raise RuntimeError(
-        f"No LLM provider configured. Available providers: {', '.join(available_providers)}\n"
-        "Set an API key for one of the supported providers:\n"
-        "  - OPENAI_API_KEY\n"
-        "  - ANTHROPIC_API_KEY\n"
-        "  - GEMINI_API_KEY\n"
-        "  - GROK_API_KEY\n"
-        "  - MISTRAL_API_KEY"
-    )
+    return detect_provider(provider_map, "LLM")

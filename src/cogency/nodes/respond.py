@@ -2,10 +2,9 @@
 from typing import Optional, Dict, Any
 
 from cogency.llm import BaseLLM
-from cogency.types import AgentState, ReasoningDecision
-from cogency.tracing import trace_node
-# Eliminated import ceremony - using simple strings
-from cogency.messaging import AgentMessenger
+from cogency.state import AgentState
+# ReasoningDecision removed - was bullshit that didn't align with adaptive reasoning
+
 
 
 def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results: bool = False, identity: Optional[str] = None, json_schema: Optional[str] = None) -> str:
@@ -31,15 +30,11 @@ def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results:
 
 
 
-@trace_node("respond")
 async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Optional[str] = None, identity: Optional[str] = None, json_schema: Optional[str] = None, config: Optional[Dict] = None) -> AgentState:
     """Respond: generate final formatted response with personality."""
     context = state["context"]
     
-    # Get streaming callback if available
-    streaming_callback = None
-    if config and "configurable" in config:
-        streaming_callback = config["configurable"].get("streaming_callback")
+    # Streaming handled by OutputManager
     
     # ALWAYS generate response - handle tool results, direct reasoning, or knowledge-based
     final_messages = list(context.messages)
@@ -49,6 +44,7 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
     
     if stopping_reason:
         # Handle reasoning stopped scenario - generate fallback response
+        await state.output.send("trace", f"Fallback response due to: {stopping_reason}", node="respond")
         fallback_prompt = f"Reasoning stopped due to: {stopping_reason}. Please summarize the conversation and provide a helpful response based on the context available."
         if system_prompt:
             fallback_prompt = f"{system_prompt}\n\n{fallback_prompt}"
@@ -59,17 +55,17 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
             final_response = ""
             async for chunk in llm.stream(final_messages):
                 final_response += chunk
-                if streaming_callback:
-                    await streaming_callback(chunk)
+                await state.output.send("update", chunk)
         except Exception as e:
             # Handle LLM errors in fallback response generation
             final_response = f"I apologize, but I encountered a technical issue while preparing my response: {str(e)}. Let me try to help based on what we discussed."
-            if streaming_callback:
-                await streaming_callback(final_response)
+            await state.output.send("update", final_response)
     else:
         # Generate response based on context and any tool results
         execution_results = state.get("execution_results", {})
         if execution_results and execution_results.get("success"):
+            if json_schema:
+                await state.output.send("trace", "Applying JSON schema constraint", node="respond")
             response_prompt = build_response_prompt(system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema)
         elif execution_results and not execution_results.get("success"):
             response_prompt = "Generate helpful response acknowledging tool failures and providing alternatives."
@@ -85,25 +81,24 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
             final_response = ""
             async for chunk in llm.stream(final_messages):
                 final_response += chunk
-                if streaming_callback:
-                    await streaming_callback(chunk)
+                await state.output.send("update", chunk)
         except Exception as e:
             # Handle LLM errors in response generation
             final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
-            if streaming_callback:
-                await streaming_callback(final_response)
+            await state.output.send("update", final_response)
     
     # Add response to context
     context.add_message("assistant", final_response)
     
-    # Update state with final results
-    state["context"] = context
-    state["final_response"] = final_response  # Expected by tests
-    state["reasoning_decision"] = ReasoningDecision(
-        should_respond=True, 
-        response_text=final_response, 
-        task_complete=True
-    )
+    # Update flow state
+    state["final_response"] = final_response
+    
+    # Store response data directly in state
+    state["reasoning_decision"] = {
+        "should_respond": True, 
+        "response_text": final_response, 
+        "task_complete": True
+    }
     state["last_node_output"] = final_response
     state["next_node"] = "END"
     

@@ -2,7 +2,7 @@
 """Multi-Tool Coordination - Flagship ReAct Demo"""
 import asyncio
 from cogency import Agent
-from cogency.utils.terminal import demo_header, stream_response, section, showcase, separator
+from cogency.utils import demo_header, stream_response, section, showcase, separator, parse_trace_args
 
 async def main():
     demo_header("🔍 Cogency Research Demo", 35)
@@ -11,7 +11,8 @@ async def main():
     from cogency.tools import Search, Scrape, Files, Calculator
     agent = Agent("research_assistant",
         identity="thorough research analyst",
-        tools=[Search(), Scrape(), Files(), Calculator()]  # Perfect research toolkit
+        tools=[Search(), Scrape(), Files(), Calculator()],  # Perfect research toolkit
+        trace=parse_trace_args()
     )
     
     section("Complex Research Query")

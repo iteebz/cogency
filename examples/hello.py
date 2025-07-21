@@ -2,7 +2,7 @@
 """Hello World - Character Demo with Sherlock Holmes"""
 import asyncio
 from cogency import Agent
-from cogency.utils.terminal import demo_header, stream_response, section
+from cogency.utils import demo_header, stream_response, section, parse_trace_args
 
 async def main():
     demo_header("🔥 Cogency Character Demo")
@@ -17,7 +17,8 @@ async def main():
         Keep responses concise and brilliant.
         Always respond with plain text only, no markdown formatting""",
         tools=[], 
-        memory=False)
+        memory=False,
+        trace=parse_trace_args())
     
     # Mystery deduction
     query_1 = "I found a muddy footprint by my window this morning. What happened?"

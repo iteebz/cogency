@@ -7,7 +7,7 @@ from cogency.nodes.reasoning import (
     detect_action_loop,
     assess_tool_quality
 )
-from cogency.types import AgentState
+from cogency.state import AgentState
 
 
 class MockToolCall:
@@ -193,7 +193,14 @@ class TestReasonNode:
     @pytest.fixture
     def basic_state(self, mock_context):
         """Create basic agent state."""
-        return {"context": mock_context}
+        from cogency.output import OutputManager
+        
+        state = AgentState(
+            context=mock_context,
+            query="test query",
+            output=OutputManager()
+        )
+        return state
     
     @pytest.mark.asyncio
     async def test_cognitive_state_initialization(self, basic_state, mock_llm, mock_tools):
@@ -264,7 +271,18 @@ class TestReasonNode:
             "successful_count": 0,
             "failed_count": 1
         }
-        basic_state["prev_tool_calls"] = [MockToolCall("search", {"query": "test"})]
+        # Create a dict-like object that has name and args attributes
+        class DictLikeTool:
+            def __init__(self, name, args):
+                self.name = name
+                self.args = args
+                
+            def get(self, key, default=None):
+                if key == "function":
+                    return {"name": self.name}
+                return default
+                
+        basic_state["prev_tool_calls"] = [DictLikeTool("search", {"query": "test"})]
         
         result = await reason_node(basic_state, llm=mock_llm, tools=mock_tools)
         

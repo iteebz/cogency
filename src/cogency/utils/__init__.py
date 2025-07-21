@@ -1,5 +1,6 @@
 """Shared utilities for robust LLM response handling."""
 from .json import extract_json
+from .cli import main, interactive_mode
 from .terminal import (
     stream_response,
     demo_header,
@@ -14,6 +15,9 @@ from .terminal import (
 
 __all__ = [
     "extract_json",
+    "parse_trace_args",
+    "main",
+    "interactive_mode",
     "stream_response", 
     "demo_header",
     "separator",

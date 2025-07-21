@@ -1,5 +1,5 @@
 """Auto-detection of embedding providers from environment variables."""
-from cogency.config import get_api_keys
+from cogency.utils.auto import detect_provider
 from .base import BaseEmbed
 
 def auto_detect_embedder() -> BaseEmbed:
@@ -40,10 +40,11 @@ def auto_detect_embedder() -> BaseEmbed:
     except ImportError:
         pass
 
-    for provider_name, embedder_class in provider_map.items():
-        api_keys = get_api_keys(provider_name)
-        if api_keys:
-            return embedder_class(api_keys=api_keys)
+    # Try API-based providers first
+    try:
+        return detect_provider(provider_map, "embedding")
+    except RuntimeError:
+        pass
 
     # Fall back to local sentence transformers (no API key needed)
     try:
@@ -52,7 +53,7 @@ def auto_detect_embedder() -> BaseEmbed:
     except ImportError:
         pass
 
-    # Clear error message with setup instructions
+    # Final error with all options
     available_providers = list(provider_map.keys())
     if not available_providers:
         raise RuntimeError(

@@ -2,7 +2,7 @@
 """Persistent Memory - Core Architectural Differentiator"""
 import asyncio
 from cogency import Agent
-from cogency.utils.terminal import demo_header, stream_response, section, info
+from cogency.utils import demo_header, stream_response, section, info, parse_trace_args
 
 async def main():
     demo_header("🧠 Cogency Memory Demo", 30)
@@ -12,7 +12,8 @@ async def main():
     agent = Agent("memory_assistant", 
         identity="helpful assistant with excellent memory",
         memory_dir=".cogency/demo_memory",  # Custom memory location for demo
-        tools=[Recall]  # Only recall tool - memory is the star
+        tools=[Recall],  # Only recall tool - memory is the star
+        trace=parse_trace_args()
     )
     
     section("Teaching the Agent")

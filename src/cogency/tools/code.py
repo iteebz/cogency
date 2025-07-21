@@ -226,6 +226,6 @@ try {{
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.messaging import _truncate
+        from cogency.output import truncate
         code = params.get("code", "")
-        return f"({_truncate(code, 35)})" if code else ""
+        return f"({truncate(code, 35)})" if code else ""

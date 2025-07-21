@@ -4,6 +4,7 @@ from typing import AsyncIterator, List, Optional
 from rich.console import Console
 from rich.text import Text
 from rich.markdown import Markdown
+from cogency.output import emoji
 
 console = Console()
 
@@ -72,14 +73,16 @@ def showcase(title: str, items: List[str]) -> None:
 
 def tips(items: List[str]) -> None:
     """Print tips section with bullet points."""
-    console.print("\n[bold magenta]💡 Tips:[/bold magenta]")
+    tip_emoji = emoji['tip']
+    console.print(f"\n[bold magenta]{tip_emoji} Tips:[/bold magenta]")
     for tip in items:
         console.print(f"   [dim]•[/dim] [bright_white]{tip}[/bright_white]")
 
 
 def info(message: str) -> None:
     """Print info message with emoji."""
-    console.print(f"[bold blue]💡 {message}[/bold blue]")
+    info_emoji = emoji['info']
+    console.print(f"[bold blue]{info_emoji} {message}[/bold blue]")
 
 
 def config_item(name: str, description: str) -> None:
@@ -90,3 +93,5 @@ def config_item(name: str, description: str) -> None:
 def config_code(code: str) -> None:
     """Print configuration code block."""
     console.print(f"[dim]{code}[/dim]")
+
+

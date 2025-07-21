@@ -115,8 +115,8 @@ class Files(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.messaging import _truncate
+        from cogency.output import truncate
         action, filename = params.get("action"), params.get("filename")
         if action and filename:
-            return f"({action}, {_truncate(filename, 25)})"
-        return f"({_truncate(filename or '', 30)})" if filename else ""
+            return f"({action}, {truncate(filename, 25)})"
+        return f"({truncate(filename or '', 30)})" if filename else ""

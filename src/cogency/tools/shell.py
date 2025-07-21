@@ -171,6 +171,6 @@ class Shell(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.messaging import _truncate
+        from cogency.output import truncate
         cmd = params.get("command", "")
-        return f"({_truncate(cmd, 35)})" if cmd else ""
+        return f"({truncate(cmd, 35)})" if cmd else ""

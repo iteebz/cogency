@@ -5,7 +5,7 @@ import pytest
 from unittest.mock import AsyncMock, Mock
 
 from cogency.nodes.preprocess import preprocess_node
-from cogency.types import AgentState
+from cogency.state import AgentState
 from cogency.tools.recall import Recall
 from cogency.tools.calculator import Calculator
 
@@ -37,10 +37,14 @@ class MockContext:
 @pytest.mark.asyncio
 async def test_memory_extraction():
     """Test that memory is extracted for personal info."""
-    state = AgentState({
-        "query": "My favorite programming language is Python and I work at OpenAI",
-        "context": MockContext()
-    })
+    from cogency.output import OutputManager
+    
+    context = MockContext()
+    state = AgentState(
+        context=context,
+        query="My favorite programming language is Python and I work at OpenAI",
+        output=OutputManager()
+    )
     
     mock_tools = [
         Recall(MockMemory()),
@@ -61,10 +65,14 @@ async def test_memory_extraction():
 @pytest.mark.asyncio
 async def test_recall_usage():
     """Test that recall is selected for personal questions."""
-    state = AgentState({
-        "query": "What is my favorite programming language?",
-        "context": MockContext()
-    })
+    from cogency.output import OutputManager
+    
+    context = MockContext()
+    state = AgentState(
+        context=context,
+        query="What is my favorite programming language?",
+        output=OutputManager()
+    )
     
     mock_tools = [
         Recall(MockMemory()),
@@ -86,10 +94,14 @@ async def test_recall_usage():
 @pytest.mark.asyncio
 async def test_calculator_selection():
     """Test that calculator is selected for math."""
-    state = AgentState({
-        "query": "What is 2 + 2?",
-        "context": MockContext()
-    })
+    from cogency.output import OutputManager
+    
+    context = MockContext()
+    state = AgentState(
+        context=context,
+        query="What is 2 + 2?",
+        output=OutputManager()
+    )
     
     mock_tools = [
         Recall(MockMemory()),
@@ -111,10 +123,14 @@ async def test_calculator_selection():
 @pytest.mark.asyncio
 async def test_direct_response():
     """Test direct response for general knowledge."""
-    state = AgentState({
-        "query": "What is the capital of France?",
-        "context": MockContext()
-    })
+    from cogency.output import OutputManager
+    
+    context = MockContext()
+    state = AgentState(
+        context=context,
+        query="What is the capital of France?",
+        output=OutputManager()
+    )
     
     mock_tools = [
         Recall(MockMemory()),

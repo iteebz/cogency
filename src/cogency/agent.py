@@ -1,13 +1,13 @@
 import asyncio
-from typing import Optional, AsyncIterator
+from typing import Optional, AsyncIterator, List, Dict, Any
 from cogency.flow import Flow
 from cogency.runner import StreamingRunner
-from cogency.messaging import AgentMessenger
 from cogency.context import Context
 from cogency.llm import auto_detect_llm
 from cogency.tools.registry import ToolRegistry
 from cogency.memory.backends.filesystem import FilesystemBackend
-from cogency.tracing import ExecutionTrace
+from cogency.state import AgentState
+from cogency.output import OutputManager
 
 
 def compose_system_prompt(opts: dict) -> str:
@@ -23,13 +23,16 @@ def compose_system_prompt(opts: dict) -> str:
 class Agent:
     """Magical Agent - cognitive AI made simple.
     
-    Primary APIs:
-    - query(): Auto-prints + returns result (90% use case)  
+    Clean API:
+    - Agent(name, trace=True, verbose=True) - beautiful flags
+    - run(): Returns result with optional streaming
     - stream(): Returns async iterator for custom handling
     """
     
-    def __init__(self, name: str, **opts):
+    def __init__(self, name: str, trace: bool = False, verbose: bool = True, **opts):
         self.name = name
+        self.trace = trace
+        self.verbose = verbose
         
         # Handle memory flag - clean API for memory control
         memory_enabled = opts.get('memory', True)  # Default: enabled
@@ -72,8 +75,7 @@ class Agent:
         )
         self.runner = StreamingRunner()
         self.contexts = {}
-        self.trace_enabled = opts.get('trace', False)
-        self.last_trace = None
+        self.last_output_manager = None  # Store for get_traces()
         
         # MCP server setup if enabled
         if opts.get('enable_mcp'):
@@ -84,7 +86,6 @@ class Agent:
                 raise ImportError("MCP package required for enable_mcp=True")
         else:
             self.mcp_server = None
-    
     
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution - returns async iterator for custom output handling."""
@@ -100,7 +101,7 @@ class Agent:
         # Basic prompt injection detection
         suspicious_patterns = [
             "ignore previous", "forget", "system:", "assistant:", 
-            "<system>", "</system>", "\n\nHuman:", "\n\nAssistant:"
+            "<s>", "</s>", "\n\nHuman:", "\n\nAssistant:"
         ]
         if any(pattern in query.lower() for pattern in suspicious_patterns):
             yield "⚠️ Suspicious input detected\n"
@@ -112,17 +113,29 @@ class Agent:
         context.add_message("user", query)  # Add user query to message history
         self.contexts[user_id] = context
         
-        # User input display handled by caller
-        
-        # Stream execution with clean callback
-        state = {"query": query, "context": context, "trace": ExecutionTrace()}
-        
-        # Create a queue for streaming messages
+        # Create streaming callback
         message_queue = asyncio.Queue()
         
         async def streaming_callback(message: str):
-            """Clean streaming callback for user-facing messages."""
+            """Clean streaming callback for all output."""
             await message_queue.put(message)
+        
+        # Create OutputManager with clean flags
+        output_manager = OutputManager(
+            trace=self.trace,
+            verbose=self.verbose,
+            callback=streaming_callback
+        )
+        
+        # Store for get_traces()
+        self.last_output_manager = output_manager
+        
+        # Clean state - zero ceremony
+        state = AgentState(
+            context=context,
+            query=query,
+            output=output_manager
+        )
         
         # Start execution in background
         execution_task = asyncio.create_task(
@@ -143,13 +156,7 @@ class Agent:
                 yield message_queue.get_nowait()
                 
         finally:
-            final_state = await execution_task
-            self.last_trace = final_state.get("trace")
-            
-            # Print trace if enabled
-            if self.trace_enabled and self.last_trace:
-                from cogency.tracing import format_trace
-                print(f"\n🔍 TRACE:\n{format_trace(self.last_trace)}")
+            await execution_task
     
     async def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return final response."""
@@ -159,29 +166,11 @@ class Agent:
                 chunks.append(chunk.split("🤖 ", 1)[1])
         return "".join(chunks).strip() or "No response generated"
     
-    
-    def _extract_response(self, state) -> str:
-        """Extract response from final state."""
-        if "respond" in state and "response" in state["respond"]:
-            return state["respond"]["response"]
-        if "context" in state and state["context"].messages:
-            return state["context"].messages[-1].get("content", "No response")
-        return "No response generated"
-    
-    def get_trace(self) -> Optional[str]:
-        """Get formatted trace from last execution."""
-        if not self.last_trace:
-            return None
-        from cogency.tracing import format_trace
-        return format_trace(self.last_trace)
-    
-    def enable_tracing(self):
-        """Enable tracing for debugging."""
-        self.trace_enabled = True
-    
-    def disable_tracing(self):
-        """Disable tracing."""
-        self.trace_enabled = False
+    def get_traces(self) -> List[Dict[str, Any]]:
+        """Get collected trace entries from last execution."""
+        if self.last_output_manager:
+            return self.last_output_manager.get_traces()
+        return []
     
     # MCP compatibility methods
     async def process_input(self, input_text: str, context: Optional[Context] = None) -> str:

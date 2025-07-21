@@ -2,7 +2,7 @@
 from typing import Dict, Any, List
 
 
-def initialize_cognitive_state(state: Dict[str, Any], react_mode: str = "fast") -> Dict[str, Any]:
+def initialize_cognitive_state(state, react_mode: str = "fast") -> Dict[str, Any]:
     """Initialize cognitive state with adaptive features based on react_mode."""
     default_state = {
         "strategy_history": [],
@@ -20,8 +20,12 @@ def initialize_cognitive_state(state: Dict[str, Any], react_mode: str = "fast") 
     else:  # deep
         default_state["max_history"] = 10  # Dynamic relevance
         default_state["max_failures"] = 15
+    
+    # Check if cognitive_state already exists in state.flow
+    if "cognitive_state" not in state.flow:
+        state.flow["cognitive_state"] = default_state
         
-    return state.setdefault("cognitive_state", default_state)
+    return state.flow["cognitive_state"]
 
 
 def update_cognitive_state(

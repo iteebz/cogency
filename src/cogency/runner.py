@@ -1,6 +1,6 @@
 """Clean flow execution - no streaming concerns."""
 from typing import Dict, Any, Callable, Awaitable
-from cogency.types import AgentState
+from cogency.state import AgentState
 
 
 class FlowRunner:
@@ -13,11 +13,10 @@ class FlowRunner:
         streaming_callback: Callable[[str], Awaitable[None]] = None
     ) -> AgentState:
         """Execute flow with optional streaming callback."""
-        config = {}
         if streaming_callback:
-            config = {"configurable": {"streaming_callback": streaming_callback}}
+            state.output.streaming_callback = streaming_callback
         
-        return await flow.ainvoke(state, config=config)
+        return await flow.ainvoke(state)
 
 
 class StreamingRunner:

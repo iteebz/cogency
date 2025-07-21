@@ -276,9 +276,9 @@ class SQL(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.messaging import _truncate
+        from cogency.output import truncate
         query = params.get("query", "")
         connection = params.get("connection", "")
         # Show database type and truncated query
         db_type = connection.split("://")[0] if "://" in connection else "unknown"
-        return f"({db_type}: {_truncate(query, 25)})" if query else ""
+        return f"({db_type}: {truncate(query, 25)})" if query else ""

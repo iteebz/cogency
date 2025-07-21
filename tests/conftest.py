@@ -9,7 +9,7 @@ from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.llm.mock import MockLLM
 from cogency.tools.calculator import Calculator
 from cogency.tools.weather import Weather
-from cogency.types import AgentState
+from cogency.state import AgentState
 
 
 @pytest.fixture
@@ -44,11 +44,11 @@ def context():
 @pytest.fixture
 def agent_state(context):
     """Basic agent state for workflow testing."""
+    from cogency.output import OutputManager
     return AgentState(
         context=context,
-        trace=None,
         query="test query",
-        last_node_output=None
+        output=OutputManager()
     )
 
 

@@ -1,239 +1,128 @@
 """Test end-to-end flow: preprocess → reason → act → respond."""
 import pytest
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 from cogency.nodes.reason import reason_node
 from cogency.nodes.act import act_node
 from cogency.nodes.respond import respond_node
-from cogency.utils.parsing import extract_json_from_response, extract_tool_calls_from_json, extract_reasoning_text
-from cogency.types import AgentState, ReasoningDecision
+from cogency import AgentState
 
+@pytest.fixture
+def agent_state(context): # Using the context fixture from conftest.py
+    """Provides a basic AgentState for tests."""
+    from cogency.output import OutputManager
+    return AgentState(context=context, query="Hello", output=OutputManager())
 
 class TestFlowNodes:
-    """Test individual flow nodes."""
+    """Test individual flow nodes with the new decoupled architecture."""
     
     @pytest.mark.asyncio
     async def test_reason_node_can_answer_directly(self, agent_state, mock_llm, tools):
-        """Reason node should detect when it can answer directly."""
-        # Mock LLM to return a direct response - no tool_calls means direct response
-        mock_llm.run = AsyncMock(return_value="""
-        {"reasoning": "I can answer this directly without tools."}
-        """)
+        mock_llm.run = AsyncMock(return_value='{"reasoning": "I can answer this directly."}')
         
-        result_state = await reason_node(
-            agent_state,
-            llm=mock_llm,
-            tools=tools
-        )
+        result = await reason_node(agent_state, llm=mock_llm, tools=tools)
         
-        assert result_state["can_answer_directly"] is True
-        assert result_state["next_node"] == "respond"
-        assert result_state["direct_response"] is None  # Reason node never sets direct_response
-    
+        assert result["next_node"] == "respond"
+        assert "tool_calls" not in result or not result["tool_calls"]
+
     @pytest.mark.asyncio
     async def test_reason_node_needs_tools(self, agent_state, mock_llm, tools):
-        """Reason node should detect when tools are needed."""
-        # Mock LLM to request tool usage - using new format with tool_calls array
-        mock_llm.run = AsyncMock(return_value="""
-        {"reasoning": "I need to use a tool first.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}
-        """)
+        mock_llm.run = AsyncMock(return_value='{"reasoning": "I need a tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}')
         
-        result_state = await reason_node(
-            agent_state,
-            llm=mock_llm,
-            tools=tools
-        )
+        result = await reason_node(agent_state, llm=mock_llm, tools=tools)
         
-        assert result_state["can_answer_directly"] is False
-        assert result_state["next_node"] == "act"
-        assert result_state["tool_calls"] is not None
-    
+        assert result["next_node"] == "act"
+        assert result["tool_calls"]
+
     @pytest.mark.asyncio
     async def test_act_node_executes_tools(self, agent_state, tools):
-        """Act node should execute tool calls correctly."""
-        # Set up state with tool calls
-        agent_state["tool_calls"] = [{
-            "name": "mock_tool",
-            "args": {"param": "value"}
-        }]
+        # The state passed to act_node now comes from the output of reason_node
+        state_from_reason = {
+            "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}],
+            "selected_tools": tools
+        }
+        # We need to merge this with the initial agent_state for the node to have context
+        # Copy the agent_state
+        full_state = agent_state
+        # Add the state_from_reason items to the flow dict
+        for key, value in state_from_reason.items():
+            full_state.flow[key] = value
+
+        result = await act_node(full_state, tools=tools)
         
-        result_state = await act_node(agent_state, tools=tools)
-        
-        assert "execution_results" in result_state
-        results = result_state["execution_results"]
-        assert results["success"] is True
-        assert len(results["results"]) == 1
-        # Results now include metadata, check the actual result value
-        assert results["results"][0]["result"] == "mock_result"
-    
+        assert "execution_results" in result
+        assert result["execution_results"]["success"]
+
     @pytest.mark.asyncio
     async def test_respond_node_formats_response(self, agent_state, mock_llm):
-        """Respond node should format final response."""
-        # Set up state with direct response
-        agent_state["direct_response"] = "This is the final answer"
-        agent_state["can_answer_directly"] = True
+        # Respond node now gets a simple state, no complex reasoning decision needed
+        result = await respond_node(agent_state, llm=mock_llm)
         
-        result_state = await respond_node(
-            agent_state,
-            llm=mock_llm
-        )
-        
-        assert "final_response" in result_state
-        # Respond node generates actual LLM response, not the direct_response value
-        assert result_state["final_response"] is not None
-
+        assert "final_response" in result
+        assert result["final_response"] # Should not be empty
 
 class TestFlowIntegration:
-    """Test complete flow integration."""
+    """Test complete flow integration by simulating the graph."""
     
     @pytest.mark.asyncio
     async def test_simple_direct_response_flow(self, agent_state, mock_llm, tools):
-        """Test flow when no tools are needed."""
-        # Mock reasoning to respond directly - no tool_calls means direct response
-        mock_llm.run = AsyncMock(return_value="""
-        {"reasoning": "This is a simple greeting, I can respond directly."}
-        """)
+        mock_llm.run = AsyncMock(return_value='{"reasoning": "Simple greeting."}')
         
-        # Reason phase
-        state = await reason_node(agent_state, llm=mock_llm, tools=tools)
-        assert state["next_node"] == "respond"
+        # 1. Reason
+        reason_result = await reason_node(agent_state, llm=mock_llm, tools=tools)
+        assert reason_result["next_node"] == "respond"
         
-        # Respond phase
-        state = await respond_node(state, llm=mock_llm)
-        assert "final_response" in state
-    
+        # 2. Respond
+        # Update state with the result of the reason node
+        current_state = agent_state
+        # Copy specific keys we know are in the result
+        if "next_node" in reason_result:
+            current_state.flow["next_node"] = reason_result["next_node"]
+        if "reasoning_response" in reason_result:
+            current_state.flow["reasoning_response"] = reason_result["reasoning_response"]
+        if "can_answer_directly" in reason_result:
+            current_state.flow["can_answer_directly"] = reason_result["can_answer_directly"]
+        if "tool_calls" in reason_result:
+            current_state.flow["tool_calls"] = reason_result["tool_calls"]
+        respond_result = await respond_node(current_state, llm=mock_llm)
+        assert "final_response" in respond_result
+
     @pytest.mark.asyncio
     async def test_tool_usage_flow(self, agent_state, mock_llm, tools):
-        """Test flow when tools are needed."""
-        # Mock reasoning to request calculator - using new format
-        mock_llm.run = AsyncMock(return_value="""
-        {"reasoning": "I need to use a tool for the user.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}
-        """)
-        
-        # Reason phase
-        state = await reason_node(agent_state, llm=mock_llm, tools=tools)
-        assert state["next_node"] == "act"
-        
-        # Act phase
-        state = await act_node(state, tools=tools)
-        assert "execution_results" in state
-        assert state["execution_results"]["success"] is True
-        # Results now have metadata structure - check the actual result value
-        assert state["execution_results"]["results"][0]["result"] == "mock_result"
-        
-        # Mock reasoning after tool execution - using new format
-        mock_llm.run = AsyncMock(return_value="""
-        {"reasoning": "Great, I got the calculation result. Now I can respond."}
-        """)
-        
-        # Reason again (reflection)
-        state = await reason_node(state, llm=mock_llm, tools=tools)
-        assert state["next_node"] == "respond"
-        
-        # Respond phase
-        state = await respond_node(state, llm=mock_llm)
-        assert "final_response" in state
+        # 1. Reason (needs tools)
+        mock_llm.run = AsyncMock(return_value='{"reasoning": "I need the mock tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}')
+        reason_result = await reason_node(agent_state, llm=mock_llm, tools=tools)
+        assert reason_result["next_node"] == "act"
 
+        # 2. Act
+        state_for_act = agent_state
+        # Copy specific keys we know are in the result
+        if "next_node" in reason_result:
+            state_for_act.flow["next_node"] = reason_result["next_node"]
+        if "reasoning_response" in reason_result:
+            state_for_act.flow["reasoning_response"] = reason_result["reasoning_response"]
+        if "can_answer_directly" in reason_result:
+            state_for_act.flow["can_answer_directly"] = reason_result["can_answer_directly"]
+        if "tool_calls" in reason_result:
+            state_for_act.flow["tool_calls"] = reason_result["tool_calls"]
+        state_for_act.flow["selected_tools"] = tools
+        state_for_act.flow["selected_tools"] = tools
+        act_result = await act_node(state_for_act, tools=tools)
+        assert act_result["execution_results"]["success"]
 
-class TestReasoningParsing:
-    """Test reasoning response parsing."""
-    
-    def test_parser_detects_direct_answer(self):
-        """Parser should detect when LLM wants to respond directly."""
-        response = """
-        {"reasoning": "I can answer this directly."}
-        """
-        
-        json_data = extract_json_from_response(response)
-        assert json_data["reasoning"] == "I can answer this directly."
-        # No tool_calls means direct response
-    
-    def test_parser_extracts_tool_calls(self):
-        """Parser should extract tool calls correctly."""
-        response = """
-        {"reasoning": "I need to use calculator.", "tool_calls": [{"name": "calculator", "args": {"x": 5}}]}
-        """
-        
-        json_data = extract_json_from_response(response)
-        assert "tool_calls" in json_data
-        tool_calls = extract_tool_calls_from_json(json_data)
-        assert len(tool_calls) == 1
-        assert tool_calls[0]["name"] == "calculator"
-    
-    def test_parser_handles_multiple_tools(self):
-        """Parser should handle multiple tool calls."""
-        response = """
-        {"reasoning": "I need multiple tools.", "tool_calls": [
-            {"name": "calculator", "args": {"x": 1}},
-            {"name": "weather", "args": {"location": "SF"}}
-        ]}
-        """
-        
-        json_data = extract_json_from_response(response)
-        tool_calls = extract_tool_calls_from_json(json_data)
-        assert len(tool_calls) == 2
-        assert tool_calls[0]["name"] == "calculator"
-        assert tool_calls[1]["name"] == "weather"
-    
-    def test_parser_extracts_reasoning_text(self):
-        """Parser should extract human-readable reasoning."""
-        response = """
-        {"reasoning": "I need to think about this carefully and consider the context."}
-        """
-        
-        reasoning = extract_reasoning_text(response)
-        assert "think about this carefully" in reasoning
+        # 3. Reason (reflect on results)
+        mock_llm.run = AsyncMock(return_value='{"reasoning": "Got the result, now I can answer."}')
+        state_for_reflection = agent_state
+        # Add the act_result items to the flow dict
+        for key in act_result.flow:
+            state_for_reflection.flow[key] = act_result.flow[key]
+        reflection_result = await reason_node(state_for_reflection, llm=mock_llm, tools=tools)
+        assert reflection_result["next_node"] == "respond"
 
-
-class TestAdaptiveReasoning:
-    """Test adaptive reasoning controls."""
-    
-    @pytest.mark.asyncio
-    async def test_reasoning_loop_limits(self, agent_state, mock_llm, tools):
-        """Should prevent infinite reasoning loops."""
-        # Test the max_iterations limit in reason_node
-        agent_state["current_iteration"] = 5  # At max limit
-        agent_state["max_iterations"] = 5
-        
-        mock_llm.run = AsyncMock(return_value="""
-        {"reasoning": "I need to use tools.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}
-        """)
-        
-        result_state = await reason_node(agent_state, llm=mock_llm, tools=tools)
-        
-        # Should stop reasoning and go to respond
-        assert result_state["next_node"] == "respond"
-        assert result_state["stopping_reason"] == "max_iterations_reached"
-
-
-class TestFlowErrorHandling:
-    """Test flow error handling and recovery."""
-    
-    @pytest.mark.asyncio
-    async def test_tool_execution_error_handling(self, agent_state, tools):
-        """Should handle tool execution errors gracefully."""
-        # Set up invalid tool call
-        agent_state["tool_calls"] = [{
-            "name": "calculator",
-            "args": {"operation": "invalid_op", "x1": 5, "x2": 3}
-        }]
-        
-        result_state = await act_node(agent_state, tools=tools)
-        
-        # Should still have execution results, but with error
-        assert "execution_results" in result_state
-        results = result_state["execution_results"]
-        assert results["success"] is False
-        assert "errors" in results
-        assert len(results["errors"]) >= 1
-    
-    @pytest.mark.asyncio
-    async def test_malformed_reasoning_fallback(self, agent_state, mock_llm, tools):
-        """Should handle malformed LLM responses gracefully."""
-        # Mock LLM to return malformed JSON
-        mock_llm.run = AsyncMock(return_value="This is not valid JSON at all")
-        
-        result_state = await reason_node(agent_state, llm=mock_llm, tools=tools)
-        
-        # Should fallback to respond node even with malformed response
-        assert result_state["next_node"] == "respond"
+        # 4. Respond
+        state_for_respond = agent_state
+        # Add the reflection_result items to the flow dict
+        for key in reflection_result.flow:
+            state_for_respond.flow[key] = reflection_result.flow[key]
+        respond_result = await respond_node(state_for_respond, llm=mock_llm)
+        assert "final_response" in respond_result

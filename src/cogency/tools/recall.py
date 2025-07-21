@@ -76,6 +76,6 @@ class Recall(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.messaging import _truncate
+        from cogency.output import truncate
         query = params.get("query", "")
-        return f"({_truncate(query, 30)})" if query else ""
+        return f"({truncate(query, 30)})" if query else ""

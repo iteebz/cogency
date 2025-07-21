@@ -4,26 +4,27 @@ import asyncio
 from typing import Dict, Any, List, Tuple, Optional, Union
 from cogency.tools.base import BaseTool
 from cogency.tools.result import extract_tool_data, is_tool_success, get_tool_error
-from cogency.types import ToolCall
+# ToolCall import removed - using simple dicts instead
 from cogency.utils.parsing import extract_json_from_response
 from cogency.resilience import safe
 from cogency.utils.json import extract_json
+from cogency.output import emoji
 
 
-def parse_tool_calls(llm_response_content) -> Optional[List[ToolCall]]:
+def parse_tool_calls(llm_response_content) -> Optional[List[Dict[str, Any]]]:
     """Parse tool calls from LLM response content - always returns list.
     
     Args:
         llm_response_content: Raw LLM response string OR pre-parsed data
         
     Returns:
-        List of ToolCall objects, or None if no tool calls found
+        List of tool call dicts, or None if no tool calls found
     """
     # Handle already parsed data (for tests)
     if isinstance(llm_response_content, list):
-        return [ToolCall(**call_data) for call_data in llm_response_content]
+        return llm_response_content
     elif isinstance(llm_response_content, dict):
-        return [ToolCall(**llm_response_content)]
+        return [llm_response_content]
     
     # Handle string response from LLM
     if not isinstance(llm_response_content, str):
@@ -37,7 +38,7 @@ def parse_tool_calls(llm_response_content) -> Optional[List[ToolCall]]:
     if plan_data and "tool_calls" in plan_data:
         tool_calls_data = plan_data["tool_calls"]
         if isinstance(tool_calls_data, list):
-            return [ToolCall(**call_data) for call_data in tool_calls_data]
+            return tool_calls_data
     
     return None
 
@@ -143,9 +144,11 @@ async def execute_sequential_tools(tool_calls: List[Tuple[str, Dict]], tools: Li
     # Add execution log to context
     combined_output = "Sequential execution results:\n"
     for success in successes:
-        combined_output += f"✅ {success['tool_name']}: {success['result']}\n"
+        success_emoji = emoji['success']
+        combined_output += f"{success_emoji} {success['tool_name']}: {success['result']}\n"
     for failure in failures:
-        combined_output += f"❌ {failure['tool_name']}: {failure['error']}\n"
+        error_emoji = emoji['error']
+        combined_output += f"{error_emoji} {failure['tool_name']}: {failure['error']}\n"
     
     context.add_message("system", combined_output)
     
@@ -178,7 +181,8 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
     # Smart dependency detection
     if has_dependency_risk(tool_calls):
         tool_names = [name for name, _ in tool_calls]
-        context.add_message("system", f"🔒 Dependency detected in tools {tool_names} - switching to sequential execution")
+        dependency_emoji = emoji['dependency']
+        context.add_message("system", f"{dependency_emoji} Dependency detected in tools {tool_names} - switching to sequential execution")
         return await execute_sequential_tools(tool_calls, tools, context)
     
     async def _execute_parallel():
@@ -252,10 +256,12 @@ async def execute_parallel_tools(tool_calls: List[Tuple[str, Dict]], tools: List
     combined_output = "Parallel execution results:\n"
     
     for success in successes:
-        combined_output += f"✅ {success['tool_name']}: {success['result']}\n"
+        success_emoji = emoji['success']
+        combined_output += f"{success_emoji} {success['tool_name']}: {success['result']}\n"
     
     for failure in failures:
-        combined_output += f"❌ {failure['tool_name']}: {failure['error']}\n"
+        error_emoji = emoji['error']
+        combined_output += f"{error_emoji} {failure['tool_name']}: {failure['error']}\n"
     
     context.add_message("system", combined_output)
     
