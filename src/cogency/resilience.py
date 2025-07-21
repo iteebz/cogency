@@ -19,16 +19,14 @@ FEATURES:
 """
 
 import asyncio
-import time
-import random
-from functools import wraps
-from typing import Dict, Callable, Awaitable, Any
 from dataclasses import dataclass
+from functools import wraps
 
 
 @dataclass
 class SafeConfig:
     """Configuration for @safe decorator - tune for your needs."""
+
     timeout: float = 30.0
     max_retries: int = 3
     base_delay: float = 0.5
@@ -37,9 +35,10 @@ class SafeConfig:
 
 def safe(max_retries: int = 3, backoff_factor: float = 2.0):
     """@safe decorator for LLM calls - handles both run() and stream()."""
+
     def decorator(func):
         # Check function name to determine type
-        if func.__name__ == 'stream':
+        if func.__name__ == "stream":
             # Stream method - async generator
             @wraps(func)
             async def safe_stream(*args, **kwargs):
@@ -52,7 +51,8 @@ def safe(max_retries: int = 3, backoff_factor: float = 2.0):
                         if attempt == max_retries - 1:
                             yield f"Stream error after {max_retries} attempts: {str(e)}"
                             return
-                        await asyncio.sleep(backoff_factor ** attempt)
+                        await asyncio.sleep(backoff_factor**attempt)
+
             return safe_stream
         else:
             # Run method - async function returning string
@@ -64,8 +64,8 @@ def safe(max_retries: int = 3, backoff_factor: float = 2.0):
                     except Exception as e:
                         if attempt == max_retries - 1:
                             return f"Error after {max_retries} attempts: {str(e)}"
-                        await asyncio.sleep(backoff_factor ** attempt)
+                        await asyncio.sleep(backoff_factor**attempt)
+
             return safe_run
+
     return decorator
-
-

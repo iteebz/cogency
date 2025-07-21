@@ -1,9 +1,11 @@
-from typing import AsyncIterator, Dict, List, Optional, Union
+from typing import AsyncIterator, Dict, List, Union
 
 try:
     import anthropic
 except ImportError:
-    raise ImportError("Anthropic support not installed. Use `pip install cogency[anthropic]`")
+    raise ImportError(
+        "Anthropic support not installed. Use `pip install cogency[anthropic]`"
+    ) from None
 
 from cogency.llm.base import BaseLLM
 from cogency.resilience import safe
@@ -46,11 +48,10 @@ class AnthropicLLM(BaseLLM):
         self._client.api_key = self.next_key()
         return self._client
 
-
     @safe()
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        anthropic_messages = self._format_msgs(messages)
+        anthropic_messages = self._format(messages)
 
         res = await client.messages.create(
             model=self.model,
@@ -61,9 +62,11 @@ class AnthropicLLM(BaseLLM):
         return res.content[0].text
 
     @safe()
-    async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
+    async def stream(
+        self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs
+    ) -> AsyncIterator[str]:
         client = self._get_client()
-        anthropic_messages = self._format_msgs(messages)
+        anthropic_messages = self._format(messages)
 
         async with client.messages.stream(
             model=self.model,

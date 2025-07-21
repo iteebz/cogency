@@ -131,8 +131,8 @@ clean:
     @find . -type d -name "__pycache__" -exec rm -rf {} +
 
 # Show recent commits
-commits count="10":
-    @git --no-pager log -{{count}} --pretty=format:"%ar %s"
+commits:
+    @git --no-pager log --pretty=format:"%ar %s"
 
 # Run CI checks locally
 ci: format lint test build

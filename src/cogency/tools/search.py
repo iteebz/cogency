@@ -3,12 +3,12 @@ from typing import Any, Dict, List
 
 from ddgs import DDGS
 
-from cogency.tools.base import BaseTool
 from cogency.errors import ToolError, ValidationError, success_response, validate_params
+from cogency.tools.base import BaseTool
+
 # Error handling now in BaseTool.execute() - no decorators needed
-
-
 from cogency.tools.registry import tool
+
 
 @tool
 class Search(BaseTool):
@@ -18,7 +18,7 @@ class Search(BaseTool):
             description=(
                 "Search the web using DuckDuckGo for current information and answers to questions."
             ),
-            emoji="🔍"
+            emoji="🔍",
         )
         self._last_search_time = 0
         self._min_delay = 1.0  # Simple rate limit
@@ -56,7 +56,7 @@ class Search(BaseTool):
                 f"DuckDuckGo search failed: {str(e)}",
                 error_code="SEARCH_FAILED",
                 details={"query": query, "max_results": max_results},
-            )
+            ) from None
 
         self._last_search_time = time.time()
 
@@ -86,7 +86,7 @@ class Search(BaseTool):
         if formatted_results:
             top_result = formatted_results[0]
             summary += f" - Top result: {top_result['title']}"
-        
+
         return success_response(
             {
                 "summary": summary,
@@ -106,9 +106,10 @@ class Search(BaseTool):
             "search(query='latest AI developments 2024')",
             "search(query='how to install Docker', max_results=5)",
         ]
-    
+
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
         from cogency.utils.formatting import truncate
+
         query = params.get("query", params.get("q", ""))
         return f"({truncate(query, 35)})" if query else ""

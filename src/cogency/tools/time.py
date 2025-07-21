@@ -1,14 +1,16 @@
 """Time tool - focused time and timezone operations with zero network dependencies."""
+
 import logging
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional, Union
+from datetime import datetime
+from typing import Any
 
 import pytz
 from dateutil import parser as date_parser
 
+from cogency.errors import ToolError, ValidationError
+
 from .base import BaseTool
 from .registry import tool
-from cogency.errors import ValidationError, ToolError
 
 logger = logging.getLogger(__name__)
 
@@ -21,18 +23,18 @@ class Time(BaseTool):
         super().__init__(
             name="time",
             description="Time operations: current time, timezone conversion, relative time",
-            emoji="⏰"
+            emoji="⏰",
         )
-        
+
         self._operations = {
             "now": self._now,
             "relative": self._relative,
             "convert_timezone": self._convert_timezone,
         }
-        
+
         self._city_to_tz = {
             "new york": "America/New_York",
-            "london": "Europe/London", 
+            "london": "Europe/London",
             "tokyo": "Asia/Tokyo",
             "paris": "Europe/Paris",
             "sydney": "Australia/Sydney",
@@ -46,16 +48,16 @@ class Time(BaseTool):
             "dubai": "Asia/Dubai",
             "moscow": "Europe/Moscow",
             "toronto": "America/Toronto",
-            "vancouver": "America/Vancouver"
+            "vancouver": "America/Vancouver",
         }
 
-    async def run(self, operation: str = "now", **kwargs) -> Dict[str, Any]:
+    async def run(self, operation: str = "now", **kwargs) -> dict[str, Any]:
         """Execute time operation.
-        
+
         Args:
             operation: Operation to perform (now, relative, convert_timezone)
             **kwargs: Operation-specific parameters
-            
+
         Returns:
             Operation result with time data
         """
@@ -63,10 +65,10 @@ class Time(BaseTool):
             raise ValidationError(
                 f"Unknown operation: {operation}. Available: {list(self._operations.keys())}"
             )
-        
+
         return await self._operations[operation](**kwargs)
-    
-    async def _now(self, timezone: str = "UTC", format: str = None) -> Dict[str, Any]:
+
+    async def _now(self, timezone: str = "UTC", format: str = None) -> dict[str, Any]:
         """Get current time for timezone."""
         # Handle both location names and timezone names
         location_lower = timezone.lower()
@@ -74,14 +76,14 @@ class Time(BaseTool):
             timezone_name = self._city_to_tz[location_lower]
         else:
             timezone_name = timezone
-        
+
         try:
             tz = pytz.timezone(timezone_name)
         except pytz.UnknownTimeZoneError:
-            raise ToolError(f"Unknown timezone: {timezone_name}")
-        
+            raise ToolError(f"Unknown timezone: {timezone_name}") from None
+
         now = datetime.now(tz)
-        
+
         result = {
             "timezone": timezone_name,
             "datetime": now.isoformat(),
@@ -90,16 +92,16 @@ class Time(BaseTool):
             "weekday": now.strftime("%A"),
             "is_weekend": now.weekday() >= 5,
             "day_of_year": now.timetuple().tm_yday,
-            "week_number": int(now.strftime("%W"))
+            "week_number": int(now.strftime("%W")),
         }
-        
+
         return result
-    
-    async def _relative(self, datetime_str: str, reference: str = None) -> Dict[str, Any]:
+
+    async def _relative(self, datetime_str: str, reference: str = None) -> dict[str, Any]:
         """Get relative time description."""
         try:
             dt = date_parser.parse(datetime_str)
-            
+
             if reference:
                 ref_dt = date_parser.parse(reference)
             else:
@@ -109,10 +111,10 @@ class Time(BaseTool):
                 else:
                     # If input has timezone, use that timezone for reference
                     ref_dt = datetime.now(dt.tzinfo)
-            
+
             diff = dt - ref_dt
             total_seconds = diff.total_seconds()
-            
+
             if abs(total_seconds) < 60:
                 relative = "just now"
             elif abs(total_seconds) < 3600:
@@ -124,49 +126,51 @@ class Time(BaseTool):
             else:
                 days = int(abs(total_seconds) // 86400)
                 relative = f"{days} day{'s' if days != 1 else ''} {'ago' if total_seconds < 0 else 'from now'}"
-            
+
             return {
                 "datetime": datetime_str,
                 "reference": reference or "now",
                 "relative": relative,
-                "seconds_diff": total_seconds
+                "seconds_diff": total_seconds,
             }
         except Exception as e:
-            raise ToolError(f"Failed to calculate relative time: {str(e)}")
-    
-    async def _convert_timezone(self, datetime_str: str, from_tz: str, to_tz: str) -> Dict[str, Any]:
+            raise ToolError(f"Failed to calculate relative time: {str(e)}") from None
+
+    async def _convert_timezone(
+        self, datetime_str: str, from_tz: str, to_tz: str
+    ) -> dict[str, Any]:
         """Convert datetime between timezones."""
         try:
             dt = date_parser.parse(datetime_str)
-            
+
             if dt.tzinfo is None:
                 from_timezone = pytz.timezone(from_tz)
                 dt = from_timezone.localize(dt)
-            
+
             to_timezone = pytz.timezone(to_tz)
             converted = dt.astimezone(to_timezone)
-            
+
             return {
                 "original": datetime_str,
                 "from_timezone": from_tz,
                 "to_timezone": to_tz,
                 "converted": converted.isoformat(),
-                "formatted": converted.strftime("%Y-%m-%d %H:%M:%S %Z")
+                "formatted": converted.strftime("%Y-%m-%d %H:%M:%S %Z"),
             }
         except Exception as e:
-            raise ToolError(f"Failed to convert timezone: {str(e)}")
+            raise ToolError(f"Failed to convert timezone: {str(e)}") from None
 
     def schema(self) -> str:
         return "time(operation='now|relative|convert_timezone', timezone='UTC|London|Tokyo|...', datetime_str='...', from_tz='...', to_tz='...')"
 
-    def examples(self) -> List[str]:
+    def examples(self) -> list[str]:
         return [
             "time(operation='now', timezone='Europe/London')",
             "time(operation='relative', datetime_str='2024-01-15T14:30:00')",
-            "time(operation='convert_timezone', datetime_str='2024-01-15T14:30:00', from_tz='UTC', to_tz='America/New_York')"
+            "time(operation='convert_timezone', datetime_str='2024-01-15T14:30:00', from_tz='UTC', to_tz='America/New_York')",
         ]
-    
-    def format_params(self, params: Dict[str, Any]) -> str:
+
+    def format_params(self, params: dict[str, Any]) -> str:
         """Format parameters for display."""
         operation = params.get("operation", "")
         if operation == "now":
@@ -174,9 +178,9 @@ class Time(BaseTool):
             return f"(now, {tz})"
         elif operation == "relative":
             dt = params.get("datetime_str", "")
-            return f"(relative, {dt[:16]})" if dt else f"(relative)"
+            return f"(relative, {dt[:16]})" if dt else "(relative)"
         elif operation == "convert_timezone":
             from_tz = params.get("from_tz", "")
             to_tz = params.get("to_tz", "")
-            return f"(convert, {from_tz}→{to_tz})" if from_tz and to_tz else f"(convert)"
+            return f"(convert, {from_tz}→{to_tz})" if from_tz and to_tz else "(convert)"
         return f"({operation})" if operation else ""

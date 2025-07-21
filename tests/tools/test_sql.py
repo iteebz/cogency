@@ -1,7 +1,10 @@
 """Test SQL tool."""
-import pytest
+
 import tempfile
 from pathlib import Path
+
+import pytest
+
 from cogency.tools.sql import SQL
 
 
@@ -10,9 +13,9 @@ def sql_tool():
     return SQL()
 
 
-@pytest.fixture  
+@pytest.fixture
 def temp_db():
-    with tempfile.NamedTemporaryFile(suffix='.db', delete=False) as f:
+    with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
         db_path = f.name
     yield f"sqlite:///{db_path}"
     Path(db_path).unlink(missing_ok=True)
@@ -24,54 +27,42 @@ async def test_sqlite_crud_operations(sql_tool, temp_db):
     # Create table
     result = await sql_tool.run(
         query="CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, age INTEGER)",
-        connection=temp_db
+        connection=temp_db,
     )
     assert result["success"]
     assert result["query_type"] == "modify"
-    
+
     # Insert data
     result = await sql_tool.run(
-        query="INSERT INTO users (name, age) VALUES ('Alice', 30), ('Bob', 25)",
-        connection=temp_db
+        query="INSERT INTO users (name, age) VALUES ('Alice', 30), ('Bob', 25)", connection=temp_db
     )
     assert result["success"]
     assert result["rows_affected"] == 2
-    
+
     # Select data
-    result = await sql_tool.run(
-        query="SELECT * FROM users ORDER BY name",
-        connection=temp_db
-    )
+    result = await sql_tool.run(query="SELECT * FROM users ORDER BY name", connection=temp_db)
     assert result["success"]
     assert result["query_type"] == "select"
     assert len(result["rows"]) == 2
     assert result["rows"][0]["name"] == "Alice"
-    
+
     # Update data
     result = await sql_tool.run(
-        query="UPDATE users SET age = 31 WHERE name = 'Alice'",
-        connection=temp_db
-    )
-    assert result["success"]
-    assert result["rows_affected"] == 1
-    
-    # Delete data
-    result = await sql_tool.run(
-        query="DELETE FROM users WHERE name = 'Bob'",
-        connection=temp_db
+        query="UPDATE users SET age = 31 WHERE name = 'Alice'", connection=temp_db
     )
     assert result["success"]
     assert result["rows_affected"] == 1
 
+    # Delete data
+    result = await sql_tool.run(query="DELETE FROM users WHERE name = 'Bob'", connection=temp_db)
+    assert result["success"]
+    assert result["rows_affected"] == 1
 
 
 @pytest.mark.asyncio
 async def test_sqlite_pragma_queries(sql_tool, temp_db):
     """Test SQLite PRAGMA commands."""
-    result = await sql_tool.run(
-        query="PRAGMA table_info(sqlite_master)",
-        connection=temp_db
-    )
+    result = await sql_tool.run(query="PRAGMA table_info(sqlite_master)", connection=temp_db)
     assert result["success"]
 
 
@@ -79,16 +70,11 @@ async def test_sqlite_pragma_queries(sql_tool, temp_db):
 async def test_parameter_handling(sql_tool, temp_db):
     """Test parameterized queries."""
     # Create table first
-    await sql_tool.run(
-        query="CREATE TABLE test (id INTEGER, name TEXT)",
-        connection=temp_db
-    )
-    
+    await sql_tool.run(query="CREATE TABLE test (id INTEGER, name TEXT)", connection=temp_db)
+
     # Test with parameters
     result = await sql_tool.run(
-        query="INSERT INTO test (id, name) VALUES (?, ?)",
-        connection=temp_db,
-        params=[1, "Alice"]
+        query="INSERT INTO test (id, name) VALUES (?, ?)", connection=temp_db, params=[1, "Alice"]
     )
     assert result["success"]
 
@@ -100,17 +86,17 @@ async def test_error_handling(sql_tool, temp_db):
     result = await sql_tool.run(query="", connection=temp_db)
     assert "error" in result
     assert "SQL query cannot be empty" in result["error"]
-    
+
     # Missing connection
     result = await sql_tool.run(query="SELECT 1", connection="")
     assert "error" in result
     assert "Database connection string required" in result["error"]
-    
+
     # Invalid connection format
     result = await sql_tool.run(query="SELECT 1", connection="invalid-connection")
     assert "error" in result
     assert "Unsupported database driver" in result["error"]
-    
+
     # Syntax error
     result = await sql_tool.run(query="INVALID SQL QUERY", connection=temp_db)
     assert "error" in result
@@ -119,10 +105,7 @@ async def test_error_handling(sql_tool, temp_db):
 @pytest.mark.asyncio
 async def test_unsupported_drivers(sql_tool):
     """Test unsupported database drivers."""
-    result = await sql_tool.run(
-        query="SELECT 1", 
-        connection="oracle://user:pass@host/db"
-    )
+    result = await sql_tool.run(query="SELECT 1", connection="oracle://user:pass@host/db")
     assert "error" in result
     assert "Unsupported database driver" in result["error"]
     assert "sqlite" in result["error"]

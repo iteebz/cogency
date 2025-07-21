@@ -1,11 +1,10 @@
 import logging
-import os
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 
-from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
+from cogency.utils.keys import KeyManager
 
 from .base import BaseEmbed
 
@@ -15,7 +14,7 @@ logger = logging.getLogger(__name__)
 class NomicEmbed(BaseEmbed):
     """Nomic embedding provider with key rotation."""
 
-    def __init__(self, api_keys: Union[str, List[str]] = None, **kwargs):
+    def __init__(self, api_keys: Union[str, list[str]] = None, **kwargs):
         # Beautiful unified key management - auto-detects, handles all scenarios
         self.keys = KeyManager.for_provider("nomic", api_keys)
         super().__init__(self.keys.api_key, **kwargs)
@@ -30,11 +29,14 @@ class NomicEmbed(BaseEmbed):
         if current_key:
             try:
                 import nomic
+
                 nomic.login(current_key)
                 self._initialized = True
                 logger.info("Nomic API initialized")
             except ImportError:
-                raise ImportError("nomic package required. Install with: pip install nomic")
+                raise ImportError(
+                    "nomic package required. Install with: pip install nomic"
+                ) from None
 
     def _get_client(self):
         """Get client status."""
@@ -60,7 +62,9 @@ class NomicEmbed(BaseEmbed):
                 self._initialized = True
                 logger.info("Nomic API initialized")
             except ImportError:
-                raise ImportError("nomic package required. Install with: pip install nomic")
+                raise ImportError(
+                    "nomic package required. Install with: pip install nomic"
+                ) from None
 
     def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """

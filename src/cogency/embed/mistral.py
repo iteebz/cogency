@@ -1,14 +1,14 @@
-from typing import List, Union
+from typing import Union
 
 import numpy as np
 
 try:
     from mistralai import Mistral
 except ImportError:
-    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`")
+    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
 
-from cogency.utils.keys import KeyManager
 from cogency.errors import ConfigurationError
+from cogency.utils.keys import KeyManager
 
 from .base import BaseEmbed
 
@@ -18,7 +18,7 @@ class MistralEmbed(BaseEmbed):
 
     def __init__(
         self,
-        api_keys: Union[str, List[str]] = None,
+        api_keys: Union[str, list[str]] = None,
         model: str = "mistral-embed",
         **kwargs,
     ):
@@ -51,21 +51,13 @@ class MistralEmbed(BaseEmbed):
     def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string."""
         self._rotate_client()
-        response = self._client.embeddings.create(
-            model=self._model,
-            inputs=[text],
-            **kwargs
-        )
+        response = self._client.embeddings.create(model=self._model, inputs=[text], **kwargs)
         return np.array(response.data[0].embedding)
 
-    def embed_many(self, texts: List[str], **kwargs) -> List[np.ndarray]:
+    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
         """Embed multiple texts."""
         self._rotate_client()
-        response = self._client.embeddings.create(
-            model=self._model,
-            inputs=texts,
-            **kwargs
-        )
+        response = self._client.embeddings.create(model=self._model, inputs=texts, **kwargs)
         return [np.array(data.embedding) for data in response.data]
 
     @property

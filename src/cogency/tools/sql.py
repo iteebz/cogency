@@ -1,8 +1,8 @@
 """SQL database tool for executing queries across multiple database types."""
+
 import asyncio
 import logging
 import sqlite3
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -21,7 +21,7 @@ class SQL(BaseTool):
         super().__init__(
             name="sql",
             description="Execute SQL queries on SQLite, PostgreSQL, MySQL databases with connection string support",
-            emoji="🗄️"
+            emoji="🗄️",
         )
         # Beautiful dispatch pattern - extensible database support
         self._drivers = {
@@ -31,77 +31,86 @@ class SQL(BaseTool):
             "mysql": self._execute_mysql,
         }
 
-    async def run(self, query: str, connection: str, timeout: int = 30, 
-                  params: Optional[List] = None, **kwargs) -> Dict[str, Any]:
+    async def run(
+        self,
+        query: str,
+        connection: str,
+        timeout: int = 30,
+        params: Optional[List] = None,
+        **kwargs,
+    ) -> Dict[str, Any]:
         """Execute SQL query using dispatch pattern.
-        
+
         Args:
             query: SQL query to execute
             connection: Database connection string (sqlite:///path, postgresql://..., mysql://...)
             timeout: Query timeout in seconds (default: 30)
             params: Optional query parameters for prepared statements
-            
+
         Returns:
             Query results including rows, columns, and metadata
         """
         if not query or not query.strip():
             return {"error": "SQL query cannot be empty"}
-        
+
         if not connection:
             return {"error": "Database connection string required"}
-        
+
         # Parse connection string to determine driver
         try:
             parsed = urlparse(connection)
             driver = parsed.scheme.lower()
         except Exception:
             return {"error": "Invalid connection string format"}
-        
+
         if driver not in self._drivers:
             available = ", ".join(set(self._drivers.keys()))
             return {"error": f"Unsupported database driver. Use: {available}"}
-        
+
         # Limit timeout
         timeout = min(max(timeout, 1), 300)  # 1-300 seconds for DB queries
-        
+
         # Dispatch to appropriate database handler
         executor = self._drivers[driver]
         return await executor(query, connection, timeout, params or [])
 
-    async def _execute_sqlite(self, query: str, connection: str, timeout: int, 
-                            params: List) -> Dict[str, Any]:
+    async def _execute_sqlite(
+        self, query: str, connection: str, timeout: int, params: List
+    ) -> Dict[str, Any]:
         """Execute SQLite query."""
         try:
             # Parse SQLite path from connection string
             parsed = urlparse(connection)
             db_path = parsed.path
-            
+
             # Handle in-memory databases
             if db_path == ":memory:" or not db_path:
                 db_path = ":memory:"
             else:
                 # Ensure directory exists for file databases
                 Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Execute in thread pool to avoid blocking
             def _sync_execute():
                 conn = sqlite3.connect(db_path, timeout=timeout)
                 conn.row_factory = sqlite3.Row  # Enable column access by name
-                
+
                 try:
                     cursor = conn.execute(query, params)
-                    
+
                     # Handle different query types
-                    if query.strip().upper().startswith(('SELECT', 'WITH', 'PRAGMA')):
+                    if query.strip().upper().startswith(("SELECT", "WITH", "PRAGMA")):
                         # Query returns results
                         rows = cursor.fetchall()
-                        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+                        columns = (
+                            [desc[0] for desc in cursor.description] if cursor.description else []
+                        )
                         return {
                             "success": True,
                             "rows": [dict(row) for row in rows],
                             "columns": columns,
                             "row_count": len(rows),
-                            "query_type": "select"
+                            "query_type": "select",
                         }
                     else:
                         # Query modifies data
@@ -109,19 +118,18 @@ class SQL(BaseTool):
                         return {
                             "success": True,
                             "rows_affected": cursor.rowcount,
-                            "query_type": "modify"
+                            "query_type": "modify",
                         }
-                        
+
                 finally:
                     conn.close()
-            
+
             # Run with timeout
             result = await asyncio.wait_for(
-                asyncio.get_event_loop().run_in_executor(None, _sync_execute),
-                timeout=timeout
+                asyncio.get_event_loop().run_in_executor(None, _sync_execute), timeout=timeout
             )
             return result
-            
+
         except asyncio.TimeoutError:
             return {"error": f"Query timed out after {timeout} seconds"}
         except sqlite3.Error as e:
@@ -129,8 +137,9 @@ class SQL(BaseTool):
         except Exception as e:
             return {"error": f"Database error: {str(e)}"}
 
-    async def _execute_postgresql(self, query: str, connection: str, timeout: int, 
-                                params: List) -> Dict[str, Any]:
+    async def _execute_postgresql(
+        self, query: str, connection: str, timeout: int, params: List
+    ) -> Dict[str, Any]:
         """Execute PostgreSQL query."""
         try:
             # Try to import asyncpg
@@ -139,59 +148,47 @@ class SQL(BaseTool):
             return {
                 "error": "PostgreSQL support requires 'asyncpg' package. Install with: pip install asyncpg"
             }
-        
+
         try:
             # Connect to PostgreSQL
-            conn = await asyncio.wait_for(
-                asyncpg.connect(connection), 
-                timeout=10
-            )
-            
+            conn = await asyncio.wait_for(asyncpg.connect(connection), timeout=10)
+
             try:
                 # Execute query with timeout
-                if query.strip().upper().startswith(('SELECT', 'WITH')):
+                if query.strip().upper().startswith(("SELECT", "WITH")):
                     # Query returns results
-                    rows = await asyncio.wait_for(
-                        conn.fetch(query, *params),
-                        timeout=timeout
-                    )
+                    rows = await asyncio.wait_for(conn.fetch(query, *params), timeout=timeout)
                     columns = list(rows[0].keys()) if rows else []
                     return {
                         "success": True,
                         "rows": [dict(row) for row in rows],
                         "columns": columns,
                         "row_count": len(rows),
-                        "query_type": "select"
+                        "query_type": "select",
                     }
                 else:
                     # Query modifies data
-                    result = await asyncio.wait_for(
-                        conn.execute(query, *params),
-                        timeout=timeout
-                    )
+                    result = await asyncio.wait_for(conn.execute(query, *params), timeout=timeout)
                     # Parse affected rows from result string
                     rows_affected = 0
-                    if result.startswith(('INSERT', 'UPDATE', 'DELETE')):
+                    if result.startswith(("INSERT", "UPDATE", "DELETE")):
                         parts = result.split()
                         if len(parts) > 1 and parts[-1].isdigit():
                             rows_affected = int(parts[-1])
-                    
-                    return {
-                        "success": True,
-                        "rows_affected": rows_affected,
-                        "query_type": "modify"
-                    }
-                    
+
+                    return {"success": True, "rows_affected": rows_affected, "query_type": "modify"}
+
             finally:
                 await conn.close()
-                
+
         except asyncio.TimeoutError:
             return {"error": f"Query timed out after {timeout} seconds"}
         except Exception as e:
             return {"error": f"PostgreSQL error: {str(e)}"}
 
-    async def _execute_mysql(self, query: str, connection: str, timeout: int, 
-                           params: List) -> Dict[str, Any]:
+    async def _execute_mysql(
+        self, query: str, connection: str, timeout: int, params: List
+    ) -> Dict[str, Any]:
         """Execute MySQL query."""
         try:
             # Try to import aiomysql
@@ -200,7 +197,7 @@ class SQL(BaseTool):
             return {
                 "error": "MySQL support requires 'aiomysql' package. Install with: pip install aiomysql"
             }
-        
+
         try:
             # Parse MySQL connection string
             parsed = urlparse(connection)
@@ -212,23 +209,21 @@ class SQL(BaseTool):
                 "db": parsed.path.lstrip("/") if parsed.path else None,
                 "connect_timeout": 10,
             }
-            
+
             # Connect to MySQL
-            conn = await asyncio.wait_for(
-                aiomysql.connect(**conn_kwargs),
-                timeout=10
-            )
-            
+            conn = await asyncio.wait_for(aiomysql.connect(**conn_kwargs), timeout=10)
+
             try:
                 cursor = await conn.cursor(aiomysql.DictCursor)
-                
+
                 # Execute query with timeout
-                await asyncio.wait_for(
-                    cursor.execute(query, params),
-                    timeout=timeout
-                )
-                
-                if query.strip().upper().startswith(('SELECT', 'WITH', 'SHOW', 'DESCRIBE', 'EXPLAIN')):
+                await asyncio.wait_for(cursor.execute(query, params), timeout=timeout)
+
+                if (
+                    query.strip()
+                    .upper()
+                    .startswith(("SELECT", "WITH", "SHOW", "DESCRIBE", "EXPLAIN"))
+                ):
                     # Query returns results
                     rows = await cursor.fetchall()
                     columns = [desc[0] for desc in cursor.description] if cursor.description else []
@@ -237,7 +232,7 @@ class SQL(BaseTool):
                         "rows": rows,
                         "columns": columns,
                         "row_count": len(rows),
-                        "query_type": "select"
+                        "query_type": "select",
                     }
                 else:
                     # Query modifies data
@@ -245,13 +240,13 @@ class SQL(BaseTool):
                     return {
                         "success": True,
                         "rows_affected": cursor.rowcount,
-                        "query_type": "modify"
+                        "query_type": "modify",
                     }
-                    
+
             finally:
                 await cursor.close()
                 conn.close()
-                
+
         except asyncio.TimeoutError:
             return {"error": f"Query timed out after {timeout} seconds"}
         except Exception as e:
@@ -268,12 +263,13 @@ class SQL(BaseTool):
             "sql(query='INSERT INTO logs (message) VALUES (?)', connection='sqlite:///app.db', params=['Hello'])",
             "sql(query='CREATE TABLE logs (id INTEGER PRIMARY KEY, message TEXT)', connection='sqlite:///app.db')",
             "sql(query='SELECT COUNT(*) as total FROM orders', connection='postgresql://user:pass@localhost/shop')",
-            "sql(query='INSERT INTO users (name, email) VALUES (?, ?)', connection='sqlite:///app.db', params=['John', 'john@example.com'])"
+            "sql(query='INSERT INTO users (name, email) VALUES (?, ?)', connection='sqlite:///app.db', params=['John', 'john@example.com'])",
         ]
-    
+
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
         from cogency.utils.formatting import truncate
+
         query = params.get("query", "")
         connection = params.get("connection", "")
         # Show database type and truncated query

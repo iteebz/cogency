@@ -1,8 +1,10 @@
 """Unified key management for all LLM providers - eliminates DRY violations."""
-import os
+
 import itertools
+import os
 import random
 from typing import List, Optional, Union
+
 from cogency.errors import ConfigurationError
 
 
@@ -22,11 +24,11 @@ class KeyRotator:
         """Get next key in rotation - advances every call."""
         self.current_key = next(self.cycle)
         return self.current_key
-    
+
     def get_current_key(self) -> str:
         """Get current key without advancing."""
         return self.current_key
-    
+
     def rotate_key(self) -> str:
         """Rotate to next key immediately. Returns feedback."""
         old_key = self.current_key
@@ -44,13 +46,18 @@ class KeyManager:
         self.key_rotator = key_rotator
 
     @classmethod
-    def for_provider(cls, provider: str, api_keys: Optional[Union[str, List[str]]] = None) -> 'KeyManager':
+    def for_provider(
+        cls, provider: str, api_keys: Optional[Union[str, List[str]]] = None
+    ) -> "KeyManager":
         """Factory method - auto-detects keys, handles all scenarios. Replaces 15+ lines of DRY."""
         # Auto-detect from environment if not provided
         if api_keys is None:
             detected_keys = cls._detect_keys_from_env(provider)
             if not detected_keys:
-                raise ConfigurationError(f"No API keys found for {provider}. Set {provider.upper()}_API_KEY", error_code="NO_API_KEYS")
+                raise ConfigurationError(
+                    f"No API keys found for {provider}. Set {provider.upper()}_API_KEY",
+                    error_code="NO_API_KEYS",
+                )
             api_keys = detected_keys
 
         # Handle the key scenarios - unified logic that was duplicated across all providers
@@ -69,19 +76,19 @@ class KeyManager:
         """Auto-detect API keys from environment variables for any provider."""
         keys = []
         env_prefix = provider.upper()
-        
+
         # Try numbered keys first (PROVIDER_API_KEY_1, PROVIDER_API_KEY_2, etc.)
         for i in range(1, 6):  # Check up to 5 numbered keys
-            key = os.getenv(f'{env_prefix}_API_KEY_{i}')
+            key = os.getenv(f"{env_prefix}_API_KEY_{i}")
             if key:
                 keys.append(key)
-        
+
         # Fall back to base key if no numbered keys found
         if not keys:
-            base_key = os.getenv(f'{env_prefix}_API_KEY')
+            base_key = os.getenv(f"{env_prefix}_API_KEY")
             if base_key:
                 keys.append(base_key)
-                
+
         return keys
 
     def get_current(self) -> str:

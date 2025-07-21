@@ -1,7 +1,6 @@
 """Standardized error handling for Cogency tools and components."""
 
 import logging
-import time
 from typing import Any, Dict, Optional
 
 
@@ -139,5 +138,3 @@ def success_response(data: Dict[str, Any], message: str = None) -> Dict[str, Any
     if message:
         response["message"] = message
     return response
-
-

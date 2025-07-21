@@ -1,41 +1,47 @@
 """Auto-detection of embedding providers from environment variables."""
+
 from cogency.utils.auto import detect_provider
+
 from .base import BaseEmbed
+
 
 def detect_embedder() -> BaseEmbed:
     """Auto-detect embedding provider from environment variables.
-    
+
     Fallback chain:
     1. OpenAI
     2. Nomic
     3. Sentence Transformers (local)
-    
+
     Returns:
         BaseEmbed: Configured embedder instance
-        
+
     Raises:
         RuntimeError: If no API keys found and sentence-transformers is not installed.
     """
     # Build provider map dynamically based on available imports
     provider_map = {}
-    
+
     # Try OpenAI
     try:
         from .openai import OpenAIEmbed
+
         provider_map["openai"] = OpenAIEmbed
     except ImportError:
         pass
-    
+
     # Try Nomic
     try:
         from .nomic import NomicEmbed
+
         provider_map["nomic"] = NomicEmbed
     except ImportError:
         pass
-    
+
     # Try Mistral
     try:
         from .mistral import MistralEmbed
+
         provider_map["mistral"] = MistralEmbed
     except ImportError:
         pass
@@ -49,6 +55,7 @@ def detect_embedder() -> BaseEmbed:
     # Fall back to local sentence transformers (no API key needed)
     try:
         from .sentence import SentenceEmbed
+
         return SentenceEmbed()
     except ImportError:
         pass
@@ -63,7 +70,7 @@ def detect_embedder() -> BaseEmbed:
             "  - pip install cogency[mistral]\n"
             "  - pip install cogency[sentence-transformers]"
         )
-    
+
     raise RuntimeError(
         f"No embedding provider configured. Available providers: {', '.join(available_providers)}\n"
         "Set an API key for one of the supported providers:\n"

@@ -1,23 +1,26 @@
 """Terminal output utilities - clean, rich, magical demo UX."""
+
 import asyncio
-from typing import AsyncIterator, List, Optional
+from typing import AsyncIterator, List
+
 from rich.console import Console
-from rich.text import Text
-from rich.markdown import Markdown
-from cogency.output import emoji
+
+from cogency.utils.emoji import emoji
 
 console = Console()
 
 
-async def stream_response(stream: AsyncIterator[str], char_delay: float = 0.005, rich: bool = True, prefix: str = "🤖: ") -> str:
+async def stream_response(
+    stream: AsyncIterator[str], char_delay: float = 0.005, rich: bool = True, prefix: str = "🤖: "
+) -> str:
     """Stream response with smooth character-by-character output.
-    
+
     Args:
         stream: Async iterator of string chunks
         char_delay: Delay between characters for smooth typing effect
         rich: Whether to render with rich formatting
         prefix: Custom prefix for agent responses (default: "🤖: ")
-        
+
     Returns:
         Complete response text
     """
@@ -26,9 +29,9 @@ async def stream_response(stream: AsyncIterator[str], char_delay: float = 0.005,
         console.print(prefix, end="", highlight=False)
     else:
         print(prefix, end="", flush=True)
-    
+
     full_response = ""
-    
+
     async for chunk in stream:
         full_response += chunk
         for char in chunk:
@@ -38,7 +41,7 @@ async def stream_response(stream: AsyncIterator[str], char_delay: float = 0.005,
                 print(char, end="", flush=True)
             if char_delay > 0:
                 await asyncio.sleep(char_delay)
-    
+
     return full_response.strip()
 
 
@@ -61,7 +64,7 @@ def section(title: str) -> None:
 
 def showcase(title: str, items: List[str]) -> None:
     """Print demo showcase section with bullet points.
-    
+
     Args:
         title: Showcase section title (e.g. "🎯 This demo showcases:")
         items: List of features/capabilities to highlight
@@ -73,7 +76,7 @@ def showcase(title: str, items: List[str]) -> None:
 
 def tips(items: List[str]) -> None:
     """Print tips section with bullet points."""
-    tip_emoji = emoji['tip']
+    tip_emoji = emoji["tip"]
     console.print(f"\n[bold magenta]{tip_emoji} Tips:[/bold magenta]")
     for tip in items:
         console.print(f"   [dim]•[/dim] [bright_white]{tip}[/bright_white]")
@@ -81,7 +84,7 @@ def tips(items: List[str]) -> None:
 
 def info(message: str) -> None:
     """Print info message with emoji."""
-    info_emoji = emoji['info']
+    info_emoji = emoji["info"]
     console.print(f"[bold blue]{info_emoji} {message}[/bold blue]")
 
 
@@ -93,5 +96,3 @@ def config_item(name: str, description: str) -> None:
 def config_code(code: str) -> None:
     """Print configuration code block."""
     console.print(f"[dim]{code}[/dim]")
-
-

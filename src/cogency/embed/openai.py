@@ -1,15 +1,13 @@
-import os
-from typing import List, Optional, Union
+from typing import Union
 
 import numpy as np
 
 try:
     import openai
 except ImportError:
-    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`")
+    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`") from None
 
 from cogency.utils.keys import KeyManager
-from cogency.errors import ConfigurationError
 
 from .base import BaseEmbed
 
@@ -19,7 +17,7 @@ class OpenAIEmbed(BaseEmbed):
 
     def __init__(
         self,
-        api_keys: Union[str, List[str]] = None,
+        api_keys: Union[str, list[str]] = None,
         model: str = "text-embedding-3-small",
         **kwargs,
     ):
@@ -47,21 +45,13 @@ class OpenAIEmbed(BaseEmbed):
     def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string."""
         self._rotate_client()
-        response = self._client.embeddings.create(
-            input=text,
-            model=self.model,
-            **kwargs
-        )
+        response = self._client.embeddings.create(input=text, model=self.model, **kwargs)
         return np.array(response.data[0].embedding)
 
-    def embed_many(self, texts: List[str], **kwargs) -> List[np.ndarray]:
+    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
         """Embed multiple texts."""
         self._rotate_client()
-        response = self._client.embeddings.create(
-            input=texts,
-            model=self.model,
-            **kwargs
-        )
+        response = self._client.embeddings.create(input=texts, model=self.model, **kwargs)
         return [np.array(data.embedding) for data in response.data]
 
     @property

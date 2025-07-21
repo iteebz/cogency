@@ -6,9 +6,6 @@ import asyncio
 import sys
 
 
-
-
-
 async def interactive_mode(agent):
     """Interactive mode with magical DX."""
     print("🤖 Cogency Agent")
@@ -18,17 +15,17 @@ async def interactive_mode(agent):
     while True:
         try:
             message = input("\n> ").strip()
-            
+
             if message.lower() in ["exit", "quit"]:
                 print("Goodbye!")
                 break
-                
+
             if not message:
                 continue
-                
+
             response = await agent.run(message)
             print(f"🤖 {response}")
-            
+
         except KeyboardInterrupt:
             print("\nGoodbye!")
             break
@@ -45,7 +42,7 @@ def main():
 
     # Lazy import to avoid circular dependency
     from cogency import Agent
-    
+
     try:
         agent = Agent("assistant")  # Auto-detects everything
     except Exception as e:

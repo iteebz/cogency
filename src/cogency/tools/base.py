@@ -24,6 +24,7 @@ class BaseTool(ABC):
         except Exception as e:
             # Use the same beautiful error formatting as @graceful decorator
             from cogency.errors import format_error
+
             return format_error(e, self.name, "run")
 
     @abstractmethod

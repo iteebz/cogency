@@ -1,36 +1,43 @@
 """Test flow: preprocess → reason → act → respond."""
-import pytest
+
 from unittest.mock import AsyncMock
 
-from cogency.nodes.reason import reason
-from cogency.nodes.act import act
-from cogency.nodes.respond import respond
+import pytest
+
 from cogency import State
+from cogency.nodes.act import act
+from cogency.nodes.reason import reason
+from cogency.nodes.respond import respond
+
 
 @pytest.fixture
-def agent_state(context): # Using the context fixture from conftest.py
+def agent_state(context):  # Using the context fixture from conftest.py
     """Basic State fixture."""
     from cogency.output import Output
+
     return State(context=context, query="Hello", output=Output())
+
 
 class TestFlowNodes:
     """Test individual flow nodes."""
-    
+
     @pytest.mark.asyncio
     async def test_reason_node_can_answer_directly(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(return_value='{"reasoning": "I can answer this directly."}')
-        
+
         result = await reason(agent_state, llm=mock_llm, tools=tools)
-        
+
         assert result["next_node"] == "respond"
         assert "tool_calls" not in result or not result["tool_calls"]
 
     @pytest.mark.asyncio
     async def test_reason_node_needs_tools(self, agent_state, mock_llm, tools):
-        mock_llm.run = AsyncMock(return_value='{"reasoning": "I need a tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}')
-        
+        mock_llm.run = AsyncMock(
+            return_value='{"reasoning": "I need a tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}'
+        )
+
         result = await reason(agent_state, llm=mock_llm, tools=tools)
-        
+
         assert result["next_node"] == "act"
         assert result["tool_calls"]
 
@@ -39,7 +46,7 @@ class TestFlowNodes:
         # The state passed to act_node now comes from the output of reason_node
         state_from_reason = {
             "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}],
-            "selected_tools": tools
+            "selected_tools": tools,
         }
         # We need to merge this with the initial agent_state for the node to have context
         # Copy the agent_state
@@ -49,7 +56,7 @@ class TestFlowNodes:
             full_state.flow[key] = value
 
         result = await act(full_state, tools=tools)
-        
+
         assert "execution_results" in result
         assert result["execution_results"]["success"]
 
@@ -57,21 +64,22 @@ class TestFlowNodes:
     async def test_respond_node_formats_response(self, agent_state, mock_llm):
         # Respond node now gets a simple state, no complex reasoning decision needed
         result = await respond(agent_state, llm=mock_llm)
-        
+
         assert "final_response" in result
-        assert result["final_response"] # Should not be empty
+        assert result["final_response"]  # Should not be empty
+
 
 class TestFlowIntegration:
     """Test flow integration through graph simulation."""
-    
+
     @pytest.mark.asyncio
     async def test_simple_direct_response_flow(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(return_value='{"reasoning": "Simple greeting."}')
-        
+
         # 1. Reason
         reason_result = await reason(agent_state, llm=mock_llm, tools=tools)
         assert reason_result["next_node"] == "respond"
-        
+
         # 2. Respond
         # Update state with the result of the reason node
         current_state = agent_state
@@ -90,7 +98,9 @@ class TestFlowIntegration:
     @pytest.mark.asyncio
     async def test_tool_usage_flow(self, agent_state, mock_llm, tools):
         # 1. Reason (needs tools)
-        mock_llm.run = AsyncMock(return_value='{"reasoning": "I need the mock tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}')
+        mock_llm.run = AsyncMock(
+            return_value='{"reasoning": "I need the mock tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}'
+        )
         reason_result = await reason(agent_state, llm=mock_llm, tools=tools)
         assert reason_result["next_node"] == "act"
 

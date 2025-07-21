@@ -1,12 +1,14 @@
 """Test Respond node - essential tests only."""
-import pytest
+
 from unittest.mock import AsyncMock
 
-from cogency.nodes.respond import respond, build_prompt
-from cogency.state import State
+import pytest
+
 from cogency.context import Context
-from cogency.output import Output
 from cogency.llm.base import BaseLLM
+from cogency.nodes.respond import build_prompt, respond
+from cogency.output import Output
+from cogency.state import State
 
 
 class MockLLM(BaseLLM):
@@ -15,12 +17,12 @@ class MockLLM(BaseLLM):
         self.response = response
         self.should_fail = should_fail
         self.stream_chunks = response.split(" ") if response else []
-    
+
     async def run(self, messages, **kwargs):
         if self.should_fail:
             raise Exception("LLM API error")
         return self.response
-    
+
     async def stream(self, messages, **kwargs):
         if self.should_fail:
             raise Exception("LLM streaming error")
@@ -45,11 +47,11 @@ def test_build_prompt():
     # Basic
     result = build_prompt()
     assert "conversational" in result
-    
+
     # With tool results
     result = build_prompt(has_tool_results=True)
     assert "tool results" in result
-    
+
     # With system prompt
     result = build_prompt(system_prompt="You are helpful.")
     assert "You are helpful." in result
@@ -60,9 +62,9 @@ async def test_respond_basic(state):
     """Test basic respond functionality."""
     llm = MockLLM("Hello world")
     state.output = AsyncMock()
-    
+
     result = await respond(state, llm=llm)
-    
+
     assert result["final_response"] == "Hello world "
     assert result["next_node"] == "END"
     assert len(state.context.messages) >= 2
@@ -74,9 +76,9 @@ async def test_respond_with_tool_results(state):
     llm = MockLLM("Weather is sunny")
     state.output = AsyncMock()
     state["execution_results"] = {"success": True, "results": [{"temperature": "72F"}]}
-    
+
     result = await respond(state, llm=llm)
-    
+
     assert result["final_response"] == "Weather is sunny "
     assert result["next_node"] == "END"
 
@@ -86,9 +88,9 @@ async def test_respond_error_handling(state):
     """Test respond handles LLM failures."""
     llm = MockLLM(should_fail=True)
     state.output = AsyncMock()
-    
+
     result = await respond(state, llm=llm)
-    
+
     assert "technical issue" in result["final_response"]
     assert result["next_node"] == "END"
 
@@ -99,8 +101,8 @@ async def test_respond_with_stopping_reason(state):
     llm = MockLLM("Fallback response")
     state.output = AsyncMock()
     state["stopping_reason"] = "max_iterations_reached"
-    
+
     result = await respond(state, llm=llm)
-    
+
     assert result["final_response"] == "Fallback response "
     assert result["next_node"] == "END"

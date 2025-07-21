@@ -1,4 +1,5 @@
 """Cogency State container."""
+
 from dataclasses import dataclass, field
 from typing import Any, Dict
 
@@ -9,6 +10,7 @@ from cogency.output import Output
 @dataclass
 class State:
     """Agent state with dict-like access."""
+
     # WORLD-CLASS MINIMALISM
     context: Context
     query: str
@@ -20,17 +22,17 @@ class State:
         if key in self.flow:
             return self.flow[key]
         return getattr(self, key)
-    
+
     def __setitem__(self, key: str, value: Any) -> None:
         if key in ["context", "query", "output", "flow"]:
             setattr(self, key, value)
         else:
             self.flow[key] = value
-    
+
     def get(self, key: str, default: Any = None) -> Any:
         if key in self.flow:
             return self.flow[key]
         return getattr(self, key, default)
-    
+
     def __contains__(self, key: str) -> bool:
         return key in self.flow or hasattr(self, key)

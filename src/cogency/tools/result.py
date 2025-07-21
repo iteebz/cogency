@@ -1,16 +1,23 @@
 """Standardized tool result patterns - beautiful, consistent, extensible."""
-from typing import Any, Dict, Optional, Union
+
+from typing import Any, Dict, Optional
 
 
 class ToolResult:
     """Standardized tool result - all tools return this pattern."""
-    
-    def __init__(self, success: bool, data: Any = None, error: str = None, metadata: Optional[Dict[str, Any]] = None):
+
+    def __init__(
+        self,
+        success: bool,
+        data: Any = None,
+        error: str = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
         self.success = success
         self.data = data
         self.error = error
         self.metadata = metadata or {}
-    
+
     def as_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for serialization."""
         result = {"success": self.success}
@@ -21,21 +28,21 @@ class ToolResult:
         if self.metadata:
             result["metadata"] = self.metadata
         return result
-    
+
     @classmethod
     def ok(cls, data: Any, metadata: Optional[Dict[str, Any]] = None) -> "ToolResult":
         """Create successful result."""
         return cls(success=True, data=data, metadata=metadata)
-    
+
     @classmethod
     def failure(cls, error: str, metadata: Optional[Dict[str, Any]] = None) -> "ToolResult":
         """Create failure result."""
         return cls(success=False, error=error, metadata=metadata)
-    
+
     def __bool__(self) -> bool:
         """Allow if result: checks."""
         return self.success
-    
+
     def __repr__(self) -> str:
         if self.success:
             return f"ToolResult.ok(data={repr(self.data)})"

@@ -1,9 +1,9 @@
-from typing import AsyncIterator, Dict, List, Optional, Union
+from typing import AsyncIterator, Dict, List, Union
 
 try:
     from mistralai import Mistral
 except ImportError:
-    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`")
+    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
 
 from cogency.llm.base import BaseLLM
 from cogency.resilience import safe
@@ -41,11 +41,10 @@ class MistralLLM(BaseLLM):
         key = self.next_key()
         return Mistral(api_key=key)
 
-
     @safe()
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        mistral_messages = self._format_msgs(messages)
+        mistral_messages = self._format(messages)
 
         res = await client.chat.complete_async(
             model=self.model,
@@ -56,9 +55,11 @@ class MistralLLM(BaseLLM):
         return res.choices[0].message.content
 
     @safe()
-    async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
+    async def stream(
+        self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs
+    ) -> AsyncIterator[str]:
         client = self._get_client()
-        mistral_messages = self._format_msgs(messages)
+        mistral_messages = self._format(messages)
 
         stream = await client.chat.stream_async(
             model=self.model,

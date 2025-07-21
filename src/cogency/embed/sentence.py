@@ -1,4 +1,4 @@
-from typing import List
+# No typing imports needed for built-in generics
 
 import numpy as np
 
@@ -18,15 +18,19 @@ class SentenceEmbed(BaseEmbed):
         """Initialize sentence transformer model."""
         try:
             from sentence_transformers import SentenceTransformer
+
             self._model_instance = SentenceTransformer(self.model)
         except ImportError:
-            raise ImportError("Sentence Transformers support not installed. Use `pip install cogency[sentence-transformers]`")
+            raise ImportError(
+                "Sentence Transformers support not installed. "
+                "Use `pip install cogency[sentence-transformers]`"
+            ) from None
 
     def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string."""
         return self._model_instance.encode(text, **kwargs)
 
-    def embed_many(self, texts: List[str], **kwargs) -> List[np.ndarray]:
+    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
         """Embed multiple texts."""
         embeddings = self._model_instance.encode(texts, **kwargs)
         return [np.array(emb) for emb in embeddings]
@@ -34,9 +38,7 @@ class SentenceEmbed(BaseEmbed):
     @property
     def dimensionality(self) -> int:
         """Get embedding dimensionality."""
-        if "MiniLM-L6" in self.model:
-            return 384
-        elif "MiniLM-L12" in self.model:
+        if "MiniLM-L6" in self.model or "MiniLM-L12" in self.model:
             return 384
         elif "all-mpnet-base" in self.model:
             return 768

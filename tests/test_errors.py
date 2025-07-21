@@ -1,10 +1,16 @@
 """Test error handling and standardization."""
+
 import pytest
-from unittest.mock import Mock
 
 from cogency.errors import (
-    CogencyError, ToolError, ValidationError, ConfigurationError,
-    format_error, graceful, validate_params, success_response
+    CogencyError,
+    ConfigurationError,
+    ToolError,
+    ValidationError,
+    format_error,
+    graceful,
+    success_response,
+    validate_params,
 )
 
 
@@ -35,7 +41,7 @@ def test_format_error():
     """Test error formatting."""
     error = ValueError("test error")
     result = format_error(error, "test_tool")
-    
+
     assert result["error"] == "test error"
     assert result["tool"] == "test_tool"
     assert result["error_type"] == "ValueError"
@@ -45,7 +51,7 @@ def test_format_error_with_operation():
     """Test error formatting with operation."""
     error = RuntimeError("runtime issue")
     result = format_error(error, "test_tool", "execute")
-    
+
     assert result["operation"] == "execute"
     assert result["error"] == "runtime issue"
 
@@ -53,23 +59,24 @@ def test_format_error_with_operation():
 @pytest.mark.asyncio
 async def test_graceful_decorator():
     """Test graceful decorator wraps exceptions."""
+
     class TestTool:
         name = "test_tool"
-        
+
         @graceful
         async def success(self):
             return {"result": "success"}
-        
+
         @graceful
         async def failure(self):
             raise ValueError("test error")
-    
+
     tool = TestTool()
-    
+
     # Success case
     result = await tool.success()
     assert result == {"result": "success"}
-    
+
     # Error case
     result = await tool.failure()
     assert result["error"] == "test error"
@@ -82,15 +89,17 @@ def test_validate_params():
     # Success case
     params = {"required1": "value1", "required2": "value2"}
     validate_params(params, ["required1", "required2"], "test_tool")
-    
+
     # Missing parameter
     with pytest.raises(ValidationError) as exc_info:
         validate_params({"required1": "value1"}, ["required1", "required2"], "test_tool")
     assert "Missing required parameters: required2" in str(exc_info.value)
-    
-    # Empty parameter 
+
+    # Empty parameter
     with pytest.raises(ValidationError) as exc_info:
-        validate_params({"required1": "value1", "required2": ""}, ["required1", "required2"], "test_tool")
+        validate_params(
+            {"required1": "value1", "required2": ""}, ["required1", "required2"], "test_tool"
+        )
     assert "Empty required parameters: required2" in str(exc_info.value)
 
 
@@ -101,7 +110,7 @@ def test_success_response():
     result = success_response(data)
     expected = {"result": "test", "count": 5, "success": True}
     assert result == expected
-    
+
     # With message
     result = success_response({"result": "test"}, "Operation completed")
     assert result["success"] is True

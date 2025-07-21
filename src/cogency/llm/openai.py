@@ -1,9 +1,9 @@
-from typing import AsyncIterator, Dict, List, Optional, Union
+from typing import AsyncIterator, Dict, List, Union
 
 try:
     import openai
 except ImportError:
-    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`")
+    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`") from None
 
 from cogency.llm.base import BaseLLM
 from cogency.resilience import safe
@@ -45,11 +45,10 @@ class OpenAILLM(BaseLLM):
         self._client.api_key = self.next_key()
         return self._client
 
-
     @safe()
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        msgs = self._format_msgs(messages)
+        msgs = self._format(messages)
         res = await client.chat.completions.create(
             model=self.model,
             messages=msgs,
@@ -59,9 +58,11 @@ class OpenAILLM(BaseLLM):
         return res.choices[0].message.content
 
     @safe()
-    async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
+    async def stream(
+        self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs
+    ) -> AsyncIterator[str]:
         client = self._get_client()
-        msgs = self._format_msgs(messages)
+        msgs = self._format(messages)
         stream = await client.chat.completions.create(
             model=self.model,
             messages=msgs,

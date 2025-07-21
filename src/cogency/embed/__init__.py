@@ -8,6 +8,7 @@ __all__ = ["BaseEmbed", "detect_embedder"]
 # OpenAI embeddings
 try:
     from .openai import OpenAIEmbed
+
     __all__.append("OpenAIEmbed")
 except ImportError:
     pass
@@ -15,6 +16,7 @@ except ImportError:
 # Nomic embeddings
 try:
     from .nomic import NomicEmbed
+
     __all__.append("NomicEmbed")
 except ImportError:
     pass
@@ -22,6 +24,7 @@ except ImportError:
 # Sentence Transformers embeddings
 try:
     from .sentence import SentenceEmbed
+
     __all__.append("SentenceEmbed")
 except ImportError:
     pass
@@ -29,6 +32,7 @@ except ImportError:
 # Mistral embeddings
 try:
     from .mistral import MistralEmbed
+
     __all__.append("MistralEmbed")
 except ImportError:
     pass

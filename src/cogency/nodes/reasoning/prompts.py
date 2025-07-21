@@ -69,11 +69,11 @@ def build_prompt(
     current_input: str,
     max_iterations: int,
     cognition: dict,
-    attempts_summary: str
+    attempts_summary: str,
 ) -> str:
     """Build mode-specific reasoning prompt with appropriate reflection."""
-    from cogency.nodes.reasoning.reflection import reflection_prompt, needs_reflection
-    
+    from cogency.nodes.reasoning.reflection import needs_reflection, reflection_prompt
+
     if react_mode == "deep" and needs_reflection("deep", current_iteration):
         # Deep react: UltraThink-style reflection + planning + execution
         try:
@@ -84,7 +84,7 @@ def build_prompt(
                 max_iterations,
                 cognition.get("current_strategy", "initial_approach"),
                 attempts_summary,
-                cognition.get("last_tool_quality", "unknown")
+                cognition.get("last_tool_quality", "unknown"),
             )
         except Exception:
             # Fallback to legacy deep reasoning
@@ -95,7 +95,7 @@ def build_prompt(
                 max_iterations=max_iterations,
                 current_strategy=cognition.get("current_strategy", "initial_approach"),
                 previous_attempts=attempts_summary,
-                last_tool_quality=cognition.get("last_tool_quality", "unknown")
+                last_tool_quality=cognition.get("last_tool_quality", "unknown"),
             ) + switch_prompt("deep")
     else:
         # Fast react: Pure ReAct with switching capability

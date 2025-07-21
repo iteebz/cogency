@@ -1,15 +1,16 @@
 """Shared test fixtures and utilities for Cogency test suite."""
-import pytest
+
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
+
+import pytest
 
 from cogency.context import Context
-from cogency.memory.backends.filesystem import FileBackend
 from cogency.llm.mock import MockLLM
-from cogency.tools.calculator import Calculator
-from cogency.tools.weather import Weather
+from cogency.memory.backends.filesystem import FileBackend
 from cogency.state import State
+from cogency.tools.weather import Weather
 
 
 @pytest.fixture
@@ -34,46 +35,36 @@ def mock_llm():
 @pytest.fixture
 def context():
     """Basic agent context for testing."""
-    return Context(
-        query="test query",
-        messages=[],
-        user_id="test_user"
-    )
+    return Context(query="test query", messages=[], user_id="test_user")
 
 
 @pytest.fixture
 def agent_state(context):
     """Basic agent state for workflow testing."""
     from cogency.output import Output
-    return State(
-        context=context,
-        query="test query",
-        output=Output()
-    )
+
+    return State(context=context, query="test query", output=Output())
 
 
 @pytest.fixture
 def tools():
     """Standard tool set for testing."""
     from cogency.tools.base import BaseTool
-    
+
     class MockTool(BaseTool):
         def __init__(self):
             super().__init__(name="mock_tool", description="Mock tool for testing", emoji="🔧")
-        
+
         async def run(self, **kwargs):
             return {"result": "mock_result"}
-        
+
         def schema(self):
             return "mock_tool(param='value')"
-        
+
         def examples(self):
             return ["mock_tool(param='test')"]
-    
-    return [
-        MockTool(),
-        Weather()
-    ]
+
+    return [MockTool(), Weather()]
 
 
 @pytest.fixture
@@ -83,20 +74,20 @@ def sample_memory_content():
         {"content": "I have ADHD and work as a software engineer", "tags": ["personal", "work"]},
         {"content": "I prefer quiet environments for coding", "tags": ["preferences"]},
         {"content": "I live in San Francisco", "tags": ["personal", "location"]},
-        {"content": "Python is my favorite programming language", "tags": ["preferences", "tech"]}
+        {"content": "Python is my favorite programming language", "tags": ["preferences", "tech"]},
     ]
 
 
 class TestHelpers:
     """Utility methods for testing."""
-    
+
     @staticmethod
     def assert_valid_tool_call(tool_call: Dict[str, Any]):
         """Assert tool call has required structure."""
         assert "name" in tool_call
         assert "args" in tool_call
         assert isinstance(tool_call["args"], dict)
-    
+
     @staticmethod
     def assert_memory_artifact_valid(artifact):
         """Assert memory artifact has required fields."""
@@ -105,7 +96,7 @@ class TestHelpers:
         assert artifact.created_at is not None
         assert isinstance(artifact.tags, list)
         assert isinstance(artifact.metadata, dict)
-    
+
     @staticmethod
     def assert_no_errors_in_result(result: Dict[str, Any]):
         """Assert result doesn't contain error fields."""
