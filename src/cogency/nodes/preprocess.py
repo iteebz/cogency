@@ -5,6 +5,7 @@ from cogency.llm import BaseLLM
 from cogency.tools.base import BaseTool
 from cogency.memory.core import MemoryBackend
 from cogency.state import AgentState
+from cogency.output import emoji
 
 from cogency.memory.prepare import save_extracted_memory
 from cogency.utils.json import extract_json
@@ -42,23 +43,15 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
         # Single LLM call: routing + memory + tool selection + complexity analysis
         prompt = f"""Query: "{query}"
 
-MEMORY: Extract if user shares facts about themselves or explicitly asks to remember something.
-- Name, job, preferences, personal context → extract 
-- "Remember that..." → extract
-- Questions, general chat → null
+MEMORY: Extract if user shares personal facts or says "remember that...". Otherwise null.
 
-ROUTING: Decide if you need tools or can respond directly.
-- If you might need ANY tools from the available toolkit → respond_directly: false
-- Only if you're 100% certain you need NO tools → respond_directly: true
+ROUTING: Need tools → respond_directly: false. Can answer directly → respond_directly: true.
 
-COMPLEXITY: If using tools, classify cognitive complexity needed.
-Fast React signals: simple lookup, single search, quick question, direct retrieval
-Deep React signals: analysis, synthesis, comparison, multi-step planning, complex reasoning
+COMPLEXITY: Fast = lookup/search/retrieval. Deep = analysis/synthesis/multi-step.
 
-TOOL SELECTION: Select tools you might need. You have full freedom to decide.
-Available tools: {registry_lite}
+TOOLS: Select what you need from: {registry_lite}
 
-Return JSON:
+JSON:
 {{
   "memory": "summary" | null,
   "tags": ["tag1", "tag2"] | null,
@@ -87,7 +80,8 @@ Return JSON:
             # Stream memory extraction using clean API
             memory_content = result['memory']
             display_content = f"{memory_content[:50]}..." if len(memory_content) > 50 else memory_content
-            await state.output.send("update", f"💾 {display_content}")
+            memory_emoji = emoji['memory']
+            await state.output.send("update", f"{memory_emoji} {display_content}")
             
             await save_extracted_memory(
                 result["memory"], 
@@ -109,11 +103,13 @@ Return JSON:
             if len(filtered_tools) < len(tools):
                 # Show smart filtering
                 tool_names = [f"{t.emoji} {t.name}" for t in filtered_tools]
-                await state.output.send("update", f"🛠️ Tools: {', '.join([t.name for t in filtered_tools])}")
+                tool_emoji = emoji['trace']
+                await state.output.send("update", f"{tool_emoji} Tools: {', '.join([t.name for t in filtered_tools])}")
             elif len(filtered_tools) > 1:
                 # Show tools being prepared for ReAct
                 tool_names = [f"{t.emoji} {t.name}" for t in filtered_tools]
-                await state.output.send("update", f"🛠️ Tools: {', '.join([t.name for t in filtered_tools])}")
+                tool_emoji = emoji['trace']
+                await state.output.send("update", f"{tool_emoji} Tools: {', '.join([t.name for t in filtered_tools])}")
     else:
         # Simple case: use all tools, respond directly
         filtered_tools = tools

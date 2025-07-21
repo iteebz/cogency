@@ -114,6 +114,6 @@ class Search(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.output import truncate
+        from cogency.utils.formatting import truncate
         query = params.get("query", params.get("q", ""))
         return f"({truncate(query, 35)})" if query else ""

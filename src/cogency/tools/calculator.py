@@ -49,11 +49,7 @@ class Calculator(BaseTool):
             return {"error": f"Invalid expression: {str(e)}"}
 
     def get_schema(self) -> str:
-        return (
-            "calculator(expression='math expression') - "
-            "Examples: calculator(expression='450 + 120*3'), calculator(expression='√64'), "
-            "calculator(expression='(15+27)*2'). Supports +, -, *, /, √, parentheses."
-        )
+        return "calculator(expression='math expression')"
 
     def get_usage_examples(self) -> List[str]:
         return [

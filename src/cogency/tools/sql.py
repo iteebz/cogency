@@ -259,16 +259,13 @@ class SQL(BaseTool):
 
     def get_schema(self) -> str:
         """Return the tool call schema."""
-        return (
-            "sql(query='string', connection='string', timeout=int, params=list) - "
-            "Examples: sql(query='SELECT * FROM users LIMIT 5', connection='sqlite:///app.db'), "
-            "sql(query='INSERT INTO logs (message) VALUES (?)', connection='sqlite:///app.db', params=['Hello'])"
-        )
+        return "sql(query='string', connection='string', timeout=30, params=list)"
 
     def get_usage_examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "sql(query='SELECT * FROM users LIMIT 5', connection='sqlite:///app.db')",
+            "sql(query='INSERT INTO logs (message) VALUES (?)', connection='sqlite:///app.db', params=['Hello'])",
             "sql(query='CREATE TABLE logs (id INTEGER PRIMARY KEY, message TEXT)', connection='sqlite:///app.db')",
             "sql(query='SELECT COUNT(*) as total FROM orders', connection='postgresql://user:pass@localhost/shop')",
             "sql(query='INSERT INTO users (name, email) VALUES (?, ?)', connection='sqlite:///app.db', params=['John', 'john@example.com'])"
@@ -276,7 +273,7 @@ class SQL(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.output import truncate
+        from cogency.utils.formatting import truncate
         query = params.get("query", "")
         connection = params.get("connection", "")
         # Show database type and truncated query

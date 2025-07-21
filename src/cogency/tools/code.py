@@ -209,23 +209,19 @@ try {{
 
     def get_schema(self) -> str:
         """Return the tool call schema."""
-        return (
-            "code(code='string', language='python|javascript|js', timeout=int) - "
-            "Examples: code(code='print(2 + 2)', language='python'), "
-            "code(code='console.log(Math.sqrt(16))', language='javascript')"
-        )
+        return "code(code='string', language='python|javascript|js', timeout=30)"
 
     def get_usage_examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
             "code(code='print(2 + 2)', language='python')",
-            "code(code='import math; print(math.pi)', language='python')",
             "code(code='console.log(Math.sqrt(16))', language='javascript')",
+            "code(code='import math; print(math.pi)', language='python')",
             "code(code='const arr = [1,2,3]; console.log(arr.map(x => x*2))', language='js')"
         ]
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.output import truncate
+        from cogency.utils.formatting import truncate
         code = params.get("code", "")
         return f"({truncate(code, 35)})" if code else ""

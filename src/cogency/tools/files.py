@@ -101,7 +101,7 @@ class Files(BaseTool):
             return {"error": str(e)}
 
     def get_schema(self) -> str:
-        return "files(action=REQUIRED, filename=REQUIRED, content=optional, line=optional, start=optional, end=optional) - action must be: create|read|edit|list|delete"
+        return "files(action='create|read|edit|list|delete', filename='path', content='text', line=int, start=int, end=int)"
 
     def get_usage_examples(self) -> List[str]:
         return [
@@ -115,7 +115,7 @@ class Files(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.output import truncate
+        from cogency.utils.formatting import truncate
         action, filename = params.get("action"), params.get("filename")
         if action and filename:
             return f"({action}, {truncate(filename, 25)})"

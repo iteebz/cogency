@@ -154,12 +154,7 @@ class HTTP(BaseTool):
 
     def get_schema(self) -> str:
         """Return the tool call schema."""
-        return (
-            "http(url='string', method='get|post|put|delete|patch', headers=dict, "
-            "body='string', json_data=dict, auth=dict, timeout=int) - "
-            "Examples: http(url='https://api.github.com/users/octocat', method='get'), "
-            "http(url='https://httpbin.org/post', method='post', json_data={'key': 'value'})"
-        )
+        return "http(url='string', method='get|post|put|delete|patch', headers=dict, body='string', json_data=dict, auth=dict, timeout=30)"
 
     def get_usage_examples(self) -> List[str]:
         """Return example usage patterns."""
@@ -172,6 +167,6 @@ class HTTP(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.output import truncate
+        from cogency.utils.formatting import truncate
         url, method = params.get("url"), params.get("method", "get").upper()
         return f"({method} {truncate(url, 30)})" if url else ""

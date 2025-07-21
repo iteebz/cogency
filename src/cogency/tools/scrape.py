@@ -92,7 +92,7 @@ class Scrape(BaseTool):
 
     def get_schema(self) -> str:
         """Return tool call schema for LLM formatting."""
-        return """scrape(url="https://example.com", favor_precision=True)"""
+        return "scrape(url='string', favor_precision=True)"
 
     def get_usage_examples(self) -> List[str]:
         """Return example tool calls for LLM guidance."""

@@ -28,19 +28,10 @@ from cogency.nodes.reasoning.reflection import (
     format_reflection_for_display,
     should_use_reflection
 )
-from cogency.nodes.reasoning.planning import (
-    extract_planning_strategy,
-    validate_planning_quality,
-    create_multi_step_plan,
-    format_plan_for_display
-)
 from cogency.nodes.reasoning.prompts import build_reasoning_prompt
 
-
-
-
 async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, config: Optional[Dict] = None) -> Dict[str, Any]:
-    """Reason: analyze context and decide next action (includes implicit reflection)."""
+    """Reason: analyze context and decide next action (explicit reflection in deep mode)."""
     context = state["context"]
     selected_tools = state.get("selected_tools", tools or [])
     
@@ -98,16 +89,31 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     failed_attempts = cognitive_state.get("failed_attempts", [])
     attempts_summary = create_attempts_summary(failed_attempts)
     
-    # Build adaptive reasoning prompt
-    reasoning_prompt = build_reasoning_prompt(
-        react_mode,
-        current_iteration,
-        tool_info,
-        context.current_input,
-        max_iterations,
-        cognitive_state,
-        attempts_summary
-    )
+    # Build adaptive reasoning prompt - with reflection for deep mode
+    if should_use_reflection(react_mode, current_iteration):
+        # Deep mode: use explicit reflection phases
+        current_strategy = cognitive_state.get("current_strategy", "unknown")
+        last_tool_quality = cognitive_state.get("last_tool_quality", "unknown")
+        reasoning_prompt = get_deep_reflection_prompt(
+            tool_info,
+            context.current_input,
+            current_iteration,
+            max_iterations,
+            current_strategy,
+            attempts_summary,
+            last_tool_quality
+        )
+    else:
+        # Fast mode: use standard reasoning
+        reasoning_prompt = build_reasoning_prompt(
+            react_mode,
+            current_iteration,
+            tool_info,
+            context.current_input,
+            max_iterations,
+            cognitive_state,
+            attempts_summary
+        )
     
     if system_prompt:
         reasoning_prompt = f"{system_prompt}\n\n{reasoning_prompt}"
@@ -121,12 +127,6 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         # Parse response using consolidated utilities
         json_data = extract_json_from_response(llm_response)
         tool_calls = extract_tool_calls_from_json(json_data)
-        
-        # Extract strategy from JSON if provided (graceful fallback)
-        try:
-            current_strategy = json_data.get("strategy", "unknown") if json_data else "unknown"
-        except Exception:
-            current_strategy = "fallback_strategy"
         
         # Check for bidirectional mode switching
         switch_to, switch_reason = extract_mode_switch(llm_response)
@@ -147,9 +147,29 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         tool_calls = None
         llm_response = "I encountered an issue with reasoning, but I'll do my best to help you."
     
-    # Extract intelligent reasoning text and stream it - HUMAN READABLE ONLY
-    reasoning_text = extract_reasoning_text(llm_response)
-    await state.output.send("update", reasoning_text)
+    # Extract and stream reasoning - with reflection phases for deep mode
+    if should_use_reflection(react_mode, current_iteration):
+        # Deep mode: extract and display reflection phases
+        reflection_phases = extract_reflection_phases(llm_response)
+        reflection_display = format_reflection_for_display(reflection_phases)
+        await state.output.send("update", reflection_display)
+        
+        # Store reflection data for tracing
+        cognitive_state["last_reflection"] = reflection_phases
+        await state.output.send("trace", f"Deep reflection: strategy={reflection_phases.get('strategy', 'unknown')}", node="reason")
+        
+        # Extract strategy from reflection phases
+        current_strategy = reflection_phases.get("strategy", "unknown")
+    else:
+        # Fast mode: standard reasoning extraction
+        reasoning_text = extract_reasoning_text(llm_response)
+        await state.output.send("update", reasoning_text)
+        
+        # Extract strategy from JSON
+        try:
+            current_strategy = json_data.get("strategy", "unknown") if json_data else "unknown"
+        except Exception:
+            current_strategy = "fallback_strategy"
     
     # Store reasoning results in state - NO JSON LEAKAGE
     state["reasoning_response"] = llm_response

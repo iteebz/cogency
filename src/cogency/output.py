@@ -1,7 +1,7 @@
 """Clean, unified output management for Cogency agents."""
 from typing import Optional, Callable, List, Dict, Any
 import asyncio
-from cogency.utils.formatting import format_tool_result
+from cogency.utils.formatting import format_tool_result, truncate
 
 
 # Emoji mapping - system/workflow emojis only (tools define their own)
@@ -11,6 +11,7 @@ emoji = {
     "reason": "🧠", 
     "act": "⚡",
     "respond": "💬",
+    "memory": "🧠",
     
     # State changes
     "trace": "🔧",

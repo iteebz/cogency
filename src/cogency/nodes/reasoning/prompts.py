@@ -44,29 +44,22 @@ CRITICAL: Output ONLY the JSON object. No explanations, no code blocks, no markd
 
 def get_fast_react_prompt(tool_info: str, current_input: str) -> str:
     """Pure ReAct prompt for fast mode - efficient direct execution."""
-    return f"""Quick analysis - decide your next action efficiently.
-
-QUERY: {current_input}
+    return f"""QUERY: {current_input}
 TOOLS: {tool_info}
 
-COGNITIVE ADJUSTMENT: If this task needs sophisticated analysis, you can escalate:
-"switch_to": "deep", "switch_reason": "why you need deeper reasoning"
+ReAct fast: think → act → observe. Use tools if needed.
 
-Use tools if needed or provide direct response."""
+Escalate if complex: "switch_to": "deep", "switch_reason": "why"
+
+JSON: {{"reasoning": "brief", "strategy": "approach", "switch_to": null|"deep", "switch_reason": null|"why"}}"""
 
 
 def get_mode_switch_addition(mode: str) -> str:
     """Get mode switch prompt addition based on current mode."""
     if mode == "fast":
-        return """
-COGNITIVE ADJUSTMENT: If this task needs sophisticated analysis, escalate to deep mode:
-"switch_to": "deep", "switch_reason": "complex synthesis/analysis needed"
-"""
+        return '\nEscalate if complex: "switch_to": "deep"'
     else:  # deep mode
-        return """
-COGNITIVE ADJUSTMENT: If this task is simpler than expected, downshift to fast mode:
-"switch_to": "fast", "switch_reason": "task simpler than expected"
-"""
+        return '\nDownshift if simple: "switch_to": "fast"'
 
 
 def build_reasoning_prompt(

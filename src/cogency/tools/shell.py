@@ -153,11 +153,7 @@ class Shell(BaseTool):
 
     def get_schema(self) -> str:
         """Return the tool call schema."""
-        return (
-            "shell(command='string', timeout=int, working_dir='string', env=dict) - "
-            "Examples: shell(command='ls -la'), shell(command='pwd'), "
-            "shell(command='echo hello world', timeout=10)"
-        )
+        return "shell(command='string', timeout=30, working_dir='path', env=dict)"
 
     def get_usage_examples(self) -> List[str]:
         """Return example usage patterns."""
@@ -171,6 +167,6 @@ class Shell(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.output import truncate
+        from cogency.utils.formatting import truncate
         cmd = params.get("command", "")
         return f"({truncate(cmd, 35)})" if cmd else ""

@@ -359,17 +359,12 @@ class CSV(BaseTool):
 
     def get_schema(self) -> str:
         """Return the tool call schema."""
-        return (
-            "csv(operation='read|write|filter|analyze|transform|append', file_path='string', "
-            "data=list, delimiter=',', headers=list, filter_condition='string', limit=int) - "
-            "Examples: csv(operation='read', file_path='data.csv'), "
-            "csv(operation='write', file_path='output.csv', data=[{'name': 'John', 'age': 30}])"
-        )
+        return "csv(operation='read|write|filter|analyze|transform|append', file_path='string', data=list, delimiter=',', headers=list, filter_condition='string', limit=int)"
 
     def get_usage_examples(self) -> List[str]:
         """Return example usage patterns."""
         return [
-            "csv(operation='read', file_path='data.csv', limit=10)",
+            "csv(operation='read', file_path='data.csv')",
             "csv(operation='write', file_path='output.csv', data=[{'name': 'John', 'age': 30}])",
             "csv(operation='filter', file_path='data.csv', filter_condition=\"row['age'] > 25\")",
             "csv(operation='analyze', file_path='sales.csv')",
@@ -378,7 +373,7 @@ class CSV(BaseTool):
     
     def format_params(self, params: Dict[str, Any]) -> str:
         """Format parameters for display."""
-        from cogency.output import truncate
+        from cogency.utils.formatting import truncate
         operation = params.get("operation", "")
         file_path = params.get("file_path", "")
         return f"({operation}: {truncate(file_path, 25)})" if operation and file_path else ""
