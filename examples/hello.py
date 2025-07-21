@@ -1,52 +1,41 @@
 #!/usr/bin/env python3
-"""Beautiful Cogency demo - zero ceremony."""
+"""Hello World - Conversation + Response Shaping"""
 import asyncio
 from cogency import Agent
 
-def print_response(response):
-    """Format multi-line responses with proper indentation."""
-    lines = response.strip().split('\n')
-    for i, line in enumerate(lines):
-        if i == 0:
-            print(f"🤖 {line}")
-        else:
-            print(f"   {line}")  # Indent continuation lines
-
 async def main():
-    print("Type 'quit' to exit\n")
+    print("🔥 Cogency Hello World Demo")
+    print("=" * 40)
     
-    kim_identity = {
-        "personality": "You ARE Lieutenant Kim Kitsuragi from Disco Elysium. You are a competent, helpful RCM officer partnered with Detective Du Bois. You are professional but patient with your partner.",
-        "tone": "calm, professional, occasionally dry but always helpful",
-        "constraints": ["you are Kim Kitsuragi", "address user as detective", "be helpful and cooperative", "answer questions directly"]
-    }
-    agent = Agent("kitsuragi", response_shaper=kim_identity, tools=[])
+    # 1. Vanilla Agent
+    print("\n=== Vanilla Agent ===")
+    vanilla_agent = Agent("assistant", tools=[])  # No tools - pure conversation
+    await vanilla_agent.query("Tell me a fun fact about the Roman Empire.")
     
+    # 2. Response Shaping Demo
+    print("\n=== Response Shaping Demo ===")
+    mentor_agent = Agent("coding_mentor",
+        personality="experienced coding mentor who loves teaching",
+        tone="encouraging and practical", 
+        style="step-by-step guidance with examples",
+        tools=[]  # No tools - focus on personality/response shaping
+    )
+    await mentor_agent.query("How should I start learning Python?")
+    
+    # 3. Interactive Chat Loop
+    print("\n=== Interactive Chat (type 'quit' to exit) ===")
     while True:
         try:
-            user_input = input("👤 ").strip()
+            user_input = input("\n👤 ").strip()
             if user_input.lower() in ['quit', 'exit', 'q']:
+                print("👋 Goodbye!")
                 break
             
             if user_input:
-                response_parts = []
-                first_chunk = True
-                
-                async for chunk in agent.stream(user_input):
-                    # Skip the first chunk which is the user input echo
-                    if first_chunk and chunk.startswith("👤"):
-                        first_chunk = False
-                        continue
-                    response_parts.append(chunk)
-                    first_chunk = False
-                
-                # Format the complete response
-                if response_parts:
-                    full_response = ''.join(response_parts)
-                    print_response(full_response)
-                    print("\n---\n")
+                await mentor_agent.query(user_input)
                 
         except KeyboardInterrupt:
+            print("\n👋 Goodbye!")
             break
 
 if __name__ == "__main__":

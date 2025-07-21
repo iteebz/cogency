@@ -1,78 +1,72 @@
 # Cogency Examples
 
-Beautiful developer experience showcases for Cogency's capabilities. Each example demonstrates specific functionality with clear, focused scenarios.
+Clean, focused examples showcasing Cogency's core capabilities.
 
-## Example Overview
+## Core Examples
 
-| Example | Purpose | What It Tests |
-|---------|---------|---------------|
-| `simple.py` | General usage | Basic agent without tools |
-| `hello.py` | Response shaping | Personality and tone control |
-| `basic.py` | Single tool | Weather tool usage |
-| `multitool.py` | Parallel tools | Multiple tools working together |
-| `complex.py` | Sequential reasoning | Multi-step tool dependencies |
-| `conversation.py` | Context memory | Multi-turn conversations |
-| `memory.py` | Long-term memory | Save and recall user preferences |
-| `interactive.py` | Testing utility | Command-line query testing |
+Run these in order to understand Cogency's progression:
 
-## Target Trace Format
-
-All examples should produce clean, readable output matching this format:
-
-## Simple Query (no tools needed)
+### 1. `hello.py` - Conversation + Response Shaping
+```bash
+python hello.py
 ```
-👤 HUMAN: Hello! Tell me about yourself.
+- Basic agent functionality
+- Response shaping and personality
+- Interactive conversation with context
 
-🛠️ TOOLING: No tools needed for self-description
-
-🧠 REASON: Direct identity question - can answer from training data
-⚡️ ACT: Composing self-description
-
-🤖 AGENT: Hello! I am Claude Sonnet 4, an AI assistant...
+### 2. `memory.py` - Persistent Memory  
+```bash
+python memory.py
 ```
+- Cross-session memory persistence
+- Intelligent information retention
+- Core architectural differentiator
 
-## Tool Query (single step)
+### 3. `research.py` - Multi-Tool Coordination
+```bash
+python research.py
 ```
-👤 HUMAN: What's the weather in Tokyo?
+- Complex multi-step reasoning
+- Intelligent tool selection
+- Sequential tool dependencies
 
-🛠️ TOOLING: web_search
-
-🧠 REASON: Need current weather - no cached data available
-⚡️ ACT: web_search("Tokyo weather current temperature")
-👀 OBSERVE: 23°C, partly cloudy, humidity 65%
-
-🧠 REASON: Have complete weather data for Tokyo
-⚡️ ACT: Formatting weather response
-
-🤖 AGENT: The weather in Tokyo is currently 23°C and partly cloudy...
+### 4. `coding.py` - Code Execution
+```bash
+python coding.py
 ```
+- Complete coding workflows
+- Tool subsetting for specialization
+- File I/O + code execution
 
-## Multistep Query (complex)
+## Development Scripts
+
+Located in `dev/` folder for advanced users:
+
+### `dev/config.py` - Configuration Reference
+```bash
+python dev/config.py
 ```
-👤 HUMAN: Plan a 3-day Tokyo itinerary with weather considerations.
+Shows all agent configuration options and patterns.
 
-🛠️ TOOLING: web_search, travel_info, weather_forecast
-
-🧠 REASON: Need weather forecast to plan outdoor vs indoor activities
-⚡️ ACT: weather_forecast("Tokyo 3 days")
-👀 OBSERVE: Day 1: sunny 25°C, Day 2: rain 18°C, Day 3: cloudy 22°C
-
-🧠 REASON: Day 2 rain affects outdoor plans - need indoor alternatives
-⚡️ ACT: travel_info("Tokyo indoor attractions museums")
-👀 OBSERVE: TeamLab, Tokyo National Museum, Senso-ji Temple (covered)
-
-🧠 REASON: Have weather + indoor options - can create complete itinerary
-⚡️ ACT: Composing 3-day plan with weather-appropriate activities
-
-🤖 AGENT: Here's your 3-day Tokyo itinerary:
-Day 1 (Sunny): Shibuya, Harajuku, Meiji Shrine...
+### `dev/tracing.py` - Debug Tracing
+```bash
+python dev/tracing.py
 ```
+Demonstrates execution tracing for development and debugging.
 
-## KEY PRINCIPLES
-1. **Specific content** - "23°C, partly cloudy" not "Successfully gathered data"
-2. **Actionable reasoning** - "Day 2 rain affects outdoor plans" not "Analyzing available information"
-3. **Collapse trivial steps** - If no meaningful intermediate work, skip REASON/ACT cycles
-4. **Tool calls show actual parameters** - `web_search("Tokyo weather current temperature")` not "Executing tools"
-5. **Observations contain real data** - What the tool actually returned
-6. **Concise tooling** - `🛠️ TOOLING: web_search` not "Selected web_search"
-7. **Skip redundant memorize** - Only show `💾 MEMORIZE:` when actually memorizing something
+## Progression
+
+**Chat → Remember → Reason → Code**
+
+Each example builds conceptually while demonstrating tool subsetting:
+
+- **hello.py**: 0 tools (pure conversation)
+- **memory.py**: 1 tool (recall only)  
+- **research.py**: 4 tools (focused research toolkit)
+- **coding.py**: 3 tools (focused coding environment)
+
+Shows tool subsetting as a real feature, not just theory.
+
+## Archived Examples
+
+Previous examples are preserved in `archive/` folder for reference.
