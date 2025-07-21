@@ -11,7 +11,7 @@ from cogency.tools.calculator import Calculator
 
 
 class MockLLM:
-    async def invoke(self, messages):
+    async def run(self, messages):
         # Mock response based on the query
         query = messages[0]["content"]
         

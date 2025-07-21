@@ -15,32 +15,9 @@ def compose_system_prompt(opts: dict) -> str:
     if opts.get('system_prompt'):
         return opts['system_prompt']
     
-    # Check if response_shaper has personality info
-    response_shaper = opts.get('response_shaper', {})
-    personality = response_shaper.get('personality') or opts.get('personality', 'a helpful AI assistant')
-    
-    parts = [f"You are {personality}."]
-    
-    # Use tone from response_shaper if available, otherwise from opts
-    tone = response_shaper.get('tone') or opts.get('tone')
-    style = response_shaper.get('style') or opts.get('style')
-    
-    if tone or style:
-        style_parts = [
-            f"{k}: {v}" for k, v in [
-                ("tone", tone), 
-                ("style", style)
-            ] if v
-        ]
-        parts.append(f"Communicate with {', '.join(style_parts)}.")
-    
-    # Add constraints from response_shaper
-    if response_shaper.get('constraints'):
-        for constraint in response_shaper['constraints']:
-            parts.append(f"{constraint.replace('-', ' ').title()}.")
-    
-    parts.append("Always stay in character and respond naturally.")
-    return " ".join(parts)
+    # Simple default - everything else handled in respond node
+    identity = opts.get('identity', 'a helpful AI assistant')
+    return f"You are {identity}."
 
 
 class Agent:
@@ -90,7 +67,8 @@ class Agent:
             tools=tools,
             memory=memory_backend,
             system_prompt=compose_system_prompt(opts),
-            response_shaper=opts.get('response_shaper')
+            identity=opts.get('identity'),
+            json_schema=opts.get('json_schema')
         )
         self.runner = StreamingRunner()
         self.contexts = {}
@@ -134,8 +112,7 @@ class Agent:
         context.add_message("user", query)  # Add user query to message history
         self.contexts[user_id] = context
         
-        # Show user input with beautiful formatting
-        yield f"👤 {query}\n"
+        # User input display handled by caller
         
         # Stream execution with clean callback
         state = {"query": query, "context": context, "trace": ExecutionTrace()}
@@ -182,18 +159,6 @@ class Agent:
                 chunks.append(chunk.split("🤖 ", 1)[1])
         return "".join(chunks).strip() or "No response generated"
     
-    async def query(self, query: str, user_id: str = "default") -> str:
-        """Beautiful API - auto-prints streaming output + returns final response.
-        
-        Use this for demos and simple usage. For custom output handling, use stream().
-        Both methods are streaming under the hood - this just eliminates print ceremony.
-        """
-        result = ""
-        async for chunk in self.stream(query, user_id):
-            print(chunk, end="", flush=True)
-            if "🤖 " in chunk:
-                result += chunk.split("🤖 ", 1)[1]
-        return result.strip() or "No response generated"
     
     def _extract_response(self, state) -> str:
         """Extract response from final state."""

@@ -91,7 +91,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     messages.insert(0, {"role": "system", "content": reasoning_prompt})
     
     try:
-        llm_response = await llm.invoke(messages)
+        llm_response = await llm.run(messages)
         context.add_message("assistant", llm_response)
         
         # Parse response using consolidated utilities

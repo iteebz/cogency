@@ -1,7 +1,8 @@
 import asyncio
 import logging
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, List, Any
+from typing import AsyncIterator, Dict, List, Any, Union
+from cogency.utils.keys import KeyManager
 
 logger = logging.getLogger(__name__)
 
@@ -12,27 +13,23 @@ class BaseLLM(ABC):
     
     All LLM providers support:
     - Streaming execution for real-time output
-    - Key rotation for high-volume usage  
+    - Automatic key rotation for high-volume usage  
     - Rate limiting via yield_interval parameter
     - Unified interface across providers
     - Dynamic model/parameter configuration
     """
 
-    def __init__(self, api_key: str = None, key_rotator=None, **kwargs):
-        self.api_key = api_key
-        self.key_rotator = key_rotator
+    def __init__(self, provider_name: str, api_keys: Union[str, List[str]] = None, **kwargs):
+        # Automatic key management - handles single/multiple keys, rotation, env detection
+        self.keys = KeyManager.for_provider(provider_name, api_keys)
+        self.provider_name = provider_name
 
-    def handle_rate_limit(self, error: Exception) -> str:
-        """Handle rate limit by rotating key if available."""
-        if self.key_rotator:
-            return self.key_rotator.rotate_key()
-        else:
-            current_key = self.api_key
-            key_suffix = current_key[-8:] if current_key else "unknown"
-            return f"Key *{key_suffix} rate limited (no rotation available)"
+    def get_api_key(self) -> str:
+        """Get next API key - rotates automatically on every call."""
+        return self.keys.get_next()
 
     @abstractmethod
-    async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
         """Generate a response from the LLM given a list of messages.
 
         Args:
@@ -46,22 +43,13 @@ class BaseLLM(ABC):
 
     async def ainvoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
         """LangGraph compatibility method - wrapper around invoke()."""
-        return await self.invoke(messages, **kwargs)
+        return await self.run(messages, **kwargs)
 
     def _convert_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """Convert to provider format (standard role/content structure)."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
-    def _ensure_current_key(self) -> str:
-        """Validate and return current API key, raising ConfigurationError if missing."""
-        from cogency.errors import ConfigurationError
-        current_key = self.keys.get_current()
-        if not current_key:
-            raise ConfigurationError(
-                "API key must be provided either directly or via KeyRotator.",
-                error_code="NO_CURRENT_API_KEY",
-            )
-        return current_key
+
 
     @abstractmethod
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:

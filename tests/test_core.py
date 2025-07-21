@@ -133,10 +133,10 @@ class TestAgent:
         agent = Agent("test")
         
         # Should have memory backend
-        assert agent.workflow.memory is not None
+        assert agent.flow.memory is not None
         
         # Should have Recall tool in tools
-        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        recall_tools = [tool for tool in agent.flow.tools if isinstance(tool, Recall)]
         assert len(recall_tools) == 1
     
     def test_agent_memory_flag_explicit_true(self):
@@ -147,10 +147,10 @@ class TestAgent:
         agent = Agent("test", memory=True)
         
         # Should have memory backend
-        assert agent.workflow.memory is not None
+        assert agent.flow.memory is not None
         
         # Should have Recall tool in tools
-        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        recall_tools = [tool for tool in agent.flow.tools if isinstance(tool, Recall)]
         assert len(recall_tools) == 1
     
     def test_agent_memory_flag_disabled(self):
@@ -161,10 +161,10 @@ class TestAgent:
         agent = Agent("test", memory=False)
         
         # Should have no memory backend
-        assert agent.workflow.memory is None
+        assert agent.flow.memory is None
         
         # Should not have Recall tool in tools
-        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        recall_tools = [tool for tool in agent.flow.tools if isinstance(tool, Recall)]
         assert len(recall_tools) == 0
     
     def test_agent_memory_flag_with_custom_tools(self):
@@ -177,11 +177,11 @@ class TestAgent:
         agent = Agent("test", memory=True, tools=[Calculator()])
         
         # Should have memory backend
-        assert agent.workflow.memory is not None
+        assert agent.flow.memory is not None
         
         # Should have both Calculator and Recall tools
-        calc_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Calculator)]
-        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        calc_tools = [tool for tool in agent.flow.tools if isinstance(tool, Calculator)]
+        recall_tools = [tool for tool in agent.flow.tools if isinstance(tool, Recall)]
         assert len(calc_tools) == 1
         assert len(recall_tools) == 1
         
@@ -189,10 +189,10 @@ class TestAgent:
         agent = Agent("test", memory=False, tools=[Calculator()])
         
         # Should have no memory backend
-        assert agent.workflow.memory is None
+        assert agent.flow.memory is None
         
         # Should have only Calculator tool, no Recall
-        calc_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Calculator)]
-        recall_tools = [tool for tool in agent.workflow.tools if isinstance(tool, Recall)]
+        calc_tools = [tool for tool in agent.flow.tools if isinstance(tool, Calculator)]
+        recall_tools = [tool for tool in agent.flow.tools if isinstance(tool, Recall)]
         assert len(calc_tools) == 1
         assert len(recall_tools) == 0

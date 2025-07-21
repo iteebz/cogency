@@ -35,53 +35,37 @@ class SafeConfig:
     max_delay: float = 10.0
 
 
-def safe(config: SafeConfig = None):
-    """
-    @safe decorator - adds LLM resilience (timeout + retry).
-    
-    Usage:
-        @safe()
-        async def my_llm_call():
-            return await openai.chat.completions.create(...)
-    
-    Features:
-        - Retry with exponential backoff (3 attempts)
-        - Timeout protection (30s default)
-        - Graceful error messages
-    """
-    if config is None:
-        config = SafeConfig()
-    
-    def decorator(func: Callable[..., Awaitable[Any]]) -> Callable[..., Awaitable[Any]]:
-        @wraps(func)
-        async def wrapper(*args, **kwargs):
-            # Retry loop with exponential backoff
-            for attempt in range(config.max_retries):
-                try:
-                    # Execute with timeout protection
-                    result = await asyncio.wait_for(
-                        func(*args, **kwargs),
-                        timeout=config.timeout
-                    )
-                    return result
-                    
-                except asyncio.TimeoutError:
-                    if attempt == config.max_retries - 1:
-                        return "I'm having trouble processing that request right now. Please try again."
-                    
-                except Exception:
-                    if attempt == config.max_retries - 1:
-                        return "Something went wrong while processing your request. Please try again."
-                
-                # Exponential backoff with jitter (prevents thundering herd)
-                if attempt < config.max_retries - 1:
-                    delay = min(config.max_delay, config.base_delay * (2 ** attempt))
-                    delay *= (0.5 + 0.5 * random.random())  # Add jitter
-                    await asyncio.sleep(delay)
-            
-            return "Unable to process your request after multiple attempts. Please try again later."
-        
-        return wrapper
+def safe(max_retries: int = 3, backoff_factor: float = 2.0):
+    """@safe decorator for LLM calls - handles both run() and stream()."""
+    def decorator(func):
+        # Check function name to determine type
+        if func.__name__ == 'stream':
+            # Stream method - async generator
+            @wraps(func)
+            async def stream_wrapper(*args, **kwargs):
+                for attempt in range(max_retries):
+                    try:
+                        async for chunk in func(*args, **kwargs):
+                            yield chunk
+                        return
+                    except Exception as e:
+                        if attempt == max_retries - 1:
+                            yield f"Stream error after {max_retries} attempts: {str(e)}"
+                            return
+                        await asyncio.sleep(backoff_factor ** attempt)
+            return stream_wrapper
+        else:
+            # Run method - async function returning string
+            @wraps(func)
+            async def run_wrapper(*args, **kwargs):
+                for attempt in range(max_retries):
+                    try:
+                        return await func(*args, **kwargs)
+                    except Exception as e:
+                        if attempt == max_retries - 1:
+                            return f"Error after {max_retries} attempts: {str(e)}"
+                        await asyncio.sleep(backoff_factor ** attempt)
+            return run_wrapper
     return decorator
 
 

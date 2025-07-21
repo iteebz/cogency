@@ -26,12 +26,13 @@ DEFAULT_ROUTING_TABLE = {
 class Flow:
     """Abstracts LangGraph complexity for magical Agent DX."""
     
-    def __init__(self, llm, tools, memory: MemoryBackend, routing_table: Optional[Dict] = None, response_shaper: Optional[Dict[str, Any]] = None, system_prompt: Optional[str] = None):
+    def __init__(self, llm, tools, memory: MemoryBackend, routing_table: Optional[Dict] = None, identity: Optional[str] = None, json_schema: Optional[str] = None, system_prompt: Optional[str] = None):
         self.llm = llm
         self.tools = tools
         self.memory = memory
         self.routing_table = routing_table or DEFAULT_ROUTING_TABLE
-        self.response_shaper = response_shaper or {}
+        self.identity = identity
+        self.json_schema = json_schema
         self.system_prompt = system_prompt
         self.flow = self._build_graph()
     
@@ -44,7 +45,7 @@ class Flow:
             "preprocess": partial(preprocess_node, llm=self.llm, tools=self.tools, memory=self.memory, system_prompt=self.system_prompt),
             "reason": partial(reason_node, llm=self.llm, tools=self.tools, system_prompt=self.system_prompt),
             "act": partial(act_node, tools=self.tools),
-            "respond": partial(respond_node, llm=self.llm, system_prompt=self.system_prompt, response_shaper=self.response_shaper)
+            "respond": partial(respond_node, llm=self.llm, system_prompt=self.system_prompt, identity=self.identity, json_schema=self.json_schema)
         }
         
         # Add nodes to flow

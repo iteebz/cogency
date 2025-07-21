@@ -6,8 +6,6 @@ except ImportError:
     raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`")
 
 from cogency.llm.base import BaseLLM
-from cogency.utils.keys import KeyManager
-from cogency.errors import ConfigurationError
 from cogency.resilience import safe
 
 
@@ -22,9 +20,7 @@ class MistralLLM(BaseLLM):
         max_retries: int = 3,
         **kwargs,
     ):
-        # Beautiful unified key management - auto-detects, handles all scenarios
-        self.keys = KeyManager.for_provider("mistral", api_keys)
-        super().__init__(self.keys.api_key, self.keys.key_rotator)
+        super().__init__("mistral", api_keys)
         self.model = model
 
         # Configuration parameters
@@ -40,30 +36,18 @@ class MistralLLM(BaseLLM):
             **kwargs,
         }
 
-        self._client: Optional[Mistral] = None
-        self._init_client()  # Initialize the client
-
-    def _init_client(self):
-        """Initializes the Mistral client based on the active key."""
-        current_key = self._ensure_current_key()
-        self._client = Mistral(api_key=current_key)
-
     def _get_client(self):
-        """Get client instance."""
-        return self._client
-
-    def _rotate_client(self):
-        """Rotate to the next key and re-initialize the client."""
-        if self.keys.has_multiple():
-            self._init_client()
+        """Get client instance with current API key."""
+        key = self.get_api_key()
+        return Mistral(api_key=key)
 
 
     @safe()
-    async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        self._rotate_client()
+    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        client = self._get_client()
         mistral_messages = self._convert_msgs(messages)
 
-        res = await self._client.chat.complete_async(
+        res = await client.chat.complete_async(
             model=self.model,
             messages=mistral_messages,
             **self.kwargs,
@@ -73,10 +57,10 @@ class MistralLLM(BaseLLM):
 
     @safe()
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        self._rotate_client()
+        client = self._get_client()
         mistral_messages = self._convert_msgs(messages)
 
-        stream = await self._client.chat.stream_async(
+        stream = await client.chat.stream_async(
             model=self.model,
             messages=mistral_messages,
             **self.kwargs,

@@ -73,7 +73,7 @@ Return JSON:
   "reasoning": "brief explanation"
 }}"""
 
-        response = await llm.invoke([{"role": "user", "content": prompt}])
+        response = await llm.run([{"role": "user", "content": prompt}])
         
         fallback = {
             "memory": None, 

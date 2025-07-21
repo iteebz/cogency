@@ -1,4 +1,4 @@
-"""Test end-to-end workflow: preprocess → reason → act → respond."""
+"""Test end-to-end flow: preprocess → reason → act → respond."""
 import pytest
 from unittest.mock import AsyncMock, Mock
 
@@ -9,14 +9,14 @@ from cogency.utils.parsing import extract_json_from_response, extract_tool_calls
 from cogency.types import AgentState, ReasoningDecision
 
 
-class TestWorkflowNodes:
-    """Test individual workflow nodes."""
+class TestFlowNodes:
+    """Test individual flow nodes."""
     
     @pytest.mark.asyncio
     async def test_reason_node_can_answer_directly(self, agent_state, mock_llm, tools):
         """Reason node should detect when it can answer directly."""
         # Mock LLM to return a direct response - no tool_calls means direct response
-        mock_llm.invoke = AsyncMock(return_value="""
+        mock_llm.run = AsyncMock(return_value="""
         {"reasoning": "I can answer this directly without tools."}
         """)
         
@@ -34,7 +34,7 @@ class TestWorkflowNodes:
     async def test_reason_node_needs_tools(self, agent_state, mock_llm, tools):
         """Reason node should detect when tools are needed."""
         # Mock LLM to request tool usage - using new format with tool_calls array
-        mock_llm.invoke = AsyncMock(return_value="""
+        mock_llm.run = AsyncMock(return_value="""
         {"reasoning": "I need to use a tool first.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}
         """)
         
@@ -83,14 +83,14 @@ class TestWorkflowNodes:
         assert result_state["final_response"] is not None
 
 
-class TestWorkflowIntegration:
-    """Test complete workflow integration."""
+class TestFlowIntegration:
+    """Test complete flow integration."""
     
     @pytest.mark.asyncio
     async def test_simple_direct_response_flow(self, agent_state, mock_llm, tools):
-        """Test workflow when no tools are needed."""
+        """Test flow when no tools are needed."""
         # Mock reasoning to respond directly - no tool_calls means direct response
-        mock_llm.invoke = AsyncMock(return_value="""
+        mock_llm.run = AsyncMock(return_value="""
         {"reasoning": "This is a simple greeting, I can respond directly."}
         """)
         
@@ -104,9 +104,9 @@ class TestWorkflowIntegration:
     
     @pytest.mark.asyncio
     async def test_tool_usage_flow(self, agent_state, mock_llm, tools):
-        """Test workflow when tools are needed."""
+        """Test flow when tools are needed."""
         # Mock reasoning to request calculator - using new format
-        mock_llm.invoke = AsyncMock(return_value="""
+        mock_llm.run = AsyncMock(return_value="""
         {"reasoning": "I need to use a tool for the user.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}
         """)
         
@@ -122,7 +122,7 @@ class TestWorkflowIntegration:
         assert state["execution_results"]["results"][0]["result"] == "mock_result"
         
         # Mock reasoning after tool execution - using new format
-        mock_llm.invoke = AsyncMock(return_value="""
+        mock_llm.run = AsyncMock(return_value="""
         {"reasoning": "Great, I got the calculation result. Now I can respond."}
         """)
         
@@ -195,7 +195,7 @@ class TestAdaptiveReasoning:
         agent_state["current_iteration"] = 5  # At max limit
         agent_state["max_iterations"] = 5
         
-        mock_llm.invoke = AsyncMock(return_value="""
+        mock_llm.run = AsyncMock(return_value="""
         {"reasoning": "I need to use tools.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}
         """)
         
@@ -206,8 +206,8 @@ class TestAdaptiveReasoning:
         assert result_state["stopping_reason"] == "max_iterations_reached"
 
 
-class TestWorkflowErrorHandling:
-    """Test workflow error handling and recovery."""
+class TestFlowErrorHandling:
+    """Test flow error handling and recovery."""
     
     @pytest.mark.asyncio
     async def test_tool_execution_error_handling(self, agent_state, tools):
@@ -231,7 +231,7 @@ class TestWorkflowErrorHandling:
     async def test_malformed_reasoning_fallback(self, agent_state, mock_llm, tools):
         """Should handle malformed LLM responses gracefully."""
         # Mock LLM to return malformed JSON
-        mock_llm.invoke = AsyncMock(return_value="This is not valid JSON at all")
+        mock_llm.run = AsyncMock(return_value="This is not valid JSON at all")
         
         result_state = await reason_node(agent_state, llm=mock_llm, tools=tools)
         

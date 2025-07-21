@@ -46,10 +46,11 @@ Agents automatically save important information and recall it when relevant:
 
 ```python
 # This conversation will be remembered
-await agent.query("My favorite color is blue")
+from cogency.stream import stream_print
+await stream_print(agent.stream("My favorite color is blue"))
 
 # Later, the agent will recall this when relevant
-await agent.query("What's my favorite color?")
+await stream_print(agent.stream("What's my favorite color?"))
 # Agent remembers: "Your favorite color is blue"
 ```
 

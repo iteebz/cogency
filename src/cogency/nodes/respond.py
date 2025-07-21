@@ -8,12 +8,20 @@ from cogency.tracing import trace_node
 from cogency.messaging import AgentMessenger
 
 
-def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results: bool = False) -> str:
-    """Build response prompt with optional system prompt integration."""
+def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results: bool = False, identity: Optional[str] = None, json_schema: Optional[str] = None) -> str:
+    """Build clean system prompt with identity and optional JSON schema."""
     if has_tool_results:
         base_prompt = "Generate final response based on context and tool results.\nBe conversational and helpful. Incorporate all relevant information."
     else:
         base_prompt = "Answer the user's question directly and conversationally using your knowledge."
+    
+    # Simple identity
+    if identity:
+        base_prompt = f"You are {identity}. {base_prompt}"
+    
+    # JSON schema if provided
+    if json_schema:
+        base_prompt += f"\n\nRespond with valid JSON matching this schema:\n{json_schema}"
     
     if system_prompt:
         return f"{system_prompt}\n\n{base_prompt}"
@@ -21,51 +29,10 @@ def build_response_prompt(system_prompt: Optional[str] = None, has_tool_results:
     return base_prompt
 
 
-async def shape_response(
-    raw_response: str,
-    llm: BaseLLM,
-    config: Optional[Dict[str, Any]] = None
-) -> str:
-    """Shape response according to config. Returns raw response if no config."""
-    if not config:
-        return raw_response
-
-    # Build shaping prompt from config
-    prompt_parts = ["Transform the following response according to these specifications:"]
-
-    # Format transformation
-    if "format" in config:
-        format_type = config["format"]
-        if format_type == "markdown":
-            prompt_parts.append("- Format as clean markdown")
-        elif format_type == "html":
-            prompt_parts.append("- Format as semantic HTML")
-
-    # Tone and style
-    if "tone" in config:
-        prompt_parts.append(f"- Use {config['tone']} tone")
-    if "style" in config:
-        prompt_parts.append(f"- Apply {config['style']} style")
-    if "personality" in config:
-        prompt_parts.append(f"- Personality: {config['personality']}")
-
-    # Constraints and transformations
-    for key in ["constraints", "transformations"]:
-        if key in config:
-            for item in config[key]:
-                prompt_parts.append(f"- {item.replace('-', ' ').title()}")
-
-    shaping_prompt = "\n".join(prompt_parts)
-    messages = [
-        {"role": "system", "content": shaping_prompt},
-        {"role": "user", "content": f"Transform this response:\n\n{raw_response}"}
-    ]
-
-    return await llm.invoke(messages)
 
 
 @trace_node("respond")
-async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Optional[str] = None, response_shaper: Optional[Dict[str, Any]] = None, config: Optional[Dict] = None) -> AgentState:
+async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Optional[str] = None, identity: Optional[str] = None, json_schema: Optional[str] = None, config: Optional[Dict] = None) -> AgentState:
     """Respond: generate final formatted response with personality."""
     context = state["context"]
     
@@ -88,40 +55,46 @@ async def respond_node(state: AgentState, *, llm: BaseLLM, system_prompt: Option
         
         final_messages.insert(0, {"role": "system", "content": fallback_prompt})
         try:
-            final_response = await llm.invoke(final_messages)
+            # Stream the fallback response
+            final_response = ""
+            async for chunk in llm.stream(final_messages):
+                final_response += chunk
+                if streaming_callback:
+                    await streaming_callback(chunk)
         except Exception as e:
             # Handle LLM errors in fallback response generation
             final_response = f"I apologize, but I encountered a technical issue while preparing my response: {str(e)}. Let me try to help based on what we discussed."
+            if streaming_callback:
+                await streaming_callback(final_response)
     else:
         # Generate response based on context and any tool results
         execution_results = state.get("execution_results", {})
         if execution_results and execution_results.get("success"):
-            response_prompt = build_response_prompt(system_prompt, has_tool_results=True)
+            response_prompt = build_response_prompt(system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema)
         elif execution_results and not execution_results.get("success"):
             response_prompt = "Generate helpful response acknowledging tool failures and providing alternatives."
             if system_prompt:
                 response_prompt = f"{system_prompt}\n\n{response_prompt}"
         else:
             # No tool results - answer with knowledge or based on conversation
-            response_prompt = build_response_prompt(system_prompt, has_tool_results=False)
+            response_prompt = build_response_prompt(system_prompt, has_tool_results=False, identity=identity, json_schema=json_schema)
         
         final_messages.insert(0, {"role": "system", "content": response_prompt})
         try:
-            final_response = await llm.invoke(final_messages)
+            # Stream the main response
+            final_response = ""
+            async for chunk in llm.stream(final_messages):
+                final_response += chunk
+                if streaming_callback:
+                    await streaming_callback(chunk)
         except Exception as e:
             # Handle LLM errors in response generation
             final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
+            if streaming_callback:
+                await streaming_callback(final_response)
     
     # Add response to context
     context.add_message("assistant", final_response)
-    
-    # Apply response shaping if configured
-    if response_shaper:
-        final_response = await shape_response(final_response, llm, response_shaper)
-    
-    # Stream final agent response
-    if streaming_callback:
-        await AgentMessenger.agent_response(streaming_callback, final_response)
     
     # Update state with final results
     state["context"] = context

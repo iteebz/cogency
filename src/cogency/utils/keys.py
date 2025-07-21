@@ -1,6 +1,7 @@
 """Unified key management for all LLM providers - eliminates DRY violations."""
 import os
 import itertools
+import random
 from typing import List, Optional, Union
 from cogency.errors import ConfigurationError
 
@@ -10,18 +11,26 @@ class KeyRotator:
 
     def __init__(self, keys: List[str]):
         self.keys = list(keys)
+        # Start with random key
+        random.shuffle(self.keys)
         self.cycle = itertools.cycle(self.keys)
         self.current_key: Optional[str] = None
-
-    def get_key(self) -> str:
-        """Get next key in rotation."""
+        # Initialize with first key
         self.current_key = next(self.cycle)
+
+    def get_next_key(self) -> str:
+        """Get next key in rotation - advances every call."""
+        self.current_key = next(self.cycle)
+        return self.current_key
+    
+    def get_current_key(self) -> str:
+        """Get current key without advancing."""
         return self.current_key
     
     def rotate_key(self) -> str:
         """Rotate to next key immediately. Returns feedback."""
         old_key = self.current_key
-        self.get_key()
+        self.get_next_key()
         old_suffix = old_key[-8:] if old_key else "unknown"
         new_suffix = self.current_key[-8:] if self.current_key else "unknown"
         return f"Key *{old_suffix} rate limited, rotating to *{new_suffix}"
@@ -78,7 +87,13 @@ class KeyManager:
     def get_current(self) -> str:
         """Get the current active key."""
         if self.key_rotator:
-            return self.key_rotator.get_key()
+            return self.key_rotator.get_current_key()
+        return self.api_key
+
+    def get_next(self) -> str:
+        """Get next key in rotation - advances every call."""
+        if self.key_rotator:
+            return self.key_rotator.get_next_key()
         return self.api_key
 
     def rotate_key(self) -> Optional[str]:

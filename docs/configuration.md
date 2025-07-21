@@ -73,10 +73,11 @@ agent = Agent("assistant", tools=[])
 
 ```python
 # Different users get separate contexts and memory
-await agent.query("Remember I like Python", user_id="alice")
-await agent.query("Remember I like JavaScript", user_id="bob")
+from cogency.stream import stream_print
+await stream_print(agent.stream("Remember I like Python", user_id="alice"))
+await stream_print(agent.stream("Remember I like JavaScript", user_id="bob"))
 
 # Each user's preferences are kept separate
-await agent.query("What do I like?", user_id="alice")  # "You like Python"
-await agent.query("What do I like?", user_id="bob")    # "You like JavaScript"
+await stream_print(agent.stream("What do I like?", user_id="alice"))  # "You like Python"
+await stream_print(agent.stream("What do I like?", user_id="bob"))    # "You like JavaScript"
 ```

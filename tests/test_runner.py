@@ -3,17 +3,17 @@ import pytest
 import asyncio
 from unittest.mock import AsyncMock, Mock
 
-from cogency.runner import StreamingRunner, WorkflowRunner
+from cogency.runner import StreamingRunner, FlowRunner
 from cogency.types import AgentState
 
 
-class TestWorkflowRunner:
+class TestFlowRunner:
     """Test basic workflow execution."""
     
     @pytest.mark.asyncio
     async def test_basic_execution(self, agent_state):
         """Basic execution should work without errors."""
-        runner = WorkflowRunner()
+        runner = FlowRunner()
         
         # Mock workflow that completes successfully
         mock_workflow = Mock()
@@ -26,7 +26,7 @@ class TestWorkflowRunner:
     @pytest.mark.asyncio
     async def test_execution_with_callback(self, agent_state):
         """Execution with streaming callback should work."""
-        runner = WorkflowRunner()
+        runner = FlowRunner()
         
         # Mock workflow that completes successfully
         mock_workflow = Mock()

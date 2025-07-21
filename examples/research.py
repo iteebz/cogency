@@ -2,20 +2,19 @@
 """Multi-Tool Coordination - Flagship ReAct Demo"""
 import asyncio
 from cogency import Agent
+from cogency.utils.terminal import demo_header, stream_response, section, showcase, separator
 
 async def main():
-    print("🔍 Cogency Research Demo")
-    print("=" * 35)
+    demo_header("🔍 Cogency Research Demo", 35)
     
     # Create research agent with focused tool subset
     from cogency.tools import Search, Scrape, Files, Calculator
     agent = Agent("research_assistant",
-        personality="thorough research analyst",
-        tone="analytical and comprehensive",
+        identity="thorough research analyst",
         tools=[Search(), Scrape(), Files(), Calculator()]  # Perfect research toolkit
     )
     
-    print("\n=== Complex Research Query ===")
+    section("Complex Research Query")
     query = """I need a comprehensive analysis of Python's current market position:
     
     1. Search for Python's popularity ranking among programming languages in 2024
@@ -27,16 +26,17 @@ async def main():
     Provide a structured summary with sources and calculations.
     """
     
-    await agent.query(query)
+    await stream_response(agent.stream(query))
     
-    print("\n" + "=" * 50)
-    print("🎯 This demo showcases:")
-    print("   • Multi-step reasoning")
-    print("   • Intelligent tool selection") 
-    print("   • Sequential tool dependencies")
-    print("   • Web content extraction")
-    print("   • Information synthesis")
-    print("   • File output generation")
+    separator()
+    showcase("🎯 This demo showcases:", [
+        "Multi-step reasoning",
+        "Intelligent tool selection",
+        "Sequential tool dependencies", 
+        "Web content extraction",
+        "Information synthesis",
+        "File output generation"
+    ])
 
 if __name__ == "__main__":
     asyncio.run(main())

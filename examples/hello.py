@@ -1,41 +1,50 @@
 #!/usr/bin/env python3
-"""Hello World - Conversation + Response Shaping"""
+"""Hello World - Character Demo with Sherlock Holmes"""
 import asyncio
 from cogency import Agent
+from cogency.utils.terminal import demo_header, stream_response, section
 
 async def main():
-    print("🔥 Cogency Hello World Demo")
-    print("=" * 40)
+    demo_header("🔥 Cogency Character Demo")
+
+    user = "👤 HUMAN: "
+    sherlock = "🕵️ SHERLOCK: "
+
+    # Sherlock Holmes character
+    agent = Agent("Sherlock", 
+        identity="""Sherlock Holmes, the famous detective.
+        Speak in his distinctive Victorian style with deductive reasoning.
+        Keep responses concise and brilliant.
+        Always respond with plain text only, no markdown formatting""",
+        tools=[], 
+        memory=False)
     
-    # 1. Vanilla Agent
-    print("\n=== Vanilla Agent ===")
-    vanilla_agent = Agent("assistant", tools=[])  # No tools - pure conversation
-    await vanilla_agent.query("Tell me a fun fact about the Roman Empire.")
+    # Mystery deduction
+    query_1 = "I found a muddy footprint by my window this morning. What happened?"
+    print(f"\n{user}{query_1}\n")
+    await stream_response(agent.stream(query_1), prefix=sherlock)
     
-    # 2. Response Shaping Demo
-    print("\n=== Response Shaping Demo ===")
-    mentor_agent = Agent("coding_mentor",
-        personality="experienced coding mentor who loves teaching",
-        tone="encouraging and practical", 
-        style="step-by-step guidance with examples",
-        tools=[]  # No tools - focus on personality/response shaping
-    )
-    await mentor_agent.query("How should I start learning Python?")
+    # Quick observation
+    query_2 = "Someone left coffee rings on my desk. Who was here?"
+    print(f"\n\n{user}{query_2}\n")
+    await stream_response(agent.stream(query_2), prefix=sherlock)
     
-    # 3. Interactive Chat Loop
-    print("\n=== Interactive Chat (type 'quit' to exit) ===")
+    # Interactive detective session
+    print("\n")
+    section("Detective Session with Holmes (type 'quit' to exit)")
+    print("🔍 Present your mysteries to the great detective...")
+    
     while True:
         try:
-            user_input = input("\n👤 ").strip()
+            user_input = input(f"\n\n{user}").strip()
             if user_input.lower() in ['quit', 'exit', 'q']:
-                print("👋 Goodbye!")
+                print("👋 Good day!")
                 break
-            
             if user_input:
-                await mentor_agent.query(user_input)
-                
+                print()
+                await stream_response(agent.stream(user_input), prefix=sherlock)
         except KeyboardInterrupt:
-            print("\n👋 Goodbye!")
+            print("\n👋 Good day!")
             break
 
 if __name__ == "__main__":

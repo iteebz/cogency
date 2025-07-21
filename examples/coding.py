@@ -3,19 +3,18 @@
 import asyncio
 from cogency import Agent
 from cogency.tools import Shell, Files, Code
+from cogency.utils.terminal import demo_header, stream_response, section, showcase, separator
 
 async def main():
-    print("🚀 Cogency Coding Demo")
-    print("=" * 30)
+    demo_header("🚀 Cogency Coding Demo", 30)
     
     # Create specialized coding agent with focused tool subset
     coding_agent = Agent("coding_assistant",
-        personality="expert Python developer and code reviewer",
-        tone="precise and helpful",
+        identity="expert Python developer and code reviewer",
         tools=[Code(), Files(), Shell()]  # Focused coding environment
     )
     
-    print("\n=== Complete Coding Workflow ===")
+    section("Complete Coding Workflow")
     query = """Create a complete Bitcoin price tracker:
     
     1. Write a Python script that fetches the current Bitcoin price from the CoinDesk API
@@ -28,16 +27,17 @@ async def main():
     Make the code clean, well-commented, and production-ready.
     """
     
-    await coding_agent.query(query)
+    await stream_response(coding_agent.stream(query))
     
-    print("\n" + "=" * 50)
-    print("🎯 This demo showcases:")
-    print("   • Code generation")
-    print("   • File I/O operations") 
-    print("   • Code execution")
-    print("   • Error handling")
-    print("   • Tool subsetting")
-    print("   • Complete development workflow")
+    separator()
+    showcase("🎯 This demo showcases:", [
+        "Code generation",
+        "File I/O operations",
+        "Code execution",
+        "Error handling", 
+        "Tool subsetting",
+        "Complete development workflow"
+    ])
 
 if __name__ == "__main__":
     asyncio.run(main())

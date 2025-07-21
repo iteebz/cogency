@@ -66,7 +66,8 @@ from cogency import Agent
 
 # Tools auto-register, so just create your agent
 agent = Agent("assistant")
-await agent.query("Use my_tool with hello")
+from cogency.stream import stream_print
+await stream_print(agent.stream("Use my_tool with hello"))
 
 # Or specify tools explicitly
 agent = Agent("assistant", tools=[MyTool(), MemoryTool()])

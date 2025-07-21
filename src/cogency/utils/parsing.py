@@ -7,7 +7,7 @@ from cogency.utils.json import extract_json
 
 async def call_llm_simple(llm, messages: List[Dict[str, str]]) -> str:
     """Call LLM and return response. That's it."""
-    return await llm.invoke(messages)
+    return await llm.run(messages)
 
 
 def extract_json_from_response(response: str) -> Optional[Dict[str, Any]]:

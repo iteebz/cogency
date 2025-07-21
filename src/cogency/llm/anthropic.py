@@ -6,8 +6,6 @@ except ImportError:
     raise ImportError("Anthropic support not installed. Use `pip install cogency[anthropic]`")
 
 from cogency.llm.base import BaseLLM
-from cogency.utils.keys import KeyManager
-from cogency.errors import ConfigurationError
 from cogency.resilience import safe
 
 
@@ -22,9 +20,7 @@ class AnthropicLLM(BaseLLM):
         max_retries: int = 3,
         **kwargs,
     ):
-        # Beautiful unified key management - auto-detects, handles all scenarios
-        self.keys = KeyManager.for_provider("anthropic", api_keys)
-        super().__init__(self.keys.api_key, self.keys.key_rotator)
+        super().__init__("anthropic", api_keys)
         self.model = model
 
         # Configuration parameters
@@ -42,30 +38,21 @@ class AnthropicLLM(BaseLLM):
             **kwargs,
         }
 
-        self._client: Optional[anthropic.AsyncAnthropic] = None
-        self._init_client()  # Initialize the client
-
-    def _init_client(self):
-        """Initializes the Anthropic client based on the active key."""
-        current_key = self._ensure_current_key()
-        self._client = anthropic.AsyncAnthropic(api_key=current_key)
+        self._client = anthropic.AsyncAnthropic(api_key="placeholder")
 
     def _get_client(self):
-        """Get client instance."""
+        """Get client instance with current API key."""
+        # Update the API key on the existing client
+        self._client.api_key = self.get_api_key()
         return self._client
-
-    def _rotate_client(self):
-        """Rotate to the next key and re-initialize the client."""
-        if self.keys.has_multiple():
-            self._init_client()
 
 
     @safe()
-    async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        self._rotate_client()
+    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        client = self._get_client()
         anthropic_messages = self._convert_msgs(messages)
 
-        res = await self._client.messages.create(
+        res = await client.messages.create(
             model=self.model,
             messages=anthropic_messages,
             **self.kwargs,
@@ -75,10 +62,10 @@ class AnthropicLLM(BaseLLM):
 
     @safe()
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
-        self._rotate_client()
+        client = self._get_client()
         anthropic_messages = self._convert_msgs(messages)
 
-        async with self._client.messages.stream(
+        async with client.messages.stream(
             model=self.model,
             messages=anthropic_messages,
             **self.kwargs,
