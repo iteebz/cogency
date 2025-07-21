@@ -46,13 +46,7 @@ class GeminiLLM(BaseLLM):
 
     def _init_current_model(self):
         """Initializes or retrieves the current model instance based on the active key."""
-        current_key = self.keys.get_current()
-
-        if not current_key:
-            raise ConfigurationError(
-                "API key must be provided either directly or via KeyRotator.",
-                error_code="NO_CURRENT_API_KEY",
-            )
+        current_key = self._ensure_current_key()
 
         if current_key not in self._model_instances:
             genai.configure(api_key=current_key)

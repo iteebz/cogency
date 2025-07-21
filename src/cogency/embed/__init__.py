@@ -25,3 +25,10 @@ try:
     __all__.append("SentenceEmbed")
 except ImportError:
     pass
+
+# Mistral embeddings
+try:
+    from .mistral import MistralEmbed
+    __all__.append("MistralEmbed")
+except ImportError:
+    pass

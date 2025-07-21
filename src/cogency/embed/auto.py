@@ -32,6 +32,13 @@ def auto_detect_embedder() -> BaseEmbed:
         provider_map["nomic"] = NomicEmbed
     except ImportError:
         pass
+    
+    # Try Mistral
+    try:
+        from .mistral import MistralEmbed
+        provider_map["mistral"] = MistralEmbed
+    except ImportError:
+        pass
 
     for provider_name, embedder_class in provider_map.items():
         api_keys = get_api_keys(provider_name)
@@ -52,6 +59,7 @@ def auto_detect_embedder() -> BaseEmbed:
             "No embedding providers installed. Install at least one:\n"
             "  - pip install cogency[openai]\n"
             "  - pip install cogency[nomic]\n"
+            "  - pip install cogency[mistral]\n"
             "  - pip install cogency[sentence-transformers]"
         )
     
@@ -60,5 +68,6 @@ def auto_detect_embedder() -> BaseEmbed:
         "Set an API key for one of the supported providers:\n"
         "  - OPENAI_API_KEY\n"
         "  - NOMIC_API_KEY\n"
+        "  - MISTRAL_API_KEY\n"
         "or install sentence-transformers: pip install cogency[sentence-transformers]"
     )

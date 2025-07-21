@@ -46,12 +46,7 @@ class OpenAILLM(BaseLLM):
 
     def _init_client(self):
         """Init OpenAI client."""
-        key = self.keys.get_current()
-        if not key:
-            raise ConfigurationError(
-                "API key required.",
-                error_code="NO_CURRENT_API_KEY",
-            )
+        key = self._ensure_current_key()
         self._client = openai.AsyncOpenAI(api_key=key, **self.client_kwargs)
 
     def _get_client(self):
@@ -63,9 +58,6 @@ class OpenAILLM(BaseLLM):
         if self.keys.has_multiple():
             self._init_client()
 
-    def _convert_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
-        """Convert to provider format."""
-        return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
     @safe()
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:

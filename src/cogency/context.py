@@ -14,7 +14,7 @@ SYSTEM_PREFIXES = ("TOOL_CALL:",)
 
 
 # Context: Conversation state (user input + message history)
-# AgentState: LangGraph workflow state container (includes Context + execution trace)
+# AgentState: LangGraph flow state container (includes Context + execution trace)
 class Context:
     """Agent operational context."""
 

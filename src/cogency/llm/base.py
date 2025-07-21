@@ -48,6 +48,21 @@ class BaseLLM(ABC):
         """LangGraph compatibility method - wrapper around invoke()."""
         return await self.invoke(messages, **kwargs)
 
+    def _convert_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
+        """Convert to provider format (standard role/content structure)."""
+        return [{"role": m["role"], "content": m["content"]} for m in msgs]
+
+    def _ensure_current_key(self) -> str:
+        """Validate and return current API key, raising ConfigurationError if missing."""
+        from cogency.errors import ConfigurationError
+        current_key = self.keys.get_current()
+        if not current_key:
+            raise ConfigurationError(
+                "API key must be provided either directly or via KeyRotator.",
+                error_code="NO_CURRENT_API_KEY",
+            )
+        return current_key
+
     @abstractmethod
     async def stream(self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs) -> AsyncIterator[str]:
         """Generate a streaming response from the LLM given a list of messages.

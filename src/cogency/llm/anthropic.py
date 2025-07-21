@@ -47,14 +47,7 @@ class AnthropicLLM(BaseLLM):
 
     def _init_client(self):
         """Initializes the Anthropic client based on the active key."""
-        current_key = self.keys.get_current()
-
-        if not current_key:
-            raise ConfigurationError(
-                "API key must be provided either directly or via KeyRotator.",
-                error_code="NO_CURRENT_API_KEY",
-            )
-
+        current_key = self._ensure_current_key()
         self._client = anthropic.AsyncAnthropic(api_key=current_key)
 
     def _get_client(self):
@@ -66,9 +59,6 @@ class AnthropicLLM(BaseLLM):
         if self.keys.has_multiple():
             self._init_client()
 
-    def _convert_msgs(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
-        """Convert to provider format."""
-        return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
     @safe()
     async def invoke(self, messages: List[Dict[str, str]], **kwargs) -> str:

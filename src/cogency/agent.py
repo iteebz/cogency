@@ -1,6 +1,6 @@
 import asyncio
 from typing import Optional, AsyncIterator
-from cogency.workflow import Workflow
+from cogency.flow import Flow
 from cogency.runner import StreamingRunner
 from cogency.messaging import AgentMessenger
 from cogency.context import Context
@@ -85,7 +85,7 @@ class Agent:
         # Get LLM (already @safe protected)
         llm = opts.get('llm') or auto_detect_llm()
         
-        self.workflow = Workflow(
+        self.flow = Flow(
             llm=llm,
             tools=tools,
             memory=memory_backend,
@@ -149,7 +149,7 @@ class Agent:
         
         # Start execution in background
         execution_task = asyncio.create_task(
-            self.runner.stream_execute(self.workflow.workflow, state, streaming_callback)
+            self.runner.stream_execute(self.flow.flow, state, streaming_callback)
         )
         
         # Stream messages as they come
