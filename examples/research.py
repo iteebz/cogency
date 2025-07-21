@@ -15,27 +15,29 @@ async def main():
     )
     
     section("Complex Research Query")
-    query = """I need a comprehensive analysis of Python's current market position:
+    query = """Research the current state of AGI/ASI development and provide a comprehensive analysis:
     
-    1. Search for Python's popularity ranking among programming languages in 2024
-    2. Scrape detailed content from the most relevant survey or report
-    3. Calculate what percentage Python developers represent if there are 28 million total developers globally
-    4. Get the current time and date for this research timestamp
-    5. Save all findings to a file called 'python_market_analysis.txt'
+    1. Search for recent developments in AGI research and timeline predictions (2024-2025)
+    2. Find information about current ASI (Artificial Superintelligence) theoretical frameworks
+    3. Research the "AI singularity" concept and expert predictions
+    4. Investigate both accelerationist and doomerist perspectives on AI development
+    5. Calculate investment trends if you can find funding data for AGI companies
+    6. Save comprehensive findings to 'agi_analysis_2025.txt'
     
-    Provide a structured summary with sources and calculations.
+    Synthesize conflicting expert opinions and present a balanced analysis with sources.
+    This topic requires navigating contested claims, rapid developments, and diverse perspectives.
     """
     
     await stream_response(agent.stream(query))
     
     separator()
     showcase("🎯 This demo showcases:", [
-        "Multi-step reasoning",
-        "Intelligent tool selection",
-        "Sequential tool dependencies", 
-        "Web content extraction",
-        "Information synthesis",
-        "File output generation"
+        "Enhanced cognitive reasoning preventing plan fixation",
+        "Adaptive strategy selection across contested domains", 
+        "Multi-source synthesis with conflicting expert opinions",
+        "Loop detection preventing repetitive search patterns",
+        "Context-aware information synthesis",
+        "Complex research topic navigation"
     ])
 
 if __name__ == "__main__":

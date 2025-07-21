@@ -48,7 +48,7 @@ async def preprocess_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTo
         if state.get("trace"):
             state["trace"].add("preprocess", f"Built tool registry with {len(tools)} tools", {"tool_count": len(tools), "tool_names": [t.name for t in tools]})
         
-        # Single LLM call: routing + memory + tool selection
+        # Single LLM call: routing + memory + tool selection + complexity analysis
         prompt = f"""Query: "{query}"
 
 MEMORY: Extract if user shares facts about themselves or explicitly asks to remember something.
@@ -60,6 +60,10 @@ ROUTING: Decide if you need tools or can respond directly.
 - If you might need ANY tools from the available toolkit → respond_directly: false
 - Only if you're 100% certain you need NO tools → respond_directly: true
 
+COMPLEXITY: If using tools, classify cognitive complexity needed.
+Fast React signals: simple lookup, single search, quick question, direct retrieval
+Deep React signals: analysis, synthesis, comparison, multi-step planning, complex reasoning
+
 TOOL SELECTION: Select tools you might need. You have full freedom to decide.
 Available tools: {registry_lite}
 
@@ -69,6 +73,7 @@ Return JSON:
   "tags": ["tag1", "tag2"] | null,
   "memory_type": "fact",
   "respond_directly": true | false,
+  "react_mode": "fast" | "deep",
   "selected_tools": ["tool1", "tool2"] | [],
   "reasoning": "brief explanation"
 }}"""
@@ -80,6 +85,7 @@ Return JSON:
             "tags": [], 
             "memory_type": "fact", 
             "respond_directly": True,
+            "react_mode": "fast",
             "selected_tools": [],
             "reasoning": ""
         }
@@ -134,12 +140,13 @@ Return JSON:
     state["max_iterations"] = 5
     state["current_iteration"] = 0
     
-    # Chain 5: Simple routing decision 
+    # Chain 5: 3-way routing decision 
     if tools and len(tools) > 0:
         if result.get("respond_directly", True):
             state["next_node"] = "respond"  # Direct response
         else:
             state["next_node"] = "reason"   # Use ReAct workflow
+            state["react_mode"] = result.get("react_mode", "fast")  # Cognitive complexity
     else:
         # No tools available, respond directly
         state["next_node"] = "respond"

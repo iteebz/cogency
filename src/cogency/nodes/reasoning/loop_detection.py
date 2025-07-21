@@ -43,3 +43,25 @@ def detect_action_loop(cognitive_state: Dict[str, Any]) -> bool:
             return True
     
     return False
+
+
+def detect_fast_mode_loop(cognitive_state: Dict[str, Any]) -> bool:
+    """Lightweight loop detection for fast mode - lower threshold."""
+    action_history = cognitive_state.get("action_history", [])
+    
+    # Fast mode: detect loops earlier with just 2 actions
+    if len(action_history) < 2:
+        return False
+    
+    # Check for immediate repetition (A-A)
+    recent_actions = action_history[-2:]
+    if recent_actions[0] == recent_actions[1]:
+        return True
+    
+    # Check for simple alternating pattern with lower threshold
+    if len(action_history) >= 2:
+        # If we see the same action twice in last 2, it's a loop in fast mode
+        if action_history[-1] == action_history[-2]:
+            return True
+    
+    return False

@@ -17,6 +17,25 @@ from cogency.nodes.reasoning import (
     track_failed_attempt,
     REASON_PROMPT
 )
+from cogency.nodes.reasoning.loop_detection import detect_fast_mode_loop
+from cogency.nodes.reasoning.adaptation import (
+    extract_mode_switch,
+    should_switch_modes,
+    execute_mode_switch
+)
+from cogency.nodes.reasoning.reflection import (
+    get_deep_reflection_prompt,
+    extract_reflection_phases,
+    format_reflection_for_display,
+    should_use_reflection
+)
+from cogency.nodes.reasoning.planning import (
+    extract_planning_strategy,
+    validate_planning_quality,
+    create_multi_step_plan,
+    format_plan_for_display
+)
+from cogency.nodes.reasoning.prompts import build_reasoning_prompt
 
 
 
@@ -35,14 +54,22 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     current_iteration = state.get("current_iteration", 0)
     max_iterations = state.get("max_iterations", 5)
     
-    # Initialize cognitive state
-    cognitive_state = initialize_cognitive_state(state)
+    # Initialize cognitive state with adaptive features based on react_mode
+    react_mode = state.get("react_mode", "fast")
+    cognitive_state = initialize_cognitive_state(state, react_mode=react_mode)
     
-    # Enhanced loop detection (with graceful fallback)
-    try:
-        loop_detected = detect_action_loop(cognitive_state)
-    except Exception:
-        loop_detected = False  # Fallback to no loop detection if it fails
+    # Adaptive loop detection based on mode
+    if react_mode == "deep":
+        try:
+            loop_detected = detect_action_loop(cognitive_state)
+        except Exception:
+            loop_detected = False  # Fallback to no loop detection if it fails
+    else:
+        # Fast react: lightweight loop detection with lower threshold
+        try:
+            loop_detected = detect_fast_mode_loop(cognitive_state)
+        except Exception:
+            loop_detected = False  # Fallback gracefully
     
     if current_iteration >= max_iterations:
         # Stop reasoning after max iterations
@@ -76,26 +103,16 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
     failed_attempts = cognitive_state.get("failed_attempts", [])
     attempts_summary = create_attempts_summary(failed_attempts)
     
-    # Enhanced reasoning prompt with cognitive context (graceful degradation)
-    try:
-        reasoning_prompt = REASON_PROMPT.format(
-            tool_names=tool_info,
-            user_input=context.current_input,
-            current_iteration=current_iteration + 1,
-            max_iterations=max_iterations,
-            current_strategy=cognitive_state.get("current_strategy", "initial_approach"),
-            previous_attempts=attempts_summary,
-            last_tool_quality=cognitive_state.get("last_tool_quality", "unknown")
-        )
-    except Exception:
-        # Fallback to simple reasoning if enhanced prompt fails
-        reasoning_prompt = f"""Analyze the conversation and decide your next action.
-        
-        ORIGINAL QUERY: {context.current_input}
-        AVAILABLE TOOLS: {tool_info}
-        
-        Output JSON format: {{"reasoning": "your reasoning", "strategy": "approach_name"}}
-        """
+    # Build adaptive reasoning prompt
+    reasoning_prompt = build_reasoning_prompt(
+        react_mode,
+        current_iteration,
+        tool_info,
+        context.current_input,
+        max_iterations,
+        cognitive_state,
+        attempts_summary
+    )
     
     if system_prompt:
         reasoning_prompt = f"{system_prompt}\n\n{reasoning_prompt}"
@@ -115,6 +132,13 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
             current_strategy = json_data.get("strategy", "unknown") if json_data else "unknown"
         except Exception:
             current_strategy = "fallback_strategy"
+        
+        # Check for bidirectional mode switching
+        switch_to, switch_reason = extract_mode_switch(llm_response)
+        if should_switch_modes(react_mode, switch_to, switch_reason, current_iteration):
+            state = execute_mode_switch(state, switch_to, switch_reason)
+            # Update react_mode for this iteration
+            react_mode = switch_to
         
         # Direct response is implicit when no tool_calls
         can_answer = tool_calls is None or len(tool_calls) == 0
@@ -171,5 +195,7 @@ async def reason_node(state: AgentState, *, llm: BaseLLM, tools: List[BaseTool],
         state["next_node"] = "respond"  # Fallback to respond if no clear action
     
     return state
+
+
 
 

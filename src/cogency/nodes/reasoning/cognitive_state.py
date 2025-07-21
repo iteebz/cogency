@@ -2,15 +2,26 @@
 from typing import Dict, Any, List
 
 
-def initialize_cognitive_state(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Initialize cognitive state with default values."""
-    return state.setdefault("cognitive_state", {
+def initialize_cognitive_state(state: Dict[str, Any], react_mode: str = "fast") -> Dict[str, Any]:
+    """Initialize cognitive state with adaptive features based on react_mode."""
+    default_state = {
         "strategy_history": [],
         "failed_attempts": [],
         "action_history": [],
         "current_strategy": "initial_approach",
-        "last_tool_quality": "unknown"
-    })
+        "last_tool_quality": "unknown",
+        "react_mode": react_mode
+    }
+    
+    # Set memory limits based on react_mode
+    if react_mode == "fast":
+        default_state["max_history"] = 3  # Static FIFO
+        default_state["max_failures"] = 5
+    else:  # deep
+        default_state["max_history"] = 10  # Dynamic relevance
+        default_state["max_failures"] = 15
+        
+    return state.setdefault("cognitive_state", default_state)
 
 
 def update_cognitive_state(
@@ -29,11 +40,22 @@ def update_cognitive_state(
     cognitive_state["strategy_history"] = cognitive_state.get("strategy_history", [])
     cognitive_state["strategy_history"].append(current_strategy)
     
-    # Limit histories to prevent memory bloat
-    if len(cognitive_state["action_history"]) > 10:
-        cognitive_state["action_history"] = cognitive_state["action_history"][-10:]
-    if len(cognitive_state["strategy_history"]) > 5:
-        cognitive_state["strategy_history"] = cognitive_state["strategy_history"][-5:]
+    # Adaptive memory management based on react_mode
+    max_history = cognitive_state.get("max_history", 5)
+    react_mode = cognitive_state.get("react_mode", "fast")
+    
+    if react_mode == "fast":
+        # Simple FIFO truncation
+        if len(cognitive_state["action_history"]) > max_history:
+            cognitive_state["action_history"] = cognitive_state["action_history"][-max_history:]
+        if len(cognitive_state["strategy_history"]) > max_history:
+            cognitive_state["strategy_history"] = cognitive_state["strategy_history"][-max_history:]
+    else:
+        # Deep mode: keep more history, but still limit for now (dynamic relevance scoring TODO)
+        if len(cognitive_state["action_history"]) > max_history:
+            cognitive_state["action_history"] = cognitive_state["action_history"][-max_history:]
+        if len(cognitive_state["strategy_history"]) > max_history:
+            cognitive_state["strategy_history"] = cognitive_state["strategy_history"][-max_history:]
 
 
 def track_failed_attempt(
@@ -51,9 +73,10 @@ def track_failed_attempt(
             "iteration": current_iteration
         })
     
-    # Limit failed attempts history to prevent memory bloat
-    if len(cognitive_state["failed_attempts"]) > 10:
-        cognitive_state["failed_attempts"] = cognitive_state["failed_attempts"][-10:]
+    # Adaptive failure tracking based on react_mode  
+    max_failures = cognitive_state.get("max_failures", 10)
+    if len(cognitive_state["failed_attempts"]) > max_failures:
+        cognitive_state["failed_attempts"] = cognitive_state["failed_attempts"][-max_failures:]
 
 
 def create_attempts_summary(failed_attempts: List[Dict[str, Any]]) -> str:

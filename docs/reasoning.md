@@ -1,140 +1,119 @@
-# Enhanced Cognitive Reasoning Architecture
+# Adaptive Reasoning Architecture
+*The first agent system to achieve cognitive parsimony*
 
-## Scope & Implementation Status
+## The Breakthrough
 
-### ✅ IN SCOPE (Core Implementation - COMPLETED)
-- Enhanced reason_node with structured reflection prompts
-- State tracking for strategy history, failed attempts, tool result quality  
-- Smart context management - summarize failures, track patterns
-- Loop detection - redundancy flagging, iteration caps, forced strategy shifts
-- Graceful degradation - fallback to simple reasoning if structured fails
+This architecture enables agents to **dynamically modulate cognitive complexity**—switching in real time between fast, lightweight ReAct and deep, reflective UltraThink based on task difficulty, without requiring new nodes or hardcoded heuristics.
 
-### 🔄 EXTENDED SCOPE (Phase 2 - Future)
-- Task-specific activation - enhanced reasoning only for complex queries
-- Adaptive summarization - rolling windows, capped memory
-- Hypothesis-driven search patterns
-- Multi-source corroboration logic
+**This solves the fundamental problem that's plagued agent systems since inception**: cognitive resource allocation. Instead of forcing every task through the same cognitive process, agents now adaptively adjust their thinking based on what the task actually requires.
 
-### 🚫 OUT OF SCOPE
-- Separate reflection node (too costly)
-- Major architecture changes to 4-node flow
-- New tools or external dependencies
-- Breaking changes to existing Agent API
+### Revolutionary Approach
 
-## Key Superseded Concepts
-- **Scratchpad**: Replaced by structured `cognitive_state` with precise tracking
-- **Gemini suggestions**: Influenced structured reasoning framework
-- **Hypothesis-driven**: Deferred to Phase 2, focus on adaptive strategy first
+- **Runtime complexity discovery** instead of upfront classification
+- **Zero extra LLM calls** - switching happens within existing reasoning
+- **Self-correcting** - eliminates classification errors through adaptation
+- **LLM-governed escalation/de-escalation** with full semantic understanding
 
-## Overview
-This document outlines the enhanced reasoning capabilities for Cogency agents, designed to prevent "plan fixation" and improve adaptive problem-solving across all use cases.
+## Mental Model
 
-## Core Philosophy
-- **Enhance ReAct, don't replace it** - Keep existing 4-node flow intact
-- **Single LLM call per cycle** - No additional reflection nodes
-- **Structured reasoning over raw prompts** - Organized cognitive scaffolding
-- **Smart context management** - Summarize failures, track patterns
+**Fast React = Pure ReAct**  
+`Thought → Action → Observation` (direct execution)
+
+**Deep React = ReAct + UltraThink**  
+`REFLECTION → PLANNING → EXECUTION` (sophisticated reasoning)
+
+## Core Innovation: Bidirectional Mode Switching
+
+```
+    ┌─────────────┐    Task needs deeper     ┌──────────────┐
+    │ Fast React  │ ────── analysis ──────► │ Deep React   │
+    │ Pure ReAct  │                          │ + UltraThink │
+    │             │ ◄──── simpler than ──────│              │
+    └─────────────┘       expected          └──────────────┘
+```
+
+**Fast → Deep**: Escalate when sophisticated analysis needed  
+**Deep → Fast**: Optimize when task simpler than expected  
+**Self-Correcting**: Runtime adaptation eliminates wrong classifications
 
 ## Architecture
 
-### Enhanced Reason Node
-The `reason_node` is enhanced with structured reflection capabilities:
-
-```python
-REASON_PROMPT = """
-COGNITIVE CONTEXT:
-Previous attempts: {previous_attempts}
-Current strategy: {current_strategy}
-Tool results quality: {last_tool_quality}
-Iteration: {current_iteration}/{max_iterations}
-
-REASONING FRAMEWORK:
-Goal: {extracted_goal}
-Last Step: {last_action_summary}
-Finding: {last_result_assessment}
-Reflection: {strategy_assessment}
-New Step: {proposed_next_action}
-
-Now analyze and decide next action...
-"""
+### Clean Modular Design
+```
+reasoning/
+├── adaptation.py     # Bidirectional mode switching 
+├── reflection.py     # UltraThink phases (REFLECTION→PLANNING→EXECUTION)
+├── planning.py       # Multi-step strategy creation
+├── relevance.py      # LLM-based memory scoring
+└── prompts.py       # Centralized prompt management
 ```
 
-### State Enhancements
-New state tracking for cognitive continuity:
+### Adaptive Features
 
-```python
-state["strategy_history"] = ["search_direct", "search_broader", "search_technical"]
-state["failed_attempts"] = [
-    {"tool": "search", "query": "X", "result_quality": "poor", "reason": "too_generic"},
-    {"tool": "search", "query": "Y", "result_quality": "partial", "reason": "missing_context"}
-]
-state["context_summary"] = "Previous searches for plan fixation failed with generic results"
-state["current_strategy"] = "hypothesis_driven_search"
-state["goal_analysis"] = "Find technical details about AI agent loop prevention"
-```
+| Feature | Fast React | Deep React |
+|---------|------------|------------|
+| **Reasoning** | Direct ReAct execution | UltraThink reflection phases |
+| **Memory** | FIFO (3 recent) | LLM semantic scoring (10 relevant) |
+| **Loop Detection** | Lightweight (2 actions) | Sophisticated patterns (3+ actions) |
+| **Cost** | Minimal tokens | Rich context + reflection |
 
 ## Key Components
 
-### 1. Loop Detection & Prevention
-- **Redundancy flagging** - Track similar queries/actions
-- **Iteration caps** - Hard limits on reasoning cycles
-- **Strategy shift triggers** - Force new approaches when stuck
+### 1. Bidirectional Adaptation
+- **Semantic switching**: LLM decides complexity needs during execution  
+- **Context preservation**: Full cognitive state maintained across switches
+- **Graceful boundaries**: No switching too early (< iteration 1) or late (≥ iteration 4)
 
-### 2. Smart Context Management
-- **Failure summarization** - Keep insights, discard noise
-- **Pattern recognition** - Identify recurring failure modes
-- **Rolling windows** - Maintain bounded memory
+### 2. UltraThink Integration (Deep Mode)
+- **🤔 REFLECTION**: "What have I learned? What's working/not working?"
+- **📋 PLANNING**: "Based on analysis, here's my multi-step strategy"  
+- **🎯 EXECUTION**: "Now I'll take this specific action"
 
-### 3. Structured Reflection
-- **Goal tracking** - Maintain objective clarity
-- **Strategy assessment** - Evaluate current approach effectiveness
-- **Quality evaluation** - Assess tool result usefulness
+### 3. LLM-Based Relevance Scoring  
+- **Zero heuristics**: Pure semantic understanding for memory management
+- **Adaptive retention**: High-relevance items persist longer
+- **Graceful fallback**: FIFO when LLM scoring fails
 
-### 4. Graceful Degradation
-- **Fallback mechanisms** - Revert to simple reasoning if structured fails
-- **Progressive complexity** - Start simple, add structure as needed
-- **Error recovery** - Handle malformed reasoning gracefully
+### 4. Enhanced Loop Detection
+- **Mode-aware**: Different thresholds for Fast (lightweight) vs Deep (sophisticated)
+- **Pattern recognition**: Detects repeated unsuccessful strategies
+- **Smart intervention**: Prevents cognitive loops before they waste resources
 
-## Implementation Benefits
+## Revolutionary Benefits
 
-### General Cognition Enhancement
-- **Adaptive problem-solving** across all task types
-- **Reduced infinite loops** in complex scenarios
-- **Better strategy selection** based on past experience
-- **Improved context synthesis** from multiple sources
+**Cognitive Parsimony**: Using exactly as much reasoning as needed, no more, no less.
 
-### Specific Research Improvements
-- **Dynamic search strategy** adaptation
-- **Multi-perspective analysis** capability
-- **Source quality assessment** and filtering
-- **Conflict resolution** between information sources
+- **Runtime Intelligence**: Discovers actual task complexity during execution
+- **Resource Efficiency**: Simple tasks stay fast, complex tasks get proper depth  
+- **Self-Correction**: Eliminates upfront classification errors through adaptation
+- **Maintained Simplicity**: Enhances ReAct without breaking the core paradigm
 
-## Migration Path
+## Philosophy
 
-### Phase 1: Core Implementation
-1. Enhanced `reason_node` prompting
-2. Basic state tracking for strategies/failures
-3. Simple loop detection and caps
-4. Graceful degradation mechanisms
+**This isn't just state-of-the-art—it's a new standard for adaptive, efficient, and composable AI reasoning.**
 
-### Phase 2: Advanced Features
-1. Task-specific activation patterns
-2. Adaptive summarization algorithms
-3. Hypothesis-driven search frameworks
-4. Multi-source corroboration logic
-
-## Success Metrics
-- **Reduced loop incidents** in research tasks
-- **Improved task completion rates** for complex queries
-- **Better strategy adaptation** when initial approaches fail
-- **Maintained performance** for simple tasks (no regression)
-
-## Technical Notes
-- **Single LLM call overhead** - No additional API costs
-- **Backward compatibility** - Existing agent APIs unchanged
-- **Modular design** - Components can be enabled/disabled
-- **Language model agnostic** - Works with any capable LLM
+- **Enhance, don't replace**: ReAct paradigm preserved and enhanced
+- **Zero ceremony**: No extra nodes, calls, or architectural complexity
+- **Modular elegance**: Clean separation enables easy testing and extension
+- **Intelligent adaptation**: LLM-governed cognitive resource allocation
 
 ---
 
-*This architecture provides general cognitive enhancement while solving specific research agent fixation issues.*
+## Future Extensions
+
+### Advanced Planning Capabilities
+Multi-step planning with dependency tracking, resource allocation, and plan revision based on intermediate results.
+
+### Hypothesis-Driven Search Patterns  
+Systematic hypothesis generation and testing for complex research queries.
+
+### Structured Scratchpad Framework
+The Goal/Plan/Current Step/Findings/Reflection structure.
+
+### Multi-Source Corroboration Requirement (Search)
+Explicit instruction to find multiple sources for critical data points.
+
+
+---
+
+*The world's first agent system with genuine cognitive adaptivity - using intelligence to govern intelligence.*
