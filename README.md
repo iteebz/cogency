@@ -2,221 +2,117 @@
 
 [![PyPI version](https://badge.fury.io/py/cogency.svg)](https://badge.fury.io/py/cogency)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
-[![Downloads](https://pepy.tech/badge/cogency)](https://pepy.tech/project/cogency)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-> **Conversational AI agents out of the box.**
+**Smart AI agents that think as hard as they need to.**
 
 ```python
 from cogency import Agent
 agent = Agent("assistant")
 
-async for chunk in agent.stream("What's the weather in Tokyo?"):
-    print(chunk, end="", flush=True)
+# Simple task → thinks fast
+await agent.run("What's 2+2?") 
+
+# Complex task → thinks deep  
+await agent.run("Analyze this codebase and suggest architectural improvements")
+# Automatically escalates reasoning, uses relevant tools, streams thinking
 ```
+
+## 🧠 Adaptive Reasoning
+
+**Thinks fast or deep as needed** - agents discover task complexity during execution and adapt their cognitive approach automatically.
+
+- **Fast React**: Direct execution for simple queries
+- **Deep React**: Reflection + planning for complex analysis  
+- **Zero-cost switching**: Seamless transitions preserve full context
+- **Runtime discovery**: No upfront classification - intelligence governs intelligence
 
 ## 🚀 Key Features
 
 - **🤖 Agents in 3 lines** - Fully functional, tool-using agents from a single import
-- **🔥 Multistep ReAct core** - Built on explicit ReAct reasoning, not prompt spaghetti
-- **🧠 Built-in memory** - Persistent memory with extensible backends (Pinecone, ChromaDB, PGVector)
-- **⚡️ Zero configuration** - Auto-detects LLMs, tools, memory from environment
-- **🛠️ Automatic tool discovery** - Drop tools in, they auto-register and route intelligently
+- **🔥 Adaptive reasoning** - Thinks fast or deep as needed, switches seamlessly during execution  
 - **🌊 Streaming first** - Watch agents think in real-time with full transparency
-- **✨ Clean tracing** - Every reasoning step traced and streamed with clear phase indicators
-- **🎭 Personality prompting** - Easily inject personality, tone, and style
+- **🛠️ Automatic tool discovery** - Drop tools in, they auto-register and route intelligently
+- **⚡️ Zero configuration** - Auto-detects LLMs, tools, memory from environment
+- **🧠 Built-in memory** - Persistent memory with extensible backends (Pinecone, ChromaDB, PGVector)
+- **✨ Clean tracing** - Every reasoning step traced and streamed with clear phase indicators  
 - **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Grok, Mistral out of the box
 - **🧩 Extensible design** - Add tools, memory backends, embedders with zero friction
-- **👥 Multi-tenancy** - Built-in user contexts and conversation history
+- **👥 Multi-tenancy** - Built-in user contexts and conversation isolation
 - **🏗️ Production hardened** - Resilience, rate limiting, metrics, tracing included
 
-## ✨ Beautiful Tracing
+## AdaptReAct Architecture
 
-Watch your agents think step-by-step:
-
-```
-👤 HUMAN: Plan a 3-day Tokyo itinerary with weather considerations.
-
-🔧 PREPROCESS: tool subsetting, memory operations, routing decisions
-
-🧠 REASON: Need weather forecast to plan outdoor vs indoor activities
-⚡️ ACT: weather_forecast("Tokyo 3 days")
-👀 OBSERVE: Day 1: sunny 25°C, Day 2: rain 18°C, Day 3: cloudy 22°C
-
-🧠 REASON: Day 2 rain affects outdoor plans - need indoor alternatives
-⚡️ ACT: travel_info("Tokyo indoor attractions museums")
-👀 OBSERVE: TeamLab, Tokyo National Museum, Senso-ji Temple (covered)
-
-🧠 REASON: Have weather + indoor options - can create complete itinerary
-⚡️ ACT: Composing 3-day plan with weather-appropriate activities
-
-🤖 AGENT: Here's your 3-day Tokyo itinerary:
-Day 1 (Sunny): Shibuya, Harajuku, Meiji Shrine...
-```
-
-## ✨ Example Usage
-
-**Basic Agent (3 lines)**
-```python
-import asyncio
-from cogency import Agent
-
-async def main():
-    agent = Agent("assistant")
-    
-    async for chunk in agent.stream("What is 25 * 43?"):
-        print(chunk, end="", flush=True)
-
-asyncio.run(main())
-```
-
-**Personality Injection**
-```python
-# Expressive agents with personality
-pirate = Agent("pirate", personality="friendly pirate who loves coding")
-
-async for chunk in pirate.stream("Tell me about AI!"):
-    print(chunk, end="", flush=True)
-
-# Mix personality, tone, and style
-teacher = Agent("teacher", personality="patient teacher", tone="encouraging", style="conversational")
-
-async for chunk in teacher.stream("Explain quantum computing"):
-    print(chunk, end="", flush=True)
-```
-
-**Multistep Reasoning**
-```python
-agent = Agent("travel_planner")
-
-async for chunk in agent.stream("I'm planning a trip to London: What's the weather there? What time is it now? Flight costs $1,200, hotel is $180/night for 3 nights - total cost?"):
-    print(chunk, end="", flush=True)
-```
-
-**Custom Tools (Auto-Discovery)**
-```python
-from cogency import Agent, BaseTool
-
-class TimezoneTool(BaseTool):
-    def __init__(self):
-        super().__init__("timezone", "Get time in any city")
-    
-    async def run(self, city: str):
-        return {"time": f"Current time in {city}: 14:30 PST"}
-    
-    def get_schema(self):
-        return "timezone(city='string')"
-
-# Just create agent - tool auto-registers
-agent = Agent("time_assistant", tools=[TimezoneTool()])
-```
-
-**Memory Backends**
-```python
-from cogency import Agent, FSMemory
-from cogency.memory.backends import ChromaDB, Pinecone, PGVector
-
-# Built-in filesystem memory
-agent = Agent("memory_agent", memory=FSMemory())
-
-# Vector databases
-agent = Agent("vector_agent", memory=ChromaDB())
-agent = Agent("cloud_agent", memory=Pinecone(api_key="...", index="my-index"))
-```
-
-## 🧠 ReAct Loop Architecture
-
-Cogency uses transparent **ReAct loops** for multistep reasoning:
+**Preprocess → Reason → Act → Respond**
 
 ```
-🧠 REASON → Analyze request, select tools
-⚡️ ACT    → Execute tools, gather results  
-👀 OBSERVE → Process tool outputs
-🤖 AGENT → Generate final answer
+👤 Plan a Tokyo trip with $2000 budget
+
+🔧 Tools: weather, calculator, search  
+🧠 Task complexity → escalating to Deep React
+🌤️ weather(Tokyo) → 25°C sunny, rain Thu-Fri
+🧮 calculator($2000 ÷ 5 days) → $400/day
+🔍 search(Tokyo indoor activities) → Museums, temples
+💭 Reflection: Need indoor backup plans for rainy days
+📋 Planning: 5-day itinerary with weather contingencies
+🤖 Here's your optimized Tokyo itinerary...
 ```
 
-Every step streams in real-time and is fully traceable.
+The **preprocess node** enables everything: tool selection, memory operations, and intelligent routing between reasoning modes.
 
-## 📦 Installation
+## Quick Examples
 
-### Quick Start
-```bash
-pip install cogency
-echo "OPENAI_API_KEY=sk-..." >> .env  # or any supported provider
-```
-
-### With All Features
-```bash
-pip install cogency[all]  # All LLMs, embeddings, memory backends
-```
-
-### Selective Installation
-```bash
-# LLM providers
-pip install cogency[openai]      # OpenAI GPT models
-pip install cogency[anthropic]   # Claude models  
-pip install cogency[gemini]      # Google Gemini
-pip install cogency[mistral]     # Mistral AI
-
-# Memory backends  
-pip install cogency[chromadb]    # ChromaDB vector store
-pip install cogency[pgvector]    # PostgreSQL with pgvector
-pip install cogency[pinecone]    # Pinecone vector store
-
-# Embedding providers
-pip install cogency[sentence-transformers]  # Local embeddings
-pip install cogency[nomic]                  # Nomic embeddings
-```
-
-## 🎯 Output Modes
-
-**Summary Mode (Default)**
-```python
-result = await agent.run("What's 15 * 23?")
-print(result)  # "345"
-```
-
-**Beautiful Streaming**
-```python
-async for chunk in agent.stream("What's 15 * 23?"):
-    print(chunk, end="", flush=True)
-
-# 👤 HUMAN: What's 15 * 23?
-# 🧠 REASON: Need to calculate 15 * 23 using calculator tool
-# ⚡️ ACT: calculator(expression="15 * 23")
-# 👀 OBSERVE: Result: 345
-# 🤖 AGENT: The answer is 345
-```
-
-**Multi-Tenancy**
-```python
-# Each user gets isolated memory and conversation history
-await agent.run("Remember my favorite color is blue", user_id="user1")
-await agent.run("What's my favorite color?", user_id="user1")  # "blue"
-await agent.run("What's my favorite color?", user_id="user2")  # No memory
-```
-
-## 🔧 Supported Providers
-
-**LLMs** - OpenAI, Anthropic, Google, xAI, Mistral  
-**Tools** - Calculator, WebSearch, FileManager, Weather, Datetime, CSV, SQL, Shell, CodeExecution  
-**Memory** - Filesystem, ChromaDB, Pinecone, PGVector  
-**Embeddings** - OpenAI, Sentence Transformers, Nomic  
-
-## 🎨 Extensibility
+**Custom Tools**
 
 ```python
-# Custom tools auto-register
+from cogency.tools.base import BaseTool
+from cogency.tools.registry import tool
+
 @tool
 class MyTool(BaseTool):
+    def __init__(self):
+        super().__init__("my_tool", "Does something useful")
+
     async def run(self, param: str):
         return {"result": f"Processed: {param}"}
 
-# Custom memory backends
-class MyMemory(MemoryBackend):
-    async def memorize(self, content: str): pass
-    async def recall(self, query: str): pass
+# Tool auto-registers - just create agent
+agent = Agent("assistant")
+await agent.run("Use my_tool with hello")
 ```
+
+**Real-World Applications**
+
+```python
+# Research Agent (Perplexity-style)
+agent = Agent("researcher", tools=[Search(), Scrape()])
+await agent.run("Latest quantum computing developments?")
+
+# Coding Agent (Cursor-style)
+agent = Agent("coder", tools=[Files(), Shell(), Code()])
+await agent.run("Fix the auth bug in this Flask app")
+```
+
+## Installation
+
+```bash
+pip install cogency
+```
+
+Set any LLM API key:
+
+```bash
+export OPENAI_API_KEY=...     # or
+export ANTHROPIC_API_KEY=...  # or
+export GEMINI_API_KEY=...        # etc
+```
+
+## Documentation
+
+- **[Quick Start](docs/quickstart.md)** - Get running in 2 minutes
+- **[Cogency](docs/cogency.md)** - Core breakthroughs and philosophy
+- **[Reasoning](docs/reasoning.md)** - Adaptive cognitive architecture
+- **[Architecture](docs/architecture.md)** - Technical implementation
 
 ## 📄 License
 
@@ -224,4 +120,6 @@ MIT - Build whatever you want.
 
 ---
 
-**Cogency: AI agents that just work.**
+_Built for developers who want agents that just work, not frameworks that require PhD-level configuration._
+
+**Cogency: A complete cognitive AI framework built from first principles in exactly 10 days using human-AI collaborative development.**

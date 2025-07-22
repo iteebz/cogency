@@ -1,45 +1,58 @@
-# architecture
+# Architecture
 
-## react reasoning loop
+## AdaptReAct: The Key Innovation
 
-Cogency agents use **ReAct** (Reason-Act-Observe) for multi-step reasoning with preprocess node and decomposed implementation:
+**Preprocess → Reason → Act → Respond**
 
 ```
-🔧 PREPROCESS → 🧠 REASON → ⚡ ACT → 👀 OBSERVE
+🔧 PREPROCESS → 🧠 REASON → ⚡ ACT → 💬 RESPOND
+     ↓              ↓         ↓
+   respond      respond    reason
 ```
 
-### implementation: decomposed nodes
+The **preprocess node** is what makes everything work:
 
-The ReAct loop is implemented through focused, single-responsibility nodes:
+### Tool Subsetting
+- Registry holds 100+ tools
+- Preprocess intelligently selects 3-5 relevant ones
+- Keeps system extensible without overwhelming the LLM
 
-1. **preprocess**: tool subsetting, memory operations, routing (ReAct vs direct respond)
-2. **reason**: strategy determination and action planning  
-3. **act**: tool execution with parallel processing and error handling
-4. **observe**: process tool outputs and decide next steps
-5. **respond**: final answer generation with context integration
+### Memory Operations  
+- Extracts memory-worthy information ("Remember I like Python")
+- Only `recall` tool enters ReAct loop
+- Clean separation of concerns
 
-The preprocess node intelligently routes simple queries directly to respond, while complex queries enter the full ReAct loop.
+### Intelligent Routing
+- Simple queries → direct `respond`
+- Tool-requiring queries → `reason` (Fast React)
+- Complex analysis → `reason` (Deep React with reflection)
 
-### streaming execution
-
-Each node streams live updates for complete transparency:
+## Zero-Ceremony Tool System
 
 ```python
-async for chunk in agent.stream("complex query"):
-    print(chunk, end="", flush=True)
-# Shows: 🔧 PREPROCESS → 🧠 REASON → ⚡ ACT → 👀 OBSERVE → 💬 RESPOND
+@tool
+class MyTool(BaseTool):
+    def __init__(self):
+        super().__init__("my_tool", "Does something useful")
+    
+    async def run(self, param: str):
+        return {"result": f"Processed: {param}"}
 ```
 
-### tool ecosystem
+- Auto-registers via `@tool` decorator
+- Schema and examples derived automatically  
+- No boilerplate, no duplicate definitions
+- Drop in 100 tools - preprocess picks what's needed
 
-Built-in tools auto-register with zero ceremony:
+## Built-in Tools
 
-- **🧮 Calculator** - Mathematical expressions and computations
-- **🌐 Web Search** - DuckDuckGo search with result processing
-- **📁 File Manager** - Read, write, manage files with validation
-- **🌡️ Weather** - Current conditions and forecasts
-- **🕒 Datetime** - Timezone-aware time operations
-- **📊 CSV Tools** - Data processing and analysis
-- **🗄️ SQL Tools** - Database querying and management
-- **💻 Shell Tools** - System command execution
-- **🐍 Code Execution** - Python code evaluation in sandboxed environment
+Auto-register with `@tool` decorator:
+
+🧮 Calculator • 🌐 Search • 📁 Files • 🌡️ Weather • 🕒 Time • 📊 CSV • 🗄️ SQL • 💻 Shell • 🐍 Code
+
+## Memory Backends
+
+- **Filesystem**: Default, zero-config
+- **ChromaDB**: Vector search
+- **Pinecone**: Cloud vector database  
+- **PGVector**: PostgreSQL with vector extensions

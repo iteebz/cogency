@@ -4,8 +4,8 @@ build-backend = "poetry.core.masonry.api"
 
 [project]
 name = "cogency"
-version = "0.5.1"
-description = "Conversational AI agents out of the box."
+version = "1.0.0"
+description = "Smart AI agents that think as hard as they need to."
 authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
 readme = "README.md"
 license = "MIT"
@@ -26,21 +26,21 @@ classifiers = [
 ]
 requires-python = ">=3.10,<4.0"
 dependencies = [
-    "pydantic>=2.0",
-    "typing-extensions>=4.0",
-    "langgraph",
-    "ddgs>=9.0.0",
-    "numpy>=1.24.0",
-    "python-dotenv>=1.0.0",
     "aiohttp>=3.12.14,<4.0.0",
-    "psutil>=5.9.0",
+    "ddgs>=9.0.0",
+    "google-genai (>=1.26.0,<2.0.0)",
+    "langgraph",
     "mcp>=1.0.0",
-    "pytest-timeout>=2.4.0,<3.0.0",
-    "pytz>=2023.0",
-    "python-dateutil>=2.8.0",
     "nomic (>=3.5.3,<4.0.0)",
+    "numpy>=1.24.0",
+    "psutil>=5.9.0",
+    "pydantic>=2.0",
+    "pytest-timeout>=2.4.0,<3.0.0",
+    "python-dateutil>=2.8.0",
+    "python-dotenv>=1.0.0",
+    "pytz>=2023.0",
     "trafilatura (>=2.0.0,<3.0.0)",
-    "google-genai (>=1.26.0,<2.0.0)"
+    "typing-extensions>=4.0"
 ]
 
 [project.optional-dependencies]
@@ -55,12 +55,12 @@ pinecone = ["pinecone-client"]
 [tool.poetry.group.dev.dependencies]
 black = "^23.0.0"
 isort = "^5.12.0"
+mypy = "^1.8.0"
 pytest = "^8.4.1"
 pytest-asyncio = "^0.21.0"
-mypy = "^1.8.0"
 types-psutil = "^6.0.0"
-types-pytz = "^2024.0"
 types-python-dateutil = "^2.8.0"
+types-pytz = "^2024.0"
 
 [tool.poetry]
 packages = [{ include = "cogency", from = "src" }]
@@ -75,10 +75,17 @@ line_length = 88
 
 [tool.mypy]
 python_version = "3.10"
+# Enable strict mode but with practical exceptions
 strict = true
-warn_return_any = true
+warn_return_any = false  # Too noisy for practical development
 warn_unused_configs = true
 ignore_missing_imports = true
+# Allow some flexibility for rapid development
+allow_untyped_calls = true
+allow_untyped_defs = false  # Still require function signatures
+check_untyped_defs = true
+# Be more lenient with Any usage in complex scenarios
+disallow_any_generics = false
 
 [[tool.mypy.overrides]]
 module = [
@@ -86,8 +93,15 @@ module = [
     "nomic.*",
     "pinecone.*",
     "asyncpg.*",
-    "aiomysql.*"
+    "aiomysql.*",
+    "langgraph.*",
+    "chromadb.*",
 ]
+ignore_errors = true
+
+# Allow more flexibility in test files
+[[tool.mypy.overrides]]
+module = "tests.*"
 ignore_errors = true
 
 [tool.ruff]
@@ -95,8 +109,33 @@ line-length = 100
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E", "W", "F", "I", "N", "UP"]
-ignore = ["W293", "UP006", "UP035"]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear (common bugs)
+    "C4",   # flake8-comprehensions
+    "SIM",  # flake8-simplify
+]
+ignore = [
+    "W293",   # blank-line-with-whitespace (too pedantic for development)
+    "UP006",  # non-pep585-annotation (allow typing.List vs list for compatibility)
+    "UP035",  # deprecated-import (allow typing imports for compatibility)
+    "SIM108", # if-else-block-instead-of-if-exp (ternary not always clearer)
+    "SIM117", # combine-multiple-isinstance (sometimes separate is clearer)
+    "E501",   # line-too-long (pragmatic choice for readable code)
+]
+
+# Allow specific patterns that are common in this codebase
+[tool.ruff.lint.per-file-ignores]
+"**/llm/__init__.py" = ["F401"]  # Allow conditional imports for optional dependencies
+"**/embed/__init__.py" = ["F401"]  # Allow conditional imports for optional dependencies
+"**/llm/xai.py" = ["N801"]  # Allow xAILLM class name for brand consistency
+"tests/**" = ["F401", "F811", "B017"]  # Allow test-specific patterns
+"website/**" = ["B007"]  # Allow unused loop variables in documentation scripts
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
