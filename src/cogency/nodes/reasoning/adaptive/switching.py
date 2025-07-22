@@ -1,7 +1,30 @@
-"""Bidirectional mode switching logic for adaptive reasoning"""
+"""Mode switching criteria and logic for adaptive reasoning"""
 
 import json
 from typing import Any, Dict, Optional, Tuple
+
+
+def get_switching_criteria(current_mode: str) -> str:
+    """Get detailed mode switching criteria for prompts."""
+    if current_mode == "fast":
+        return """
+ESCALATE to DEEP MODE if task requires:
+- Complex analysis or synthesis
+- Multi-step reasoning chains
+- Breaking down complex problems
+- Comparing multiple approaches
+- Handling ambiguous requirements
+
+JSON: {"thinking": "brief analysis", "decision": "approach", "switch_to": "deep"|null, "switch_why": "escalation reason"|null}"""
+    else:  # deep mode
+        return """
+DOWNSHIFT to FAST MODE if task is:
+- Simple direct action
+- Single-step execution
+- Clear straightforward request
+- No complex analysis needed
+
+JSON: {"thinking": {"reflection": "...", "planning": "...", "decision": "..."}, "switch_to": "fast"|null, "switch_why": "downshift reason"|null}"""
 
 
 def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
@@ -48,10 +71,7 @@ def should_switch(
         return False
 
     # Prevent switching too late (close to max iterations)
-    if current_iteration >= 4:
-        return False
-
-    return True
+    return not current_iteration >= 4
 
 
 def switch_mode(state: Dict[str, Any], new_mode: str, switch_reason: str) -> Dict[str, Any]:

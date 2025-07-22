@@ -46,10 +46,9 @@ dist/
 build/
 .tsbuildinfo
 
+# Development
+.mypy_cache
 .ruff_cache
-
-# Generated documentation
-/autodocs
 
 # Environment
 .env

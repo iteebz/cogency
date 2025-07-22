@@ -3,31 +3,32 @@
 from typing import Any, Dict, List, Optional
 
 from cogency.llm import BaseLLM
-from cogency.nodes.reasoning import (
+from cogency.nodes.reasoning.adaptive import (
     action_fingerprint,
     assess_tools,
+    detect_fast_loop,
     detect_loop,
     init_cognition,
+    parse_switch,
+    should_switch,
     summarize_attempts,
+    switch_mode,
     track_failure,
     update_cognition,
 )
-from cogency.nodes.reasoning.adaptation import (
-    parse_switch,
-    should_switch,
-    switch_mode,
+from cogency.nodes.reasoning.deep import (
+    format_deep_mode,
+    parse_deep_mode,
+    prompt_deep_mode,
 )
-from cogency.nodes.reasoning.loop_detection import detect_fast_loop
-from cogency.nodes.reasoning.prompts import build_prompt
-from cogency.nodes.reasoning.reflection import (
-    format_reflection,
-    needs_reflection,
-    reflection,
-    reflection_prompt,
+from cogency.nodes.reasoning.fast import (
+    parse_fast_mode,
+    prompt_fast_mode,
 )
 from cogency.state import State
 from cogency.tools.base import BaseTool
-from cogency.utils.parsing import get_reasoning, parse_json, parse_tool_calls
+from cogency.utils import parse_json
+from cogency.utils.parsing import parse_tool_calls
 
 
 async def reason(
@@ -97,30 +98,22 @@ async def reason(
     attempts_summary = summarize_attempts(failed_attempts)
 
     # Build adaptive reasoning prompt - with reflection for deep mode
-    if needs_reflection(react_mode, current_iteration):
+    if react_mode == "deep":
         # Deep mode: use explicit reflection phases
-        current_strategy = cognition.get("current_strategy", "unknown")
+        current_approach = cognition.get("current_approach", "initial")
         last_tool_quality = cognition.get("last_tool_quality", "unknown")
-        reasoning_prompt = reflection_prompt(
+        reasoning_prompt = prompt_deep_mode(
             tool_info,
             context.query,
             current_iteration,
             max_iterations,
-            current_strategy,
+            current_approach,
             attempts_summary,
             last_tool_quality,
         )
     else:
-        # Fast mode: use standard reasoning
-        reasoning_prompt = build_prompt(
-            react_mode,
-            current_iteration,
-            tool_info,
-            context.query,
-            max_iterations,
-            cognition,
-            attempts_summary,
-        )
+        # Fast mode: use streamlined fast reasoning
+        reasoning_prompt = prompt_fast_mode(tool_info, context.query)
 
     if system_prompt:
         reasoning_prompt = f"{system_prompt}\n\n{reasoning_prompt}"
@@ -157,32 +150,30 @@ async def reason(
         llm_response = "I encountered an issue with reasoning, but I'll do my best to help you."
 
     # Extract and stream reasoning - with reflection phases for deep mode
-    if needs_reflection(react_mode, current_iteration):
+    if react_mode == "deep":
         # Deep mode: extract and display reflection phases
-        reflection_phases = reflection(llm_response)
-        reflection_display = format_reflection(reflection_phases)
-        await state.output.send("update", reflection_display)
+        thinking_phase = parse_deep_mode(llm_response)
+        deep_thinking = format_deep_mode(thinking_phase)
+        await state.output.send("update", deep_thinking)
 
-        # Store reflection data for tracing
-        cognition["last_reflection"] = reflection_phases
+        # Store deep thought data for tracing
+        cognition["last_deep_thought"] = thinking_phase
         await state.output.send(
             "trace",
-            f"Deep reflection: strategy={reflection_phases.get('strategy', 'unknown')}",
+            f"Deep thinking: approach={thinking_phase.get('decision', 'unknown')}",
             node="reason",
         )
 
-        # Extract strategy from reflection phases
-        current_strategy = reflection_phases.get("strategy", "unknown")
+        # Extract approach from deep thinking phase
+        current_approach = thinking_phase.get("decision", "unknown")
     else:
         # Fast mode: standard reasoning extraction
-        reasoning_text = get_reasoning(llm_response)
+        reasoning_data = parse_fast_mode(llm_response)
+        reasoning_text = f"💭 {reasoning_data.get('thinking', 'Processing...')} | ⚡ {reasoning_data.get('decision', 'Acting...')}"
         await state.output.send("update", reasoning_text)
 
-        # Extract strategy from JSON
-        try:
-            current_strategy = json_data.get("strategy", "unknown") if json_data else "unknown"
-        except Exception:
-            current_strategy = "fallback_strategy"
+        # Extract approach from fast mode
+        current_approach = reasoning_data.get("decision", "unknown")
 
     # Store reasoning results in state - NO JSON LEAKAGE
     state["reasoning_response"] = llm_response
@@ -217,7 +208,12 @@ async def reason(
     # Update cognitive state for next iteration
     if tool_calls:
         fingerprint = action_fingerprint(tool_calls)
-        update_cognition(cognition, tool_calls, current_strategy, fingerprint)
+        # Extract decision from reasoning data
+        if react_mode == "deep":
+            current_decision = thinking_phase.get("decision", "unknown")
+        else:
+            current_decision = reasoning_data.get("decision", "unknown")
+        update_cognition(cognition, tool_calls, current_approach, current_decision, fingerprint)
 
     # Store current tool calls for next iteration's assessment
     state["prev_tool_calls"] = tool_calls

@@ -6,10 +6,12 @@ from typing import Any, Dict, List
 def init_cognition(state, react_mode: str = "fast") -> Dict[str, Any]:
     """Initialize cognitive state with adaptive features based on react_mode."""
     default_state = {
-        "strategy_history": [],
+        "approach_history": [],  # Methodologies tried (direct_search, synthesis, breakdown)
+        "decision_history": [],  # Specific decisions taken (search_files, read_docs, analyze_code)
+        "action_fingerprints": [],  # Concrete tool calls for loop detection (search(*.py), read(file.py))
         "failed_attempts": [],
-        "action_history": [],
-        "current_strategy": "initial_approach",
+        "current_approach": "initial",  # Current methodology
+        "current_decision": "analyze",  # Current specific decision
         "last_tool_quality": "unknown",
         "react_mode": react_mode,
     }
@@ -30,17 +32,26 @@ def init_cognition(state, react_mode: str = "fast") -> Dict[str, Any]:
 
 
 def update_cognition(
-    cognition: Dict[str, Any], tool_calls: List[Any], current_strategy: str, action_fingerprint: str
+    cognition: Dict[str, Any],
+    tool_calls: List[Any],
+    current_approach: str,
+    current_decision: str,
+    action_fingerprint: str,
 ) -> None:
-    """Update cognitive state with new action and strategy information."""
-    # Track concrete action patterns for loop detection
-    cognition["action_history"] = cognition.get("action_history", [])
-    cognition["action_history"].append(action_fingerprint)
+    """Update cognitive state with three-level tracking: approach, decision, and action fingerprint."""
+    # Track methodologies/approaches for meta-learning
+    cognition["approach_history"] = cognition.get("approach_history", [])
+    cognition["approach_history"].append(current_approach)
+    cognition["current_approach"] = current_approach
 
-    # Track explicit strategy from LLM
-    cognition["current_strategy"] = current_strategy
-    cognition["strategy_history"] = cognition.get("strategy_history", [])
-    cognition["strategy_history"].append(current_strategy)
+    # Track specific decisions for pattern detection
+    cognition["decision_history"] = cognition.get("decision_history", [])
+    cognition["decision_history"].append(current_decision)
+    cognition["current_decision"] = current_decision
+
+    # Track concrete tool calls for loop detection
+    cognition["action_fingerprints"] = cognition.get("action_fingerprints", [])
+    cognition["action_fingerprints"].append(action_fingerprint)
 
     # Adaptive memory management based on react_mode
     max_history = cognition.get("max_history", 5)
@@ -48,16 +59,20 @@ def update_cognition(
 
     if react_mode == "fast":
         # Simple FIFO truncation
-        if len(cognition["action_history"]) > max_history:
-            cognition["action_history"] = cognition["action_history"][-max_history:]
-        if len(cognition["strategy_history"]) > max_history:
-            cognition["strategy_history"] = cognition["strategy_history"][-max_history:]
+        if len(cognition["approach_history"]) > max_history:
+            cognition["approach_history"] = cognition["approach_history"][-max_history:]
+        if len(cognition["decision_history"]) > max_history:
+            cognition["decision_history"] = cognition["decision_history"][-max_history:]
+        if len(cognition["action_fingerprints"]) > max_history:
+            cognition["action_fingerprints"] = cognition["action_fingerprints"][-max_history:]
     else:
         # Deep mode: keep more history, but still limit for now (future enhancement: implement dynamic relevance scoring)
-        if len(cognition["action_history"]) > max_history:
-            cognition["action_history"] = cognition["action_history"][-max_history:]
-        if len(cognition["strategy_history"]) > max_history:
-            cognition["strategy_history"] = cognition["strategy_history"][-max_history:]
+        if len(cognition["approach_history"]) > max_history:
+            cognition["approach_history"] = cognition["approach_history"][-max_history:]
+        if len(cognition["decision_history"]) > max_history:
+            cognition["decision_history"] = cognition["decision_history"][-max_history:]
+        if len(cognition["action_fingerprints"]) > max_history:
+            cognition["action_fingerprints"] = cognition["action_fingerprints"][-max_history:]
 
 
 def track_failure(

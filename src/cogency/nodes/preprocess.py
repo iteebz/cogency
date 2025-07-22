@@ -5,10 +5,10 @@ from typing import Dict, List, Optional
 from cogency.llm import BaseLLM
 from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
-from cogency.output import emoji
 from cogency.state import State
 from cogency.tools.base import BaseTool
-from cogency.utils.parsing import parse_json
+from cogency.utils import parse_json
+from cogency.utils.emoji import emoji
 
 
 async def preprocess(
@@ -81,11 +81,11 @@ JSON:
         if memory and result.get("memory"):
             # Stream memory extraction using clean API
             memory_content = result["memory"]
-            display_content = (
+            output_content = (
                 f"{memory_content[:50]}..." if len(memory_content) > 50 else memory_content
             )
             memory_emoji = emoji["memory"]
-            await state.output.send("update", f"{memory_emoji} {display_content}")
+            await state.output.send("update", f"{memory_emoji} {output_content}")
 
             await save_memory(
                 result["memory"],

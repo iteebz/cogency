@@ -82,6 +82,11 @@ fix:
     @echo "Fixing Python linting issues with ruff..."
     @poetry run ruff check . --fix
 
+# Quick lint check (less strict, for development)
+lint-dev:
+    @echo "Running developer-friendly lint check..."
+    @poetry run ruff check . --select="F,E9" --ignore="F401"
+
 # Run all quality checks (format, lint, test)
 check: format lint test
     @echo "All checks passed!"

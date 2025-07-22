@@ -90,14 +90,14 @@ def relevant_context(
     Returns:
         List of relevant context items
     """
-    action_history = cognition.get("action_history", [])
+    decision_history = cognition.get("decision_history", [])
     failed_attempts = cognition.get("failed_attempts", [])
 
     if react_mode == "fast":
         # Fast mode: Simple FIFO, no LLM scoring
         max_history = 3
         return {
-            "recent_actions": action_history[-max_history:],
+            "recent_decisions": decision_history[-max_history:],
             "recent_failures": failed_attempts[-2:] if failed_attempts else [],
         }
 
@@ -108,9 +108,9 @@ def relevant_context(
         # Combine action history and failures for scoring
         all_items = []
 
-        # Add recent actions
-        for i, action in enumerate(action_history[-15:]):  # Look at more items to score
-            all_items.append({"type": "action", "content": f"Action: {action}", "index": i})
+        # Add recent decisions
+        for i, decision in enumerate(decision_history[-15:]):  # Look at more items to score
+            all_items.append({"type": "decision", "content": f"Decision: {decision}", "index": i})
 
         # Add failed attempts with more context
         for i, failure in enumerate(failed_attempts[-10:]):
@@ -124,15 +124,17 @@ def relevant_context(
                     current_query, all_items, llm_client, max_items=max_history
                 )
 
-                # Separate back into actions and failures
-                relevant_actions = [item for item in relevant_items if item.get("type") == "action"]
+                # Separate back into decisions and failures
+                relevant_decisions = [
+                    item for item in relevant_items if item.get("type") == "decision"
+                ]
                 relevant_failures = [
                     item for item in relevant_items if item.get("type") == "failure"
                 ]
 
                 return {
-                    "recent_actions": [
-                        item["content"].replace("Action: ", "") for item in relevant_actions
+                    "recent_decisions": [
+                        item["content"].replace("Decision: ", "") for item in relevant_decisions
                     ],
                     "recent_failures": [
                         item["content"].replace("Failed attempt: ", "")
@@ -146,6 +148,6 @@ def relevant_context(
 
         # Fallback: FIFO with deep mode limits
         return {
-            "recent_actions": action_history[-max_history:],
+            "recent_decisions": decision_history[-max_history:],
             "recent_failures": failed_attempts[-5:] if failed_attempts else [],
         }

@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.nodes.reasoning.assessment import assess_tools
+from cogency.nodes.reasoning.adaptive.assessment import assess_tools
 
 
 class TestToolQualityAssessment:

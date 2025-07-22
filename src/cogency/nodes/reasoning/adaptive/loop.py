@@ -28,41 +28,37 @@ def action_fingerprint(tool_calls: List[Any]) -> str:
 
 def detect_loop(cognition: Dict[str, Any]) -> bool:
     """Detect if agent is stuck in an action loop."""
-    action_history = cognition.get("action_history", [])
+    action_fingerprints = cognition.get("action_fingerprints", [])
 
-    if len(action_history) < 3:
+    if len(action_fingerprints) < 3:
         return False
 
     # Check for repeated identical actions
-    recent_actions = action_history[-3:]
+    recent_actions = action_fingerprints[-3:]
     if len(set(recent_actions)) == 1:  # All 3 recent actions are identical
         return True
 
     # Check for alternating pattern (A-B-A)
-    if len(action_history) >= 3:
-        if action_history[-1] == action_history[-3] and action_history[-1] != action_history[-2]:
-            return True
-
-    return False
+    return (
+        len(action_fingerprints) >= 3
+        and action_fingerprints[-1] == action_fingerprints[-3]
+        and action_fingerprints[-1] != action_fingerprints[-2]
+    )
 
 
 def detect_fast_loop(cognition: Dict[str, Any]) -> bool:
     """Lightweight loop detection for fast mode - lower threshold."""
-    action_history = cognition.get("action_history", [])
+    action_fingerprints = cognition.get("action_fingerprints", [])
 
     # Fast mode: detect loops earlier with just 2 actions
-    if len(action_history) < 2:
+    if len(action_fingerprints) < 2:
         return False
 
     # Check for immediate repetition (A-A)
-    recent_actions = action_history[-2:]
+    recent_actions = action_fingerprints[-2:]
     if recent_actions[0] == recent_actions[1]:
         return True
 
     # Check for simple alternating pattern with lower threshold
-    if len(action_history) >= 2:
-        # If we see the same action twice in last 2, it's a loop in fast mode
-        if action_history[-1] == action_history[-2]:
-            return True
-
-    return False
+    # If we see the same action twice in last 2, it's a loop in fast mode
+    return len(action_fingerprints) >= 2 and action_fingerprints[-1] == action_fingerprints[-2]

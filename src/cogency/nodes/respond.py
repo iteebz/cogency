@@ -8,7 +8,7 @@ from cogency.state import State
 # ReasoningDecision component removed - implementation didn't align with adaptive reasoning approach
 
 
-def build_prompt(
+def format_response_prompt(
     system_prompt: Optional[str] = None,
     has_tool_results: bool = False,
     identity: Optional[str] = None,
@@ -82,7 +82,7 @@ async def respond(
         if execution_results and execution_results.get("success"):
             if json_schema:
                 await state.output.send("trace", "Applying JSON schema constraint", node="respond")
-            response_prompt = build_prompt(
+            response_prompt = format_response_prompt(
                 system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema
             )
         elif execution_results and not execution_results.get("success"):
@@ -93,7 +93,7 @@ async def respond(
                 response_prompt = f"{system_prompt}\n\n{response_prompt}"
         else:
             # No tool results - answer with knowledge or based on conversation
-            response_prompt = build_prompt(
+            response_prompt = format_response_prompt(
                 system_prompt, has_tool_results=False, identity=identity, json_schema=json_schema
             )
 

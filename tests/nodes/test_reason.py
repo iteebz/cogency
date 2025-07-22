@@ -61,10 +61,10 @@ class TestReasonNode:
 
         assert "cognition" in result
         cognition = result["cognition"]
-        assert "strategy_history" in cognition
+        assert "approach_history" in cognition
+        assert "decision_history" in cognition
+        assert "action_fingerprints" in cognition
         assert "failed_attempts" in cognition
-        assert "action_history" in cognition
-        assert cognition["current_strategy"] == "initial_approach"
 
     @pytest.mark.asyncio
     async def test_iteration_tracking(self, basic_state, mock_llm, mock_tools):
@@ -90,16 +90,17 @@ class TestReasonNode:
     async def test_loop_detection_stopping(self, basic_state, mock_llm, mock_tools):
         """Test that reasoning stops when loop detected."""
         basic_state["cognition"] = {
-            "action_history": ["action1", "action1", "action1"],
-            "strategy_history": [],
+            "action_fingerprints": ["action1", "action1", "action1"],
+            "approach_history": [],
+            "decision_history": [],
             "failed_attempts": [],
-            "current_strategy": "test",
-            "last_tool_quality": "unknown",
+            "max_history": 10,
+            "max_failures": 15,
         }
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
-        assert result["stopping_reason"] == "reasoning_loop_detected"
+        assert result.get("stopping_reason") == "reasoning_loop_detected"
         assert result["next_node"] == "respond"
 
     @pytest.mark.asyncio
@@ -147,20 +148,22 @@ class TestReasonNode:
     @pytest.mark.asyncio
     async def test_memory_limit_enforcement(self, basic_state, mock_llm, mock_tools):
         """Test that memory limits are enforced."""
-        # Create state with excessive history
+        # Create state with excessive history - fast mode limit is 3, deep mode is 10
         basic_state["cognition"] = {
-            "action_history": [f"action{i}" for i in range(15)],  # Over limit of 10
-            "strategy_history": [f"strategy{i}" for i in range(8)],  # Over limit of 5
+            "action_fingerprints": [f"action{i}" for i in range(15)],  # Over any limit
+            "approach_history": [f"approach{i}" for i in range(15)],
+            "decision_history": [f"decision{i}" for i in range(15)],
             "failed_attempts": [],
-            "current_strategy": "test",
-            "last_tool_quality": "unknown",
+            "max_history": 3,  # Fast mode default
+            "max_failures": 5,
         }
 
         # Mock tool calls to trigger history update
-        mock_llm.run.return_value = '{"reasoning": "test", "strategy": "new_strategy", "tool_calls": [{"name": "test", "args": {}}]}'
+        mock_llm.run.return_value = '{"thinking": "test", "decision": "new_decision", "tool_calls": [{"name": "test", "args": {}}]}'
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
         cognition = result["cognition"]
-        assert len(cognition["action_history"]) <= 10
-        assert len(cognition["strategy_history"]) <= 5
+        # Should be limited by max_history setting (3 for fast mode)
+        assert len(cognition["action_fingerprints"]) <= cognition["max_history"]
+        assert len(cognition["approach_history"]) <= cognition["max_history"]
