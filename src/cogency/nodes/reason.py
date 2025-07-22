@@ -44,8 +44,8 @@ async def reason(
     selected_tools = state.get("selected_tools", tools or [])
 
     # Simple iteration tracking
-    current_iteration = state.get("current_iteration", 0)
-    max_iterations = state.get("max_iterations", 5)
+    iter = state.get("current_iteration", 0)
+    max_iter = state.get("max_iterations", 5)
 
     # Initialize cognitive state with adaptive features based on react_mode
     react_mode = state.get("react_mode", "fast")
@@ -64,7 +64,7 @@ async def reason(
         except Exception:
             loop_detected = False  # Fallback gracefully
 
-    if current_iteration >= max_iterations:
+    if iter >= max_iter:
         # Stop reasoning after max iterations
         state["stopping_reason"] = "max_iterations_reached"
         state["next_node"] = "respond"
@@ -105,8 +105,8 @@ async def reason(
         reasoning_prompt = prompt_deep_mode(
             tool_info,
             context.query,
-            current_iteration,
-            max_iterations,
+            iter,
+            max_iter,
             current_approach,
             attempts_summary,
             last_tool_quality,
@@ -130,7 +130,7 @@ async def reason(
 
         # Check for bidirectional mode switching
         switch_to, switch_reason = parse_switch(llm_response)
-        if should_switch(react_mode, switch_to, switch_reason, current_iteration):
+        if should_switch(react_mode, switch_to, switch_reason, iter):
             await state.output.send(
                 "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_reason})", node="reason"
             )
@@ -203,7 +203,7 @@ async def reason(
                 await state.output.send(
                     "trace", f"Tracking failed attempt: {', '.join(failed_tools)}", node="reason"
                 )
-                track_failure(cognition, prev_tool_calls, tool_quality, current_iteration)
+                track_failure(cognition, prev_tool_calls, tool_quality, iter)
 
     # Update cognitive state for next iteration
     if tool_calls:
@@ -219,7 +219,7 @@ async def reason(
     state["prev_tool_calls"] = tool_calls
 
     # Increment iteration counter
-    state["current_iteration"] = current_iteration + 1
+    state["current_iteration"] = iter + 1
 
     # Determine next node
     if can_answer:

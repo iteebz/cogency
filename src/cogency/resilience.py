@@ -1,18 +1,4 @@
-"""
-LLM Resilience: Simple timeout + retry for LLM calls.
-
-WHAT IT DOES:
-- Timeout Protection: Hard timeouts prevent hanging
-- Retry Logic: Exponential backoff with jitter on failures
-- Graceful Degradation: Returns helpful messages instead of crashes
-
-USAGE:
-@safe  # Just add this to LLM functions
-async def my_llm_call():
-    return await openai.chat.completions.create(...)
-
-FEATURES:
-✅ 30 second timeouts with 3 retries
+"""LLM timeout + retry with exponential backoff.
 ✅ Exponential backoff: 0.5s → 1s → 2s → up to 10s max
 ✅ Jitter prevents thundering herd
 ✅ Zero configuration needed

@@ -52,13 +52,13 @@ async def preprocess(
         )
 
         # Single LLM call: routing + memory + tool selection + complexity analysis
-        prompt = f"""Query: "{query}"
+        prompt_preprocess = f"""Query: "{query}"
 
-MEMORY: Extract if user shares personal facts or says "remember that...". Otherwise null.
+MEMORY: Extract if user shares personal facts. Otherwise null.
 
-ROUTING: Need tools → respond_directly: false. Can answer directly → respond_directly: true.
+ROUTING: Simple question → respond_directly: true. Complex → respond_directly: false.
 
-COMPLEXITY: Fast = lookup/search/retrieval. Deep = analysis/synthesis/multi-step.
+COMPLEXITY: Fast = lookup/retrieval. Deep = analysis/multi-step.
 
 TOOLS: Select what you need from: {registry_lite}
 
@@ -73,7 +73,7 @@ JSON:
   "reasoning": "brief explanation"
 }}"""
 
-        response = await llm.run([{"role": "user", "content": prompt}])
+        response = await llm.run([{"role": "user", "content": prompt_preprocess}])
 
         result = parse_json(response)
 

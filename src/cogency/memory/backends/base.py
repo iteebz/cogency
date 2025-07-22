@@ -9,11 +9,7 @@ from ..search import search
 
 
 class BaseBackend(MemoryBackend, ABC):
-    """Base backend using template method pattern.
-
-    Implements common CRUD logic and delegates storage primitives to subclasses.
-    Reduces backend implementations to 50-100 lines of pure storage code.
-    """
+    """Base backend using template method pattern - delegates storage to subclasses."""
 
     async def create(
         self,

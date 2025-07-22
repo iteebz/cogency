@@ -31,18 +31,22 @@ class Output:
 
         # Stream if callback available
         if self.callback:
-            formatted = f"🔮 {message}"
-            if node:
-                formatted = f"🔮   [{node}] {message}"
-            await self.callback(formatted)
+            # Split on | for separate trace lines
+            parts = message.split(" | ")
+            for part in parts:
+                if node:
+                    formatted = f"\n    🔧 [{node}] {part.strip()}"
+                else:
+                    formatted = f"\n    🔧 {part.strip()}"
+                await self.callback(formatted)
 
     async def update(self, message: str, type: str = "info", **kwargs):
-        """Display user progress updates with appropriate emoji"""
-        if not self.verbose or not self.callback:
+        """Display user progress updates - always shown, left-aligned, no emoji"""
+        if not self.callback:
             return
 
-        emoji = self._emoji_for(type)
-        formatted = f"{emoji} {message}"
+        # Updates are left-aligned, always shown, no emoji
+        formatted = f"\n{message}"
         await self.callback(formatted)
 
     async def log_tool(self, tool_name: str, result: Any, success: bool = True):
@@ -56,17 +60,6 @@ class Output:
         formatted = f"{icon} {tool_name} → {status} {formatted_result}"
         await self.callback(formatted)
 
-    def _emoji_for(self, type: str) -> str:
-        """Map message type to appropriate emoji"""
-        emoji_map = {
-            "reasoning": "🤔",
-            "tool": "🛠️",
-            "response": "💬",
-            "error": "⚠️",
-            "success": "✅",
-            "info": "🤖",
-        }
-        return emoji_map.get(type, "🤖")
 
     def tool_emoji(self, tool_name: str) -> str:
         """Get tool-specific emoji for display"""

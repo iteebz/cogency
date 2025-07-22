@@ -4,11 +4,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from cogency.nodes.reasoning.fast import parse_fast_mode
 from cogency.utils.parsing import (
     _clean_json,
     _extract_json,
     call_llm,
-    get_reasoning,
     parse_json,
     parse_tool_calls,
 )
@@ -84,21 +84,15 @@ def test_parse_tool_calls():
     assert result is None
 
 
-def test_get_reasoning():
-    """Test reasoning extraction."""
-    # JSON reasoning
-    result = get_reasoning('{"reasoning": "Need to search", "action": "use_tools"}')
-    assert result == "Need to search"
+def test_parse_fast_thinking():
+    """Test fast thinking extraction."""
+    # JSON thinking
+    result = parse_fast_mode('{"thinking": "Need to search", "action": "use_tools"}')
+    assert result["thinking"] == "Need to search"
 
-    # Text pattern reasoning
-    text_response = """REASONING: User wants weather info
-    JSON_DECISION: {"action": "use_tools"}"""
-    result = get_reasoning(text_response)
-    assert result == "User wants weather info"
-
-    # No reasoning (default)
-    result = get_reasoning('{"action": "respond", "message": "Hello"}')
-    assert result == "Analyzing the request and determining the best approach"
+    # No thinking (uses default when no JSON)
+    result = parse_fast_mode("invalid json")
+    assert result["thinking"] == "Analyzing the request and determining approach"
 
 
 @pytest.mark.asyncio

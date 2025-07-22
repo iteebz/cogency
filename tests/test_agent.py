@@ -64,12 +64,12 @@ async def test_agent_run_calls_flow_execute():
     # Patch the actual execution engine to keep the test focused and fast.
     # We don't need to test the full flow here, just that the Agent class
     # correctly invokes it.
-    with patch("cogency.runner.StreamRunner.stream", new_callable=AsyncMock) as mock_execute:
+    with patch.object(agent.flow.flow, "ainvoke", new_callable=AsyncMock) as mock_execute:
         mock_execute.return_value = "Final Answer"
 
         result = await agent.run("test query")
 
-        # Verify the agent called stream with arguments
+        # Verify the agent called flow execution with arguments
         mock_execute.assert_called_once()
 
         # Verify we get some result back

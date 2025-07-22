@@ -1,6 +1,8 @@
 """Terminal output utilities - clean, rich, magical demo UX."""
 
+import argparse
 import asyncio
+import sys
 from typing import AsyncIterator, List
 
 from rich.console import Console
@@ -8,6 +10,14 @@ from rich.console import Console
 from cogency.utils.emoji import emoji
 
 console = Console()
+
+
+def trace_args() -> bool:
+    """Parse command line args for --trace/-t flag."""
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('--trace', '-t', action='store_true', help='Enable tracing')
+    known_args, _ = parser.parse_known_args()
+    return known_args.trace
 
 
 async def stream_response(

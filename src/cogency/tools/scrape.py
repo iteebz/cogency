@@ -23,15 +23,7 @@ class Scrape(BaseTool):
         )
 
     async def run(self, url: str, favor_precision: bool = True, **kwargs) -> Dict[str, Any]:
-        """Extract clean content from a web page.
-
-        Args:
-            url: URL to scrape content from
-            favor_precision: Prioritize precision over recall in extraction
-
-        Returns:
-            Dict with extracted content, metadata, and status
-        """
+        """Extract clean content from a web page."""
         if not url or not isinstance(url, str):
             return {
                 "success": False,

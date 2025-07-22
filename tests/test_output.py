@@ -4,7 +4,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogency.output import Output, emoji, tool_emoji
+from cogency.output import Output
+from cogency.utils.emoji import emoji, tool_emoji
 
 
 @pytest.mark.asyncio

@@ -20,9 +20,9 @@ class TestContext:
         context.add_turn("user", "message 2")
 
         # Should have exactly 2 conversation turns due to limit
-        assert len(context.conversation_history) == 2
-        assert context.conversation_history[0]["query"] == "assistant"
-        assert context.conversation_history[1]["query"] == "user"
+        assert len(context.history) == 2
+        assert context.history[0]["query"] == "assistant"
+        assert context.history[1]["query"] == "user"
 
     def test_clean_conversation_filtering(self):
         context = Context("test")

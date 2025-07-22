@@ -6,11 +6,11 @@ import asyncio
 from cogency import Agent
 from cogency.memory.backends.filesystem import FilesystemBackend
 from cogency.tools import Calculator, Files, Search
-from cogency.utils.terminal import config_code, config_item, demo_header, section, separator, tips
+from cogency.utils import config_code, config_item, demo_header, trace_args, section, separator, tips
 
 
 async def main():
-    demo_header("⚙️  Cogency Configuration Reference", 45)
+    demo_header("⚙️ Cogency Configuration Reference")
 
     # 1. Minimal Configuration
     section("1. Minimal Agent")
@@ -61,7 +61,7 @@ async def main():
     section("6. Development Mode")
     dev_agent = Agent(
         "dev_bot",
-        trace=True,  # Enable tracing
+        trace=trace_args(),  # Enable tracing via CLI
         identity="debugging assistant",
     )
     config_item("Agent", dev_agent.name)

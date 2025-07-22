@@ -6,7 +6,6 @@ from cogency.flow import Flow
 from cogency.llm import detect_llm
 from cogency.memory.backends.filesystem import FileBackend
 from cogency.output import Output
-from cogency.runner import StreamRunner
 from cogency.state import State
 from cogency.tools.registry import ToolRegistry
 
@@ -65,7 +64,6 @@ class Agent:
             identity=opts.get("identity"),
             json_schema=opts.get("json_schema"),
         )
-        self.runner = StreamRunner()
         self.contexts: dict[str, Context] = {}
         self.last_output_manager: Optional[Output] = None  # Store for traces()
 
@@ -129,7 +127,8 @@ class Agent:
         state = State(context=context, query=query, output=output_manager)
 
         # Start execution in background
-        execution_task = asyncio.create_task(self.runner.stream(self.flow.flow, state, stream_cb))
+        output_manager.callback = stream_cb
+        execution_task = asyncio.create_task(self.flow.flow.ainvoke(state))
 
         # Stream messages as they come
         try:

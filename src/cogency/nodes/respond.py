@@ -8,7 +8,7 @@ from cogency.state import State
 # ReasoningDecision component removed - implementation didn't align with adaptive reasoning approach
 
 
-def format_response_prompt(
+def prompt_response(
     system_prompt: Optional[str] = None,
     has_tool_results: bool = False,
     identity: Optional[str] = None,
@@ -78,14 +78,14 @@ async def respond(
             await state.output.send("update", final_response)
     else:
         # Generate response based on context and any tool results
-        execution_results = state.get("execution_results", {})
-        if execution_results and execution_results.get("success"):
+        exec_results = state.get("execution_results", {})
+        if exec_results and exec_results.get("success"):
             if json_schema:
                 await state.output.send("trace", "Applying JSON schema constraint", node="respond")
-            response_prompt = format_response_prompt(
+            response_prompt = prompt_response(
                 system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema
             )
-        elif execution_results and not execution_results.get("success"):
+        elif exec_results and not exec_results.get("success"):
             response_prompt = (
                 "Generate helpful response acknowledging tool failures and providing alternatives."
             )
@@ -93,7 +93,7 @@ async def respond(
                 response_prompt = f"{system_prompt}\n\n{response_prompt}"
         else:
             # No tool results - answer with knowledge or based on conversation
-            response_prompt = format_response_prompt(
+            response_prompt = prompt_response(
                 system_prompt, has_tool_results=False, identity=identity, json_schema=json_schema
             )
 

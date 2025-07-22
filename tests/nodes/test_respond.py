@@ -6,7 +6,7 @@ import pytest
 
 from cogency.context import Context
 from cogency.llm.base import BaseLLM
-from cogency.nodes.respond import build_prompt, respond
+from cogency.nodes.respond import prompt_response, respond
 from cogency.output import Output
 from cogency.state import State
 
@@ -45,15 +45,15 @@ def state(context):
 def test_build_prompt():
     """Test prompt building."""
     # Basic
-    result = build_prompt()
+    result = prompt_response()
     assert "conversational" in result
 
     # With tool results
-    result = build_prompt(has_tool_results=True)
+    result = prompt_response(has_tool_results=True)
     assert "tool results" in result
 
     # With system prompt
-    result = build_prompt(system_prompt="You are helpful.")
+    result = prompt_response(system_prompt="You are helpful.")
     assert "You are helpful." in result
 
 

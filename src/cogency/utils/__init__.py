@@ -14,6 +14,7 @@ from .terminal import (
     showcase,
     stream_response,
     tips,
+    trace_args,
 )
 
 __all__ = [
@@ -32,4 +33,5 @@ __all__ = [
     "summarize_tool_result",
     "tips",
     "tool_emoji",
+    "trace_args",
 ]
