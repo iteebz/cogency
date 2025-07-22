@@ -123,7 +123,7 @@ class Shell(BaseTool):
                     process_env[key] = value
 
         # Execute command with coordinated working directory
-        actual_working_dir = working_dir or str(self.default_working_dir)
+        actual_working_dir = os.getcwd() # Always use project root
         try:
             process = await asyncio.create_subprocess_shell(
                 command,

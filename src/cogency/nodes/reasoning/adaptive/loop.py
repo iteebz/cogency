@@ -11,12 +11,12 @@ def action_fingerprint(tool_calls: List[Any]) -> str:
     # Create simple fingerprint from tool names and key args
     fingerprints = []
     for call in tool_calls:
-        tool_name = getattr(call, "name", "unknown")
-        args = getattr(call, "args", {})
+        tool_name = call.get("name", "unknown")
+        args = call.get("args", {})
 
         # Create fingerprint from tool + relevant args
         if isinstance(args, dict):
-            key_args = {k: v for k, v in args.items() if k in ["query", "url", "code", "content"]}
+            key_args = {k: v for k, v in args.items() if k in ["query", "url", "code", "content", "operation", "command", "filename", "action"]}
             fingerprint = f"{tool_name}:{hash(str(sorted(key_args.items())))}"
         else:
             fingerprint = f"{tool_name}:{hash(str(args))}"
@@ -58,7 +58,3 @@ def detect_fast_loop(cognition: Dict[str, Any]) -> bool:
     recent_actions = action_fingerprints[-2:]
     if recent_actions[0] == recent_actions[1]:
         return True
-
-    # Check for simple alternating pattern with lower threshold
-    # If we see the same action twice in last 2, it's a loop in fast mode
-    return len(action_fingerprints) >= 2 and action_fingerprints[-1] == action_fingerprints[-2]

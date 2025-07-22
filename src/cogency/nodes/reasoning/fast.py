@@ -7,17 +7,25 @@ from cogency.utils import parse_json
 
 def prompt_fast_mode(tool_info: str, query: str) -> str:
     """Streamlined ReAct prompt for fast mode execution."""
-    from cogency.nodes.reasoning.adaptive import get_switching_criteria
+    from cogency.nodes.reasoning.adaptive import switching_criteria
 
-    return f"""FAST MODE: Direct ReAct execution for simple tasks.
+    return f"""QUERY: {query}
+AVAILABLE TOOLS: {tool_info}
 
-QUERY: {query}
-TOOLS: {tool_info}
+CRITICAL INSTRUCTIONS - MANDATORY COMPLIANCE:
+- You MUST strictly follow all tool RULES listed above. Violating tool rules will cause system failure.
+- Check each tool's RULES section before using it
+- Tool rule violations are system-breaking errors
+- If the query is fully addressed and no further actions are required, set "tool_calls": [] and provide your final answer in the reasoning field.
 
-Think → Act → Observe. Use tools if needed.
+OUTPUT JSON ONLY:
+{{
+  "reasoning": "brief thought about tool choice and rule compliance",
+  "tool_calls": [{{"name": "tool_name", "args": {{"param": "value"}}}}]
+}}
 
-{get_switching_criteria("fast")}
-"""
+If no tools needed: "tool_calls": []
+{switching_criteria("fast")}"""
 
 
 def parse_fast_mode(response: str) -> Dict[str, Optional[str]]:

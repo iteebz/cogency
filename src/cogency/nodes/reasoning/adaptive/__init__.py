@@ -13,7 +13,7 @@ from .relevance import relevant_context, score_memory_relevance
 
 # Mode switching logic
 from .switching import (
-    get_switching_criteria,
+    switching_criteria,
     parse_switch,
     should_switch,
     switch_mode,
@@ -27,7 +27,7 @@ __all__ = [
     "track_failure",
     "summarize_attempts",
     # Mode switching
-    "get_switching_criteria",
+    "switching_criteria",
     "parse_switch",
     "should_switch",
     "switch_mode",

@@ -38,21 +38,11 @@ python coding.py
 - Tool subsetting for specialization
 - File I/O + code execution
 
-## Development Scripts
-
-Located in `dev/` folder for advanced users:
-
-### `dev/config.py` - Configuration Reference
+### 5. `config.py` - Configuration Reference
 ```bash
-python dev/config.py
+python config.py
 ```
 Shows all agent configuration options and patterns.
-
-### `dev/tracing.py` - Debug Tracing
-```bash
-python dev/tracing.py
-```
-Demonstrates execution tracing for development and debugging.
 
 ## Progression
 
@@ -64,5 +54,6 @@ Each example builds conceptually while demonstrating tool subsetting:
 - **memory.py**: 1 tool (recall only)  
 - **research.py**: 4 tools (focused research toolkit)
 - **coding.py**: 3 tools (focused coding environment)
+- **config.py**: Configuration showcase (educational)
 
 Shows tool subsetting as a real feature, not just theory.

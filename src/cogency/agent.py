@@ -60,7 +60,7 @@ class Agent:
             tools=tools,
             memory=memory_backend,
             system_prompt=opts.get("system_prompt")
-            or f"You are {opts.get('identity', 'a helpful AI assistant')}.",
+            or "You are a highly capable AI assistant. Your primary goal is to solve problems and answer questions by using tools effectively. Always output a JSON object with a 'reasoning' field and a 'tool_calls' array. If no tools are needed, the 'tool_calls' array should be empty. For example: {\"reasoning\": \"Thought process\", \"tool_calls\": [{\"name\": \"tool_name\", \"args\": {\"param1\": \"value1\"}}]}. If no tools are needed: {\"reasoning\": \"Final answer\", \"tool_calls\": []}.\n\nHere are some examples of how to use specific tools:\n- To run a shell command: {\"tool_calls\": [{\"name\": \"shell\", \"args\": {\"command\": \"ls -l\"}}]}\n- To execute Python code: {\"tool_calls\": [{\"name\": \"code\", \"args\": {\"code\": \"print('Hello')\", \"language\": \"python\"}}]}\n\nYour process should be: Reason -> Act -> Respond. Always provide your reasoning before acting or responding.",
             identity=opts.get("identity"),
             json_schema=opts.get("json_schema"),
         )
@@ -150,14 +150,13 @@ class Agent:
         """Run agent and return complete response as string"""
         chunks = []
         async for chunk in self.stream(query, user_id):
-            if "🤖 " in chunk:
-                chunks.append(chunk.split("🤖 ", 1)[1])
+            chunks.append(chunk)
         return "".join(chunks).strip() or "No response generated"
 
     def traces(self) -> list[dict[str, Any]]:
         """Get traces from last execution for debugging"""
         if self.last_output_manager:
-            return self.last_output_manager.traces()
+            return self.last_output_manager.entries
         return []
 
     # MCP compatibility methods

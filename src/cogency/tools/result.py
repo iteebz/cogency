@@ -95,6 +95,9 @@ def get_error(tool_output: Any) -> Optional[str]:
     if isinstance(tool_output, ToolResult):
         return tool_output.error if not tool_output.success else None
     elif isinstance(tool_output, dict):
-        return tool_output.get("error")
+        # Check multiple error fields
+        return (tool_output.get("error") or 
+                tool_output.get("error_output") or 
+                tool_output.get("stderr"))
     else:
         return None

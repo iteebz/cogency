@@ -58,9 +58,10 @@ MEMORY: Extract if user shares personal facts. Otherwise null.
 
 ROUTING: Simple question → respond_directly: true. Complex → respond_directly: false.
 
-COMPLEXITY: Fast = lookup/retrieval. Deep = analysis/multi-step.
+COMPLEXITY: Use FAST mode for all tasks unless extremely complex theoretical analysis.
 
 TOOLS: Select what you need from: {registry_lite}
+
 
 JSON:
 {{
@@ -68,7 +69,7 @@ JSON:
   "tags": ["tag1", "tag2"] | null,
   "memory_type": "fact",
   "respond_directly": true | false,
-  "react_mode": "fast" | "deep",
+  "react_mode": "fast",
   "selected_tools": ["tool1", "tool2"] | [],
   "reasoning": "brief explanation"
 }}"""

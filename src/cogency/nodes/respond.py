@@ -1,6 +1,7 @@
 """Respond node - final response formatting and personality."""
 
 from typing import Dict, Optional
+import asyncio
 
 from cogency.llm import BaseLLM
 from cogency.state import State
@@ -67,11 +68,15 @@ async def respond(
 
         final_messages.insert(0, {"role": "system", "content": fallback_prompt})
         try:
+            await state.output.send("update", "\n") # Add a newline before the LLM response
             # Stream the fallback response
             final_response = ""
             async for chunk in llm.stream(final_messages):
                 final_response += chunk
                 await state.output.send("update", chunk)
+            await asyncio.sleep(0) # Yield control to event loop
+            await asyncio.sleep(0) # Yield control to event loop
+            await asyncio.sleep(0) # Yield control to event loop
         except Exception as e:
             # Handle LLM errors in fallback response generation
             final_response = f"I apologize, but I encountered a technical issue while preparing my response: {str(e)}. Let me try to help based on what we discussed."
@@ -79,35 +84,64 @@ async def respond(
     else:
         # Generate response based on context and any tool results
         exec_results = state.get("execution_results", {})
-        if exec_results and exec_results.get("success"):
+        direct_response = state.get("direct_response")
+
+        if direct_response:
+            final_response = direct_response
+            await state.output.send("update", final_response)
+        elif exec_results and exec_results.get("success"):
             if json_schema:
                 await state.output.send("trace", "Applying JSON schema constraint", node="respond")
             response_prompt = prompt_response(
                 system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema
             )
+            final_messages.insert(0, {"role": "system", "content": response_prompt})
+            try:
+                await state.output.send("update", "\n") # Add a newline before the LLM response
+                # Stream the main response
+                final_response = ""
+                async for chunk in llm.stream(final_messages):
+                    final_response += chunk
+                    await state.output.send("update", chunk)
+            except Exception as e:
+                # Handle LLM errors in response generation
+                final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
+                await state.output.send("update", final_response)
         elif exec_results and not exec_results.get("success"):
             response_prompt = (
                 "Generate helpful response acknowledging tool failures and providing alternatives."
             )
             if system_prompt:
                 response_prompt = f"{system_prompt}\n\n{response_prompt}"
+            final_messages.insert(0, {"role": "system", "content": response_prompt})
+            try:
+                await state.output.send("update", "\n") # Add a newline before the LLM response
+                # Stream the main response
+                final_response = ""
+                async for chunk in llm.stream(final_messages):
+                    final_response += chunk
+                    await state.output.send("update", chunk)
+            except Exception as e:
+                # Handle LLM errors in response generation
+                final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
+                await state.output.send("update", final_response)
         else:
             # No tool results - answer with knowledge or based on conversation
             response_prompt = prompt_response(
                 system_prompt, has_tool_results=False, identity=identity, json_schema=json_schema
             )
-
-        final_messages.insert(0, {"role": "system", "content": response_prompt})
-        try:
-            # Stream the main response
-            final_response = ""
-            async for chunk in llm.stream(final_messages):
-                final_response += chunk
-                await state.output.send("update", chunk)
-        except Exception as e:
-            # Handle LLM errors in response generation
-            final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
-            await state.output.send("update", final_response)
+            final_messages.insert(0, {"role": "system", "content": response_prompt})
+            try:
+                await state.output.send("update", "\n") # Add a newline before the LLM response
+                # Stream the main response
+                final_response = ""
+                async for chunk in llm.stream(final_messages):
+                    final_response += chunk
+                    await state.output.send("update", chunk)
+            except Exception as e:
+                # Handle LLM errors in response generation
+                final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
+                await state.output.send("update", final_response)
 
     # Add response to context
     context.add_message("assistant", final_response)

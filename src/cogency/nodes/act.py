@@ -24,27 +24,50 @@ async def act(state: State, *, tools: List[BaseTool], config: Optional[Dict] = N
         await state.output.send("trace", "No valid tool calls parsed", node="act")
         return {"execution_results": {"type": "no_action"}, "next_node": "reason"}
 
+    # Clear cognitive state indicator for execution
+    tool_names = [c['name'] for c in tool_calls]
+    
     tool_tuples = [(call["name"], call["args"]) for call in tool_calls]
+    
+    # Show detailed tool calls with actual parameters
+    for call in tool_calls:
+        tool_name = call["name"]
+        args = call["args"]
+        # Format args nicely - truncate long values
+        formatted_args = {}
+        for k, v in args.items():
+            if isinstance(v, str) and len(v) > 100:
+                formatted_args[k] = f"{v[:100]}..."
+            else:
+                formatted_args[k] = v
+        await state.output.send(
+            "trace", f"{tool_name}({formatted_args})", node="act"
+        )
+    
     await state.output.send(
-        "trace", f"Executing {len(tool_calls)} tools: {[c['name'] for c in tool_calls]}", node="act"
+        "trace", f"Executing {len(tool_calls)} tools: {tool_names}", node="act"
     )
     execution_results = await run_tools(tool_tuples, selected_tools, context)
 
-    # Stream results via Output
-    for call, result in zip(tool_calls, execution_results.get("results", [])):
+    # Simple result display - just show what happened
+    successes = execution_results.get("results", [])
+    errors = execution_results.get("errors", [])
+    
+    for success in successes:
         await state.output.send(
-            "tool_execution",
-            content="",  # content is not used in this message type
-            tool_name=call["name"],
-            params=call["args"],
-            result=result.get("result"),
-            success=result.get("success", False),
+            "tool_execution_summary", success.get('result', 'success'), tool_name=success['tool_name'], success=True, status="success"
+        )
+    
+    for error in errors:
+        await state.output.send(
+            "tool_execution_summary", error.get('error', 'failed'), tool_name=error['tool_name'], success=False, status="failed"
         )
 
     success_count = execution_results.get("successful_count", 0)
     total_count = len(tool_calls)
+    # This message is still a trace, as it's about the internal process of tool completion
     await state.output.send(
-        "trace", f"Tools completed: {success_count}/{total_count} successful", node="act"
+        "trace", f"Tools completed: {success_count}/{total_count} successful", node="act", status="success" if success_count == total_count else "failed", output=execution_results
     )
 
     # Update flow state

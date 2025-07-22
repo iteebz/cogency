@@ -11,7 +11,7 @@ from cogency.tools.registry import tool
 class Files(BaseTool):
     """File operations within a safe base directory."""
 
-    def __init__(self, base_dir: str = ".cogency/sandbox"):
+    def __init__(self, base_dir: str = "."):
         super().__init__(
             name="files",
             description="Manage files and directories - create, read, edit, list, and delete files safely.",

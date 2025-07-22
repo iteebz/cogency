@@ -48,7 +48,7 @@ async def reason(
     max_iter = state.get("max_iterations", 5)
 
     # Initialize cognitive state with adaptive features based on react_mode
-    react_mode = state.get("react_mode", "fast")
+    react_mode = "fast"  # Force fast mode for stability
     cognition = init_cognition(state, react_mode=react_mode)
 
     # Adaptive loop detection based on mode
@@ -80,12 +80,10 @@ async def reason(
         tool_info_parts = []
         for t in selected_tools:
             schema = t.schema()
-            examples = getattr(t, "examples", lambda: [])()
-            if examples:
-                example_str = " Examples: " + ", ".join(examples[:2])  # Show first 2 examples
-                tool_info_parts.append(f"{t.name}: {schema}.{example_str}")
-            else:
-                tool_info_parts.append(f"{t.name}: {schema}")
+            
+            tool_entry = f"{t.name}: {schema}"
+            
+            tool_info_parts.append(tool_entry)
         tool_info = "\n".join(tool_info_parts)
     else:
         tool_info = "no tools"
@@ -122,24 +120,52 @@ async def reason(
 
     try:
         llm_response = await llm.run(messages)
+        await state.output.send("trace", f"Raw LLM response: {llm_response}", node="reason")
         context.add_message("assistant", llm_response)
 
         # Parse response using consolidated utilities
         json_data = parse_json(llm_response)
-        tool_calls = parse_tool_calls(json_data)
 
-        # Check for bidirectional mode switching
-        switch_to, switch_reason = parse_switch(llm_response)
-        if should_switch(react_mode, switch_to, switch_reason, iter):
-            await state.output.send(
-                "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_reason})", node="reason"
-            )
-            state = switch_mode(state, switch_to, switch_reason)
-            # Update react_mode for this iteration
-            react_mode = switch_to
+        # Check if LLM provided a direct answer (non-JSON)
+        if not isinstance(json_data, dict) or not json_data:
+            can_answer = True
+            tool_calls = None
+            state["direct_response"] = llm_response
+            thinking_text = "Processing direct response."
+        else:
+            # Check for bidirectional mode switching
+            switch_to, switch_reason = parse_switch(llm_response)
+            if should_switch(react_mode, switch_to, switch_reason, iter):
+                await state.output.send(
+                    "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_reason})", node="reason"
+                )
+                state = switch_mode(state, switch_to, switch_reason)
+                # Update react_mode for this iteration
+                react_mode = switch_to
 
-        # Direct response is implicit when no tool_calls
-        can_answer = tool_calls is None or len(tool_calls) == 0
+            tool_calls = parse_tool_calls(json_data)
+            can_answer = tool_calls is None or len(tool_calls) == 0
+
+            # Show thinking instantly (not streamed)
+            reasoning = json_data.get("reasoning", "Processing...")
+            if isinstance(reasoning, dict):
+                # Deep mode - show decision
+                if reasoning.get("decision"):
+                    thinking_text = reasoning["decision"]
+                else:
+                    thinking_text = "Processing..."
+            else:
+                # Fast mode - show reasoning
+                thinking_text = reasoning
+            
+            state["reasoning_response"] = llm_response
+            state["can_answer_directly"] = can_answer
+            state["tool_calls"] = tool_calls
+            state["direct_response"] = None # Reset direct response if it was set in a previous iteration
+
+        await state.output.send("update", thinking_text, node="reason")
+        current_approach = "unified_react"
+
     except Exception as e:
         # Handle LLM or parsing errors gracefully
         error_msg = f"I encountered an issue while thinking through your request: {str(e)}"
@@ -149,38 +175,17 @@ async def reason(
         tool_calls = None
         llm_response = "I encountered an issue with reasoning, but I'll do my best to help you."
 
-    # Extract and stream reasoning - with reflection phases for deep mode
-    if react_mode == "deep":
-        # Deep mode: extract and display reflection phases
-        thinking_phase = parse_deep_mode(llm_response)
-        deep_thinking = format_deep_mode(thinking_phase)
-        await state.output.send("update", deep_thinking)
+        # Store reasoning results in state - NO JSON LEAKAGE
+        state["reasoning_response"] = llm_response
+        state["can_answer_directly"] = can_answer
+        state["tool_calls"] = tool_calls
+        # Reasoning node never provides direct responses - respond node handles ALL responses
+        state["direct_response"] = None
 
-        # Store deep thought data for tracing
-        cognition["last_deep_thought"] = thinking_phase
-        await state.output.send(
-            "trace",
-            f"Deep thinking: approach={thinking_phase.get('decision', 'unknown')}",
-            node="reason",
-        )
-
-        # Extract approach from deep thinking phase
-        current_approach = thinking_phase.get("decision", "unknown")
-    else:
-        # Fast mode: standard reasoning extraction
-        reasoning_data = parse_fast_mode(llm_response)
-        reasoning_text = f"💭 {reasoning_data.get('thinking', 'Processing...')} | ⚡ {reasoning_data.get('decision', 'Acting...')}"
-        await state.output.send("update", reasoning_text)
-
-        # Extract approach from fast mode
-        current_approach = reasoning_data.get("decision", "unknown")
-
-    # Store reasoning results in state - NO JSON LEAKAGE
-    state["reasoning_response"] = llm_response
-    state["can_answer_directly"] = can_answer
-    state["tool_calls"] = tool_calls
-    # Reasoning node never provides direct responses - respond node handles ALL responses
-    state["direct_response"] = None
+        # Show thinking instantly (not streamed)
+        thinking_text = "Error during reasoning. Attempting to respond directly."
+        await state.output.send("update", thinking_text, node="reason")
+        current_approach = "unified_react"
 
     # Assess previous tool execution results if available
     execution_results = state.get("execution_results")
@@ -210,9 +215,10 @@ async def reason(
         fingerprint = action_fingerprint(tool_calls)
         # Extract decision from reasoning data
         if react_mode == "deep":
-            current_decision = thinking_phase.get("decision", "unknown")
+            reasoning_obj = json_data.get("reasoning", {})
+            current_decision = reasoning_obj.get("decision", "unknown") if isinstance(reasoning_obj, dict) else "unknown"
         else:
-            current_decision = reasoning_data.get("decision", "unknown")
+            current_decision = json_data.get("reasoning", "unknown")
         update_cognition(cognition, tool_calls, current_approach, current_decision, fingerprint)
 
     # Store current tool calls for next iteration's assessment

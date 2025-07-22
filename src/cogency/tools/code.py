@@ -18,10 +18,13 @@ class Code(BaseTool):
     def __init__(self):
         super().__init__(
             name="code",
-            description=(
-                "Execute code snippets directly - for running inline Python/JS code, not files"
-            ),
+            description="Execute Python and JavaScript code safely in isolated environment",
             emoji="🚀",
+            rules=(
+                "PRIMARY TOOL for all programming, calculations, data analysis, and computational tasks. "
+                "Use this for ANY mathematical computation, data processing, algorithm implementation, "
+                "or analytical work. Always prefer this over other tools for computational tasks."
+            ),
         )
         # Beautiful dispatch pattern - extensible and clean
         self._languages = {
@@ -83,7 +86,7 @@ safe_builtins = {
     'filter', 'float', 'frozenset', 'hex', 'int', 'isinstance', 'issubclass',
     'iter', 'len', 'list', 'map', 'max', 'min', 'oct', 'ord', 'pow',
     'print', 'range', 'repr', 'reversed', 'round', 'set', 'slice',
-    'sorted', 'str', 'sum', 'tuple', 'type', 'zip'
+    'sorted', 'str', 'sum', 'tuple', 'type', 'zip', 'open'
 }
 
 # Import commonly used safe modules
@@ -94,8 +97,9 @@ import json
 import re
 
 # Set up restricted globals
+builtins_dict = __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__
 restricted_globals = {
-    '__builtins__': {name: __builtins__[name] for name in safe_builtins if name in __builtins__},
+    '__builtins__': {name: builtins_dict[name] for name in safe_builtins if name in builtins_dict},
     'math': math,
     'random': random,
     'datetime': datetime,
@@ -170,10 +174,13 @@ try {{
     async def _run_in_subprocess(self, cmd: List[str], timeout: int) -> Dict[str, Any]:
         """Run command in subprocess with timeout and output capture."""
         try:
+            import os
+            project_root = os.getcwd() # Assuming the agent is run from the project root
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                cwd=project_root, # Set cwd to the project root
                 limit=1024 * 1024,  # 1MB output limit
             )
 

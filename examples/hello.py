@@ -4,7 +4,7 @@
 import asyncio
 
 from cogency import Agent
-from cogency.utils import demo_header, parse_trace_args, section, stream_response
+from cogency.utils import demo_header, trace_args, section, stream_response
 
 
 async def main():
@@ -22,7 +22,7 @@ async def main():
         Always respond with plain text only, no markdown formatting""",
         tools=[],
         memory=False,
-        trace=parse_trace_args(),
+        trace=trace_args(),
     )
 
     # Mystery deduction

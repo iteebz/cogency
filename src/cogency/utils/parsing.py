@@ -31,6 +31,7 @@ def parse_json(response: str, fallback: Optional[Dict[str, Any]] = None) -> Dict
     # Clean and extract JSON text
     json_text = _clean_json(response.strip())
     if not json_text:
+        print(f"parse_json: json_text is empty, returning fallback: {fallback or {}}")
         return fallback or {}
 
     try:
@@ -41,16 +42,11 @@ def parse_json(response: str, fallback: Optional[Dict[str, Any]] = None) -> Dict
 
 def _clean_json(response: str) -> str:
     """Extract JSON from markdown code blocks with brace matching."""
-    # Remove markdown code fences
-    if response.startswith("```json"):
-        json_match = re.search(r"```json\s*\n?(.*?)\n?```", response, re.DOTALL)
-        if json_match:
-            response = json_match.group(1).strip()
-    elif response.startswith("```"):
-        json_match = re.search(r"```\s*\n?(.*?)\n?```", response, re.DOTALL)
-        if json_match:
-            response = json_match.group(1).strip()
-
+    # Use a more flexible regex to find JSON content
+    json_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", response, re.DOTALL)
+    if json_match:
+        response = json_match.group(1).strip()
+    
     # Extract JSON object with proper brace matching
     return _extract_json(response)
 

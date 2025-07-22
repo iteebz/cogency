@@ -6434,4 +6434,4 @@ sentence-transformers = ["sentence-transformers"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "574bf068fa271bff2c30abf20b8987ae52abc003863bd683f91849bdd9192a84"
+content-hash = "d1e052f44e027bda558797f6c6d4b812b91c528f5112f13b3b4b9408949015b9"

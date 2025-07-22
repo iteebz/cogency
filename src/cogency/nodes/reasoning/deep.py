@@ -16,38 +16,37 @@ def prompt_deep_mode(
 
     Uses REFLECTION → PLANNING → DECISION structure for complex analysis.
     """
-    from cogency.nodes.reasoning.adaptive import get_switching_criteria
+    from cogency.nodes.reasoning.adaptive import switching_criteria
 
     return f"""DEEP MODE: Structured reasoning for complex analysis and multi-step tasks.
 
 ORIGINAL QUERY: {query}
 AVAILABLE TOOLS: {tool_info}
 
+CRITICAL INSTRUCTIONS - MANDATORY COMPLIANCE:
+- You MUST strictly follow all tool RULES listed above. Violating tool rules will cause system failure.
+- Check each tool's RULES section before using it
+- Tool rule violations are system-breaking errors
+
 ITERATION: {current_iteration}/{max_iterations}
 CURRENT APPROACH: {current_approach}
 PREVIOUS ATTEMPTS: {previous_attempts}
 LAST TOOL QUALITY: {last_tool_quality}
 
-Use structured reasoning phases:
+OUTPUT SINGLE JSON WITH STRUCTURED REASONING + ACTION:
 
-[REFLECTION]
-What have I learned so far? What patterns do I see? What's working/not working?
+```json
+{{
+  "reasoning": {{
+    "reflection": "what I learned",
+    "plan": "next steps", 
+    "decision": "action to take with rule compliance"
+  }},
+  "tool_calls": [{{"name": "tool_name", "args": {{"param": "value"}}}}]
+}}
+```
 
-[PLANNING]
-Based on my reflection, what's my multi-step approach?
-- Break down the problem if complex
-- Identify key information needed
-- Plan tool usage sequence
-- Consider potential obstacles
-
-[DECISION]
-This is what I've decided to do and why.
-
-Downshift to FAST MODE if this task is simpler than expected.
-
-{get_switching_criteria("deep")}
-
-Use tools if needed or provide direct response if you can answer completely."""
+If no tools needed: "tool_calls": []"""
 
 
 def parse_deep_mode(llm_response: str) -> Dict[str, Optional[str]]:

@@ -2,7 +2,7 @@ import asyncio
 from typing import AsyncIterator, Dict, List, Union
 
 try:
-    from google import genai
+    import google.genai as genai
 except ImportError:
     raise ImportError(
         "Google Gemini support not installed. Use `pip install google-genai`"

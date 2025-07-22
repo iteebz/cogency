@@ -21,13 +21,13 @@ def trace_args() -> bool:
 
 
 async def stream_response(
-    stream: AsyncIterator[str], char_delay: float = 0.005, rich: bool = True, prefix: str = "🤖: "
+    stream: AsyncIterator[str], char_delay: float = 0.0, rich: bool = True, prefix: str = "🤖: "
 ) -> str:
-    """Stream response with smooth character-by-character output.
+    """Stream response with direct chunk output - no smoothing.
 
     Args:
         stream: Async iterator of string chunks
-        char_delay: Delay between characters for smooth typing effect
+        char_delay: DISABLED - kept for compatibility
         rich: Whether to render with rich formatting
         prefix: Custom prefix for agent responses (default: "🤖: ")
 
@@ -44,13 +44,11 @@ async def stream_response(
 
     async for chunk in stream:
         full_response += chunk
-        for char in chunk:
-            if rich:
-                console.print(char, end="", highlight=False)
-            else:
-                print(char, end="", flush=True)
-            if char_delay > 0:
-                await asyncio.sleep(char_delay)
+        # Output chunks directly - no character-by-character delays
+        if rich:
+            console.print(chunk, end="", highlight=False)
+        else:
+            print(chunk, end="", flush=True)
 
     return full_response.strip()
 

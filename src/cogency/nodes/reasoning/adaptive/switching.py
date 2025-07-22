@@ -4,7 +4,7 @@ import json
 from typing import Any, Dict, Optional, Tuple
 
 
-def get_switching_criteria(current_mode: str) -> str:
+def switching_criteria(current_mode: str) -> str:
     """Get detailed mode switching criteria for prompts."""
     if current_mode == "fast":
         return """
@@ -15,7 +15,7 @@ ESCALATE to DEEP MODE if task requires:
 - Comparing multiple approaches
 - Handling ambiguous requirements
 
-JSON: {"thinking": "brief analysis", "decision": "approach", "switch_to": "deep"|null, "switch_why": "escalation reason"|null}"""
+JSON: {{"thinking": "brief analysis", "decision": "approach", "switch_to": "deep"|null, "switch_why": "escalation reason"|null}}"""
     else:  # deep mode
         return """
 DOWNSHIFT to FAST MODE if task is:
@@ -24,7 +24,7 @@ DOWNSHIFT to FAST MODE if task is:
 - Clear straightforward request
 - No complex analysis needed
 
-JSON: {"thinking": {"reflection": "...", "planning": "...", "decision": "..."}, "switch_to": "fast"|null, "switch_why": "downshift reason"|null}"""
+JSON: {{"thinking": {{"reflection": "...", "planning": "...", "decision": "..."}}, "switch_to": "fast"|null, "switch_why": "downshift reason"|null}}"""
 
 
 def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
