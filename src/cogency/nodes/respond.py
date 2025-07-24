@@ -106,6 +106,10 @@ def prompt_response(
     else:
         prompt = KNOWLEDGE_PROMPT.format(identity=identity_line, query=original_query)
 
+    # Add anti-JSON instruction when no JSON schema is expected
+    if not json_schema:
+        prompt += "\n\nCRITICAL: Respond in natural language only. Do NOT output JSON, reasoning objects, or tool_calls. This is your final response to the user."
+
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
@@ -128,6 +132,7 @@ async def respond(
 
     # ALWAYS generate response - handle tool results, direct reasoning, or knowledge-based
     final_messages = list(context.messages)
+    final_response = ""  # Initialize to prevent undefined variable issues
 
     # Check for stopping reason
     stopping_reason = state.get("stopping_reason")
@@ -151,24 +156,26 @@ async def respond(
             # Response follows naturally after state announcement
             # Generate the fallback response
             final_response = (await llm.run(final_messages)).strip()
-            await state.output.update(final_response)
+            await state.output.update(f"🤖: {final_response}")
             await asyncio.sleep(0)  # Single yield point sufficient
         except Exception as e:
             # Handle LLM errors in fallback response generation using utility
             final_response = fallback_response(e, json_schema)
-            await state.output.update(final_response)
+            await state.output.update(f"🤖: {final_response}")
     else:
         # Generate response based on context and any tool results
         exec_results = state.get("execution_results", {})
         direct_response = state.get("direct_response")
 
         if direct_response:
+            # Add debug trace for JSON leakage
+            await state.output.trace(
+                f"Using direct_response: {type(direct_response)} - {str(direct_response)[:100]}...",
+                node="respond",
+            )
             final_response = direct_response
-            await state.output.update(final_response)
+            await state.output.update(f"🤖: {final_response}")
         elif exec_results and exec_results.success:
-            if json_schema:
-                await state.output.trace("Applying JSON schema constraint", node="respond")
-
             # Format tool results for display - handle both dict and list formats
             results_data = exec_results.data
             if isinstance(results_data, dict):
@@ -191,15 +198,17 @@ async def respond(
                 identity=identity,
                 json_schema=json_schema,
             )
+
             final_messages.insert(0, {"role": "system", "content": response_prompt})
+
             try:
                 # Response follows naturally after state announcement
                 # Generate the main response
                 final_response = await llm.run(final_messages)
-                await state.output.update(final_response)
+                await state.output.update(f"🤖: {final_response}")
             except Exception as e:
                 final_response = fallback_response(e, json_schema)
-                await state.output.update(final_response)
+                await state.output.update(f"🤖: {final_response}")
         elif exec_results and not exec_results.success:
             # Format failure details - handle both dict and list formats
             results_data = exec_results.data
@@ -226,10 +235,10 @@ async def respond(
                 # Response follows naturally after state announcement
                 # Generate the main response
                 final_response = await llm.run(final_messages)
-                await state.output.update(final_response)
+                await state.output.update(f"🤖: {final_response}")
             except Exception as e:
                 final_response = fallback_response(e, json_schema)
-                await state.output.update(final_response)
+                await state.output.update(f"🤖: {final_response}")
         else:
             # No tool results - answer with knowledge or based on conversation
             response_prompt = prompt_response(
@@ -244,10 +253,10 @@ async def respond(
                 # Response follows naturally after state announcement
                 # Generate the main response
                 final_response = await llm.run(final_messages)
-                await state.output.update(final_response)
+                await state.output.update(f"🤖: {final_response}")
             except Exception as e:
                 final_response = fallback_response(e, json_schema)
-                await state.output.update(final_response)
+                await state.output.update(f"🤖: {final_response}")
 
     # Add response to context
     context.add_message("assistant", final_response)
@@ -265,5 +274,8 @@ async def respond(
     )
     state["last_node_output"] = final_response
     state["next_node"] = "END"
+
+    # Clear reasoning_response to prevent leakage
+    state["reasoning_response"] = None
 
     return state

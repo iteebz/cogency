@@ -5,6 +5,7 @@ try:
 except ImportError:
     raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
 
+from cogency.constants import MAX_TOKENS
 from cogency.llm.base import BaseLLM
 from cogency.resilience import safe
 
@@ -16,7 +17,7 @@ class MistralLLM(BaseLLM):
         model: str = "mistral-large-latest",
         timeout: float = 15.0,
         temperature: float = 0.7,
-        max_tokens: int = 4096,
+        max_tokens: int = MAX_TOKENS,
         max_retries: int = 3,
         **kwargs,
     ):

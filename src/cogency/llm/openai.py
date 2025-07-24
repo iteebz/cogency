@@ -5,6 +5,7 @@ try:
 except ImportError:
     raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`") from None
 
+from cogency.constants import MAX_TOKENS
 from cogency.llm.base import BaseLLM
 from cogency.resilience import safe
 
@@ -17,6 +18,7 @@ class OpenAILLM(BaseLLM):
         timeout: float = 15.0,
         temperature: float = 0.7,
         max_retries: int = 3,
+        max_tokens: int = MAX_TOKENS,
         **kwargs,
     ):
         super().__init__("openai", api_keys)
@@ -30,6 +32,7 @@ class OpenAILLM(BaseLLM):
         # Build kwargs for OpenAI chat completions (filtering client-level params)
         self.kwargs = {
             "temperature": temperature,
+            "max_tokens": max_tokens,
             **kwargs,
         }
         self.client_kwargs = {

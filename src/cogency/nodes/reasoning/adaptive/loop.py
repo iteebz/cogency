@@ -60,8 +60,12 @@ def detect_loop(cognition) -> bool:
     if len(action_entries) < LOOP_DETECTION_MIN_ACTIONS:
         return False
 
-    # Extract fingerprints from dict entries
-    fingerprints = [entry["fingerprint"] for entry in action_entries]
+    # Extract fingerprints from dict entries with defensive checks
+    fingerprints = [
+        entry.get("fingerprint", "unknown")
+        for entry in action_entries
+        if entry and isinstance(entry, dict)
+    ]
 
     # Check for repeated identical actions
     recent_actions = fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
@@ -84,20 +88,19 @@ def detect_fast_loop(cognition) -> bool:
     if len(action_entries) < FAST_LOOP_DETECTION_MIN_ACTIONS:
         return False
 
-    # Extract fingerprints from dict entries
-    fingerprints = [entry["fingerprint"] for entry in action_entries]
+    # Extract fingerprints from dict entries with defensive checks
+    fingerprints = [
+        entry.get("fingerprint", "unknown")
+        for entry in action_entries
+        if entry and isinstance(entry, dict)
+    ]
 
-    # Check for immediate repetition (A-A) - fast detection
-    if (
-        len(fingerprints) >= FAST_LOOP_DETECTION_MIN_ACTIONS
-        and fingerprints[-1] == fingerprints[-2]
-    ):
-        return True
+    # Removed overly aggressive A-A detection - verification is valid behavior
 
-    # Check for exact repetition pattern (A-A-A) - truly identical actions
-    if len(fingerprints) >= LOOP_DETECTION_MIN_ACTIONS:
-        recent_actions = fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
-        if len(set(recent_actions)) == 1:  # All 3 identical
+    # Check for excessive repetition (5+ identical) - verification up to 4x is reasonable
+    if len(fingerprints) >= 5:
+        recent_actions = fingerprints[-5:]
+        if len(set(recent_actions)) == 1:  # All 5 identical
             return True
 
     # Check for immediate back-and-forth (A-B-A) pattern

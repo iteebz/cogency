@@ -24,6 +24,8 @@ class Calculator(BaseTool):
             ],
             rules=[
                 "Quick arithmetic only - for complex math use code tool",
+                "Don't repeat identical calculations - check previous results first",
+                "Prefer compound expressions: use (12*1.25)+(8*0.85) instead of separate steps",
             ],
         )
 
@@ -54,7 +56,7 @@ class Calculator(BaseTool):
             if isinstance(result, float) and result.is_integer():
                 result = int(result)
 
-            return ToolResult.ok({"result": result})
+            return ToolResult.ok({"result": result, "expression": expression})
 
         except ZeroDivisionError as e:
             logger.error(f"Calculator operation failed due to division by zero: {e}")
@@ -100,4 +102,7 @@ class Calculator(BaseTool):
         if not result_data:
             return "No result"
         result = result_data.get("result", "")
+        expression = result_data.get("expression", "")
+        if expression:
+            return f"{expression} = {result}"
         return f"= {result}"

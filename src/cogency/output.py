@@ -26,11 +26,11 @@ class Output:
         # Show reasoning states for user feedback
         if state_name == "reasoning":
             if "DEEP" in content or "deep" in content.lower():
-                message = "\n🧠 Thinking deeply..."
+                message = "\n🧠 Thinking deeply...\n"
             elif "FAST" in content or "fast" in content.lower():
-                message = "\n⚡ Thinking fast..."
+                message = "\n⚡️ Thinking fast...\n"
             else:
-                message = "\n🧠 Thinking..."
+                message = "\n🧠 Thinking...\n"
             await self.callback(message)
             await asyncio.sleep(0)
         elif state_name == "responding":
@@ -56,7 +56,7 @@ class Output:
         await asyncio.sleep(0)
 
     async def trace(self, content: str, node: Optional[str] = None, **kwargs) -> None:
-        """Developer debugging traces - minimal visual impact."""
+        """Developer debugging traces - clean visual flow."""
         if not self.tracing:
             return
 
@@ -64,22 +64,34 @@ class Output:
         self.entries.append({"type": "trace", "message": content, "node": node, **kwargs})
 
         if self.callback:
-            node_label = f"[{node}] " if node else ""
-            message = f"\n  ➡️ {node_label}{content}"
+            # Enhanced trace formatting with better visual hierarchy
+            if "ROUTING" in content:
+                # Flow routing - use directional arrows
+                message = f"\n  🔄 {content}"
+            elif node == "flow":
+                message = f"\n  🌊 {content}"
+            elif node == "preprocess":
+                message = f"\n  🔮 {content}"
+            elif node == "reason":
+                message = f"\n  🧠 {content}"
+            elif node == "act":
+                message = f"\n  ⚡️ {content}"
+            else:
+                message = f"\n  ➡️ {content}"
             await self.callback(message)
 
     async def tool_execution_summary(
         self, tool_name: str, result: Any, success: bool = True
     ) -> None:
-        """Tool execution summary - now uses update format."""
+        """Tool execution summary - enhanced visual feedback."""
         if not self.callback:
             return
 
-        # Simple tool emojis
+        # Enhanced tool emojis and styling
         tool_emojis = {
-            "code": "📝",
+            "code": "💻",
             "files": "📁",
-            "shell": "⚙️",
+            "shell": "🔧",
             "search": "🔍",
             "scrape": "🌐",
             "calculator": "🧮",
@@ -87,13 +99,22 @@ class Output:
         }
         emoji = tool_emojis.get(tool_name.lower(), "⚡")
 
-        status = "✅" if success else "❌"
         summary = self._summarize_result(result) if result else ""
 
-        if summary:
-            message = f"{emoji} {tool_name} → {summary}"
+        if success and summary:
+            # Success with meaningful output
+            if tool_name.lower() == "shell" and "✓" in summary:
+                # Shell commands that succeed - make them pop
+                message = f"{emoji} {summary}"
+            elif tool_name.lower() == "files" and "Created" in summary:
+                # File creation success
+                message = f"{emoji} {summary}"
+            else:
+                message = f"{emoji} {tool_name}({summary})"
+        elif success:
+            message = f"{emoji} {tool_name} ✓"
         else:
-            message = f"{emoji} {tool_name} {status}"
+            message = f"{emoji} {tool_name} ❌ {summary if summary else 'Failed'}"
 
         await self.update(message, type="tool")
 

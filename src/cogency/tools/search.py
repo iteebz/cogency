@@ -101,10 +101,8 @@ class Search(BaseTool):
         self, params: Dict[str, Any], results: Optional[ToolResult] = None
     ) -> tuple[str, str]:
         """Format search execution for human display."""
-        from cogency.utils.formatting import truncate
-
         query = params.get("query", params.get("q", ""))
-        param_str = f"({truncate(query, 35)})" if query else ""
+        param_str = f"({query})" if query else ""
         if results is None:
             return param_str, ""
         # Format results

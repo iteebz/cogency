@@ -90,10 +90,10 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
         and state.get("tool_calls")
         and state.cognition.action_fingerprints
     ):
-        from cogency.nodes.reason import format_agent_results
+        from cogency.nodes.reason import format_actions
 
         tool_calls = state.get("tool_calls", [])
-        formatted_result = format_agent_results(execution_results, tool_calls, selected_tools)
+        formatted_result = format_actions(execution_results, tool_calls, selected_tools)
         # Update the last entry with formatted results
         state.cognition.update_result(formatted_result)
 

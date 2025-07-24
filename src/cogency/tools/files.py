@@ -26,13 +26,15 @@ class Files(BaseTool):
                 "files(action='list', filename='src')",
             ],
             rules=[
-                "CRITICAL: When creating files, ALWAYS provide complete, functional code implementations; never placeholder comments or stubs.",
+                "CRITICAL: When creating files, provide complete, functional code implementations; never placeholder comments or stubs.",
+                "Start with focused, core functionality - avoid overly long files in initial creation.",
                 "Include proper imports, error handling, and production-ready code.",
                 "For Python: Include proper type hints, docstrings, and follow PEP 8.",
-                "Generate full class definitions, complete functions with actual logic.",
-                "Create working, executable code that solves the specified requirements.",
+                "Generate working, executable code that solves the specified requirements.",
+                "For complex features, create smaller focused files and build incrementally.",
                 "For 'edit' action, specify 'filename' and either 'line' (for single line) or 'start' and 'end' (for range).",
                 "For 'list' action, 'filename' can be a directory path; defaults to current directory.",
+                "File paths are relative to the tool's working directory (e.g., 'app.py', 'src/module.py', 'models/user.py').",
             ],
         )
         self.base_dir = Path(base_dir).resolve()
@@ -50,6 +52,24 @@ class Files(BaseTool):
 
         return path
 
+    def _suggest_similar_files(self, target: str) -> list[str]:
+        """Find similar files for typo correction."""
+        import difflib
+
+        # Get all files in base directory recursively
+        all_files = []
+        try:
+            for path in self.base_dir.rglob("*"):
+                if path.is_file():
+                    rel_path = path.relative_to(self.base_dir)
+                    all_files.append(str(rel_path))
+        except Exception:
+            return []
+
+        # Find close matches (similarity > 0.6)
+        matches = difflib.get_close_matches(target, all_files, n=3, cutoff=0.6)
+        return matches
+
     async def run(
         self,
         action: str,
@@ -63,12 +83,26 @@ class Files(BaseTool):
         try:
             if action == "create":
                 path = self._safe_path(filename)
+                if path.exists():
+                    return ToolResult.fail(
+                        f"File already exists: {filename}. Read it first with files(action='read', filename='{filename}') before creating."
+                    )
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
                 return ToolResult.ok({"result": f"Created file: {filename}", "size": len(content)})
 
             elif action == "read":
                 path = self._safe_path(filename)
+                if not path.exists():
+                    # Try fuzzy matching for common mistakes
+                    suggestions = self._suggest_similar_files(filename)
+                    if suggestions:
+                        return ToolResult.fail(
+                            f"File not found: {filename}. Did you mean: {', '.join(suggestions)}?"
+                        )
+                    else:
+                        return ToolResult.fail(f"File not found: {filename}")
+
                 content = path.read_text(encoding="utf-8")
                 return ToolResult.ok(
                     {
@@ -81,7 +115,13 @@ class Files(BaseTool):
             elif action == "edit":
                 path = self._safe_path(filename)
                 if not path.exists():
-                    return ToolResult.fail(f"File not found: {filename}")
+                    suggestions = self._suggest_similar_files(filename)
+                    if suggestions:
+                        return ToolResult.fail(
+                            f"File not found: {filename}. Did you mean: {', '.join(suggestions)}?"
+                        )
+                    else:
+                        return ToolResult.fail(f"File not found: {filename}")
 
                 lines = path.read_text(encoding="utf-8").splitlines()
 
@@ -180,23 +220,6 @@ class Files(BaseTool):
         if not result_data:
             return "No result"
 
+        # Use action signature for consistent fingerprinting, not dynamic content
         result_msg = result_data.get("result", "")
-
-        # Show what knowledge/content was gained
-        if "Read file" in result_msg:
-            content = result_data.get("content", "")
-            if content:
-                # Show first few lines of content for context
-                lines = content.splitlines()
-                preview = " | ".join(lines[:2])[:80]
-                return f"{result_msg} → {preview}..."
-            return result_msg
-        elif "Listed" in result_msg:
-            items = result_data.get("items", [])
-            if items:
-                file_names = [item["name"] for item in items[:3]]
-                return f"{result_msg} → {', '.join(file_names)}"
-            return result_msg
-        else:
-            # Created, edited, deleted - operation result is sufficient
-            return result_msg
+        return result_msg

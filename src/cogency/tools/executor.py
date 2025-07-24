@@ -91,7 +91,7 @@ async def execute_tools(
             if not tool_output.success:
                 error_msg = tool_output.error or "Unknown error"
                 if output:
-                    await output.update(f"✗ {error_msg}")
+                    await output.update(f"✗ {error_msg}\n")
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -116,7 +116,8 @@ async def execute_tools(
                                 "..." if len(str(tool_result)) > 100 else ""
                             )
 
-                    await output.update(f"✓ {readable_result}")
+                    # Add success indicator to result
+                    await output.update(f"✓ {readable_result}\n")
 
                 success_result = {
                     "tool_name": actual_tool_name,

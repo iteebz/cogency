@@ -75,15 +75,24 @@ def build_registry(tools: List[BaseTool], lite: bool = False) -> str:
         return "no tools"
 
     entries = []
-    for tool in tools:
-        if lite:
-            entries.append(f"{tool.emoji} [{tool.name}]: {tool.description}")
-        else:
-            rules_str = "\n".join(f"- {r}" for r in tool.rules) if tool.rules else "None"
-            examples_str = "\n".join(f"- {e}" for e in tool.examples) if tool.examples else "None"
 
-            entry = f"{tool.emoji} [{tool.name}]\n{tool.description}\n\n"
-            entry += f"{tool.schema}\n\n"
+    for tool_instance in tools:
+        if lite:
+            entries.append(
+                f"{tool_instance.emoji} [{tool_instance.name}]: {tool_instance.description}"
+            )
+        else:
+            rules_str = (
+                "\n".join(f"- {r}" for r in tool_instance.rules) if tool_instance.rules else "None"
+            )
+            examples_str = (
+                "\n".join(f"- {e}" for e in tool_instance.examples)
+                if tool_instance.examples
+                else "None"
+            )
+
+            entry = f"{tool_instance.emoji} [{tool_instance.name}]\n{tool_instance.description}\n\n"
+            entry += f"{tool_instance.schema}\n\n"
             entry += f"Rules:\n{rules_str}\n\n"
             entry += f"Examples:\n{examples_str}\n"
             entry += "---"

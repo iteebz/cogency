@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Coding agent - impressive multi-file project generation."""
+"""ML Engineering agent - neural network training pipeline."""
 
 import asyncio
 
@@ -9,34 +9,36 @@ from cogency.utils.cli import trace_args
 
 
 async def main():
-    print("🚀 CODING AGENT")
-    print("=" * 25 + "\n")
+    print("=" * 42 + "\n")
+    print("🧠 MACHINE LEARNING ENGINEER")
+    print("=" * 42 + "\n")
 
-    # Create coding agent
+    # Create ML engineering agent
     agent = Agent(
-        "coder",
-        identity="world-class software engineer who writes clean, production-ready code",
+        "ml_engineer",
+        identity="You are Dr. Elena Rodriguez, a senior ML engineer at DeepMind with expertise in neural architecture design and training optimization. You've built production ML systems at scale and are known for creating elegant, efficient training pipelines. You approach problems with both theoretical rigor and practical engineering excellence, always focusing on reproducible results and clean code architecture.",
         tools=[Code(), Files(), Shell()],
         memory=False,
-        max_iterations=20,
+        max_iterations=25,  # ML projects may need more iterations
         trace=trace_args(),
     )
 
-    # Fun, impressive coding challenge
-    query = """Create a complete Python web scraper and API dashboard:
+    # Challenge the agent with a comprehensive ML pipeline
+    query = """Build a complete neural network training pipeline from scratch that demonstrates modern ML engineering practices.
 
-    Build a multi-file project with:
-    1. Web scraper that fetches trending GitHub repositories
-    2. FastAPI backend with endpoints to serve the data
-    3. Simple HTML dashboard to display trending repos
-    4. Data models with proper validation
-    5. Error handling and rate limiting
-    6. Requirements.txt with all dependencies
-    7. A simple test to verify it works
+    Requirements:
+    - Generate synthetic dataset with interesting patterns
+    - Design and implement a neural network architecture (PyTorch or TensorFlow)
+    - Create a proper training loop with metrics logging
+    - Implement data preprocessing and validation splits
+    - Add model evaluation and visualization of results
+    - Include proper project structure with requirements.txt
+    - Write tests to verify the pipeline works
+    - Demonstrate the trained model making predictions
 
-    Make it production-ready with clean structure, proper error handling, and documentation."""
+    Focus on clean, production-ready ML code that showcases best practices in model development, not just a toy example. Show your expertise in building robust ML systems."""
 
-    print(f"💻 Challenge: {query[:60]}...\n")
+    print("🚀 Challenge: Build a complete neural network training pipeline!")
 
     # Stream the response
     async for chunk in agent.stream(query):

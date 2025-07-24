@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from cogency.nodes.reason import format_agent_results
+from cogency.nodes.reason import format_actions
 from cogency.tools.base import BaseTool
 from cogency.utils.results import ExecutionResult
 

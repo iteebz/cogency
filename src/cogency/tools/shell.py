@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Shell(BaseTool):
     """Execute system commands safely with timeout and basic sandboxing."""
 
-    def __init__(self, default_working_dir: str = ".cogency/sandbox"):
+    def __init__(self, default_working_dir: str = "sandbox"):
         super().__init__(
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
@@ -31,12 +31,18 @@ class Shell(BaseTool):
                 "shell(command='echo \"Hello World\"')",
                 "shell(command='python --version')",
                 "shell(command='git status', working_dir='/path/to/repo')",
+                "shell(command='python -m pip install -r requirements.txt')",
             ],
             rules=[
+                "Prefer 'python -m <module>' for executing Python modules (e.g., 'python -m pip', 'python -m pytest').",
                 "Avoid using commands that modify system state or delete files (e.g., 'rm', 'sudo').",
                 "Blocked commands include: rm, rmdir, del, format, fdisk, mkfs, dd, shutdown, reboot, halt, poweroff, init, su, sudo, passwd, chown, chmod, chattr, kill, killall, pkill, taskkill, crontab, at, systemctl, service.",
                 "Use 'working_dir' for operations within specific directories (relative to project root).",
                 "Ensure commands are non-interactive and complete within the 'timeout' period.",
+                "When debugging failures: Read stderr output carefully for specific error messages and missing dependencies.",
+                "For test failures: Look at the full error output, not just exit codes - often shows import errors, missing files, or syntax issues.",
+                "For Python projects: Install requirements before running tests. Create __init__.py files to make directories into packages.",
+                "For ModuleNotFoundError: Check if the module exists as a file/directory and create __init__.py if needed to make it importable.",
             ],
         )
         # Coordinate with file tool sandbox
@@ -149,7 +155,7 @@ class Shell(BaseTool):
                     process_env[key] = value
 
         # Execute command with coordinated working directory
-        actual_working_dir = os.getcwd()  # Always use project root
+        actual_working_dir = working_dir or str(self.default_working_dir)
         try:
             process = await asyncio.create_subprocess_shell(
                 command,
@@ -219,16 +225,40 @@ class Shell(BaseTool):
         if results is None:
             return param_str, ""
 
-        # Format results
+        # Enhanced result formatting
         if results.failure:
-            result_str = f"Error: {results.error}"
+            result_str = results.error
         else:
             data = results.data
             exit_code = data.get("exit_code", 0)
+            stdout = data.get("stdout", "").strip()
+
             if exit_code == 0:
-                result_str = "Success"
+                # Show meaningful success messages
+                if "pip install" in cmd and "Successfully installed" in stdout:
+                    result_str = "Packages installed successfully"
+                elif "pytest" in cmd and "passed" in stdout:
+                    # Extract test results from pytest output
+                    if "failed" in stdout:
+                        result_str = "Tests completed (some failures)"
+                    else:
+                        result_str = "All tests passed"
+                elif "python" in cmd and stdout:
+                    result_str = f"Executed: {stdout[:50]}..." if len(stdout) > 50 else stdout
+                elif stdout:
+                    result_str = f"{stdout[:50]}..." if len(stdout) > 50 else stdout
+                else:
+                    result_str = "Command completed successfully"
             else:
-                result_str = f"Exit code: {exit_code}"
+                stderr = data.get("stderr", "").strip()
+                if stderr:
+                    result_str = (
+                        f"Exit code: {exit_code} - {stderr[:100]}..."
+                        if len(stderr) > 100
+                        else f"Exit code: {exit_code} - {stderr}"
+                    )
+                else:
+                    result_str = f"Exit code: {exit_code}"
 
         return param_str, result_str
 
@@ -237,19 +267,12 @@ class Shell(BaseTool):
         if not result_data:
             return "No result"
 
+        # Use command for consistent fingerprinting, not dynamic output
+        command = result_data.get("command", "")
         success = result_data.get("success", False)
-        stdout = result_data.get("stdout", "").strip()
-        stderr = result_data.get("stderr", "").strip()
-        exit_code = result_data.get("exit_code")
 
         if success:
-            if stdout:
-                return f"Shell command succeeded. Output: {stdout[:100]}..."
-            return "Shell command succeeded (no output)"
+            return f"✓ {command}"
         else:
-            msg = f"Shell command failed (exit code: {exit_code})."
-            if stderr:
-                msg += f" Error: {stderr[:100]}..."
-            elif stdout:
-                msg += f" Output: {stdout[:100]}..."
-            return msg
+            exit_code = result_data.get("exit_code", "unknown")
+            return f"✗ {command} (exit {exit_code})"

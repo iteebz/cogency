@@ -7,6 +7,7 @@ except ImportError:
         "Google Gemini support not installed. Use `pip install google-genai`"
     ) from None
 
+from cogency.constants import MAX_TOKENS
 from cogency.llm.base import BaseLLM
 from cogency.resilience import safe
 
@@ -19,6 +20,7 @@ class GeminiLLM(BaseLLM):
         timeout: float = 15.0,
         temperature: float = 0.7,
         max_retries: int = 3,
+        max_output_tokens: int = MAX_TOKENS,
         **kwargs,
     ):
         super().__init__("gemini", api_keys)

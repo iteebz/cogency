@@ -4,6 +4,7 @@ import logging
 from typing import Any, Dict, Optional
 
 import trafilatura
+from trafilatura.settings import use_config
 
 from cogency.utils.results import ToolResult
 
@@ -11,6 +12,11 @@ from .base import BaseTool
 from .registry import tool
 
 logger = logging.getLogger(__name__)
+
+# Configure trafilatura with conservative timeouts and size limits
+config = use_config()
+config.set("DEFAULT", "DOWNLOAD_TIMEOUT", "5")  # 5 second timeout
+config.set("DEFAULT", "MAX_FILE_SIZE", "512000")  # 500KB max file size
 
 
 @tool
@@ -30,6 +36,9 @@ class Scrape(BaseTool):
             ],
             rules=[
                 "Provide a valid and accessible URL.",
+                "Avoid re-scraping URLs that previously failed or returned no content.",
+                "If a URL fails to scrape, try alternative sources instead of retrying.",
+                "Large content will be automatically truncated to prevent timeouts.",
             ],
         )
 
@@ -38,10 +47,15 @@ class Scrape(BaseTool):
         if not url or not isinstance(url, str):
             return ToolResult.fail("URL parameter is required and must be a string")
         try:
-            # Fetch URL content first
-            downloaded = trafilatura.fetch_url(url)
+            # Fetch URL content with timeout and size limits
+            downloaded = trafilatura.fetch_url(url, config=config)
             if not downloaded:
                 return ToolResult.fail(f"Could not fetch content from {url}")
+
+            # Check content size before processing
+            if len(downloaded) > 512000:  # 500KB limit
+                return ToolResult.fail(f"Content too large ({len(downloaded)} bytes) from {url}")
+
             # Extract content with options for cleanest output
             content = trafilatura.extract(
                 downloaded,
@@ -49,8 +63,13 @@ class Scrape(BaseTool):
                 include_comments=False,
                 include_tables=False,
                 no_fallback=True,
+                config=config,
             )
             if content:
+                # Limit content size for agent processing
+                if len(content) > 10000:  # 10KB limit for agent context
+                    content = content[:10000] + "\n\n[Content truncated due to size limit]"
+
                 # Also extract metadata
                 metadata = trafilatura.extract_metadata(downloaded)
                 return ToolResult.ok(

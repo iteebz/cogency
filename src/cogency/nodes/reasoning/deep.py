@@ -11,20 +11,28 @@ def prompt_deep_mode(
     last_tool_quality: str,
 ) -> str:
     """Generate structured prompt for deep mode reasoning."""
+    from cogency.constants import MAX_TOOL_CALLS_PER_ITERATION
 
     return f"""
 DEEP: Structured reasoning for query: {query}
 
+CRITICAL: Output EXACTLY ONE JSON object. Do NOT generate multiple JSON objects or responses.
+
 JSON Response Format:
 {{
+  "thinking": "What am I trying to accomplish? What's my approach to this problem?",
   "reflect": "What worked/failed in previous actions? What gaps remain?",
   "plan": "What specific tools to use next and expected outcomes?",
   "tool_calls": [
-    {{"name": "tool_a", "args": {{"param": "value"}}}}
+    {{"name": "tool_a", "args": {{"param": "value"}}}},
+    {{"name": "tool_b", "args": {{"param": "value"}}}},
+    {{"name": "tool_c", "args": {{"param": "value"}}}}
   ],
   "switch_to": null,
   "switch_why": null
 }}
+
+IMPORTANT: All {MAX_TOOL_CALLS_PER_ITERATION} tool calls must be in ONE tool_calls array, not separate JSON objects.
 
 TOOLS:
 {tool_registry}
@@ -36,17 +44,19 @@ Action history: {previous_attempts}
 Last quality: {last_tool_quality}
 
 REASONING PHASES:
-🤔 REFLECT: Review completed actions and their results - what information do you already have? What gaps remain?
+🤔 REFLECT: Review completed actions and their DETAILED results - what information do you already have? What gaps remain?
 📋 PLAN: Choose NEW tools that address remaining gaps - avoid repeating successful actions
-🎯 EXECUTE: Run planned tools in parallel when they address independent aspects
+🎯 EXECUTE: Run planned tools sequentially when they address different aspects
 
 RECOVERY ACTIONS:
 - Tool parameter errors → Check required vs optional parameters in schema
 - No results from tools → Try different parameters or alternative approaches
 - Information conflicts → Use additional tools to verify or synthesize  
+- Use the DETAILED action history to understand what actually happened, not just success/failure
 - Avoid repeating successful tool calls - check action history first
 - Empty tool_calls array ([ ]) if query fully answered or no progress possible
 - If original query has been fully resolved, say so explicitly and return tool_calls: []
+- LIMIT: Maximum {MAX_TOOL_CALLS_PER_ITERATION} tool calls per iteration to avoid JSON parsing issues
 
 DOWNSHIFT to FAST if:
 - Simple datetime request using time tool

@@ -119,12 +119,11 @@ async def _route_from_preprocess(state: State) -> str:
 async def _route_from_reason(state: State) -> str:
     """Route from reason - act if tools needed, else respond."""
     tool_calls = state.get("tool_calls")
-    can_answer = state.get("can_answer_directly", False)
     route = "act" if tool_calls and len(tool_calls) > 0 else "respond"
 
     if hasattr(state, "output") and state.output:
         await state.output.trace(
-            f"[ROUTING] reason → {route} (tool_calls: {len(tool_calls) if tool_calls else 0}, can_answer_directly: {can_answer})",
+            f"[ROUTING] reason → {route} (tool_calls: {len(tool_calls) if tool_calls else 0})",
             node="flow",
         )
 
@@ -174,7 +173,7 @@ async def _route_from_act(state: State) -> str:
         else:
             # Good quality or max retries reached - continue research
             route = "reason"
-            reason = f"continue_research_quality_{tool_quality}"
+            reason = "continue_iteration"
             state["quality_retry_attempts"] = 0  # Reset on good quality
 
         state["failed_tool_attempts"] = 0  # Reset failure counter on success

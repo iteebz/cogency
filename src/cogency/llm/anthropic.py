@@ -7,6 +7,7 @@ except ImportError:
         "Anthropic support not installed. Use `pip install cogency[anthropic]`"
     ) from None
 
+from cogency.constants import MAX_TOKENS
 from cogency.llm.base import BaseLLM
 from cogency.resilience import safe
 
@@ -18,7 +19,7 @@ class AnthropicLLM(BaseLLM):
         model: str = "claude-3-5-sonnet-20241022",
         timeout: float = 15.0,
         temperature: float = 0.7,
-        max_tokens: int = 4096,
+        max_tokens: int = MAX_TOKENS,
         max_retries: int = 3,
         **kwargs,
     ):

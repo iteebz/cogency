@@ -46,9 +46,12 @@ def build_iteration_history(cognition, selected_tools, max_iterations=3):
     start_step = len(fingerprints) - len(last_fingerprints) + 1
 
     for i, entry in enumerate(last_fingerprints):
+        # Defensive check for None entries
+        if not entry or not isinstance(entry, dict):
+            continue
         step_num = start_step + i
-        fingerprint = entry["fingerprint"]
-        result = entry["result"]
+        fingerprint = entry.get("fingerprint", "unknown")
+        result = entry.get("result", "")
         if result:
             iterations.append(f"Step {step_num}: {fingerprint}\n→ {result}")
         else:
@@ -63,7 +66,7 @@ def build_iteration_history(cognition, selected_tools, max_iterations=3):
     return f"PREVIOUS ITERATIONS:\n{iteration_summary}"
 
 
-def format_agent_results(execution_results, prev_tool_calls, selected_tools):
+def format_actions(execution_results, prev_tool_calls, selected_tools):
     """Extract formatted results from previous execution for agent context."""
     if not (execution_results and hasattr(execution_results, "data") and execution_results.data):
         return ""
@@ -151,20 +154,8 @@ async def reason(
     # Create unified iteration history for both modes
     attempts_summary = build_iteration_history(state.cognition, selected_tools, max_iterations=3)
 
-    # Show clean iteration summary for debugging
-    if attempts_summary.startswith("PREVIOUS ITERATIONS:"):
-        # Extract just the step summaries, truncate cleanly at word boundaries
-        lines = attempts_summary.split("\n")
-        summary_lines = [line for line in lines[:4] if line.strip()]  # First 3-4 lines
-        clean_summary = "\n".join(summary_lines)
-        if len(clean_summary) > 150:
-            # Find last complete step
-            last_step = clean_summary.rfind("Step ")
-            if last_step > 50:  # Keep at least some content
-                clean_summary = clean_summary[:last_step].rstrip()
-        await state.output.trace(f"Iteration history:\n{clean_summary}", node="reason")
-    elif attempts_summary != "No previous iterations":
-        await state.output.trace(f"Iteration history: {attempts_summary}", node="reason")
+    # Hide verbose iteration history - only show for debugging if needed
+    # await state.output.trace(f"Iteration history: {attempts_summary}", node="reason")
 
     # Build adaptive reasoning prompt - with reflection for deep mode
     if react_mode == "deep":
@@ -204,6 +195,8 @@ async def reason(
         parse_result = parse_json_result(llm_response)
         if not parse_result.success:
             await state.output.trace(f"JSON parsing failed: {parse_result.error}", node="reason")
+            await state.output.trace(f"Raw LLM response: {llm_response[:200]}...", node="reason")
+            # Don't dump raw LLM response - it's overwhelming and not useful for users
             # Fallback to empty dict if parsing fails
             json_data = {}
         else:
@@ -213,33 +206,31 @@ async def reason(
         verbose = state.get("verbose", True)  # Default to True for backward compatibility
         if verbose:
             if react_mode == "deep" and json_data:
-                assess_phase = json_data.get("assess", "")
+                thinking_phase = json_data.get("thinking", "")
                 reflect_phase = json_data.get("reflect", "")
                 plan_phase = json_data.get("plan", "")
-                decide_phase = json_data.get("decide", "")
 
-                if assess_phase:
-                    await state.output.update(f"⚖️ {assess_phase}\n")
+                if thinking_phase:
+                    await state.output.update(f"💭 {thinking_phase}\n")
                 if reflect_phase:
                     await state.output.update(f"🤔 {reflect_phase}\n")
                 if plan_phase:
                     await state.output.update(f"📋 {plan_phase}\n")
-                if decide_phase:
-                    await state.output.update(f"🎯 {decide_phase}\n")
             elif json_data and json_data.get("thinking"):
                 thinking = json_data.get("thinking")
                 if thinking:
-                    await state.output.update(f"\n💭 {thinking}\n")
+                    await state.output.update(f"💭 {thinking}\n")
 
         # Initialize variables that need to be available throughout the function
         tool_calls = None
-        can_answer = True
 
         # Reasoning should always output JSON - if not, try to recover
         if not isinstance(json_data, dict) or not json_data:
-            json_data = recover_json(llm_response)
+            recovery_result = recover_json(llm_response)
 
-            if not json_data:
+            if recovery_result.success:
+                json_data = recovery_result.data
+            else:
                 state["stopping_reason"] = "invalid_json_format"
                 state["tool_calls"] = None
                 return state
@@ -255,20 +246,10 @@ async def reason(
                 # Update react_mode for this iteration
                 react_mode = switch_to
 
-            # Handle direct response from recovered JSON
-            if "response" in json_data and json_data.get("tool_calls") is None:
-                # This is a direct response that was recovered from non-JSON
-                state["direct_response"] = json_data["response"]
-                state["can_answer_directly"] = True
-                state["tool_calls"] = None
-                tool_calls = None
-                can_answer = True
-            else:
-                tool_calls = parse_tool_calls(json_data)
-                can_answer = tool_calls is None or len(tool_calls) == 0
+            # Parse tool calls from JSON - reasoning should never provide direct responses
+            tool_calls = parse_tool_calls(json_data)
 
-                state["can_answer_directly"] = can_answer
-                state["tool_calls"] = tool_calls
+            state["tool_calls"] = tool_calls
 
             # Show thinking instantly (not streamed)
             reasoning = json_data.get("reasoning", "Processing...")
@@ -278,6 +259,9 @@ async def reason(
                     pass  # No longer used
                 else:
                     pass  # No longer used
+            elif isinstance(reasoning, list):
+                # Handle case where reasoning is mistakenly a list
+                pass  # No longer used
             else:
                 pass  # No longer used
 
@@ -291,13 +275,11 @@ async def reason(
         logger.error(f"Reasoning process failed: {e}")
         # Handle LLM or parsing errors gracefully - store in state, not conversation
         # Default to responding directly when reasoning fails
-        can_answer = True
         tool_calls = None
         llm_response = "I encountered an issue with reasoning, but I'll do my best to help you."
 
         # Store reasoning results in state - NO JSON LEAKAGE
         state["reasoning_response"] = llm_response
-        state["can_answer_directly"] = can_answer
         state["tool_calls"] = tool_calls
         # Reasoning node never provides direct responses - respond node handles ALL responses
         state["direct_response"] = None

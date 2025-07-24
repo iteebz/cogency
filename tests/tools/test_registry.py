@@ -1,6 +1,11 @@
 """Test tool auto-discovery and registration."""
 
+import os
+from unittest.mock import MagicMock, patch
+
 from cogency.tools.base import BaseTool
+from cogency.tools.files import Files
+from cogency.tools.registry import build_registry
 
 
 class TestToolRegistry:
