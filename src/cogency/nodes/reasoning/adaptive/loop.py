@@ -2,6 +2,10 @@
 
 from typing import Any, Dict, List
 
+LOOP_DETECTION_MIN_ACTIONS = 3
+FAST_LOOP_DETECTION_MIN_ACTIONS = 2
+SEARCH_FINGERPRINT_KEY_TERMS = 5
+
 
 def action_fingerprint(tool_calls: List[Any]) -> str:
     """Create a fingerprint of tool calls for loop detection."""
@@ -16,8 +20,31 @@ def action_fingerprint(tool_calls: List[Any]) -> str:
 
         # Create fingerprint from tool + relevant args
         if isinstance(args, dict):
-            key_args = {k: v for k, v in args.items() if k in ["query", "url", "code", "content", "operation", "command", "filename", "action"]}
-            fingerprint = f"{tool_name}:{hash(str(sorted(key_args.items())))}"
+            key_args = {
+                k: v
+                for k, v in args.items()
+                if k
+                in [
+                    "query",
+                    "url",
+                    "code",
+                    "content",
+                    "operation",
+                    "command",
+                    "filename",
+                    "action",
+                ]
+            }
+            # For search queries, normalize to catch similar searches
+            if tool_name == "search" and "query" in key_args:
+                query = key_args["query"].lower()
+                # Extract key terms to catch semantic similarity
+                key_terms = set(
+                    query.split()[:SEARCH_FINGERPRINT_KEY_TERMS]
+                )  # First 5 words as key terms
+                fingerprint = f"{tool_name}:{hash(str(sorted(key_terms)))}"
+            else:
+                fingerprint = f"{tool_name}:{hash(str(sorted(key_args.items())))}"
         else:
             fingerprint = f"{tool_name}:{hash(str(args))}"
 
@@ -30,11 +57,11 @@ def detect_loop(cognition: Dict[str, Any]) -> bool:
     """Detect if agent is stuck in an action loop."""
     action_fingerprints = cognition.get("action_fingerprints", [])
 
-    if len(action_fingerprints) < 3:
+    if len(action_fingerprints) < LOOP_DETECTION_MIN_ACTIONS:
         return False
 
     # Check for repeated identical actions
-    recent_actions = action_fingerprints[-3:]
+    recent_actions = action_fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
     if len(set(recent_actions)) == 1:  # All 3 recent actions are identical
         return True
 
@@ -50,11 +77,26 @@ def detect_fast_loop(cognition: Dict[str, Any]) -> bool:
     """Lightweight loop detection for fast mode - lower threshold."""
     action_fingerprints = cognition.get("action_fingerprints", [])
 
-    # Fast mode: detect loops earlier with just 2 actions
-    if len(action_fingerprints) < 2:
+    # Fast mode: detect loops earlier - even just 2 identical actions
+    if len(action_fingerprints) < FAST_LOOP_DETECTION_MIN_ACTIONS:
         return False
 
-    # Check for immediate repetition (A-A)
-    recent_actions = action_fingerprints[-2:]
-    if recent_actions[0] == recent_actions[1]:
+    # Check for immediate repetition (A-A) - fast detection
+    if (
+        len(action_fingerprints) >= FAST_LOOP_DETECTION_MIN_ACTIONS
+        and action_fingerprints[-1] == action_fingerprints[-2]
+    ):
         return True
+
+    # Check for exact repetition pattern (A-A-A) - truly identical actions
+    if len(action_fingerprints) >= LOOP_DETECTION_MIN_ACTIONS:
+        recent_actions = action_fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
+        if len(set(recent_actions)) == 1:  # All 3 identical
+            return True
+
+    # Check for immediate back-and-forth (A-B-A) pattern
+    return (
+        len(action_fingerprints) >= LOOP_DETECTION_MIN_ACTIONS
+        and action_fingerprints[-1] == action_fingerprints[-LOOP_DETECTION_MIN_ACTIONS]
+        and action_fingerprints[-1] != action_fingerprints[-2]
+    )

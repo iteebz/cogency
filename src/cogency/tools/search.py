@@ -123,13 +123,13 @@ class Search(BaseTool):
         """Format search results for agent action history - show knowledge gained."""
         if not result_data or not isinstance(result_data, dict):
             return "No results"
-        
+
         query = result_data.get("query", "unknown query")
         search_results = result_data.get("results", [])
-        
+
         if not search_results:
             return f"'{query}' → No results found"
-        
+
         # Show knowledge gained from first 2 results
         knowledge_items = []
         for result in search_results[:2]:
@@ -139,7 +139,7 @@ class Search(BaseTool):
                 key_info = snippet[:60].strip()
                 if key_info:
                     knowledge_items.append(f"- {key_info}...")
-        
+
         if knowledge_items:
             knowledge_str = "\n  ".join(knowledge_items)
             return f"'{query}' → Found:\n  {knowledge_str}"
@@ -148,4 +148,3 @@ class Search(BaseTool):
             titles = [r.get("title", "Untitled") for r in search_results[:2]]
             titles_str = " | ".join(titles)
             return f"'{query}' → {len(search_results)} results: {titles_str}"
-

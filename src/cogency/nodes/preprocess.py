@@ -7,9 +7,9 @@ from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
 from cogency.state import State
 from cogency.tools.base import BaseTool
+from cogency.tools.registry import build_registry
 from cogency.utils.heuristics import is_simple_query, query_needs_tools
 from cogency.utils.parsing import parse_json_result
-from cogency.tools.registry import build_registry
 
 
 async def preprocess(
@@ -41,8 +41,12 @@ async def preprocess(
         suggested_mode = "fast" if is_simple_query(query) else None
 
         # Single LLM call: routing + memory + tool selection + complexity analysis
-        hint_section = f"\nHINT: This appears to be a simple query, consider fast mode." if suggested_mode == "fast" else ""
-        
+        hint_section = (
+            "\nHINT: This appears to be a simple query, consider fast mode."
+            if suggested_mode == "fast"
+            else ""
+        )
+
         prompt_preprocess = f"""You are a preprocessing agent responsible for query classification before reasoning begins.
 
 Query: "{query}"

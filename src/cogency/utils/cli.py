@@ -35,11 +35,7 @@ async def interactive_mode(agent) -> None:
 def trace_args() -> bool:
     """Parse trace argument from CLI and return trace flag."""
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-t", "--trace", 
-        action="store_true", 
-        help="Enable detailed tracing output"
-    )
+    parser.add_argument("-t", "--trace", action="store_true", help="Enable detailed tracing output")
     args = parser.parse_args()
     return args.trace
 

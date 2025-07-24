@@ -79,9 +79,9 @@ def build_registry(tools: List[BaseTool], lite: bool = False) -> str:
         if lite:
             entries.append(f"{tool.emoji} [{tool.name}]: {tool.description}")
         else:
-            rules_str = '\n'.join(f"- {r}" for r in tool.rules) if tool.rules else 'None'
-            examples_str = '\n'.join(f"- {e}" for e in tool.examples) if tool.examples else 'None'
-            
+            rules_str = "\n".join(f"- {r}" for r in tool.rules) if tool.rules else "None"
+            examples_str = "\n".join(f"- {e}" for e in tool.examples) if tool.examples else "None"
+
             entry = f"{tool.emoji} [{tool.name}]\n{tool.description}\n\n"
             entry += f"{tool.schema}\n\n"
             entry += f"Rules:\n{rules_str}\n\n"
@@ -89,4 +89,3 @@ def build_registry(tools: List[BaseTool], lite: bool = False) -> str:
             entry += "---"
             entries.append(entry)
     return "\n".join(entries)
-

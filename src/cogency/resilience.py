@@ -7,6 +7,7 @@
 import asyncio
 from dataclasses import dataclass
 from functools import wraps
+from typing import Any, AsyncGenerator
 
 
 @dataclass
@@ -27,7 +28,7 @@ def safe(max_retries: int = 3, backoff_factor: float = 2.0):
         if func.__name__ == "stream":
             # Stream method - async generator
             @wraps(func)
-            async def safe_stream(*args, **kwargs):
+            async def safe_stream(*args, **kwargs) -> AsyncGenerator[Any, None]:
                 for attempt in range(max_retries):
                     try:
                         async for chunk in func(*args, **kwargs):
@@ -43,7 +44,7 @@ def safe(max_retries: int = 3, backoff_factor: float = 2.0):
         else:
             # Run method - async function returning string
             @wraps(func)
-            async def safe_run(*args, **kwargs):
+            async def safe_run(*args, **kwargs) -> Any:
                 for attempt in range(max_retries):
                     try:
                         return await func(*args, **kwargs)

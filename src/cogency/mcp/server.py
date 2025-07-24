@@ -60,7 +60,10 @@ class MCPServer:
                                 "type": "string",
                                 "description": "Query to send to the agent",
                             },
-                            "context": {"type": "object", "description": "Context for the query"},
+                            "context": {
+                                "type": "object",
+                                "description": "Context for the query",
+                            },
                         },
                         "required": ["query"],
                     },
@@ -101,13 +104,13 @@ class MCPServer:
         except Exception as e:
             return [TextContent(type="text", text=f"Error: {str(e)}")]
 
-    async def serve_stdio(self):
+    async def serve_stdio(self) -> None:
         """Serve MCP over stdio"""
         async with stdio_server(self.server) as streams:
             await self.server.run(
                 streams[0], streams[1], self.server.create_initialization_options()
             )
 
-    async def serve_websocket(self, host: str = "localhost", port: int = 8765):
+    async def serve_websocket(self, host: str = "localhost", port: int = 8765) -> None:
         """Serve MCP over websocket"""
         await websocket_server(self.server, host, port)

@@ -4,8 +4,8 @@
 import asyncio
 
 from cogency import Agent
-from cogency.utils.cli import trace_args
 from cogency.tools import Code, Files, Shell
+from cogency.utils.cli import trace_args
 
 
 async def main():
@@ -19,7 +19,7 @@ async def main():
         tools=[Code(), Files(), Shell()],
         memory=False,
         max_iterations=20,
-        trace=trace_args()
+        trace=trace_args(),
     )
 
     # Fun, impressive coding challenge

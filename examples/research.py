@@ -4,8 +4,8 @@
 import asyncio
 
 from cogency import Agent
-from cogency.utils.cli import trace_args
 from cogency.tools import Scrape, Search
+from cogency.utils.cli import trace_args
 
 
 async def main():
@@ -14,12 +14,12 @@ async def main():
 
     # Research agent with longer horizon capabilities
     agent = Agent(
-        "deep_researcher", 
+        "deep_researcher",
         identity="expert research analyst who conducts thorough multi-step research and analysis",
         tools=[Scrape(), Search()],
         memory=False,
         max_iterations=10,  # Allow deeper research with multiple steps
-        trace=trace_args()
+        trace=trace_args(),
     )
 
     # Complex research query that demonstrates longer horizon planning

@@ -179,9 +179,9 @@ class Files(BaseTool):
         """Format file results for agent action history."""
         if not result_data:
             return "No result"
-        
+
         result_msg = result_data.get("result", "")
-        
+
         # Show what knowledge/content was gained
         if "Read file" in result_msg:
             content = result_data.get("content", "")

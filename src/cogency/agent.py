@@ -3,20 +3,30 @@ from typing import Any, AsyncIterator, Optional
 
 from cogency.context import Context
 from cogency.flow import Flow
+from cogency.identity import process_identity
 from cogency.llm import detect_llm
 from cogency.memory.backends.filesystem import FileBackend
 from cogency.output import Output
 from cogency.state import State
 from cogency.tools.registry import ToolRegistry
 
+MAX_QUERY_LENGTH = 10000
+
 
 class Agent:
     """Cognitive agent with streaming execution, tool integration, memory and adaptive reasoning"""
 
-    def __init__(self, name: str, trace: bool = False, verbose: bool = True, **opts: Any) -> None:
+    def __init__(
+        self,
+        name: str = "cogency",
+        trace: bool = False,
+        verbose: bool = True,
+        **opts: Any,
+    ) -> None:
         self.name = name
         self.trace = trace
         self.verbose = verbose
+        self.max_iterations = opts.get("max_iterations", 10)
 
         # Handle memory flag - clean API for memory control
         memory_enabled = opts.get("memory", True)  # Default: enabled
@@ -41,7 +51,10 @@ class Agent:
                     )
         else:
             # Auto-discover all registered tools
-            tools = ToolRegistry.get_tools(memory=memory_backend)
+            if memory_backend:
+                tools = ToolRegistry.get_tools(memory=memory_backend)
+            else:
+                tools = ToolRegistry.get_tools()
 
         # Add Recall tool if memory is enabled and not already in tools
         if memory_enabled and memory_backend:
@@ -60,8 +73,8 @@ class Agent:
             tools=tools,
             memory=memory_backend,
             system_prompt=opts.get("system_prompt")
-            or "You are a highly capable AI assistant. Your primary goal is to solve problems and answer questions by using tools effectively. Always output a JSON object with a 'reasoning' field and a 'tool_calls' array. If no tools are needed, the 'tool_calls' array should be empty. For example: {\"reasoning\": \"Thought process\", \"tool_calls\": [{\"name\": \"tool_name\", \"args\": {\"param1\": \"value1\"}}]}. If no tools are needed: {\"reasoning\": \"Final answer\", \"tool_calls\": []}.\n\nHere are some examples of how to use specific tools:\n- To run a shell command: {\"tool_calls\": [{\"name\": \"shell\", \"args\": {\"command\": \"ls -l\"}}]}\n- To execute Python code: {\"tool_calls\": [{\"name\": \"code\", \"args\": {\"code\": \"print('Hello')\", \"language\": \"python\"}}]}\n\nYour process should be: Reason -> Act -> Respond. Always provide your reasoning before acting or responding.",
-            identity=opts.get("identity"),
+            or 'You are Cogency, an AI assistant with access to tools like code execution, file operations, web search, and more. Be honest about your capabilities. Be concise and direct unless detail is specifically requested.\n\nFor reasoning phases, output JSON: {"reasoning": "brief thought", "tool_calls": [{"name": "tool_name", "args": {...}}]}. Empty tool_calls array if no tools needed.\n\nFor final responses, be brief and helpful. Don\'t over-explain unless asked.',
+            identity=process_identity(opts.get("identity")),
             json_schema=opts.get("json_schema"),
         )
         self.contexts: dict[str, Context] = {}
@@ -125,6 +138,8 @@ class Agent:
 
         # Clean state - zero ceremony
         state = State(context=context, query=query, output=output_manager)
+        state["max_iterations"] = self.max_iterations
+        state["verbose"] = self.verbose
 
         # Start execution in background
         output_manager.callback = stream_cb
@@ -158,11 +173,6 @@ class Agent:
         if self.last_output_manager:
             return self.last_output_manager.entries
         return []
-
-    # MCP compatibility methods
-    async def process(self, input_text: str, context: Optional[Context] = None) -> str:
-        """Process input text with optional context for MCP compatibility"""
-        return await self.run(input_text, context.user_id if context else "default")
 
     async def serve_mcp(
         self, transport: str = "stdio", host: str = "localhost", port: int = 8765

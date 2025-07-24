@@ -53,31 +53,30 @@ class Flow:
         # Pure LangGraph composition - nodes handle their own dependencies
         node_functions: Dict[str, Any] = {}
 
-        if self.memory is not None:
-            node_functions["preprocess"] = partial(
-                preprocess,
-                llm=self.llm,
-                tools=self.tools,
-                memory=self.memory,
-                system_prompt=self.system_prompt or "",
-            )
-        else:
-            # Create a no-op preprocess when memory is None
-            async def preprocess_no_memory(state: State, **kwargs: Any) -> State:
-                state["next_node"] = "reason"
-                return state
-
-            node_functions["preprocess"] = preprocess_no_memory
+        # Always run preprocess for smart routing, even without memory
+        node_functions["preprocess"] = partial(
+            preprocess,
+            llm=self.llm,
+            tools=self.tools,
+            memory=self.memory,  # Can be None
+            system_prompt=self.system_prompt or "",
+            identity=self.identity,
+        )
 
         node_functions.update(
             {
                 "reason": partial(
-                    reason, llm=self.llm, tools=self.tools, system_prompt=self.system_prompt or ""
+                    reason,
+                    llm=self.llm,
+                    tools=self.tools,
+                    system_prompt=self.system_prompt or "",
+                    identity=self.identity,
                 ),
                 "act": partial(act, tools=self.tools),
                 "respond": partial(
                     respond,
                     llm=self.llm,
+                    tools=self.tools,
                     system_prompt=self.system_prompt or "",
                     identity=self.identity,
                     json_schema=self.json_schema,
@@ -103,19 +102,87 @@ class Flow:
         return flow.compile()
 
 
-def _route_from_preprocess(state: State) -> str:
-    """Route from preprocess node."""
-    next_node = state.get("next_node", "reason")
-    return str(next_node)
+async def _route_from_preprocess(state: State) -> str:
+    """Route from preprocess - respond directly if no tools selected, else reason."""
+    selected_tools = state.get("selected_tools")
+    route = "respond" if not selected_tools else "reason"
+
+    if hasattr(state, "output") and state.output:
+        await state.output.trace(
+            f"[ROUTING] preprocess → {route} (selected_tools: {len(selected_tools) if selected_tools else 0})",
+            node="flow",
+        )
+
+    return route
 
 
-def _route_from_reason(state: State) -> str:
-    """Route from reason node."""
-    next_node = state.get("next_node", "respond")
-    return str(next_node)
+async def _route_from_reason(state: State) -> str:
+    """Route from reason - act if tools needed, else respond."""
+    tool_calls = state.get("tool_calls")
+    can_answer = state.get("can_answer_directly", False)
+    route = "act" if tool_calls and len(tool_calls) > 0 else "respond"
+
+    if hasattr(state, "output") and state.output:
+        await state.output.trace(
+            f"[ROUTING] reason → {route} (tool_calls: {len(tool_calls) if tool_calls else 0}, can_answer_directly: {can_answer})",
+            node="flow",
+        )
+
+    return route
 
 
-def _route_from_act(state: State) -> str:
-    """Route from act node."""
-    next_node = state.get("next_node", "reason")
-    return str(next_node)
+async def _route_from_act(state: State) -> str:
+    """Route from act - check iterations and continue research or respond."""
+    execution_results = state.get("execution_results", {})
+    current_iter = state.get("current_iteration", 0)
+    max_iter = state.get("max_iterations", 12)  # Increased default for complex research
+    stopping_reason = state.get("stopping_reason")
+
+    # Route back to reason for continued research unless we hit limits
+    if stopping_reason in ["max_iterations_reached", "reasoning_loop_detected"]:
+        route = "respond"
+        reason = stopping_reason
+    elif current_iter >= max_iter:
+        route = "respond"
+        reason = "max_iterations_reached"
+        state["stopping_reason"] = reason
+    elif not execution_results.success:
+        # For failed executions, check if we should retry or give up
+        failed_attempts = state.get("failed_tool_attempts", 0)
+        if failed_attempts >= 3:  # Give up after 3 consecutive failures
+            route = "respond"
+            reason = "repeated_tool_failures"
+            state["stopping_reason"] = reason
+        else:
+            route = "reason"
+            reason = "execution_failed"
+            state["failed_tool_attempts"] = failed_attempts + 1
+    else:
+        # Success - use quality assessment for routing decisions
+        from cogency.nodes.reasoning.adaptive import assess_tools
+
+        tool_quality = assess_tools(execution_results)
+
+        # Route based on quality with max retry protection
+        quality_attempts = state.get("quality_retry_attempts", 0)
+        max_quality_retries = 2  # Limit quality-based retries
+
+        if tool_quality in ["failed", "poor"] and quality_attempts < max_quality_retries:
+            route = "reason"
+            reason = f"poor_quality_retry_{quality_attempts + 1}"
+            state["quality_retry_attempts"] = quality_attempts + 1
+        else:
+            # Good quality or max retries reached - continue research
+            route = "reason"
+            reason = f"continue_research_quality_{tool_quality}"
+            state["quality_retry_attempts"] = 0  # Reset on good quality
+
+        state["failed_tool_attempts"] = 0  # Reset failure counter on success
+
+    if hasattr(state, "output") and state.output:
+        await state.output.trace(
+            f"[ROUTING] act → {route} (iter: {current_iter}/{max_iter}, success: {execution_results.success}, reason: {reason})",
+            node="flow",
+        )
+
+    return route

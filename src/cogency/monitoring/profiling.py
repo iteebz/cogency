@@ -5,7 +5,7 @@ import json
 import threading
 import time
 from collections import defaultdict
-from contextlib import asynccontextmanager
+from contextlib import AsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, List, Optional
 
@@ -41,7 +41,9 @@ class Profiler:
         self._cpu_samples = defaultdict(list)
 
     @asynccontextmanager
-    async def profile(self, operation_name: str, metadata: Optional[Dict[str, Any]] = None):
+    async def profile(
+        self, operation_name: str, metadata: Optional[Dict[str, Any]] = None
+    ) -> AsyncContextManager:
         """Context manager for profiling async operations."""
         start_time = time.time()
         process = psutil.Process()
@@ -93,7 +95,10 @@ class Profiler:
 
     def _start_monitoring(self, operation_name: str):
         """Start resource monitoring for operation."""
-        self.active_profiles[operation_name] = {"start_time": time.time(), "monitoring": True}
+        self.active_profiles[operation_name] = {
+            "start_time": time.time(),
+            "monitoring": True,
+        }
 
         def monitor():
             process = psutil.Process()
@@ -108,7 +113,11 @@ class Profiler:
 
                         self._memory_samples[operation_name].append(memory_mb)
                         self._cpu_samples[operation_name].append(cpu_percent)
-                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    except (
+                        psutil.NoSuchProcess,
+                        psutil.AccessDenied,
+                        psutil.ZombieProcess,
+                    ):
                         pass  # Handle process termination gracefully
 
                 time.sleep(self.sample_interval)
@@ -209,7 +218,6 @@ class Profiler:
             json.dump(report, f, indent=2)
 
 
-# Global profiler instance
 _profiler = Profiler()
 
 
@@ -218,7 +226,7 @@ def get_profiler() -> Profiler:
     return _profiler
 
 
-async def profile_async(operation_name: str, func: Callable, *args, **kwargs):
+async def profile_async(operation_name: str, func: Callable, *args, **kwargs) -> Any:
     """Profile an async operation with automatic context management."""
     async with _profiler.profile(operation_name, {"args": str(args), "kwargs": str(kwargs)}):
         return await func(*args, **kwargs)
@@ -227,7 +235,7 @@ async def profile_async(operation_name: str, func: Callable, *args, **kwargs):
 def profile_sync(operation_name: str, func: Callable, *args, **kwargs):
     """Profile a sync operation with automatic context management."""
 
-    async def wrapper():
+    async def wrapper() -> Any:
         async with _profiler.profile(operation_name, {"args": str(args), "kwargs": str(kwargs)}):
             return func(*args, **kwargs)
 
@@ -240,19 +248,19 @@ class CogencyProfiler:
     def __init__(self):
         self.profiler = get_profiler()
 
-    async def profile_reasoning_loop(self, func, *args, **kwargs):
+    async def profile_reasoning_loop(self, func, *args, **kwargs) -> Any:
         """Profile the complete reasoning loop."""
         return await profile_async("reasoning_loop", func, *args, **kwargs)
 
-    async def profile_tool_execution(self, func, *args, **kwargs):
+    async def profile_tool_execution(self, func, *args, **kwargs) -> Any:
         """Profile tool execution operations."""
         return await profile_async("tool_execution", func, *args, **kwargs)
 
-    async def profile_memory_access(self, func, *args, **kwargs):
+    async def profile_memory_access(self, func, *args, **kwargs) -> Any:
         """Profile memory access operations."""
         return await profile_async("memory_access", func, *args, **kwargs)
 
-    async def profile_llm_inference(self, func, *args, **kwargs):
+    async def profile_llm_inference(self, func, *args, **kwargs) -> Any:
         """Profile LLM inference operations."""
         return await profile_async("llm_inference", func, *args, **kwargs)
 

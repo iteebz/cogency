@@ -59,7 +59,9 @@ class BaseTool(ABC):
         pass
 
     @abstractmethod
-    def format_human(self, params: Dict[str, Any], results: Optional[Dict[str, Any]] = None) -> tuple[str, str]:
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[Dict[str, Any]] = None
+    ) -> tuple[str, str]:
         """Format tool execution for human display."""
         pass
 

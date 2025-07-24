@@ -2,9 +2,19 @@
 
 from typing import Any, Dict, List
 
+FAST_MODE_MAX_HISTORY = 3
+FAST_MODE_MAX_FAILURES = 2
+DEEP_MODE_MAX_HISTORY = 10
+DEEP_MODE_MAX_FAILURES = 5
+ADAPTIVE_MODE_MAX_HISTORY = 5
+ADAPTIVE_MODE_MAX_FAILURES = 3
+FAST_MODE_REASONING_DEPTH = 1
+DEEP_MODE_REASONING_DEPTH = 3
+ADAPTIVE_MODE_REASONING_DEPTH = 2
 
-def init_cognition(state, react_mode: str = "fast") -> Dict[str, Any]:
-    """Initialize cognitive state with adaptive features based on react_mode."""
+
+def init_cognition(state, react_mode: str = "adaptive") -> Dict[str, Any]:
+    """Initialize cognitive state with enhanced adaptive features."""
     default_state = {
         "approach_history": [],  # Methodologies tried (direct_search, synthesis, breakdown)
         "decision_history": [],  # Specific decisions taken (search_files, read_docs, analyze_code)
@@ -14,15 +24,38 @@ def init_cognition(state, react_mode: str = "fast") -> Dict[str, Any]:
         "current_decision": "analyze",  # Current specific decision
         "last_tool_quality": "unknown",
         "react_mode": react_mode,
+        "mode_switches": [],
+        "complexity_indicators": {
+            "query_length": len(str(state.get("query", "")).split()),
+            "iteration_count": state.get("current_iteration", 0),
+            "tool_failures": 0,
+            "reasoning_depth": FAST_MODE_REASONING_DEPTH
+            if react_mode == "fast"
+            else DEEP_MODE_REASONING_DEPTH,
+        },
+        "cognitive_context": {
+            "previous_mode": None,
+            "switch_reasons": [],
+            "performance_metrics": {"success_rate": 1.0, "avg_iterations": 1},
+        },
     }
 
-    # Set memory limits based on react_mode
+    # Set memory limits based on react_mode with enhanced parameters
     if react_mode == "fast":
-        default_state["max_history"] = 3  # Static FIFO
-        default_state["max_failures"] = 5
-    else:  # deep
-        default_state["max_history"] = 10  # Dynamic relevance
-        default_state["max_failures"] = 15
+        default_state["max_history"] = FAST_MODE_MAX_HISTORY  # Static FIFO
+        default_state["max_failures"] = FAST_MODE_MAX_FAILURES
+        default_state["context_window"] = "narrow"
+        default_state["reasoning_depth"] = FAST_MODE_REASONING_DEPTH
+    elif react_mode == "deep":
+        default_state["max_history"] = DEEP_MODE_MAX_HISTORY  # Dynamic relevance
+        default_state["max_failures"] = DEEP_MODE_MAX_FAILURES
+        default_state["context_window"] = "broad"
+        default_state["reasoning_depth"] = DEEP_MODE_REASONING_DEPTH
+    else:  # adaptive - starts with fast, can escalate
+        default_state["max_history"] = ADAPTIVE_MODE_MAX_HISTORY
+        default_state["max_failures"] = ADAPTIVE_MODE_MAX_FAILURES
+        default_state["context_window"] = "medium"
+        default_state["reasoning_depth"] = ADAPTIVE_MODE_REASONING_DEPTH
 
     # Check if cognition already exists in state.flow
     if "cognition" not in state.flow:
@@ -76,7 +109,10 @@ def update_cognition(
 
 
 def track_failure(
-    cognition: Dict[str, Any], tool_calls: List[Any], tool_quality: str, current_iteration: int
+    cognition: Dict[str, Any],
+    tool_calls: List[Any],
+    tool_quality: str,
+    current_iteration: int,
 ) -> None:
     """Track failed attempts for loop prevention."""
     for call in tool_calls:

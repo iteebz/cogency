@@ -30,7 +30,7 @@ class Scrape(BaseTool):
             ],
             rules=[
                 "Provide a valid and accessible URL.",
-            ]
+            ],
         )
 
     async def run(self, url: str, favor_precision: bool = True, **kwargs) -> Dict[str, Any]:

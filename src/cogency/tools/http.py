@@ -37,9 +37,9 @@ class HTTP(BaseTool):
                 "Use DELETE for removing resources.",
                 "GET requests must not include 'body' or 'json_data'.",
                 "Provide either 'body' (string) or 'json_data' (dict), but not both.",
-            ]
+            ],
         )
-        
+
         # Beautiful dispatch pattern - extensible and clean
         self._methods = {
             "get": self._get,

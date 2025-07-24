@@ -3,9 +3,22 @@
 import json
 from typing import Any, Dict, List
 
+DEFAULT_MAX_ITEMS_TO_SCORE = 5
+DEFAULT_CONTENT_TRUNCATE_LENGTH = 200
+DEFAULT_SCORE_FALLBACK = 0.5
+FAST_MODE_MAX_HISTORY = 3
+FAST_MODE_MAX_FAILURES_CONTEXT = 2
+DEEP_MODE_MAX_HISTORY = 10
+DEEP_MODE_MAX_DECISIONS_TO_SCORE = 5
+DEEP_MODE_MAX_FAILURES_TO_SCORE = 3
+DEEP_MODE_MAX_FAILURES_CONTEXT = 5
+
 
 def score_memory_relevance(
-    current_query: str, memory_items: List[Dict[str, Any]], llm_client, max_items: int = 10
+    current_query: str,
+    memory_items: List[Dict[str, Any]],
+    llm_client,
+    max_items: int = DEFAULT_MAX_ITEMS_TO_SCORE,
 ) -> List[Dict[str, Any]]:
     """Score memory items for relevance using LLM semantic understanding.
 
@@ -28,7 +41,7 @@ def score_memory_relevance(
         items_for_scoring.append(
             {
                 "id": i,
-                "content": content[:200],  # Truncate for efficiency
+                "content": content[:DEFAULT_CONTENT_TRUNCATE_LENGTH],  # Truncate for efficiency
             }
         )
 
@@ -53,16 +66,21 @@ Score based on:
     try:
         response = llm_client.run([{"role": "user", "content": scoring_prompt}])
 
-        # Extract scores
-        start = response.find("{")
-        end = response.rfind("}") + 1
-        if start >= 0 and end > start:
-            scores_dict = json.loads(response[start:end])
+        # Use consolidated JSON parser
+        from cogency.utils.parsing import parse_json_result
 
+        parse_result = parse_json_result(response)
+        if not parse_result.success:
+            raise ValueError("Failed to parse LLM response for scoring")
+        scores_dict = parse_result.data
+
+        if scores_dict:
             # Apply scores and sort
             scored_items = []
             for i, item in enumerate(memory_items):
-                score = float(scores_dict.get(str(i), 0.5))  # Default 0.5 if missing
+                score = float(
+                    scores_dict.get(str(i), DEFAULT_SCORE_FALLBACK)
+                )  # Default 0.5 if missing
                 scored_items.append({**item, "relevance_score": score})
 
             # Sort by relevance (highest first) and return top items
@@ -95,25 +113,29 @@ def relevant_context(
 
     if react_mode == "fast":
         # Fast mode: Simple FIFO, no LLM scoring
-        max_history = 3
+        max_history = FAST_MODE_MAX_HISTORY
         return {
             "recent_decisions": decision_history[-max_history:],
-            "recent_failures": failed_attempts[-2:] if failed_attempts else [],
+            "recent_failures": failed_attempts[-FAST_MODE_MAX_FAILURES_CONTEXT:]
+            if failed_attempts
+            else [],
         }
 
     else:  # Deep mode
         # Deep mode: LLM-based relevance scoring
-        max_history = 10
+        max_history = DEEP_MODE_MAX_HISTORY
 
         # Combine action history and failures for scoring
         all_items = []
 
         # Add recent decisions
-        for i, decision in enumerate(decision_history[-15:]):  # Look at more items to score
+        for i, decision in enumerate(
+            decision_history[-DEEP_MODE_MAX_DECISIONS_TO_SCORE:]
+        ):  # Look at more items to score
             all_items.append({"type": "decision", "content": f"Decision: {decision}", "index": i})
 
         # Add failed attempts with more context
-        for i, failure in enumerate(failed_attempts[-10:]):
+        for i, failure in enumerate(failed_attempts[-DEEP_MODE_MAX_FAILURES_TO_SCORE:]):
             all_items.append(
                 {"type": "failure", "content": f"Failed attempt: {failure}", "index": i}
             )
@@ -149,5 +171,7 @@ def relevant_context(
         # Fallback: FIFO with deep mode limits
         return {
             "recent_decisions": decision_history[-max_history:],
-            "recent_failures": failed_attempts[-5:] if failed_attempts else [],
+            "recent_failures": failed_attempts[-DEEP_MODE_MAX_FAILURES_CONTEXT:]
+            if failed_attempts
+            else [],
         }

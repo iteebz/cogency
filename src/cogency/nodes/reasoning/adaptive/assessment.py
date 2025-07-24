@@ -1,25 +1,27 @@
 """Tool execution quality assessment."""
 
-from typing import Any, Dict
+from typing import Optional
+
+from cogency.utils.results import ExecutionResult
 
 
-def assess_tools(execution_results: Dict[str, Any]) -> str:
-    """Assess quality of tool execution results."""
-    if not execution_results:
+def assess_tools(execution_results: Optional[ExecutionResult]) -> str:
+    """Assess tool execution with pragmatic heuristics - no semantic bullshit."""
+    if execution_results is None:
         return "unknown"
 
-    # Check if execution was successful
-    if not execution_results.get("success", False):
+    # Basic success/failure check
+    if execution_results.failure:
         return "failed"
 
-    # Check result quality indicators
-    results = execution_results.get("results", [])
+    # Check if we got any results at all
+    results = execution_results.data.get("results", [])
     if not results:
         return "poor"
 
-    # Simple heuristics for result quality
-    successful_count = execution_results.get("successful_count", 0)
-    failed_count = execution_results.get("failed_count", 0)
+    # Simple success rate calculation
+    successful_count = execution_results.data.get("successful_count", 0)
+    failed_count = execution_results.data.get("failed_count", 0)
     total_count = successful_count + failed_count
 
     if total_count == 0:
@@ -27,6 +29,7 @@ def assess_tools(execution_results: Dict[str, Any]) -> str:
 
     success_rate = successful_count / total_count
 
+    # Basic technical success assessment - no content analysis
     if success_rate >= 0.8:
         return "good"
     elif success_rate >= 0.5:

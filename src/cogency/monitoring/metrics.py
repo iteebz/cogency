@@ -10,6 +10,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
+DEFAULT_MAX_METRIC_POINTS = 10000
+
 
 @dataclass
 class MetricPoint:
@@ -36,7 +38,7 @@ class MetricsSummary:
 class Metrics:
     """High-performance metrics collector."""
 
-    def __init__(self, max_points: int = 10000):
+    def __init__(self, max_points: int = DEFAULT_MAX_METRIC_POINTS):
         self.max_points = max_points
         self.points: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_points))
         self.counters: Dict[str, float] = defaultdict(float)
@@ -229,7 +231,7 @@ class MetricsReporter:
         with open(filepath, "w") as f:
             json.dump(data, f, indent=2)
 
-    async def start_reporting(self, interval: float = 60.0):
+    async def start_reporting(self, interval: float = 60.0) -> None:
         """Start background metrics reporting."""
         while True:
             try:
@@ -240,7 +242,6 @@ class MetricsReporter:
                 await asyncio.sleep(interval)
 
 
-# Global metrics collector
 _metrics = Metrics()
 
 
@@ -275,7 +276,7 @@ def measure(metric_name: str, tags: Optional[Dict[str, str]] = None):
     def decorator(func):
         if asyncio.iscoroutinefunction(func):
 
-            async def async_wrapper(*args, **kwargs):
+            async def async_wrapper(*args, **kwargs) -> Any:
                 with timer(metric_name, tags):
                     return await func(*args, **kwargs)
 

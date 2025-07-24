@@ -1,5 +1,3 @@
-# No typing imports needed for built-in generics
-
 import numpy as np
 
 from .base import BaseEmbed

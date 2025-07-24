@@ -26,8 +26,8 @@ from cogency.nodes.reasoning.fast import (
 )
 from cogency.state import State
 from cogency.tools.base import BaseTool
-from cogency.utils.parsing import parse_json_result, parse_tool_calls, recover_json
 from cogency.tools.registry import build_registry
+from cogency.utils.parsing import parse_json_result, parse_tool_calls, recover_json
 
 logger = logging.getLogger(__name__)
 
@@ -36,23 +36,29 @@ def build_iteration_history(cognition, selected_tools, max_iterations=3):
     """Show last N reasoning iterations with their outcomes."""
     fingerprints = cognition.get("action_fingerprints", [])
     failed_attempts = summarize_attempts(cognition.get("failed_attempts", []))
-    
+
     if not fingerprints:
-        return failed_attempts if failed_attempts != "No previous failed attempts" else "No previous iterations"
-    
+        return (
+            failed_attempts
+            if failed_attempts != "No previous failed attempts"
+            else "No previous iterations"
+        )
+
     iterations = []
-    for i, fp in enumerate(fingerprints[-max_iterations:]):
-        step_num = len(fingerprints) - max_iterations + i + 1
+    last_fingerprints = fingerprints[-max_iterations:]
+    start_step = len(fingerprints) - len(last_fingerprints) + 1
+
+    for i, fp in enumerate(last_fingerprints):
+        step_num = start_step + i
         iterations.append(f"Step {step_num}: {fp}")
-    
+
     iteration_summary = "\n".join(iterations)
-    
+
     # Include failures if they exist
     if failed_attempts != "No previous failed attempts":
         return f"PREVIOUS ITERATIONS:\n{iteration_summary}\n\nFAILED ATTEMPTS:\n{failed_attempts}"
-    
-    return f"PREVIOUS ITERATIONS:\n{iteration_summary}"
 
+    return f"PREVIOUS ITERATIONS:\n{iteration_summary}"
 
 
 async def reason(
@@ -128,7 +134,7 @@ async def reason(
             last_tool_quality,
         )
     else:
-        # Fast mode: use streamlined fast reasoning 
+        # Fast mode: use streamlined fast reasoning
         reasoning_prompt = prompt_fast_mode(tool_registry, context.query, attempts_summary)
 
     # Simple identity flow - just add it

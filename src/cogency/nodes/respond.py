@@ -9,7 +9,6 @@ from cogency.tools.base import BaseTool
 from cogency.utils.parsing import fallback_response
 from cogency.utils.results import ExecutionResult
 
-
 # Response prompt templates - clean and scannable
 FAILURE_PROMPT = """{identity}A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.
 
@@ -76,38 +75,37 @@ def prompt_response(
 ) -> str:
     """Clean routing to response templates."""
     identity_line = f"You are {identity}. " if identity else ""
-    
+
     # Route to appropriate template
     if failure_details:
-        failed_tools = "\n".join([
-            f"- Tool: {tool_name}\n- Reason: {error}" 
-            for tool_name, error in failure_details.items()
-        ])
+        failed_tools = "\n".join(
+            [
+                f"- Tool: {tool_name}\n- Reason: {error}"
+                for tool_name, error in failure_details.items()
+            ]
+        )
         prompt = FAILURE_PROMPT.format(
-            identity=identity_line,
-            query=original_query,
-            failed_tools=failed_tools
+            identity=identity_line, query=original_query, failed_tools=failed_tools
         )
     elif json_schema:
-        tool_section = f"\n\nTOOL RESULTS:\n{tool_results_summary}" if has_tool_results and tool_results_summary else ""
+        tool_section = (
+            f"\n\nTOOL RESULTS:\n{tool_results_summary}"
+            if has_tool_results and tool_results_summary
+            else ""
+        )
         prompt = JSON_PROMPT.format(
             identity=identity_line,
             json_schema=json_schema,
             query=original_query,
-            tool_section=tool_section
+            tool_section=tool_section,
         )
     elif has_tool_results:
         prompt = TOOL_RESULTS_PROMPT.format(
-            identity=identity_line,
-            query=original_query,
-            tool_results=tool_results_summary
+            identity=identity_line, query=original_query, tool_results=tool_results_summary
         )
     else:
-        prompt = KNOWLEDGE_PROMPT.format(
-            identity=identity_line,
-            query=original_query
-        )
-    
+        prompt = KNOWLEDGE_PROMPT.format(identity=identity_line, query=original_query)
+
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
@@ -170,19 +168,21 @@ async def respond(
         elif exec_results and exec_results.success:
             if json_schema:
                 await state.output.trace("Applying JSON schema constraint", node="respond")
-            
+
             # Format tool results for display - handle both dict and list formats
             results_data = exec_results.data
             if isinstance(results_data, dict):
-                results = results_data.get('results', [])
+                results = results_data.get("results", [])
             else:
                 results = results_data if isinstance(results_data, list) else []
-            
-            tool_results_summary = "\n".join([
-                f"• {result.get('tool_name', 'unknown')}: {str(result.get('result', 'no result'))[:200]}..."
-                for result in results[:5]  # Limit to 5 results
-            ])
-            
+
+            tool_results_summary = "\n".join(
+                [
+                    f"• {result.get('tool_name', 'unknown')}: {str(result.get('result', 'no result'))[:200]}..."
+                    for result in results[:5]  # Limit to 5 results
+                ]
+            )
+
             response_prompt = prompt_response(
                 context.query,
                 system_prompt=system_prompt,
@@ -204,16 +204,16 @@ async def respond(
             # Format failure details - handle both dict and list formats
             results_data = exec_results.data
             if isinstance(results_data, dict):
-                results = results_data.get('results', [])
+                results = results_data.get("results", [])
             else:
                 results = results_data if isinstance(results_data, list) else []
-            
+
             failure_details = {}
             for result in results:
-                tool_name = result.get('tool_name', 'unknown')
-                error = result.get('error', 'Tool execution failed')
+                tool_name = result.get("tool_name", "unknown")
+                error = result.get("error", "Tool execution failed")
                 failure_details[tool_name] = error
-            
+
             response_prompt = prompt_response(
                 context.query,
                 system_prompt=system_prompt,

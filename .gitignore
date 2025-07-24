@@ -55,3 +55,6 @@ build/
 
 # Cogency runtime
 .cogency
+
+# Mnemos autonomous investigation system
+.mnemos/

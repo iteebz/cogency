@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from cogency.tools.base import BaseTool
-from cogency.tools.registry import get_tools, build_registry
+from cogency.tools.registry import build_registry, get_tools
 
 # Auto-discover tools by importing all tool modules and collect exported classes
 _tools_dir = Path(__file__).parent

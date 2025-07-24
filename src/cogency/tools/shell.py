@@ -240,7 +240,7 @@ class Shell(BaseTool):
         success = result_data.get("success", False)
         stdout = result_data.get("stdout", "").strip()
         stderr = result_data.get("stderr", "").strip()
-        exit_code = result_data.get("exit_code", None)
+        exit_code = result_data.get("exit_code")
 
         if success:
             if stdout:

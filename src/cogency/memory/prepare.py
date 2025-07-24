@@ -48,5 +48,8 @@ async def save_memory(
         final_tags = tags if tags else ["extracted"]
 
         await memory.create(
-            memory_summary, memory_type=memory_type_enum, tags=final_tags, user_id=user_id
+            memory_summary,
+            memory_type=memory_type_enum,
+            tags=final_tags,
+            user_id=user_id,
         )

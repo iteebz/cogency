@@ -176,7 +176,7 @@ class Code(BaseTool):
         success = result_data.get("success", False)
         output = result_data.get("output", "").strip()
         error_output = result_data.get("error_output", "").strip()
-        exit_code = result_data.get("exit_code", None)
+        exit_code = result_data.get("exit_code")
 
         if success:
             if output:

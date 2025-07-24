@@ -27,7 +27,7 @@ classifiers = [
 requires-python = ">=3.10,<4.0"
 dependencies = [
     "aiohttp>=3.12.14,<4.0.0",
-    "ddgs>=9.0.0",
+    "ddgs",
     "google-genai (>=1.26.0,<2.0.0)",
     "langgraph",
     "mcp>=1.0.0",
@@ -66,7 +66,7 @@ types-pytz = "^2024.0"
 packages = [{ include = "cogency", from = "src" }]
 
 [tool.black]
-line-length = 88
+line-length = 100
 target-version = ['py39']
 
 [tool.isort]
@@ -121,7 +121,8 @@ select = [
     "SIM",  # flake8-simplify
 ]
 ignore = [
-    "W293",   # blank-line-with-whitespace (too pedantic for development)
+    "W291",   # Trailing whitespace (handled by Black)
+    "W293",   # Blank line contains whitespace (handled by Black)
     "UP006",  # non-pep585-annotation (allow typing.List vs list for compatibility)
     "UP035",  # deprecated-import (allow typing imports for compatibility)
     "SIM108", # if-else-block-instead-of-if-exp (ternary not always clearer)

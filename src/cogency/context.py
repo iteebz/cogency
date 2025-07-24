@@ -1,10 +1,6 @@
 import json
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict, List, Optional
-
-# Avoid circular import
-if TYPE_CHECKING:
-    pass
+from typing import Any, Dict, List, Optional
 
 # Internal filtering constants
 INTERNAL_ACTIONS = {"tool_needed", "direct_response"}

@@ -69,8 +69,8 @@ test-file file="":
 
 # Format code with ruff
 format:
-    @echo "Formatting Python code with ruff..."
-    @poetry run ruff format .
+    @echo "Formatting Python code with black..."
+    @poetry run black .
 
 # Lint code with ruff
 lint:
