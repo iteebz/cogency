@@ -1,63 +1,41 @@
 """Fast mode reasoning - streamlined ReAct for direct execution."""
 
-from typing import Dict, Optional
 
-from cogency.utils import parse_json
-
-
-def prompt_fast_mode(tool_info: str, query: str) -> str:
+def prompt_fast_mode(tool_registry: str, query: str, attempts_summary: str = "") -> str:
     """Streamlined ReAct prompt for fast mode execution."""
-    from cogency.nodes.reasoning.adaptive import switching_criteria
 
-    return f"""QUERY: {query}
-AVAILABLE TOOLS: {tool_info}
+    return f"""
+FAST: Direct execution for query: {query}
 
-CRITICAL INSTRUCTIONS - MANDATORY COMPLIANCE:
-- You MUST strictly follow all tool RULES listed above. Violating tool rules will cause system failure.
-- Check each tool's RULES section before using it
-- Tool rule violations are system-breaking errors
-- If the query is fully addressed and no further actions are required, set "tool_calls": [] and provide your final answer in the reasoning field.
-
-OUTPUT JSON ONLY:
+JSON Response Format:
 {{
-  "reasoning": "brief thought about tool choice and rule compliance",
-  "tool_calls": [{{"name": "tool_name", "args": {{"param": "value"}}}}]
+  "thinking": "quick reasoning about next action",
+  "tool_calls": [
+    {{"name": "tool1", "args": {{"param": "value"}}}}
+  ],
+  "switch_to": null,
+  "switch_why": null
 }}
 
-If no tools needed: "tool_calls": []
-{switching_criteria("fast")}"""
+TOOLS:
+{tool_registry}
 
+PREVIOUS CONTEXT:
+{attempts_summary if attempts_summary else "Initial execution - no prior actions"}
 
-def parse_fast_mode(response: str) -> Dict[str, Optional[str]]:
-    """Extract structured data from fast mode LLM response."""
-    try:
-        json_data = parse_json(response)
-        if json_data:
-            return {
-                "thinking": json_data.get("thinking"),
-                "decision": json_data.get("decision"),
-                "switch_to": json_data.get("switch_to"),
-                "switch_why": json_data.get("switch_why"),
-            }
-    except Exception:
-        pass
+GUIDANCE:
+- Review previous iterations (if any) before deciding next actions
+- Use parallel tools when they address independent aspects
+- Empty tool_calls array ([ ]) if query fully answered or no suitable tools
+- If original query has been fully resolved, say so explicitly and return tool_calls: []
 
-    return {
-        "thinking": "Analyzing the request and determining approach",
-        "decision": "Proceeding with direct execution",
-        "switch_to": None,
-        "switch_why": None,
-    }
+ESCALATE to DEEP if encountering:
+- Tool results conflict and need synthesis
+- Multi-step reasoning chains required  
+- Ambiguous requirements need breakdown
+- Complex analysis beyond direct execution
 
-
-def format_fast_mode(data: Dict[str, Optional[str]]) -> str:
-    """Format fast mode thinking for display."""
-    parts = []
-
-    if data.get("thinking"):
-        parts.append(f"💭 {data['thinking']}")
-
-    if data.get("decision"):
-        parts.append(f"⚡ {data['decision']}")
-
-    return " | ".join(parts) if parts else "Processing request..."
+Examples:
+switch_to: "deep", switch_why: "Search results contradict, need analysis"
+switch_to: "deep", switch_why: "Multi-step calculation required"
+"""

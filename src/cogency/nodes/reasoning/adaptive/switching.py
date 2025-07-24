@@ -1,48 +1,22 @@
 """Mode switching criteria and logic for adaptive reasoning"""
 
-import json
+import logging
 from typing import Any, Dict, Optional, Tuple
 
-
-def switching_criteria(current_mode: str) -> str:
-    """Get detailed mode switching criteria for prompts."""
-    if current_mode == "fast":
-        return """
-ESCALATE to DEEP MODE if task requires:
-- Complex analysis or synthesis
-- Multi-step reasoning chains
-- Breaking down complex problems
-- Comparing multiple approaches
-- Handling ambiguous requirements
-
-JSON: {{"thinking": "brief analysis", "decision": "approach", "switch_to": "deep"|null, "switch_why": "escalation reason"|null}}"""
-    else:  # deep mode
-        return """
-DOWNSHIFT to FAST MODE if task is:
-- Simple direct action
-- Single-step execution
-- Clear straightforward request
-- No complex analysis needed
-
-JSON: {{"thinking": {{"reflection": "...", "planning": "...", "decision": "..."}}, "switch_to": "fast"|null, "switch_why": "downshift reason"|null}}"""
+logger = logging.getLogger(__name__)
 
 
 def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
     """Extract mode switching directives from LLM JSON response"""
     try:
-        # Try to extract JSON from response
-        start = llm_response.find("{")
-        end = llm_response.rfind("}") + 1
-        if start >= 0 and end > start:
-            json_str = llm_response[start:end]
-            data = json.loads(json_str)
+        from cogency.utils.parsing import parse_json_result
 
-            # Handle both escalate_to (old) and switch_to (new) formats
-            switch_to = data.get("switch_to") or data.get("escalate_to")
-            switch_reason = data.get("switch_reason") or data.get("escalation_reason")
-
-            return switch_to, switch_reason
-    except (json.JSONDecodeError, ValueError):
+        result = parse_json_result(llm_response)
+        if result.success:
+            data = result.data
+            return data.get("switch_to"), data.get("switch_why")
+    except Exception as e:
+        logger.error(f"Context: {e}")
         pass
 
     return None, None
@@ -51,11 +25,11 @@ def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
 def should_switch(
     current_mode: str,
     switch_to: Optional[str],
-    switch_reason: Optional[str],
+    switch_why: Optional[str],
     current_iteration: int = 0,
 ) -> bool:
     """Determine if mode switch should occur based on request and iteration context"""
-    if not switch_to or not switch_reason:
+    if not switch_to or not switch_why:
         return False
 
     # Must be different from current mode
@@ -74,7 +48,7 @@ def should_switch(
     return not current_iteration >= 4
 
 
-def switch_mode(state: Dict[str, Any], new_mode: str, switch_reason: str) -> Dict[str, Any]:
+def switch_mode(state: Dict[str, Any], new_mode: str, switch_why: str) -> Dict[str, Any]:
     """Switch reasoning mode while preserving cognitive context and tracking history"""
     # Update react mode
     state["react_mode"] = new_mode
@@ -98,7 +72,7 @@ def switch_mode(state: Dict[str, Any], new_mode: str, switch_reason: str) -> Dic
         {
             "from_mode": state.get("previous_react_mode", "unknown"),
             "to_mode": new_mode,
-            "reason": switch_reason,
+            "reason": switch_why,
             "iteration": state.get("current_iteration", 0),
         }
     )

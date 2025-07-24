@@ -1,53 +1,130 @@
 """Respond node - final response formatting and personality."""
 
-from typing import Dict, Optional
 import asyncio
+from typing import Dict, List, Optional
 
 from cogency.llm import BaseLLM
 from cogency.state import State
+from cogency.tools.base import BaseTool
+from cogency.utils.parsing import fallback_response
+from cogency.utils.results import ExecutionResult
 
-# ReasoningDecision component removed - implementation didn't align with adaptive reasoning approach
+
+# Response prompt templates - clean and scannable
+FAILURE_PROMPT = """{identity}A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.
+
+USER QUERY: "{query}"
+
+FAILED TOOL DETAILS:
+{failed_tools}
+
+RESPONSE STRATEGY:
+- Acknowledge the tool failure gracefully without technical jargon
+- Briefly explain what went wrong: "I encountered an issue when trying to..."
+- Suggest concrete alternative approaches or ask for clarification
+- Maintain a helpful and solution-focused tone
+- Offer to retry with different parameters if applicable"""
+
+JSON_PROMPT = """{identity}Your goal is to generate a final response formatted as a JSON object.
+
+JSON RESPONSE FORMAT (required):
+{json_schema}
+
+USER QUERY: "{query}"{tool_section}
+
+RESPONSE STRATEGY:
+- Populate JSON fields exactly as specified by the schema
+- Incorporate relevant information from USER QUERY and TOOL RESULTS into JSON content
+- Ensure JSON is valid, complete, and properly formatted
+- Use tool results as evidence, synthesize don't just dump data"""
+
+TOOL_RESULTS_PROMPT = """{identity}Your goal is to generate a final, comprehensive response synthesizing the available information.
+
+USER QUERY: "{query}"
+
+TOOL RESULTS:
+{tool_results}
+
+RESPONSE STRATEGY:
+- Lead with direct answer to the user's original question
+- Use tool results as primary evidence, your knowledge as supplementary
+- Synthesize multiple tool results into coherent narrative
+- Address the user's intent, not just literal query
+- Reference conversation context when building on previous exchanges
+- Maintain conversational flow while being thorough"""
+
+KNOWLEDGE_PROMPT = """{identity}Your goal is to answer the user's question directly using your internal knowledge.
+
+USER QUERY: "{query}"
+
+RESPONSE STRATEGY:
+- Answer the question directly from your training knowledge
+- Provide context and explanation appropriate to the question complexity
+- Acknowledge limitations of your knowledge cutoff when relevant
+- Maintain conversational and helpful tone
+- Be concise but comprehensive"""
 
 
 def prompt_response(
+    original_query: str,
     system_prompt: Optional[str] = None,
     has_tool_results: bool = False,
+    tool_results_summary: Optional[str] = None,
     identity: Optional[str] = None,
     json_schema: Optional[str] = None,
+    failure_details: Optional[Dict[str, str]] = None,
 ) -> str:
-    """Build clean system prompt with identity and optional JSON schema."""
-    if has_tool_results:
-        base_prompt = "Generate final response based on context and tool results.\nBe conversational and helpful. Incorporate all relevant information."
-    else:
-        base_prompt = (
-            "Answer the user's question directly and conversationally using your knowledge."
+    """Clean routing to response templates."""
+    identity_line = f"You are {identity}. " if identity else ""
+    
+    # Route to appropriate template
+    if failure_details:
+        failed_tools = "\n".join([
+            f"- Tool: {tool_name}\n- Reason: {error}" 
+            for tool_name, error in failure_details.items()
+        ])
+        prompt = FAILURE_PROMPT.format(
+            identity=identity_line,
+            query=original_query,
+            failed_tools=failed_tools
         )
-
-    # Simple identity
-    if identity:
-        base_prompt = f"You are {identity}. {base_prompt}"
-
-    # JSON schema if provided
-    if json_schema:
-        base_prompt += f"\n\nRespond with valid JSON matching this schema:\n{json_schema}"
-
-    if system_prompt:
-        return f"{system_prompt}\n\n{base_prompt}"
-
-    return base_prompt
+    elif json_schema:
+        tool_section = f"\n\nTOOL RESULTS:\n{tool_results_summary}" if has_tool_results and tool_results_summary else ""
+        prompt = JSON_PROMPT.format(
+            identity=identity_line,
+            json_schema=json_schema,
+            query=original_query,
+            tool_section=tool_section
+        )
+    elif has_tool_results:
+        prompt = TOOL_RESULTS_PROMPT.format(
+            identity=identity_line,
+            query=original_query,
+            tool_results=tool_results_summary
+        )
+    else:
+        prompt = KNOWLEDGE_PROMPT.format(
+            identity=identity_line,
+            query=original_query
+        )
+    
+    return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
 async def respond(
     state: State,
     *,
     llm: BaseLLM,
+    tools: List[BaseTool],
     system_prompt: Optional[str] = None,
     identity: Optional[str] = None,
     json_schema: Optional[str] = None,
-    config: Optional[Dict] = None,
 ) -> State:
     """Respond: generate final formatted response with personality."""
     context = state["context"]
+
+    # Start responding state
+    await state.output.state("responding")
 
     # Streaming handled by Output
 
@@ -59,28 +136,29 @@ async def respond(
 
     if stopping_reason:
         # Handle reasoning stopped scenario - generate fallback response
-        await state.output.send(
-            "trace", f"Fallback response due to: {stopping_reason}", node="respond"
-        )
-        fallback_prompt = f"Reasoning stopped due to: {stopping_reason}. Please summarize the conversation and provide a helpful response based on the context available."
-        if system_prompt:
-            fallback_prompt = f"{system_prompt}\n\n{fallback_prompt}"
+        await state.output.trace(f"Fallback response due to: {stopping_reason}", node="respond")
 
-        final_messages.insert(0, {"role": "system", "content": fallback_prompt})
+        # Use unified prompt function for fallback
+        failure_details = {"reasoning": f"Stopped due to: {stopping_reason}"}
+        prompt = prompt_response(
+            context.query,
+            system_prompt=system_prompt,
+            failure_details=failure_details,
+            identity=identity,
+            json_schema=json_schema,
+        )
+        final_messages.insert(0, {"role": "system", "content": prompt})
+
         try:
-            await state.output.send("update", "\n") # Add a newline before the LLM response
-            # Stream the fallback response
-            final_response = ""
-            async for chunk in llm.stream(final_messages):
-                final_response += chunk
-                await state.output.send("update", chunk)
-            await asyncio.sleep(0) # Yield control to event loop
-            await asyncio.sleep(0) # Yield control to event loop
-            await asyncio.sleep(0) # Yield control to event loop
+            # Response follows naturally after state announcement
+            # Generate the fallback response
+            final_response = (await llm.run(final_messages)).strip()
+            await state.output.update(final_response)
+            await asyncio.sleep(0)  # Single yield point sufficient
         except Exception as e:
-            # Handle LLM errors in fallback response generation
-            final_response = f"I apologize, but I encountered a technical issue while preparing my response: {str(e)}. Let me try to help based on what we discussed."
-            await state.output.send("update", final_response)
+            # Handle LLM errors in fallback response generation using utility
+            final_response = fallback_response(e, json_schema)
+            await state.output.update(final_response)
     else:
         # Generate response based on context and any tool results
         exec_results = state.get("execution_results", {})
@@ -88,60 +166,88 @@ async def respond(
 
         if direct_response:
             final_response = direct_response
-            await state.output.send("update", final_response)
-        elif exec_results and exec_results.get("success"):
+            await state.output.update(final_response)
+        elif exec_results and exec_results.success:
             if json_schema:
-                await state.output.send("trace", "Applying JSON schema constraint", node="respond")
+                await state.output.trace("Applying JSON schema constraint", node="respond")
+            
+            # Format tool results for display - handle both dict and list formats
+            results_data = exec_results.data
+            if isinstance(results_data, dict):
+                results = results_data.get('results', [])
+            else:
+                results = results_data if isinstance(results_data, list) else []
+            
+            tool_results_summary = "\n".join([
+                f"• {result.get('tool_name', 'unknown')}: {str(result.get('result', 'no result'))[:200]}..."
+                for result in results[:5]  # Limit to 5 results
+            ])
+            
             response_prompt = prompt_response(
-                system_prompt, has_tool_results=True, identity=identity, json_schema=json_schema
+                context.query,
+                system_prompt=system_prompt,
+                has_tool_results=True,
+                tool_results_summary=tool_results_summary,
+                identity=identity,
+                json_schema=json_schema,
             )
             final_messages.insert(0, {"role": "system", "content": response_prompt})
             try:
-                await state.output.send("update", "\n") # Add a newline before the LLM response
-                # Stream the main response
-                final_response = ""
-                async for chunk in llm.stream(final_messages):
-                    final_response += chunk
-                    await state.output.send("update", chunk)
+                # Response follows naturally after state announcement
+                # Generate the main response
+                final_response = await llm.run(final_messages)
+                await state.output.update(final_response)
             except Exception as e:
-                # Handle LLM errors in response generation
-                final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
-                await state.output.send("update", final_response)
-        elif exec_results and not exec_results.get("success"):
-            response_prompt = (
-                "Generate helpful response acknowledging tool failures and providing alternatives."
+                final_response = fallback_response(e, json_schema)
+                await state.output.update(final_response)
+        elif exec_results and not exec_results.success:
+            # Format failure details - handle both dict and list formats
+            results_data = exec_results.data
+            if isinstance(results_data, dict):
+                results = results_data.get('results', [])
+            else:
+                results = results_data if isinstance(results_data, list) else []
+            
+            failure_details = {}
+            for result in results:
+                tool_name = result.get('tool_name', 'unknown')
+                error = result.get('error', 'Tool execution failed')
+                failure_details[tool_name] = error
+            
+            response_prompt = prompt_response(
+                context.query,
+                system_prompt=system_prompt,
+                failure_details=failure_details,
+                identity=identity,
+                json_schema=json_schema,
             )
-            if system_prompt:
-                response_prompt = f"{system_prompt}\n\n{response_prompt}"
             final_messages.insert(0, {"role": "system", "content": response_prompt})
             try:
-                await state.output.send("update", "\n") # Add a newline before the LLM response
-                # Stream the main response
-                final_response = ""
-                async for chunk in llm.stream(final_messages):
-                    final_response += chunk
-                    await state.output.send("update", chunk)
+                # Response follows naturally after state announcement
+                # Generate the main response
+                final_response = await llm.run(final_messages)
+                await state.output.update(final_response)
             except Exception as e:
-                # Handle LLM errors in response generation
-                final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
-                await state.output.send("update", final_response)
+                final_response = fallback_response(e, json_schema)
+                await state.output.update(final_response)
         else:
             # No tool results - answer with knowledge or based on conversation
             response_prompt = prompt_response(
-                system_prompt, has_tool_results=False, identity=identity, json_schema=json_schema
+                context.query,
+                system_prompt=system_prompt,
+                has_tool_results=False,
+                identity=identity,
+                json_schema=json_schema,
             )
             final_messages.insert(0, {"role": "system", "content": response_prompt})
             try:
-                await state.output.send("update", "\n") # Add a newline before the LLM response
-                # Stream the main response
-                final_response = ""
-                async for chunk in llm.stream(final_messages):
-                    final_response += chunk
-                    await state.output.send("update", chunk)
+                # Response follows naturally after state announcement
+                # Generate the main response
+                final_response = await llm.run(final_messages)
+                await state.output.update(final_response)
             except Exception as e:
-                # Handle LLM errors in response generation
-                final_response = f"I apologize, but I encountered a technical issue while generating my response: {str(e)}. Please try again."
-                await state.output.send("update", final_response)
+                final_response = fallback_response(e, json_schema)
+                await state.output.update(final_response)
 
     # Add response to context
     context.add_message("assistant", final_response)
@@ -150,11 +256,13 @@ async def respond(
     state["final_response"] = final_response
 
     # Store response data directly in state
-    state["reasoning_decision"] = {
-        "should_respond": True,
-        "response_text": final_response,
-        "task_complete": True,
-    }
+    state["reasoning_decision"] = ExecutionResult.ok(
+        data={
+            "should_respond": True,
+            "response_text": final_response,
+            "task_complete": True,
+        }
+    )
     state["last_node_output"] = final_response
     state["next_node"] = "END"
 

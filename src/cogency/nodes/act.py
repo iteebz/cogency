@@ -1,77 +1,88 @@
 """Act node - pure tool execution."""
 
+import logging
 import time
-from typing import Dict, List, Optional
+from typing import List
 
 from cogency.state import State
 from cogency.tools.base import BaseTool
-from cogency.tools.executor import parse_tool_calls, run_tools
+from cogency.tools.executor import run_tools
+from cogency.utils.heuristics import calculate_backoff_delay, needs_network_retry
+from cogency.utils.results import ExecutionResult
+
+logger = logging.getLogger(__name__)
 
 
-async def act(state: State, *, tools: List[BaseTool], config: Optional[Dict] = None) -> State:
+async def act(state: State, *, tools: List[BaseTool]) -> State:
     """Act: execute tools based on reasoning decision."""
     time.time()
 
     tool_call_str = state.get("tool_calls")
     if not tool_call_str:
-        return {"execution_results": {"type": "no_action"}, "next_node": "reason"}
+        state["execution_results"] = ExecutionResult.ok(data={"type": "no_action"})
+        return state
 
     context = state.context
     selected_tools = state.get("selected_tools", tools)
 
-    tool_calls = parse_tool_calls(tool_call_str)
-    if not tool_calls:
-        await state.output.send("trace", "No valid tool calls parsed", node="act")
-        return {"execution_results": {"type": "no_action"}, "next_node": "reason"}
+    # Tool calls come from reason node as parsed list
+    tool_calls = state.get("tool_calls")
+    if not tool_calls or not isinstance(tool_calls, list):
+        state["execution_results"] = ExecutionResult.ok(data={"type": "no_action"})
+        return state
 
-    # Clear cognitive state indicator for execution
-    tool_names = [c['name'] for c in tool_calls]
-    
+    # Start acting state
+    # Acting is implicit - tool execution shows progress
+
     tool_tuples = [(call["name"], call["args"]) for call in tool_calls]
-    
-    # Show detailed tool calls with actual parameters
-    for call in tool_calls:
-        tool_name = call["name"]
-        args = call["args"]
-        # Format args nicely - truncate long values
-        formatted_args = {}
-        for k, v in args.items():
-            if isinstance(v, str) and len(v) > 100:
-                formatted_args[k] = f"{v[:100]}..."
-            else:
-                formatted_args[k] = v
-        await state.output.send(
-            "trace", f"{tool_name}({formatted_args})", node="act"
-        )
-    
-    await state.output.send(
-        "trace", f"Executing {len(tool_calls)} tools: {tool_names}", node="act"
-    )
-    execution_results = await run_tools(tool_tuples, selected_tools, context)
 
-    # Simple result display - just show what happened
-    successes = execution_results.get("results", [])
-    errors = execution_results.get("errors", [])
-    
-    for success in successes:
-        await state.output.send(
-            "tool_execution_summary", success.get('result', 'success'), tool_name=success['tool_name'], success=True, status="success"
-        )
-    
-    for error in errors:
-        await state.output.send(
-            "tool_execution_summary", error.get('error', 'failed'), tool_name=error['tool_name'], success=False, status="failed"
-        )
+    # Network error recovery with backoff
+    retry_count = state.get("network_retry_count", 0)
+    max_retries = 2
 
-    success_count = execution_results.get("successful_count", 0)
-    total_count = len(tool_calls)
-    # This message is still a trace, as it's about the internal process of tool completion
-    await state.output.send(
-        "trace", f"Tools completed: {success_count}/{total_count} successful", node="act", status="success" if success_count == total_count else "failed", output=execution_results
-    )
+    tool_execution_result = await run_tools(tool_tuples, selected_tools, context, state.output)
 
-    # Update flow state
+    if tool_execution_result.success:
+        execution_results = ExecutionResult.ok(tool_execution_result.data)
+    else:
+        execution_results = ExecutionResult.fail(tool_execution_result.error)
+
+    # Check for network errors that warrant retry
+    if not execution_results.success and retry_count < max_retries:
+        errors = [{"error": execution_results.error}] if execution_results.error else []
+
+        if needs_network_retry(errors):
+            import asyncio
+
+            backoff_delay = calculate_backoff_delay(retry_count)
+            await asyncio.sleep(backoff_delay)
+
+            # Retry execution
+            state["network_retry_count"] = retry_count + 1
+            await state.output.trace(
+                f"Network error detected, retrying in {backoff_delay}s (attempt {retry_count + 2})",
+                node="act",
+            )
+            try:
+                tool_execution_result = await run_tools(
+                    tool_tuples, selected_tools, context, state.output
+                )
+                if tool_execution_result.success:
+                    execution_results = ExecutionResult.ok(tool_execution_result.data)
+                else:
+                    execution_results = ExecutionResult.fail(tool_execution_result.error)
+            except Exception as e:
+                logger.error(f"Error during tool execution retry in act node: {e}")
+                execution_results = ExecutionResult.fail(f"Tool execution retry failed: {e}")
+
+    # Reset retry count on success or after max retries
+    if execution_results.success or retry_count >= max_retries:
+        state["network_retry_count"] = 0
+
+    # Removed trace - clean tool output speaks for itself
+
+    # Update flow state - routing handled by flow.py
     state["execution_results"] = execution_results
-    state["next_node"] = "reason"
+    # Note: current_iteration is incremented in reason.py, not here
 
     return state
