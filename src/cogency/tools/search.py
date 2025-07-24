@@ -130,21 +130,23 @@ class Search(BaseTool):
         if not search_results:
             return f"'{query}' → No results found"
 
-        # Show knowledge gained from first 2 results
-        knowledge_items = []
-        for result in search_results[:2]:
+        # Show URLs and key info from first 2-3 results for follow-up actions
+        result_items = []
+        for result in search_results[:3]:
+            url = result.get("url", "")
+            title = result.get("title", "Untitled")
             snippet = result.get("snippet", "").strip()
-            if snippet:
-                # Extract key info from snippet (first 60 chars)
-                key_info = snippet[:60].strip()
-                if key_info:
-                    knowledge_items.append(f"- {key_info}...")
 
-        if knowledge_items:
-            knowledge_str = "\n  ".join(knowledge_items)
-            return f"'{query}' → Found:\n  {knowledge_str}"
+            if url:
+                # Include URL for follow-up scraping + brief context
+                if snippet:
+                    key_info = snippet[:50].strip()
+                    result_items.append(f"- {url} ({key_info}...)")
+                else:
+                    result_items.append(f"- {url} ({title})")
+
+        if result_items:
+            results_str = "\n  ".join(result_items)
+            return f"'{query}' → Found {len(search_results)} results:\n  {results_str}"
         else:
-            # Fallback to titles if no snippets
-            titles = [r.get("title", "Untitled") for r in search_results[:2]]
-            titles_str = " | ".join(titles)
-            return f"'{query}' → {len(search_results)} results: {titles_str}"
+            return f"'{query}' → {len(search_results)} results found"

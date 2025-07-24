@@ -5,6 +5,7 @@ from cogency.nodes.reasoning.adaptive import (
     detect_fast_loop,
     detect_loop,
 )
+from cogency.state import Cognition
 
 
 class MockToolCall:
@@ -47,12 +48,20 @@ def test_action_fingerprint():
 def test_fast_loop_detection():
     """Test fast loop detection."""
     # Should detect immediate loop
-    cognition = {"action_fingerprints": ["search:123", "search:123"]}
+    cognition = Cognition()
+    cognition.action_fingerprints = [
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+    ]
     is_loop = detect_fast_loop(cognition)
     assert is_loop is True
 
     # No loop in short history
-    cognition = {"action_fingerprints": ["search:123", "scrape:456"]}
+    cognition = Cognition()
+    cognition.action_fingerprints = [
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+        {"fingerprint": "scrape:456", "result": "", "decision": ""},
+    ]
     is_loop = detect_fast_loop(cognition)
     assert is_loop is False
 
@@ -60,17 +69,32 @@ def test_fast_loop_detection():
 def test_comprehensive_loop():
     """Test comprehensive loop detection."""
     # Pattern loop (A-B-A)
-    cognition = {"action_fingerprints": ["search:123", "scrape:456", "search:123"]}
+    cognition = Cognition()
+    cognition.action_fingerprints = [
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+        {"fingerprint": "scrape:456", "result": "", "decision": ""},
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+    ]
     is_loop = detect_loop(cognition)
     assert is_loop is True
 
     # No loop detected
-    cognition = {"action_fingerprints": ["search:123", "scrape:456", "analyze:789"]}
+    cognition = Cognition()
+    cognition.action_fingerprints = [
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+        {"fingerprint": "scrape:456", "result": "", "decision": ""},
+        {"fingerprint": "analyze:789", "result": "", "decision": ""},
+    ]
     is_loop = detect_loop(cognition)
     assert is_loop is False
 
     # Repeated identical actions
-    cognition = {"action_fingerprints": ["search:123", "search:123", "search:123"]}
+    cognition = Cognition()
+    cognition.action_fingerprints = [
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+        {"fingerprint": "search:123", "result": "", "decision": ""},
+    ]
     is_loop = detect_loop(cognition)
     assert is_loop is True
 
@@ -78,6 +102,7 @@ def test_comprehensive_loop():
 def test_loop_empty_history():
     """Test loop detection with minimal history."""
     # Empty history
-    cognition = {"action_fingerprints": []}
+    cognition = Cognition()
+    cognition.action_fingerprints = []
     assert detect_loop(cognition) is False
     assert detect_fast_loop(cognition) is False

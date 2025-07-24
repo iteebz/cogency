@@ -83,6 +83,20 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
 
     # Update flow state - routing handled by flow.py
     state["execution_results"] = execution_results
+
+    # Update cognition with formatted results after tool execution
+    if (
+        execution_results.success
+        and state.get("tool_calls")
+        and state.cognition.action_fingerprints
+    ):
+        from cogency.nodes.reason import format_agent_results
+
+        tool_calls = state.get("tool_calls", [])
+        formatted_result = format_agent_results(execution_results, tool_calls, selected_tools)
+        # Update the last entry with formatted results
+        state.cognition.update_result(formatted_result)
+
     # Note: current_iteration is incremented in reason.py, not here
 
     return state

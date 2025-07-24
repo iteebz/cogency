@@ -1,6 +1,6 @@
 """Action loop detection and prevention."""
 
-from typing import Any, Dict, List
+from typing import Any, List
 
 LOOP_DETECTION_MIN_ACTIONS = 3
 FAST_LOOP_DETECTION_MIN_ACTIONS = 2
@@ -53,50 +53,56 @@ def action_fingerprint(tool_calls: List[Any]) -> str:
     return "|".join(fingerprints)
 
 
-def detect_loop(cognition: Dict[str, Any]) -> bool:
+def detect_loop(cognition) -> bool:
     """Detect if agent is stuck in an action loop."""
-    action_fingerprints = cognition.get("action_fingerprints", [])
+    action_entries = cognition.action_fingerprints
 
-    if len(action_fingerprints) < LOOP_DETECTION_MIN_ACTIONS:
+    if len(action_entries) < LOOP_DETECTION_MIN_ACTIONS:
         return False
 
+    # Extract fingerprints from dict entries
+    fingerprints = [entry["fingerprint"] for entry in action_entries]
+
     # Check for repeated identical actions
-    recent_actions = action_fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
+    recent_actions = fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
     if len(set(recent_actions)) == 1:  # All 3 recent actions are identical
         return True
 
     # Check for alternating pattern (A-B-A)
     return (
-        len(action_fingerprints) >= 3
-        and action_fingerprints[-1] == action_fingerprints[-3]
-        and action_fingerprints[-1] != action_fingerprints[-2]
+        len(fingerprints) >= 3
+        and fingerprints[-1] == fingerprints[-3]
+        and fingerprints[-1] != fingerprints[-2]
     )
 
 
-def detect_fast_loop(cognition: Dict[str, Any]) -> bool:
+def detect_fast_loop(cognition) -> bool:
     """Lightweight loop detection for fast mode - lower threshold."""
-    action_fingerprints = cognition.get("action_fingerprints", [])
+    action_entries = cognition.action_fingerprints
 
     # Fast mode: detect loops earlier - even just 2 identical actions
-    if len(action_fingerprints) < FAST_LOOP_DETECTION_MIN_ACTIONS:
+    if len(action_entries) < FAST_LOOP_DETECTION_MIN_ACTIONS:
         return False
+
+    # Extract fingerprints from dict entries
+    fingerprints = [entry["fingerprint"] for entry in action_entries]
 
     # Check for immediate repetition (A-A) - fast detection
     if (
-        len(action_fingerprints) >= FAST_LOOP_DETECTION_MIN_ACTIONS
-        and action_fingerprints[-1] == action_fingerprints[-2]
+        len(fingerprints) >= FAST_LOOP_DETECTION_MIN_ACTIONS
+        and fingerprints[-1] == fingerprints[-2]
     ):
         return True
 
     # Check for exact repetition pattern (A-A-A) - truly identical actions
-    if len(action_fingerprints) >= LOOP_DETECTION_MIN_ACTIONS:
-        recent_actions = action_fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
+    if len(fingerprints) >= LOOP_DETECTION_MIN_ACTIONS:
+        recent_actions = fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
         if len(set(recent_actions)) == 1:  # All 3 identical
             return True
 
     # Check for immediate back-and-forth (A-B-A) pattern
     return (
-        len(action_fingerprints) >= LOOP_DETECTION_MIN_ACTIONS
-        and action_fingerprints[-1] == action_fingerprints[-LOOP_DETECTION_MIN_ACTIONS]
-        and action_fingerprints[-1] != action_fingerprints[-2]
+        len(fingerprints) >= LOOP_DETECTION_MIN_ACTIONS
+        and fingerprints[-1] == fingerprints[-LOOP_DETECTION_MIN_ACTIONS]
+        and fingerprints[-1] != fingerprints[-2]
     )

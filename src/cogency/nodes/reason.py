@@ -10,13 +10,10 @@ from cogency.nodes.reasoning.adaptive import (
     assess_tools,
     detect_fast_loop,
     detect_loop,
-    init_cognition,
     parse_switch,
     should_switch,
     summarize_attempts,
     switch_mode,
-    track_failure,
-    update_cognition,
 )
 from cogency.nodes.reasoning.deep import (
     prompt_deep_mode,
@@ -34,8 +31,8 @@ logger = logging.getLogger(__name__)
 
 def build_iteration_history(cognition, selected_tools, max_iterations=3):
     """Show last N reasoning iterations with their outcomes."""
-    fingerprints = cognition.get("action_fingerprints", [])
-    failed_attempts = summarize_attempts(cognition.get("failed_attempts", []))
+    fingerprints = cognition.action_fingerprints
+    failed_attempts = summarize_attempts(cognition.failed_attempts)
 
     if not fingerprints:
         return (
@@ -48,9 +45,14 @@ def build_iteration_history(cognition, selected_tools, max_iterations=3):
     last_fingerprints = fingerprints[-max_iterations:]
     start_step = len(fingerprints) - len(last_fingerprints) + 1
 
-    for i, fp in enumerate(last_fingerprints):
+    for i, entry in enumerate(last_fingerprints):
         step_num = start_step + i
-        iterations.append(f"Step {step_num}: {fp}")
+        fingerprint = entry["fingerprint"]
+        result = entry["result"]
+        if result:
+            iterations.append(f"Step {step_num}: {fingerprint}\n→ {result}")
+        else:
+            iterations.append(f"Step {step_num}: {fingerprint}")
 
     iteration_summary = "\n".join(iterations)
 
@@ -59,6 +61,34 @@ def build_iteration_history(cognition, selected_tools, max_iterations=3):
         return f"PREVIOUS ITERATIONS:\n{iteration_summary}\n\nFAILED ATTEMPTS:\n{failed_attempts}"
 
     return f"PREVIOUS ITERATIONS:\n{iteration_summary}"
+
+
+def format_agent_results(execution_results, prev_tool_calls, selected_tools):
+    """Extract formatted results from previous execution for agent context."""
+    if not (execution_results and hasattr(execution_results, "data") and execution_results.data):
+        return ""
+
+    results_data = execution_results.data
+    if not (isinstance(results_data, dict) and "results" in results_data):
+        return ""
+
+    formatted_parts = []
+    results_list = results_data["results"]
+
+    for _i, (tool_call, result_entry) in enumerate(zip(prev_tool_calls, results_list)):
+        tool_name = tool_call.get("name", "unknown")
+
+        # Find the tool and call its format_agent method
+        for tool in selected_tools:
+            if tool.name == tool_name:
+                if hasattr(tool, "format_agent"):
+                    # The result is now in result_entry["result"] not result_entry.data
+                    result_data = result_entry.get("result", {})
+                    agent_format = tool.format_agent(result_data)
+                    formatted_parts.append(agent_format)
+                break
+
+    return " | ".join(formatted_parts) if formatted_parts else ""
 
 
 async def reason(
@@ -80,7 +110,9 @@ async def reason(
     # Initialize cognitive state - start fast, let LLM discover complexity
     react_mode = state.get("react_mode", "fast")
 
-    cognition = init_cognition(state, react_mode=react_mode)
+    # Set react mode if different from current
+    if state.cognition.react_mode != react_mode:
+        state.cognition.react_mode = react_mode
 
     # Start reasoning state with simplified messaging
     await state.output.state("reasoning", react_mode)
@@ -88,14 +120,14 @@ async def reason(
     # Adaptive loop detection based on mode
     if react_mode == "deep":
         try:
-            loop_detected = detect_loop(cognition)
+            loop_detected = detect_loop(state.cognition)
         except Exception as e:
             logger.error(f"Deep loop detection failed: {e}")
             loop_detected = False  # Fallback to no loop detection if it fails
     else:
         # Fast react: lightweight loop detection with lower threshold
         try:
-            loop_detected = detect_fast_loop(cognition)
+            loop_detected = detect_fast_loop(state.cognition)
         except Exception as e:
             logger.error(f"Fast loop detection failed: {e}")
             loop_detected = False  # Fallback gracefully
@@ -117,13 +149,28 @@ async def reason(
     messages.append({"role": "user", "content": context.query})
 
     # Create unified iteration history for both modes
-    attempts_summary = build_iteration_history(cognition, selected_tools, max_iterations=3)
+    attempts_summary = build_iteration_history(state.cognition, selected_tools, max_iterations=3)
+
+    # Show clean iteration summary for debugging
+    if attempts_summary.startswith("PREVIOUS ITERATIONS:"):
+        # Extract just the step summaries, truncate cleanly at word boundaries
+        lines = attempts_summary.split("\n")
+        summary_lines = [line for line in lines[:4] if line.strip()]  # First 3-4 lines
+        clean_summary = "\n".join(summary_lines)
+        if len(clean_summary) > 150:
+            # Find last complete step
+            last_step = clean_summary.rfind("Step ")
+            if last_step > 50:  # Keep at least some content
+                clean_summary = clean_summary[:last_step].rstrip()
+        await state.output.trace(f"Iteration history:\n{clean_summary}", node="reason")
+    elif attempts_summary != "No previous iterations":
+        await state.output.trace(f"Iteration history: {attempts_summary}", node="reason")
 
     # Build adaptive reasoning prompt - with reflection for deep mode
     if react_mode == "deep":
         # Deep mode: use explicit reflection phases
-        current_approach = cognition.get("current_approach", "initial")
-        last_tool_quality = cognition.get("last_tool_quality", "unknown")
+        current_approach = state.cognition.current_approach
+        last_tool_quality = state.cognition.last_tool_quality
         reasoning_prompt = prompt_deep_mode(
             tool_registry,
             context.query,
@@ -262,13 +309,13 @@ async def reason(
     execution_results = state.get("execution_results")
     if execution_results:
         tool_quality = assess_tools(execution_results)
-        cognition["last_tool_quality"] = tool_quality
+        state.cognition.set_tool_quality(tool_quality)
 
         # Track failed attempts for loop prevention
         if tool_quality in ["failed", "poor"]:
             prev_tool_calls = state.get("prev_tool_calls", [])
             if prev_tool_calls:
-                track_failure(cognition, prev_tool_calls, tool_quality, iter)
+                state.cognition.track_failure(prev_tool_calls, tool_quality, iter)
 
     # Update cognitive state for next iteration
     if tool_calls:
@@ -283,7 +330,9 @@ async def reason(
             )
         else:
             current_decision = json_data.get("reasoning", "unknown")
-        update_cognition(cognition, tool_calls, current_approach, current_decision, fingerprint)
+
+        # Store current tool calls without formatted results (will be added after execution)
+        state.cognition.update(tool_calls, current_approach, current_decision, fingerprint, "")
 
     # Store current tool calls for next iteration's assessment
     state["prev_tool_calls"] = tool_calls
