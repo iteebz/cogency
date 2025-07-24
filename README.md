@@ -1,7 +1,7 @@
 # Cogency
 
 [![PyPI version](https://badge.fury.io/py/cogency.svg)](https://badge.fury.io/py/cogency)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 **Smart AI agents that think as hard as they need to.**
@@ -116,7 +116,7 @@ export GEMINI_API_KEY=...        # etc
 
 ## 📄 License
 
-MIT - Build whatever you want.
+Apache 2.0 - Build whatever you want.
 
 ---
 
