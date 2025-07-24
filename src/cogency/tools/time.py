@@ -2,12 +2,13 @@
 
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, Dict, Optional
 
 import pytz
 from dateutil import parser as date_parser
 
 from cogency.errors import ToolError, ValidationError
+from cogency.utils.results import ToolResult
 
 from .base import BaseTool
 from .registry import tool
@@ -24,6 +25,16 @@ class Time(BaseTool):
             name="time",
             description="Time operations: current time, timezone conversion, relative time",
             emoji="⏰",
+            schema="time(operation='now|relative|convert_timezone', timezone='UTC|Europe/London|Asia/Tokyo', datetime_str='YYYY-MM-DDTHH:MM:SS', from_tz='UTC', to_tz='America/New_York')\nRequired: operation | Optional: timezone, datetime_str, from_tz, to_tz",
+            examples=[
+                "time(operation='now')",
+                "time(operation='now', timezone='Europe/London')",
+                "time(operation='relative', datetime_str='2024-01-15T14:30:00')",
+                "time(operation='convert_timezone', datetime_str='2024-01-15T14:30:00', from_tz='UTC', to_tz='America/New_York')",
+            ],
+            rules=[
+                "Use city names (London, Tokyo) or IANA timezones",
+            ],
         )
 
         self._operations = {
@@ -51,7 +62,7 @@ class Time(BaseTool):
             "vancouver": "America/Vancouver",
         }
 
-    async def run(self, operation: str = "now", **kwargs) -> dict[str, Any]:
+    async def run(self, operation: str = "now", **kwargs) -> ToolResult:
         """Execute time operation.
 
         Args:
@@ -68,7 +79,7 @@ class Time(BaseTool):
 
         return await self._operations[operation](**kwargs)
 
-    async def _now(self, timezone: str = "UTC", format: str = None) -> dict[str, Any]:
+    async def _now(self, timezone: str = "UTC", format: str = None) -> ToolResult:
         """Get current time for timezone."""
         # Handle both location names and timezone names
         location_lower = timezone.lower()
@@ -95,9 +106,9 @@ class Time(BaseTool):
             "week_number": int(now.strftime("%W")),
         }
 
-        return result
+        return ToolResult.ok(result)
 
-    async def _relative(self, datetime_str: str, reference: str = None) -> dict[str, Any]:
+    async def _relative(self, datetime_str: str, reference: str = None) -> ToolResult:
         """Get relative time description."""
         try:
             dt = date_parser.parse(datetime_str)
@@ -127,18 +138,18 @@ class Time(BaseTool):
                 days = int(abs(total_seconds) // 86400)
                 relative = f"{days} day{'s' if days != 1 else ''} {'ago' if total_seconds < 0 else 'from now'}"
 
-            return {
-                "datetime": datetime_str,
-                "reference": reference or "now",
-                "relative": relative,
-                "seconds_diff": total_seconds,
-            }
+            return ToolResult.ok(
+                {
+                    "datetime": datetime_str,
+                    "reference": reference or "now",
+                    "relative": relative,
+                    "seconds_diff": total_seconds,
+                }
+            )
         except Exception as e:
             raise ToolError(f"Failed to calculate relative time: {str(e)}") from None
 
-    async def _convert_timezone(
-        self, datetime_str: str, from_tz: str, to_tz: str
-    ) -> dict[str, Any]:
+    async def _convert_timezone(self, datetime_str: str, from_tz: str, to_tz: str) -> ToolResult:
         """Convert datetime between timezones."""
         try:
             dt = date_parser.parse(datetime_str)
@@ -150,37 +161,71 @@ class Time(BaseTool):
             to_timezone = pytz.timezone(to_tz)
             converted = dt.astimezone(to_timezone)
 
-            return {
-                "original": datetime_str,
-                "from_timezone": from_tz,
-                "to_timezone": to_tz,
-                "converted": converted.isoformat(),
-                "formatted": converted.strftime("%Y-%m-%d %H:%M:%S %Z"),
-            }
+            return ToolResult.ok(
+                {
+                    "original": datetime_str,
+                    "from_timezone": from_tz,
+                    "to_timezone": to_tz,
+                    "converted": converted.isoformat(),
+                    "formatted": converted.strftime("%Y-%m-%d %H:%M:%S %Z"),
+                }
+            )
         except Exception as e:
-            raise ToolError(f"Failed to convert timezone: {str(e)}") from None
+            logger.error(
+                f"Failed to convert timezone from {from_tz} to {to_tz} for {datetime_str}: {e}"
+            )
+            return ToolResult.fail(f"Failed to convert timezone: {str(e)}")
 
-    def schema(self) -> str:
-        return "time(operation='now|relative|convert_timezone', timezone='UTC|London|Tokyo|...', datetime_str='...', from_tz='...', to_tz='...')"
+    def format_human(
+        self, params: dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format time execution for display."""
 
-    def examples(self) -> list[str]:
-        return [
-            "time(operation='now', timezone='Europe/London')",
-            "time(operation='relative', datetime_str='2024-01-15T14:30:00')",
-            "time(operation='convert_timezone', datetime_str='2024-01-15T14:30:00', from_tz='UTC', to_tz='America/New_York')",
-        ]
-
-    def format_params(self, params: dict[str, Any]) -> str:
-        """Format parameters for display."""
         operation = params.get("operation", "")
         if operation == "now":
             tz = params.get("timezone", "UTC")
-            return f"(now, {tz})"
+            param_str = f"(now, {tz})"
         elif operation == "relative":
             dt = params.get("datetime_str", "")
-            return f"(relative, {dt[:16]})" if dt else "(relative)"
+            param_str = f"(relative, {dt[:16]})" if dt else "(relative)"
         elif operation == "convert_timezone":
             from_tz = params.get("from_tz", "")
             to_tz = params.get("to_tz", "")
-            return f"(convert, {from_tz}→{to_tz})" if from_tz and to_tz else "(convert)"
-        return f"({operation})" if operation else ""
+            param_str = f"(convert, {from_tz}→{to_tz})" if from_tz and to_tz else "(convert)"
+        else:
+            param_str = f"({operation})" if operation else ""
+
+        if results is None:
+            return param_str, ""
+
+        # Format results
+        if not results.success:
+            result_str = f"Error: {results.error}"
+        else:
+            data = results.data
+            if operation == "now":
+                time_str = data.get("formatted", "")
+                result_str = f"Current: {time_str[:19]}" if time_str else "Current time retrieved"
+            elif operation == "relative":
+                relative = data.get("relative", "")
+                result_str = f"Relative: {relative}" if relative else "Relative time calculated"
+            elif operation == "convert_timezone":
+                converted = data.get("formatted", "")
+                result_str = f"Converted: {converted[:19]}" if converted else "Timezone converted"
+            else:
+                result_str = "Time operation completed"
+
+        return param_str, result_str
+
+    def format_agent(self, result_data: Dict[str, Any]) -> str:
+        """Format time results for agent action history."""
+        if not result_data:
+            return "No result"
+
+        operation = result_data.get("operation", "")
+        formatters = {
+            "now": lambda data: f"Current time: {data.get('formatted', '')}",
+            "relative": lambda data: f"Relative time: {data.get('relative', '')}",
+            "convert_timezone": lambda data: f"Converted time: {data.get('formatted', '')}",
+        }
+        return formatters.get(operation, lambda data: "Time operation completed")(result_data)

@@ -3,7 +3,9 @@
 import asyncio
 import logging
 import subprocess
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+from cogency.utils.results import ToolResult
 
 from .base import BaseTool
 from .registry import tool
@@ -20,11 +22,15 @@ class Code(BaseTool):
             name="code",
             description="Execute Python and JavaScript code safely in isolated environment",
             emoji="🚀",
-            rules=(
-                "PRIMARY TOOL for all programming, calculations, data analysis, and computational tasks. "
-                "Use this for ANY mathematical computation, data processing, algorithm implementation, "
-                "or analytical work. Always prefer this over other tools for computational tasks."
-            ),
+            schema="code(code='string', language='python|javascript|js', timeout=30)",
+            examples=[
+                "code(code='print(2 + 2)', language='python')",
+                "code(code='import pandas as pd; df.describe()', language='python')",
+            ],
+            rules=[
+                "Use for data analysis, algorithms, complex math, variables, loops",
+                "For simple arithmetic, use calculator tool instead",
+            ],
         )
         # Beautiful dispatch pattern - extensible and clean
         self._languages = {
@@ -47,12 +53,12 @@ class Code(BaseTool):
             Execution results including output, errors, and exit code
         """
         if not code or not code.strip():
-            return {"error": "Code cannot be empty"}
+            return ToolResult.fail("Code cannot be empty")
 
         language = language.lower()
         if language not in self._languages:
             available = ", ".join(set(self._languages.keys()))
-            return {"error": f"Unsupported language. Use: {available}"}
+            return ToolResult.fail(f"Unsupported language. Use: {available}")
 
         # Limit timeout
         timeout = min(max(timeout, 1), 120)  # 1-120 seconds
@@ -63,62 +69,7 @@ class Code(BaseTool):
 
     async def _execute_python(self, code: str, timeout: int) -> Dict[str, Any]:
         """Execute Python code in isolated subprocess."""
-
-        # Security: restricted Python execution
-        safe_python_wrapper = (
-            '''
-import sys
-import os
-import subprocess
-import importlib
-
-# Disable dangerous modules
-BLOCKED_MODULES = {
-    'os', 'subprocess', 'sys', 'importlib', 'builtins', '__builtin__',
-    'eval', 'exec', 'compile', 'open', 'file', 'input', 'raw_input',
-    'reload', '__import__', 'vars', 'dir', 'globals', 'locals',
-    'delattr', 'setattr', 'getattr', 'hasattr'
-}
-
-# Restricted builtins
-safe_builtins = {
-    'abs', 'all', 'any', 'bin', 'bool', 'chr', 'dict', 'enumerate',
-    'filter', 'float', 'frozenset', 'hex', 'int', 'isinstance', 'issubclass',
-    'iter', 'len', 'list', 'map', 'max', 'min', 'oct', 'ord', 'pow',
-    'print', 'range', 'repr', 'reversed', 'round', 'set', 'slice',
-    'sorted', 'str', 'sum', 'tuple', 'type', 'zip', 'open'
-}
-
-# Import commonly used safe modules
-import math
-import random
-import datetime
-import json
-import re
-
-# Set up restricted globals
-builtins_dict = __builtins__ if isinstance(__builtins__, dict) else __builtins__.__dict__
-restricted_globals = {
-    '__builtins__': {name: builtins_dict[name] for name in safe_builtins if name in builtins_dict},
-    'math': math,
-    'random': random,
-    'datetime': datetime,
-    'json': json,
-    're': re
-}
-
-try:
-    # Execute user code with restricted globals
-    exec("""'''
-            + code.replace('"""', '\\"""')
-            + '''""", restricted_globals)
-except Exception as e:
-    print(f"Error: {type(e).__name__}: {e}")
-    sys.exit(1)
-'''
-        )
-
-        return await self._run_in_subprocess(["python", "-c", safe_python_wrapper], timeout)
+        return await self._run_in_subprocess(["python", "-c", code], timeout)
 
     async def _execute_javascript(self, code: str, timeout: int) -> Dict[str, Any]:
         """Execute JavaScript code using Node.js."""
@@ -129,58 +80,27 @@ except Exception as e:
                 ["node", "--version"], capture_output=True, text=True, timeout=5
             )
             if result.returncode != 0:
-                return {
-                    "error": "Node.js not found. Please install Node.js to execute JavaScript code."
-                }
+                return ToolResult.fail(
+                    "Node.js not found. Please install Node.js to execute JavaScript code."
+                )
         except (subprocess.TimeoutExpired, FileNotFoundError):
-            return {
-                "error": "Node.js not found. Please install Node.js to execute JavaScript code."
-            }
+            return ToolResult.fail(
+                "Node.js not found. Please install Node.js to execute JavaScript code."
+            )
 
-        # Security: restricted JavaScript execution
-        safe_js_wrapper = f"""
-// Disable dangerous globals
-delete global.require;
-delete global.process;
-delete global.Buffer;
-delete global.__dirname;
-delete global.__filename;
-
-// Restricted console for output
-const output = [];
-const originalLog = console.log;
-console.log = (...args) => {{
-    output.push(args.map(arg =>
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-    ).join(' '));
-}};
-
-try {{
-    // User code execution
-    {code}
-    
-    // Output results
-    if (output.length > 0) {{
-        originalLog(output.join('\\n'));
-    }}
-}} catch (error) {{
-    originalLog(`Error: ${{error.name}}: ${{error.message}}`);
-    process.exit(1);
-}}
-"""
-
-        return await self._run_in_subprocess(["node", "-e", safe_js_wrapper], timeout)
+        return await self._run_in_subprocess(["node", "-e", code], timeout)
 
     async def _run_in_subprocess(self, cmd: List[str], timeout: int) -> Dict[str, Any]:
         """Run command in subprocess with timeout and output capture."""
         try:
             import os
-            project_root = os.getcwd() # Assuming the agent is run from the project root
+
+            project_root = os.getcwd()  # Assuming the agent is run from the project root
             process = await asyncio.create_subprocess_exec(
                 *cmd,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
-                cwd=project_root, # Set cwd to the project root
+                cwd=project_root,  # Set cwd to the project root
                 limit=1024 * 1024,  # 1MB output limit
             )
 
@@ -194,9 +114,9 @@ try {{
                 try:
                     process.kill()
                     await process.wait()
-                except (ProcessLookupError, OSError):
-                    pass
-                return {"error": f"Code execution timed out after {timeout} seconds"}
+                except (ProcessLookupError, OSError) as e:
+                    logger.warning(f"Failed to kill process after timeout: {e}")
+                return ToolResult.fail(f"Code execution timed out after {timeout} seconds")
 
             # Decode output
             stdout_text = stdout.decode("utf-8", errors="replace") if stdout else ""
@@ -209,33 +129,63 @@ try {{
             if len(stderr_text) > max_output:
                 stderr_text = stderr_text[:max_output] + "\n... (output truncated)"
 
-            return {
-                "exit_code": exit_code,
-                "success": exit_code == 0,
-                "output": stdout_text,
-                "error_output": stderr_text,
-                "timeout": timeout,
-            }
+            return ToolResult.ok(
+                {
+                    "exit_code": exit_code,
+                    "success": exit_code == 0,
+                    "output": stdout_text,
+                    "error_output": stderr_text,
+                    "timeout": timeout,
+                }
+            )
 
         except Exception as e:
-            return {"error": f"Code execution failed: {str(e)}"}
+            logger.error(f"Code execution failed: {e}")
+            return ToolResult.fail(f"Code execution failed: {str(e)}")
 
-    def schema(self) -> str:
-        """Return the tool call schema."""
-        return "code(code='string', language='python|javascript|js', timeout=30)"
-
-    def examples(self) -> List[str]:
-        """Return example usage patterns."""
-        return [
-            "code(code='print(2 + 2)', language='python')",
-            "code(code='console.log(Math.sqrt(16))', language='javascript')",
-            "code(code='import math; print(math.pi)', language='python')",
-            "code(code='const arr = [1,2,3]; console.log(arr.map(x => x*2))', language='js')",
-        ]
-
-    def format_params(self, params: Dict[str, Any]) -> str:
-        """Format parameters for display."""
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format code execution for display."""
         from cogency.utils.formatting import truncate
 
         code = params.get("code", "")
-        return f"({truncate(code, 35)})" if code else ""
+        language = params.get("language", "python")
+        param_str = f"({language}: {truncate(code, 25)})" if code else ""
+
+        if results is None:
+            return param_str, ""
+
+        # Format results
+        if results.failure:
+            result_str = f"Error: {results.error}"
+        else:
+            data = results.data
+            if data.get("success"):
+                result_str = "Executed successfully"
+            else:
+                result_str = f"Exit code: {data.get('exit_code', 1)}"
+
+        return param_str, result_str
+
+    def format_agent(self, result_data: Dict[str, Any]) -> str:
+        """Format code execution results for agent action history."""
+        if not result_data:
+            return "No result"
+
+        success = result_data.get("success", False)
+        output = result_data.get("output", "").strip()
+        error_output = result_data.get("error_output", "").strip()
+        exit_code = result_data.get("exit_code", None)
+
+        if success:
+            if output:
+                return f"Code executed successfully. Output: {output[:100]}..."
+            return "Code executed successfully (no output)"
+        else:
+            msg = f"Code execution failed (exit code: {exit_code})."
+            if error_output:
+                msg += f" Error: {error_output[:100]}..."
+            elif output:
+                msg += f" Output: {output[:100]}..."
+            return msg

@@ -1,12 +1,17 @@
 """Simple CSV tool - read, write, append. Agent handles logic."""
 
 import csv
+import logging
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from cogency.utils.results import ToolResult
+
 from .base import BaseTool
 from .registry import tool
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -18,11 +23,14 @@ class CSV(BaseTool):
             name="csv",
             description="Read, write, and append CSV files",
             emoji="📊",
-            rules=(
-                "EXPORT ONLY: Save computed results to CSV format. "
-                "NEVER use for analysis or calculations - use 'code' tool first for all computational work, "
-                "then optionally use this to export final results to CSV format."
-            ),
+            schema="csv(operation='read|write|append', file_path='string', data=list_of_dicts)",
+            examples=[
+                "csv(operation='read', file_path='data.csv')",
+                "csv(operation='write', file_path='output.csv', data=[{'name': 'John', 'age': 30}])",
+            ],
+            rules=[
+                "Use code tool for analysis, then export results here",
+            ],
         )
 
     async def run(
@@ -33,7 +41,7 @@ class CSV(BaseTool):
         **kwargs,
     ) -> Dict[str, Any]:
         """Execute CSV operation.
-        
+
         Args:
             operation: 'read', 'write', or 'append'
             file_path: Path to CSV file
@@ -46,7 +54,7 @@ class CSV(BaseTool):
         elif operation == "append":
             return self._append(file_path, data)
         else:
-            return {"error": f"Invalid operation: {operation}. Use: read, write, append"}
+            return ToolResult.fail(f"Invalid operation: {operation}. Use: read, write, append")
 
     def _get_absolute_path(self, file_path: str) -> Path:
         """Get absolute path relative to project root."""
@@ -57,21 +65,21 @@ class CSV(BaseTool):
         try:
             path = self._get_absolute_path(file_path)
             if not path.exists():
-                return {"error": f"File not found: {file_path}"}
+                return ToolResult.fail(f"File not found: {file_path}")
 
             with open(path, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 data = list(reader)
 
-            return {"success": True, "data": data, "row_count": len(data)}
+            return ToolResult.ok({"data": data, "row_count": len(data)})
         except Exception as e:
-            return {"error": f"Read failed: {str(e)}"}
+            return ToolResult.fail(f"Read failed: {str(e)}")
 
     def _write(self, file_path: str, data: Optional[List[Dict]]) -> Dict[str, Any]:
         """Write CSV file."""
         try:
             if not data:
-                return {"error": "No data provided"}
+                return ToolResult.fail("No data provided")
 
             path = self._get_absolute_path(file_path)
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -82,18 +90,19 @@ class CSV(BaseTool):
                     writer.writeheader()
                     writer.writerows(data)
 
-            return {"success": True, "rows_written": len(data)}
+            return ToolResult.ok({"rows_written": len(data)})
         except Exception as e:
-            return {"error": f"Write failed: {str(e)}"}
+            logger.error(f"CSV write failed for {file_path}: {e}")
+            return ToolResult.fail(f"Write failed: {str(e)}")
 
     def _append(self, file_path: str, data: Optional[List[Dict]]) -> Dict[str, Any]:
         """Append to CSV file."""
         try:
             if not data:
-                return {"error": "No data provided"}
+                return ToolResult.fail("No data provided")
 
             path = self._get_absolute_path(file_path)
-            
+
             if not path.exists():
                 return self._write(file_path, data)
 
@@ -101,24 +110,49 @@ class CSV(BaseTool):
                 writer = csv.DictWriter(f, fieldnames=data[0].keys())
                 writer.writerows(data)
 
-            return {"success": True, "rows_appended": len(data)}
+            return ToolResult.ok({"rows_appended": len(data)})
         except Exception as e:
-            return {"error": f"Append failed: {str(e)}"}
+            return ToolResult.fail(f"Append failed: {str(e)}")
 
-    def schema(self) -> str:
-        """Return tool schema."""
-        return "csv(operation='read|write|append', file_path='string', data=list_of_dicts)"
-
-    def examples(self) -> List[str]:
-        """Return examples."""
-        return [
-            "csv(operation='read', file_path='data.csv')",
-            "csv(operation='write', file_path='output.csv', data=[{'name': 'John', 'age': 30}])",
-            "csv(operation='append', file_path='logs.csv', data=[{'event': 'login', 'time': '10:00'}])",
-        ]
-
-    def format_params(self, params: Dict[str, Any]) -> str:
-        """Format parameters for display."""
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format CSV execution for display."""
         op = params.get("operation", "")
         file_path = params.get("file_path", "")
-        return f"({op}: {Path(file_path).name})" if op and file_path else ""
+        param_str = f"({op}: {Path(file_path).name})" if op and file_path else ""
+
+        if results is None:
+            return param_str, ""
+
+        # Format results
+        if results.failure:
+            result_str = f"Error: {results.error}"
+        else:
+            data = results.data
+            if op == "read":
+                count = data.get("row_count", 0)
+                result_str = f"Read {count} rows"
+            elif op == "write":
+                count = data.get("rows_written", 0)
+                result_str = f"Wrote {count} rows"
+            elif op == "append":
+                count = data.get("rows_appended", 0)
+                result_str = f"Appended {count} rows"
+            else:
+                result_str = "Operation completed"
+
+        return param_str, result_str
+
+    def format_agent(self, result_data: Dict[str, Any]) -> str:
+        """Format CSV results for agent action history."""
+        if not result_data:
+            return "No result"
+
+        operation = result_data.get("operation", "")
+        formatters = {
+            "read": lambda data: f"Read {data.get('row_count', 0)} rows from {data.get('file_path', '')}",
+            "write": lambda data: f"Wrote {data.get('rows_written', 0)} rows to {data.get('file_path', '')}",
+            "append": lambda data: f"Appended {data.get('rows_appended', 0)} rows to {data.get('file_path', '')}",
+        }
+        return formatters.get(operation, lambda data: "CSV operation completed")(result_data)

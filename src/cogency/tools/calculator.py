@@ -1,8 +1,12 @@
+import logging
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, Optional
 
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
+from cogency.utils.results import ToolResult
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -10,10 +14,17 @@ class Calculator(BaseTool):
     def __init__(self):
         super().__init__(
             name="calculator",
-            description=(
-                "Evaluate mathematical expressions with support for +, -, *, /, √, parentheses"
-            ),
+            description="Evaluate mathematical expressions with support for +, -, *, /, √, parentheses",
             emoji="🧮",
+            schema="calculator(expression='2+3*4 or √64 or (10+5)/3')\nRequired: expression",
+            examples=[
+                "calculator(expression='450 + 120*3')",
+                "calculator(expression='√64')",
+                "calculator(expression='(10+5)/3')",
+            ],
+            rules=[
+                "Quick arithmetic only - for complex math use code tool",
+            ],
         )
 
     async def run(self, expression: str, **kwargs) -> Dict[str, Any]:
@@ -33,7 +44,7 @@ class Calculator(BaseTool):
             # Only allow safe characters (after symbol replacement)
             allowed_chars = set("0123456789+-*/.() ")
             if not all(c in allowed_chars for c in expr):
-                return {"error": "Expression contains invalid characters"}
+                return ToolResult.fail("Expression contains invalid characters")
 
             # Safe evaluation
             safe_dict = {"__builtins__": {}}
@@ -43,40 +54,50 @@ class Calculator(BaseTool):
             if isinstance(result, float) and result.is_integer():
                 result = int(result)
 
-            return {"result": result}
+            return ToolResult.ok({"result": result})
 
-        except ZeroDivisionError:
-            return {"error": "Cannot divide by zero"}
+        except ZeroDivisionError as e:
+            logger.error(f"Calculator operation failed due to division by zero: {e}")
+            return ToolResult.fail("Cannot divide by zero")
+        except SyntaxError as e:
+            logger.error(f"Calculator operation failed due to invalid syntax: {e}")
+            return ToolResult.fail(f"Invalid expression syntax: {str(e)}")
+        except TypeError as e:
+            logger.error(f"Calculator operation failed due to type error: {e}")
+            return ToolResult.fail(f"Invalid expression type: {str(e)}")
         except Exception as e:
-            return {"error": f"Invalid expression: {str(e)}"}
+            logger.error(f"Calculator operation failed: {e}")
+            return ToolResult.fail(f"Invalid expression: {str(e)}")
 
-    def schema(self) -> str:
-        return "calculator(expression='math expression')"
-
-    def examples(self) -> List[str]:
-        return [
-            "calculator(expression='450 + 120*3')",
-            "calculator(expression='√64')",
-            "calculator(expression='(15+27)*2')",
-        ]
-
-    def format_params(self, params: Dict[str, Any]) -> str:
-        """Format parameters for display."""
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format calculator execution for display."""
         expr = params.get("expression", "")
         if not expr:
-            return ""
+            param_str = ""
+        else:
+            # Clean up expression for display
+            display_expr = (
+                expr.replace("**", "^").replace("*", "×").replace("/", "÷").replace(" ", "")
+            )
+            param_str = f"({display_expr})"
 
-        # Clean up expression for display - no spaces, add currency symbols for large numbers
-        display_expr = expr.replace("**", "^").replace("*", "×").replace("/", "÷").replace(" ", "")
+        if results is None:
+            return param_str, ""
 
-        # Add $ for currency-like numbers (heuristic: numbers >= 100)
-        import re
+        # Format results
+        if results.failure:
+            result_str = f"Error: {results.error}"
+        else:
+            result = results.data.get("result", "")
+            result_str = f"= {result}"
 
-        def add_currency(match):
-            num = float(match.group())
-            if num >= 100:
-                return f"${num:,.0f}" if num == int(num) else f"${num:,.2f}"
-            return match.group()
+        return param_str, result_str
 
-        display_expr = re.sub(r"\b\d+(?:\.\d+)?\b", add_currency, display_expr)
-        return f"({display_expr})"
+    def format_agent(self, result_data: Dict[str, Any]) -> str:
+        """Format calculator results for agent action history."""
+        if not result_data:
+            return "No result"
+        result = result_data.get("result", "")
+        return f"= {result}"

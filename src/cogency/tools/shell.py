@@ -5,7 +5,9 @@ import logging
 import os
 import shlex
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
+
+from cogency.utils.results import ToolResult
 
 from .base import BaseTool
 from .registry import tool
@@ -22,6 +24,20 @@ class Shell(BaseTool):
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
             emoji="💻",
+            schema="shell(command='string', timeout=30, working_dir='path', env=dict)",
+            examples=[
+                "shell(command='ls -la')",
+                "shell(command='pwd')",
+                "shell(command='echo \"Hello World\"')",
+                "shell(command='python --version')",
+                "shell(command='git status', working_dir='/path/to/repo')",
+            ],
+            rules=[
+                "Avoid using commands that modify system state or delete files (e.g., 'rm', 'sudo').",
+                "Blocked commands include: rm, rmdir, del, format, fdisk, mkfs, dd, shutdown, reboot, halt, poweroff, init, su, sudo, passwd, chown, chmod, chattr, kill, killall, pkill, taskkill, crontab, at, systemctl, service.",
+                "Use 'working_dir' for operations within specific directories (relative to project root).",
+                "Ensure commands are non-interactive and complete within the 'timeout' period.",
+            ],
         )
         # Coordinate with file tool sandbox
         self.default_working_dir = Path(default_working_dir).resolve()
@@ -77,7 +93,7 @@ class Shell(BaseTool):
         """
         # Security checks
         if not command or not command.strip():
-            return {"error": "Command cannot be empty"}
+            return ToolResult.fail("Command cannot be empty")
 
         # Limit timeout
         timeout = min(max(timeout, 1), 300)  # 1-300 seconds
@@ -86,33 +102,43 @@ class Shell(BaseTool):
         try:
             cmd_parts = shlex.split(command)
             if not cmd_parts:
-                return {"error": "Invalid command format"}
+                return ToolResult.fail("Invalid command format")
 
             base_cmd = Path(cmd_parts[0]).name.lower()
             if base_cmd in self._blocked_commands:
-                return {"error": f"Command '{base_cmd}' is blocked for security"}
+                return ToolResult.fail(f"Command '{base_cmd}' is blocked for security")
 
         except ValueError as e:
-            return {"error": f"Invalid command syntax: {str(e)}"}
+            return ToolResult.fail(f"Invalid command syntax: {str(e)}")
 
         # Validate working directory
         if working_dir:
             try:
                 work_path = Path(working_dir).resolve()
                 if not work_path.exists():
-                    return {"error": f"Working directory does not exist: {working_dir}"}
+                    return ToolResult.fail(f"Working directory does not exist: {working_dir}")
                 if not work_path.is_dir():
-                    return {"error": f"Working directory is not a directory: {working_dir}"}
+                    return ToolResult.fail(f"Working directory is not a directory: {working_dir}")
                 # Basic sandbox: no system directories
-                forbidden_paths = {"/", "/bin", "/sbin", "/usr", "/etc", "/sys", "/proc", "/dev"}
+                forbidden_paths = {
+                    "/",
+                    "/bin",
+                    "/sbin",
+                    "/usr",
+                    "/etc",
+                    "/sys",
+                    "/proc",
+                    "/dev",
+                }
                 work_path_str = str(work_path)
                 # Check if it's a forbidden system directory (but not subdirectories of allowed paths)
                 if work_path_str in forbidden_paths or any(
                     work_path_str.startswith(p + "/") for p in forbidden_paths
                 ):
-                    return {"error": f"Access to system directory forbidden: {working_dir}"}
-            except Exception:
-                return {"error": f"Invalid working directory: {working_dir}"}
+                    return ToolResult.fail(f"Access to system directory forbidden: {working_dir}")
+            except Exception as e:
+                logger.error(f"Error validating working directory {working_dir}: {e}")
+                return ToolResult.fail(f"Invalid working directory: {working_dir}")
 
         # Prepare environment
         process_env = os.environ.copy()
@@ -123,7 +149,7 @@ class Shell(BaseTool):
                     process_env[key] = value
 
         # Execute command with coordinated working directory
-        actual_working_dir = os.getcwd() # Always use project root
+        actual_working_dir = os.getcwd()  # Always use project root
         try:
             process = await asyncio.create_subprocess_shell(
                 command,
@@ -144,9 +170,9 @@ class Shell(BaseTool):
                 try:
                     process.kill()
                     await process.wait()
-                except (ProcessLookupError, OSError):
-                    pass
-                return {"error": f"Command timed out after {timeout} seconds"}
+                except (ProcessLookupError, OSError) as e:
+                    logger.warning(f"Failed to kill process after timeout: {e}")
+                return ToolResult.fail(f"Command timed out after {timeout} seconds")
 
             # Decode output
             stdout_text = stdout.decode("utf-8", errors="replace") if stdout else ""
@@ -159,40 +185,71 @@ class Shell(BaseTool):
             if len(stderr_text) > max_output:
                 stderr_text = stderr_text[:max_output] + "\n... (output truncated)"
 
-            return {
-                "exit_code": exit_code,
-                "success": exit_code == 0,
-                "stdout": stdout_text,
-                "stderr": stderr_text,
-                "command": command,
-                "working_dir": actual_working_dir,
-                "timeout": timeout,
-            }
+            return ToolResult.ok(
+                {
+                    "exit_code": exit_code,
+                    "success": exit_code == 0,
+                    "stdout": stdout_text,
+                    "stderr": stderr_text,
+                    "command": command,
+                    "working_dir": actual_working_dir,
+                    "timeout": timeout,
+                }
+            )
 
-        except FileNotFoundError:
-            return {"error": "Command not found"}
-        except PermissionError:
-            return {"error": "Permission denied"}
+        except FileNotFoundError as e:
+            logger.error(f"Command not found: {e}")
+            return ToolResult.fail("Command not found")
+        except PermissionError as e:
+            logger.error(f"Permission denied for command: {e}")
+            return ToolResult.fail("Permission denied")
         except Exception as e:
-            return {"error": f"Command execution failed: {str(e)}"}
+            logger.error(f"Command execution failed: {e}")
+            return ToolResult.fail(f"Command execution failed: {str(e)}")
 
-    def schema(self) -> str:
-        """Return the tool call schema."""
-        return "shell(command='string', timeout=30, working_dir='path', env=dict)"
-
-    def examples(self) -> List[str]:
-        """Return example usage patterns."""
-        return [
-            "shell(command='ls -la')",
-            "shell(command='pwd')",
-            "shell(command='echo \"Hello World\"')",
-            "shell(command='python --version')",
-            "shell(command='git status', working_dir='/path/to/repo')",
-        ]
-
-    def format_params(self, params: Dict[str, Any]) -> str:
-        """Format parameters for display."""
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format shell execution for display."""
         from cogency.utils.formatting import truncate
 
         cmd = params.get("command", "")
-        return f"({truncate(cmd, 35)})" if cmd else ""
+        param_str = f"({truncate(cmd, 35)})" if cmd else ""
+
+        if results is None:
+            return param_str, ""
+
+        # Format results
+        if results.failure:
+            result_str = f"Error: {results.error}"
+        else:
+            data = results.data
+            exit_code = data.get("exit_code", 0)
+            if exit_code == 0:
+                result_str = "Success"
+            else:
+                result_str = f"Exit code: {exit_code}"
+
+        return param_str, result_str
+
+    def format_agent(self, result_data: Dict[str, Any]) -> str:
+        """Format shell execution results for agent action history."""
+        if not result_data:
+            return "No result"
+
+        success = result_data.get("success", False)
+        stdout = result_data.get("stdout", "").strip()
+        stderr = result_data.get("stderr", "").strip()
+        exit_code = result_data.get("exit_code", None)
+
+        if success:
+            if stdout:
+                return f"Shell command succeeded. Output: {stdout[:100]}..."
+            return "Shell command succeeded (no output)"
+        else:
+            msg = f"Shell command failed (exit code: {exit_code})."
+            if stderr:
+                msg += f" Error: {stderr[:100]}..."
+            elif stdout:
+                msg += f" Output: {stdout[:100]}..."
+            return msg

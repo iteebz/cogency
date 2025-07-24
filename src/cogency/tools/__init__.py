@@ -1,37 +1,27 @@
-# Centralized Tool Registry
-# Tools are auto-discovered from this module
+import contextlib
+import importlib
+from pathlib import Path
+from typing import Any, Dict
 
 from cogency.tools.base import BaseTool
+from cogency.tools.registry import get_tools, build_registry
 
-# Explicit imports for clean API
-from cogency.tools.calculator import Calculator
-from cogency.tools.code import Code
-from cogency.tools.csv import CSV
-from cogency.tools.date import Date
-from cogency.tools.files import Files
-from cogency.tools.http import HTTP
-from cogency.tools.recall import Recall
-from cogency.tools.scrape import Scrape
-from cogency.tools.search import Search
-from cogency.tools.shell import Shell
-from cogency.tools.sql import SQL
-from cogency.tools.time import Time
-from cogency.tools.weather import Weather
+# Auto-discover tools by importing all tool modules and collect exported classes
+_tools_dir = Path(__file__).parent
+_exported_classes: Dict[str, Any] = {}
 
-# Export all tools for easy importing
-__all__ = [
-    "BaseTool",
-    "Calculator",
-    "CSV",
-    "Code",
-    "Date",
-    "Files",
-    "HTTP",
-    "Recall",
-    "Scrape",
-    "Search",
-    "Shell",
-    "SQL",
-    "Time",
-    "Weather",
-]
+for tool_file in _tools_dir.glob("*.py"):
+    if tool_file.name not in ["__init__.py", "base.py", "registry.py", "executor.py"]:
+        module_name = f"cogency.tools.{tool_file.stem}"
+        with contextlib.suppress(ImportError):
+            module = importlib.import_module(module_name)
+            # Export tool classes that are decorated with @tool
+            for attr_name in dir(module):
+                attr = getattr(module, attr_name)
+                if isinstance(attr, type) and issubclass(attr, BaseTool) and attr is not BaseTool:
+                    _exported_classes[attr_name] = attr
+
+# Make tool classes available for direct import
+globals().update(_exported_classes)
+
+__all__ = ["BaseTool", "get_tools", "build_registry"] + list(_exported_classes.keys())

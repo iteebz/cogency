@@ -1,10 +1,13 @@
 """Recall tool for Cogency agents using BaseMemory."""
 
-from typing import Any, Dict, List
+import logging
+from typing import Any, Dict, Optional
 
-from ..memory.core import MemoryBackend
-from .base import BaseTool
-from .registry import tool
+from cogency.memory.core import MemoryBackend
+from cogency.tools.base import BaseTool, ToolResult
+from cogency.tools.registry import tool
+
+logger = logging.getLogger(__name__)
 
 
 @tool
@@ -16,6 +19,18 @@ class Recall(BaseTool):
             name="recall",
             description="Search memory for relevant information when user asks about themselves, their preferences, past interactions, or references things they've mentioned before. Use when current conversation lacks context the user expects you to know.",
             emoji="🧠",
+            schema="recall(query='string', limit=int, tags=list)",
+            examples=[
+                "recall(query='user favorite color')",
+                "recall(query='previous project discussion', limit=5)",
+                "recall(query='technical preferences', tags=['coding'])",
+            ],
+            rules=[
+                "Use this tool when the user asks about themselves, their preferences, past interactions, or references things they've mentioned before.",
+                "Always provide a 'query' to search memory.",
+                "Optionally use 'limit' to control the number of results (default is all relevant).",
+                "Optionally use 'tags' (list of strings) to filter memory entries.",
+            ],
         )
         self.memory = memory
         if memory is None:
@@ -23,7 +38,6 @@ class Recall(BaseTool):
 
     async def run(self, **kwargs: Any) -> Dict[str, Any]:
         """Retrieve content from memory.
-
         Expected kwargs:
             query (str): Search query
             limit (int, optional): Maximum number of results
@@ -31,20 +45,16 @@ class Recall(BaseTool):
         """
         query = kwargs.get("query")
         if not query:
-            return {"error": "query parameter is required"}
-
+            return ToolResult.fail("query parameter is required")
         limit = kwargs.get("limit")
         tags = kwargs.get("tags", [])
-
         # Extract user_id from context if available
         context = kwargs.get("_context")
         user_id = getattr(context, "user_id", "default") if context else "default"
-
         try:
             artifacts = await self.memory.read(
                 query=query, limit=limit, tags=tags if tags else None, user_id=user_id
             )
-
             results = []
             for artifact in artifacts:
                 results.append(
@@ -56,31 +66,47 @@ class Recall(BaseTool):
                         "metadata": artifact.metadata,
                     }
                 )
-
-            return {
-                "success": True,
-                "query": query,
-                "results_count": len(results),
-                "results": results,
-            }
+            return ToolResult.ok(
+                {
+                    "query": query,
+                    "results_count": len(results),
+                    "results": results,
+                }
+            )
         except Exception as e:
-            return {"error": f"Failed to recall content: {str(e)}"}
+            logger.error(f"Failed to recall content for query '{query}': {e}")
+            return ToolResult.fail(f"Failed to recall content: {str(e)}")
 
-    def schema(self) -> str:
-        return "recall(query='search terms', limit=5, tags=['tag1'])"
-
-    def examples(self) -> List[str]:
-        """Return example tool calls."""
-        return [
-            'recall(query="user preferences programming language")',
-            'recall(query="user work company job")',
-            'recall(query="user personal information name")',
-            'recall(query="previous conversation context")',
-        ]
-
-    def format_params(self, params: Dict[str, Any]) -> str:
-        """Format parameters for display."""
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format recall execution for display."""
         from cogency.utils.formatting import truncate
 
         query = params.get("query", "")
-        return f"({truncate(query, 30)})" if query else ""
+        param_str = f"({truncate(query, 30)})" if query else ""
+        if results is None:
+            return param_str, ""
+        # Format results
+        if results.failure:
+            result_str = f"Error: {results.error}"
+        else:
+            data = results.data
+            count = data.get("results_count", 0)
+            result_str = f"Found {count} memories" if count > 0 else "No memories found"
+        return param_str, result_str
+
+    def format_agent(self, result_data: Dict[str, Any]) -> str:
+        """Format recall results for agent action history."""
+        if not result_data:
+            return "No result"
+
+        query = result_data.get("query", "")
+        count = result_data.get("results_count", 0)
+        results = result_data.get("results", [])
+
+        if count > 0:
+            first_content = results[0].get("content", "")
+            return f"Found {count} memories for query '{query}'. First: {first_content[:70]}..."
+        else:
+            return f"No memories found for query '{query}"

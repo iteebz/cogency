@@ -1,21 +1,39 @@
+import logging
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any, Dict, Optional
 
-from cogency.tools.base import BaseTool
-
-# Error handling now in BaseTool.execute() - no decorators needed
+from cogency.tools.base import BaseTool, ToolResult
 from cogency.tools.registry import tool
+
+logger = logging.getLogger(__name__)
 
 
 @tool
 class Files(BaseTool):
     """File operations within a safe base directory."""
 
-    def __init__(self, base_dir: str = "."):
+    def __init__(self, base_dir: str = "sandbox"):
         super().__init__(
             name="files",
-            description="Manage files and directories - create, read, edit, list, and delete files safely.",
+            description="Create, read, edit and manage complete code files with full implementations.",
             emoji="📁",
+            schema="files(action='create|read|edit|list|delete', filename='/path/to/file.py', content='full_file_content', line=25, start=10, end=20)\nRequired: action, filename | Optional: content, line, start, end",
+            examples=[
+                "files(action='create', filename='app.py', content='from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\"/\")\\nasync def root():\\n    return {\"message\": \"Hello World\"}')",
+                "files(action='create', filename='models.py', content='from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None')",
+                "files(action='read', filename='app.py')",
+                "files(action='edit', filename='app.py', line=5, content='@app.get(\"/users\")')",
+                "files(action='list', filename='src')",
+            ],
+            rules=[
+                "CRITICAL: When creating files, ALWAYS provide complete, functional code implementations; never placeholder comments or stubs.",
+                "Include proper imports, error handling, and production-ready code.",
+                "For Python: Include proper type hints, docstrings, and follow PEP 8.",
+                "Generate full class definitions, complete functions with actual logic.",
+                "Create working, executable code that solves the specified requirements.",
+                "For 'edit' action, specify 'filename' and either 'line' (for single line) or 'start' and 'end' (for range).",
+                "For 'list' action, 'filename' can be a directory path; defaults to current directory.",
+            ],
         )
         self.base_dir = Path(base_dir).resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -47,28 +65,30 @@ class Files(BaseTool):
                 path = self._safe_path(filename)
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
-                return {"result": f"Created file: {filename}", "size": len(content)}
+                return ToolResult.ok({"result": f"Created file: {filename}", "size": len(content)})
 
             elif action == "read":
                 path = self._safe_path(filename)
                 content = path.read_text(encoding="utf-8")
-                return {
-                    "result": f"Read file: {filename}",
-                    "content": content,
-                    "size": len(content),
-                }
+                return ToolResult.ok(
+                    {
+                        "result": f"Read file: {filename}",
+                        "content": content,
+                        "size": len(content),
+                    }
+                )
 
             elif action == "edit":
                 path = self._safe_path(filename)
                 if not path.exists():
-                    return {"error": f"File not found: {filename}"}
+                    return ToolResult.fail(f"File not found: {filename}")
 
                 lines = path.read_text(encoding="utf-8").splitlines()
 
                 if line is not None:
                     # Single line edit
                     if line < 1 or line > len(lines):
-                        return {"error": f"Line {line} out of range (1-{len(lines)})"}
+                        return ToolResult.fail(f"Line {line} out of range (1-{len(lines)})")
                     lines[line - 1] = content
                     result_msg = f"Edited line {line}"
 
@@ -81,9 +101,9 @@ class Files(BaseTool):
                         or end > len(lines)
                         or start > end
                     ):
-                        return {
-                            "error": f"Invalid range {start}-{end} (file has {len(lines)} lines)"
-                        }
+                        return ToolResult.fail(
+                            f"Invalid range {start}-{end} (file has {len(lines)} lines)"
+                        )
                     # Replace lines start to end (inclusive) with new content
                     new_lines = content.splitlines() if content else []
                     lines[start - 1 : end] = new_lines
@@ -96,7 +116,12 @@ class Files(BaseTool):
 
                 new_content = "\n".join(lines)
                 path.write_text(new_content, encoding="utf-8")
-                return {"result": f"{result_msg} in {filename}", "size": len(new_content)}
+                return ToolResult.ok(
+                    {
+                        "result": f"{result_msg} in {filename}",
+                        "size": len(new_content),
+                    }
+                )
 
             elif action == "list":
                 path = self._safe_path(filename if filename else ".")
@@ -109,37 +134,69 @@ class Files(BaseTool):
                             "size": item.stat().st_size if item.is_file() else None,
                         }
                     )
-                return {"result": f"Listed {len(items)} items", "items": items}
+                return ToolResult.ok({"result": f"Listed {len(items)} items", "items": items})
 
             elif action == "delete":
                 path = self._safe_path(filename)
                 path.unlink()
-                return {"result": f"Deleted file: {filename}"}
+                return ToolResult.ok({"result": f"Deleted file: {filename}"})
 
             else:
-                return {"error": f"Unknown action: {action}"}
+                return ToolResult.fail(f"Unknown action: {action}")
 
         except Exception as e:
-            return {"error": str(e)}
+            logger.error(f"File operation failed: {e}")
+            return ToolResult.fail(str(e))
 
-    def schema(self) -> str:
-        return "files(action='create|read|edit|list|delete', filename='path', content='text', line=int, start=int, end=int)"
-
-    def examples(self) -> List[str]:
-        return [
-            "files(action='create', filename='notes/plan.md', content='Build agent, ship blog, rest never.')",
-            "files(action='read', filename='notes/plan.md')",
-            "files(action='edit', filename='app.py', line=10, content='new_line')",
-            "files(action='edit', filename='app.py', start=5, end=8, content='new\\nlines')",
-            "files(action='list', filename='notes')",
-            "files(action='delete', filename='notes/old_file.txt')",
-        ]
-
-    def format_params(self, params: Dict[str, Any]) -> str:
-        """Format parameters for display."""
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format file operation for display."""
         from cogency.utils.formatting import truncate
 
         action, filename = params.get("action"), params.get("filename")
         if action and filename:
-            return f"({action}, {truncate(filename, 25)})"
-        return f"({truncate(filename or '', 30)})" if filename else ""
+            param_str = f"({action}, {truncate(filename, 25)})"
+        else:
+            param_str = f"({truncate(filename or '', 30)})" if filename else ""
+
+        if results is None:
+            return param_str, ""
+
+        # Format results
+        if results.failure:
+            result_str = f"Failed: {results.error}"
+        else:
+            data = results.data
+            if "result" in data:
+                result_str = data["result"]
+            else:
+                result_str = "File operation completed"
+
+        return param_str, result_str
+
+    def format_agent(self, result_data: Dict[str, Any]) -> str:
+        """Format file results for agent action history."""
+        if not result_data:
+            return "No result"
+        
+        result_msg = result_data.get("result", "")
+        
+        # Show what knowledge/content was gained
+        if "Read file" in result_msg:
+            content = result_data.get("content", "")
+            if content:
+                # Show first few lines of content for context
+                lines = content.splitlines()
+                preview = " | ".join(lines[:2])[:80]
+                return f"{result_msg} → {preview}..."
+            return result_msg
+        elif "Listed" in result_msg:
+            items = result_data.get("items", [])
+            if items:
+                file_names = [item["name"] for item in items[:3]]
+                return f"{result_msg} → {', '.join(file_names)}"
+            return result_msg
+        else:
+            # Created, edited, deleted - operation result is sufficient
+            return result_msg
