@@ -11,6 +11,7 @@ from cogency.llm.mock import MockLLM
 from cogency.memory.backends.filesystem import FileBackend
 from cogency.state import State
 from cogency.tools.weather import Weather
+from cogency.utils.results import ToolResult
 
 
 @pytest.fixture
@@ -53,16 +54,24 @@ def tools():
 
     class MockTool(BaseTool):
         def __init__(self):
-            super().__init__(name="mock_tool", description="Mock tool for testing", emoji="🔧")
+            super().__init__(
+                name="mock_tool",
+                description="Mock tool for testing",
+                emoji="🔧",
+                schema="mock_tool(param='value')",
+                examples=["mock_tool(param='test')"],
+            )
 
         async def run(self, **kwargs):
-            return {"result": "mock_result"}
+            return ToolResult("mock_result")
 
-        def schema(self):
-            return "mock_tool(param='value')"
+        def format_human(self, params, results=None):
+            param_str = f"({', '.join(f'{k}={v}' for k, v in params.items())})" if params else "()"
+            result_str = str(results) if results else "pending"
+            return param_str, result_str
 
-        def examples(self):
-            return ["mock_tool(param='test')"]
+        def format_agent(self, result_data: Dict[str, Any]) -> str:
+            return f"Tool output: {result_data}"
 
     return [MockTool(), Weather()]
 
@@ -71,10 +80,16 @@ def tools():
 def sample_memory_content():
     """Sample content for memory testing."""
     return [
-        {"content": "I have ADHD and work as a software engineer", "tags": ["personal", "work"]},
+        {
+            "content": "I have ADHD and work as a software engineer",
+            "tags": ["personal", "work"],
+        },
         {"content": "I prefer quiet environments for coding", "tags": ["preferences"]},
         {"content": "I live in San Francisco", "tags": ["personal", "location"]},
-        {"content": "Python is my favorite programming language", "tags": ["preferences", "tech"]},
+        {
+            "content": "Python is my favorite programming language",
+            "tags": ["preferences", "tech"],
+        },
     ]
 
 

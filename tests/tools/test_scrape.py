@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from cogency.tools.scrape import Scrape
+from cogency.utils.results import ToolResult
 
 
 @pytest.mark.asyncio
@@ -21,8 +22,8 @@ async def test_invalid_url():
     """Test invalid URL handling."""
     scrape = Scrape()
     result = await scrape.run(url=None)
-    assert result["success"] is False
-    assert "required" in result["error"].lower()
+    assert not result.success
+    assert "required" in result.error.lower()
 
 
 @pytest.mark.asyncio
@@ -43,9 +44,10 @@ async def test_successful_scrape(mock_metadata, mock_extract, mock_fetch):
 
     result = await scrape.run(url="https://example.com")
 
-    assert result["success"] is True
-    assert result["content"] == "Article content"
-    assert result["metadata"]["title"] == "Test Article"
+    assert result.success
+    data = result.data
+    assert data["content"] == "Article content"
+    assert data["metadata"]["title"] == "Test Article"
 
 
 @pytest.mark.asyncio
@@ -57,18 +59,18 @@ async def test_fetch_failure(mock_fetch):
 
     result = await scrape.run(url="https://example.com")
 
-    assert result["success"] is False
-    assert "Could not fetch content" in result["error"]
+    assert not result.success
+    assert "Could not fetch content" in result.error
 
 
 @pytest.mark.asyncio
 @patch("trafilatura.fetch_url")
-async def test_extraction_exception(mock_fetch):
+async def test_extract_exception(mock_fetch):
     """Test exception handling."""
     scrape = Scrape()
     mock_fetch.side_effect = Exception("Network error")
 
     result = await scrape.run(url="https://example.com")
 
-    assert result["success"] is False
-    assert "Scraping failed" in result["error"]
+    assert not result.success
+    assert "Scraping failed" in result.error

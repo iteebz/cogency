@@ -1,6 +1,6 @@
 """Test Recall tool business logic."""
 
-from unittest.mock import Mock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -11,7 +11,7 @@ class TestRecall:
     """Test Recall tool business logic."""
 
     @pytest.mark.asyncio
-    async def test_basic_interface(self):
+    async def test_interface(self):
         """Recall tool implements required interface."""
         mock_memory = Mock()
         recall_tool = Recall(memory=mock_memory)
@@ -22,8 +22,8 @@ class TestRecall:
         assert hasattr(recall_tool, "run")
 
         # Schema and examples
-        schema = recall_tool.schema()
-        examples = recall_tool.examples()
+        schema = recall_tool.schema
+        examples = recall_tool.examples
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
 
@@ -34,16 +34,18 @@ class TestRecall:
         recall_tool = Recall(memory=mock_memory)
 
         result = await recall_tool.run(query="")
-        assert "error" in result
+        assert not result.success
+        assert "query parameter is required" in result.error
 
     @pytest.mark.asyncio
     async def test_basic_recall(self):
         """Recall tool can perform basic memory recall."""
-        mock_memory = Mock()
-        mock_memory.search_similarity.return_value = []
+        mock_memory = AsyncMock()
+        mock_memory.search_similarity = AsyncMock(return_value=[])
         recall_tool = Recall(memory=mock_memory)
 
         # Use a simple query
         result = await recall_tool.run(query="test")
         # Should call memory.search_similarity
-        assert isinstance(result, dict)
+        assert result.success
+        assert result.data["query"] == "test"

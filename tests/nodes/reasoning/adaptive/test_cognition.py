@@ -20,7 +20,11 @@ class MockToolCall:
 
 def test_update_cognition():
     """Test updating cognitive state with new actions."""
-    cognition = {"approach_history": [], "decision_history": [], "action_fingerprints": []}
+    cognition = {
+        "approach_history": [],
+        "decision_history": [],
+        "action_fingerprints": [],
+    }
     tool_calls = [MockToolCall("search", {"query": "test"})]
     current_approach = "analytical"
     current_decision = "search for info"
@@ -75,7 +79,7 @@ def test_track_failure():
     assert failure["iteration"] == 2
 
 
-def test_failure_memory_limits():
+def test_failure_limits():
     """Test failure tracking respects memory limits."""
     cognition = {
         "failed_attempts": [
@@ -100,8 +104,18 @@ def test_summarize_attempts():
 
     # Failed attempts
     attempts = [
-        {"tool": "search", "reason": "poor", "iteration": 1, "args": {"query": "test1"}},
-        {"tool": "scrape", "reason": "failed", "iteration": 2, "args": {"url": "example.com"}},
+        {
+            "tool": "search",
+            "reason": "poor",
+            "iteration": 1,
+            "args": {"query": "test1"},
+        },
+        {
+            "tool": "scrape",
+            "reason": "failed",
+            "iteration": 2,
+            "args": {"url": "example.com"},
+        },
     ]
 
     summary = summarize_attempts(attempts)

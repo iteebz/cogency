@@ -42,7 +42,7 @@ class TestContext:
         assert clean[1]["role"] == "assistant"
         assert clean[1]["content"] == "regular response"
 
-    def test_tool_results_tracking(self):
+    def test_tool_results(self):
         context = Context("test")
 
         context.add_result("calculator", {"x": 5, "y": 3}, {"result": 8})

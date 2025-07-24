@@ -10,37 +10,54 @@ from cogency.nodes.respond import respond
 from cogency.output import Output
 from cogency.state import State
 from cogency.tools.base import BaseTool
-from cogency.tools.executor import execute_single_tool, parse_tool_calls
-from cogency.tools.result import is_success
+from cogency.tools.executor import execute_single_tool
+from cogency.utils.parsing import parse_tool_calls
+from cogency.utils.results import ToolResult
 
 
 class MockTool(BaseTool):
     def __init__(self, name: str = "test_tool", should_fail: bool = False):
-        super().__init__(name, f"Mock tool: {name}")
+        super().__init__(
+            name=name,
+            description=f"Mock tool: {name}",
+            schema="test tool schema",
+            examples=[f'{{"name": "{name}", "args": {{"test": "value"}}}}'],
+            rules=[],
+        )
         self.should_fail = should_fail
 
     async def run(self, **kwargs):
         if self.should_fail:
             raise Exception("Tool execution failed")
-        return {"result": f"success from {self.name}"}
+        return ToolResult(f"success from {self.name}")
 
-    def schema(self):
-        return "test tool schema"
+    def format_human(self, params, results=None):
+        return f"({self.name})", str(results) if results else ""
 
-    def examples(self):
-        return [f'{{"name": "{self.name}", "args": {{"test": "value"}}}}']
+    def format_agent(self, result_data: dict[str, any]) -> str:
+        return f"Tool output: {result_data}"
 
 
 def test_tool_call_parsing():
     """Test basic tool call parsing."""
+    from cogency.utils.parsing import parse_json_result
+
     llm_response = '{"tool_calls": [{"name": "calculator", "args": {"x": 5}}]}'
-    result = parse_tool_calls(llm_response)
+    parse_result = parse_json_result(llm_response)
+    assert parse_result.success
+    json_data = parse_result.data
+    result = parse_tool_calls(json_data)
     assert len(result) == 1
     assert result[0]["name"] == "calculator"
 
     # Handle malformed JSON
-    assert parse_tool_calls("invalid json") is None
-    assert parse_tool_calls("no tool calls") is None
+    parse_result = parse_json_result("invalid json")
+    assert not parse_result.success
+    assert parse_tool_calls(parse_result.data) is None
+
+    no_calls_json_result = parse_json_result('{"no_tools": true}')
+    assert no_calls_json_result.success
+    assert parse_tool_calls(no_calls_json_result.data) is None
 
 
 @pytest.mark.asyncio
@@ -52,12 +69,12 @@ async def test_tool_execution_errors():
 
     # Test failure
     name, args, result = await execute_single_tool("fail", {}, tools)
-    assert "error" in result
-    assert not is_success(result)
+    assert not result.success
+    assert result.error is not None
 
     # Test success
     name, args, result = await execute_single_tool("work", {}, tools)
-    assert is_success(result)
+    assert result.success
 
     # Test missing tool
     with pytest.raises(ValueError):
@@ -72,12 +89,16 @@ async def test_respond_node_output():
     async def mock_stream(*args, **kwargs):
         yield "The weather is sunny today!"
 
+    async def mock_run(*args, **kwargs):
+        return "The weather is sunny today!"
+
     mock_llm.stream = mock_stream
+    mock_llm.run = mock_run
 
     context = Context(query="weather?", messages=[], user_id="test")
     state = State(context=context, query="test", output=Output())
 
-    result_state = await respond(state, llm=mock_llm)
+    result_state = await respond(state, llm=mock_llm, tools=[])
 
     assert isinstance(result_state["final_response"], str)
     assert not result_state["final_response"].startswith("{")
@@ -85,19 +106,18 @@ async def test_respond_node_output():
 
 
 @pytest.mark.asyncio
-async def test_act_node_routing():
+async def test_act_routing():
     """Test act node routing behavior."""
     tool = MockTool("test_tool")
     context = Context(query="test", messages=[], user_id="test")
     state = State(context=context, query="test", output=Output())
     state["tool_calls"] = '[{"name": "test_tool", "args": {}}]'
 
-    result = await act(state, tools=[tool])
-    assert result["next_node"] == "reason"
-    assert "execution_results" in result
+    result_state = await act(state, tools=[tool])
+    assert result_state["execution_results"].success
 
     # Test no tool calls
     state["tool_calls"] = None
-    result = await act(state, tools=[])
-    assert result["next_node"] == "reason"
-    assert result["execution_results"]["type"] == "no_action"
+    result_state = await act(state, tools=[])
+    assert result_state["execution_results"].success
+    assert result_state["execution_results"].data["type"] == "no_action"

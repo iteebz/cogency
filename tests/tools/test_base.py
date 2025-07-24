@@ -24,24 +24,26 @@ class TestToolContracts:
         assert hasattr(calc, "examples")
 
         # Schema and examples should be non-empty
-        schema = calc.schema()
-        examples = calc.examples()
+        schema = calc.schema
+        examples = calc.examples
 
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
 
     @pytest.mark.asyncio
-    async def test_tool_error_handling(self):
+    async def test_error_handling(self):
         """Tools must handle errors gracefully."""
         calc = Calculator()
 
         # Invalid expression
         result = await calc.run(expression="invalid expression $")
-        assert "error" in result
+        assert not result.success
+        assert result.error is not None
 
         # Missing parameters - this will cause a TypeError which is caught by execute()
         result = await calc.execute()  # Missing expression
-        assert "error" in result
+        assert not result.success
+        assert result.error is not None
 
     @pytest.mark.asyncio
     async def test_execute_wrapper(self):
@@ -50,4 +52,5 @@ class TestToolContracts:
 
         # This should not raise an exception, even with bad input
         result = await calc.execute(operation=None, x1="not_a_number")
-        assert "error" in result
+        assert not result.success
+        assert result.error is not None

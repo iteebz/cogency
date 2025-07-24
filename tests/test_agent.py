@@ -31,9 +31,9 @@ class TestAgentInitialization:
         assert agent.flow.memory is None, "Memory should be disabled"
 
         tool_names = [tool.name for tool in agent.flow.tools]
-        assert "recall" not in tool_names, (
-            "Recall tool should not be present when memory is disabled"
-        )
+        assert (
+            "recall" not in tool_names
+        ), "Recall tool should not be present when memory is disabled"
 
     @pytest.mark.parametrize(
         "memory_enabled,expected_tools",
@@ -57,7 +57,7 @@ class TestAgentInitialization:
 
 
 @pytest.mark.asyncio
-async def test_agent_run_calls_flow_execute():
+async def test_run_invokes_flow():
     """Ensure Agent.run() is a clean entrypoint to Flow.execute()."""
     agent = Agent("test", llm=MockLLM())
 
@@ -74,3 +74,22 @@ async def test_agent_run_calls_flow_execute():
 
         # Verify we get some result back
         assert result is not None
+
+
+@pytest.mark.asyncio
+async def test_stream_validation():
+    """Test that stream() handles empty and overly long queries."""
+    agent = Agent("test", llm=MockLLM())
+
+    with patch.object(agent.flow.flow, "ainvoke", new_callable=AsyncMock) as mock_execute:
+        # Test empty query
+        chunks = [chunk async for chunk in agent.stream("")]
+        assert "Empty query not allowed" in chunks[0]
+        mock_execute.assert_not_called()  # ainvoke should not be called for invalid input
+        mock_execute.reset_mock()
+
+        # Test query too long
+        long_query = "a" * 10001
+        chunks = [chunk async for chunk in agent.stream(long_query)]
+        assert "Query too long" in chunks[0]
+        mock_execute.assert_not_called()  # ainvoke should not be called for invalid input

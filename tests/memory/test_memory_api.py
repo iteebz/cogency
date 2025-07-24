@@ -84,18 +84,18 @@ class TestMemoryAPI:
         assert backends == expected_backends
 
     @patch("cogency.memory.backends.get_backend")
-    def test_create_with_embedding_provider(self, mock_get_backend):
+    def test_create_with_embedder(self, mock_get_backend):
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
         mock_get_backend.return_value = mock_backend_class
         mock_embedding = Mock()
 
         # Execute
-        Memory.create("chroma", embedding_provider=mock_embedding)
+        Memory.create("chroma", embedder=mock_embedding)
 
         # Verify
         mock_get_backend.assert_called_once_with("chroma")
-        mock_backend_class.assert_called_once_with(embedding_provider=mock_embedding)
+        mock_backend_class.assert_called_once_with(embedder=mock_embedding)
 
     @patch("cogency.memory.backends.get_backend")
     def test_create_backend_not_found(self, mock_get_backend):
@@ -129,7 +129,7 @@ class TestMemoryIntegration:
 
     @patch("cogency.memory.backends.get_backend")
     @patch("cogency.memory.backends.list_backends")
-    def test_backend_discovery_integration(self, mock_list, mock_get):
+    def test_discovery_integration(self, mock_list, mock_get):
         """Test backend discovery works with creation."""
         # Setup
         mock_list.return_value = ["filesystem", "chroma"]
@@ -156,7 +156,7 @@ class TestMemoryIntegration:
             "host": "localhost",
             "port": 5432,
             "database": "memory_db",
-            "embedding_provider": Mock(),
+            "embedder": Mock(),
         }
 
         # Execute

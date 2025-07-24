@@ -60,7 +60,7 @@ async def test_memory_crud(memory_backend):
 
 
 @pytest.mark.asyncio
-async def test_memory_persistence(temp_memory_dir):
+async def test_persistence(temp_memory_dir):
     """Test memory persists across backend instances."""
     from cogency.memory.backends.filesystem import FileBackend
 

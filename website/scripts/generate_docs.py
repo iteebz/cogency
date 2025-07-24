@@ -100,7 +100,16 @@ def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
     }
 
     # Core modules to document
-    module_names = ["agent", "llm", "tools", "memory", "context", "embed", "utils", "nodes"]
+    module_names = [
+        "agent",
+        "llm",
+        "tools",
+        "memory",
+        "context",
+        "embed",
+        "utils",
+        "nodes",
+    ]
 
     for module_name in module_names:
         try:

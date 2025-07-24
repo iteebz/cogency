@@ -15,10 +15,12 @@ async def test_files_create_read():
 
         # Create and read file
         result = await files_tool.run(action="create", filename="test.txt", content="hello world")
-        assert "Created file" in result["result"]
+        assert result.success
+        assert "Created file" in result.data["result"]
 
         result = await files_tool.run(action="read", filename="test.txt")
-        assert result["content"] == "hello world"
+        assert result.success
+        assert result.data["content"] == "hello world"
 
 
 @pytest.mark.asyncio
@@ -30,8 +32,10 @@ async def test_files_list():
         await files_tool.run(action="create", filename="test.txt", content="test")
 
         result = await files_tool.run(action="list")
-        assert "items" in result
-        assert any(item["name"] == "test.txt" for item in result["items"])
+        assert result.success
+        data = result.data
+        assert "items" in data
+        assert any(item["name"] == "test.txt" for item in data["items"])
 
 
 @pytest.mark.asyncio
@@ -48,23 +52,25 @@ async def test_files_edit():
         result = await files_tool.run(
             action="edit", filename="test.txt", line=2, content="EDITED LINE 2"
         )
-        assert "Edited line 2" in result["result"]
+        assert result.success
+        assert "Edited line 2" in result.data["result"]
 
         result = await files_tool.run(action="read", filename="test.txt")
-        assert "EDITED LINE 2" in result["content"]
+        assert result.success
+        assert "EDITED LINE 2" in result.data["content"]
 
 
 @pytest.mark.asyncio
-async def test_files_security():
+async def test_security():
     """Test security protections."""
     files_tool = Files()
 
     # Path traversal protection
     result = await files_tool.run(action="read", filename="../../../etc/passwd")
-    assert "error" in result
-    assert "Unsafe path access" in result["error"]
+    assert not result.success
+    assert "Unsafe path access" in result.error
 
     # Empty filename protection
     result = await files_tool.run(action="read", filename="")
-    assert "error" in result
-    assert "Path cannot be empty" in result["error"]
+    assert not result.success
+    assert "Path cannot be empty" in result.error

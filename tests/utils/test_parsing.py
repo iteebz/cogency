@@ -4,36 +4,45 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogency.nodes.reasoning.fast import parse_fast_mode
 from cogency.utils.parsing import (
     _clean_json,
     _extract_json,
-    call_llm,
-    parse_json,
+    parse_json_result,
     parse_tool_calls,
 )
 
 
-def test_parse_json():
-    """Test JSON parsing from LLM responses."""
+def test_parse_json_result():
+    """Test JSON parsing from LLM responses using ParseResult."""
     # Basic JSON
-    result = parse_json('{"action": "respond", "message": "Hello"}')
-    assert result == {"action": "respond", "message": "Hello"}
+    parse_result = parse_json_result('{"action": "respond", "message": "Hello"}')
+    assert parse_result.success
+    assert parse_result.data == {"action": "respond", "message": "Hello"}
 
     # Markdown fenced JSON
     markdown_json = """```json
     {"action": "use_tools", "reasoning": "Need to search"}
     ```"""
-    result = parse_json(markdown_json)
-    assert result == {"action": "use_tools", "reasoning": "Need to search"}
+    parse_result = parse_json_result(markdown_json)
+    assert parse_result.success
+    assert parse_result.data == {"action": "use_tools", "reasoning": "Need to search"}
 
-    # Malformed JSON with fallback
-    result = parse_json("invalid json", fallback={"error": "parsing_failed"})
-    assert result == {"error": "parsing_failed"}
+    # Malformed JSON without fallback
+    parse_result = parse_json_result("invalid json")
+    assert not parse_result.success
+    assert parse_result.data is None
+    assert parse_result.error is not None
 
     # JSON embedded in text
-    result = parse_json('Here is the JSON: {"action": "respond"} and extra text')
-    assert result == {"action": "respond"}
+    parse_result = parse_json_result('Here is the JSON: {"action": "respond"} and extra text')
+    assert parse_result.success
+    assert parse_result.data == {"action": "respond"}
+
+    # Invalid JSON without fallback
+    parse_result = parse_json_result("invalid json")
+    assert not parse_result.success
+    assert parse_result.data is None
+    assert parse_result.error is not None
 
 
 def test_clean_json():
@@ -75,49 +84,30 @@ def test_parse_tool_calls():
     assert len(result) == 2
     assert result[0]["name"] == "search"
 
-    # Invalid cases
+    # No tool_calls key
     result = parse_tool_calls({"action": "respond", "message": "Hello"})
     assert result is None
 
-    # Wrong action type
+    # Tool calls exist regardless of action - parser extracts them
     result = parse_tool_calls({"action": "respond", "tool_calls": [{"name": "test"}]})
-    assert result is None
+    assert result == [{"name": "test"}]
 
 
-def test_parse_fast_thinking():
-    """Test fast thinking extraction."""
-    # JSON thinking
-    result = parse_fast_mode('{"thinking": "Need to search", "action": "use_tools"}')
-    assert result["thinking"] == "Need to search"
-
-    # No thinking (uses default when no JSON)
-    result = parse_fast_mode("invalid json")
-    assert result["thinking"] == "Analyzing the request and determining approach"
-
-
+# call_llm function was purged - testing unified parser instead
 @pytest.mark.asyncio
-async def test_call_llm():
-    """Test LLM calling utility."""
-    # Mock LLM
-    mock_llm = AsyncMock()
-    mock_llm.run.return_value = "Test response"
+async def test_json_parsing_with_llm_responses():
+    """Test JSON parsing with typical LLM response formats."""
+    # Test markdown wrapped JSON
+    llm_response = """```json
+    {"action": "use_tools", "tool_calls": [{"name": "search", "args": {"query": "test"}}]}
+    ```"""
+    parse_result = parse_json_result(llm_response)
+    assert parse_result.success
+    assert parse_result.data["action"] == "use_tools"
+    assert len(parse_result.data["tool_calls"]) == 1
 
-    messages = [{"role": "user", "content": "Hello"}]
-    result = await call_llm(mock_llm, messages)
-
-    assert result == "Test response"
-    mock_llm.run.assert_called_once_with(messages)
-
-
-@pytest.mark.asyncio
-async def test_call_llm_error_handling():
-    """Test LLM error handling."""
-    # Mock LLM that raises exception
-    mock_llm = AsyncMock()
-    mock_llm.run.side_effect = Exception("API Error")
-
-    messages = [{"role": "user", "content": "Hello"}]
-
-    # Should raise the exception
-    with pytest.raises(Exception):
-        await call_llm(mock_llm, messages)
+    # Test mixed content
+    mixed_response = 'Here\'s my analysis: {"conclusion": "success"} and some extra text'
+    parse_result = parse_json_result(mixed_response)
+    assert parse_result.success
+    assert parse_result.data["conclusion"] == "success"

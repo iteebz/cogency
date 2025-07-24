@@ -14,7 +14,7 @@ class TestState:
         assert state["query"] == "test query"
         assert isinstance(state["output"], Output)
 
-    def test_state_dict_access(self, context):
+    def test_dict_access(self, context):
         """State should behave like a dict for backward compatibility."""
         state = State(context=context, query="test query", output=Output())
 

@@ -19,9 +19,11 @@ async def test_current_time():
     """Test getting current time."""
     time_tool = Time()
     result = await time_tool.run(operation="now", timezone="UTC")
-    assert "datetime" in result
-    assert "timezone" in result
-    assert "weekday" in result
+    assert result.success
+    data = result.data
+    assert "datetime" in data
+    assert "timezone" in data
+    assert "weekday" in data
 
 
 @pytest.mark.asyncio
@@ -35,8 +37,10 @@ async def test_timezone_operations():
         from_tz="UTC",
         to_tz="America/New_York",
     )
-    assert "converted" in result
-    assert "to_timezone" in result
+    assert result.success
+    data = result.data
+    assert "converted" in data
+    assert "to_timezone" in data
 
 
 @pytest.mark.asyncio
@@ -49,8 +53,10 @@ async def test_relative_time():
         datetime_str="2024-01-15T14:30:00",
         reference="2024-01-15T15:30:00",
     )
-    assert "relative" in result
-    assert "seconds_diff" in result
+    assert result.success
+    data = result.data
+    assert "relative" in data
+    assert "seconds_diff" in data
 
 
 @pytest.mark.asyncio
@@ -59,14 +65,16 @@ async def test_city_timezones():
     time_tool = Time()
 
     result = await time_tool.run(operation="now", timezone="london")
-    assert "datetime" in result
-    assert result["timezone"] == "Europe/London"
+    assert result.success
+    data = result.data
+    assert "datetime" in data
+    assert data["timezone"] == "Europe/London"
 
 
 @pytest.mark.asyncio
-async def test_error_handling():
+async def test_errors():
     """Test error handling."""
     time_tool = Time()
 
     result = await time_tool.execute(operation="invalid_op")
-    assert "error" in result
+    assert not result.success

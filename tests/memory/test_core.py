@@ -39,7 +39,7 @@ class TestMemoryCore:
         assert memory.access_count == initial_count + 1
         assert memory.last_accessed > initial_accessed
 
-    def test_memory_type_enum(self):
+    def test_type_enum(self):
         """Test memory type enumeration."""
         assert MemoryType.FACT
         assert MemoryType.EPISODIC

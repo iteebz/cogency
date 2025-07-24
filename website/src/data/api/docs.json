@@ -106,7 +106,7 @@
               "signature": "(self, artifact_id: uuid.UUID, updates: Dict[str, Any]) -> bool"
             }
           ],
-          "init_signature": "(self, memory_dir: str = '.cogency/memory', embedding_provider=None)"
+          "init_signature": "(self, memory_dir: str = '.cogency/memory', embedder=None)"
         },
         {
           "name": "Flow",
@@ -881,7 +881,7 @@
               "signature": "(self, artifact_id: uuid.UUID, updates: Dict[str, Any]) -> bool"
             }
           ],
-          "init_signature": "(self, embedding_provider=None)"
+          "init_signature": "(self, embedder=None)"
         },
         {
           "name": "MemoryType",

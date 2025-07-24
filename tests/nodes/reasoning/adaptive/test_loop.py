@@ -1,12 +1,23 @@
 """Tests for loop detection functionality."""
 
-from cogency.nodes.reasoning.adaptive import action_fingerprint, detect_fast_loop, detect_loop
+from cogency.nodes.reasoning.adaptive import (
+    action_fingerprint,
+    detect_fast_loop,
+    detect_loop,
+)
 
 
 class MockToolCall:
     def __init__(self, name, args):
         self.name = name
         self.args = args
+
+    def get(self, key, default=None):
+        if key == "name":
+            return self.name
+        if key == "args":
+            return self.args
+        return default
 
 
 def test_action_fingerprint():
@@ -46,7 +57,7 @@ def test_fast_loop_detection():
     assert is_loop is False
 
 
-def test_comprehensive_loop_detection():
+def test_comprehensive_loop():
     """Test comprehensive loop detection."""
     # Pattern loop (A-B-A)
     cognition = {"action_fingerprints": ["search:123", "scrape:456", "search:123"]}

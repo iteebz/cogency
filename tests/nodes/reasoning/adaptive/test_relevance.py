@@ -2,7 +2,10 @@
 
 from unittest.mock import Mock
 
-from cogency.nodes.reasoning.adaptive.relevance import relevant_context, score_memory_relevance
+from cogency.nodes.reasoning.adaptive.relevance import (
+    relevant_context,
+    score_memory_relevance,
+)
 
 
 class MockLLM:
@@ -82,7 +85,7 @@ def test_relevant_context_deep_mode():
     assert "recent_failures" in context
 
 
-def test_context_retrieval_edge_cases():
+def test_context_edge_cases():
     """Test context retrieval edge cases."""
     # Empty cognition
     cognition = {}

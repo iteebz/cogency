@@ -14,7 +14,9 @@ def test_parse_switch():
     """Test parsing mode switch from LLM responses."""
     # Valid JSON switch
     response = """This task requires deeper analysis.
-    {"switch_to": "deep", "switch_reason": "complex synthesis needed"}"""
+    ```json
+    {"switch_to": "deep", "switch_why": "complex synthesis needed"}
+    ```"""
 
     mode, reason = parse_switch(response)
     assert mode == "deep"

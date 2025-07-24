@@ -11,8 +11,8 @@ from cogency.memory.core import Memory, MemoryType
 class MockBackend(BaseBackend):
     """Minimal concrete backend for testing."""
 
-    def __init__(self, embedding_provider=None):
-        super().__init__(embedding_provider)
+    def __init__(self, embedder=None):
+        super().__init__(embedder)
         self.artifacts = {}
         self.ready_called = False
 
@@ -174,7 +174,7 @@ class TestBaseBackendFiltering:
         assert results[0].content == "Tagged"
 
     @pytest.mark.asyncio
-    async def test_delete_by_tags_removes_matching(self, backend):
+    async def test_delete_by_tags(self, backend):
         tagged = Memory(content="Tagged", tags=["remove"])
         untagged = Memory(content="Keep", tags=[])
         await backend._store_artifact(tagged, None)

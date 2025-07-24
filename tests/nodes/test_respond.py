@@ -9,6 +9,7 @@ from cogency.llm.base import BaseLLM
 from cogency.nodes.respond import prompt_response, respond
 from cogency.output import Output
 from cogency.state import State
+from cogency.utils.results import ExecutionResult
 
 
 class MockLLM(BaseLLM):
@@ -44,16 +45,20 @@ def state(context):
 
 def test_build_prompt():
     """Test prompt building."""
-    # Basic
-    result = prompt_response()
-    assert "conversational" in result
+    # Basic knowledge-only prompt
+    result = prompt_response("test query")
+    assert "USER QUERY" in result
+    assert "test query" in result
 
     # With tool results
-    result = prompt_response(has_tool_results=True)
-    assert "tool results" in result
+    result = prompt_response(
+        "test query", has_tool_results=True, tool_results_summary="search results"
+    )
+    assert "TOOL RESULTS" in result
+    assert "search results" in result
 
     # With system prompt
-    result = prompt_response(system_prompt="You are helpful.")
+    result = prompt_response("test query", system_prompt="You are helpful.")
     assert "You are helpful." in result
 
 
@@ -63,9 +68,9 @@ async def test_respond_basic(state):
     llm = MockLLM("Hello world")
     state.output = AsyncMock()
 
-    result = await respond(state, llm=llm)
+    result = await respond(state, llm=llm, tools=[])
 
-    assert result["final_response"] == "Hello world "
+    assert result["final_response"] == "Hello world"
     assert result["next_node"] == "END"
     assert len(state.context.messages) >= 2
 
@@ -75,11 +80,11 @@ async def test_respond_with_tool_results(state):
     """Test respond with tool execution results."""
     llm = MockLLM("Weather is sunny")
     state.output = AsyncMock()
-    state["execution_results"] = {"success": True, "results": [{"temperature": "72F"}]}
+    state["execution_results"] = ExecutionResult([{"temperature": "72F"}])
 
-    result = await respond(state, llm=llm)
+    result = await respond(state, llm=llm, tools=[])
 
-    assert result["final_response"] == "Weather is sunny "
+    assert result["final_response"] == "Weather is sunny"
     assert result["next_node"] == "END"
 
 
@@ -89,20 +94,20 @@ async def test_respond_error_handling(state):
     llm = MockLLM(should_fail=True)
     state.output = AsyncMock()
 
-    result = await respond(state, llm=llm)
+    result = await respond(state, llm=llm, tools=[])
 
-    assert "technical issue" in result["final_response"]
+    assert "Technical issue" in result["final_response"]
     assert result["next_node"] == "END"
 
 
 @pytest.mark.asyncio
-async def test_respond_with_stopping_reason(state):
+async def test_with_stopping_reason(state):
     """Test respond with stopping reason fallback."""
     llm = MockLLM("Fallback response")
     state.output = AsyncMock()
     state["stopping_reason"] = "max_iterations_reached"
 
-    result = await respond(state, llm=llm)
+    result = await respond(state, llm=llm, tools=[])
 
-    assert result["final_response"] == "Fallback response "
+    assert result["final_response"] == "Fallback response"
     assert result["next_node"] == "END"

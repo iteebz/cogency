@@ -92,7 +92,8 @@ def test_key_manager():
 
 
 @patch.dict(
-    "os.environ", {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2", "TEST_API_KEY_3": "key3"}
+    "os.environ",
+    {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2", "TEST_API_KEY_3": "key3"},
 )
 def test_env_detection_numbered():
     """Test detection of numbered environment variables."""

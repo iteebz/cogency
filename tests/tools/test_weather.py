@@ -1,15 +1,18 @@
 """Test Weather tool business logic."""
 
+from unittest.mock import AsyncMock, Mock, patch
+
 import pytest
 
 from cogency.tools.weather import Weather
+from cogency.utils.results import ToolResult
 
 
 class TestWeather:
     """Test Weather tool business logic."""
 
     @pytest.mark.asyncio
-    async def test_basic_interface(self):
+    async def test_interface(self):
         """Weather tool implements required interface."""
         weather_tool = Weather()
 
@@ -19,8 +22,8 @@ class TestWeather:
         assert hasattr(weather_tool, "run")
 
         # Schema and examples
-        schema = weather_tool.schema()
-        examples = weather_tool.examples()
+        schema = weather_tool.schema
+        examples = weather_tool.examples
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
 
@@ -29,16 +32,29 @@ class TestWeather:
         """Weather tool handles empty city."""
         weather_tool = Weather()
 
-        result = await weather_tool.execute(city="")
-        assert "error" in result
+        # Mock httpx for empty city test
+        with patch("httpx.AsyncClient") as mock_async_client:
+            result = await weather_tool.execute(city="")
+            assert not result.success
+            # Should not make any HTTP calls for empty city
+            mock_async_client.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_invalid_city(self):
         """Weather tool handles invalid city."""
         weather_tool = Weather()
 
-        # Use a clearly invalid location
-        result = await weather_tool.execute(city="ThisIsNotARealLocationXYZ123")
-        # Should return error dict when city not found
-        assert isinstance(result, dict)
-        assert "error" in result
+        # Mock httpx to return empty results for invalid city
+        mock_response = Mock()
+        mock_response.json.return_value = {"results": []}
+        mock_response.raise_for_status.return_value = None
+
+        mock_client = AsyncMock()
+        mock_client.get.return_value = mock_response
+
+        with patch("httpx.AsyncClient") as mock_async_client:
+            mock_async_client.return_value.__aenter__.return_value = mock_client
+
+            result = await weather_tool.execute(city="ThisIsNotARealLocationXYZ123")
+            assert not result.success
+            assert "not found" in result.error

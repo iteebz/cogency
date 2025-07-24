@@ -8,7 +8,6 @@ from cogency.errors import (
     ToolError,
     ValidationError,
     format_error,
-    graceful,
     success_response,
     validate_params,
 )
@@ -56,34 +55,6 @@ def test_format_error_with_operation():
     assert result["error"] == "runtime issue"
 
 
-@pytest.mark.asyncio
-async def test_graceful_decorator():
-    """Test graceful decorator wraps exceptions."""
-
-    class TestTool:
-        name = "test_tool"
-
-        @graceful
-        async def success(self):
-            return {"result": "success"}
-
-        @graceful
-        async def failure(self):
-            raise ValueError("test error")
-
-    tool = TestTool()
-
-    # Success case
-    result = await tool.success()
-    assert result == {"result": "success"}
-
-    # Error case
-    result = await tool.failure()
-    assert result["error"] == "test error"
-    assert result["tool"] == "test_tool"
-    assert result["error_type"] == "ValueError"
-
-
 def test_validate_params():
     """Test parameter validation function."""
     # Success case
@@ -98,12 +69,14 @@ def test_validate_params():
     # Empty parameter
     with pytest.raises(ValidationError) as exc_info:
         validate_params(
-            {"required1": "value1", "required2": ""}, ["required1", "required2"], "test_tool"
+            {"required1": "value1", "required2": ""},
+            ["required1", "required2"],
+            "test_tool",
         )
     assert "Empty required parameters: required2" in str(exc_info.value)
 
 
-def test_success_response():
+def test_success_response_format():
     """Test success response formatting."""
     # Basic response
     data = {"result": "test", "count": 5}

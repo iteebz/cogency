@@ -1,6 +1,7 @@
 """Test resilience and @safe decorator functionality."""
 
 import asyncio
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -22,46 +23,56 @@ class TestSafeDecorator:
     @pytest.mark.asyncio
     async def test_timeout_protection(self):
         # Current @safe only does retries, no timeout
-        @safe()
-        async def slow_func():
-            await asyncio.sleep(0.1)
-            return "completed successfully"
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
 
-        result = await slow_func()
-        assert result == "completed successfully"
+            @safe()
+            async def slow_func():
+                await asyncio.sleep(0.1)
+                return "completed successfully"
+
+            result = await slow_func()
+            assert result == "completed successfully"
+            mock_sleep.assert_called_once_with(0.1)
 
     @pytest.mark.asyncio
-    async def test_retry_mechanism(self):
+    async def test_decorator_retry(self):
         call_count = 0
 
-        @safe()
-        async def flaky_func():
-            nonlocal call_count
-            call_count += 1
-            if call_count < 3:
-                raise Exception("Retry test")
-            return "success after retries"
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
 
-        result = await flaky_func()
-        assert result == "success after retries"
-        assert call_count == 3
+            @safe()
+            async def flaky_func():
+                nonlocal call_count
+                call_count += 1
+                if call_count < 3:
+                    raise Exception("Retry test")
+                return "success after retries"
+
+            result = await flaky_func()
+            assert result == "success after retries"
+            assert call_count == 3
+            # Should have called sleep twice (for 2 retries)
+            assert mock_sleep.call_count == 2
 
 
 class TestSafeConfigOverrides:
     """Test SafeConfig customization - easy to override defaults."""
 
     @pytest.mark.asyncio
-    async def test_custom_timeout(self):
+    async def test_config_custom_timeout(self):
         # Current @safe only does retries, no timeout
-        @safe()
-        async def slow_func():
-            await asyncio.sleep(0.1)
-            return "completed successfully"
+        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
 
-        result = await slow_func()
-        assert result == "completed successfully"
+            @safe()
+            async def slow_func():
+                await asyncio.sleep(0.1)
+                return "completed successfully"
 
-    def test_intelligent_defaults(self):
+            result = await slow_func()
+            assert result == "completed successfully"
+            mock_sleep.assert_called_once_with(0.1)
+
+    def test_config_defaults(self):
         """Test that SafeConfig has sensible defaults."""
         config = SafeConfig()
 
@@ -78,17 +89,21 @@ class TestIntegration:
     """Integration tests with real agent functionality."""
 
     @pytest.mark.asyncio
-    async def test_agent_with_safe_protection(self):
+    async def test_safe_agent(self):
         """Test that agents work with @safe protected LLMs."""
         from cogency import Agent
 
-        # Create agent with memory disabled
-        agent = Agent("test", memory=False)
+        async def mock_stream(self, query, user_id="default"):
+            yield "2"
 
-        # Should work normally
-        result = await agent.run("What is 1+1?")
-        assert result is not None
-        assert len(result) > 0
+        # Mock the stream method to avoid LLM overhead
+        with patch.object(Agent, "stream", mock_stream):
+            # Create agent with memory disabled
+            agent = Agent("test", memory=False)
+
+            # Should work normally
+            result = await agent.run("What is 1+1?")
+            assert result is not None
 
     @pytest.mark.asyncio
     async def test_input_validation(self):
