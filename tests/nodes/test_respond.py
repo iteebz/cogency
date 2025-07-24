@@ -92,11 +92,11 @@ async def test_respond_with_tool_results(state):
 async def test_respond_error_handling(state):
     """Test respond handles LLM failures."""
     from cogency.types.cache import get_cache
-    
+
     # Clear cache to avoid interference from other tests
     cache = get_cache()
     await cache.clear()
-    
+
     llm = MockLLM(should_fail=True)
     state.output = AsyncMock()
 

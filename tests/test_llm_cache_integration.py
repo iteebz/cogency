@@ -1,8 +1,9 @@
 """Test LLM caching integration."""
 
 import pytest
+
 from cogency.llm.mock import MockLLM
-from cogency.types.cache import get_cache, configure_cache
+from cogency.types.cache import configure_cache, get_cache
 
 
 @pytest.mark.asyncio
@@ -12,24 +13,24 @@ async def test_llm_caching_integration():
     configure_cache()
     cache = get_cache()
     await cache.clear()
-    
+
     # Create LLM with caching enabled
     llm = MockLLM(response="Cached response", enable_cache=True)
     messages = [{"role": "user", "content": "Test caching"}]
-    
+
     # First call should execute and cache
     result1 = await llm.run(messages)
     assert result1 == "Cached response"
-    
+
     # Check cache stats
     stats = cache.get_stats()
     assert stats["misses"] == 1
     assert stats["hits"] == 0
-    
+
     # Second call should use cache
     result2 = await llm.run(messages)
     assert result2 == "Cached response"
-    
+
     # Check cache stats again
     stats = cache.get_stats()
     assert stats["hits"] == 1
@@ -44,15 +45,15 @@ async def test_llm_caching_disabled():
     configure_cache()
     cache = get_cache()
     await cache.clear()
-    
+
     # Create LLM with caching disabled
     llm = MockLLM(response="Not cached", enable_cache=False)
     messages = [{"role": "user", "content": "Test no caching"}]
-    
+
     # Multiple calls should not affect cache
     await llm.run(messages)
     await llm.run(messages)
-    
+
     # Cache should show no activity
     stats = cache.get_stats()
     assert stats["hits"] == 0
@@ -66,27 +67,27 @@ async def test_different_messages_different_cache():
     configure_cache()
     cache = get_cache()
     await cache.clear()
-    
+
     llm = MockLLM(enable_cache=True)
-    
+
     # Two different messages
     messages1 = [{"role": "user", "content": "First message"}]
     messages2 = [{"role": "user", "content": "Second message"}]
-    
+
     # Call with first message
     await llm.run(messages1)
-    
+
     # Call with second message
     await llm.run(messages2)
-    
+
     # Both should be cache misses
     stats = cache.get_stats()
     assert stats["misses"] == 2
     assert stats["hits"] == 0
-    
+
     # Call first message again - should be cache hit
     await llm.run(messages1)
-    
+
     stats = cache.get_stats()
     assert stats["hits"] == 1
     assert stats["misses"] == 2

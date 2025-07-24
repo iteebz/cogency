@@ -104,7 +104,7 @@ class Flow:
 
 async def _route_from_preprocess(state: State) -> str:
     """Route from preprocess - respond directly if no tools selected, else reason."""
-    selected_tools = state.get("selected_tools")
+    selected_tools = state.selected_tools
     route = "respond" if not selected_tools else "reason"
 
     if hasattr(state, "output") and state.output:
@@ -118,7 +118,7 @@ async def _route_from_preprocess(state: State) -> str:
 
 async def _route_from_reason(state: State) -> str:
     """Route from reason - act if tools needed, else respond."""
-    tool_calls = state.get("tool_calls")
+    tool_calls = state.tool_calls
     route = "act" if tool_calls and len(tool_calls) > 0 else "respond"
 
     if hasattr(state, "output") and state.output:
@@ -132,10 +132,10 @@ async def _route_from_reason(state: State) -> str:
 
 async def _route_from_act(state: State) -> str:
     """Route from act - check iterations and continue research or respond."""
-    execution_results = state.get("execution_results", {})
-    current_iter = state.get("current_iteration", 0)
-    max_iter = state.get("max_iterations", 12)  # Increased default for complex research
-    stopping_reason = state.get("stopping_reason")
+    execution_results = state.execution_results
+    current_iter = state.current_iteration
+    max_iter = state.max_iterations
+    stopping_reason = state.stopping_reason
 
     # Route back to reason for continued research unless we hit limits
     if stopping_reason in ["max_iterations_reached", "reasoning_loop_detected"]:
@@ -147,7 +147,7 @@ async def _route_from_act(state: State) -> str:
         state["stopping_reason"] = reason
     elif not execution_results.success:
         # For failed executions, check if we should retry or give up
-        failed_attempts = state.get("failed_tool_attempts", 0)
+        failed_attempts = state.failed_tool_attempts
         if failed_attempts >= 3:  # Give up after 3 consecutive failures
             route = "respond"
             reason = "repeated_tool_failures"
@@ -163,7 +163,7 @@ async def _route_from_act(state: State) -> str:
         tool_quality = assess_tools(execution_results)
 
         # Route based on quality with max retry protection
-        quality_attempts = state.get("quality_retry_attempts", 0)
+        quality_attempts = state.quality_retry_attempts
         max_quality_retries = 2  # Limit quality-based retries
 
         if tool_quality in ["failed", "poor"] and quality_attempts < max_quality_retries:

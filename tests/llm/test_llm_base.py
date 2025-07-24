@@ -65,7 +65,7 @@ def test_key_rotation():
     key2 = llm.next_key()
     assert key1 in keys
     assert key2 in keys
-    
+
     # Single key test
     llm_single = MockLLM(api_key="single-key")
     assert llm_single.next_key() == "single-key"

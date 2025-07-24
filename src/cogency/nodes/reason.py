@@ -106,14 +106,14 @@ async def reason(
 ) -> State:
     """Analyze context and decide next action with adaptive reasoning."""
     context = state["context"]
-    selected_tools = state.get("selected_tools", tools or [])
+    selected_tools = state.selected_tools or tools or []
 
     # Simple iteration tracking
-    iter = state.get("current_iteration", 0)
-    max_iter = state.get("max_iterations", 5)
+    iter = state.current_iteration
+    max_iter = state.max_iterations
 
     # Initialize cognitive state - start fast, let LLM discover complexity
-    react_mode = state.get("react_mode", "fast")
+    react_mode = state.react_mode
 
     # Set react mode if different from current
     if state.cognition.react_mode != react_mode:
@@ -283,7 +283,7 @@ async def reason(
         current_approach = "unified_react"
 
     # Assess previous tool execution results if available
-    execution_results = state.get("execution_results")
+    execution_results = state.execution_results
     if execution_results:
         tool_quality = assess_tools(execution_results)
         state.cognition.set_tool_quality(tool_quality)

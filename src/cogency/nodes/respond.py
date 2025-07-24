@@ -136,7 +136,7 @@ async def respond(
     final_response = Response()
 
     # Check for stopping reason
-    stopping_reason = state.get("stopping_reason")
+    stopping_reason = state.stopping_reason
 
     if stopping_reason:
         # Handle reasoning stopped scenario with user-friendly message
@@ -168,8 +168,8 @@ async def respond(
             await state.output.update(f"🤖: {final_response}")
     else:
         # Generate response based on context and any tool results
-        exec_results = state.get("execution_results", {})
-        direct_response = state.get("direct_response")
+        exec_results = state.execution_results
+        direct_response = state.direct_response
 
         if direct_response:
             # Add debug trace for JSON leakage

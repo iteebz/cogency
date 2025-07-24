@@ -122,6 +122,82 @@ class State:
     flow: Dict[str, Any] = field(default_factory=dict)  # Ephemeral workflow data
     cognition: Cognition = field(default_factory=lambda: Cognition())
 
+    # Smart defaults - eliminate manual ceremony
+    @property
+    def tool_calls(self) -> List[Dict[str, Any]]:
+        """Tool calls with intelligent default."""
+        return self.flow.get("tool_calls", [])
+
+    @property
+    def selected_tools(self) -> List[Any]:
+        """Selected tools with intelligent default."""
+        return self.flow.get("selected_tools", [])
+
+    @property
+    def execution_results(self) -> Dict[str, Any]:
+        """Execution results with intelligent default."""
+        return self.flow.get("execution_results", {})
+
+    @property
+    def current_iteration(self) -> int:
+        """Current iteration with intelligent default."""
+        return self.flow.get("current_iteration", 0)
+
+    @current_iteration.setter
+    def current_iteration(self, value: int) -> None:
+        """Set current iteration."""
+        self.flow["current_iteration"] = value
+
+    @property
+    def max_iterations(self) -> int:
+        """Max iterations with intelligent default."""
+        return self.flow.get("max_iterations", 12)
+
+    @property
+    def stopping_reason(self) -> str:
+        """Stopping reason with intelligent default."""
+        return self.flow.get("stopping_reason")
+
+    @property
+    def react_mode(self) -> str:
+        """React mode with intelligent default."""
+        return self.flow.get("react_mode", "fast")
+
+    @react_mode.setter
+    def react_mode(self, value: str) -> None:
+        """Set react mode."""
+        self.flow["react_mode"] = value
+
+    @property
+    def reasoning_response(self) -> Any:
+        """Reasoning response with intelligent default."""
+        return self.flow.get("reasoning_response")
+
+    @property
+    def direct_response(self) -> str:
+        """Direct response with intelligent default."""
+        return self.flow.get("direct_response")
+
+    @property
+    def can_answer_directly(self) -> bool:
+        """Can answer directly with intelligent default."""
+        return self.flow.get("can_answer_directly", False)
+
+    @property
+    def failed_tool_attempts(self) -> int:
+        """Failed tool attempts with intelligent default."""
+        return self.flow.get("failed_tool_attempts", 0)
+
+    @property
+    def quality_retry_attempts(self) -> int:
+        """Quality retry attempts with intelligent default."""
+        return self.flow.get("quality_retry_attempts", 0)
+
+    @property
+    def network_retry_count(self) -> int:
+        """Network retry count with intelligent default."""
+        return self.flow.get("network_retry_count", 0)
+
     def get(self, key: str, default: Any = None) -> Any:
         if key in self.flow:
             return self.flow[key]

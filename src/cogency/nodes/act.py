@@ -17,16 +17,16 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     """Act: execute tools based on reasoning decision."""
     time.time()
 
-    tool_call_str = state.get("tool_calls")
+    tool_call_str = state.tool_calls
     if not tool_call_str:
         state["execution_results"] = ActionResult.ok(data={"type": "no_action"})
         return state
 
     context = state.context
-    selected_tools = state.get("selected_tools", tools)
+    selected_tools = state.selected_tools or tools
 
     # Tool calls come from reason node as parsed list
-    tool_calls = state.get("tool_calls")
+    tool_calls = state.tool_calls
     if not tool_calls or not isinstance(tool_calls, list):
         state["execution_results"] = ActionResult.ok(data={"type": "no_action"})
         return state
@@ -37,7 +37,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     tool_tuples = [(call["name"], call["args"]) for call in tool_calls]
 
     # Network error recovery with backoff
-    retry_count = state.get("network_retry_count", 0)
+    retry_count = state.network_retry_count
     max_retries = 2
 
     tool_execution_result = await run_tools(tool_tuples, selected_tools, context, state.output)
@@ -85,14 +85,10 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     state["execution_results"] = execution_results
 
     # Update cognition with formatted results after tool execution
-    if (
-        execution_results.success
-        and state.get("tool_calls")
-        and state.cognition.action_fingerprints
-    ):
+    if execution_results.success and state.tool_calls and state.cognition.action_fingerprints:
         from cogency.nodes.reason import format_actions
 
-        tool_calls = state.get("tool_calls", [])
+        tool_calls = state.tool_calls
         formatted_result = format_actions(execution_results, tool_calls, selected_tools)
         # Update the last entry with formatted results
         state.cognition.update_result(formatted_result)
