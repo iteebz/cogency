@@ -9,9 +9,9 @@ from cogency.utils.cli import trace_args
 
 
 async def main():
-    print("=" * 42 + "\n")
+    print("=" * 42)
     print("🧠 MACHINE LEARNING ENGINEER")
-    print("=" * 42 + "\n")
+    print("=" * 42)
 
     # Create ML engineering agent
     agent = Agent(

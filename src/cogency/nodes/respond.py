@@ -6,8 +6,9 @@ from typing import Dict, List, Optional
 from cogency.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
+from cogency.types.response import Response
 from cogency.utils.parsing import fallback_response
-from cogency.utils.results import ExecutionResult
+from cogency.utils.results import ActionResult
 
 # Response prompt templates - clean and scannable
 FAILURE_PROMPT = """{identity}A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.
@@ -132,7 +133,7 @@ async def respond(
 
     # ALWAYS generate response - handle tool results, direct reasoning, or knowledge-based
     final_messages = list(context.messages)
-    final_response = ""  # Initialize to prevent undefined variable issues
+    final_response = Response()
 
     # Check for stopping reason
     stopping_reason = state.get("stopping_reason")
@@ -155,8 +156,8 @@ async def respond(
         try:
             # Response follows naturally after state announcement
             # Generate the fallback response
-            final_response = (await llm.run(final_messages)).strip()
-            await state.output.update(f"🤖: {final_response}")
+            final_response.text = (await llm.run(final_messages)).strip()
+            await state.output.update(f"🤖: {final_response.text}")
             await asyncio.sleep(0)  # Single yield point sufficient
         except Exception as e:
             # Handle LLM errors in fallback response generation using utility
@@ -173,8 +174,8 @@ async def respond(
                 f"Using direct_response: {type(direct_response)} - {str(direct_response)[:100]}...",
                 node="respond",
             )
-            final_response = direct_response
-            await state.output.update(f"🤖: {final_response}")
+            final_response.text = direct_response
+            await state.output.update(f"🤖: {final_response.text}")
         elif exec_results and exec_results.success:
             # Format tool results for display - handle both dict and list formats
             results_data = exec_results.data
@@ -204,8 +205,8 @@ async def respond(
             try:
                 # Response follows naturally after state announcement
                 # Generate the main response
-                final_response = await llm.run(final_messages)
-                await state.output.update(f"🤖: {final_response}")
+                final_response.text = await llm.run(final_messages)
+                await state.output.update(f"🤖: {final_response.text}")
             except Exception as e:
                 final_response = fallback_response(e, json_schema)
                 await state.output.update(f"🤖: {final_response}")
@@ -234,8 +235,8 @@ async def respond(
             try:
                 # Response follows naturally after state announcement
                 # Generate the main response
-                final_response = await llm.run(final_messages)
-                await state.output.update(f"🤖: {final_response}")
+                final_response.text = await llm.run(final_messages)
+                await state.output.update(f"🤖: {final_response.text}")
             except Exception as e:
                 final_response = fallback_response(e, json_schema)
                 await state.output.update(f"🤖: {final_response}")
@@ -252,27 +253,28 @@ async def respond(
             try:
                 # Response follows naturally after state announcement
                 # Generate the main response
-                final_response = await llm.run(final_messages)
-                await state.output.update(f"🤖: {final_response}")
+                final_response.text = await llm.run(final_messages)
+                await state.output.update(f"🤖: {final_response.text}")
             except Exception as e:
-                final_response = fallback_response(e, json_schema)
-                await state.output.update(f"🤖: {final_response}")
+                fallback_text = fallback_response(e, json_schema)
+                final_response.text = fallback_text
+                await state.output.update(f"🤖: {fallback_text}")
 
     # Add response to context
-    context.add_message("assistant", final_response)
+    context.add_message("assistant", final_response.text)
 
     # Update flow state
-    state["final_response"] = final_response
+    state["final_response"] = final_response.text
 
     # Store response data directly in state
-    state["reasoning_decision"] = ExecutionResult.ok(
+    state["reasoning_decision"] = ActionResult.ok(
         data={
             "should_respond": True,
-            "response_text": final_response,
+            "response_text": final_response.text,
             "task_complete": True,
         }
     )
-    state["last_node_output"] = final_response
+    state["last_node_output"] = final_response.text
     state["next_node"] = "END"
 
     # Clear reasoning_response to prevent leakage

@@ -24,7 +24,8 @@ from cogency.nodes.reasoning.fast import (
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
-from cogency.utils.parsing import parse_json_result, parse_tool_calls, recover_json
+from cogency.types.reasoning import Reasoning
+from cogency.utils.parsing import parse_json, recover_json
 
 logger = logging.getLogger(__name__)
 
@@ -192,81 +193,63 @@ async def reason(
         # Don't add reasoning JSON to context - it's internal planning only
 
         # Parse response using consolidated utilities
-        parse_result = parse_json_result(llm_response)
+        parse_result = parse_json(llm_response)
         if not parse_result.success:
             await state.output.trace(f"JSON parsing failed: {parse_result.error}", node="reason")
             await state.output.trace(f"Raw LLM response: {llm_response[:200]}...", node="reason")
             # Don't dump raw LLM response - it's overwhelming and not useful for users
-            # Fallback to empty dict if parsing fails
-            json_data = {}
+            # Fallback to empty Reasoning object if parsing fails
+            json_data = Reasoning()
         else:
             json_data = parse_result.data
+            # Explicitly create Reasoning object from parsed data
+            json_data = Reasoning.from_dict(json_data)
 
         # Show reasoning phases - gated by verbose flag
-        verbose = state.get("verbose", True)  # Default to True for backward compatibility
-        if verbose:
-            if react_mode == "deep" and json_data:
-                thinking_phase = json_data.get("thinking", "")
-                reflect_phase = json_data.get("reflect", "")
-                plan_phase = json_data.get("plan", "")
+        # verbose = state.get("verbose", True)  # Default to True for backward compatibility
+        # if verbose:
+        #     if react_mode == "deep" and json_data:
+        #         thinking_phase = json_data.thinking
+        #         reflect_phase = json_data.reflect
+        #         plan_phase = json_data.plan
 
-                if thinking_phase:
-                    await state.output.update(f"💭 {thinking_phase}\n")
-                if reflect_phase:
-                    await state.output.update(f"🤔 {reflect_phase}\n")
-                if plan_phase:
-                    await state.output.update(f"📋 {plan_phase}\n")
-            elif json_data and json_data.get("thinking"):
-                thinking = json_data.get("thinking")
-                if thinking:
-                    await state.output.update(f"💭 {thinking}\n")
+        #         if thinking_phase:
+        #             await state.output.update(f"💭 {thinking_phase}\n")
+        #         if reflect_phase:
+        #             await state.output.update(f"🤔 {reflect_phase}\n")
+        #         if plan_phase:
+        #             await state.output.update(f"📋 {plan_phase}\n")
+        #     elif json_data and json_data.thinking:
+        #         thinking = json_data.thinking
+        #         if thinking:
+        #             await state.output.update(f"💭 {thinking}\n")
 
         # Initialize variables that need to be available throughout the function
         tool_calls = None
 
-        # Reasoning should always output JSON - if not, try to recover
-        if not isinstance(json_data, dict) or not json_data:
-            recovery_result = recover_json(llm_response)
+        # Check for bidirectional mode switching
+        switch_to, switch_why = parse_switch(llm_response)
+        if should_switch(react_mode, switch_to, switch_why, iter):
+            await state.output.trace(
+                f"Mode switch: {react_mode} → {switch_to} ({switch_why})",
+                node="reason",
+            )
+            state = switch_mode(state, switch_to, switch_why)
+            # Update react_mode for this iteration
+            react_mode = switch_to
 
-            if recovery_result.success:
-                json_data = recovery_result.data
-            else:
-                state["stopping_reason"] = "invalid_json_format"
-                state["tool_calls"] = None
-                return state
-        else:
-            # Check for bidirectional mode switching
-            switch_to, switch_why = parse_switch(llm_response)
-            if should_switch(react_mode, switch_to, switch_why, iter):
-                await state.output.trace(
-                    f"Mode switch: {react_mode} → {switch_to} ({switch_why})",
-                    node="reason",
-                )
-                state = switch_mode(state, switch_to, switch_why)
-                # Update react_mode for this iteration
-                react_mode = switch_to
+        # Parse tool calls from JSON - reasoning should never provide direct responses
+        tool_calls = json_data.tool_calls
 
-            # Parse tool calls from JSON - reasoning should never provide direct responses
-            tool_calls = parse_tool_calls(json_data)
+        state["tool_calls"] = tool_calls
 
-            state["tool_calls"] = tool_calls
+        # Show thinking instantly (not streamed)
+        reasoning = json_data.reasoning
+        if reasoning:
+            pass  # Reasoning is now a list of strings, handled by output.update in flow.py
 
-            # Show thinking instantly (not streamed)
-            reasoning = json_data.get("reasoning", "Processing...")
-            if isinstance(reasoning, dict):
-                # Deep mode - show decision
-                if reasoning.get("decision"):
-                    pass  # No longer used
-                else:
-                    pass  # No longer used
-            elif isinstance(reasoning, list):
-                # Handle case where reasoning is mistakenly a list
-                pass  # No longer used
-            else:
-                pass  # No longer used
-
-            state["reasoning_response"] = llm_response
-            # No direct responses from reasoning - only JSON with tool calls or empty
+        state["reasoning_response"] = llm_response
+        # No direct responses from reasoning - only JSON with tool calls or empty
 
         # Hide internal reasoning - users don't need to see this ceremony
         current_approach = "unified_react"
@@ -283,6 +266,7 @@ async def reason(
         state["tool_calls"] = tool_calls
         # Reasoning node never provides direct responses - respond node handles ALL responses
         state["direct_response"] = None
+        state["can_answer_directly"] = True
 
         # Hide error reasoning - users don't need to see ceremony
         current_approach = "unified_react"
@@ -304,14 +288,9 @@ async def reason(
         fingerprint = action_fingerprint(tool_calls)
         # Extract decision from reasoning data
         if react_mode == "deep":
-            reasoning_obj = json_data.get("reasoning", {})
-            current_decision = (
-                reasoning_obj.get("decision", "unknown")
-                if isinstance(reasoning_obj, dict)
-                else "unknown"
-            )
+            current_decision = json_data.reasoning[0] if json_data.reasoning else "unknown"
         else:
-            current_decision = json_data.get("reasoning", "unknown")
+            current_decision = json_data.reasoning[0] if json_data.reasoning else "unknown"
 
         # Store current tool calls without formatted results (will be added after execution)
         state.cognition.update(tool_calls, current_approach, current_decision, fingerprint, "")

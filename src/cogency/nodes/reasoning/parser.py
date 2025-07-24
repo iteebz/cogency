@@ -12,9 +12,9 @@ def parse_response_result(response: str) -> ParseResult:
         ParseResult.ok(data) with keys: thinking, switch_to, switch_why, tool_calls
         or ParseResult.fail(error) with default fallback data
     """
-    from cogency.utils.parsing import parse_json_result
+    from cogency.utils.parsing import parse_json
 
-    result = parse_json_result(response)
+    result = parse_json(response)
     if not result.success:
         # Return failure with fallback data
         fallback_data = {

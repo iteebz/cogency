@@ -7,7 +7,37 @@ from typing import Any, Dict, List, Optional
 from .results import ParseResult
 
 
-def parse_json_result(response: str) -> ParseResult:
+def normalize_reasoning(val: Any) -> List[str]:
+    """Normalizes the 'reasoning' field into a list of strings."""
+    if isinstance(val, str):
+        return [val]
+    elif isinstance(val, dict):
+        # Assuming a common case where dict might have a 'thought' or 'message' key
+        if "thought" in val:
+            return [val["thought"]]
+        elif "message" in val:
+            return [val["message"]]
+        return [str(val)]  # Fallback for unexpected dict structure
+    elif isinstance(val, list):
+        # Flatten list, ensuring all elements are strings
+        normalized_list = []
+        for item in val:
+            if isinstance(item, str):
+                normalized_list.append(item)
+            elif isinstance(item, dict):
+                if "thought" in item:
+                    normalized_list.append(item["thought"])
+                elif "message" in item:
+                    normalized_list.append(item["message"])
+                else:
+                    normalized_list.append(str(item))
+            else:
+                normalized_list.append(str(item))
+        return normalized_list
+    return [str(val)]  # Catch-all for any other unexpected type
+
+
+def parse_json(response: str) -> ParseResult:
     """Extract JSON from LLM response - clean Result pattern.
 
     Handles:
@@ -139,7 +169,7 @@ def recover_json(response: str) -> ParseResult:
     if not response:
         return ParseResult.fail("No response to recover")
 
-    return parse_json_result(response)
+    return parse_json(response)
 
 
 def fallback_prompt(reason: str, system: str = None, schema: str = None) -> str:

@@ -95,9 +95,9 @@ class TestReasonNode:
             {"fingerprint": "action1", "result": "", "decision": ""},
         ]
         basic_state.cognition = cognition_obj
+        basic_state.react_mode = "deep"
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
-
         assert result.get("stopping_reason") == "reasoning_loop_detected"
 
     @pytest.mark.asyncio
@@ -115,9 +115,9 @@ class TestReasonNode:
     async def test_failed_attempts_tracking(self, basic_state, mock_llm, mock_tools):
         """Test that failed attempts are tracked properly."""
         # Set up previous execution results indicating failure
-        from cogency.utils.results import ExecutionResult
+        from cogency.utils.results import ActionResult
 
-        basic_state["execution_results"] = ExecutionResult(
+        basic_state["execution_results"] = ActionResult(
             data={
                 "success": True,
                 "results": [],
@@ -151,12 +151,15 @@ class TestReasonNode:
         """Test that memory limits are enforced."""
         # Create state with excessive history - fast mode limit is 3, deep mode is 10
         cognition_obj = Cognition()
-        cognition_obj.action_fingerprints = [
-            {"fingerprint": f"action{i}", "result": "", "decision": ""} for i in range(15)
-        ]
-        cognition_obj.failed_attempts = []
         cognition_obj.max_history = 3  # Fast mode default
         cognition_obj.max_failures = 5
+        for i in range(15):
+            cognition_obj.update(
+                tool_calls=[{"name": f"tool{i}", "args": {}}],
+                current_approach="test",
+                current_decision="test",
+                action_fingerprint=f"action{i}",
+            )
         basic_state.cognition = cognition_obj
 
         # Mock tool calls to trigger history update

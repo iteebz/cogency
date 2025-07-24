@@ -9,7 +9,7 @@ from cogency.llm.base import BaseLLM
 from cogency.nodes.respond import prompt_response, respond
 from cogency.output import Output
 from cogency.state import State
-from cogency.utils.results import ExecutionResult
+from cogency.utils.results import ActionResult
 
 
 class MockLLM(BaseLLM):
@@ -80,7 +80,7 @@ async def test_respond_with_tool_results(state):
     """Test respond with tool execution results."""
     llm = MockLLM("Weather is sunny")
     state.output = AsyncMock()
-    state["execution_results"] = ExecutionResult([{"temperature": "72F"}])
+    state["execution_results"] = ActionResult([{"temperature": "72F"}])
 
     result = await respond(state, llm=llm, tools=[])
 

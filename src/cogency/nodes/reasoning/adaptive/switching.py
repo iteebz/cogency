@@ -9,9 +9,9 @@ logger = logging.getLogger(__name__)
 def parse_switch(llm_response: str) -> Tuple[Optional[str], Optional[str]]:
     """Extract mode switching directives from LLM JSON response"""
     try:
-        from cogency.utils.parsing import parse_json_result
+        from cogency.utils.parsing import parse_json
 
-        result = parse_json_result(llm_response)
+        result = parse_json(llm_response)
         if result.success:
             data = result.data
             return data.get("switch_to"), data.get("switch_why")

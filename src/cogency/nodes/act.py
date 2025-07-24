@@ -8,7 +8,7 @@ from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import run_tools
 from cogency.utils.heuristics import calculate_backoff_delay, needs_network_retry
-from cogency.utils.results import ExecutionResult
+from cogency.utils.results import ActionResult
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
 
     tool_call_str = state.get("tool_calls")
     if not tool_call_str:
-        state["execution_results"] = ExecutionResult.ok(data={"type": "no_action"})
+        state["execution_results"] = ActionResult.ok(data={"type": "no_action"})
         return state
 
     context = state.context
@@ -28,7 +28,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     # Tool calls come from reason node as parsed list
     tool_calls = state.get("tool_calls")
     if not tool_calls or not isinstance(tool_calls, list):
-        state["execution_results"] = ExecutionResult.ok(data={"type": "no_action"})
+        state["execution_results"] = ActionResult.ok(data={"type": "no_action"})
         return state
 
     # Start acting state
@@ -43,9 +43,9 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     tool_execution_result = await run_tools(tool_tuples, selected_tools, context, state.output)
 
     if tool_execution_result.success:
-        execution_results = ExecutionResult.ok(tool_execution_result.data)
+        execution_results = ActionResult.ok(tool_execution_result.data)
     else:
-        execution_results = ExecutionResult.fail(tool_execution_result.error)
+        execution_results = ActionResult.fail(tool_execution_result.error)
 
     # Check for network errors that warrant retry
     if not execution_results.success and retry_count < max_retries:
@@ -68,12 +68,12 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
                     tool_tuples, selected_tools, context, state.output
                 )
                 if tool_execution_result.success:
-                    execution_results = ExecutionResult.ok(tool_execution_result.data)
+                    execution_results = ActionResult.ok(tool_execution_result.data)
                 else:
-                    execution_results = ExecutionResult.fail(tool_execution_result.error)
+                    execution_results = ActionResult.fail(tool_execution_result.error)
             except Exception as e:
                 logger.error(f"Error during tool execution retry in act node: {e}")
-                execution_results = ExecutionResult.fail(f"Tool execution retry failed: {e}")
+                execution_results = ActionResult.fail(f"Tool execution retry failed: {e}")
 
     # Reset retry count on success or after max retries
     if execution_results.success or retry_count >= max_retries:

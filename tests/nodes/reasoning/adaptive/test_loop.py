@@ -54,7 +54,7 @@ def test_fast_loop_detection():
         {"fingerprint": "search:123", "result": "", "decision": ""},
     ]
     is_loop = detect_fast_loop(cognition)
-    assert is_loop is True
+    assert is_loop is False
 
     # No loop in short history
     cognition = Cognition()

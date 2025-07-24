@@ -77,7 +77,8 @@ class Output:
             elif node == "act":
                 message = f"\n  ⚡️ {content}"
             else:
-                message = f"\n  ➡️ {content}"
+                node_part = f"[{node}] " if node else ""
+                message = f"\n  ➡️ {node_part}{content}"
             await self.callback(message)
 
     async def tool_execution_summary(

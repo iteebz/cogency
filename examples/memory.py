@@ -9,7 +9,7 @@ from cogency.utils.cli import trace_args
 
 async def main():
     print("🧠 MEMORY DEMO")
-    print("=" * 20 + "\n")
+    print("=" * 20)
 
     # Create agent with memory
     agent = Agent("assistant", memory=True, trace=trace_args())

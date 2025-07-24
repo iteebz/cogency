@@ -67,9 +67,9 @@ Score based on:
         response = llm_client.run([{"role": "user", "content": scoring_prompt}])
 
         # Use consolidated JSON parser
-        from cogency.utils.parsing import parse_json_result
+        from cogency.utils.parsing import parse_json
 
-        parse_result = parse_json_result(response)
+        parse_result = parse_json(response)
         if not parse_result.success:
             raise ValueError("Failed to parse LLM response for scoring")
         scores_dict = parse_result.data

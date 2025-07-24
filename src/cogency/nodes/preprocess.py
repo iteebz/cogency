@@ -8,8 +8,9 @@ from cogency.memory.prepare import save_memory
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
+from cogency.types.preprocessed import Preprocessed
 from cogency.utils.heuristics import is_simple_query, query_needs_tools
-from cogency.utils.parsing import parse_json_result
+from cogency.utils.parsing import parse_json
 
 
 async def preprocess(
@@ -90,23 +91,16 @@ Example:
 
         response = await llm.run([{"role": "user", "content": prompt_preprocess}])
 
-        parse_result = parse_json_result(response)
-        result = (
-            parse_result.data
-            if parse_result.success
-            else {
-                "memory": None,
-                "tags": [],
-                "memory_type": "fact",
-                "react_mode": "fast",
-                "selected_tools": [],
-            }
-        )
+        parse_result = parse_json(response)
+        if parse_result.success:
+            result = Preprocessed(**parse_result.data)
+        else:
+            result = Preprocessed(react_mode="fast")
 
         # Chain 1: Save extracted memory if not null/empty and memory is enabled
-        if memory and result.get("memory"):
+        if memory and result.memory:
             # Stream memory extraction using clean API
-            memory_content = result.get("memory")
+            memory_content = result.memory
             # Clean memory summary - avoid awkward truncation
             if memory_content and len(memory_content) > 60:
                 # Find a natural break point near 60 chars
@@ -124,15 +118,15 @@ Example:
                         memory_content,
                         memory,
                         user_id,
-                        tags=result.get("tags", []),
-                        memory_type=result.get("memory_type", "fact"),
+                        tags=result.tags,
+                        memory_type=result.memory_type,
                     )
             except Exception as e:
                 await state.output.trace(f"Failed to save memory: {e}", node="preprocess")
                 # Continue without saving memory if it fails
 
         # Chain 2: Filter tools based on LLM selection and determine respond_directly
-        selected_tools_from_llm = result.get("selected_tools")
+        selected_tools_from_llm = result.selected_tools
         if selected_tools_from_llm is not None:  # LLM explicitly provided selected_tools
             if not selected_tools_from_llm:  # LLM explicitly selected no tools
                 filtered_tools = []
@@ -185,7 +179,7 @@ Example:
 
     # Update flow state - clean routing via respond_directly flag
     state["selected_tools"] = selected_tools
-    state["react_mode"] = result.get("react_mode", "fast")
+    state["react_mode"] = result.react_mode
     state["current_iteration"] = 0
 
     return state

@@ -6,7 +6,7 @@ import pytest
 
 from cogency.nodes.reason import format_actions
 from cogency.tools.base import BaseTool
-from cogency.utils.results import ExecutionResult
+from cogency.utils.results import ActionResult
 
 
 class MockTool(BaseTool):
@@ -32,9 +32,9 @@ class MockTool(BaseTool):
 
 
 class TestFormatAgentResults:
-    """Test format_agent_results function."""
+    """Test format_actions function."""
 
-    def test_format_agent_results_success(self):
+    def test_format_actions_success(self):
         """Test successful result extraction with real execution structure."""
         # Create mock tools
         search_tool = MockTool("search")
@@ -44,7 +44,7 @@ class TestFormatAgentResults:
         tool_calls = [{"name": "search", "args": {"query": "test query", "max_results": 3}}]
 
         # Create execution results (as they come from act node)
-        execution_results = ExecutionResult.ok(
+        execution_results = ActionResult.ok(
             {
                 "results": [
                     {
@@ -66,12 +66,12 @@ class TestFormatAgentResults:
         )
 
         # Test extraction
-        result = format_agent_results(execution_results, tool_calls, selected_tools)
+        result = format_actions(execution_results, tool_calls, selected_tools)
 
         # Should call format_agent on the search tool with the result data
         assert result == "'test query' → Found 2 results"
 
-    def test_format_agent_results_multiple_tools(self):
+    def test_format_actions_multiple_tools(self):
         """Test with multiple tools executed."""
         # Create mock tools
         search_tool = MockTool("search")
@@ -85,7 +85,7 @@ class TestFormatAgentResults:
             {"name": "scrape", "args": {"url": "http://example.com"}},
         ]
 
-        execution_results = ExecutionResult.ok(
+        execution_results = ActionResult.ok(
             {
                 "results": [
                     {
@@ -102,50 +102,50 @@ class TestFormatAgentResults:
             }
         )
 
-        result = format_agent_results(execution_results, tool_calls, selected_tools)
+        result = format_actions(execution_results, tool_calls, selected_tools)
 
         # Should join results from both tools
         assert result == "'test' → Found 1 results | Scraped: Test Page"
 
-    def test_format_agent_results_no_execution_results(self):
+    def test_format_actions_no_execution_results(self):
         """Test with no execution results."""
-        result = format_agent_results(None, [], [])
+        result = format_actions(None, [], [])
         assert result == ""
 
         # Test with execution results but no data
-        empty_results = ExecutionResult.ok(None)
-        result = format_agent_results(empty_results, [], [])
+        empty_results = ActionResult.ok(None)
+        result = format_actions(empty_results, [], [])
         assert result == ""
 
-    def test_format_agent_results_malformed_data(self):
+    def test_format_actions_malformed_data(self):
         """Test with malformed execution results."""
         # Missing 'results' key
-        bad_results = ExecutionResult.ok({"summary": "test"})
-        result = format_agent_results(bad_results, [], [])
+        bad_results = ActionResult.ok({"summary": "test"})
+        result = format_actions(bad_results, [], [])
         assert result == ""
 
         # Wrong data type
-        bad_results = ExecutionResult.ok("not a dict")
-        result = format_agent_results(bad_results, [], [])
+        bad_results = ActionResult.ok("not a dict")
+        result = format_actions(bad_results, [], [])
         assert result == ""
 
-    def test_format_agent_results_tool_not_found(self):
+    def test_format_actions_tool_not_found(self):
         """Test when tool is not found in selected_tools."""
         tool_calls = [{"name": "unknown_tool", "args": {}}]
-        execution_results = ExecutionResult.ok(
+        execution_results = ActionResult.ok(
             {"results": [{"tool_name": "unknown_tool", "result": {"test": "data"}}]}
         )
 
-        result = format_agent_results(execution_results, tool_calls, [])
+        result = format_actions(execution_results, tool_calls, [])
         assert result == ""  # No matching tool found
 
-    def test_format_agent_results_empty_result_data(self):
+    def test_format_actions_empty_result_data(self):
         """Test when tool result data is empty."""
         search_tool = MockTool("search")
         tool_calls = [{"name": "search", "args": {}}]
-        execution_results = ExecutionResult.ok(
+        execution_results = ActionResult.ok(
             {"results": [{"tool_name": "search", "result": {}}]}  # Empty result
         )
 
-        result = format_agent_results(execution_results, tool_calls, [search_tool])
+        result = format_actions(execution_results, tool_calls, [search_tool])
         assert result == "No results"  # format_agent handles empty data

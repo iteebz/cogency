@@ -15,10 +15,10 @@ def test_unified_json_structure():
         "switch_why": null
     }"""
 
-    from cogency.utils.parsing import parse_json_result
+    from cogency.utils.parsing import parse_json
 
-    fast_parsed = parse_json_result(response).data
-    deep_parsed = parse_json_result(response).data
+    fast_parsed = parse_json(response).data
+    deep_parsed = parse_json(response).data
 
     # Both should parse the same way
     assert fast_parsed["thinking"] == "analyzing the problem"
@@ -36,9 +36,9 @@ def test_deep_mode_structured_thinking():
         "switch_why": null
     }"""
 
-    from cogency.utils.parsing import parse_json_result
+    from cogency.utils.parsing import parse_json
 
-    parsed = parse_json_result(response).data
+    parsed = parse_json(response).data
     assert "REFLECTION" in parsed["thinking"]
     assert "PLANNING" in parsed["thinking"]
     assert "DECISION" in parsed["thinking"]

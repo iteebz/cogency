@@ -2,10 +2,10 @@
 
 from typing import Optional
 
-from cogency.utils.results import ExecutionResult
+from cogency.utils.results import ActionResult
 
 
-def assess_tools(execution_results: Optional[ExecutionResult]) -> str:
+def assess_tools(execution_results: Optional[ActionResult]) -> str:
     """Assess tool execution with pragmatic heuristics - no semantic bullshit."""
     if execution_results is None:
         return "unknown"

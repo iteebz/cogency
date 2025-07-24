@@ -76,8 +76,8 @@ class ParseResult(Result):
             return f"ParseResult.fail({repr(self.error)})"
 
 
-class ExecutionResult(Result):
-    """Execution result with stopping reason."""
+class ActionResult(Result):
+    """Action result with stopping reason."""
 
     def __init__(
         self,
@@ -92,9 +92,9 @@ class ExecutionResult(Result):
 
     def __repr__(self) -> str:
         if self.success:
-            return f"ExecutionResult.ok({repr(self.data)})"
+            return f"ActionResult.ok({repr(self.data)})"
         else:
-            return f"ExecutionResult.fail({repr(self.error)})"
+            return f"ActionResult.fail({repr(self.error)})"
 
 
 class RecoveryResult(Result):

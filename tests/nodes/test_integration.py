@@ -40,10 +40,10 @@ class MockTool(BaseTool):
 
 def test_tool_call_parsing():
     """Test basic tool call parsing."""
-    from cogency.utils.parsing import parse_json_result
+    from cogency.utils.parsing import parse_json
 
     llm_response = '{"tool_calls": [{"name": "calculator", "args": {"x": 5}}]}'
-    parse_result = parse_json_result(llm_response)
+    parse_result = parse_json(llm_response)
     assert parse_result.success
     json_data = parse_result.data
     result = parse_tool_calls(json_data)
@@ -51,11 +51,11 @@ def test_tool_call_parsing():
     assert result[0]["name"] == "calculator"
 
     # Handle malformed JSON
-    parse_result = parse_json_result("invalid json")
+    parse_result = parse_json("invalid json")
     assert not parse_result.success
     assert parse_tool_calls(parse_result.data) is None
 
-    no_calls_json_result = parse_json_result('{"no_tools": true}')
+    no_calls_json_result = parse_json('{"no_tools": true}')
     assert no_calls_json_result.success
     assert parse_tool_calls(no_calls_json_result.data) is None
 

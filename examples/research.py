@@ -11,7 +11,7 @@ from cogency.utils.cli import trace_args
 async def main():
     print("=" * 42)
     print("🔍 DEEP RESEARCH AGENT")
-    print("=" * 42 + "\n")
+    print("=" * 42)
 
     # AI safety research agent
     agent = Agent(
