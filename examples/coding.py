@@ -1,46 +1,46 @@
 #!/usr/bin/env python3
-"""Data Analysis Pipeline - Fibonacci Analytics Demo"""
+"""Coding agent - impressive multi-file project generation."""
 
 import asyncio
 
 from cogency import Agent
+from cogency.utils.cli import trace_args
 from cogency.tools import Code, Files, Shell
-from cogency.tools.csv import CSV
-from cogency.utils import demo_header, trace_args, stream_response
 
 
 async def main():
-    demo_header("📊 Cogency Data Analysis Demo")
+    print("🚀 CODING AGENT")
+    print("=" * 25 + "\n")
 
-    user = "👤 HUMAN: "
-    analyst = "📊 ANALYST: "
-
-    # Create data analysis agent with CSV, code, files, and shell tools
-    analysis_agent = Agent(
-        "data_analyst",
-        identity="expert data analyst and Python developer",
-        tools=[CSV(), Code(), Files(), Shell()],
-        trace=trace_args(),
+    # Create coding agent
+    agent = Agent(
+        "coder",
+        identity="world-class software engineer who writes clean, production-ready code",
+        tools=[Code(), Files(), Shell()],
+        memory=False,
+        max_iterations=20,
+        trace=trace_args()
     )
 
-    # Complete Data Analysis Pipeline
-    query = """Create a complete Fibonacci data analysis pipeline:
-    
-    1. Generate the first 42 Fibonacci numbers using Python
-    2. Save them to a CSV file called 'fibonacci_data.csv' with a single 'number' column
-    3. Write a Python analysis script 'analyze_fibonacci.py' that:
-       - Reads the CSV data
-       - Calculates statistics (sum, average, min, max)
-       - Finds patterns (even/odd count, ratios between consecutive numbers)
-       - Identifies which numbers are perfect squares
-       - Generates a summary report
-    4. Run the analysis script and show the results
-    5. Create a final summary CSV with the analysis results
-    
-    Show off the complete workflow from data generation → storage → analysis → reporting.
-    """
-    print(f"\n{user}{query}\n")
-    await stream_response(analysis_agent.stream(query), prefix=analyst)
+    # Fun, impressive coding challenge
+    query = """Create a complete Python web scraper and API dashboard:
+
+    Build a multi-file project with:
+    1. Web scraper that fetches trending GitHub repositories
+    2. FastAPI backend with endpoints to serve the data
+    3. Simple HTML dashboard to display trending repos
+    4. Data models with proper validation
+    5. Error handling and rate limiting
+    6. Requirements.txt with all dependencies
+    7. A simple test to verify it works
+
+    Make it production-ready with clean structure, proper error handling, and documentation."""
+
+    print(f"💻 Challenge: {query[:60]}...\n")
+
+    # Stream the response
+    async for chunk in agent.stream(query):
+        print(chunk, end="", flush=True)
 
 
 if __name__ == "__main__":

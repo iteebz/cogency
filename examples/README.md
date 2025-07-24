@@ -1,59 +1,49 @@
 # Cogency Examples
 
-Clean, focused examples showcasing Cogency's core capabilities.
+Clean, focused examples showcasing core AI agent capabilities.
 
-## Core Examples
+## 🚀 Core Examples
 
-Run these in order to understand Cogency's progression:
-
-### 1. `hello.py` - Conversation + Response Shaping
-```bash
-python hello.py
-```
-- Basic agent functionality
-- Response shaping and personality
-- Interactive conversation with context
-
-### 2. `memory.py` - Persistent Memory  
-```bash
-python memory.py
-```
-- Cross-session memory persistence
-- Intelligent information retention
-- Core architectural differentiator
-
-### 3. `research.py` - Multi-Tool Coordination
-```bash
-python research.py
-```
-- Complex multi-step reasoning
-- Intelligent tool selection
-- Sequential tool dependencies
-
-### 4. `coding.py` - Code Execution
+### `coding.py` - Code Generation
 ```bash
 python coding.py
 ```
-- Complete coding workflows
-- Tool subsetting for specialization
-- File I/O + code execution
+Simple coding agent demonstrating code generation capabilities.
 
-### 5. `config.py` - Configuration Reference
+### `research.py` - Deep Research
 ```bash
-python config.py
+python research.py
 ```
-Shows all agent configuration options and patterns.
+Multi-step research with longer horizon planning and comprehensive analysis.
 
-## Progression
+### `memory.py` - Persistent Memory
+```bash
+python memory.py
+```
+Save and recall information across conversations.
 
-**Chat → Remember → Reason → Code**
+### `chat.py` - Interactive Chat
+```bash
+python chat.py
+```
+Interactive chat with full-capability agent (all tools enabled).
 
-Each example builds conceptually while demonstrating tool subsetting:
+## Core Capabilities
 
-- **hello.py**: 0 tools (pure conversation)
-- **memory.py**: 1 tool (recall only)  
-- **research.py**: 4 tools (focused research toolkit)
-- **coding.py**: 3 tools (focused coding environment)
-- **config.py**: Configuration showcase (educational)
+Each example demonstrates different core functionalities:
 
-Shows tool subsetting as a real feature, not just theory.
+- **`coding.py`**: Basic code generation and problem solving
+- **`research.py`**: Deep research with adaptive reasoning (Fast→Deep React)
+- **`memory.py`**: Persistent memory across conversations
+- **`chat.py`**: Interactive experience with all capabilities
+
+All examples use streaming for real-time feedback and clean output formatting.
+
+## Getting Started
+
+1. Start with `coding.py` for basic code generation
+2. Try `research.py` to see adaptive reasoning and deep analysis
+3. Use `memory.py` to see persistent memory in action
+4. Run `chat.py` for full interactive experience
+
+No configuration needed - examples auto-detect your LLM provider from environment variables.

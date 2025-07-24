@@ -1,45 +1,43 @@
 #!/usr/bin/env python3
-"""Multi-Tool Coordination - Flagship ReAct Demo"""
+"""Research agent - deep analysis with longer horizon planning."""
 
 import asyncio
 
 from cogency import Agent
-from cogency.utils import demo_header, trace_args, stream_response
+from cogency.utils.cli import trace_args
+from cogency.tools import Scrape, Search
 
 
 async def main():
-    demo_header("🔍 Cogency Research Demo")
+    print("🔍 DEEP RESEARCH AGENT")
+    print("=" * 30 + "\n")
 
-    user = "👤 HUMAN: "
-    researcher = "🔬 RESEARCHER: "
-
-    # Create research agent with focused tool subset
-    from cogency.tools import Calculator, Files, Scrape, Search
-
+    # Research agent with longer horizon capabilities
     agent = Agent(
-        "research_assistant",
-        identity="thorough research analyst",
-        tools=[Search(), Scrape(), Files(), Calculator()],
+        "deep_researcher", 
+        identity="expert research analyst who conducts thorough multi-step research and analysis",
+        tools=[Scrape(), Search()],
         memory=False,
+        max_iterations=10,  # Allow deeper research with multiple steps
         trace=trace_args()
     )
 
-    # Complex Research Query
-    query = """
-Research the current state of AGI/ASI development and provide a comprehensive analysis:
+    # Complex research query that demonstrates longer horizon planning
+    query = """Conduct comprehensive research on the current state of quantum computing:
 
-1. Search for recent developments in AGI research and timeline predictions (2024-2025)
-2. Find information about current ASI (Artificial Superintelligence) theoretical frameworks
-3. Research the "AI singularity" concept and expert predictions
-4. Investigate both accelerationist and doomerist perspectives on AI development
-5. Calculate investment trends if you can find funding data for AGI companies
-6. Save comprehensive findings to 'agi_analysis_2025.txt'
+    Please research and analyze:
+    1. Latest quantum computing breakthroughs and milestones (2024-2025)
+    2. Leading companies and their quantum systems (IBM, Google, Rigetti, etc.)
+    3. Current practical applications and real-world use cases
+    4. Technical challenges and limitations still being addressed
+    5. Expert predictions on quantum advantage timeline
+    6. Impact on cryptography and security implications
+    
+    Provide a structured analysis with sources and key findings from your research."""
 
-Synthesize conflicting expert opinions and present a balanced analysis with sources.
-This topic requires navigating contested claims, rapid developments, and diverse perspectives.
-"""
-    print(f"{user}{query}\n")
-    await stream_response(agent.stream(query), prefix=researcher)
+    print(f"👤 {query[:80]}...\n")
+    async for chunk in agent.stream(query):
+        print(chunk, end="", flush=True)
 
 
 if __name__ == "__main__":

@@ -1,49 +1,36 @@
 #!/usr/bin/env python3
-"""Persistent Memory - Core Architectural Differentiator"""
+"""Memory example - save and recall information."""
 
 import asyncio
 
 from cogency import Agent
-from cogency.utils import demo_header, trace_args, stream_response
+from cogency.utils.cli import trace_args
 
 
 async def main():
-    demo_header("🧠 Cogency Memory Demo")
+    print("🧠 MEMORY DEMO")
+    print("=" * 20 + "\n")
 
-    user = "👤 HUMAN: "
-    assistant = "🤖 ASSISTANT: "
+    # Create agent with memory
+    agent = Agent("assistant", memory=True, trace=trace_args())
 
-    # Create agent with memory enabled and only recall tool
-    from cogency.tools import Recall
+    # Teach the agent
+    query_1 = "My name is Alex, I'm a Python developer working on a fintech app"
+    print(f"👤 {query_1}\n")
+    async for chunk in agent.stream(query_1):
+        print(chunk, end="", flush=True)
 
-    agent = Agent(
-        "memory_assistant",
-        identity="helpful assistant with excellent memory",
-        memory_dir=".cogency/demo_memory",  # Custom memory location for demo
-        tools=[Recall],  # Only recall tool - memory is the star
-        trace=trace_args(),
-    )
+    # Test recall
+    query_2 = "What do you know about me?"
+    print(f"\n👤 {query_2}\n")
+    async for chunk in agent.stream(query_2):
+        print(chunk, end="", flush=True)
 
-    # Teaching the Agent
-    query_1 = """Please remember these important details about me:
-    - My name is Alex and I'm a software engineer
-    - I work primarily with Python and JavaScript
-    - My favorite framework is FastAPI for backends
-    - I'm currently building a personal finance app
-    - I prefer concise, practical advice over long explanations
-    """
-    print(f"\n{user}{query_1}\n")
-    await stream_response(agent.stream(query_1), prefix=assistant)
-
-    # Testing Memory Recall
-    query_2 = "What do you know about my work and preferences?"
-    print(f"\n\n{user}{query_2}\n")
-    await stream_response(agent.stream(query_2), prefix=assistant)
-
-    # Context + Memory Working Together
-    query_3 = "Based on what you know about me, what would be a good database choice for my current project?"
-    print(f"\n\n{user}{query_3}\n")
-    await stream_response(agent.stream(query_3), prefix=assistant)
+    # Apply memory
+    query_3 = "What database should I use for my project?"
+    print(f"\n👤 {query_3}\n")
+    async for chunk in agent.stream(query_3):
+        print(chunk, end="", flush=True)
 
 
 if __name__ == "__main__":
