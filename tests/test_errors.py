@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.errors import (
+from cogency.types.errors import (
     CogencyError,
     ConfigurationError,
     ToolError,

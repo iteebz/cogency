@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 import numpy as np
 
-from cogency.errors import ConfigurationError
+from cogency.types.errors import ConfigurationError
 from cogency.utils.keys import KeyManager
 
 from .base import BaseEmbed

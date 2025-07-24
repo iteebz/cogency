@@ -24,8 +24,9 @@ from cogency.nodes.reasoning.fast import (
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
+from cogency.types.errors import format_reasoning_error
 from cogency.types.reasoning import Reasoning
-from cogency.utils.parsing import parse_json, recover_json
+from cogency.utils.parsing import parse_json
 
 logger = logging.getLogger(__name__)
 
@@ -137,13 +138,19 @@ async def reason(
             loop_detected = False  # Fallback gracefully
 
     if iter >= max_iter:
-        # Stop reasoning after max iterations
+        # Stop reasoning after max iterations with user-friendly message
+        user_message = format_reasoning_error("max_iterations")
+        await state.output.trace(user_message, node="reason")
         state["stopping_reason"] = "max_iterations_reached"
+        state["user_error_message"] = user_message
         state["tool_calls"] = None
         return state
     elif loop_detected:
-        # Stop reasoning if loop detected
+        # Stop reasoning if loop detected with user-friendly message
+        user_message = format_reasoning_error("loop_detected")
+        await state.output.trace(user_message, node="reason")
         state["stopping_reason"] = "reasoning_loop_detected"
+        state["user_error_message"] = user_message
         state["tool_calls"] = None
         return state
 
@@ -195,9 +202,11 @@ async def reason(
         # Parse response using consolidated utilities
         parse_result = parse_json(llm_response)
         if not parse_result.success:
+            # Log technical details for debugging
             await state.output.trace(f"JSON parsing failed: {parse_result.error}", node="reason")
-            await state.output.trace(f"Raw LLM response: {llm_response[:200]}...", node="reason")
-            # Don't dump raw LLM response - it's overwhelming and not useful for users
+            # Show user-friendly message
+            user_message = format_reasoning_error("json_parse_error")
+            await state.output.trace(user_message, node="reason")
             # Fallback to empty Reasoning object if parsing fails
             json_data = Reasoning()
         else:
@@ -256,17 +265,19 @@ async def reason(
 
     except Exception as e:
         logger.error(f"Reasoning process failed: {e}")
-        # Handle LLM or parsing errors gracefully - store in state, not conversation
+        # Handle LLM or parsing errors gracefully with user-friendly message
+        user_message = format_reasoning_error("unknown_error")
+        await state.output.trace(user_message, node="reason")
+
         # Default to responding directly when reasoning fails
         tool_calls = None
-        llm_response = "I encountered an issue with reasoning, but I'll do my best to help you."
-
-        # Store reasoning results in state - NO JSON LEAKAGE
-        state["reasoning_response"] = llm_response
+        state["stopping_reason"] = "reasoning_error"
+        state["user_error_message"] = user_message
         state["tool_calls"] = tool_calls
         # Reasoning node never provides direct responses - respond node handles ALL responses
         state["direct_response"] = None
         state["can_answer_directly"] = True
+        state["reasoning_response"] = user_message
 
         # Hide error reasoning - users don't need to see ceremony
         current_approach = "unified_react"

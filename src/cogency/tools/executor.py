@@ -3,6 +3,7 @@
 from typing import Any, Dict, List, Tuple
 
 from cogency.tools.base import BaseTool
+from cogency.types.errors import format_tool_error
 from cogency.utils.results import ToolResult
 
 
@@ -89,13 +90,15 @@ async def execute_tools(
             actual_tool_name, actual_args, tool_output = result
 
             if not tool_output.success:
-                error_msg = tool_output.error or "Unknown error"
+                # Use user-friendly error message
+                raw_error = tool_output.error or "Unknown error"
+                user_friendly_error = format_tool_error(actual_tool_name, Exception(raw_error))
                 if output:
-                    await output.update(f"✗ {error_msg}\n")
+                    await output.update(f"✗ {user_friendly_error}\n")
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
-                    "error": error_msg,
+                    "error": user_friendly_error,
                     "error_type": "tool_execution_error",
                 }
                 failures.append(failure_result)
@@ -128,13 +131,14 @@ async def execute_tools(
                 context.add_result(actual_tool_name, actual_args, tool_result)
 
         except Exception as e:
-            error_msg = str(e)
+            # Use user-friendly error message
+            user_friendly_error = format_tool_error(tool_name, e)
             if output:
-                await output.update(f"✗ {error_msg}")
+                await output.update(f"✗ {user_friendly_error}")
             failure_result = {
                 "tool_name": tool_name,
                 "args": tool_args,
-                "error": error_msg,
+                "error": user_friendly_error,
                 "error_type": "execution_error",
             }
             failures.append(failure_result)

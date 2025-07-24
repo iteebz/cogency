@@ -7,7 +7,7 @@ try:
 except ImportError:
     raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
 
-from cogency.errors import ConfigurationError
+from cogency.types.errors import ConfigurationError
 from cogency.utils.keys import KeyManager
 
 from .base import BaseEmbed

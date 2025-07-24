@@ -139,11 +139,14 @@ async def respond(
     stopping_reason = state.get("stopping_reason")
 
     if stopping_reason:
-        # Handle reasoning stopped scenario - generate fallback response
+        # Handle reasoning stopped scenario with user-friendly message
+        user_error_message = state.get(
+            "user_error_message", "I encountered an issue but will try to help."
+        )
         await state.output.trace(f"Fallback response due to: {stopping_reason}", node="respond")
 
-        # Use unified prompt function for fallback
-        failure_details = {"reasoning": f"Stopped due to: {stopping_reason}"}
+        # Use unified prompt function for fallback with user-friendly context
+        failure_details = {"reasoning": user_error_message}
         prompt = prompt_response(
             context.query,
             system_prompt=system_prompt,

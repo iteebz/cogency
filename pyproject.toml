@@ -143,3 +143,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 pythonpath = ["src"]
+filterwarnings = [
+    "ignore::DeprecationWarning:starlette.*",
+    "ignore::PendingDeprecationWarning:starlette.*"
+]

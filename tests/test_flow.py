@@ -54,18 +54,17 @@ class TestFlow:
     async def test_reason_direct_answer(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(return_value='{"reasoning": "I can answer this directly."}')
 
-        result = await reason(agent_state, llm=mock_llm, tools=tools)
+        await reason(agent_state, llm=mock_llm, tools=tools)
 
-        assert "tool_calls" not in result or not result["tool_calls"]
+        assert "tool_calls" not in agent_state.flow or not agent_state.flow["tool_calls"]
 
-    @pytest.mark.skip(reason="Integration test needs fixing after type refactor")
     @pytest.mark.asyncio
     async def test_reason_needs_tools(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(
             return_value='{"thinking": "I need a tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}'
         )
 
-        result = await reason(agent_state, llm=mock_llm, tools=tools)
+        await reason(agent_state, llm=mock_llm, tools=tools)
 
         assert agent_state.get("tool_calls") is not None
 

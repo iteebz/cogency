@@ -5,7 +5,7 @@ import os
 import random
 from typing import List, Optional, Union
 
-from cogency.errors import ConfigurationError
+from cogency.types.errors import ConfigurationError
 
 
 class KeyRotator:

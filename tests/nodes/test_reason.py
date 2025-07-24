@@ -109,7 +109,7 @@ class TestReasonNode:
 
         assert result["can_answer_directly"] is True
         assert result["tool_calls"] is None
-        assert "issue" in result["reasoning_response"]
+        assert "issue" in basic_state["reasoning_response"]
 
     @pytest.mark.asyncio
     async def test_failed_attempts_tracking(self, basic_state, mock_llm, mock_tools):

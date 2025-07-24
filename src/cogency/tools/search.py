@@ -4,9 +4,9 @@ from typing import Any, Dict, Optional
 
 from ddgs import DDGS
 
-from cogency.errors import ToolError, ValidationError, validate_params
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
+from cogency.types.errors import ToolError, ValidationError, validate_params
 from cogency.utils.results import ToolResult
 
 logger = logging.getLogger(__name__)
