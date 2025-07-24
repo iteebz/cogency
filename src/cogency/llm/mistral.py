@@ -43,7 +43,7 @@ class MistralLLM(BaseLLM):
         return Mistral(api_key=key)
 
     @safe()
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         mistral_messages = self._format(messages)
 

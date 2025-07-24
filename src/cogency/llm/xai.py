@@ -46,7 +46,7 @@ class xAILLM(BaseLLM):
         return openai.AsyncOpenAI(api_key=key, base_url="https://api.x.ai/v1", **self.client_kwargs)
 
     @safe()
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         xai_messages = self._format(messages)
 

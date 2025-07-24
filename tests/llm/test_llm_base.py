@@ -7,39 +7,24 @@ from cogency.llm.base import BaseLLM
 
 class MockLLM(BaseLLM):
     def __init__(self, api_key=None, model="gpt-4"):
+        super().__init__(provider_name="mock", api_keys=api_key or "test-key")
         self._model = model
         self.call_count = 0
-        self._api_key = api_key or "test-key"
-        self.provider_name = "mock"
-        self._current_key_index = 0
 
-    async def run(self, messages, **kwargs):
+    async def _run_impl(self, messages, **kwargs):
         self.call_count += 1
         if len(messages) == 0:
             return "No messages provided"
         return f"Mock response to: {messages[-1]['content']}"
 
-    def stream(self, messages, **kwargs):
-        response = f"Streaming response to: {messages[-1]['content']}"
-        yield from response.split()
-
     @property
     def model(self):
         return self._model
 
-    def rotate_key(self):
-        if isinstance(self._api_key, list) and len(self._api_key) > 1:
-            self._current_key_index = (self._current_key_index + 1) % len(self._api_key)
-
-    @property
-    def current_key(self):
-        if isinstance(self._api_key, list):
-            return self._api_key[self._current_key_index]
-        return self._api_key
-
-    @property
-    def api_key(self):
-        return self._api_key
+    async def stream(self, messages, **kwargs):
+        response = f"Streaming response to: {messages[-1]['content']}"
+        for word in response.split():
+            yield word
 
 
 def test_base_llm_abstract():
@@ -58,12 +43,15 @@ async def test_run_basic():
     assert result == "Mock response to: Hello"
 
 
-def test_stream_basic():
+@pytest.mark.asyncio
+async def test_stream_basic():
     """Test basic streaming."""
     llm = MockLLM()
     messages = [{"role": "user", "content": "Hello"}]
 
-    chunks = list(llm.stream(messages))
+    chunks = []
+    async for chunk in llm.stream(messages):
+        chunks.append(chunk)
     assert len(chunks) >= 2
 
 
@@ -72,15 +60,15 @@ def test_key_rotation():
     keys = ["key1", "key2", "key3"]
     llm = MockLLM(api_key=keys)
 
-    assert llm.current_key == "key1"
-    llm.rotate_key()
-    assert llm.current_key == "key2"
-
-    # Single key does nothing
+    # Test that key rotation works through KeyManager
+    key1 = llm.next_key()
+    key2 = llm.next_key()
+    assert key1 in keys
+    assert key2 in keys
+    
+    # Single key test
     llm_single = MockLLM(api_key="single-key")
-    original = llm_single.current_key
-    llm_single.rotate_key()
-    assert llm_single.current_key == original
+    assert llm_single.next_key() == "single-key"
 
 
 def test_model_property():

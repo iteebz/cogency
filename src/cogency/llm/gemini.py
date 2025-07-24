@@ -51,7 +51,7 @@ class GeminiLLM(BaseLLM):
         return self._clients[current_key]
 
     @safe()
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
         client = self._get_client()

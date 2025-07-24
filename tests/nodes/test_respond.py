@@ -14,12 +14,12 @@ from cogency.utils.results import ActionResult
 
 class MockLLM(BaseLLM):
     def __init__(self, response: str = "Test response", should_fail: bool = False):
-        self.provider_name = "mock"
+        super().__init__(provider_name="mock", api_keys="test-key")
         self.response = response
         self.should_fail = should_fail
         self.stream_chunks = response.split(" ") if response else []
 
-    async def run(self, messages, **kwargs):
+    async def _run_impl(self, messages, **kwargs):
         if self.should_fail:
             raise Exception("LLM API error")
         return self.response
@@ -91,6 +91,12 @@ async def test_respond_with_tool_results(state):
 @pytest.mark.asyncio
 async def test_respond_error_handling(state):
     """Test respond handles LLM failures."""
+    from cogency.types.cache import get_cache
+    
+    # Clear cache to avoid interference from other tests
+    cache = get_cache()
+    await cache.clear()
+    
     llm = MockLLM(should_fail=True)
     state.output = AsyncMock()
 

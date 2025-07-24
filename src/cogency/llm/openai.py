@@ -49,7 +49,7 @@ class OpenAILLM(BaseLLM):
         return self._client
 
     @safe()
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         msgs = self._format(messages)
         res = await client.chat.completions.create(

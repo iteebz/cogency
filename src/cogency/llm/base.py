@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, List, Union
 
 from cogency.utils.keys import KeyManager
+from cogency.types.cache import cached_llm_call
 
 logger = logging.getLogger(__name__)
 
@@ -19,16 +20,16 @@ class BaseLLM(ABC):
     - Dynamic model/parameter configuration
     """
 
-    def __init__(self, provider_name: str, api_keys: Union[str, List[str]] = None, **kwargs):
+    def __init__(self, provider_name: str, api_keys: Union[str, List[str]] = None, enable_cache: bool = True, **kwargs):
         # Automatic key management - handles single/multiple keys, rotation, env detection
         self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
+        self.enable_cache = enable_cache
 
     def next_key(self) -> str:
         """Get next API key - rotates automatically on every call."""
         return self.keys.get_next()
 
-    @abstractmethod
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
         """Generate a response from the LLM given a list of messages.
 
@@ -39,6 +40,16 @@ class BaseLLM(ABC):
         Returns:
             String response from the LLM
         """
+        return await cached_llm_call(
+            self._run_impl,
+            messages,
+            use_cache=self.enable_cache,
+            **kwargs
+        )
+    
+    @abstractmethod
+    async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
+        """Internal implementation of LLM call - to be implemented by subclasses."""
         pass
 
     def _format(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:

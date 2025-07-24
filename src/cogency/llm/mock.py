@@ -10,7 +10,7 @@ class MockLLM(BaseLLM):
         super().__init__(provider_name="mock", api_keys=api_keys or "mock_key", **kwargs)
         self.response = response
 
-    async def run(self, messages, **kwargs) -> str:
+    async def _run_impl(self, messages, **kwargs) -> str:
         return self.response
 
     async def stream(self, messages, **kwargs) -> AsyncGenerator[str, None]:

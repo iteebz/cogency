@@ -50,7 +50,7 @@ class AnthropicLLM(BaseLLM):
         return self._client
 
     @safe()
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         anthropic_messages = self._format(messages)
 
