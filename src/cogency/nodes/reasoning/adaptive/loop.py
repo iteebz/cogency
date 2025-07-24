@@ -54,22 +54,22 @@ def action_fingerprint(tool_calls: List[Any]) -> str:
 
 
 def detect_loop(cognition) -> bool:
-    """Detect if agent is stuck in an action loop."""
-    action_entries = cognition.action_fingerprints
+    """Detect if agent is stuck in an iteration loop."""
+    iteration_entries = cognition.iterations
 
-    if len(action_entries) < LOOP_DETECTION_MIN_ACTIONS:
+    if len(iteration_entries) < LOOP_DETECTION_MIN_ACTIONS:
         return False
 
-    # Extract fingerprints from dict entries with defensive checks
+    # Extract fingerprints from iteration entries
     fingerprints = [
         entry.get("fingerprint", "unknown")
-        for entry in action_entries
+        for entry in iteration_entries
         if entry and isinstance(entry, dict)
     ]
 
-    # Check for repeated identical actions
-    recent_actions = fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
-    if len(set(recent_actions)) == 1:  # All 3 recent actions are identical
+    # Check for repeated identical iterations
+    recent_iterations = fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
+    if len(set(recent_iterations)) == 1:  # All 3 recent iterations are identical
         return True
 
     # Check for alternating pattern (A-B-A)
@@ -82,25 +82,23 @@ def detect_loop(cognition) -> bool:
 
 def detect_fast_loop(cognition) -> bool:
     """Lightweight loop detection for fast mode - lower threshold."""
-    action_entries = cognition.action_fingerprints
+    iteration_entries = cognition.iterations
 
-    # Fast mode: detect loops earlier - even just 2 identical actions
-    if len(action_entries) < FAST_LOOP_DETECTION_MIN_ACTIONS:
+    # Fast mode: detect loops earlier - even just 2 identical iterations
+    if len(iteration_entries) < FAST_LOOP_DETECTION_MIN_ACTIONS:
         return False
 
-    # Extract fingerprints from dict entries with defensive checks
+    # Extract fingerprints from iteration entries
     fingerprints = [
         entry.get("fingerprint", "unknown")
-        for entry in action_entries
+        for entry in iteration_entries
         if entry and isinstance(entry, dict)
     ]
 
-    # Removed overly aggressive A-A detection - verification is valid behavior
-
     # Check for excessive repetition (5+ identical) - verification up to 4x is reasonable
     if len(fingerprints) >= 5:
-        recent_actions = fingerprints[-5:]
-        if len(set(recent_actions)) == 1:  # All 5 identical
+        recent_iterations = fingerprints[-5:]
+        if len(set(recent_iterations)) == 1:  # All 5 identical
             return True
 
     # Check for immediate back-and-forth (A-B-A) pattern

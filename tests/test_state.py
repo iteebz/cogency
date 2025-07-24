@@ -61,10 +61,10 @@ class TestCognition:
         )
 
         assert cognition.current_approach == "analytical"
-        assert len(cognition.action_fingerprints) == 1
-        assert cognition.action_fingerprints[0]["fingerprint"] == "search:123"
-        assert cognition.action_fingerprints[0]["decision"] == "search for info"
-        assert cognition.action_fingerprints[0]["result"] == "Found 3 results"
+        assert len(cognition.iterations) == 1
+        assert cognition.iterations[0]["fingerprint"] == "search:123"
+        assert cognition.iterations[0]["decision"] == "search for info"
+        assert cognition.iterations[0]["result"] == "Found 3 results"
 
     def test_cognition_update_result(self):
         """Test updating result after action execution."""
@@ -73,11 +73,11 @@ class TestCognition:
 
         # Initial update without result
         cognition.update(tool_calls, "analytical", "search for info", "search:123", "")
-        assert cognition.action_fingerprints[0]["result"] == ""
+        assert cognition.iterations[0]["result"] == ""
 
         # Update with result after execution
         cognition.update_result("Found 3 relevant documents")
-        assert cognition.action_fingerprints[0]["result"] == "Found 3 relevant documents"
+        assert cognition.iterations[0]["result"] == "Found 3 relevant documents"
 
     def test_track_failure(self):
         """Test tracking failed tool attempts."""

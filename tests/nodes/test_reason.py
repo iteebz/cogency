@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from cogency.nodes.reason import build_iteration_history, reason
+from cogency.nodes.reason import build_iterations, reason
 from cogency.state import Cognition, State
 
 
@@ -63,7 +63,7 @@ class TestReasonNode:
         assert hasattr(result, "cognition")
         cognition = result.cognition
         assert hasattr(cognition, "current_approach")
-        assert isinstance(cognition.action_fingerprints, list)
+        assert isinstance(cognition.iterations, list)
         assert hasattr(cognition, "failed_attempts")
 
     @pytest.mark.asyncio
@@ -89,10 +89,28 @@ class TestReasonNode:
     async def test_loop_detection_stopping(self, basic_state, mock_llm, mock_tools):
         """Test that reasoning stops when loop detected."""
         cognition_obj = Cognition()
-        cognition_obj.action_fingerprints = [
-            {"fingerprint": "action1", "result": "", "decision": ""},
-            {"fingerprint": "action1", "result": "", "decision": ""},
-            {"fingerprint": "action1", "result": "", "decision": ""},
+        cognition_obj.iterations = [
+            {
+                "iteration": 1,
+                "fingerprint": "action1",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
+            {
+                "iteration": 2,
+                "fingerprint": "action1",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
+            {
+                "iteration": 3,
+                "fingerprint": "action1",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
         ]
         basic_state.cognition = cognition_obj
         basic_state.react_mode = "deep"
@@ -169,68 +187,105 @@ class TestReasonNode:
 
         cognition = result.cognition
         # Should be limited by max_history setting (3 for fast mode)
-        assert len(cognition.action_fingerprints) <= cognition.max_history
+        assert len(cognition.iterations) <= cognition.max_history
 
 
 class TestBuildIterationHistory:
-    """Test build_iteration_history function."""
+    """Test build_iterations function."""
 
     def test_empty_fingerprints_no_failures(self):
         """Test iteration history with empty cognition."""
         cognition = Cognition()
-        cognition.action_fingerprints = []
+        cognition.iterations = []
         cognition.failed_attempts = []
 
         with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
             mock_summarize.return_value = "No previous failed attempts"
-            result = build_iteration_history(cognition, [])
+            result = build_iterations(cognition, [])
 
         assert result == "No previous iterations"
 
-    def test_basic_iteration_history(self):
+    def test_basic_iterations(self):
         """Test basic iteration history building."""
         cognition = Cognition()
-        cognition.action_fingerprints = [
-            {"fingerprint": "search:hash1", "result": "", "decision": ""},
-            {"fingerprint": "files:hash2", "result": "", "decision": ""},
-            {"fingerprint": "calculate:hash3", "result": "", "decision": ""},
+        cognition.iterations = [
+            {
+                "iteration": 1,
+                "fingerprint": "search:hash1",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
+            {
+                "iteration": 2,
+                "fingerprint": "files:hash2",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
+            {
+                "iteration": 3,
+                "fingerprint": "calculate:hash3",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
         ]
         cognition.failed_attempts = []
 
         with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
             mock_summarize.return_value = "No previous failed attempts"
-            result = build_iteration_history(cognition, [], max_iterations=3)
+            result = build_iterations(cognition, [], max_iterations=3)
 
         assert "PREVIOUS ITERATIONS:" in result
-        assert "Step 1: search:hash1" in result
-        assert "Step 2: files:hash2" in result
-        assert "Step 3: calculate:hash3" in result
+        assert "Iteration 1: search:hash1" in result
+        assert "Iteration 2: files:hash2" in result
+        assert "Iteration 3: calculate:hash3" in result
 
     def test_max_iterations_truncation(self):
         """Test that max_iterations limits shown history."""
         cognition = Cognition()
-        cognition.action_fingerprints = [
-            {"fingerprint": f"action{i}", "result": "", "decision": ""} for i in range(1, 6)
+        cognition.iterations = [
+            {
+                "iteration": i,
+                "fingerprint": f"action{i}",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            }
+            for i in range(1, 6)
         ]
         cognition.failed_attempts = []
 
         with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
             mock_summarize.return_value = "No previous failed attempts"
-            result = build_iteration_history(cognition, [], max_iterations=3)
+            result = build_iterations(cognition, [], max_iterations=3)
 
         assert "PREVIOUS ITERATIONS:" in result
-        assert "Step 3: action3" in result  # Shows last 3 starting from step 3
-        assert "Step 4: action4" in result
-        assert "Step 5: action5" in result
+        assert "Iteration 3: action3" in result  # Shows last 3 iterations
+        assert "Iteration 4: action4" in result
+        assert "Iteration 5: action5" in result
         assert "action1" not in result  # Older actions truncated
         assert "action2" not in result
 
     def test_with_failures_included(self):
         """Test iteration history includes failed attempts."""
         cognition = Cognition()
-        cognition.action_fingerprints = [
-            {"fingerprint": "search:hash1", "result": "", "decision": ""},
-            {"fingerprint": "files:hash2", "result": "", "decision": ""},
+        cognition.iterations = [
+            {
+                "iteration": 1,
+                "fingerprint": "search:hash1",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
+            {
+                "iteration": 2,
+                "fingerprint": "files:hash2",
+                "result": "",
+                "decision": "",
+                "tool_calls": [],
+            },
         ]
         cognition.failed_attempts = [
             {"tool_calls": [MockToolCall("search", {})], "quality": "failed", "iteration": 1}
@@ -238,25 +293,25 @@ class TestBuildIterationHistory:
 
         with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
             mock_summarize.return_value = "Previous failed attempts: 1 attempts failed"
-            result = build_iteration_history(cognition, [])
+            result = build_iterations(cognition, [])
 
         assert "PREVIOUS ITERATIONS:" in result
-        assert "Step 1: search:hash1" in result
-        assert "Step 2: files:hash2" in result
+        assert "Iteration 1: search:hash1" in result
+        assert "Iteration 2: files:hash2" in result
         assert "FAILED ATTEMPTS:" in result
         assert "Previous failed attempts: 1 attempts failed" in result
 
     def test_only_failures_no_fingerprints(self):
         """Test when only failures exist without successful iterations."""
         cognition = Cognition()
-        cognition.action_fingerprints = []
+        cognition.iterations = []
         cognition.failed_attempts = [
             {"tool_calls": [MockToolCall("search", {})], "quality": "failed", "iteration": 1}
         ]
 
         with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
             mock_summarize.return_value = "Previous failed attempts: 1 attempts failed"
-            result = build_iteration_history(cognition, [])
+            result = build_iterations(cognition, [])
 
         assert result == "Previous failed attempts: 1 attempts failed"
         assert "PREVIOUS ITERATIONS:" not in result
@@ -264,17 +319,18 @@ class TestBuildIterationHistory:
     def test_step_numbering_calculation(self):
         """Test correct step numbering when truncating history."""
         cognition = Cognition()
-        cognition.action_fingerprints = [
-            {"fingerprint": f"a{i}", "result": "", "decision": ""} for i in range(1, 7)
+        cognition.iterations = [
+            {"iteration": i, "fingerprint": f"a{i}", "result": "", "decision": "", "tool_calls": []}
+            for i in range(1, 7)
         ]
         cognition.failed_attempts = []
 
         with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
             mock_summarize.return_value = "No previous failed attempts"
-            result = build_iteration_history(cognition, [], max_iterations=2)
+            result = build_iterations(cognition, [], max_iterations=2)
 
-        # Should show steps 5 and 6 (last 2 of 6 total)
-        assert "Step 5: a5" in result
-        assert "Step 6: a6" in result
-        assert "Step 1:" not in result
-        assert "Step 4:" not in result
+        # Should show iterations 5 and 6 (last 2 of 6 total)
+        assert "Iteration 5: a5" in result
+        assert "Iteration 6: a6" in result
+        assert "Iteration 1:" not in result
+        assert "Iteration 4:" not in result

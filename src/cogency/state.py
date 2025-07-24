@@ -20,11 +20,12 @@ class Cognition:
     def __init__(self, react_mode: str = "fast", max_history: int = 5, max_failures: int = 5):
         self.react_mode = react_mode
         self.current_approach = "initial"
-        self.action_fingerprints: List[Dict[str, str]] = []
+        # Store complete iterations (ReAct cycles)
+        self.iterations: List[Dict[str, Any]] = []
         self.failed_attempts: List[Dict[str, Any]] = []
         self.last_tool_quality = "unknown"
         self.mode_switches: List[Dict[str, str]] = []
-        self.max_history = max_history
+        self.max_history = max_history  # Now limits iterations, not individual actions
         self.max_failures = max_failures
 
     def update(
@@ -34,24 +35,29 @@ class Cognition:
         current_decision: str,
         action_fingerprint: str,
         formatted_result: str = "",
+        iteration: int = 0,
     ) -> None:
-        """Update cognitive state with new action."""
+        """Update cognitive state with new iteration."""
         self.current_approach = current_approach
 
-        action_entry = {
+        # Store as iteration entry
+        iteration_entry = {
+            "iteration": iteration,
             "fingerprint": action_fingerprint,
+            "tool_calls": tool_calls,
             "result": formatted_result,
             "decision": current_decision,
         }
-        self.action_fingerprints.append(action_entry)
-        # Enforce history limit
-        if len(self.action_fingerprints) > self.max_history:
-            self.action_fingerprints = self.action_fingerprints[-self.max_history :]
+        self.iterations.append(iteration_entry)
+
+        # Enforce iteration limit (not action limit)
+        if len(self.iterations) > self.max_history:
+            self.iterations = self.iterations[-self.max_history :]
 
     def update_result(self, formatted_result: str) -> None:
-        """Update the last action's formatted result after execution."""
-        if self.action_fingerprints:
-            self.action_fingerprints[-1]["result"] = formatted_result
+        """Update the last iteration's formatted result after execution."""
+        if self.iterations:
+            self.iterations[-1]["result"] = formatted_result
 
     def track_failure(self, tool_calls: List[Any], quality: str, iteration: int) -> None:
         """Track failed tool attempts."""

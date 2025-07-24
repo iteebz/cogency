@@ -31,12 +31,12 @@ from cogency.utils.parsing import parse_json
 logger = logging.getLogger(__name__)
 
 
-def build_iteration_history(cognition, selected_tools, max_iterations=3):
+def build_iterations(cognition, selected_tools, max_iterations=3):
     """Show last N reasoning iterations with their outcomes."""
-    fingerprints = cognition.action_fingerprints
+    iteration_entries = cognition.iterations
     failed_attempts = summarize_attempts(cognition.failed_attempts)
 
-    if not fingerprints:
+    if not iteration_entries:
         return (
             failed_attempts
             if failed_attempts != "No previous failed attempts"
@@ -44,20 +44,20 @@ def build_iteration_history(cognition, selected_tools, max_iterations=3):
         )
 
     iterations = []
-    last_fingerprints = fingerprints[-max_iterations:]
-    start_step = len(fingerprints) - len(last_fingerprints) + 1
+    last_iterations = iteration_entries[-max_iterations:]
 
-    for i, entry in enumerate(last_fingerprints):
-        # Defensive check for None entries
+    for entry in last_iterations:
         if not entry or not isinstance(entry, dict):
             continue
-        step_num = start_step + i
+
+        iteration_num = entry.get("iteration", 0)
         fingerprint = entry.get("fingerprint", "unknown")
         result = entry.get("result", "")
+
         if result:
-            iterations.append(f"Step {step_num}: {fingerprint}\n→ {result}")
+            iterations.append(f"Iteration {iteration_num}: {fingerprint}\n→ {result}")
         else:
-            iterations.append(f"Step {step_num}: {fingerprint}")
+            iterations.append(f"Iteration {iteration_num}: {fingerprint}")
 
     iteration_summary = "\n".join(iterations)
 
@@ -160,7 +160,7 @@ async def reason(
     messages.append({"role": "user", "content": context.query})
 
     # Create unified iteration history for both modes
-    attempts_summary = build_iteration_history(state.cognition, selected_tools, max_iterations=3)
+    attempts_summary = build_iterations(state.cognition, selected_tools, max_iterations=3)
 
     # Hide verbose iteration history - only show for debugging if needed
     # await state.output.trace(f"Iteration history: {attempts_summary}", node="reason")
@@ -303,8 +303,10 @@ async def reason(
         else:
             current_decision = json_data.reasoning[0] if json_data.reasoning else "unknown"
 
-        # Store current tool calls without formatted results (will be added after execution)
-        state.cognition.update(tool_calls, current_approach, current_decision, fingerprint, "")
+        # Store current iteration without formatted results (will be added after execution)
+        state.cognition.update(
+            tool_calls, current_approach, current_decision, fingerprint, "", iter + 1
+        )
 
     # Store current tool calls for next iteration's assessment
     state["prev_tool_calls"] = tool_calls

@@ -49,18 +49,42 @@ def test_fast_loop_detection():
     """Test fast loop detection."""
     # Should detect immediate loop
     cognition = Cognition()
-    cognition.action_fingerprints = [
-        {"fingerprint": "search:123", "result": "", "decision": ""},
-        {"fingerprint": "search:123", "result": "", "decision": ""},
+    cognition.iterations = [
+        {
+            "iteration": 1,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 2,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
     ]
     is_loop = detect_fast_loop(cognition)
     assert is_loop is False
 
     # No loop in short history
     cognition = Cognition()
-    cognition.action_fingerprints = [
-        {"fingerprint": "search:123", "result": "", "decision": ""},
-        {"fingerprint": "scrape:456", "result": "", "decision": ""},
+    cognition.iterations = [
+        {
+            "iteration": 1,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 2,
+            "fingerprint": "scrape:456",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
     ]
     is_loop = detect_fast_loop(cognition)
     assert is_loop is False
@@ -70,30 +94,84 @@ def test_comprehensive_loop():
     """Test comprehensive loop detection."""
     # Pattern loop (A-B-A)
     cognition = Cognition()
-    cognition.action_fingerprints = [
-        {"fingerprint": "search:123", "result": "", "decision": ""},
-        {"fingerprint": "scrape:456", "result": "", "decision": ""},
-        {"fingerprint": "search:123", "result": "", "decision": ""},
+    cognition.iterations = [
+        {
+            "iteration": 1,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 2,
+            "fingerprint": "scrape:456",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 3,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
     ]
     is_loop = detect_loop(cognition)
     assert is_loop is True
 
     # No loop detected
     cognition = Cognition()
-    cognition.action_fingerprints = [
-        {"fingerprint": "search:123", "result": "", "decision": ""},
-        {"fingerprint": "scrape:456", "result": "", "decision": ""},
-        {"fingerprint": "analyze:789", "result": "", "decision": ""},
+    cognition.iterations = [
+        {
+            "iteration": 1,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 2,
+            "fingerprint": "scrape:456",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 3,
+            "fingerprint": "analyze:789",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
     ]
     is_loop = detect_loop(cognition)
     assert is_loop is False
 
     # Repeated identical actions
     cognition = Cognition()
-    cognition.action_fingerprints = [
-        {"fingerprint": "search:123", "result": "", "decision": ""},
-        {"fingerprint": "search:123", "result": "", "decision": ""},
-        {"fingerprint": "search:123", "result": "", "decision": ""},
+    cognition.iterations = [
+        {
+            "iteration": 1,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 2,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
+        {
+            "iteration": 3,
+            "fingerprint": "search:123",
+            "result": "",
+            "decision": "",
+            "tool_calls": [],
+        },
     ]
     is_loop = detect_loop(cognition)
     assert is_loop is True
@@ -103,6 +181,6 @@ def test_loop_empty_history():
     """Test loop detection with minimal history."""
     # Empty history
     cognition = Cognition()
-    cognition.action_fingerprints = []
+    cognition.iterations = []
     assert detect_loop(cognition) is False
     assert detect_fast_loop(cognition) is False

@@ -85,7 +85,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     state["execution_results"] = execution_results
 
     # Update cognition with formatted results after tool execution
-    if execution_results.success and state.tool_calls and state.cognition.action_fingerprints:
+    if execution_results.success and state.tool_calls and state.cognition.iterations:
         from cogency.nodes.reason import format_actions
 
         tool_calls = state.tool_calls
