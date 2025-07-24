@@ -1,11 +1,17 @@
 """Core memory interfaces and types."""
 
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import UUID, uuid4
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_RELEVANCE_THRESHOLD = 0.7
+DEFAULT_CONFIDENCE_SCORE = 1.0
 
 
 class MemoryType(Enum):
@@ -38,7 +44,7 @@ class Memory:
     id: UUID = field(default_factory=uuid4)
     created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     relevance_score: float = 0.0
-    confidence_score: float = 1.0
+    confidence_score: float = DEFAULT_CONFIDENCE_SCORE
     access_count: int = 0
     last_accessed: datetime = field(default_factory=lambda: datetime.now(UTC))
 
@@ -58,16 +64,17 @@ class Memory:
 class MemoryBackend(ABC):
     """Abstract base class for memory backends."""
 
-    def __init__(self, embedding_provider=None):
-        self.embedding_provider = embedding_provider
+    def __init__(self, embedder=None):
+        self.embedder = embedder
 
     async def _embed(self, content: str) -> Optional[List[float]]:
         """Safely generate embedding with error handling."""
-        if not self.embedding_provider:
+        if not self.embedder:
             return None
         try:
-            return await self.embedding_provider.embed_text(content)
-        except Exception:
+            return await self.embedder.embed_text(content)
+        except Exception as e:
+            logger.error(f"Context: {e}")
             return None
 
     def _operate(self, operation_func, *args, **kwargs) -> bool:
@@ -75,14 +82,16 @@ class MemoryBackend(ABC):
         try:
             operation_func(*args, **kwargs)
             return True
-        except Exception:
+        except Exception as e:
+            logger.error(f"Context: {e}")
             return False
 
     def _stats(self, stats_func, fallback_backend_name: str, *args, **kwargs) -> Dict[str, Any]:
         """Safely get stats with fallback."""
         try:
             return stats_func(*args, **kwargs)
-        except Exception:
+        except Exception as e:
+            logger.error(f"Context: {e}")
             return {"total_memories": 0, "backend": fallback_backend_name}
 
     @abstractmethod
@@ -104,7 +113,7 @@ class MemoryBackend(ABC):
         artifact_id: UUID = None,
         search_type: SearchType = SearchType.AUTO,
         limit: int = 10,
-        threshold: float = 0.7,
+        threshold: float = DEFAULT_RELEVANCE_THRESHOLD,
         tags: Optional[List[str]] = None,
         memory_type: Optional[MemoryType] = None,
         filters: Optional[Dict[str, Any]] = None,

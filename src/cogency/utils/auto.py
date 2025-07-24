@@ -71,3 +71,43 @@ def detect_provider(provider_map: Dict[str, Any], provider_type: str = "provider
         f"No {provider_type} provider configured. Available providers: {', '.join(available_providers)}\n"
         f"Set an API key for one of the supported providers:\n" + "\n".join(api_key_names)
     )
+
+
+def _scan_providers(module: str, names: list[str], suffix: str) -> dict:
+    """Scan for available providers."""
+    providers = {}
+    for name in names:
+        try:
+            mod = __import__(f"{module}.{name}", fromlist=[f"{name.title()}{suffix}"])
+            cls = getattr(mod, f"{name.title()}{suffix}", None)
+            if cls:
+                providers[name] = cls
+        except ImportError:
+            pass
+    return providers
+
+
+def detect_llm():
+    """Auto-detect LLM from environment."""
+    providers = _scan_providers(
+        "cogency.llm", ["openai", "anthropic", "gemini", "xai", "mistral"], "LLM"
+    )
+    return detect_provider(providers, "LLM")
+
+
+def detect_embedder():
+    """Auto-detect embedder from environment."""
+    providers = _scan_providers("cogency.embed", ["openai", "nomic", "mistral"], "Embed")
+
+    try:
+        return detect_provider(providers, "embedding")
+    except RuntimeError:
+        # Fallback to local sentence transformers
+        try:
+            from cogency.embed.sentence import SentenceEmbed
+
+            return SentenceEmbed()
+        except ImportError:
+            raise RuntimeError(
+                "No embedding providers available. Install cogency[openai] or cogency[sentence-transformers]"
+            ) from None

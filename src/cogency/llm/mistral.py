@@ -55,9 +55,7 @@ class MistralLLM(BaseLLM):
         return res.choices[0].message.content
 
     @safe()
-    async def stream(
-        self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs
-    ) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         mistral_messages = self._format(messages)
 

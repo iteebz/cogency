@@ -1,13 +1,11 @@
-"""Centralized output management for Cogency agents with tracing and formatting"""
+"""Simple output system - thinking states and tool feedback only."""
 
+import asyncio
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Union
-
-from cogency.utils import summarize_tool_result, tool_emoji
-from cogency.utils.emoji import emoji, cognitive_states, format_cognitive_state
 
 
 class Output:
-    """Single source of truth for all agent output with tracing and formatting"""
+    """Unified output system - three message types: state, update, trace."""
 
     def __init__(
         self,
@@ -15,114 +13,112 @@ class Output:
         verbose: bool = True,
         callback: Optional[Union[Callable[[str], None], Callable[[str], Awaitable[None]]]] = None,
     ):
-        """Initialize output manager with tracing and verbosity settings"""
         self.tracing = trace
         self.verbose = verbose
         self.callback = callback
-        self.entries: List[Dict[str, Any]] = []  # Collected traces
+        self.entries: List[Dict[str, Any]] = []  # For debugging
 
-    async def trace(self, message: str, node: Optional[str] = None, **kwargs):
-        """Record trace entries for debugging and stream to callback if available"""
+    async def state(self, state_name: str, content: str = "", **kwargs) -> None:
+        """Show thinking states for UX feedback - users like seeing this."""
+        if not self.callback:
+            return
+
+        # Show reasoning states for user feedback
+        if state_name == "reasoning":
+            if "DEEP" in content or "deep" in content.lower():
+                message = "\n🧠 Thinking deeply..."
+            elif "FAST" in content or "fast" in content.lower():
+                message = "\n⚡ Thinking fast..."
+            else:
+                message = "\n🧠 Thinking..."
+            await self.callback(message)
+            await asyncio.sleep(0)
+        elif state_name == "responding":
+            # Responding is silent - just the response content
+            pass
+
+    async def update(self, content: str, type: str = "info", **kwargs) -> None:
+        """Simple updates - memory saves and thinking content."""
+        if not self.callback:
+            return
+
+        # Memory saves and thinking content only
+        if "saved:" in content.lower():
+            message = f"\n💾 {content}"
+        elif "selected tools:" in content.lower():
+            message = f"\n🛠️ {content}"
+        elif content:  # Thinking text from reasoning
+            message = f"\n{content}"
+        else:
+            return  # Skip empty updates
+
+        await self.callback(message)
+        await asyncio.sleep(0)
+
+    async def trace(self, content: str, node: Optional[str] = None, **kwargs) -> None:
+        """Developer debugging traces - minimal visual impact."""
         if not self.tracing:
             return
 
-        # Store trace entry
-        entry = {"type": "trace", "message": message, "node": node, **kwargs}
-        self.entries.append(entry)
+        # Store for debugging
+        self.entries.append({"type": "trace", "message": content, "node": node, **kwargs})
 
-        # Stream if callback available
         if self.callback:
-            # Split on | for separate trace lines
-            parts = message.split(" | ")
-            for part in parts:
-                indent = "    " if node else ""
-                formatted = f"\n\n{indent}➡️ [{node}] {part.strip()}" if node else f"\n\n➡️ {part.strip()}"
-                await self.callback(formatted)
+            node_label = f"[{node}] " if node else ""
+            message = f"\n  ➡️ {node_label}{content}"
+            await self.callback(message)
 
-    async def update(self, message: str, type: str = "info", node: Optional[str] = None, **kwargs):
-        """Display user progress updates with clear cognitive state indicators"""
+    async def tool_execution_summary(
+        self, tool_name: str, result: Any, success: bool = True
+    ) -> None:
+        """Tool execution summary - now uses update format."""
         if not self.callback:
             return
 
-        # Detect cognitive state from message content and format cleanly
-        formatted_message = self._format_cognitive_update(message, node, **kwargs)
-        await self.callback(f"\n{formatted_message}")
-    
-    def _format_cognitive_update(self, message: str, node: Optional[str] = None, **kwargs) -> str:
-        """Format update messages with appropriate cognitive state indicators"""
-        
-        # Deep mode phases - use specific cognitive states
-        if message.startswith("🤔 REFLECTION:"):
-            content = message.replace("🤔 REFLECTION:", "").strip()
-            return format_cognitive_state("reflecting", content)
-        elif message.startswith("📋 PLANNING:"):
-            content = message.replace("📋 PLANNING:", "").strip()
-            return format_cognitive_state("planning", content)
-        elif message.startswith("🎯 DECISION:"):
-            content = message.replace("🎯 DECISION:", "").strip()
-            return format_cognitive_state("deciding", content)
-        
-        # General thinking/reasoning
-        elif message.startswith("💭") or "Thinking through" in message:
-            content = message.replace("💭", "").strip()
-            return format_cognitive_state("thinking", content)
-            
-        # Tool preparation - extract tool list and format nicely
-        elif "Tools:" in message:
-            tools_part = message.split("Tools:")[-1].strip()
-            content = f"\n{tools_part}"
-            return format_cognitive_state("tool_selection", content)
-            
-        # Mode switching
-        elif "Escalate to DEEP MODE" in message or "Mode switch:" in message:
-            return format_cognitive_state("switching", message)
-            
-        # Node-based states
-        elif node == "preprocess":
-            return format_cognitive_state("preprocessing", message)
-        elif node == "act":
-            # Special handling for act node - show tool names with emojis
-            tool_names = kwargs.get("tool_names", [])
-            tools = kwargs.get("tools", [])
-            if tool_names:
-                tool_list = []
-                for name in tool_names:
-                    # Find tool by name to get emoji
-                    tool = next((t for t in tools if t.name == name), None)
-                    emoji = tool.emoji if tool and hasattr(tool, 'emoji') else "⚡"
-                    tool_list.append(f"{emoji} {name}")
-                content = f"\n{', '.join(tool_list)}"
-                return format_cognitive_state("executing", content)
-            return format_cognitive_state("executing", message)
-        elif node == "reason":
-            return format_cognitive_state("thinking", message)
-        elif node == "respond":
-            return format_cognitive_state("responding", message)
-            
-        # Default: clean message without state indicator
-        return message
+        # Simple tool emojis
+        tool_emojis = {
+            "code": "📝",
+            "files": "📁",
+            "shell": "⚙️",
+            "search": "🔍",
+            "scrape": "🌐",
+            "calculator": "🧮",
+            "recall": "🧠",
+        }
+        emoji = tool_emojis.get(tool_name.lower(), "⚡")
 
-    async def tool_execution_summary(self, tool_name: str, result: Any, success: bool = True):
-        """Display concise tool execution summaries."""
-        if not self.callback:
-            return
-
-        icon = tool_emoji(tool_name)
         status = "✅" if success else "❌"
-        formatted_result = summarize_tool_result(result) if result else ""
-        formatted = f"\n{icon} {tool_name} → {status} {formatted_result}"
-        await self.callback(formatted)
+        summary = self._summarize_result(result) if result else ""
 
-    async def send(self, message_type: str, content: str, node: Optional[str] = None, **kwargs):
-        """Route messages to appropriate output methods by type"""
-        if message_type == "trace":
-            await self.trace(content, node=node, **kwargs)
-        elif message_type == "update":
-            await self.update(content, type="info", node=node, **kwargs)
-        elif message_type == "tool_execution_summary":
-            tool_name = kwargs.get("tool_name", "unknown")
-            success = kwargs.get("success", True)
-            await self.tool_execution_summary(tool_name, content, success=success)
+        if summary:
+            message = f"{emoji} {tool_name} → {summary}"
         else:
-            # Default to update for unknown types
-            await self.update(content, type=message_type, node=node, **kwargs)
+            message = f"{emoji} {tool_name} {status}"
+
+        await self.update(message, type="tool")
+
+    def _summarize_result(self, result: Any) -> str:
+        """Summarize tool results for display."""
+        from cogency.utils.results import Result
+
+        # Handle Result objects directly
+        if isinstance(result, Result):
+            if not result.success:
+                return f"❌ {result.error}"
+            # Summarize successful result data
+            result = result.data
+
+        # Handle basic types
+        if isinstance(result, str):
+            return result[:97] + "..." if len(result) > 100 else result
+        elif isinstance(result, list):
+            return f"📋 {len(result)} items"
+        elif isinstance(result, dict):
+            # Legacy dict handling - will be removed as migration completes
+            if "error" in result:
+                return f"❌ {result['error']}"
+            elif "output" in result:
+                output = str(result["output"])
+                return output[:100] + "..." if len(output) > 100 else output
+
+        return "✅ Complete"

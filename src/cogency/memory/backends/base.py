@@ -23,7 +23,10 @@ class BaseBackend(MemoryBackend, ABC):
         await self._ready()
 
         artifact = Memory(
-            content=content, memory_type=memory_type, tags=tags or [], metadata=metadata or {}
+            content=content,
+            memory_type=memory_type,
+            tags=tags or [],
+            metadata=metadata or {},
         )
 
         embedding = await self._embed(content)
@@ -58,7 +61,14 @@ class BaseBackend(MemoryBackend, ABC):
         # Query-based search with storage-specific optimizations
         if self._has_search(search_type):
             return await self._search(
-                query, search_type, limit, threshold, tags, memory_type, filters, **kwargs
+                query,
+                search_type,
+                limit,
+                threshold,
+                tags,
+                memory_type,
+                filters,
+                **kwargs,
             )
 
         # Fallback to search module
@@ -70,7 +80,12 @@ class BaseBackend(MemoryBackend, ABC):
             return []
 
         results = await search(
-            query, artifacts, search_type, threshold, self.embedding_provider, self._get_embedding
+            query,
+            artifacts,
+            search_type,
+            threshold,
+            self.embedder,
+            self._embed,
         )
         return results[:limit]
 
@@ -178,6 +193,6 @@ class BaseBackend(MemoryBackend, ABC):
         """Override for native search implementation."""
         raise NotImplementedError("Native search not implemented")
 
-    async def _get_embedding(self, artifact_id: UUID) -> Optional[List[float]]:
+    async def _embed(self, artifact_id: UUID) -> Optional[List[float]]:
         """Override for efficient embedding retrieval during search."""
         return None

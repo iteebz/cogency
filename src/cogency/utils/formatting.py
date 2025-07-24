@@ -1,6 +1,9 @@
 """Formatting utilities for consistent display across Cogency"""
 
+import logging
 from typing import Any, Dict
+
+logger = logging.getLogger(__name__)
 
 
 def truncate(text: str, max_len: int = 30) -> str:
@@ -46,7 +49,8 @@ def truncate(text: str, max_len: int = 30) -> str:
                 return f"{domain}/..."
             else:
                 return f"{domain[: max_len - 4]}..."
-        except Exception:
+        except Exception as e:
+            logger.error(f"Context: {e}")
             # Fall back to basic truncation for malformed URLs
             return f"{text[: max_len - 4]}..."
 
@@ -95,6 +99,15 @@ def summarize_tool_result(result: Any) -> str:
         return "completed"
 
     try:
+        from cogency.utils.results import Result
+
+        # Handle Result objects directly
+        if isinstance(result, Result):
+            if not result.success:
+                return f"✗ {truncate(str(result.error), 40)}"
+            result = result.data
+
+        # Handle legacy dict patterns
         if isinstance(result, dict):
             # Check for common success/error patterns
             if "error" in result:
@@ -124,5 +137,6 @@ def summarize_tool_result(result: Any) -> str:
             return "✓ success" if result else "✗ failed"
 
         return truncate(str(result), 60)
-    except Exception:
+    except Exception as e:
+        logger.error(f"Context: {e}")
         return "completed"

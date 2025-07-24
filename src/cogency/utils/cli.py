@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Magical CLI that just works."""
 
 import argparse
@@ -6,7 +5,7 @@ import asyncio
 import sys
 
 
-async def interactive_mode(agent):
+async def interactive_mode(agent) -> None:
     """Interactive mode with magical DX."""
     print("🤖 Cogency Agent")
     print("Type 'exit' to quit")
@@ -33,18 +32,31 @@ async def interactive_mode(agent):
             print(f"Error: {e}")
 
 
+def trace_args() -> bool:
+    """Parse trace argument from CLI and return trace flag."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-t", "--trace", 
+        action="store_true", 
+        help="Enable detailed tracing output"
+    )
+    args = parser.parse_args()
+    return args.trace
+
+
 def main():
     """Magical CLI entry point."""
     parser = argparse.ArgumentParser(description="Run Cogency agent")
     parser.add_argument("message", nargs="?", help="Message for agent")
     parser.add_argument("-i", "--interactive", action="store_true", help="Interactive mode")
+    parser.add_argument("-t", "--trace", action="store_true", help="Enable detailed tracing output")
     args = parser.parse_args()
 
     # Lazy import to avoid circular dependency
     from cogency import Agent
 
     try:
-        agent = Agent("assistant")  # Auto-detects everything
+        agent = Agent("assistant", trace=args.trace)  # Auto-detects everything
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)

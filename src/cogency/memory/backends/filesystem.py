@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from cogency.utils.results import Result
+
 from ..core import Memory, MemoryType
 from .base import BaseBackend
 
@@ -16,8 +18,8 @@ logger = logging.getLogger(__name__)
 class FileBackend(BaseBackend):
     """Filesystem storage implementation."""
 
-    def __init__(self, memory_dir: str = ".cogency/memory", embedding_provider=None):
-        super().__init__(embedding_provider)
+    def __init__(self, memory_dir: str = ".cogency/memory", embedder=None):
+        super().__init__(embedder)
         self.memory_dir = Path(memory_dir)
         self.memory_dir.mkdir(parents=True, exist_ok=True)
 
@@ -156,7 +158,8 @@ class FileBackend(BaseBackend):
                     for file_path in user_dir.glob("*.json"):
                         file_path.unlink()
             return True
-        except OSError:
+        except OSError as e:
+            logger.error(f"Failed to delete all artifacts: {e}")
             return False
 
     async def _delete_by_id(self, artifact_id: UUID) -> bool:
@@ -185,10 +188,11 @@ class FileBackend(BaseBackend):
                 file_path = user_dir / f"{artifact.id}.json"
                 file_path.unlink()
             return True
-        except (OSError, FileNotFoundError):
-            return False
+        except (OSError, FileNotFoundError) as e:
+            logger.error(f"Failed to delete artifacts by filters: {e}")
+            return Result.failureure(f"Failed to delete artifacts by filters: {e}")
 
-    async def _get_embedding(self, artifact_id: UUID) -> Optional[List[float]]:
+    async def _embed(self, artifact_id: UUID) -> Optional[List[float]]:
         """Get embedding for search operations."""
         for user_dir in self.memory_dir.iterdir():
             if not user_dir.is_dir():

@@ -62,9 +62,7 @@ class AnthropicLLM(BaseLLM):
         return res.content[0].text
 
     @safe()
-    async def stream(
-        self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs
-    ) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         anthropic_messages = self._format(messages)
 

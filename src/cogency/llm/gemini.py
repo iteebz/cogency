@@ -1,4 +1,3 @@
-import asyncio
 from typing import AsyncIterator, Dict, List, Union
 
 try:
@@ -70,9 +69,7 @@ class GeminiLLM(BaseLLM):
         return response.text
 
     @safe()
-    async def stream(
-        self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs
-    ) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
         client = self._get_client()
@@ -90,5 +87,3 @@ class GeminiLLM(BaseLLM):
         ):
             if chunk.text:
                 yield chunk.text
-                if yield_interval > 0:
-                    await asyncio.sleep(yield_interval)

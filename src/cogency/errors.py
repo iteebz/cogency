@@ -1,7 +1,8 @@
 """Standardized error handling for Cogency tools and components."""
 
-import logging
 from typing import Any, Dict, Optional
+
+from cogency.utils.results import RecoveryResult
 
 
 class CogencyError(Exception):
@@ -37,6 +38,47 @@ class ConfigurationError(CogencyError):
     pass
 
 
+# Node-specific Errors for Granular Handling
+class PreprocessError(CogencyError):
+    """Error during preprocessing phase."""
+
+    def __init__(self, message: str, memory_failed: bool = False, **kwargs):
+        super().__init__(message, error_code="PREPROCESS_ERROR", **kwargs)
+        self.memory_failed = memory_failed
+
+
+class ReasoningError(CogencyError):
+    """Error during reasoning phase."""
+
+    def __init__(self, message: str, mode: str = "unknown", loop_detected: bool = False, **kwargs):
+        super().__init__(message, error_code="REASONING_ERROR", **kwargs)
+        self.mode = mode
+        self.loop_detected = loop_detected
+
+
+class ActionError(CogencyError):
+    """Error during action execution phase."""
+
+    def __init__(
+        self,
+        message: str,
+        failed_tools: list = None,
+        recoverable: bool = True,
+        **kwargs,
+    ):
+        super().__init__(message, error_code="ACTION_ERROR", **kwargs)
+        self.failureed_tools = failed_tools or []
+        self.recoverable = recoverable
+
+
+class ResponseError(CogencyError):
+    """Error during response generation phase."""
+
+    def __init__(self, message: str, has_partial_response: bool = False, **kwargs):
+        super().__init__(message, error_code="RESPONSE_ERROR", **kwargs)
+        self.has_partial_response = has_partial_response
+
+
 def format_error(error: Exception, tool_name: str, operation: str = None) -> Dict[str, Any]:
     """Standardized error formatting for tool responses.
 
@@ -63,28 +105,6 @@ def format_error(error: Exception, tool_name: str, operation: str = None) -> Dic
             error_response["details"] = error.details
 
     return error_response
-
-
-def graceful(func):
-    """Decorator for graceful error handling - converts exceptions to error responses."""
-
-    async def wrapper(self, *args, **kwargs):
-        try:
-            return await func(self, *args, **kwargs)
-        except Exception as e:
-            tool_name = getattr(self, "name", self.__class__.__name__)
-            operation = func.__name__
-
-            # Log the full traceback for debugging
-            logging.error(f"Error in {tool_name}.{operation}: {e}", exc_info=True)
-
-            return format_error(e, tool_name, operation)
-
-    return wrapper
-
-
-# Alias for backward compatibility during transition
-handle_tool_exception = graceful
 
 
 def validate_params(params: Dict[str, Any], required: list[str], tool_name: str) -> None:
@@ -138,3 +158,73 @@ def success_response(data: Dict[str, Any], message: str = None) -> Dict[str, Any
     if message:
         response["message"] = message
     return response
+
+
+# Recovery Strategies for Node-specific Errors
+def recover_from_preprocess_error(error: PreprocessError, state: Any) -> RecoveryResult:
+    """Recovery strategy for preprocessing errors."""
+    if error.memory_failed:
+        # Continue without memory if memory fails
+        state["memory_enabled"] = False
+        return RecoveryResult.success(
+            data=state, recovery_action="disable_memory", can_continue=True
+        )
+
+    # Default to continuing with empty context enrichment
+    return RecoveryResult.success(data=state, recovery_action="skip_enrichment", can_continue=True)
+
+
+def recover_from_reasoning_error(error: ReasoningError, state: Any) -> RecoveryResult:
+    """Recovery strategy for reasoning errors."""
+    if error.loop_detected:
+        # Force respond mode if loop detected
+        state["next_node"] = "respond"
+        state["stopping_reason"] = "loop_recovery"
+        return RecoveryResult.success(
+            data=state, recovery_action="force_respond", can_continue=True
+        )
+
+    if error.mode == "deep":
+        # Fall back to fast mode if deep mode fails
+        state["react_mode"] = "fast"
+        return RecoveryResult.success(
+            data=state, recovery_action="fallback_to_fast", can_continue=True
+        )
+
+    # Default to responding directly
+    state["next_node"] = "respond"
+    state["stopping_reason"] = "reasoning_error"
+    return RecoveryResult.success(data=state, recovery_action="direct_response", can_continue=True)
+
+
+def recover_from_action_error(error: ActionError, state: Any) -> RecoveryResult:
+    """Recovery strategy for action execution errors."""
+    if not error.recoverable:
+        # Non-recoverable error - force respond
+        state["next_node"] = "respond"
+        state["stopping_reason"] = "non_recoverable_action_error"
+        return RecoveryResult.success(
+            data=state, recovery_action="force_respond", can_continue=True
+        )
+
+    # Try reasoning again with error context
+    state["execution_results"] = {
+        "type": "error",
+        "failed_tools": error.failureed_tools,
+        "error_msg": error.message,
+    }
+    state["next_node"] = "reason"
+    return RecoveryResult.success(data=state, recovery_action="retry_reasoning", can_continue=True)
+
+
+def recover_from_response_error(error: ResponseError, state: Any) -> RecoveryResult:
+    """Recovery strategy for response generation errors."""
+    if error.has_partial_response:
+        # Use partial response if available
+        return RecoveryResult.success(data=state, recovery_action="use_partial", can_continue=True)
+
+    # Generate fallback response
+    state["direct_response"] = f"I encountered an issue generating a response: {error.message}"
+    return RecoveryResult.success(
+        data=state, recovery_action="fallback_response", can_continue=True
+    )

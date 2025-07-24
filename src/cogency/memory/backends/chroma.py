@@ -2,12 +2,17 @@
 
 import contextlib
 import json
+import logging
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from cogency.utils.results import Result
+
 from ..core import Memory, MemoryType, SearchType
 from .base import BaseBackend
+
+logger = logging.getLogger(__name__)
 
 try:
     import chromadb
@@ -25,7 +30,7 @@ class ChromaBackend(BaseBackend):
         persist_directory: Optional[str] = None,
         host: Optional[str] = None,
         port: Optional[int] = None,
-        embedding_provider=None,
+        embedder=None,
     ):
         if chromadb is None:
             raise ImportError(
@@ -38,9 +43,9 @@ class ChromaBackend(BaseBackend):
         self.port = port
         self._client = None
         self._collection = None
-        super().__init__(embedding_provider)
+        super().__init__(embedder)
 
-    async def _ready(self):
+    async def _ready(self) -> None:
         """Initialize ChromaDB client and collection."""
         if self._collection:
             return
@@ -57,14 +62,19 @@ class ChromaBackend(BaseBackend):
         # Get or create collection
         try:
             self._collection = self._client.get_collection(name=self.collection_name)
-        except Exception:
+        except ValueError as e:
+            logger.info(f"Collection '{self.collection_name}' not found, creating it. Error: {e}")
             self._collection = self._client.create_collection(
-                name=self.collection_name, metadata={"description": "Cogency memory artifacts"}
+                name=self.collection_name,
+                metadata={"description": "Cogency memory artifacts"},
             )
+        except Exception as e:
+            logger.error(f"Failed to get or create ChromaDB collection: {e}")
+            raise
 
     def _has_search(self, search_type: SearchType) -> bool:
         """ChromaDB supports semantic search only."""
-        return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedding_provider
+        return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedder
 
     async def _search(
         self,
@@ -83,7 +93,7 @@ class ChromaBackend(BaseBackend):
         if search_type == SearchType.HYBRID:
             raise NotImplementedError("Hybrid search not supported by ChromaDB backend")
 
-        query_embedding = await self.embedding_provider.embed_text(query)
+        query_embedding = await self.embedder.embed_text(query)
 
         # Build where filter
         where_filter = None
@@ -152,10 +162,12 @@ class ChromaBackend(BaseBackend):
             )
         else:
             self._collection.add(
-                ids=[str(artifact.id)], documents=[artifact.content], metadatas=[metadata]
+                ids=[str(artifact.id)],
+                documents=[artifact.content],
+                metadatas=[metadata],
             )
 
-    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
+    async def _read_by_id(self, artifact_id: UUID) -> Result[List[Memory]]:
         """Read single artifact by ID."""
         try:
             results = self._collection.get(
@@ -165,10 +177,11 @@ class ChromaBackend(BaseBackend):
                 artifact = self._to_memory(
                     results["ids"][0], results["documents"][0], results["metadatas"][0]
                 )
-                return [artifact]
-        except Exception:
-            pass
-        return []
+                return Result.success([artifact])
+            return Result.success([])
+        except Exception as e:
+            logger.error(f"Failed to read artifact by ID {artifact_id}: {e}")
+            return Result.failureure(f"Failed to read artifact by ID {artifact_id}: {e}")
 
     async def _read_filtered(
         self,
@@ -176,7 +189,7 @@ class ChromaBackend(BaseBackend):
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ) -> List[Memory]:
+    ) -> Result[List[Memory]]:
         """Read filtered artifacts."""
         # Build where filter
         where_filter = {}
@@ -201,9 +214,9 @@ class ChromaBackend(BaseBackend):
 
         try:
             results = self._collection.get(include=["documents", "metadatas"], **query_kwargs)
-        except Exception:
-            # Fallback: get all and filter manually
-            results = self._collection.get(include=["documents", "metadatas"])
+        except Exception as e:
+            logger.error(f"Failed to read filtered artifacts with query {query_kwargs}: {e}")
+            return Result.failureure(f"Failed to read filtered artifacts: {e}")
 
         artifacts = []
         if results["ids"]:
@@ -211,9 +224,9 @@ class ChromaBackend(BaseBackend):
                 artifact = self._to_memory(doc_id, results["documents"][i], results["metadatas"][i])
                 artifacts.append(artifact)
 
-        return artifacts
+        return Result.success(artifacts)
 
-    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result[bool]:
         """Update artifact in ChromaDB."""
         try:
             # ChromaDB doesn't support direct updates, we need to delete and re-add
@@ -222,7 +235,7 @@ class ChromaBackend(BaseBackend):
                 ids=[str(artifact_id)], include=["documents", "metadatas", "embeddings"]
             )
             if not results["ids"] or not results["ids"][0]:
-                return False
+                return Result.success(False)
 
             # Extract current data
             current_metadata = results["metadatas"][0]
@@ -260,29 +273,34 @@ class ChromaBackend(BaseBackend):
                     metadatas=[current_metadata],
                 )
 
-            return True
-        except Exception:
-            return False
+            return Result.success(True)
+        except Exception as e:
+            logger.error(f"Failed to update artifact {artifact_id}: {e}")
+            return Result.failureure(f"Failed to update artifact {artifact_id}: {e}")
 
-    async def _delete_all(self) -> bool:
+    async def _delete_all(self) -> Result[bool]:
         """Delete all artifacts."""
         try:
             self._collection.delete()
-            return True
-        except Exception:
-            return False
+            return Result.success(True)
+        except Exception as e:
+            logger.error(f"Failed to delete all artifacts: {e}")
+            return Result.failureure(f"Failed to delete all artifacts: {e}")
 
-    async def _delete_by_id(self, artifact_id: UUID) -> bool:
+    async def _delete_by_id(self, artifact_id: UUID) -> Result[bool]:
         """Delete single artifact by ID."""
         try:
             self._collection.delete(ids=[str(artifact_id)])
-            return True
-        except Exception:
-            return False
+            return Result.success(True)
+        except Exception as e:
+            logger.error(f"Failed to delete artifact {artifact_id}: {e}")
+            return Result.failureure(f"Failed to delete artifact {artifact_id}: {e}")
 
     async def _delete_by_filters(
-        self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]
-    ) -> bool:
+        self,
+        tags: Optional[List[str]],
+        filters: Optional[Dict[str, Any]],
+    ) -> Result[bool]:
         """Delete artifacts by filters."""
         where_filter = None
         conditions = []
@@ -298,9 +316,10 @@ class ChromaBackend(BaseBackend):
 
         try:
             self._collection.delete(where=where_filter)
-            return True
-        except Exception:
-            return False
+            return Result.success(True)
+        except Exception as e:
+            logger.error(f"Failed to delete artifacts by filters {where_filter}: {e}")
+            return Result.failureure(f"Failed to delete artifacts by filters: {e}")
 
     def _to_memory(self, doc_id: str, document: str, metadata: Dict) -> Memory:
         """Convert ChromaDB result to Memory."""
@@ -357,11 +376,15 @@ class ChromaBackend(BaseBackend):
         """Get memory statistics."""
 
         def _get_stats():
-            count = self._collection.count()
-            return {
-                "total_memories": count,
-                "backend": "chromadb",
-                "collection_name": self.collection_name,
-            }
+            try:
+                count = self._collection.count()
+                return {
+                    "total_memories": count,
+                    "backend": "chromadb",
+                    "collection_name": self.collection_name,
+                }
+            except Exception as e:
+                logger.error(f"Failed to get ChromaDB stats: {e}")
+                return {"total_memories": 0, "backend": "chromadb"}
 
-        return self._stats(_get_stats, "chromadb")
+        return await self._stats(_get_stats, "chromadb")

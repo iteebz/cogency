@@ -1,3 +1,5 @@
+from typing import AsyncGenerator
+
 from cogency.llm.base import BaseLLM
 
 
@@ -8,9 +10,9 @@ class MockLLM(BaseLLM):
         super().__init__(provider_name="mock", api_keys=api_keys or "mock_key", **kwargs)
         self.response = response
 
-    async def run(self, messages, **kwargs):
+    async def run(self, messages, **kwargs) -> str:
         return self.response
 
-    async def stream(self, messages, yield_interval: float = 0.0, **kwargs):
+    async def stream(self, messages, **kwargs) -> AsyncGenerator[str, None]:
         for char in self.response:
             yield char

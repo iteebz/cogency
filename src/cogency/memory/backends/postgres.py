@@ -1,11 +1,20 @@
 """PGVector storage implementation."""
 
 import json
+import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from cogency.utils.results import Result
+
 from ..core import Memory, MemoryType, SearchType
 from .base import BaseBackend
+
+logger = logging.getLogger(__name__)
+
+DEFAULT_EMBEDDING_DIMENSION = 1536
+DEFAULT_CONFIDENCE_SCORE = 1.0
+DEFAULT_ACCESS_COUNT = 0
 
 try:
     import asyncpg
@@ -20,21 +29,21 @@ class PGVectorBackend(BaseBackend):
         self,
         connection_string: str,
         table_name: str = "memory_artifacts",
-        vector_dimensions: int = 1536,
-        embedding_provider=None,
+        vector_dimensions: int = DEFAULT_EMBEDDING_DIMENSION,
+        embedder=None,
     ):
         if asyncpg is None:
             raise ImportError(
                 "PGVector support not installed. Use `pip install cogency[pgvector]`"
             ) from None
 
-        super().__init__(embedding_provider)
+        super().__init__(embedder)
         self.connection_string = connection_string
         self.table_name = table_name
         self.vector_dimensions = vector_dimensions
         self._pool = None
 
-    async def _ready(self):
+    async def _ready(self) -> None:
         """Initialize PGVector database and table."""
         if self._pool:
             return
@@ -46,7 +55,8 @@ class PGVectorBackend(BaseBackend):
             await conn.execute("CREATE EXTENSION IF NOT EXISTS vector;")
 
             # Create table with vector column
-            await conn.execute(f"""
+            await conn.execute(
+                f"""
                 CREATE TABLE IF NOT EXISTS {self.table_name} (
                     id UUID PRIMARY KEY,
                     content TEXT NOT NULL,
@@ -59,25 +69,32 @@ class PGVectorBackend(BaseBackend):
                     access_count INTEGER DEFAULT 0,
                     last_accessed TIMESTAMPTZ NOT NULL DEFAULT NOW()
                 );
-            """)
+            """
+            )
 
             # Create indexes for efficient search
-            await conn.execute(f"""
+            await conn.execute(
+                f"""
                 CREATE INDEX IF NOT EXISTS {self.table_name}_embedding_idx
                 ON {self.table_name} USING ivfflat (embedding vector_cosine_ops);
-            """)
-            await conn.execute(f"""
+            """
+            )
+            await conn.execute(
+                f"""
                 CREATE INDEX IF NOT EXISTS {self.table_name}_content_idx
                 ON {self.table_name} USING gin(to_tsvector('english', content));
-            """)
-            await conn.execute(f"""
+            """
+            )
+            await conn.execute(
+                f"""
                 CREATE INDEX IF NOT EXISTS {self.table_name}_tags_idx
                 ON {self.table_name} USING gin(tags);
-            """)
+            """
+            )
 
     def _has_search(self, search_type: SearchType) -> bool:
         """PGVector supports semantic search when embeddings available."""
-        return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedding_provider
+        return search_type in [SearchType.SEMANTIC, SearchType.AUTO] and self.embedder
 
     async def _search(
         self,
@@ -91,7 +108,7 @@ class PGVectorBackend(BaseBackend):
         **kwargs,
     ) -> List[Memory]:
         """Native PGVector semantic search."""
-        query_embedding = await self.embedding_provider.embed_text(query)
+        query_embedding = await self.embedder.embed_text(query)
         return await self._vector_search(query_embedding, limit, threshold)
 
     async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
@@ -219,20 +236,22 @@ class PGVectorBackend(BaseBackend):
         try:
             async with self._pool.acquire() as conn:
                 result = await conn.execute(sql, *params)
-                return result == "UPDATE 1"
-        except Exception:
-            return False
+                return Result.success(result == "UPDATE 1")
+        except Exception as e:
+            logger.error(f"Failed to update artifact {artifact_id}: {e}")
+            return Result.failureure(f"Failed to update artifact {artifact_id}: {e}")
 
-    async def _delete_all(self) -> bool:
+    async def _delete_all(self) -> Result[bool]:
         """Delete all artifacts."""
         try:
             async with self._pool.acquire() as conn:
                 await conn.execute(f"TRUNCATE TABLE {self.table_name}")
-            return True
-        except Exception:
-            return False
+            return Result.success(True)
+        except Exception as e:
+            logger.error(f"Failed to delete all artifacts: {e}")
+            return Result.failureure(f"Failed to delete all artifacts: {e}")
 
-    async def _delete_id(self, artifact_id: UUID) -> bool:
+    async def _delete_id(self, artifact_id: UUID) -> Result[bool]:
         """Delete single artifact by ID."""
         try:
             async with self._pool.acquire() as conn:
@@ -242,9 +261,10 @@ class PGVectorBackend(BaseBackend):
                 """,
                     artifact_id,
                 )
-                return result == "DELETE 1"
-        except Exception:
-            return False
+                return Result.success(result == "DELETE 1")
+        except Exception as e:
+            logger.error(f"Failed to delete artifact {artifact_id}: {e}")
+            return Result.failureure(f"Failed to delete artifact {artifact_id}: {e}")
 
     async def _delete_filter(
         self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]
@@ -273,11 +293,12 @@ class PGVectorBackend(BaseBackend):
             try:
                 async with self._pool.acquire() as conn:
                     await conn.execute(sql, *params)
-                return True
-            except Exception:
-                return False
+                return Result.success(True)
+            except Exception as e:
+                logger.error(f"Failed to delete artifacts by filters: {e}")
+                return Result.failureure(f"Failed to delete artifacts by filters: {e}")
 
-        return False
+        return Result.success(False)
 
     async def _vector_search(
         self, query_embedding: List[float], limit: int, threshold: float
@@ -332,7 +353,7 @@ class PGVectorBackend(BaseBackend):
     async def get_stats(self) -> Dict[str, Any]:
         """Get memory statistics."""
 
-        async def _get_stats():
+        async def _get_stats() -> Dict[str, Any]:
             async with self._pool.acquire() as conn:
                 row = await conn.fetchrow(f"SELECT COUNT(*) as count FROM {self.table_name}")
                 return {
@@ -343,5 +364,6 @@ class PGVectorBackend(BaseBackend):
 
         try:
             return await _get_stats()
-        except Exception:
+        except Exception as e:
+            logger.error(f"Failed to get PGVector stats: {e}")
             return {"total_memories": 0, "backend": "pgvector"}

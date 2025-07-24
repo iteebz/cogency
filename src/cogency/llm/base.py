@@ -41,18 +41,12 @@ class BaseLLM(ABC):
         """
         pass
 
-    async def ainvoke(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        """LangGraph compatibility method - wrapper around invoke()."""
-        return await self.run(messages, **kwargs)
-
     def _format(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
         """Convert to provider format (standard role/content structure)."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
     @abstractmethod
-    async def stream(
-        self, messages: List[Dict[str, str]], yield_interval: float = 0.0, **kwargs
-    ) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate a streaming response from the LLM given a list of messages.
 
         Args:
