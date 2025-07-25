@@ -12,6 +12,7 @@ from cogency.types.node_io import (
     ReasonInput,
     RespondInput,
 )
+from cogency.utils.results import ActionResult
 
 
 class Cognition:
@@ -174,9 +175,9 @@ class State:
         return self.flow.get("selected_tools", [])
 
     @property
-    def execution_results(self) -> Dict[str, Any]:
-        """Execution results with intelligent default."""
-        return self.flow.get("execution_results", {})
+    def action_result(self):
+        """Action result from act node."""
+        return self.flow.get("action_result", ActionResult.ok({}))
 
     @property
     def current_iteration(self) -> int:

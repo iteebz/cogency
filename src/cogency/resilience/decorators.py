@@ -6,9 +6,9 @@ import asyncio
 import signal
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import Any
 
 from resilient_result import resilient as base_resilient
+
 from cogency.state import State
 
 
@@ -36,8 +36,8 @@ async def interruptible_context():
 
 def state_aware_decorator(handler=None, retries: int = 3, unwrap_state: bool = True, **kwargs):
     """Decorator that handles State objects properly - can unwrap them from Result objects."""
-    from resilient_result.resilient import decorator as base_decorator
     from resilient_result import Result
+    from resilient_result.resilient import decorator as base_decorator
 
     def wrapper(func):
         # Apply the base resilient decorator

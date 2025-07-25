@@ -4,8 +4,8 @@ from unittest.mock import patch
 
 import pytest
 
-from ..conftest import MockLLM
 from cogency.utils.keys import KeyManager, KeyRotator
+from tests.conftest import MockLLM
 
 
 def test_base_llm_key_management():

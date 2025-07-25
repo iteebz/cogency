@@ -1,14 +1,13 @@
 """Test Respond node - essential tests only."""
 
 import pytest
-from tests.conftest import create_mock_llm
 
 from cogency.context import Context
 from cogency.nodes.respond import prompt_response, respond
 from cogency.output import Output
-from tests.conftest import MockLLM
 from cogency.state import State
 from cogency.utils.results import ActionResult
+from tests.conftest import MockLLM, create_mock_llm
 
 
 @pytest.fixture

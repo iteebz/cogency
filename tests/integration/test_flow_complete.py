@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from resilient_result import Result
 
 from cogency import State
 from cogency.context import Context
@@ -11,9 +12,8 @@ from cogency.nodes.act import act
 from cogency.nodes.reason import reason
 from cogency.nodes.respond import respond
 from cogency.output import Output
-from tests.conftest import MockLLM
 from cogency.tools.calculator import Calculator
-from resilient_result import Result
+from tests.conftest import MockLLM
 
 
 @pytest.fixture
@@ -89,8 +89,8 @@ class TestFlow:
 
         result = await act(full_state, tools=tools)
 
-        assert "execution_results" in result
-        assert result["execution_results"].success
+        action_result = result.action_result
+        assert action_result.success
 
     @pytest.mark.asyncio
     async def test_respond_formats_response(self, agent_state, mock_llm):
@@ -146,7 +146,8 @@ class TestFlow:
         state_for_act.flow["selected_tools"] = tools
         state_for_act.flow["selected_tools"] = tools
         act_result = await act(state_for_act, tools=tools)
-        assert act_result["execution_results"].success
+        action_result = act_result.action_result
+        assert action_result.success
 
         # 3. Reason (reflect on results)
         mock_llm.run = AsyncMock(

@@ -343,9 +343,9 @@ async def reason(
         current_approach = "unified_react"
 
     # Assess previous tool execution results if available
-    execution_results = state.execution_results
-    if execution_results:
-        tool_quality = assess_tools(execution_results)
+    action_result = state.action_result
+    if action_result:
+        tool_quality = assess_tools(action_result)
         state.cognition.set_tool_quality(tool_quality)
 
         # Track failed attempts for loop prevention

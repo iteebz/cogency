@@ -3,7 +3,6 @@
 import asyncio
 from typing import Dict, List, Optional
 
-from cogency.resilience import safe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -168,7 +167,7 @@ async def respond(
             await asyncio.sleep(0)
     else:
         # Generate response based on context and any tool results
-        exec_results = state.execution_results
+        action_result = state.action_result
         direct_response = state.direct_response
 
         if direct_response:
@@ -179,9 +178,9 @@ async def respond(
             )
             final_response.text = direct_response
             await state.output.update(f"🤖: {final_response.text}")
-        elif exec_results and exec_results.success:
+        elif action_result and action_result.success:
             # Format tool results for display - handle both dict and list formats
-            results_data = exec_results.data
+            results_data = action_result.data
             if isinstance(results_data, dict):
                 results = results_data.get("results", [])
             else:
@@ -213,9 +212,9 @@ async def respond(
             else:
                 final_response.text = response_result.data
                 await state.output.update(f"🤖: {final_response.text}")
-        elif exec_results and not exec_results.success:
+        elif action_result and not action_result.success:
             # Format failure details - handle both dict and list formats
-            results_data = exec_results.data
+            results_data = action_result.data
             if isinstance(results_data, dict):
                 results = results_data.get("results", [])
             else:
@@ -266,20 +265,21 @@ async def respond(
                 await state.output.update(f"🤖: {final_response.text}")
 
     # Add response to context
-    context.add_message("assistant", final_response.text)
+    response_text = final_response.text if hasattr(final_response, "text") else final_response
+    context.add_message("assistant", response_text)
 
     # Update flow state
-    state["final_response"] = final_response.text
+    state["final_response"] = response_text
 
     # Store response data directly in state
     state["reasoning_decision"] = ActionResult.ok(
         data={
             "should_respond": True,
-            "response_text": final_response.text,
+            "response_text": response_text,
             "task_complete": True,
         }
     )
-    state["last_node_output"] = final_response.text
+    state["last_node_output"] = response_text
     state["next_node"] = "END"
 
     # Clear reasoning_response to prevent leakage

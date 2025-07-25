@@ -116,10 +116,10 @@ async def test_act_routing():
     state["tool_calls"] = '[{"name": "test_tool", "args": {}}]'
 
     result_state = await act(state, tools=[tool])
-    assert result_state["execution_results"].success
+    assert result_state["action_result"].success
 
     # Test no tool calls
     state["tool_calls"] = None
     result_state = await act(state, tools=[])
-    assert result_state["execution_results"].success
-    assert result_state["execution_results"].data["type"] == "no_action"
+    assert result_state["action_result"].success
+    assert result_state["action_result"].data["type"] == "no_action"

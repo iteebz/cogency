@@ -22,7 +22,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
 
     tool_call_str = state.tool_calls
     if not tool_call_str:
-        state["execution_results"] = ActionResult.ok(data={"type": "no_action"})
+        state["action_result"] = ActionResult.ok(data={"type": "no_action"})
         return state
 
     context = state.context
@@ -31,7 +31,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     # Tool calls come from reason node as parsed list
     tool_calls = state.tool_calls
     if not tool_calls or not isinstance(tool_calls, list):
-        state["execution_results"] = ActionResult.ok(data={"type": "no_action"})
+        state["action_result"] = ActionResult.ok(data={"type": "no_action"})
         return state
 
     # Start acting state
@@ -94,7 +94,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     # Removed trace - clean tool output speaks for itself
 
     # Update flow state - routing handled by flow.py
-    state["execution_results"] = execution_results
+    state["action_result"] = execution_results
 
     # Update cognition with formatted results after tool execution
     if execution_results.success and state.tool_calls and state.cognition.iterations:

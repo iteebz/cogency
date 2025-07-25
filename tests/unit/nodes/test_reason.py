@@ -3,11 +3,11 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-
-from ..conftest import MockLLM
-from cogency.nodes.reason import reason, build_iterations
-from cogency.state import Cognition, State
 from resilient_result import Result
+
+from cogency.nodes.reason import build_iterations, reason
+from cogency.state import Cognition, State
+from tests.conftest import MockLLM
 
 
 class MockToolCall:
@@ -142,7 +142,7 @@ class TestReasonNode:
         # Set up previous execution results indicating failure
         from cogency.utils.results import ActionResult
 
-        basic_state["execution_results"] = ActionResult(
+        basic_state["action_result"] = ActionResult(
             data={
                 "success": True,
                 "results": [],

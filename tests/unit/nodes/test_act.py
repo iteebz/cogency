@@ -70,7 +70,7 @@ async def test_no_tool_calls(state, mock_tools):
 
     result = await act(state, tools=mock_tools)
 
-    assert result["execution_results"].data["type"] == "no_action"
+    assert result["action_result"].data["type"] == "no_action"
 
 
 @pytest.mark.asyncio
@@ -80,7 +80,7 @@ async def test_empty_tool_calls(state, mock_tools):
 
     result = await act(state, tools=mock_tools)
 
-    assert result["execution_results"].data["type"] == "no_action"
+    assert result["action_result"].data["type"] == "no_action"
 
 
 @pytest.mark.asyncio
@@ -90,7 +90,7 @@ async def test_invalid_tool_calls(state, mock_tools):
 
     result = await act(state, tools=mock_tools)
 
-    assert result["execution_results"].data["type"] == "no_action"
+    assert result["action_result"].data["type"] == "no_action"
 
 
 @pytest.mark.asyncio
@@ -100,9 +100,9 @@ async def test_successful_tool_execution(state, mock_tools):
 
     result = await act(state, tools=mock_tools)
 
-    assert "execution_results" in result
+    assert "action_result" in result
     # Should have successful execution
-    exec_results = result["execution_results"].data
+    exec_results = result["action_result"].data
     if "successful_count" in exec_results:
         assert exec_results["successful_count"] >= 1
 
@@ -115,7 +115,7 @@ async def test_failed_tool_execution(state):
 
     result = await act(state, tools=[failing_tool])
 
-    exec_results = result["execution_results"].data
+    exec_results = result["action_result"].data
     if "successful_count" in exec_results:
         assert exec_results["successful_count"] == 0
 
@@ -162,6 +162,6 @@ async def test_multiple_tool_execution(state, output):
     assert execution_order == ["first", "second", "third"]
 
     # Check execution results
-    exec_results = result["execution_results"].data
+    exec_results = result["action_result"].data
     assert exec_results["successful_count"] == 3
     assert exec_results["failed_count"] == 0

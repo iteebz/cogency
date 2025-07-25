@@ -33,7 +33,7 @@ class BaseBackend(MemoryBackend, ABC):
         )
 
         embedding = await self._embed(content)
-        await self._store_artifact(artifact, embedding, **kwargs)
+        await self._store(artifact, embedding, **kwargs)
         return artifact
 
     @safe.memory()
@@ -58,9 +58,7 @@ class BaseBackend(MemoryBackend, ABC):
 
         # No query - return filtered artifacts
         if not query:
-            return await self._read_filter(
-                memory_type=memory_type, tags=tags, filters=filters, **kwargs
-            )
+            return await self._read(memory_type=memory_type, tags=tags, filters=filters, **kwargs)
 
         # Query-based search with storage-specific optimizations
         if self._has_search(search_type):
@@ -76,9 +74,7 @@ class BaseBackend(MemoryBackend, ABC):
             )
 
         # Fallback to search module
-        artifacts = await self._read_filter(
-            memory_type=memory_type, tags=tags, filters=filters, **kwargs
-        )
+        artifacts = await self._read(memory_type=memory_type, tags=tags, filters=filters, **kwargs)
 
         if not artifacts:
             return []
@@ -135,9 +131,7 @@ class BaseBackend(MemoryBackend, ABC):
         pass
 
     @abstractmethod
-    async def _store_artifact(
-        self, artifact: Memory, embedding: Optional[List[float]], **kwargs
-    ) -> None:
+    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact with embedding."""
         pass
 
@@ -147,7 +141,7 @@ class BaseBackend(MemoryBackend, ABC):
         pass
 
     @abstractmethod
-    async def _read_filter(
+    async def _read(
         self,
         memory_type: Optional[MemoryType] = None,
         tags: Optional[List[str]] = None,

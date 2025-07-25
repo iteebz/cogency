@@ -6,8 +6,8 @@ import pytest
 from cogency import State
 from cogency.context import Context
 from cogency.nodes.preprocess import preprocess
-from ..conftest import MockLLM
 from cogency.tools.base import BaseTool
+from tests.conftest import MockLLM
 
 
 class MockSearchTool(BaseTool):

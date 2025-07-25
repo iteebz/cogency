@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
-from tests.conftest import MockLLM
 from cogency.tools.calculator import Calculator
+from tests.conftest import MockLLM
 
 
 class TestAgentInitialization:

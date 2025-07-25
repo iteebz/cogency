@@ -1,3 +1,4 @@
+import logging
 from typing import AsyncIterator, Dict, List, Union
 
 try:
@@ -9,6 +10,8 @@ except ImportError:
 
 from cogency.constants import MAX_TOKENS
 from cogency.services.llm.base import BaseLLM
+
+logger = logging.getLogger(__name__)
 
 
 class AnthropicLLM(BaseLLM):
@@ -74,4 +77,5 @@ class AnthropicLLM(BaseLLM):
                 async for text in stream.text_stream:
                     yield text
         except Exception as e:
-            raise e
+            logger.error(f"Anthropic streaming failed: {e}")
+            return

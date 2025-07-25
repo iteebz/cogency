@@ -19,17 +19,13 @@ class MockBackend(BaseBackend):
     async def _ready(self) -> None:
         self.ready_called = True
 
-    async def _store_artifact(
-        self, artifact: Memory, embedding: Optional[List[float]], **kwargs
-    ) -> None:
+    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         self.artifacts[artifact.id] = artifact
 
     async def _read_by_id(self, artifact_id) -> List[Memory]:
         return [self.artifacts[artifact_id]] if artifact_id in self.artifacts else []
 
-    async def _read_filter(
-        self, memory_type=None, tags=None, filters=None, **kwargs
-    ) -> List[Memory]:
+    async def _read(self, memory_type=None, tags=None, filters=None, **kwargs) -> List[Memory]:
         results = []
         for artifact in self.artifacts.values():
             if memory_type and artifact.memory_type != memory_type:
@@ -171,11 +167,11 @@ class TestBaseBackendFiltering:
     """Test filtering and search delegation."""
 
     @pytest.mark.asyncio
-    async def test_read_filters_by_memory_type(self, backend):
+    async def test_reads_by_memory_type(self, backend):
         fact = Memory(content="Fact", memory_type=MemoryType.FACT)
         episode = Memory(content="Episode", memory_type=MemoryType.EPISODIC)
-        await backend._store_artifact(fact, None)
-        await backend._store_artifact(episode, None)
+        await backend._store(fact, None)
+        await backend._store(episode, None)
 
         results_result = await backend.read(memory_type=MemoryType.FACT)
         assert results_result.success
@@ -185,11 +181,11 @@ class TestBaseBackendFiltering:
         assert results[0].content == "Fact"
 
     @pytest.mark.asyncio
-    async def test_read_filters_by_tags(self, backend):
+    async def test_reads_by_tags(self, backend):
         tagged = Memory(content="Tagged", tags=["important"])
         untagged = Memory(content="Untagged", tags=[])
-        await backend._store_artifact(tagged, None)
-        await backend._store_artifact(untagged, None)
+        await backend._store(tagged, None)
+        await backend._store(untagged, None)
 
         results_result = await backend.read(tags=["important"])
         assert results_result.success
@@ -202,8 +198,8 @@ class TestBaseBackendFiltering:
     async def test_delete_by_tags(self, backend):
         tagged = Memory(content="Tagged", tags=["remove"])
         untagged = Memory(content="Keep", tags=[])
-        await backend._store_artifact(tagged, None)
-        await backend._store_artifact(untagged, None)
+        await backend._store(tagged, None)
+        await backend._store(untagged, None)
 
         success_result = await backend.delete(tags=["remove"])
         assert success_result.success

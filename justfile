@@ -41,12 +41,14 @@ example name="hello":
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 # Run all tests
-test: test-python
+test:
+    @echo "Running unit and integration tests..."
+    @poetry run pytest tests/unit tests/integration -v
 
-# Run Python tests
-test-python:
-    @echo "Running Python tests..."
-    @poetry run pytest tests/
+# Run smoke tests
+smoke:
+    @echo "Running smoke tests..."
+    @poetry run pytest tests/smoke -v
 
 # Run tests with coverage
 test-cov:

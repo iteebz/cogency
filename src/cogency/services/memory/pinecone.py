@@ -123,7 +123,7 @@ class PineconeBackend(BaseBackend):
             logger.error(f"Failed to search Pinecone: {e}")
             return Err(e)
 
-    async def _store_artifact(
+    async def _store(
         self, artifact: Memory, embedding: Optional[List[float]], **kwargs
     ) -> Result[None, Exception]:
         """Store artifact in Pinecone."""
@@ -161,7 +161,7 @@ class PineconeBackend(BaseBackend):
             logger.error(f"Failed to read artifact by ID {artifact_id}: {e}")
             return Err(e)
 
-    async def _read_filter(
+    async def _read(
         self,
         memory_type: Optional[MemoryType] = None,
         tags: Optional[List[str]] = None,

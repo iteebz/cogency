@@ -1,7 +1,8 @@
 """Test Cogency domain-specific resilience decorators."""
 
-import pytest
 from unittest.mock import Mock
+
+import pytest
 
 from cogency.resilience import safe
 

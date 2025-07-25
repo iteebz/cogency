@@ -1,53 +1,75 @@
-"""Shared test fixtures and utilities for Cogency test suite."""
+"""Shared test fixtures for cogency unit tests."""
 
 import tempfile
-from pathlib import Path
-from typing import Any, Dict
+from typing import AsyncIterator
 
 import pytest
 
-from typing import AsyncIterator
 from cogency.context import Context
 from cogency.services.llm.base import BaseLLM
 from cogency.services.memory.filesystem import FileBackend
 from cogency.state import State
-from cogency.tools.weather import Weather
 from cogency.utils.results import ToolResult
 
 
+class MockLLM(BaseLLM):
+    """Mock LLM for testing."""
+
+    def __init__(
+        self,
+        response: str = "Mock response",
+        should_fail: bool = False,
+        api_keys: str = "mock_key",
+        enable_cache: bool = False,
+    ):
+        super().__init__(provider_name="mock", api_keys=api_keys)
+        self.response = response
+        self.should_fail = should_fail
+        self.enable_cache = enable_cache
+
+    async def _run_impl(self, messages, **kwargs) -> str:
+        if self.should_fail:
+            raise Exception("Mock LLM failure")
+        return self.response
+
+    async def stream(self, messages, **kwargs) -> AsyncIterator[str]:
+        for char in self.response:
+            yield char
+
+
+def create_mock_llm(response: str, **kwargs):
+    """Create a mock LLM with specified response."""
+    return MockLLM(response=response, **kwargs)
+
+
 @pytest.fixture
-def temp_memory_dir():
-    """Temporary directory for memory backend testing."""
+def temp_dir():
+    """Temporary directory."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield tmpdir
 
 
 @pytest.fixture
-def memory_backend(temp_memory_dir):
-    """Filesystem memory backend for testing."""
-    return FileBackend(memory_dir=temp_memory_dir)
+def memory_backend(temp_dir):
+    """Filesystem memory backend."""
+    return FileBackend(memory_dir=temp_dir)
 
 
 @pytest.fixture
 def mock_llm():
-    """Mock LLM for deterministic testing."""
+    """Mock LLM instance."""
     return MockLLM()
-
-
-def create_mock_llm(response: str = "Mock response"):
-    """Create a MockLLM with custom response - for tests needing specific responses."""
-    return MockLLM(response=response)
 
 
 @pytest.fixture
 def context():
-    """Basic agent context for testing."""
+    """Basic context."""
     return Context(query="test query", messages=[], user_id="test_user")
 
 
 @pytest.fixture
 def agent_state(context):
-    """Basic agent state for workflow testing."""
+    """Basic agent state."""
     from cogency.output import Output
 
     return State(context=context, query="test query", output=Output())
@@ -55,108 +77,31 @@ def agent_state(context):
 
 @pytest.fixture
 def tools():
-    """Standard tool set for testing."""
-    from cogency.tools.base import BaseTool
+    """Mock tools fixture for testing."""
 
-    class MockTool(BaseTool):
+    class MockTool:
+        name = "mock_tool"
+
         def __init__(self):
-            super().__init__(
-                name="mock_tool",
-                description="Mock tool for testing",
-                emoji="🔧",
-                schema="mock_tool(param='value')",
-                examples=["mock_tool(param='test')"],
-            )
+            pass
 
         async def run(self, **kwargs):
-            return ToolResult("mock_result")
+            return ToolResult(f"Mock tool called with {kwargs}")
 
-        def format_human(self, params, results=None):
-            param_str = f"({', '.join(f'{k}={v}' for k, v in params.items())})" if params else "()"
-            result_str = str(results) if results else "pending"
-            return param_str, result_str
-
-        def format_agent(self, result_data: Dict[str, Any]) -> str:
-            return f"Tool output: {result_data}"
-
-    return [MockTool(), Weather()]
+    return [MockTool()]
 
 
 @pytest.fixture
-def sample_memory_content():
-    """Sample content for memory testing."""
-    return [
-        {
-            "content": "I have ADHD and work as a software engineer",
-            "tags": ["personal", "work"],
-        },
-        {"content": "I prefer quiet environments for coding", "tags": ["preferences"]},
-        {"content": "I live in San Francisco", "tags": ["personal", "location"]},
-        {
-            "content": "Python is my favorite programming language",
-            "tags": ["preferences", "tech"],
-        },
-    ]
+def mock_tool():
+    """Mock tool for testing."""
 
+    class MockTool:
+        name = "mock_tool"
 
-class MockLLM(BaseLLM):
-    """Mock LLM for testing - moved from src to test utilities."""
+        def __init__(self):
+            pass
 
-    def __init__(
-        self, response: str = "Mock response", should_fail: bool = False, api_keys=None, **kwargs
-    ):
-        super().__init__(provider_name="mock", api_keys=api_keys or "mock_key", **kwargs)
-        self.response = response
-        self.should_fail = should_fail
+        async def run(self, **kwargs):
+            return ToolResult(f"Mock tool called with {kwargs}")
 
-    async def _run_impl(self, messages, **kwargs) -> str:
-        if self.should_fail:
-            raise Exception("Mock LLM failure for testing")
-        return self.response
-
-    async def stream(self, messages, **kwargs) -> AsyncIterator[str]:
-        try:
-            for char in self.response:
-                yield char
-        except Exception as e:
-            # Base class @resilient decorator will catch and wrap this
-            raise e
-
-
-class TestHelpers:
-    """Utility methods for testing."""
-
-    @staticmethod
-    def assert_valid_tool_call(tool_call: Dict[str, Any]):
-        """Assert tool call has required structure."""
-        assert "name" in tool_call
-        assert "args" in tool_call
-        assert isinstance(tool_call["args"], dict)
-
-    @staticmethod
-    def assert_memory_artifact_valid(artifact):
-        """Assert memory artifact has required fields."""
-        assert artifact.id is not None
-        assert artifact.content
-        assert artifact.created_at is not None
-        assert isinstance(artifact.tags, list)
-        assert isinstance(artifact.metadata, dict)
-
-    @staticmethod
-    def assert_no_errors_in_result(result: Dict[str, Any]):
-        """Assert result doesn't contain error fields."""
-        assert "error" not in result, f"Unexpected error: {result.get('error')}"
-
-
-@pytest.fixture
-def helpers():
-    """Test helper methods."""
-    return TestHelpers
-
-
-# Code quality fixtures for anti-pattern detection
-@pytest.fixture
-def source_files():
-    """All Python source files for quality checks."""
-    src_dir = Path(__file__).parent.parent / "src" / "cogency"
-    return list(src_dir.rglob("*.py"))
+    return MockTool()

@@ -31,10 +31,16 @@ async def test_memory_create_read(memory_backend):
 
 
 @pytest.mark.asyncio
-async def test_memory_filtering(memory_backend, sample_memory_content):
+async def test_memory_filtering(memory_backend):
     """Test memory filtering by tags."""
     # Store sample data
-    for item in sample_memory_content:
+    sample_content = [
+        {"content": "I love hiking", "tags": ["personal", "hobby"]},
+        {"content": "Work meeting at 3pm", "tags": ["work", "schedule"]},
+        {"content": "My favorite book", "tags": ["personal", "reading"]},
+    ]
+
+    for item in sample_content:
         create_result = await memory_backend.create(item["content"], tags=item["tags"])
         assert create_result.success
 
@@ -73,16 +79,20 @@ async def test_memory_crud(memory_backend):
 
 
 @pytest.mark.asyncio
-async def test_persistence(temp_memory_dir):
+async def test_persistence(tmp_path):
     """Test memory persists across backend instances."""
     from cogency.services.memory.filesystem import FileBackend
 
+    # Use pytest's tmp_path fixture
+    temp_memory_dir = tmp_path / "memory"
+    temp_memory_dir.mkdir()
+
     # Store with first instance
-    backend1 = FileBackend(memory_dir=temp_memory_dir)
+    backend1 = FileBackend(memory_dir=str(temp_memory_dir))
     await backend1.create("persistent memory test")
 
     # New instance should find it
-    backend2 = FileBackend(memory_dir=temp_memory_dir)
+    backend2 = FileBackend(memory_dir=str(temp_memory_dir))
     read_result = await backend2.read(query="persistent memory")
     results = read_result.data
 
