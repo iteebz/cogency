@@ -1,29 +1,27 @@
 from typing import AsyncIterator, Dict, List, Union
 
 try:
-    import anthropic
+    from mistralai import Mistral
 except ImportError:
-    raise ImportError(
-        "Anthropic support not installed. Use `pip install cogency[anthropic]`"
-    ) from None
+    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
 
 from cogency.constants import MAX_TOKENS
-from cogency.llm.base import BaseLLM
+from cogency.services.llm.base import BaseLLM
 from cogency.resilience import safe
 
 
-class AnthropicLLM(BaseLLM):
+class MistralLLM(BaseLLM):
     def __init__(
         self,
         api_keys: Union[str, List[str]] = None,
-        model: str = "claude-3-5-sonnet-20241022",
+        model: str = "mistral-large-latest",
         timeout: float = 15.0,
         temperature: float = 0.7,
         max_tokens: int = MAX_TOKENS,
         max_retries: int = 3,
         **kwargs,
     ):
-        super().__init__("anthropic", api_keys)
+        super().__init__("mistral", api_keys)
         self.model = model
 
         # Configuration parameters
@@ -32,46 +30,43 @@ class AnthropicLLM(BaseLLM):
         self.max_tokens = max_tokens
         self.max_retries = max_retries
 
-        # Build kwargs for Anthropic client
+        # Build kwargs for Mistral client
         self.kwargs = {
-            "timeout": timeout,
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "max_retries": max_retries,
             **kwargs,
         }
 
-        self._client = anthropic.AsyncAnthropic(api_key="placeholder")
-
     def _get_client(self):
         """Get client instance with current API key."""
-        # Update the API key on the existing client
-        self._client.api_key = self.next_key()
-        return self._client
+        key = self.next_key()
+        return Mistral(api_key=key)
 
     @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        anthropic_messages = self._format(messages)
+        mistral_messages = self._format(messages)
 
-        res = await client.messages.create(
+        res = await client.chat.complete_async(
             model=self.model,
-            messages=anthropic_messages,
+            messages=mistral_messages,
             **self.kwargs,
             **kwargs,
         )
-        return res.content[0].text
+        return res.choices[0].message.content
 
     @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
-        anthropic_messages = self._format(messages)
+        mistral_messages = self._format(messages)
 
-        async with client.messages.stream(
+        stream = await client.chat.stream_async(
             model=self.model,
-            messages=anthropic_messages,
+            messages=mistral_messages,
             **self.kwargs,
             **kwargs,
-        ) as stream:
-            async for text in stream.text_stream:
-                yield text
+        )
+
+        async for chunk in stream:
+            if chunk.data.choices[0].delta.content:
+                yield chunk.data.choices[0].delta.content

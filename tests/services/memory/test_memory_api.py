@@ -42,82 +42,78 @@ class MockBackend(MemoryBackend):
 class TestMemoryAPI:
     """Test Memory factory interface."""
 
-    @patch("cogency.memory.backends.get_backend")
-    def test_create_backend_default(self, mock_get_backend):
+    @patch("cogency.services.memory")
+    def test_create_backend_default(self, mock_memory_func):
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
-        mock_get_backend.return_value = mock_backend_class
+        mock_memory_func.return_value = mock_backend_class
 
         # Execute
         backend = Memory.create()
 
         # Verify
-        mock_get_backend.assert_called_once_with("filesystem")
+        mock_memory_func.assert_called_once_with("filesystem")
         mock_backend_class.assert_called_once_with()
         assert isinstance(backend, MockBackend)
 
-    @patch("cogency.memory.backends.get_backend")
-    def test_create_backend_custom(self, mock_get_backend):
+    @patch("cogency.services.memory")
+    def test_create_backend_custom(self, mock_memory_func):
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
-        mock_get_backend.return_value = mock_backend_class
+        mock_memory_func.return_value = mock_backend_class
 
         # Execute
         backend = Memory.create("chroma", host="localhost", port=8000)
 
         # Verify
-        mock_get_backend.assert_called_once_with("chroma")
+        mock_memory_func.assert_called_once_with("chroma")
         mock_backend_class.assert_called_once_with(host="localhost", port=8000)
         assert isinstance(backend, MockBackend)
 
-    @patch("cogency.memory.backends.list_backends")
-    def test_list_backends(self, mock_list_backends):
-        # Setup
-        expected_backends = ["filesystem", "chroma", "pinecone", "postgres"]
-        mock_list_backends.return_value = expected_backends
-
+    @patch("cogency.services._registry._memory_backends", {"filesystem": Mock(), "chroma": Mock(), "pinecone": Mock(), "postgres": Mock()})
+    def test_list_backends(self):
         # Execute
         backends = Memory.list_backends()
 
         # Verify
-        mock_list_backends.assert_called_once()
-        assert backends == expected_backends
+        expected_backends = ["filesystem", "chroma", "pinecone", "postgres"]
+        assert set(backends) == set(expected_backends)
 
-    @patch("cogency.memory.backends.get_backend")
-    def test_create_with_embedder(self, mock_get_backend):
+    @patch("cogency.services.memory")
+    def test_create_with_embedder(self, mock_memory_func):
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
-        mock_get_backend.return_value = mock_backend_class
+        mock_memory_func.return_value = mock_backend_class
         mock_embedding = Mock()
 
         # Execute
         Memory.create("chroma", embedder=mock_embedding)
 
         # Verify
-        mock_get_backend.assert_called_once_with("chroma")
+        mock_memory_func.assert_called_once_with("chroma")
         mock_backend_class.assert_called_once_with(embedder=mock_embedding)
 
-    @patch("cogency.memory.backends.get_backend")
-    def test_create_backend_not_found(self, mock_get_backend):
+    @patch("cogency.services.memory")
+    def test_create_backend_not_found(self, mock_memory_func):
         # Setup
-        mock_get_backend.side_effect = ValueError("Backend 'invalid' not found")
+        mock_memory_func.side_effect = ValueError("Backend 'invalid' not found")
 
         # Execute & Verify
         with pytest.raises(ValueError, match="Backend 'invalid' not found"):
             Memory.create("invalid")
 
-        mock_get_backend.assert_called_once_with("invalid")
+        mock_memory_func.assert_called_once_with("invalid")
 
 
 class TestMemoryIntegration:
     """Test Memory API integration patterns."""
 
-    @patch("cogency.memory.backends.get_backend")
-    def test_magical_creation_pattern(self, mock_get_backend):
+    @patch("cogency.services.memory")
+    def test_magical_creation_pattern(self, mock_memory_func):
         """Test the magical auto-configuration pattern."""
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
-        mock_get_backend.return_value = mock_backend_class
+        mock_memory_func.return_value = mock_backend_class
 
         # Execute - zero ceremony creation
         memory = Memory.create()
@@ -125,16 +121,15 @@ class TestMemoryIntegration:
         # Verify magical behavior
         assert memory is not None
         assert isinstance(memory, MemoryBackend)
-        mock_get_backend.assert_called_once_with("filesystem")  # Default backend
+        mock_memory_func.assert_called_once_with("filesystem")  # Default backend
 
-    @patch("cogency.memory.backends.get_backend")
-    @patch("cogency.memory.backends.list_backends")
-    def test_discovery_integration(self, mock_list, mock_get):
+    @patch("cogency.services.memory")
+    @patch("cogency.services._registry._memory_backends", {"filesystem": Mock(), "chroma": Mock()})
+    def test_discovery_integration(self, mock_memory_func):
         """Test backend discovery works with creation."""
         # Setup
-        mock_list.return_value = ["filesystem", "chroma"]
         mock_backend_class = Mock(return_value=MockBackend())
-        mock_get.return_value = mock_backend_class
+        mock_memory_func.return_value = mock_backend_class
 
         # Execute
         available = Memory.list_backends()
@@ -143,14 +138,14 @@ class TestMemoryIntegration:
         # Verify
         assert len(available) == 2
         assert "filesystem" in available
-        mock_get.assert_called_once_with("filesystem")
+        mock_memory_func.assert_called_once_with("filesystem")
 
-    @patch("cogency.memory.backends.get_backend")
-    def test_config_passthrough(self, mock_get_backend):
+    @patch("cogency.services.memory")
+    def test_config_passthrough(self, mock_memory_func):
         """Test configuration parameters pass through correctly."""
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
-        mock_get_backend.return_value = mock_backend_class
+        mock_memory_func.return_value = mock_backend_class
 
         config = {
             "host": "localhost",
@@ -163,5 +158,5 @@ class TestMemoryIntegration:
         Memory.create("postgres", **config)
 
         # Verify all config passed through
-        mock_get_backend.assert_called_once_with("postgres")
+        mock_memory_func.assert_called_once_with("postgres")
         mock_backend_class.assert_called_once_with(**config)

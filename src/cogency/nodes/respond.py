@@ -3,7 +3,7 @@
 import asyncio
 from typing import Dict, List, Optional
 
-from cogency.llm import BaseLLM
+from cogency.services.llm import BaseLLM
 from cogency.resilience import safe
 from cogency.state import State
 from cogency.tools.base import BaseTool

@@ -7,7 +7,7 @@ from uuid import UUID
 
 from cogency.utils.results import Result
 
-from ..core import Memory, MemoryType, SearchType
+from cogency.memory.core import Memory, MemoryType, SearchType
 from .base import BaseBackend
 
 logger = logging.getLogger(__name__)
@@ -111,7 +111,7 @@ class PGVectorBackend(BaseBackend):
         query_embedding = await self.embedder.embed_text(query)
         return await self._vector_search(query_embedding, limit, threshold)
 
-    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store_artifact(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact in PGVector."""
         embedding_vector = None
         if embedding:
@@ -137,7 +137,7 @@ class PGVectorBackend(BaseBackend):
                 artifact.last_accessed,
             )
 
-    async def _read_id(self, artifact_id: UUID) -> List[Memory]:
+    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         async with self._pool.acquire() as conn:
             row = await conn.fetchrow(
@@ -236,22 +236,22 @@ class PGVectorBackend(BaseBackend):
         try:
             async with self._pool.acquire() as conn:
                 result = await conn.execute(sql, *params)
-                return Result.success(result == "UPDATE 1")
+                return result == "UPDATE 1"
         except Exception as e:
             logger.error(f"Failed to update artifact {artifact_id}: {e}")
-            return Result.failureure(f"Failed to update artifact {artifact_id}: {e}")
+            return False
 
-    async def _delete_all(self) -> Result[bool]:
+    async def _delete_all(self) -> bool:
         """Delete all artifacts."""
         try:
             async with self._pool.acquire() as conn:
                 await conn.execute(f"TRUNCATE TABLE {self.table_name}")
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to delete all artifacts: {e}")
-            return Result.failureure(f"Failed to delete all artifacts: {e}")
+            return False
 
-    async def _delete_id(self, artifact_id: UUID) -> Result[bool]:
+    async def _delete_by_id(self, artifact_id: UUID) -> bool:
         """Delete single artifact by ID."""
         try:
             async with self._pool.acquire() as conn:
@@ -261,12 +261,12 @@ class PGVectorBackend(BaseBackend):
                 """,
                     artifact_id,
                 )
-                return Result.success(result == "DELETE 1")
+                return result == "DELETE 1"
         except Exception as e:
             logger.error(f"Failed to delete artifact {artifact_id}: {e}")
-            return Result.failureure(f"Failed to delete artifact {artifact_id}: {e}")
+            return False
 
-    async def _delete_filter(
+    async def _delete_by_filters(
         self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]
     ) -> bool:
         """Delete artifacts by filters."""
@@ -293,12 +293,12 @@ class PGVectorBackend(BaseBackend):
             try:
                 async with self._pool.acquire() as conn:
                     await conn.execute(sql, *params)
-                return Result.success(True)
+                return True
             except Exception as e:
                 logger.error(f"Failed to delete artifacts by filters: {e}")
-                return Result.failureure(f"Failed to delete artifacts by filters: {e}")
+                return False
 
-        return Result.success(False)
+        return False
 
     async def _vector_search(
         self, query_embedding: List[float], limit: int, threshold: float

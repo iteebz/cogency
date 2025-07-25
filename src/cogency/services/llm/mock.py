@@ -1,6 +1,6 @@
 from typing import AsyncGenerator
 
-from cogency.llm.base import BaseLLM
+from cogency.services.llm.base import BaseLLM
 
 
 class MockLLM(BaseLLM):

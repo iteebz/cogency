@@ -7,7 +7,7 @@ import pytest
 from cogency import State
 from cogency.context import Context
 from cogency.flow import Flow
-from cogency.llm.mock import MockLLM
+from cogency.services.llm.mock import MockLLM
 from cogency.nodes.act import act
 from cogency.nodes.reason import reason
 from cogency.nodes.respond import respond

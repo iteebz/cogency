@@ -8,7 +8,7 @@ except ImportError:
     ) from None
 
 from cogency.constants import MAX_TOKENS
-from cogency.llm.base import BaseLLM
+from cogency.services.llm.base import BaseLLM
 from cogency.resilience import safe
 
 

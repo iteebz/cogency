@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
+from cogency.resilience import resilient
+
 
 class BaseEmbed(ABC):
     """Base class for embedding providers"""
@@ -9,11 +11,13 @@ class BaseEmbed(ABC):
     def __init__(self, api_key: str = None, **kwargs):
         self.api_key = api_key
 
+    @resilient
     @abstractmethod
     def embed_one(self, text: str, **kwargs) -> np.ndarray:
         """Embed a single text string"""
         pass
 
+    @resilient
     @abstractmethod
     def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
         """Embed multiple texts"""

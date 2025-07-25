@@ -9,7 +9,7 @@ from uuid import UUID
 
 from cogency.utils.results import Result
 
-from ..core import Memory, MemoryType
+from cogency.memory.core import Memory, MemoryType
 from .base import BaseBackend
 
 logger = logging.getLogger(__name__)

@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from cogency.llm import BaseLLM
+from cogency.services.llm import BaseLLM
 from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
 from cogency.resilience import safe

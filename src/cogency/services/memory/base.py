@@ -4,13 +4,16 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from ..core import Memory, MemoryBackend, MemoryType, SearchType
-from ..search import search
+from cogency.memory.core import Memory, MemoryBackend, MemoryType, SearchType
+from cogency.memory.search import search
+from cogency.utils.results import Result
+from cogency.resilience import resilient
 
 
 class BaseBackend(MemoryBackend, ABC):
     """Base backend using template method pattern - delegates storage to subclasses."""
 
+    @resilient
     async def create(
         self,
         content: str,
@@ -18,7 +21,7 @@ class BaseBackend(MemoryBackend, ABC):
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ) -> Memory:
+    ) -> Result:
         """CREATE - Standard artifact creation with storage delegation."""
         await self._ready()
 
@@ -33,6 +36,7 @@ class BaseBackend(MemoryBackend, ABC):
         await self._store_artifact(artifact, embedding, **kwargs)
         return artifact
 
+    @resilient
     async def read(
         self,
         query: str = None,
@@ -44,7 +48,7 @@ class BaseBackend(MemoryBackend, ABC):
         memory_type: Optional[MemoryType] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ) -> List[Memory]:
+    ) -> Result:
         """READ - Unified retrieval with storage delegation."""
         await self._ready()
 
@@ -89,7 +93,8 @@ class BaseBackend(MemoryBackend, ABC):
         )
         return results[:limit]
 
-    async def update(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
+    @resilient
+    async def update(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result:
         """UPDATE - Standard update logic with storage delegation."""
         await self._ready()
 
@@ -100,13 +105,14 @@ class BaseBackend(MemoryBackend, ABC):
 
         return await self._update(artifact_id, clean_updates)
 
+    @resilient
     async def delete(
         self,
         artifact_id: UUID = None,
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         delete_all: bool = False,
-    ) -> bool:
+    ) -> Result:
         """DELETE - Unified deletion with storage delegation."""
         await self._ready()
 

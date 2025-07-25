@@ -4,7 +4,7 @@ import asyncio
 import logging
 from typing import List, Optional
 
-from cogency.llm import BaseLLM
+from cogency.services.llm import BaseLLM
 from cogency.nodes.reasoning.adaptive import (
     action_fingerprint,
     assess_tools,

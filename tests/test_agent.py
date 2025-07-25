@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
-from cogency.llm.mock import MockLLM
+from cogency.services.llm.mock import MockLLM
 from cogency.tools.calculator import Calculator
 
 

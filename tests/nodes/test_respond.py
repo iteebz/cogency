@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from cogency.context import Context
-from cogency.llm.base import BaseLLM
+from cogency.services.llm.base import BaseLLM
 from cogency.nodes.respond import prompt_response, respond
 from cogency.output import Output
 from cogency.state import State

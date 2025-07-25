@@ -8,7 +8,7 @@ except ImportError:
         "Use `pip install cogency[openai]`"
     ) from None
 
-from cogency.llm.base import BaseLLM
+from cogency.services.llm.base import BaseLLM
 from cogency.resilience import safe
 
 

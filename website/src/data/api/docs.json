@@ -83,7 +83,7 @@
         {
           "name": "FileBackend",
           "docstring": "Filesystem storage implementation.",
-          "module": "cogency.memory.backends.filesystem",
+          "module": "cogency.services.memory.filesystem",
           "methods": [
             {
               "name": "create",
@@ -202,8 +202,8 @@
         {
           "name": "detect_llm",
           "docstring": "Auto-detect LLM provider from environment variables.\n\nFallback chain:\n1. OpenAI\n2. Anthropic\n3. Gemini\n4. Grok\n5. Mistral\n\nReturns:\n    BaseLLM: Configured LLM instance\n    \nRaises:\n    RuntimeError: If no API keys found for any provider.",
-          "module": "cogency.llm.auto",
-          "signature": "() -> cogency.llm.base.BaseLLM"
+          "module": "cogency.services.llm.auto",
+          "signature": "() -> cogency.services.llm.base.BaseLLM"
         }
       ]
     },
@@ -214,7 +214,7 @@
         {
           "name": "AnthropicLLM",
           "docstring": "Base class for all LLM implementations in the cogency framework.\n\nAll LLM providers support:\n- Streaming execution for real-time output\n- Automatic key rotation for high-volume usage  \n- Rate limiting via yield_interval parameter\n- Unified interface across providers\n- Dynamic model/parameter configuration",
-          "module": "cogency.llm.anthropic",
+          "module": "cogency.services.llm.anthropic",
           "methods": [
             {
               "name": "ainvoke",
@@ -242,7 +242,7 @@
         {
           "name": "BaseLLM",
           "docstring": "Base class for all LLM implementations in the cogency framework.\n\nAll LLM providers support:\n- Streaming execution for real-time output\n- Automatic key rotation for high-volume usage  \n- Rate limiting via yield_interval parameter\n- Unified interface across providers\n- Dynamic model/parameter configuration",
-          "module": "cogency.llm.base",
+          "module": "cogency.services.llm.base",
           "methods": [
             {
               "name": "ainvoke",
@@ -321,7 +321,7 @@
         {
           "name": "MistralLLM",
           "docstring": "Base class for all LLM implementations in the cogency framework.\n\nAll LLM providers support:\n- Streaming execution for real-time output\n- Automatic key rotation for high-volume usage  \n- Rate limiting via yield_interval parameter\n- Unified interface across providers\n- Dynamic model/parameter configuration",
-          "module": "cogency.llm.mistral",
+          "module": "cogency.services.llm.mistral",
           "methods": [
             {
               "name": "ainvoke",
@@ -349,7 +349,7 @@
         {
           "name": "OpenAILLM",
           "docstring": "Base class for all LLM implementations in the cogency framework.\n\nAll LLM providers support:\n- Streaming execution for real-time output\n- Automatic key rotation for high-volume usage  \n- Rate limiting via yield_interval parameter\n- Unified interface across providers\n- Dynamic model/parameter configuration",
-          "module": "cogency.llm.openai",
+          "module": "cogency.services.llm.openai",
           "methods": [
             {
               "name": "ainvoke",
@@ -379,8 +379,8 @@
         {
           "name": "detect_llm",
           "docstring": "Auto-detect LLM provider from environment variables.\n\nFallback chain:\n1. OpenAI\n2. Anthropic\n3. Gemini\n4. Grok\n5. Mistral\n\nReturns:\n    BaseLLM: Configured LLM instance\n    \nRaises:\n    RuntimeError: If no API keys found for any provider.",
-          "module": "cogency.llm.auto",
-          "signature": "() -> cogency.llm.base.BaseLLM"
+          "module": "cogency.services.llm.auto",
+          "signature": "() -> cogency.services.llm.base.BaseLLM"
         }
       ]
     },
@@ -952,7 +952,7 @@
         {
           "name": "BaseEmbed",
           "docstring": "Base class for embedding providers",
-          "module": "cogency.embed.base",
+          "module": "cogency.services.embed.base",
           "methods": [
             {
               "name": "embed_array",
@@ -975,7 +975,7 @@
         {
           "name": "MistralEmbed",
           "docstring": "Mistral embedding provider with key rotation.",
-          "module": "cogency.embed.mistral",
+          "module": "cogency.services.embed.mistral",
           "methods": [
             {
               "name": "embed_array",
@@ -998,7 +998,7 @@
         {
           "name": "NomicEmbed",
           "docstring": "Nomic embedding provider with key rotation.",
-          "module": "cogency.embed.nomic",
+          "module": "cogency.services.embed.nomic",
           "methods": [
             {
               "name": "embed_array",
@@ -1026,7 +1026,7 @@
         {
           "name": "OpenAIEmbed",
           "docstring": "OpenAI embedding provider with key rotation.",
-          "module": "cogency.embed.openai",
+          "module": "cogency.services.embed.openai",
           "methods": [
             {
               "name": "embed_array",
@@ -1049,7 +1049,7 @@
         {
           "name": "SentenceEmbed",
           "docstring": "Sentence Transformers embedding provider - local, no API keys needed.",
-          "module": "cogency.embed.sentence",
+          "module": "cogency.services.embed.sentence",
           "methods": [
             {
               "name": "embed_array",
@@ -1074,8 +1074,8 @@
         {
           "name": "detect_embedder",
           "docstring": "Auto-detect embedding provider from environment variables.\n\nFallback chain:\n1. OpenAI\n2. Nomic\n3. Sentence Transformers (local)\n\nReturns:\n    BaseEmbed: Configured embedder instance\n    \nRaises:\n    RuntimeError: If no API keys found and sentence-transformers is not installed.",
-          "module": "cogency.embed.auto",
-          "signature": "() -> cogency.embed.base.BaseEmbed"
+          "module": "cogency.services.embed.auto",
+          "signature": "() -> cogency.services.embed.base.BaseEmbed"
         }
       ]
     },

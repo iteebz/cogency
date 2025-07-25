@@ -7,8 +7,8 @@ from typing import Any, Dict
 import pytest
 
 from cogency.context import Context
-from cogency.llm.mock import MockLLM
-from cogency.memory.backends.filesystem import FileBackend
+from cogency.services.llm.mock import MockLLM
+from cogency.services.memory.filesystem import FileBackend
 from cogency.state import State
 from cogency.tools.weather import Weather
 from cogency.utils.results import ToolResult

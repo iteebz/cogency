@@ -4,6 +4,8 @@ from typing import AsyncIterator, Dict, List, Union
 
 from cogency.types.cache import cached_llm_call
 from cogency.utils.keys import KeyManager
+from cogency.utils.results import Result
+from cogency.resilience import resilient
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +38,8 @@ class BaseLLM(ABC):
         """Get next API key - rotates automatically on every call."""
         return self.keys.get_next()
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    @resilient
+    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
         """Generate a response from the LLM given a list of messages.
 
         Args:
@@ -44,7 +47,7 @@ class BaseLLM(ABC):
             **kwargs: Additional parameters for the LLM call
 
         Returns:
-            String response from the LLM
+            Result containing string response from the LLM or error
         """
         return await cached_llm_call(
             self._run_impl, messages, use_cache=self.enable_cache, **kwargs
@@ -59,8 +62,9 @@ class BaseLLM(ABC):
         """Convert to provider format (standard role/content structure)."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
+    @resilient
     @abstractmethod
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> Result:
         """Generate a streaming response from the LLM given a list of messages.
 
         Args:
@@ -68,7 +72,7 @@ class BaseLLM(ABC):
             yield_interval: Minimum time between yields for rate limiting (seconds)
             **kwargs: Additional parameters for the LLM call
 
-        Yields:
-            String chunks from the LLM response
+        Returns:
+            Result containing AsyncIterator[str] for streaming response or error
         """
         pass

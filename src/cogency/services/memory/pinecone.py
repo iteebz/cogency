@@ -10,7 +10,7 @@ from uuid import UUID
 
 from cogency.utils.results import Result
 
-from ..core import Memory, MemoryType, SearchType
+from cogency.memory.core import Memory, MemoryType, SearchType
 from .base import BaseBackend
 
 logger = logging.getLogger(__name__)
@@ -114,7 +114,7 @@ class PineconeBackend(BaseBackend):
 
         return artifacts
 
-    async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
+    async def _store_artifact(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
         """Store artifact in Pinecone."""
         if not embedding:
             raise ValueError("Pinecone requires embeddings")
@@ -132,18 +132,18 @@ class PineconeBackend(BaseBackend):
 
         self._index.upsert(vectors=[(str(artifact.id), embedding, metadata)])
 
-    async def _read_id(self, artifact_id: UUID) -> Result[List[Memory]]:
+    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         try:
             fetch_result = self._index.fetch(ids=[str(artifact_id)])
             if str(artifact_id) in fetch_result.vectors:
                 vector_data = fetch_result.vectors[str(artifact_id)]
                 artifact = self._to_memory_from_vector(str(artifact_id), vector_data)
-                return Result.success([artifact])
-            return Result.success([])
+                return [artifact]
+            return []
         except Exception as e:
             logger.error(f"Failed to read artifact by ID {artifact_id}: {e}")
-            return Result.failureure(f"Failed to read artifact by ID {artifact_id}: {e}")
+            return []
 
     async def _read_filter(
         self,
@@ -180,13 +180,13 @@ class PineconeBackend(BaseBackend):
 
         return artifacts
 
-    async def _update(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result[bool]:
+    async def _update(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
         """Update artifact in Pinecone."""
         try:
             # Get existing vector
             fetch_result = self._index.fetch(ids=[str(artifact_id)])
             if str(artifact_id) not in fetch_result.vectors:
-                return Result.success(False)
+                return False
 
             vector_data = fetch_result.vectors[str(artifact_id)]
             current_metadata = vector_data.metadata.copy()
@@ -206,32 +206,32 @@ class PineconeBackend(BaseBackend):
 
             # Upsert with updated metadata
             self._index.upsert(vectors=[(str(artifact_id), vector_data.values, current_metadata)])
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to update artifact {artifact_id}: {e}")
-            return Result.failureure(f"Failed to update artifact {artifact_id}: {e}")
+            return False
 
-    async def _delete_all(self) -> Result[bool]:
+    async def _delete_all(self) -> bool:
         """Delete all artifacts."""
         try:
             self._index.delete(delete_all=True)
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to delete all artifacts: {e}")
-            return Result.failureure(f"Failed to delete all artifacts: {e}")
+            return False
 
-    async def _delete_id(self, artifact_id: UUID) -> Result[bool]:
+    async def _delete_by_id(self, artifact_id: UUID) -> bool:
         """Delete single artifact by ID."""
         try:
             self._index.delete(ids=[str(artifact_id)])
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to delete artifact {artifact_id}: {e}")
-            return Result.failureure(f"Failed to delete artifact {artifact_id}: {e}")
+            return False
 
-    async def _delete_filter(
+    async def _delete_by_filters(
         self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]
-    ) -> Result[bool]:
+    ) -> bool:
         """Delete artifacts by filters."""
         pinecone_filter = {}
         if tags:
@@ -242,10 +242,10 @@ class PineconeBackend(BaseBackend):
 
         try:
             self._index.delete(filter=pinecone_filter)
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to delete artifacts by filters {pinecone_filter}: {e}")
-            return Result.failureure(f"Failed to delete artifacts by filters: {e}")
+            return False
 
     def _to_memory_from_vector(self, vector_id: str, vector: Dict) -> Memory:
         """Convert Pinecone vector data to Memory."""

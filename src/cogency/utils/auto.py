@@ -90,21 +90,21 @@ def _scan_providers(module: str, names: list[str], suffix: str) -> dict:
 def detect_llm():
     """Auto-detect LLM from environment."""
     providers = _scan_providers(
-        "cogency.llm", ["openai", "anthropic", "gemini", "xai", "mistral"], "LLM"
+        "cogency.services.llm", ["openai", "anthropic", "gemini", "xai", "mistral"], "LLM"
     )
     return detect_provider(providers, "LLM")
 
 
 def detect_embedder():
     """Auto-detect embedder from environment."""
-    providers = _scan_providers("cogency.embed", ["openai", "nomic", "mistral"], "Embed")
+    providers = _scan_providers("cogency.services.embed", ["openai", "nomic", "mistral"], "Embed")
 
     try:
         return detect_provider(providers, "embedding")
     except RuntimeError:
         # Fallback to local sentence transformers
         try:
-            from cogency.embed.sentence import SentenceEmbed
+            from cogency.services.embed.sentence import SentenceEmbed
 
             return SentenceEmbed()
         except ImportError:

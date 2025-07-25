@@ -3,7 +3,7 @@
 import numpy as np
 import pytest
 
-from cogency.embed.base import BaseEmbed
+from cogency.services.embed.base import BaseEmbed
 
 
 class MockEmbed(BaseEmbed):

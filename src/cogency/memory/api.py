@@ -11,14 +11,17 @@ class Memory:
     @staticmethod
     def create(backend_name: str = "filesystem", **config) -> MemoryBackend:
         """Auto-magical backend creation."""
-        from .backends import get_backend
+        from cogency.services import memory
 
-        backend_class = get_backend(backend_name)
+        backend_class = memory(backend_name)
         return backend_class(**config)
 
     @staticmethod
     def list_backends() -> List[str]:
         """List available backend names."""
-        from .backends import list_backends
+        from cogency.services import memory
 
-        return list_backends()
+        # Get all available memory backends from service registry
+        from cogency.services import _registry
+        _registry._discover_services()
+        return list(_registry._memory_backends.keys())

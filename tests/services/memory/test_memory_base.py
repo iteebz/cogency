@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from cogency.memory.backends.base import BaseBackend
+from cogency.services.memory.base import BaseBackend
 from cogency.memory.core import Memory, MemoryType
 
 

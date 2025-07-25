@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.llm.mock import MockLLM
+from cogency.services.llm.mock import MockLLM
 from cogency.utils.keys import KeyManager, KeyRotator
 
 
