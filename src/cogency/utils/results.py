@@ -111,6 +111,16 @@ class RecoveryResult(Result):
         self.recovery_action = recovery_action
         self.can_continue = can_continue
 
+    @classmethod
+    def ok(cls, data: Any = None, recovery_action: str = None) -> "RecoveryResult":
+        """Create successful recovery result."""
+        return cls(data=data, recovery_action=recovery_action)
+
+    @classmethod
+    def fail(cls, error: str, recovery_action: str = None) -> "RecoveryResult":
+        """Create failed recovery result."""
+        return cls(error=error, recovery_action=recovery_action)
+
     def __repr__(self) -> str:
         if self.success:
             return f"RecoveryResult.ok({repr(self.data)}, action={self.recovery_action})"

@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Dict, Optional
@@ -12,14 +13,16 @@ from cogency.state import State
 class CheckpointManager:
     """Manages checkpoint storage and retrieval."""
 
-    def __init__(self, checkpoint_dir: Optional[Path] = None):
+    def __init__(self, checkpoint_dir: Optional[Path] = None, session_id: Optional[str] = None):
         self.checkpoint_dir = checkpoint_dir or Path.home() / ".cogency" / "checkpoints"
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.max_age_hours = 1  # Expire checkpoints after 1 hour
+        self.session_id = session_id or str(os.getpid())  # Process ID for session isolation
 
     def _generate_fingerprint(self, state: State) -> str:
-        """Generate deterministic fingerprint for state matching."""
+        """Generate deterministic fingerprint for state matching with session isolation."""
         components = [
+            self.session_id,  # Session isolation prevents state collisions
             state.get("query", ""),
             str(sorted([tool.name for tool in state.selected_tools or []])),
             str(state.get("current_iteration", 0)),
@@ -64,9 +67,15 @@ class CheckpointManager:
             else [],
         }
 
-        # Write checkpoint atomically
-        with checkpoint_path.open("w") as f:
-            json.dump(checkpoint_data, f, indent=2, default=str)
+        # Write checkpoint atomically to prevent corruption during interrupts
+        temp_path = checkpoint_path.with_suffix(".tmp")
+        try:
+            with temp_path.open("w") as f:
+                json.dump(checkpoint_data, f, indent=2, default=str)
+            temp_path.rename(checkpoint_path)  # Atomic rename
+        except Exception:
+            temp_path.unlink(missing_ok=True)  # Cleanup on failure
+            raise
 
         return fingerprint
 

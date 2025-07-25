@@ -7,8 +7,32 @@
 """
 
 import asyncio
+import signal
+from contextlib import asynccontextmanager
 from functools import wraps
 from typing import Any, AsyncGenerator, Callable
+
+
+@asynccontextmanager
+async def interruptible_context():
+    """Context manager for proper async signal handling."""
+    interrupted = asyncio.Event()
+    current_task = asyncio.current_task()
+
+    def signal_handler():
+        interrupted.set()
+        if current_task:
+            current_task.cancel()
+
+    # Use asyncio event loop signal handling
+    loop = asyncio.get_running_loop()
+    loop.add_signal_handler(signal.SIGINT, signal_handler)
+
+    try:
+        yield interrupted
+    finally:
+        # Clean up signal handler
+        loop.remove_signal_handler(signal.SIGINT)
 
 
 class Safe:
@@ -125,7 +149,7 @@ class Safe:
         return cls._base_decorator(recover_memory_error, max_retries)
 
     @classmethod
-    def checkpoint(cls, checkpoint_type: str = "tool_execution"):
+    def checkpoint(cls, checkpoint_type: str = "tool_execution", interruptible: bool = False):
         """@safe.checkpoint - Workflow recovery with state persistence."""
 
         async def recover_checkpoint_error(error, *args, **kwargs):
@@ -166,28 +190,78 @@ class Safe:
                                     state[key] = value
                             return state
 
-                # Execute function normally
-                try:
-                    result = await func(*args, **kwargs)
+                # Execute with proper interrupt handling if enabled
+                if interruptible:
+                    async with interruptible_context() as interrupted:
+                        try:
+                            task = asyncio.create_task(func(*args, **kwargs))
+                            result = await task
 
-                    # Save checkpoint after successful execution of meaningful progress
-                    if (
-                        args
-                        and hasattr(args[0], "get")
-                        and checkpoint_type in ["preprocess", "reason", "act", "respond"]
-                    ):
-                        state = args[0]
-                        from .checkpoint import checkpoints
+                            # Save checkpoint after successful execution
+                            if (
+                                args
+                                and hasattr(args[0], "get")
+                                and checkpoint_type in ["preprocess", "reason", "act", "respond"]
+                            ):
+                                state = args[0]
+                                from .checkpoint import checkpoints
 
-                        checkpoints.save_checkpoint(state, checkpoint_type)
+                                checkpoints.save_checkpoint(state, checkpoint_type)
 
-                    return result
-                except Exception as e:
-                    # Attempt recovery via checkpoint
-                    recovery_result = await recover_checkpoint_error(e, *args, **kwargs)
-                    if recovery_result and recovery_result.success:
-                        return recovery_result.data
-                    raise
+                            return result
+
+                        except asyncio.CancelledError:
+                            # Signal handler cancelled the task - save checkpoint
+                            if interrupted.is_set() and args and hasattr(args[0], "get"):
+                                state = args[0]
+                                from .checkpoint import checkpoints
+
+                                checkpoints.save_checkpoint(state, f"{checkpoint_type}_interrupted")
+                            raise  # Let CancelledError propagate naturally
+
+                        except Exception as e:
+                            # Save checkpoint on failure
+                            if args and hasattr(args[0], "get"):
+                                state = args[0]
+                                from .checkpoint import checkpoints
+
+                                checkpoints.save_checkpoint(state, f"{checkpoint_type}_failed")
+
+                            # Attempt recovery via checkpoint
+                            recovery_result = await recover_checkpoint_error(e, *args, **kwargs)
+                            if recovery_result and recovery_result.success:
+                                return recovery_result.data
+                            raise
+                else:
+                    # Execute normally without interrupt handling
+                    try:
+                        result = await func(*args, **kwargs)
+
+                        # Save checkpoint after successful execution
+                        if (
+                            args
+                            and hasattr(args[0], "get")
+                            and checkpoint_type in ["preprocess", "reason", "act", "respond"]
+                        ):
+                            state = args[0]
+                            from .checkpoint import checkpoints
+
+                            checkpoints.save_checkpoint(state, checkpoint_type)
+
+                        return result
+                    except Exception as e:
+                        # Save checkpoint on failure
+                        if args and hasattr(args[0], "get"):
+                            state = args[0]
+                            from .checkpoint import checkpoints
+
+                            checkpoints.save_checkpoint(state, f"{checkpoint_type}_failed")
+
+                        # Attempt recovery via checkpoint
+                        recovery_result = await recover_checkpoint_error(e, *args, **kwargs)
+                        if recovery_result and recovery_result.success:
+                            return recovery_result.data
+                        raise
 
             return checkpointed_func
 
