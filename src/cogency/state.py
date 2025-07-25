@@ -27,6 +27,8 @@ class Cognition:
         self.mode_switches: List[Dict[str, str]] = []
         self.max_history = max_history  # Now limits iterations, not individual actions
         self.max_failures = max_failures
+        # Preserve cognitive context across mode switches
+        self.preserved_context: str = ""
 
     def update(
         self,
@@ -50,8 +52,12 @@ class Cognition:
         }
         self.iterations.append(iteration_entry)
 
-        # Enforce iteration limit (not action limit)
+        # Enforce iteration limit with context preservation
         if len(self.iterations) > self.max_history:
+            # Preserve context before truncation
+            truncated_iterations = self.iterations[: -self.max_history]
+            if truncated_iterations and not self.preserved_context:
+                self.preserved_context = self._extract_cognitive_summary(truncated_iterations)
             self.iterations = self.iterations[-self.max_history :]
 
     def update_result(self, formatted_result: str) -> None:
@@ -84,6 +90,34 @@ class Cognition:
         }
         self.mode_switches.append(switch_entry)
         self.react_mode = new_mode
+
+    def _extract_cognitive_summary(self, truncated_iterations: List[Dict[str, Any]]) -> str:
+        """Extract cognitive summary from iterations about to be truncated."""
+        if not truncated_iterations:
+            return ""
+
+        # Extract key decisions and patterns from truncated iterations
+        decisions = []
+        patterns = []
+
+        for iteration in truncated_iterations:
+            decision = iteration.get("decision", "")
+            tool_calls = iteration.get("tool_calls", [])
+
+            if decision:
+                decisions.append(f"Iter {iteration.get('iteration', '?')}: {decision}")
+
+            if tool_calls:
+                tool_names = [call.get("name", "unknown") for call in tool_calls]
+                patterns.append(f"Used: {', '.join(tool_names)}")
+
+        summary_parts = []
+        if decisions:
+            summary_parts.append(f"Previous decisions: {'; '.join(decisions[-3:])}")
+        if patterns:
+            summary_parts.append(f"Tool patterns: {'; '.join(patterns[-3:])}")
+
+        return " | ".join(summary_parts) if summary_parts else ""
 
     def get(self, key: str, default: Any = None) -> Any:
         """Dict-like access for backward compatibility."""

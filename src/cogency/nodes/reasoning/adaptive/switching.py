@@ -50,34 +50,56 @@ def should_switch(
 
 def switch_mode(state: Dict[str, Any], new_mode: str, switch_why: str) -> Dict[str, Any]:
     """Switch reasoning mode while preserving cognitive context and tracking history"""
+    # Capture old mode before any changes
+    old_mode = state.get("react_mode", "unknown")
+
     # Update react mode
     state["react_mode"] = new_mode
 
     # Preserve cognitive state but update mode-specific limits
     if "cognition" in state:
         cognition = state["cognition"]
-        cognition["react_mode"] = new_mode
+        cognition.react_mode = new_mode
+
+        # CRITICAL FIX: Preserve context before changing limits
+        old_max_history = getattr(cognition, "max_history", 10)
 
         # Adjust memory limits for new mode
         if new_mode == "fast":
-            cognition["max_history"] = 3
-            cognition["max_failures"] = 5
+            new_max_history = 3
+            cognition.max_failures = 5
         else:  # deep
-            cognition["max_history"] = 10
-            cognition["max_failures"] = 15
+            new_max_history = 10
+            cognition.max_failures = 15
+
+        # If switching to more restrictive mode, preserve context first
+        if new_max_history < old_max_history and len(cognition.iterations) > new_max_history:
+            # Extract cognitive summary from iterations that will be truncated
+            iterations_to_preserve = cognition.iterations[:-new_max_history]
+            if iterations_to_preserve and not cognition.preserved_context:
+                cognition.preserved_context = cognition._extract_cognitive_summary(
+                    iterations_to_preserve
+                )
+
+        # Now safe to change max_history - truncation with preservation handled in update()
+        cognition.max_history = new_max_history
 
     # Track mode switch for tracing
+    if "cognition" in state:
+        state["cognition"].switch_mode(new_mode, switch_why)
+
+    # Maintain legacy mode tracking for backward compatibility
     mode_switches = state.get("mode_switches", [])
     mode_switches.append(
         {
-            "from_mode": state.get("previous_react_mode", "unknown"),
+            "from_mode": old_mode,
             "to_mode": new_mode,
             "reason": switch_why,
             "iteration": state.get("current_iteration", 0),
         }
     )
     state["mode_switches"] = mode_switches
-    state["previous_react_mode"] = state.get("react_mode", "unknown")
+    state["previous_react_mode"] = old_mode
 
     return state
 

@@ -1,7 +1,9 @@
 """Fast mode reasoning - streamlined ReAct for direct execution."""
 
 
-def prompt_fast_mode(tool_registry: str, query: str, attempts_summary: str = "") -> str:
+def prompt_fast_mode(
+    tool_registry: str, query: str, attempts_summary: str = "", preserved_context: str = ""
+) -> str:
     """Streamlined ReAct prompt for fast mode execution."""
     from cogency.constants import MAX_TOOL_CALLS_PER_ITERATION
 
@@ -31,6 +33,8 @@ TOOLS:
 
 PREVIOUS CONTEXT:
 {attempts_summary if attempts_summary else "Initial execution - no prior actions"}
+
+{f"COGNITIVE CONTINUITY FROM DEEP MODE: {preserved_context}" if preserved_context else ""}
 
 GUIDANCE:
 - Review previous iterations (if any) before deciding next actions

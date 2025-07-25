@@ -180,8 +180,11 @@ async def reason(
             last_tool_quality,
         )
     else:
-        # Fast mode: use streamlined fast reasoning
-        reasoning_prompt = prompt_fast_mode(tool_registry, context.query, attempts_summary)
+        # Fast mode: use streamlined fast reasoning with preserved context
+        preserved_context = getattr(state.cognition, "preserved_context", "")
+        reasoning_prompt = prompt_fast_mode(
+            tool_registry, context.query, attempts_summary, preserved_context
+        )
 
     # Simple identity flow - just add it
     if identity:
