@@ -3,7 +3,7 @@ from typing import Optional, Union
 
 import numpy as np
 
-from cogency.types.errors import ConfigurationError
+from cogency.resilience import ConfigError
 from cogency.utils.keys import KeyManager
 
 from .base import BaseEmbed
@@ -51,9 +51,7 @@ class NomicEmbed(BaseEmbed):
         """Initialize Nomic API connection if not already done"""
         if not self._initialized:
             if not self.api_key:
-                raise ConfigurationError(
-                    "NOMIC_API_KEY required for NomicEmbed", error_code="NO_API_KEY"
-                )
+                raise ConfigError("NOMIC_API_KEY required for NomicEmbed", error_code="NO_API_KEY")
 
             try:
                 import nomic

@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 import pytz
 from dateutil import parser as date_parser
 
-from cogency.types.errors import ValidationError
+from cogency.resilience import ActionError
 from cogency.utils.results import ToolResult
 
 from .base import BaseTool
@@ -55,7 +55,7 @@ class Date(BaseTool):
             Operation result with date data
         """
         if operation not in self._operations:
-            raise ValidationError(
+            raise ActionError(
                 f"Unknown operation: {operation}. Available: {list(self._operations.keys())}"
             )
         return await self._operations[operation](**kwargs)

@@ -191,7 +191,7 @@ class State:
     @property
     def max_iterations(self) -> int:
         """Max iterations with intelligent default."""
-        return self.flow.get("max_iterations", 12)
+        return self.flow.get("MAX_ITERATIONS", 12)
 
     @property
     def stopping_reason(self) -> str:
@@ -273,7 +273,7 @@ class State:
         # Extract relevant data for schema validation
         data = {
             "iteration": self.get("current_iteration", 0),
-            "max_iterations": self.get("max_iterations", 10),
+            "MAX_ITERATIONS": self.get("MAX_ITERATIONS", 10),
             "context_data": dict(self.flow),
         }
 

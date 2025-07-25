@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from cogency.resilience import SafeConfig, safe
+from cogency.resilience import safe
 
 
 class TestSafeDecorator:
@@ -13,7 +13,7 @@ class TestSafeDecorator:
 
     @pytest.mark.asyncio
     async def test_basic_functionality(self):
-        @safe()
+        @safe.llm()
         async def simple_func():
             return "success"
 
@@ -25,7 +25,7 @@ class TestSafeDecorator:
         # Current @safe only does retries, no timeout
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
 
-            @safe()
+            @safe.llm()
             async def slow_func():
                 await asyncio.sleep(0.1)
                 return "completed successfully"
@@ -40,7 +40,7 @@ class TestSafeDecorator:
 
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
 
-            @safe()
+            @safe.llm()
             async def flaky_func():
                 nonlocal call_count
                 call_count += 1
@@ -63,7 +63,7 @@ class TestSafeConfigOverrides:
         # Current @safe only does retries, no timeout
         with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
 
-            @safe()
+            @safe.llm()
             async def slow_func():
                 await asyncio.sleep(0.1)
                 return "completed successfully"
@@ -72,17 +72,14 @@ class TestSafeConfigOverrides:
             assert result == "completed successfully"
             mock_sleep.assert_called_once_with(0.1)
 
-    def test_config_defaults(self):
-        """Test that SafeConfig has sensible defaults."""
-        config = SafeConfig()
-
-        # Timeout defaults
-        assert config.timeout == 30.0  # Reasonable timeout
-        assert config.max_retries == 3  # Standard retry count
-
-        # Backoff defaults
-        assert config.base_delay == 0.5  # Fast initial retry
-        assert config.max_delay == 10.0  # Cap max wait time
+    def test_safe_decorator_types(self):
+        """Test that different safe decorator types exist."""
+        # Test that we have different decorator types
+        assert hasattr(safe, "llm")
+        assert hasattr(safe, "reasoning")
+        assert hasattr(safe, "tools")
+        assert hasattr(safe, "parsing")
+        assert hasattr(safe, "memory")
 
 
 class TestIntegration:

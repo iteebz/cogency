@@ -4,6 +4,7 @@ import logging
 import time
 from typing import List
 
+from cogency.resilience import ActionError, recover, safe
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import run_tools
@@ -13,6 +14,7 @@ from cogency.utils.results import ActionResult
 logger = logging.getLogger(__name__)
 
 
+@safe.tools()
 async def act(state: State, *, tools: List[BaseTool]) -> State:
     """Act: execute tools based on reasoning decision."""
     time.time()
@@ -72,8 +74,17 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
                 else:
                     execution_results = ActionResult.fail(tool_execution_result.error)
             except Exception as e:
-                logger.error(f"Error during tool execution retry in act node: {e}")
-                execution_results = ActionResult.fail(f"Tool execution retry failed: {e}")
+                action_error = ActionError(
+                    f"Tool execution failed: {str(e)}",
+                    failed_tools=[call.get("name", "unknown") for call in tool_calls],
+                    recoverable=True,
+                )
+                recovery = await recover.action(action_error, state)
+                if recovery.success:
+                    state.update(recovery.data)
+                    execution_results = ActionResult.ok("Recovery attempted")
+                else:
+                    execution_results = ActionResult.fail(action_error.message)
 
     # Reset retry count on success or after max retries
     if execution_results.success or retry_count >= max_retries:

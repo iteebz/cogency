@@ -26,7 +26,7 @@ class Agent:
         self.name = name
         self.trace = trace
         self.verbose = verbose
-        self.max_iterations = opts.get("max_iterations", 10)
+        self.max_iterations = opts.get("MAX_ITERATIONS", 10)
 
         # Handle memory flag - clean API for memory control
         memory_enabled = opts.get("memory", True)  # Default: enabled
@@ -138,7 +138,7 @@ class Agent:
 
         # Clean state - zero ceremony
         state = State(context=context, query=query, output=output_manager)
-        state["max_iterations"] = self.max_iterations
+        state["MAX_ITERATIONS"] = self.max_iterations
         state["verbose"] = self.verbose
 
         # Start execution in background

@@ -48,7 +48,7 @@ class OpenAILLM(BaseLLM):
         self._client.api_key = self.next_key()
         return self._client
 
-    @safe()
+    @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         msgs = self._format(messages)
@@ -60,7 +60,7 @@ class OpenAILLM(BaseLLM):
         )
         return res.choices[0].message.content
 
-    @safe()
+    @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         msgs = self._format(messages)

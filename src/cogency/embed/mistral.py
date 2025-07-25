@@ -7,7 +7,7 @@ try:
 except ImportError:
     raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
 
-from cogency.types.errors import ConfigurationError
+from cogency.resilience import ConfigError
 from cogency.utils.keys import KeyManager
 
 from .base import BaseEmbed
@@ -33,7 +33,7 @@ class MistralEmbed(BaseEmbed):
         """Initialize Mistral client with current key."""
         current_key = self.keys.get_current()
         if not current_key:
-            raise ConfigurationError(
+            raise ConfigError(
                 "API key must be provided either directly or via KeyRotator.",
                 error_code="NO_CURRENT_API_KEY",
             )

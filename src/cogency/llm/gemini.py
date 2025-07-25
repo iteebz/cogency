@@ -50,7 +50,7 @@ class GeminiLLM(BaseLLM):
 
         return self._clients[current_key]
 
-    @safe()
+    @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
@@ -70,7 +70,7 @@ class GeminiLLM(BaseLLM):
 
         return response.text
 
-    @safe()
+    @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 

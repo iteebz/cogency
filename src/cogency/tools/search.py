@@ -4,9 +4,9 @@ from typing import Any, Dict, Optional
 
 from ddgs import DDGS
 
+from cogency.resilience import ActionError
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
-from cogency.types.errors import ToolError
 from cogency.utils.results import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -52,7 +52,7 @@ class Search(BaseTool):
                 logger.warning(f"DDGS returned no results for query: {query}")
         except Exception as e:
             logger.error(f"DDGS search failed for query '{query}': {e}")
-            raise ToolError(
+            raise ActionError(
                 f"DuckDuckGo search failed: {str(e)}",
                 error_code="SEARCH_FAILED",
                 details={"query": query, "max_results": max_results},

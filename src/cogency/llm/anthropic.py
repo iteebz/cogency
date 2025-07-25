@@ -49,7 +49,7 @@ class AnthropicLLM(BaseLLM):
         self._client.api_key = self.next_key()
         return self._client
 
-    @safe()
+    @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         anthropic_messages = self._format(messages)
@@ -62,7 +62,7 @@ class AnthropicLLM(BaseLLM):
         )
         return res.content[0].text
 
-    @safe()
+    @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         anthropic_messages = self._format(messages)

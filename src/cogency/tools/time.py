@@ -7,7 +7,7 @@ from typing import Any, Dict, Optional
 import pytz
 from dateutil import parser as date_parser
 
-from cogency.types.errors import ToolError, ValidationError
+from cogency.resilience import ActionError
 from cogency.utils.results import ToolResult
 
 from .base import BaseTool
@@ -73,7 +73,7 @@ class Time(BaseTool):
             Operation result with time data
         """
         if operation not in self._operations:
-            raise ValidationError(
+            raise ActionError(
                 f"Unknown operation: {operation}. Available: {list(self._operations.keys())}"
             )
 
@@ -91,7 +91,7 @@ class Time(BaseTool):
         try:
             tz = pytz.timezone(timezone_name)
         except pytz.UnknownTimeZoneError:
-            raise ToolError(f"Unknown timezone: {timezone_name}") from None
+            raise ActionError(f"Unknown timezone: {timezone_name}") from None
 
         now = datetime.now(tz)
 
@@ -147,7 +147,7 @@ class Time(BaseTool):
                 }
             )
         except Exception as e:
-            raise ToolError(f"Failed to calculate relative time: {str(e)}") from None
+            raise ActionError(f"Failed to calculate relative time: {str(e)}") from None
 
     async def _convert_timezone(self, datetime_str: str, from_tz: str, to_tz: str) -> ToolResult:
         """Convert datetime between timezones."""
