@@ -1,8 +1,9 @@
 """Beautiful error handling - reads like English.
-@safe.tools    - Tool execution with recovery
-@safe.reasoning - LLM reasoning with fallback
-@safe.parsing  - JSON parsing with correction
-@safe.memory   - Memory ops with graceful degradation
+@safe.tools      - Tool execution with recovery
+@safe.reasoning  - LLM reasoning with fallback
+@safe.parsing    - JSON parsing with correction
+@safe.memory     - Memory ops with graceful degradation
+@safe.checkpoint - Workflow recovery with state persistence
 """
 
 import asyncio
@@ -122,6 +123,75 @@ class Safe:
             return RecoveryResult.ok({}, recovery_action="disable_memory")
 
         return cls._base_decorator(recover_memory_error, max_retries)
+
+    @classmethod
+    def checkpoint(cls, checkpoint_type: str = "tool_execution"):
+        """@safe.checkpoint - Workflow recovery with state persistence."""
+
+        async def recover_checkpoint_error(error, *args, **kwargs):
+            from cogency.utils.results import RecoveryResult
+
+            # Try to resume from existing checkpoint
+            if args and hasattr(args[0], "get"):
+                state = args[0]
+                from .checkpoint import checkpoints
+
+                checkpoint_id = checkpoints.find_checkpoint(state)
+                if checkpoint_id:
+                    checkpoint_data = checkpoints.load_checkpoint(checkpoint_id)
+                    if checkpoint_data:
+                        return RecoveryResult.ok(
+                            checkpoint_data,
+                            recovery_action=f"resume_checkpoint_{checkpoint_id[:8]}",
+                        )
+
+            return RecoveryResult.fail(str(error))
+
+        def decorator(func):
+            @wraps(func)
+            async def checkpointed_func(*args, **kwargs):
+                # Check for existing checkpoint before execution
+                if args and hasattr(args[0], "get"):
+                    state = args[0]
+                    from .checkpoint import checkpoints
+
+                    checkpoint_id = checkpoints.find_checkpoint(state)
+                    if checkpoint_id and state.get("resume_from_checkpoint"):
+                        # Resume from checkpoint
+                        checkpoint_data = checkpoints.load_checkpoint(checkpoint_id)
+                        if checkpoint_data:
+                            # Restore state from checkpoint
+                            for key, value in checkpoint_data.items():
+                                if key not in ["fingerprint", "timestamp", "checkpoint_type"]:
+                                    state[key] = value
+                            return state
+
+                # Execute function normally
+                try:
+                    result = await func(*args, **kwargs)
+
+                    # Save checkpoint after successful execution of meaningful progress
+                    if (
+                        args
+                        and hasattr(args[0], "get")
+                        and checkpoint_type in ["preprocess", "reason", "act", "respond"]
+                    ):
+                        state = args[0]
+                        from .checkpoint import checkpoints
+
+                        checkpoints.save_checkpoint(state, checkpoint_type)
+
+                    return result
+                except Exception as e:
+                    # Attempt recovery via checkpoint
+                    recovery_result = await recover_checkpoint_error(e, *args, **kwargs)
+                    if recovery_result and recovery_result.success:
+                        return recovery_result.data
+                    raise
+
+            return checkpointed_func
+
+        return decorator
 
 
 # Create singleton instance for beautiful usage

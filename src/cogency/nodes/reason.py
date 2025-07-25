@@ -97,6 +97,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
     return " | ".join(formatted_parts) if formatted_parts else ""
 
 
+@safe.checkpoint("reason")
 @safe.reasoning()
 async def reason(
     state: State,

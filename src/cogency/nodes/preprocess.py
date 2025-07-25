@@ -5,6 +5,7 @@ from typing import List, Optional
 from cogency.llm import BaseLLM
 from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
+from cogency.resilience import safe
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
@@ -13,6 +14,7 @@ from cogency.utils.heuristics import is_simple_query, query_needs_tools
 from cogency.utils.parsing import parse_json
 
 
+@safe.checkpoint("preprocess")
 async def preprocess(
     state: State,
     *,

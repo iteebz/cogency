@@ -1,5 +1,6 @@
-"""Beautiful error handling - world-class simplicity."""
+"""Beautiful resilience - world-class simplicity."""
 
+from .checkpoint import resume
 from .decorators import safe
 from .exceptions import (
     ActionError,
@@ -22,6 +23,7 @@ __all__ = [
     "ReasoningError",
     "ResponseError",
     "recover",
+    "resume",
     "safe",
     "get_user_message",
     "format_tool_error",

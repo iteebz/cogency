@@ -4,6 +4,7 @@ import asyncio
 from typing import Dict, List, Optional
 
 from cogency.llm import BaseLLM
+from cogency.resilience import safe
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.types.response import Response
@@ -114,6 +115,7 @@ def prompt_response(
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
+@safe.checkpoint("respond")
 async def respond(
     state: State,
     *,

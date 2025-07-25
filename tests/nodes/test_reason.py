@@ -123,7 +123,7 @@ class TestReasonNode:
         """Test graceful degradation when LLM fails."""
         mock_llm.run.side_effect = Exception("LLM error")
 
-        with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
+        with patch("asyncio.sleep", new_callable=AsyncMock):
             result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
         # @safe.reasoning() decorator returns the modified state on success, error string on failure
