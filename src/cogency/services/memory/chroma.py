@@ -7,9 +7,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from cogency.memory.core import Memory, MemoryType, SearchType
 from cogency.utils.results import Result
 
-from cogency.memory.core import Memory, MemoryType, SearchType
 from .base import BaseBackend
 
 logger = logging.getLogger(__name__)
@@ -167,7 +167,7 @@ class ChromaBackend(BaseBackend):
                 metadatas=[metadata],
             )
 
-    async def _read_by_id(self, artifact_id: UUID) -> Result[List[Memory]]:
+    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
         """Read single artifact by ID."""
         try:
             results = self._collection.get(
@@ -177,11 +177,11 @@ class ChromaBackend(BaseBackend):
                 artifact = self._to_memory(
                     results["ids"][0], results["documents"][0], results["metadatas"][0]
                 )
-                return Result.success([artifact])
-            return Result.success([])
+                return [artifact]
+            return []
         except Exception as e:
             logger.error(f"Failed to read artifact by ID {artifact_id}: {e}")
-            return Result.failureure(f"Failed to read artifact by ID {artifact_id}: {e}")
+            raise Exception("Operation failed")
 
     async def _read_filtered(
         self,
@@ -189,7 +189,7 @@ class ChromaBackend(BaseBackend):
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs,
-    ) -> Result[List[Memory]]:
+    ) -> List[Memory]:
         """Read filtered artifacts."""
         # Build where filter
         where_filter = {}
@@ -216,7 +216,7 @@ class ChromaBackend(BaseBackend):
             results = self._collection.get(include=["documents", "metadatas"], **query_kwargs)
         except Exception as e:
             logger.error(f"Failed to read filtered artifacts with query {query_kwargs}: {e}")
-            return Result.failureure(f"Failed to read filtered artifacts: {e}")
+            raise Exception("Operation failed")
 
         artifacts = []
         if results["ids"]:
@@ -224,9 +224,9 @@ class ChromaBackend(BaseBackend):
                 artifact = self._to_memory(doc_id, results["documents"][i], results["metadatas"][i])
                 artifacts.append(artifact)
 
-        return Result.success(artifacts)
+        return artifacts
 
-    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result[bool]:
+    async def _update_artifact(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
         """Update artifact in ChromaDB."""
         try:
             # ChromaDB doesn't support direct updates, we need to delete and re-add
@@ -235,7 +235,7 @@ class ChromaBackend(BaseBackend):
                 ids=[str(artifact_id)], include=["documents", "metadatas", "embeddings"]
             )
             if not results["ids"] or not results["ids"][0]:
-                return Result.success(False)
+                return False
 
             # Extract current data
             current_metadata = results["metadatas"][0]
@@ -273,34 +273,34 @@ class ChromaBackend(BaseBackend):
                     metadatas=[current_metadata],
                 )
 
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to update artifact {artifact_id}: {e}")
-            return Result.failureure(f"Failed to update artifact {artifact_id}: {e}")
+            raise Exception("Operation failed")
 
-    async def _delete_all(self) -> Result[bool]:
+    async def _delete_all(self) -> bool:
         """Delete all artifacts."""
         try:
             self._collection.delete()
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to delete all artifacts: {e}")
-            return Result.failureure(f"Failed to delete all artifacts: {e}")
+            raise Exception("Operation failed")
 
-    async def _delete_by_id(self, artifact_id: UUID) -> Result[bool]:
+    async def _delete_by_id(self, artifact_id: UUID) -> bool:
         """Delete single artifact by ID."""
         try:
             self._collection.delete(ids=[str(artifact_id)])
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to delete artifact {artifact_id}: {e}")
-            return Result.failureure(f"Failed to delete artifact {artifact_id}: {e}")
+            raise Exception("Operation failed")
 
     async def _delete_by_filters(
         self,
         tags: Optional[List[str]],
         filters: Optional[Dict[str, Any]],
-    ) -> Result[bool]:
+    ) -> bool:
         """Delete artifacts by filters."""
         where_filter = None
         conditions = []
@@ -316,10 +316,10 @@ class ChromaBackend(BaseBackend):
 
         try:
             self._collection.delete(where=where_filter)
-            return Result.success(True)
+            return True
         except Exception as e:
             logger.error(f"Failed to delete artifacts by filters {where_filter}: {e}")
-            return Result.failureure(f"Failed to delete artifacts by filters: {e}")
+            raise Exception("Operation failed")
 
     def _to_memory(self, doc_id: str, document: str, metadata: Dict) -> Memory:
         """Convert ChromaDB result to Memory."""

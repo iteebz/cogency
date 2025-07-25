@@ -4,6 +4,7 @@ import numpy as np
 import pytest
 
 from cogency.services.embed.base import BaseEmbed
+from cogency.utils.results import Result
 
 
 class MockEmbed(BaseEmbed):
@@ -14,12 +15,19 @@ class MockEmbed(BaseEmbed):
         self._model = model_name
         self._dims = dims
 
-    def embed_one(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> Result:
         length = len(text) if text else 1
-        return np.full(self._dims, length / 100.0, dtype=np.float32)
+        embedding = np.full(self._dims, length / 100.0, dtype=np.float32)
+        return Result.ok(embedding)
 
-    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
-        return [self.embed_one(text, **kwargs) for text in texts]
+    def embed_many(self, texts: list[str], **kwargs) -> Result:
+        embeddings = []
+        for text in texts:
+            result = self.embed_one(text, **kwargs)
+            if not result.success:
+                return result
+            embeddings.append(result.data)
+        return Result.ok(embeddings)
 
     @property
     def model(self) -> str:
@@ -41,20 +49,24 @@ def test_embed_one():
     embed = MockEmbed()
     result = embed.embed_one("Hello world")
 
-    assert isinstance(result, np.ndarray)
-    assert result.shape == (1536,)
-    assert result.dtype == np.float32
+    assert result.success
+    embedding = result.data
+    assert isinstance(embedding, np.ndarray)
+    assert embedding.shape == (1536,)
+    assert embedding.dtype == np.float32
 
 
 def test_embed_many():
     """Test multiple text embeddings."""
     embed = MockEmbed()
     texts = ["Hello", "world", "test"]
-    results = embed.embed_many(texts)
+    result = embed.embed_many(texts)
 
-    assert len(results) == 3
-    assert all(isinstance(r, np.ndarray) for r in results)
-    assert all(r.shape == (1536,) for r in results)
+    assert result.success
+    embeddings = result.data
+    assert len(embeddings) == 3
+    assert all(isinstance(r, np.ndarray) for r in embeddings)
+    assert all(r.shape == (1536,) for r in embeddings)
 
 
 def test_embed_array():
@@ -63,9 +75,10 @@ def test_embed_array():
     texts = ["text1", "text2", "text3"]
     result = embed.embed_array(texts)
 
-    assert isinstance(result, np.ndarray)
-    assert result.shape == (3, 1536)
-    assert result.dtype == np.float32
+    assert result.success
+    assert isinstance(result.data, np.ndarray)
+    assert result.data.shape == (3, 1536)
+    assert result.data.dtype == np.float32
 
 
 def test_properties():

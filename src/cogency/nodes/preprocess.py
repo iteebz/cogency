@@ -2,10 +2,10 @@
 
 from typing import List, Optional
 
-from cogency.services.llm import BaseLLM
 from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
 from cogency.resilience import safe
+from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
@@ -91,13 +91,20 @@ Example:
 }}
 ```"""
 
-        response = await llm.run([{"role": "user", "content": prompt_preprocess}])
+        llm_response_result = await llm.run([{"role": "user", "content": prompt_preprocess}])
 
-        parse_result = parse_json(response)
-        if parse_result.success:
-            result = Preprocessed(**parse_result.data)
+        if not llm_response_result.success:
+            await state.output.trace(
+                f"LLM preprocessing failed: {llm_response_result.error}", node="preprocess"
+            )
+            result = Preprocessed(react_mode="fast")  # Fallback
         else:
-            result = Preprocessed(react_mode="fast")
+            response = llm_response_result.data
+            parse_result = parse_json(response)
+            if parse_result.success:
+                result = Preprocessed(**parse_result.data)
+            else:
+                result = Preprocessed(react_mode="fast")
 
         # Chain 1: Save extracted memory if not null/empty and memory is enabled
         if memory and result.memory:

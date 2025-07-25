@@ -2,6 +2,8 @@ from typing import Union
 
 import numpy as np
 
+from cogency.utils.results import Err, Ok, Result
+
 try:
     import openai
 except ImportError:
@@ -42,17 +44,23 @@ class OpenAIEmbed(BaseEmbed):
         if self.key_rotator:
             self._init_client()
 
-    def embed_one(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> Result[np.ndarray, Exception]:
         """Embed a single text string."""
-        self._rotate_client()
-        response = self._client.embeddings.create(input=text, model=self.model, **kwargs)
-        return np.array(response.data[0].embedding)
+        try:
+            self._rotate_client()
+            response = self._client.embeddings.create(input=text, model=self.model, **kwargs)
+            return Ok(np.array(response.data[0].embedding))
+        except Exception as e:
+            return Err(e)
 
-    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
+    def embed_many(self, texts: list[str], **kwargs) -> Result[list[np.ndarray], Exception]:
         """Embed multiple texts."""
-        self._rotate_client()
-        response = self._client.embeddings.create(input=texts, model=self.model, **kwargs)
-        return [np.array(data.embedding) for data in response.data]
+        try:
+            self._rotate_client()
+            response = self._client.embeddings.create(input=texts, model=self.model, **kwargs)
+            return Ok([np.array(data.embedding) for data in response.data])
+        except Exception as e:
+            return Err(e)
 
     @property
     def dimensionality(self) -> int:

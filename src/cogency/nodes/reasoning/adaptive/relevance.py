@@ -14,7 +14,7 @@ DEEP_MODE_MAX_FAILURES_TO_SCORE = 3
 DEEP_MODE_MAX_FAILURES_CONTEXT = 5
 
 
-def score_memory_relevance(
+async def score_memory_relevance(
     current_query: str,
     memory_items: List[Dict[str, Any]],
     llm_client,
@@ -64,7 +64,15 @@ Score based on:
 - Potential usefulness for solving the problem"""
 
     try:
-        response = llm_client.run([{"role": "user", "content": scoring_prompt}])
+        response_result = await llm_client.run([{"role": "user", "content": scoring_prompt}])
+
+        # Handle Result object from LLM
+        if hasattr(response_result, "success"):
+            if not response_result.success:
+                raise ValueError("LLM call failed for scoring")
+            response = response_result.data
+        else:
+            response = response_result
 
         # Use consolidated JSON parser
         from cogency.utils.parsing import parse_json
@@ -94,7 +102,7 @@ Score based on:
     return memory_items[:max_items]
 
 
-def relevant_context(
+async def relevant_context(
     cognition: Dict[str, Any], current_query: str, react_mode: str, llm_client
 ) -> List[Dict[str, Any]]:
     """Get relevant context based on react mode.
@@ -142,7 +150,7 @@ def relevant_context(
 
         if all_items:
             try:
-                relevant_items = score_memory_relevance(
+                relevant_items = await score_memory_relevance(
                     current_query, all_items, llm_client, max_items=max_history
                 )
 

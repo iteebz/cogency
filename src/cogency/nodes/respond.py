@@ -3,8 +3,8 @@
 import asyncio
 from typing import Dict, List, Optional
 
-from cogency.services.llm import BaseLLM
 from cogency.resilience import safe
+from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.types.response import Response
@@ -115,7 +115,6 @@ def prompt_response(
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
-@safe.checkpoint("respond")
 async def respond(
     state: State,
     *,
@@ -158,16 +157,15 @@ async def respond(
         )
         final_messages.insert(0, {"role": "system", "content": prompt})
 
-        try:
-            # Response follows naturally after state announcement
-            # Generate the fallback response
-            final_response.text = (await llm.run(final_messages)).strip()
-            await state.output.update(f"🤖: {final_response.text}")
-            await asyncio.sleep(0)  # Single yield point sufficient
-        except Exception as e:
-            # Handle LLM errors in fallback response generation using utility
-            final_response = fallback_response(e, json_schema)
+        # Generate the fallback response
+        response_result = await llm.run(final_messages)
+        if not response_result.success:
+            final_response = fallback_response(Exception(response_result.error), json_schema)
             await state.output.update(f"🤖: {final_response}")
+        else:
+            final_response.text = response_result.data.strip()
+            await state.output.update(f"🤖: {final_response.text}")
+            await asyncio.sleep(0)
     else:
         # Generate response based on context and any tool results
         exec_results = state.execution_results
@@ -207,14 +205,14 @@ async def respond(
 
             final_messages.insert(0, {"role": "system", "content": response_prompt})
 
-            try:
-                # Response follows naturally after state announcement
-                # Generate the main response
-                final_response.text = await llm.run(final_messages)
-                await state.output.update(f"🤖: {final_response.text}")
-            except Exception as e:
-                final_response = fallback_response(e, json_schema)
+            # Generate the main response
+            response_result = await llm.run(final_messages)
+            if not response_result.success:
+                final_response = fallback_response(Exception(response_result.error), json_schema)
                 await state.output.update(f"🤖: {final_response}")
+            else:
+                final_response.text = response_result.data
+                await state.output.update(f"🤖: {final_response.text}")
         elif exec_results and not exec_results.success:
             # Format failure details - handle both dict and list formats
             results_data = exec_results.data
@@ -237,14 +235,15 @@ async def respond(
                 json_schema=json_schema,
             )
             final_messages.insert(0, {"role": "system", "content": response_prompt})
-            try:
-                # Response follows naturally after state announcement
-                # Generate the main response
-                final_response.text = await llm.run(final_messages)
-                await state.output.update(f"🤖: {final_response.text}")
-            except Exception as e:
-                final_response = fallback_response(e, json_schema)
+
+            # Generate the main response
+            response_result = await llm.run(final_messages)
+            if not response_result.success:
+                final_response = fallback_response(Exception(response_result.error), json_schema)
                 await state.output.update(f"🤖: {final_response}")
+            else:
+                final_response.text = response_result.data
+                await state.output.update(f"🤖: {final_response.text}")
         else:
             # No tool results - answer with knowledge or based on conversation
             response_prompt = prompt_response(
@@ -255,15 +254,16 @@ async def respond(
                 json_schema=json_schema,
             )
             final_messages.insert(0, {"role": "system", "content": response_prompt})
-            try:
-                # Response follows naturally after state announcement
-                # Generate the main response
-                final_response.text = await llm.run(final_messages)
-                await state.output.update(f"🤖: {final_response.text}")
-            except Exception as e:
-                fallback_text = fallback_response(e, json_schema)
+
+            # Generate the main response
+            response_result = await llm.run(final_messages)
+            if not response_result.success:
+                fallback_text = fallback_response(Exception(response_result.error), json_schema)
                 final_response.text = fallback_text
                 await state.output.update(f"🤖: {fallback_text}")
+            else:
+                final_response.text = response_result.data
+                await state.output.update(f"🤖: {final_response.text}")
 
     # Add response to context
     context.add_message("assistant", final_response.text)

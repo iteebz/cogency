@@ -71,11 +71,12 @@ class MemoryBackend(ABC):
         """Safely generate embedding with error handling."""
         if not self.embedder:
             return None
-        try:
-            return await self.embedder.embed_text(content)
-        except Exception as e:
-            logger.error(f"Context: {e}")
+
+        embed_result = await self.embedder.embed_text(content)
+        if not embed_result.success:
+            logger.error(f"Embed failed: {embed_result.error}")
             return None
+        return embed_result.data
 
     def _operate(self, operation_func, *args, **kwargs) -> bool:
         """Safely execute operation, return True/False."""

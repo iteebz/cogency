@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 
-from cogency.resilience import resilient
+from cogency.resilience import safe
+from cogency.utils.results import Result
 
 
 class BaseEmbed(ABC):
@@ -11,25 +12,30 @@ class BaseEmbed(ABC):
     def __init__(self, api_key: str = None, **kwargs):
         self.api_key = api_key
 
-    @resilient
+    @safe.network()
     @abstractmethod
-    def embed_one(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> Result:
         """Embed a single text string"""
         pass
 
-    @resilient
+    @safe.network()
     @abstractmethod
-    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
+    def embed_many(self, texts: list[str], **kwargs) -> Result:
         """Embed multiple texts"""
         pass
 
-    def embed_array(self, texts: list[str], **kwargs) -> np.ndarray:
+    def embed_array(self, texts: list[str], **kwargs) -> Result:
         """Embed texts and return as 2D numpy array"""
-        embeddings = self.embed_many(texts, **kwargs)
+        result = self.embed_many(texts, **kwargs)
+        if not result.success:
+            return result
+
+        embeddings = result.data
         if not embeddings:
             # Return empty array with correct shape for 2D consistency
-            return np.empty((0, self.dimensionality), dtype=np.float32)
-        return np.array(embeddings)
+            empty_array = np.empty((0, self.dimensionality), dtype=np.float32)
+            return Result.ok(empty_array)
+        return Result.ok(np.array(embeddings))
 
     @property
     @abstractmethod

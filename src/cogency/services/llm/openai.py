@@ -7,7 +7,6 @@ except ImportError:
 
 from cogency.constants import MAX_TOKENS
 from cogency.services.llm.base import BaseLLM
-from cogency.resilience import safe
 
 
 class OpenAILLM(BaseLLM):
@@ -48,7 +47,6 @@ class OpenAILLM(BaseLLM):
         self._client.api_key = self.next_key()
         return self._client
 
-    @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         msgs = self._format(messages)
@@ -60,17 +58,19 @@ class OpenAILLM(BaseLLM):
         )
         return res.choices[0].message.content
 
-    @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         msgs = self._format(messages)
-        stream = await client.chat.completions.create(
-            model=self.model,
-            messages=msgs,
-            stream=True,
-            **self.kwargs,
-            **kwargs,
-        )
-        async for chunk in stream:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+        try:
+            stream = await client.chat.completions.create(
+                model=self.model,
+                messages=msgs,
+                stream=True,
+                **self.kwargs,
+                **kwargs,
+            )
+            async for chunk in stream:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except Exception as e:
+            raise e

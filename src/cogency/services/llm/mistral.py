@@ -7,7 +7,6 @@ except ImportError:
 
 from cogency.constants import MAX_TOKENS
 from cogency.services.llm.base import BaseLLM
-from cogency.resilience import safe
 
 
 class MistralLLM(BaseLLM):
@@ -42,7 +41,6 @@ class MistralLLM(BaseLLM):
         key = self.next_key()
         return Mistral(api_key=key)
 
-    @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         mistral_messages = self._format(messages)
@@ -55,18 +53,20 @@ class MistralLLM(BaseLLM):
         )
         return res.choices[0].message.content
 
-    @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         mistral_messages = self._format(messages)
 
-        stream = await client.chat.stream_async(
-            model=self.model,
-            messages=mistral_messages,
-            **self.kwargs,
-            **kwargs,
-        )
+        try:
+            stream = await client.chat.stream_async(
+                model=self.model,
+                messages=mistral_messages,
+                **self.kwargs,
+                **kwargs,
+            )
 
-        async for chunk in stream:
-            if chunk.data.choices[0].delta.content:
-                yield chunk.data.choices[0].delta.content
+            async for chunk in stream:
+                if chunk.data.choices[0].delta.content:
+                    yield chunk.data.choices[0].delta.content
+        except Exception as e:
+            raise e

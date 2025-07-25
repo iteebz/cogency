@@ -1,6 +1,5 @@
 """Pure search logic for memory backends."""
 
-import contextlib
 import logging
 from typing import Callable, List, Optional
 from uuid import UUID
@@ -86,8 +85,9 @@ async def search(
 
     query_embedding = None
     if search_type in [SearchType.SEMANTIC, SearchType.HYBRID] and embedder:
-        with contextlib.suppress(Exception):
-            query_embedding = await embedder.embed_text(query)
+        embed_result = await embedder.embed_text(query)
+        if embed_result.success:
+            query_embedding = embed_result.data
 
     # Score artifacts
     for artifact in artifacts:

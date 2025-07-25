@@ -1,5 +1,6 @@
 """Test relevance scoring business logic."""
 
+import pytest
 from unittest.mock import Mock
 
 from cogency.nodes.reasoning.adaptive.relevance import (
@@ -8,17 +9,11 @@ from cogency.nodes.reasoning.adaptive.relevance import (
 )
 
 
-class MockLLM:
-    """Mock LLM client for testing."""
-
-    def __init__(self, response):
-        self.response = response
-
-    def run(self, messages):
-        return self.response
+from tests.conftest import MockLLM
 
 
-def test_memory_relevance_scoring():
+@pytest.mark.asyncio
+async def test_memory_relevance_scoring():
     """Test memory item scoring."""
     memory_items = [
         {"content": "User prefers Python for data analysis"},
@@ -29,7 +24,7 @@ def test_memory_relevance_scoring():
     llm_response = """{"0": 0.9, "1": 0.2, "2": 0.8}"""
     llm_client = MockLLM(llm_response)
 
-    scored_items = score_memory_relevance(
+    scored_items = await score_memory_relevance(
         "Help me with Python data analysis", memory_items, llm_client, max_items=3
     )
 
@@ -40,28 +35,30 @@ def test_memory_relevance_scoring():
     assert scored_items[1]["relevance_score"] == 0.8
 
 
-def test_relevance_edge_cases():
+@pytest.mark.asyncio
+async def test_relevance_edge_cases():
     """Test edge cases in relevance scoring."""
     # Empty memory
     llm_client = MockLLM("{}")
-    scored_items = score_memory_relevance("test query", [], llm_client)
+    scored_items = await score_memory_relevance("test query", [], llm_client)
     assert scored_items == []
 
     # Invalid LLM response
     memory_items = [{"content": "Item 1"}, {"content": "Item 2"}]
     llm_client = MockLLM("Invalid JSON response")
-    scored_items = score_memory_relevance("test query", memory_items, llm_client, max_items=5)
+    scored_items = await score_memory_relevance("test query", memory_items, llm_client, max_items=5)
     assert len(scored_items) == 2
 
 
-def test_relevant_context_fast_mode():
+@pytest.mark.asyncio
+async def test_relevant_context_fast_mode():
     """Test fast mode context retrieval."""
     cognition = {
         "decision_history": ["decision1", "decision2", "decision3", "decision4"],
         "failed_attempts": ["fail1", "fail2", "fail3"],
     }
 
-    context = relevant_context(cognition, "test query", "fast", None)
+    context = await relevant_context(cognition, "test query", "fast", None)
 
     # Fast mode uses FIFO
     assert len(context["recent_decisions"]) == 3
@@ -69,7 +66,8 @@ def test_relevant_context_fast_mode():
     assert len(context["recent_failures"]) == 2
 
 
-def test_relevant_context_deep_mode():
+@pytest.mark.asyncio
+async def test_relevant_context_deep_mode():
     """Test deep mode context retrieval."""
     cognition = {
         "decision_history": ["search python", "analyze data", "write code"],
@@ -79,17 +77,18 @@ def test_relevant_context_deep_mode():
     llm_response = """{"0": 0.9, "1": 0.5, "2": 0.8, "3": 0.3, "4": 0.7}"""
     llm_client = MockLLM(llm_response)
 
-    context = relevant_context(cognition, "help with python programming", "deep", llm_client)
+    context = await relevant_context(cognition, "help with python programming", "deep", llm_client)
 
     assert "recent_decisions" in context
     assert "recent_failures" in context
 
 
-def test_context_edge_cases():
+@pytest.mark.asyncio
+async def test_context_edge_cases():
     """Test context retrieval edge cases."""
     # Empty cognition
     cognition = {}
-    context = relevant_context(cognition, "test query", "fast", None)
+    context = await relevant_context(cognition, "test query", "fast", None)
     assert context["recent_decisions"] == []
     assert context["recent_failures"] == []
 
@@ -98,6 +97,6 @@ def test_context_edge_cases():
     llm_client = Mock()
     llm_client.run.side_effect = Exception("LLM error")
 
-    context = relevant_context(cognition, "test query", "deep", llm_client)
+    context = await relevant_context(cognition, "test query", "deep", llm_client)
     assert "recent_decisions" in context
     assert "recent_failures" in context

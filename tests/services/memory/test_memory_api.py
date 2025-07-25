@@ -70,7 +70,10 @@ class TestMemoryAPI:
         mock_backend_class.assert_called_once_with(host="localhost", port=8000)
         assert isinstance(backend, MockBackend)
 
-    @patch("cogency.services._registry._memory_backends", {"filesystem": Mock(), "chroma": Mock(), "pinecone": Mock(), "postgres": Mock()})
+    @patch(
+        "cogency.services._registry._memory_backends",
+        {"filesystem": Mock(), "chroma": Mock(), "pinecone": Mock(), "postgres": Mock()},
+    )
     def test_list_backends(self):
         # Execute
         backends = Memory.list_backends()

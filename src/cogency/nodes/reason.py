@@ -4,7 +4,6 @@ import asyncio
 import logging
 from typing import List, Optional
 
-from cogency.services.llm import BaseLLM
 from cogency.nodes.reasoning.adaptive import (
     action_fingerprint,
     assess_tools,
@@ -23,6 +22,7 @@ from cogency.nodes.reasoning.fast import (
 )
 from cogency.resilience import ParsingError, ReasoningError, recover, safe
 from cogency.resilience.formatting import get_user_message
+from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
@@ -201,7 +201,21 @@ async def reason(
     try:
         # Yield control to allow state message to appear immediately
         await asyncio.sleep(0)
-        llm_response = await llm.run(messages)
+
+        # Clean Result handling - unwrap or fall back to empty reasoning
+        llm_result = await llm.run(messages)
+        if not llm_result.success:
+            await state.output.trace(f"LLM reasoning failed: {llm_result.error}", node="reason")
+            state.update(
+                {
+                    "last_error_type": "llm_failure",
+                    "user_error_message": get_user_message("LLM_FAILURE"),
+                    "tool_calls": None,
+                }
+            )
+            return state
+
+        llm_response = llm_result.data
 
         # Don't add reasoning JSON to context - it's internal planning only
 
@@ -304,7 +318,9 @@ async def reason(
         )
         recovery = await recover.reasoning(reasoning_error, state)
         if recovery.success:
-            state.update(recovery.data)
+            # Update state with recovery data - State uses dict-like assignment
+            for key, value in recovery.data.items():
+                state[key] = value
             user_message = (
                 get_user_message("REASONING_LOOP")
                 if recovery.recovery_action == "fallback_to_fast"

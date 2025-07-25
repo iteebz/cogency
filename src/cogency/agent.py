@@ -4,9 +4,9 @@ from typing import Any, AsyncIterator, Optional
 from cogency.context import Context
 from cogency.flow import Flow
 from cogency.identity import process_identity
+from cogency.output import Output
 from cogency.services.llm import detect_llm
 from cogency.services.memory.filesystem import FileBackend
-from cogency.output import Output
 from cogency.state import State
 from cogency.tools.registry import ToolRegistry
 

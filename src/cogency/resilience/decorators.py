@@ -1,23 +1,15 @@
-"""Beautiful error handling - reads like English.
-@safe.tools      - Tool execution with recovery
-@safe.reasoning  - LLM reasoning with fallback
-@safe.parsing    - JSON parsing with correction
-@safe.memory     - Memory ops with graceful degradation
-@safe.checkpoint - Workflow recovery with state persistence
-@safe.circuit    - Circuit breaker for runaway protection
-@safe.rate_limit - Token bucket rate limiting
-@safe.resilient  - Combined rate limiting + circuit breaking
+"""Domain-specific @safe plugins for Cogency.
+Extends resilient-result with AI agent specific recovery patterns.
 """
 
 import asyncio
 import signal
 from contextlib import asynccontextmanager
 from functools import wraps
-from typing import Any, AsyncGenerator, Callable
+from typing import Any
 
-from .circuit import circuit
-from .rate_limit import rate_limit
-from .resilient import resilient
+from resilient_result import resilient as base_resilient
+from cogency.state import State
 
 
 @asynccontextmanager
@@ -42,212 +34,143 @@ async def interruptible_context():
         loop.remove_signal_handler(signal.SIGINT)
 
 
-class Safe:
-    """Beautiful @safe decorators that read like English."""
+def state_aware_decorator(handler=None, retries: int = 3, unwrap_state: bool = True, **kwargs):
+    """Decorator that handles State objects properly - can unwrap them from Result objects."""
+    from resilient_result.resilient import decorator as base_decorator
+    from resilient_result import Result
 
-    @staticmethod
-    def _base_decorator(recovery_fn: Callable = None, max_retries: int = 3):
-        """Base decorator with optional recovery function."""
+    def wrapper(func):
+        # Apply the base resilient decorator
+        resilient_func = base_decorator(handler=handler, retries=retries, **kwargs)(func)
 
-        def decorator(func):
-            if func.__name__ == "stream":
+        @wraps(func)
+        async def state_unwrapper(*args, **kwargs):
+            result = await resilient_func(*args, **kwargs)
 
-                @wraps(func)
-                async def safe_stream(*args, **kwargs) -> AsyncGenerator[Any, None]:
-                    for attempt in range(max_retries):
-                        try:
-                            async for chunk in func(*args, **kwargs):
-                                yield chunk
-                            return
-                        except Exception as e:
-                            if recovery_fn and attempt < max_retries - 1:
-                                recovery_result = await recovery_fn(e, *args, **kwargs)
-                                if recovery_result and recovery_result.success:
-                                    continue
-                            if attempt == max_retries - 1:
-                                yield f"Stream error: {str(e)}"
-                                return
-                            await asyncio.sleep(2**attempt * 0.5)
+            # If unwrap_state is False, return the Result object as-is
+            if not unwrap_state:
+                return result
 
-                return safe_stream
-            else:
+            # If the result is a Result object containing a State, unwrap it
+            if isinstance(result, Result):
+                if result.success and isinstance(result.data, State):
+                    return result.data
+                elif not result.success:
+                    # For failures, we still need to handle them appropriately
+                    # In cogency, we typically want to raise the exception
+                    if isinstance(result.error, Exception):
+                        raise result.error
+                    else:
+                        raise Exception(str(result.error))
 
-                @wraps(func)
-                async def safe_run(*args, **kwargs) -> Any:
-                    for attempt in range(max_retries):
-                        try:
-                            return await func(*args, **kwargs)
-                        except Exception as e:
-                            if recovery_fn and attempt < max_retries - 1:
-                                recovery_result = await recovery_fn(e, *args, **kwargs)
-                                if recovery_result and recovery_result.success:
-                                    return recovery_result.data
-                            if attempt == max_retries - 1:
-                                return f"Error: {str(e)}"
-                            await asyncio.sleep(2**attempt * 0.5)
+            return result
 
-                return safe_run
+        return state_unwrapper
 
-        return decorator
+    return wrapper
 
-    # Import specialized decorators as class methods
-    circuit = classmethod(lambda cls, *args, **kwargs: circuit(*args, **kwargs))
-    rate_limit = classmethod(lambda cls, *args, **kwargs: rate_limit(*args, **kwargs))
-    resilient = classmethod(lambda cls, *args, **kwargs: resilient(*args, **kwargs))
 
-    @classmethod
-    def tools(cls, max_retries: int = 2):
-        """@safe.tools - Tool execution with network retry."""
+# Domain-specific recovery patterns for AI agents
 
-        async def recover_tool_error(error, *args, **kwargs):
-            from cogency.utils.results import RecoveryResult
 
-            error_str = str(error).lower()
-            if any(word in error_str for word in ["timeout", "network", "connection"]):
-                return RecoveryResult.ok(None, recovery_action="retry_network")
-            return RecoveryResult.fail(str(error))
+def reasoning(retries: int = 3, unwrap_state: bool = True):
+    """@safe.reasoning - LLM reasoning with mode fallback."""
 
-        return cls._base_decorator(recover_tool_error, max_retries)
+    def create_handler(func_args, func_kwargs):
+        async def handle_reasoning(error):
+            # Fallback to fast mode if available in state - this is actual recovery
+            if (
+                len(func_args) > 0
+                and hasattr(func_args[0], "react_mode")
+                and func_args[0].react_mode == "deep"
+            ):
+                func_args[0].react_mode = "fast"
+                return None  # Retry with modified state
+            return False  # No recovery possible
 
-    @classmethod
-    def reasoning(cls, max_retries: int = 3):
-        """@safe.reasoning - LLM reasoning with mode fallback."""
+        return handle_reasoning
 
-        async def recover_reasoning_error(error, *args, **kwargs):
-            from cogency.utils.results import RecoveryResult
+    def wrapper(func):
+        @wraps(func)
+        async def reasoning_wrapper(*args, **kwargs):
+            # Create handler with access to function arguments
+            handler = create_handler(args, kwargs)
+            # Apply the state_aware_decorator with the handler
+            decorated_func = state_aware_decorator(
+                handler=handler, retries=retries, unwrap_state=unwrap_state
+            )(func)
+            return await decorated_func(*args, **kwargs)
 
-            # Fallback to fast mode if available in state
-            if len(args) > 0 and hasattr(args[0], "react_mode") and args[0].react_mode == "deep":
-                args[0].react_mode = "fast"
-                return RecoveryResult.ok(None, recovery_action="fallback_fast_mode")
-            return RecoveryResult.fail(str(error))
+        return reasoning_wrapper
 
-        return cls._base_decorator(recover_reasoning_error, max_retries)
+    return wrapper
 
-    @classmethod
-    def parsing(cls, max_retries: int = 2):
-        """@safe.parsing - JSON parsing with correction."""
 
-        async def recover_parsing_error(error, *args, **kwargs):
-            from cogency.utils.results import RecoveryResult
+def memory(retries: int = 1, unwrap_state: bool = True):
+    """@safe.memory - Memory ops with graceful degradation."""
 
-            # This will integrate with existing parse_json_with_correction
-            return RecoveryResult.fail(str(error))  # Let parse_json_with_correction handle it
+    async def handle_memory(error):
+        return None  # Retry memory errors
 
-        return cls._base_decorator(recover_parsing_error, max_retries)
+    return state_aware_decorator(handler=handle_memory, retries=retries, unwrap_state=unwrap_state)
 
-    @classmethod
-    def llm(cls, max_retries: int = 3):
-        """@safe.llm - LLM calls with network retry."""
 
-        async def recover_llm_error(error, *args, **kwargs):
-            from cogency.utils.results import RecoveryResult
+def act(retries: int = 2, unwrap_state: bool = True):
+    """@safe.act - Tool execution with domain-specific recovery."""
 
-            # Network retry for LLM failures
-            return RecoveryResult.fail(str(error))  # Basic retry handled by base decorator
+    async def handle_act(error):
+        return None  # Retry action errors
 
-        return cls._base_decorator(recover_llm_error, max_retries)
+    return state_aware_decorator(handler=handle_act, retries=retries, unwrap_state=unwrap_state)
 
-    @classmethod
-    def memory(cls, max_retries: int = 1):
-        """@safe.memory - Memory ops with graceful degradation."""
 
-        async def recover_memory_error(error, *args, **kwargs):
-            from cogency.utils.results import RecoveryResult
+def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = False):
+    """@safe.checkpoint - Workflow recovery with state persistence."""
 
-            # Continue without memory on failure
-            return RecoveryResult.ok({}, recovery_action="disable_memory")
+    async def recover_checkpoint_error(error, *args, **kwargs):
+        from cogency.utils.results import RecoveryResult
 
-        return cls._base_decorator(recover_memory_error, max_retries)
+        # Try to resume from existing checkpoint
+        if args and hasattr(args[0], "get"):
+            state = args[0]
+            from .checkpoint import checkpoints
 
-    @classmethod
-    def checkpoint(cls, checkpoint_type: str = "tool_execution", interruptible: bool = False):
-        """@safe.checkpoint - Workflow recovery with state persistence."""
+            checkpoint_id = checkpoints.find_checkpoint(state)
+            if checkpoint_id:
+                checkpoint_data = checkpoints.load_checkpoint(checkpoint_id)
+                if checkpoint_data:
+                    return RecoveryResult.ok(
+                        checkpoint_data,
+                        recovery_action=f"resume_checkpoint_{checkpoint_id[:8]}",
+                    )
 
-        async def recover_checkpoint_error(error, *args, **kwargs):
-            from cogency.utils.results import RecoveryResult
+        return RecoveryResult.fail(str(error))
 
-            # Try to resume from existing checkpoint
+    def decorator(func):
+        @wraps(func)
+        async def checkpointed_func(*args, **kwargs):
+            # Check for existing checkpoint before execution
             if args and hasattr(args[0], "get"):
                 state = args[0]
                 from .checkpoint import checkpoints
 
                 checkpoint_id = checkpoints.find_checkpoint(state)
-                if checkpoint_id:
+                if checkpoint_id and state.get("resume_from_checkpoint"):
+                    # Resume from checkpoint
                     checkpoint_data = checkpoints.load_checkpoint(checkpoint_id)
                     if checkpoint_data:
-                        return RecoveryResult.ok(
-                            checkpoint_data,
-                            recovery_action=f"resume_checkpoint_{checkpoint_id[:8]}",
-                        )
+                        # Restore state from checkpoint
+                        for key, value in checkpoint_data.items():
+                            if key not in ["fingerprint", "timestamp", "checkpoint_type"]:
+                                state[key] = value
+                        return state
 
-            return RecoveryResult.fail(str(error))
-
-        def decorator(func):
-            @wraps(func)
-            async def checkpointed_func(*args, **kwargs):
-                # Check for existing checkpoint before execution
-                if args and hasattr(args[0], "get"):
-                    state = args[0]
-                    from .checkpoint import checkpoints
-
-                    checkpoint_id = checkpoints.find_checkpoint(state)
-                    if checkpoint_id and state.get("resume_from_checkpoint"):
-                        # Resume from checkpoint
-                        checkpoint_data = checkpoints.load_checkpoint(checkpoint_id)
-                        if checkpoint_data:
-                            # Restore state from checkpoint
-                            for key, value in checkpoint_data.items():
-                                if key not in ["fingerprint", "timestamp", "checkpoint_type"]:
-                                    state[key] = value
-                            return state
-
-                # Execute with proper interrupt handling if enabled
-                if interruptible:
-                    async with interruptible_context() as interrupted:
-                        try:
-                            task = asyncio.create_task(func(*args, **kwargs))
-                            result = await task
-
-                            # Save checkpoint after successful execution
-                            if (
-                                args
-                                and hasattr(args[0], "get")
-                                and checkpoint_type in ["preprocess", "reason", "act", "respond"]
-                            ):
-                                state = args[0]
-                                from .checkpoint import checkpoints
-
-                                checkpoints.save_checkpoint(state, checkpoint_type)
-
-                            return result
-
-                        except asyncio.CancelledError:
-                            # Signal handler cancelled the task - save checkpoint
-                            if interrupted.is_set() and args and hasattr(args[0], "get"):
-                                state = args[0]
-                                from .checkpoint import checkpoints
-
-                                checkpoints.save_checkpoint(state, f"{checkpoint_type}_interrupted")
-                            raise  # Let CancelledError propagate naturally
-
-                        except Exception as e:
-                            # Save checkpoint on failure
-                            if args and hasattr(args[0], "get"):
-                                state = args[0]
-                                from .checkpoint import checkpoints
-
-                                checkpoints.save_checkpoint(state, f"{checkpoint_type}_failed")
-
-                            # Attempt recovery via checkpoint
-                            recovery_result = await recover_checkpoint_error(e, *args, **kwargs)
-                            if recovery_result and recovery_result.success:
-                                return recovery_result.data
-                            raise
-                else:
-                    # Execute normally without interrupt handling
+            # Execute with proper interrupt handling if enabled
+            if interruptible:
+                async with interruptible_context() as interrupted:
                     try:
-                        result = await func(*args, **kwargs)
+                        task = asyncio.create_task(func(*args, **kwargs))
+                        result = await task
 
                         # Save checkpoint after successful execution
                         if (
@@ -261,6 +184,16 @@ class Safe:
                             checkpoints.save_checkpoint(state, checkpoint_type)
 
                         return result
+
+                    except asyncio.CancelledError:
+                        # Signal handler cancelled the task - save checkpoint
+                        if interrupted.is_set() and args and hasattr(args[0], "get"):
+                            state = args[0]
+                            from .checkpoint import checkpoints
+
+                            checkpoints.save_checkpoint(state, f"{checkpoint_type}_interrupted")
+                        raise  # Let CancelledError propagate naturally
+
                     except Exception as e:
                         # Save checkpoint on failure
                         if args and hasattr(args[0], "get"):
@@ -272,13 +205,59 @@ class Safe:
                         # Attempt recovery via checkpoint
                         recovery_result = await recover_checkpoint_error(e, *args, **kwargs)
                         if recovery_result and recovery_result.success:
-                            return recovery_result.data
+                            # Restore state from checkpoint data and return State object
+                            state = args[0]
+                            checkpoint_data = recovery_result.data
+                            for key, value in checkpoint_data.items():
+                                if key not in ["fingerprint", "timestamp", "checkpoint_type"]:
+                                    state[key] = value
+                            return state
                         raise
+            else:
+                # Execute normally without interrupt handling
+                try:
+                    result = await func(*args, **kwargs)
 
-            return checkpointed_func
+                    # Save checkpoint after successful execution
+                    if (
+                        args
+                        and hasattr(args[0], "get")
+                        and checkpoint_type in ["preprocess", "reason", "act", "respond"]
+                    ):
+                        state = args[0]
+                        from .checkpoint import checkpoints
 
-        return decorator
+                        checkpoints.save_checkpoint(state, checkpoint_type)
+
+                    return result
+                except Exception as e:
+                    # Save checkpoint on failure
+                    if args and hasattr(args[0], "get"):
+                        state = args[0]
+                        from .checkpoint import checkpoints
+
+                        checkpoints.save_checkpoint(state, f"{checkpoint_type}_failed")
+
+                    # Attempt recovery via checkpoint
+                    recovery_result = await recover_checkpoint_error(e, *args, **kwargs)
+                    if recovery_result and recovery_result.success:
+                        # Restore state from checkpoint data and return State object
+                        state = args[0]
+                        checkpoint_data = recovery_result.data
+                        for key, value in checkpoint_data.items():
+                            if key not in ["fingerprint", "timestamp", "checkpoint_type"]:
+                                state[key] = value
+                        return state
+                    raise
+
+        return checkpointed_func
+
+    return decorator
 
 
-# Create singleton instance for beautiful usage
-safe = Safe()
+# Create enhanced safe instance with domain plugins
+safe = base_resilient
+safe.reasoning = reasoning
+safe.memory = memory
+safe.act = act
+safe.checkpoint = checkpoint

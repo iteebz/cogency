@@ -4,8 +4,10 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from cogency.nodes.reason import build_iterations, reason
+from ..conftest import MockLLM
+from cogency.nodes.reason import reason, build_iterations
 from cogency.state import Cognition, State
+from resilient_result import Result
 
 
 class MockToolCall:
@@ -33,7 +35,7 @@ class TestReasonNode:
         """Create mock LLM."""
         llm = AsyncMock()
         llm.run = AsyncMock(
-            return_value='{"reasoning": "test reasoning", "strategy": "test_strategy"}'
+            return_value=Result(data='{"reasoning": "test reasoning", "strategy": "test_strategy"}')
         )
         return llm
 
@@ -60,6 +62,7 @@ class TestReasonNode:
         """Test that cognition gets initialized properly."""
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
+        assert isinstance(result, State)
         assert hasattr(result, "cognition")
         cognition = result.cognition
         assert hasattr(cognition, "current_approach")
@@ -73,6 +76,7 @@ class TestReasonNode:
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
+        assert isinstance(result, State)
         assert result["current_iteration"] == 3
 
     @pytest.mark.asyncio
@@ -83,6 +87,7 @@ class TestReasonNode:
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
+        assert isinstance(result, State)
         assert result["stopping_reason"] == "max_iterations_reached"
 
     @pytest.mark.asyncio
@@ -116,6 +121,7 @@ class TestReasonNode:
         basic_state.react_mode = "deep"
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
+        assert isinstance(result, State)
         assert result.get("stopping_reason") == "reasoning_loop_detected"
 
     @pytest.mark.asyncio
@@ -127,7 +133,7 @@ class TestReasonNode:
             result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
         # @safe.reasoning() decorator returns the modified state on success, error string on failure
-        assert isinstance(result, (str, type(basic_state)))
+        assert isinstance(result, State)
         # The safe decorator should handle the error gracefully
 
     @pytest.mark.asyncio
@@ -160,6 +166,7 @@ class TestReasonNode:
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
+        assert isinstance(result, State)
         cognition = result.cognition
         assert len(cognition.failed_attempts) == 1
         assert cognition.failed_attempts[0]["tool_calls"][0].name == "search"
@@ -186,6 +193,7 @@ class TestReasonNode:
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
+        assert isinstance(result, State)
         cognition = result.cognition
         # Should be limited by max_history setting (3 for fast mode)
         assert len(cognition.iterations) <= cognition.max_history

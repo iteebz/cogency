@@ -90,7 +90,9 @@ async def test_respond_node_output():
         yield "The weather is sunny today!"
 
     async def mock_run(*args, **kwargs):
-        return "The weather is sunny today!"
+        from cogency.utils.results import Result
+
+        return Result.ok("The weather is sunny today!")
 
     mock_llm.stream = mock_stream
     mock_llm.run = mock_run

@@ -7,12 +7,13 @@ import pytest
 from cogency import State
 from cogency.context import Context
 from cogency.flow import Flow
-from cogency.services.llm.mock import MockLLM
 from cogency.nodes.act import act
 from cogency.nodes.reason import reason
 from cogency.nodes.respond import respond
 from cogency.output import Output
+from tests.conftest import MockLLM
 from cogency.tools.calculator import Calculator
+from resilient_result import Result
 
 
 @pytest.fixture
@@ -52,7 +53,9 @@ class TestFlow:
 
     @pytest.mark.asyncio
     async def test_reason_direct_answer(self, agent_state, mock_llm, tools):
-        mock_llm.run = AsyncMock(return_value='{"reasoning": "I can answer this directly."}')
+        mock_llm.run = AsyncMock(
+            return_value=Result(data='{"reasoning": "I can answer this directly."}')
+        )
 
         await reason(agent_state, llm=mock_llm, tools=tools)
 
@@ -61,7 +64,9 @@ class TestFlow:
     @pytest.mark.asyncio
     async def test_reason_needs_tools(self, agent_state, mock_llm, tools):
         mock_llm.run = AsyncMock(
-            return_value='{"thinking": "I need a tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}'
+            return_value=Result(
+                data='{"thinking": "I need a tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "value"}}]}'
+            )
         )
 
         await reason(agent_state, llm=mock_llm, tools=tools)
@@ -97,7 +102,7 @@ class TestFlow:
 
     @pytest.mark.asyncio
     async def test_simple_direct_flow(self, agent_state, mock_llm, tools):
-        mock_llm.run = AsyncMock(return_value='{"reasoning": "Simple greeting."}')
+        mock_llm.run = AsyncMock(return_value=Result(data='{"reasoning": "Simple greeting."}'))
 
         # 1. Reason
         reason_result = await reason(agent_state, llm=mock_llm, tools=tools)
@@ -121,7 +126,9 @@ class TestFlow:
     async def test_tool_flow(self, agent_state, mock_llm, tools):
         # 1. Reason (needs tools)
         mock_llm.run = AsyncMock(
-            return_value='{"reasoning": "I need the mock tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}'
+            return_value=Result.ok(
+                '{"reasoning": "I need the mock tool.", "tool_calls": [{"name": "mock_tool", "args": {"param": "test"}}]}'
+            )
         )
         reason_result = await reason(agent_state, llm=mock_llm, tools=tools)
 
@@ -142,7 +149,9 @@ class TestFlow:
         assert act_result["execution_results"].success
 
         # 3. Reason (reflect on results)
-        mock_llm.run = AsyncMock(return_value='{"reasoning": "Got the result, now I can answer."}')
+        mock_llm.run = AsyncMock(
+            return_value=Result.ok('{"reasoning": "Got the result, now I can answer."}')
+        )
         state_for_reflection = agent_state
         # Add the act_result items to the flow dict
         for key in act_result.flow:

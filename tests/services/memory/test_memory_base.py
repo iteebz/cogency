@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 import pytest
 
-from cogency.services.memory.base import BaseBackend
 from cogency.memory.core import Memory, MemoryType
+from cogency.services.memory.base import BaseBackend
 
 
 class MockBackend(BaseBackend):
@@ -81,32 +81,45 @@ class TestBaseBackendCore:
     async def test_create_stores_artifact(self, backend):
         result = await backend.create("Test content")
 
-        assert isinstance(result, Memory)
-        assert result.content == "Test content"
-        assert result.id in backend.artifacts
+        assert result.success
+        artifact = result.data
+        assert isinstance(artifact, Memory)
+        assert artifact.content == "Test content"
+        assert artifact.id in backend.artifacts
         assert backend.ready_called
 
     @pytest.mark.asyncio
     async def test_read_by_id_works(self, backend):
-        memory = await backend.create("Test")
-        results = await backend.read(artifact_id=memory.id)
+        memory_result = await backend.create("Test")
+        assert memory_result.success
+        memory = memory_result.data
+        results_result = await backend.read(artifact_id=memory.id)
+        assert results_result.success
+        results = results_result.data
 
         assert len(results) == 1
         assert results[0].content == "Test"
 
     @pytest.mark.asyncio
     async def test_read_all_without_params(self, backend):
-        await backend.create("Content 1")
-        await backend.create("Content 2")
+        create1_result = await backend.create("Content 1")
+        assert create1_result.success
+        create2_result = await backend.create("Content 2")
+        assert create2_result.success
 
-        results = await backend.read()
+        results_result = await backend.read()
+        assert results_result.success
+        results = results_result.data
 
         assert len(results) == 2
 
     @pytest.mark.asyncio
     async def test_update_modifies_artifact(self, backend):
-        memory = await backend.create("Original")
-        success = await backend.update(memory.id, {"content": "Updated"})
+        create_result = await backend.create("Original")
+        memory = create_result.data
+        success_result = await backend.update(memory.id, {"content": "Updated"})
+        assert success_result.success
+        success = success_result.data
 
         assert success is True
         updated = backend.artifacts[memory.id]
@@ -114,18 +127,26 @@ class TestBaseBackendCore:
 
     @pytest.mark.asyncio
     async def test_delete_by_id_removes_artifact(self, backend):
-        memory = await backend.create("Test")
-        success = await backend.delete(artifact_id=memory.id)
+        memory_result = await backend.create("Test")
+        assert memory_result.success
+        memory = memory_result.data
+        success_result = await backend.delete(artifact_id=memory.id)
+        assert success_result.success
+        success = success_result.data
 
         assert success is True
         assert memory.id not in backend.artifacts
 
     @pytest.mark.asyncio
     async def test_delete_all_clears_artifacts(self, backend):
-        await backend.create("Test 1")
-        await backend.create("Test 2")
+        create1_result = await backend.create("Test 1")
+        assert create1_result.success
+        create2_result = await backend.create("Test 2")
+        assert create2_result.success
 
-        success = await backend.delete(delete_all=True)
+        success_result = await backend.delete(delete_all=True)
+        assert success_result.success
+        success = success_result.data
 
         assert success is True
         assert len(backend.artifacts) == 0
@@ -156,7 +177,9 @@ class TestBaseBackendFiltering:
         await backend._store_artifact(fact, None)
         await backend._store_artifact(episode, None)
 
-        results = await backend.read(memory_type=MemoryType.FACT)
+        results_result = await backend.read(memory_type=MemoryType.FACT)
+        assert results_result.success
+        results = results_result.data
 
         assert len(results) == 1
         assert results[0].content == "Fact"
@@ -168,7 +191,9 @@ class TestBaseBackendFiltering:
         await backend._store_artifact(tagged, None)
         await backend._store_artifact(untagged, None)
 
-        results = await backend.read(tags=["important"])
+        results_result = await backend.read(tags=["important"])
+        assert results_result.success
+        results = results_result.data
 
         assert len(results) == 1
         assert results[0].content == "Tagged"
@@ -180,7 +205,9 @@ class TestBaseBackendFiltering:
         await backend._store_artifact(tagged, None)
         await backend._store_artifact(untagged, None)
 
-        success = await backend.delete(tags=["remove"])
+        success_result = await backend.delete(tags=["remove"])
+        assert success_result.success
+        success = success_result.data
 
         assert success is True
         assert tagged.id not in backend.artifacts

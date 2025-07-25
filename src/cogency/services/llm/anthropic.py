@@ -9,7 +9,6 @@ except ImportError:
 
 from cogency.constants import MAX_TOKENS
 from cogency.services.llm.base import BaseLLM
-from cogency.resilience import safe
 
 
 class AnthropicLLM(BaseLLM):
@@ -49,7 +48,6 @@ class AnthropicLLM(BaseLLM):
         self._client.api_key = self.next_key()
         return self._client
 
-    @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
         anthropic_messages = self._format(messages)
@@ -62,16 +60,18 @@ class AnthropicLLM(BaseLLM):
         )
         return res.content[0].text
 
-    @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         anthropic_messages = self._format(messages)
 
-        async with client.messages.stream(
-            model=self.model,
-            messages=anthropic_messages,
-            **self.kwargs,
-            **kwargs,
-        ) as stream:
-            async for text in stream.text_stream:
-                yield text
+        try:
+            async with client.messages.stream(
+                model=self.model,
+                messages=anthropic_messages,
+                **self.kwargs,
+                **kwargs,
+            ) as stream:
+                async for text in stream.text_stream:
+                    yield text
+        except Exception as e:
+            raise e

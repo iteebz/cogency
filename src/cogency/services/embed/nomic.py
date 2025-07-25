@@ -5,6 +5,7 @@ import numpy as np
 
 from cogency.resilience import ConfigError
 from cogency.utils.keys import KeyManager
+from cogency.utils.results import Err, Ok, Result
 
 from .base import BaseEmbed
 
@@ -44,7 +45,7 @@ class NomicEmbed(BaseEmbed):
 
     def _rotate_client(self):
         """Rotate to the next key and re-initialize the client."""
-        if self.key_rotator:
+        if self.keys.has_multiple():
             self._init_client()
 
     def _ensure_initialized(self) -> None:
@@ -64,7 +65,7 @@ class NomicEmbed(BaseEmbed):
                     "nomic package required. Install with: pip install nomic"
                 ) from None
 
-    def embed_one(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> Result[np.ndarray, Exception]:
         """
         Embed a single text string
 
@@ -75,11 +76,14 @@ class NomicEmbed(BaseEmbed):
         Returns:
             Embedding vector as numpy array
         """
-        return self.embed_many([text], **kwargs)[0]
+        result = self.embed_many([text], **kwargs)
+        if result.failure:
+            return Err(result.error)
+        return Ok(result.data[0])
 
     def embed_many(
         self, texts: list[str], batch_size: Optional[int] = None, **kwargs
-    ) -> list[np.ndarray]:
+    ) -> Result[list[np.ndarray], Exception]:
         """
         Embed multiple texts with automatic batching
 
@@ -95,7 +99,7 @@ class NomicEmbed(BaseEmbed):
         self._ensure_initialized()
 
         if not texts:
-            return []
+            return Ok([])
 
         # Use provided batch size or default
         bsz = batch_size or self._batch_size
@@ -120,12 +124,12 @@ class NomicEmbed(BaseEmbed):
                     all_embeddings.extend(batch_result["embeddings"])
 
                 logger.info(f"Successfully embedded {len(texts)} texts")
-                return [np.array(emb) for emb in all_embeddings]
+                return Ok([np.array(emb) for emb in all_embeddings])
             else:
                 # Single batch
                 result = embed.text(texts=texts, model=model, dimensionality=dims)
                 logger.info(f"Successfully embedded {len(texts)} texts")
-                return [np.array(emb) for emb in result["embeddings"]]
+                return Ok([np.array(emb) for emb in result["embeddings"]])
 
         except Exception as e:
             logger.error(f"Embedding failed: {e}")
@@ -134,7 +138,7 @@ class NomicEmbed(BaseEmbed):
             if "api" in str(e).lower() or "auth" in str(e).lower():
                 logger.error("This might be an API key issue. Check your NOMIC_API_KEY.")
 
-            raise
+            return Err(e)
 
     @property
     def model(self) -> str:

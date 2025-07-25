@@ -40,7 +40,8 @@ dependencies = [
     "python-dotenv>=1.0.0",
     "pytz>=2023.0",
     "trafilatura (>=2.0.0,<3.0.0)",
-    "typing-extensions>=4.0"
+    "typing-extensions>=4.0",
+    "resilient-result @ file:///Users/teebz/dev/workspace/resilient-result",
 ]
 
 [project.optional-dependencies]
@@ -62,6 +63,9 @@ types-psutil = "^6.0.0"
 types-python-dateutil = "^2.8.0"
 types-pytz = "^2024.0"
 
+
+[tool.poetry.dependencies]
+resilient-result = {develop = true}
 [tool.poetry]
 packages = [{ include = "cogency", from = "src" }]
 

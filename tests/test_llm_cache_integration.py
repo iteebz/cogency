@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.services.llm.mock import MockLLM
+from tests.conftest import MockLLM
 from cogency.types.cache import configure_cache, get_cache
 
 
@@ -20,7 +20,8 @@ async def test_llm_caching_integration():
 
     # First call should execute and cache
     result1 = await llm.run(messages)
-    assert result1 == "Cached response"
+    assert result1.success
+    assert result1.data == "Cached response"
 
     # Check cache stats
     stats = cache.get_stats()
@@ -29,7 +30,8 @@ async def test_llm_caching_integration():
 
     # Second call should use cache
     result2 = await llm.run(messages)
-    assert result2 == "Cached response"
+    assert result2.success
+    assert result2.data == "Cached response"
 
     # Check cache stats again
     stats = cache.get_stats()
@@ -51,8 +53,10 @@ async def test_llm_caching_disabled():
     messages = [{"role": "user", "content": "Test no caching"}]
 
     # Multiple calls should not affect cache
-    await llm.run(messages)
-    await llm.run(messages)
+    result1 = await llm.run(messages)
+    assert result1.success
+    result2 = await llm.run(messages)
+    assert result2.success
 
     # Cache should show no activity
     stats = cache.get_stats()
@@ -75,10 +79,12 @@ async def test_different_messages_different_cache():
     messages2 = [{"role": "user", "content": "Second message"}]
 
     # Call with first message
-    await llm.run(messages1)
+    result1 = await llm.run(messages1)
+    assert result1.success
 
     # Call with second message
-    await llm.run(messages2)
+    result2 = await llm.run(messages2)
+    assert result2.success
 
     # Both should be cache misses
     stats = cache.get_stats()

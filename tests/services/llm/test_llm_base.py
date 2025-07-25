@@ -40,7 +40,7 @@ async def test_run_basic():
     messages = [{"role": "user", "content": "Hello"}]
 
     result = await llm.run(messages)
-    assert result == "Mock response to: Hello"
+    assert result.success and result.data == "Mock response to: Hello"
 
 
 @pytest.mark.asyncio

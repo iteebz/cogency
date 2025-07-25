@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.services.llm.mock import MockLLM
+from ..conftest import MockLLM
 from cogency.utils.keys import KeyManager, KeyRotator
 
 
@@ -30,8 +30,9 @@ async def test_llm_methods():
 
     # Test run method
     result = await llm.run(messages)
-    assert isinstance(result, str)
-    assert len(result) > 0
+    assert result.success
+    assert isinstance(result.data, str)
+    assert len(result.data) > 0
 
     # Test stream method
     chunks = []

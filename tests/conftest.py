@@ -6,8 +6,9 @@ from typing import Any, Dict
 
 import pytest
 
+from typing import AsyncIterator
 from cogency.context import Context
-from cogency.services.llm.mock import MockLLM
+from cogency.services.llm.base import BaseLLM
 from cogency.services.memory.filesystem import FileBackend
 from cogency.state import State
 from cogency.tools.weather import Weather
@@ -31,6 +32,11 @@ def memory_backend(temp_memory_dir):
 def mock_llm():
     """Mock LLM for deterministic testing."""
     return MockLLM()
+
+
+def create_mock_llm(response: str = "Mock response"):
+    """Create a MockLLM with custom response - for tests needing specific responses."""
+    return MockLLM(response=response)
 
 
 @pytest.fixture
@@ -91,6 +97,30 @@ def sample_memory_content():
             "tags": ["preferences", "tech"],
         },
     ]
+
+
+class MockLLM(BaseLLM):
+    """Mock LLM for testing - moved from src to test utilities."""
+
+    def __init__(
+        self, response: str = "Mock response", should_fail: bool = False, api_keys=None, **kwargs
+    ):
+        super().__init__(provider_name="mock", api_keys=api_keys or "mock_key", **kwargs)
+        self.response = response
+        self.should_fail = should_fail
+
+    async def _run_impl(self, messages, **kwargs) -> str:
+        if self.should_fail:
+            raise Exception("Mock LLM failure for testing")
+        return self.response
+
+    async def stream(self, messages, **kwargs) -> AsyncIterator[str]:
+        try:
+            for char in self.response:
+                yield char
+        except Exception as e:
+            # Base class @resilient decorator will catch and wrap this
+            raise e
 
 
 class TestHelpers:

@@ -19,9 +19,9 @@ class Memory:
     @staticmethod
     def list_backends() -> List[str]:
         """List available backend names."""
-        from cogency.services import memory
 
         # Get all available memory backends from service registry
         from cogency.services import _registry
+
         _registry._discover_services()
         return list(_registry._memory_backends.keys())

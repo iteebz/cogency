@@ -9,7 +9,6 @@ except ImportError:
 
 from cogency.constants import MAX_TOKENS
 from cogency.services.llm.base import BaseLLM
-from cogency.resilience import safe
 
 
 class GeminiLLM(BaseLLM):
@@ -50,7 +49,6 @@ class GeminiLLM(BaseLLM):
 
         return self._clients[current_key]
 
-    @safe.llm()
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
@@ -70,22 +68,24 @@ class GeminiLLM(BaseLLM):
 
         return response.text
 
-    @safe.llm()
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
 
         client = self._get_client()
-        async for chunk in await client.aio.models.generate_content_stream(
-            model=self.model,
-            contents=prompt,
-            config=genai.types.GenerateContentConfig(
-                temperature=self.temperature,
-                **{
-                    k: v
-                    for k, v in kwargs.items()
-                    if k in ["max_output_tokens", "top_p", "top_k", "stop_sequences"]
-                },
-            ),
-        ):
-            if chunk.text:
-                yield chunk.text
+        try:
+            async for chunk in await client.aio.models.generate_content_stream(
+                model=self.model,
+                contents=prompt,
+                config=genai.types.GenerateContentConfig(
+                    temperature=self.temperature,
+                    **{
+                        k: v
+                        for k, v in kwargs.items()
+                        if k in ["max_output_tokens", "top_p", "top_k", "stop_sequences"]
+                    },
+                ),
+            ):
+                if chunk.text:
+                    yield chunk.text
+        except Exception as e:
+            raise e

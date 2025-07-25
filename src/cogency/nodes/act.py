@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 @safe.checkpoint("act")
-@safe.tools()
+@safe.act()
 async def act(state: State, *, tools: List[BaseTool]) -> State:
     """Act: execute tools based on reasoning decision."""
     time.time()

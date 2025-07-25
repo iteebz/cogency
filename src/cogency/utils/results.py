@@ -1,44 +1,8 @@
-"""Perfect Result pattern - concise factories, descriptive properties."""
+"""Cogency result types extending resilient-result."""
 
 from typing import Any
 
-
-class Result:
-    """Perfect Result pattern - best of both worlds."""
-
-    def __init__(self, data: Any = None, error: str = None):
-        self.data = data
-        self.error = error
-
-    @classmethod
-    def ok(cls, data: Any = None) -> "Result":
-        """Create successful result."""
-        return cls(data=data)
-
-    @classmethod
-    def fail(cls, error: str) -> "Result":
-        """Create failed result."""
-        return cls(error=error)
-
-    @property
-    def success(self) -> bool:
-        """Check if successful."""
-        return self.error is None
-
-    @property
-    def failure(self) -> bool:
-        """Check if failed."""
-        return self.error is not None
-
-    def __bool__(self) -> bool:
-        """Allow if result: checks."""
-        return self.success
-
-    def __repr__(self) -> str:
-        if self.success:
-            return f"Result.ok({repr(self.data)})"
-        else:
-            return f"Result.fail({repr(self.error)})"
+from resilient_result import Err, Ok, Result
 
 
 class ToolResult(Result):
@@ -126,3 +90,7 @@ class RecoveryResult(Result):
             return f"RecoveryResult.ok({repr(self.data)}, action={self.recovery_action})"
         else:
             return f"RecoveryResult.fail({repr(self.error)}, action={self.recovery_action})"
+
+
+# Re-export resilient-result aliases for backward compatibility
+__all__ = ["Result", "Ok", "Err", "ToolResult", "ActionResult", "ParseResult", "RecoveryResult"]

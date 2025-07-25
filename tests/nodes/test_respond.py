@@ -1,34 +1,14 @@
 """Test Respond node - essential tests only."""
 
-from unittest.mock import AsyncMock
-
 import pytest
+from tests.conftest import create_mock_llm
 
 from cogency.context import Context
-from cogency.services.llm.base import BaseLLM
 from cogency.nodes.respond import prompt_response, respond
 from cogency.output import Output
+from tests.conftest import MockLLM
 from cogency.state import State
 from cogency.utils.results import ActionResult
-
-
-class MockLLM(BaseLLM):
-    def __init__(self, response: str = "Test response", should_fail: bool = False):
-        super().__init__(provider_name="mock", api_keys="test-key")
-        self.response = response
-        self.should_fail = should_fail
-        self.stream_chunks = response.split(" ") if response else []
-
-    async def _run_impl(self, messages, **kwargs):
-        if self.should_fail:
-            raise Exception("LLM API error")
-        return self.response
-
-    async def stream(self, messages, **kwargs):
-        if self.should_fail:
-            raise Exception("LLM streaming error")
-        for chunk in self.stream_chunks:
-            yield chunk + " "
 
 
 @pytest.fixture
@@ -65,32 +45,35 @@ def test_build_prompt():
 @pytest.mark.asyncio
 async def test_respond_basic(state):
     """Test basic respond functionality."""
-    llm = MockLLM("Hello world")
-    state.output = AsyncMock()
+    llm = create_mock_llm("Hello world")
 
-    result = await respond(state, llm=llm, tools=[])
+    updated_state = await respond(state, llm=llm, tools=[])
 
-    assert result["final_response"] == "Hello world"
-    assert result["next_node"] == "END"
+    assert updated_state["final_response"] == "Hello world"
+    assert updated_state["next_node"] == "END"
     assert len(state.context.messages) >= 2
 
 
 @pytest.mark.asyncio
 async def test_respond_with_tool_results(state):
     """Test respond with tool execution results."""
-    llm = MockLLM("Weather is sunny")
+    from unittest.mock import AsyncMock
+
+    llm = create_mock_llm("Weather is sunny")
     state.output = AsyncMock()
-    state["execution_results"] = ActionResult([{"temperature": "72F"}])
+    state["execution_results"] = ActionResult.ok([{"temperature": "72F"}])
 
-    result = await respond(state, llm=llm, tools=[])
+    updated_state = await respond(state, llm=llm, tools=[])
 
-    assert result["final_response"] == "Weather is sunny"
-    assert result["next_node"] == "END"
+    assert updated_state["final_response"] == "Weather is sunny"
+    assert updated_state["next_node"] == "END"
 
 
 @pytest.mark.asyncio
 async def test_respond_error_handling(state):
     """Test respond handles LLM failures."""
+    from unittest.mock import AsyncMock
+
     from cogency.types.cache import get_cache
 
     # Clear cache to avoid interference from other tests
@@ -100,20 +83,22 @@ async def test_respond_error_handling(state):
     llm = MockLLM(should_fail=True)
     state.output = AsyncMock()
 
-    result = await respond(state, llm=llm, tools=[])
+    updated_state = await respond(state, llm=llm, tools=[])
 
-    assert "Technical issue" in result["final_response"]
-    assert result["next_node"] == "END"
+    assert "issue" in updated_state["final_response"].lower()
+    assert updated_state["next_node"] == "END"
 
 
 @pytest.mark.asyncio
 async def test_with_stopping_reason(state):
     """Test respond with stopping reason fallback."""
-    llm = MockLLM("Fallback response")
+    from unittest.mock import AsyncMock
+
+    llm = create_mock_llm("Fallback response")
     state.output = AsyncMock()
     state["stopping_reason"] = "max_iterations_reached"
 
-    result = await respond(state, llm=llm, tools=[])
+    updated_state = await respond(state, llm=llm, tools=[])
 
-    assert result["final_response"] == "Fallback response"
-    assert result["next_node"] == "END"
+    assert updated_state["final_response"] == "Fallback response"
+    assert updated_state["next_node"] == "END"

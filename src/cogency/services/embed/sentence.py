@@ -1,5 +1,7 @@
 import numpy as np
 
+from cogency.utils.results import Err, Ok, Result
+
 from .base import BaseEmbed
 
 
@@ -24,14 +26,20 @@ class SentenceEmbed(BaseEmbed):
                 "Use `pip install cogency[sentence-transformers]`"
             ) from None
 
-    def embed_one(self, text: str, **kwargs) -> np.ndarray:
+    def embed_one(self, text: str, **kwargs) -> Result[np.ndarray, Exception]:
         """Embed a single text string."""
-        return self._model_instance.encode(text, **kwargs)
+        try:
+            return Ok(self._model_instance.encode(text, **kwargs))
+        except Exception as e:
+            return Err(e)
 
-    def embed_many(self, texts: list[str], **kwargs) -> list[np.ndarray]:
+    def embed_many(self, texts: list[str], **kwargs) -> Result[list[np.ndarray], Exception]:
         """Embed multiple texts."""
-        embeddings = self._model_instance.encode(texts, **kwargs)
-        return [np.array(emb) for emb in embeddings]
+        try:
+            embeddings = self._model_instance.encode(texts, **kwargs)
+            return Ok([np.array(emb) for emb in embeddings])
+        except Exception as e:
+            return Err(e)
 
     @property
     def dimensionality(self) -> int:

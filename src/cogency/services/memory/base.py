@@ -6,14 +6,14 @@ from uuid import UUID
 
 from cogency.memory.core import Memory, MemoryBackend, MemoryType, SearchType
 from cogency.memory.search import search
+from cogency.resilience import safe
 from cogency.utils.results import Result
-from cogency.resilience import resilient
 
 
 class BaseBackend(MemoryBackend, ABC):
     """Base backend using template method pattern - delegates storage to subclasses."""
 
-    @resilient
+    @safe.memory()
     async def create(
         self,
         content: str,
@@ -36,7 +36,7 @@ class BaseBackend(MemoryBackend, ABC):
         await self._store_artifact(artifact, embedding, **kwargs)
         return artifact
 
-    @resilient
+    @safe.memory()
     async def read(
         self,
         query: str = None,
@@ -93,7 +93,7 @@ class BaseBackend(MemoryBackend, ABC):
         )
         return results[:limit]
 
-    @resilient
+    @safe.memory()
     async def update(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result:
         """UPDATE - Standard update logic with storage delegation."""
         await self._ready()
@@ -105,7 +105,7 @@ class BaseBackend(MemoryBackend, ABC):
 
         return await self._update(artifact_id, clean_updates)
 
-    @resilient
+    @safe.memory()
     async def delete(
         self,
         artifact_id: UUID = None,

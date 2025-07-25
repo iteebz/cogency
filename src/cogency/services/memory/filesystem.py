@@ -7,9 +7,8 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from cogency.utils.results import Result
-
 from cogency.memory.core import Memory, MemoryType
+
 from .base import BaseBackend
 
 logger = logging.getLogger(__name__)
@@ -190,7 +189,7 @@ class FileBackend(BaseBackend):
             return True
         except (OSError, FileNotFoundError) as e:
             logger.error(f"Failed to delete artifacts by filters: {e}")
-            return Result.failureure(f"Failed to delete artifacts by filters: {e}")
+            return False
 
     async def _embed(self, artifact_id: UUID) -> Optional[List[float]]:
         """Get embedding for search operations."""

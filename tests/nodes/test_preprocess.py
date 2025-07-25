@@ -5,8 +5,8 @@ import pytest
 
 from cogency import State
 from cogency.context import Context
-from cogency.services.llm.mock import MockLLM
 from cogency.nodes.preprocess import preprocess
+from ..conftest import MockLLM
 from cogency.tools.base import BaseTool
 
 

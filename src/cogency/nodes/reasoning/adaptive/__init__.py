@@ -1,6 +1,5 @@
 """Adaptive reasoning control unit - clean public API"""
 
-
 from cogency.state import summarize_attempts
 
 from .assessment import assess_tools

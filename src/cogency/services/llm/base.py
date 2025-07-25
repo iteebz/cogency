@@ -1,11 +1,11 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, List, Union
+from typing import Dict, List, Union
 
+from cogency.resilience import safe
 from cogency.types.cache import cached_llm_call
 from cogency.utils.keys import KeyManager
 from cogency.utils.results import Result
-from cogency.resilience import resilient
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +38,7 @@ class BaseLLM(ABC):
         """Get next API key - rotates automatically on every call."""
         return self.keys.get_next()
 
-    @resilient
+    @safe.network()
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
         """Generate a response from the LLM given a list of messages.
 
@@ -62,7 +62,7 @@ class BaseLLM(ABC):
         """Convert to provider format (standard role/content structure)."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
-    @resilient
+    @safe.network()
     @abstractmethod
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> Result:
         """Generate a streaming response from the LLM given a list of messages.
