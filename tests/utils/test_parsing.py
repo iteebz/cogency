@@ -7,7 +7,10 @@ import pytest
 from cogency.utils.parsing import (
     _clean_json,
     _extract_json,
+    _extract_json_stream,
+    _extract_with_patterns,
     parse_json,
+    parse_json_with_correction,
     parse_tool_calls,
 )
 
@@ -111,3 +114,58 @@ async def test_json_parsing_with_llm_responses():
     parse_result = parse_json(mixed_response)
     assert parse_result.success
     assert parse_result.data["conclusion"] == "success"
+
+
+def test_extract_json_stream_multi_object():
+    """Test extraction from multi-object responses (Gemini bug)."""
+    # Multiple JSON objects in sequence - should return FIRST only
+    multi_json = (
+        """{"thinking": "step1", "tool_calls": []} {"thinking": "step2", "tool_calls": []}"""
+    )
+
+    objects = list(_extract_json_stream(multi_json))
+
+    assert len(objects) == 1  # Should stop after first object
+    assert objects[0]["thinking"] == "step1"
+
+
+def test_extract_with_patterns_common_failures():
+    """Test regex pattern extraction for common LLM failure modes."""
+
+    # Pattern 1: JSON with explanation text
+    response1 = 'Here is my response: {"thinking": "analysis", "tool_calls": []}'
+    extracted = _extract_with_patterns(response1)
+    assert extracted == '{"thinking": "analysis", "tool_calls": []}'
+
+    # Pattern 2: JSON with trailing text
+    response2 = '{"thinking": "plan", "tool_calls": []} and some extra explanation'
+    extracted = _extract_with_patterns(response2)
+    assert extracted == '{"thinking": "plan", "tool_calls": []}'
+
+    # Pattern 3: No valid JSON structure
+    response3 = "Just text with no JSON structure"
+    extracted = _extract_with_patterns(response3)
+    assert extracted is None
+
+
+@pytest.mark.asyncio
+async def test_parse_json_with_correction():
+    """Test self-correction loop for malformed JSON."""
+
+    # Mock LLM function that fixes JSON on second attempt
+    async def mock_llm_fix(messages):
+        return '{"thinking": "corrected", "tool_calls": []}'
+
+    # Mock LLM that fails correction
+    async def mock_llm_fail(messages):
+        return "still broken json"
+
+    # Test successful correction
+    malformed = '{"thinking": "broken", "tool_calls": ['
+    result = await parse_json_with_correction(malformed, llm_fn=mock_llm_fix)
+    assert result.success
+    assert result.data["thinking"] == "corrected"
+
+    # Test failed correction (should return original error)
+    result = await parse_json_with_correction(malformed, llm_fn=mock_llm_fail)
+    assert not result.success

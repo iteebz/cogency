@@ -2,7 +2,7 @@
 
 import json
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from .results import ParseResult
 
@@ -37,12 +37,13 @@ def normalize_reasoning(val: Any) -> List[str]:
     return [str(val)]  # Catch-all for any other unexpected type
 
 
-def parse_json(response: str) -> ParseResult:
+def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) -> ParseResult:
     """Extract JSON from LLM response - clean Result pattern.
 
     Handles:
     - Markdown code fences (```json and ```)
     - Proper brace matching for JSON objects
+    - Regex-based pattern extraction for common failure modes
     - Graceful ParseResult.fail() on errors
 
     Args:
@@ -70,12 +71,33 @@ def parse_json(response: str) -> ParseResult:
         data = json.loads(json_text)
         return ParseResult.ok(data)
     except json.JSONDecodeError as e:
-        # Fallback: Use incremental parser to recover partial JSON
+        # Fallback 1: Use incremental parser to recover partial JSON
         try:
             for obj in _extract_json_stream(response):
+                if trace_fn:
+                    trace_fn(
+                        "JSON recovery: extracted first valid object from multi-object response"
+                    )
                 return ParseResult.ok(obj)  # Return first valid JSON object
         except Exception:
             pass
+
+        # Fallback 2: Regex-based pattern extraction for common failure modes
+        try:
+            extracted_json = _extract_with_patterns(response)
+            if extracted_json:
+                if trace_fn:
+                    trace_fn(
+                        f"JSON recovery: extracted using regex patterns - {extracted_json[:100]}..."
+                    )
+                data = json.loads(extracted_json)
+                return ParseResult.ok(data)
+        except (json.JSONDecodeError, Exception):
+            pass
+
+        # All fallbacks failed - this is where self-correction would trigger
+        if trace_fn:
+            trace_fn(f"JSON parsing failed after all fallbacks: {str(e)}")
 
         return ParseResult.fail(f"JSON decode error: {str(e)}")
 
@@ -126,7 +148,11 @@ def _extract_json(text: str) -> str:
 
 
 def _extract_json_stream(text: str):
-    """Extract JSON objects incrementally from potentially corrupted text."""
+    """Extract JSON objects incrementally - returns FIRST valid object only.
+
+    This handles cases where LLMs generate multiple JSON objects despite
+    explicit instructions to output only one per iteration.
+    """
     decoder = json.JSONDecoder()
     pos = 0
     while pos < len(text):
@@ -139,10 +165,34 @@ def _extract_json_stream(text: str):
 
         try:
             obj, index = decoder.raw_decode(text[pos:])
-            yield obj
-            pos += index
+            yield obj  # Return first valid JSON object found
+            return  # Stop after first valid object - don't process subsequent ones
         except json.JSONDecodeError:
             pos += 1
+
+
+def _extract_with_patterns(text: str) -> Optional[str]:
+    """Extract JSON using regex patterns for common LLM failure modes."""
+    patterns = [
+        # Pattern 1: JSON surrounded by explanation text
+        r'(?:```json\s*)?(\{[^{}]*"thinking"[^{}]*"tool_calls"[^{}]*\})',
+        # Pattern 2: JSON with trailing text after closing brace
+        r'(\{[^{}]*"thinking"[^{}]*"tool_calls"[^{}]*\})[^{}]*$',
+        # Pattern 3: JSON with leading explanation
+        r'(?:Here\'s|Here is|The response is).*?(\{[^{}]*"thinking"[^{}]*"tool_calls"[^{}]*\})',
+        # Pattern 4: Basic JSON structure recovery
+        r'(\{[^{}]*(?:"thinking"|"tool_calls"|"reflect"|"plan")[^{}]*\})',
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+        if match:
+            candidate = match.group(1).strip()
+            # Validate extracted candidate has required structure
+            if '"thinking"' in candidate or '"tool_calls"' in candidate:
+                return candidate
+
+    return None
 
 
 def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
@@ -170,6 +220,66 @@ def recover_json(response: str) -> ParseResult:
         return ParseResult.fail("No response to recover")
 
     return parse_json(response)
+
+
+async def parse_json_with_correction(
+    response: str,
+    llm_fn: Optional[Callable] = None,
+    trace_fn: Optional[Callable[[str], None]] = None,
+    max_attempts: int = 2,
+) -> ParseResult:
+    """Parse JSON with self-correction loop for malformed responses."""
+
+    # Try normal parsing first
+    result = parse_json(response, trace_fn)
+    if result.success or not llm_fn:
+        return result
+
+    # Attempt self-correction
+    for attempt in range(max_attempts):
+        if trace_fn:
+            trace_fn(f"JSON self-correction attempt {attempt + 1}/{max_attempts}")
+
+        correction_prompt = self_correct_json(response, result.error)
+
+        try:
+            corrected_response = await llm_fn([{"role": "user", "content": correction_prompt}])
+            corrected_result = parse_json(corrected_response, trace_fn)
+
+            if corrected_result.success:
+                if trace_fn:
+                    trace_fn(f"JSON self-correction succeeded on attempt {attempt + 1}")
+                return corrected_result
+            else:
+                response = corrected_response  # Try again with corrected response
+
+        except Exception as e:
+            if trace_fn:
+                trace_fn(f"JSON self-correction failed: {str(e)}")
+            break
+
+    # Self-correction failed, return original error
+    if trace_fn:
+        trace_fn("JSON self-correction exhausted all attempts, falling back to error")
+    return result
+
+
+def self_correct_json(malformed_response: str, error_msg: str) -> str:
+    """Generate self-correction prompt for malformed JSON responses."""
+    return f"""The previous response contained malformed JSON. Please fix it and return only valid JSON.
+
+Error: {error_msg}
+
+Malformed response:
+{malformed_response}
+
+CRITICAL: Return ONLY a single valid JSON object with this exact structure:
+{{
+  "thinking": "your reasoning here",
+  "tool_calls": [array of tool calls or empty array],
+  "switch_to": null,
+  "switch_why": null
+}}"""
 
 
 def fallback_prompt(reason: str, system: str = None, schema: str = None) -> str:

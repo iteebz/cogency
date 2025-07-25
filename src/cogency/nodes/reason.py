@@ -24,9 +24,9 @@ from cogency.nodes.reasoning.fast import (
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
-from cogency.types.errors import format_reasoning_error
+from cogency.types.errors import ParsingError, format_parsing_error, format_reasoning_error
 from cogency.types.reasoning import Reasoning
-from cogency.utils.parsing import parse_json
+from cogency.utils.parsing import parse_json_with_correction
 
 logger = logging.getLogger(__name__)
 
@@ -199,39 +199,66 @@ async def reason(
 
         # Don't add reasoning JSON to context - it's internal planning only
 
-        # Parse response using consolidated utilities
-        parse_result = parse_json(llm_response)
+        # Create trace function for parsing feedback
+        def trace_parsing(msg: str):
+            asyncio.create_task(state.output.trace(msg, node="reason"))
+
+        # Parse response with self-correction and tracing
+        parse_result = await parse_json_with_correction(
+            llm_response, llm_fn=llm.run, trace_fn=trace_parsing, max_attempts=2
+        )
+
         if not parse_result.success:
+            # Create ParsingError for detailed tracking
+            parsing_error = ParsingError(
+                parse_result.error,
+                raw_response=llm_response[:200] + "..."
+                if len(llm_response) > 200
+                else llm_response,
+                correction_attempts=2,  # We attempted 2 corrections
+            )
+
             # Log technical details for debugging
-            await state.output.trace(f"JSON parsing failed: {parse_result.error}", node="reason")
-            # Show user-friendly message
-            user_message = format_reasoning_error("json_parse_error")
+            await state.output.trace(
+                f"JSON parsing failed after all attempts: {parse_result.error}", node="reason"
+            )
+
+            # Show user-friendly parsing-specific message
+            user_message = format_parsing_error("self_correction_failed")
             await state.output.trace(user_message, node="reason")
+
+            # Track parsing failure separately from reasoning failure
+            state["parsing_error"] = parsing_error
+            state["last_error_type"] = "parsing"
+
             # Fallback to empty Reasoning object if parsing fails
             json_data = Reasoning()
         else:
             json_data = parse_result.data
+            # Clear any previous parsing errors on success
+            state["parsing_error"] = None
+            state["last_error_type"] = None
             # Explicitly create Reasoning object from parsed data
             json_data = Reasoning.from_dict(json_data)
 
         # Show reasoning phases - gated by verbose flag
-        # verbose = state.get("verbose", True)  # Default to True for backward compatibility
-        # if verbose:
-        #     if react_mode == "deep" and json_data:
-        #         thinking_phase = json_data.thinking
-        #         reflect_phase = json_data.reflect
-        #         plan_phase = json_data.plan
+        verbose = state.get("verbose", True)  # Default to True for backward compatibility
+        if verbose:
+            if react_mode == "deep" and json_data:
+                thinking_phase = json_data.thinking
+                reflect_phase = json_data.reflect
+                plan_phase = json_data.plan
 
-        #         if thinking_phase:
-        #             await state.output.update(f"💭 {thinking_phase}\n")
-        #         if reflect_phase:
-        #             await state.output.update(f"🤔 {reflect_phase}\n")
-        #         if plan_phase:
-        #             await state.output.update(f"📋 {plan_phase}\n")
-        #     elif json_data and json_data.thinking:
-        #         thinking = json_data.thinking
-        #         if thinking:
-        #             await state.output.update(f"💭 {thinking}\n")
+                if thinking_phase:
+                    await state.output.update(f"💭 {thinking_phase}\n")
+                if reflect_phase:
+                    await state.output.update(f"🤔 {reflect_phase}\n")
+                if plan_phase:
+                    await state.output.update(f"📋 {plan_phase}\n")
+            elif json_data and json_data.thinking:
+                thinking = json_data.thinking
+                if thinking:
+                    await state.output.update(f"💭 {thinking}\n")
 
         # Initialize variables that need to be available throughout the function
         tool_calls = None

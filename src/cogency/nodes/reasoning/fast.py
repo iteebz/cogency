@@ -8,7 +8,7 @@ def prompt_fast_mode(tool_registry: str, query: str, attempts_summary: str = "")
     return f"""
 FAST: Direct execution for query: {query}
 
-CRITICAL: Output EXACTLY ONE JSON object. Do NOT generate multiple JSON objects or responses.
+CRITICAL: Output ONE JSON object for THIS ITERATION ONLY. Do not anticipate future steps.
 
 REQUIRED JSON Response Format (ALWAYS return valid JSON):
 {{

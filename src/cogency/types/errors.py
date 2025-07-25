@@ -57,6 +57,23 @@ class ReasoningError(CogencyError):
         self.loop_detected = loop_detected
 
 
+class ParsingError(CogencyError):
+    """Error during JSON parsing phase - separate from reasoning logic errors."""
+
+    def __init__(
+        self,
+        message: str,
+        raw_response: str = None,
+        correction_attempts: int = 0,
+        fallback_used: str = None,
+        **kwargs,
+    ):
+        super().__init__(message, error_code="JSON_PARSING_ERROR", **kwargs)
+        self.raw_response = raw_response
+        self.correction_attempts = correction_attempts
+        self.fallback_used = fallback_used
+
+
 class ActionError(CogencyError):
     """Error during action execution phase."""
 
@@ -246,6 +263,10 @@ ERROR_TEMPLATES = {
     "REASONING_LOOP": "I noticed I was repeating the same approach. Let me try a different strategy.",
     "MAX_ITERATIONS": "I've tried several approaches but haven't found a complete solution. Here's what I can tell you so far.",
     "PARSING_ERROR": "I had trouble understanding the response format. Let me rephrase that.",
+    # JSON Parsing specific errors
+    "JSON_PARSE_FAILED": "I had trouble formatting my response properly. Let me try again.",
+    "JSON_SELF_CORRECTION_FAILED": "I attempted to fix my response format but couldn't resolve it. Continuing with best effort.",
+    "JSON_FALLBACK_USED": "I used an alternative parsing method to understand the response.",
     # Memory errors
     "MEMORY_UNAVAILABLE": "I couldn't access memory for this conversation, but I can still help you.",
     "MEMORY_SEARCH_FAILED": "I had trouble searching my memory, but I'll work with what I know.",
@@ -341,3 +362,17 @@ def format_reasoning_error(error_type: str, details: Dict[str, Any] = None) -> s
         return get_user_friendly_message("PARSING_ERROR")
     else:
         return get_user_friendly_message("UNKNOWN_ERROR")
+
+
+def format_parsing_error(error_type: str, details: Dict[str, Any] = None) -> str:
+    """Format JSON parsing errors for user display - separate from reasoning errors."""
+    details = details or {}
+
+    if error_type == "json_parse_failed":
+        return get_user_friendly_message("JSON_PARSE_FAILED")
+    elif error_type == "self_correction_failed":
+        return get_user_friendly_message("JSON_SELF_CORRECTION_FAILED")
+    elif error_type == "fallback_used":
+        return get_user_friendly_message("JSON_FALLBACK_USED")
+    else:
+        return get_user_friendly_message("PARSING_ERROR")
