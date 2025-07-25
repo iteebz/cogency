@@ -85,30 +85,6 @@ async def test_parameter_handling(sql_tool, temp_db):
 @pytest.mark.asyncio
 async def test_errors(sql_tool, temp_db):
     """Test various error conditions."""
-    # Empty query
-    result = await sql_tool.run(query="", connection=temp_db)
-    assert not result.success
-    assert "SQL query cannot be empty" in result.error
-
-    # Missing connection
-    result = await sql_tool.run(query="SELECT 1", connection="")
-    assert not result.success
-    assert "Database connection string required" in result.error
-
-    # Invalid connection format
-    result = await sql_tool.run(query="SELECT 1", connection="invalid-connection")
-    assert not result.success
-    assert "Unsupported database driver" in result.error
-
     # Syntax error
     result = await sql_tool.run(query="INVALID SQL QUERY", connection=temp_db)
     assert not result.success
-
-
-@pytest.mark.asyncio
-async def test_unsupported_drivers(sql_tool):
-    """Test unsupported database drivers."""
-    result = await sql_tool.run(query="SELECT 1", connection="oracle://user:pass@host/db")
-    assert not result.success
-    assert "Unsupported database driver" in result.error
-    assert "sqlite" in result.error

@@ -18,15 +18,6 @@ async def test_scrape_interface():
 
 
 @pytest.mark.asyncio
-async def test_invalid_url():
-    """Test invalid URL handling."""
-    scrape = Scrape()
-    result = await scrape.run(url=None)
-    assert not result.success
-    assert "required" in result.error.lower()
-
-
-@pytest.mark.asyncio
 @patch("trafilatura.fetch_url")
 @patch("trafilatura.extract")
 @patch("trafilatura.extract_metadata")

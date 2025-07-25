@@ -23,7 +23,7 @@ class HTTP(BaseTool):
             name="http",
             description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with headers, auth, and body support",
             emoji="🌐",
-            schema="http(url='string', method='get|post|put|delete|patch', headers=dict, body='string', json_data=dict, auth=dict, timeout=int)",
+            schema="http(url='string', method='get', headers={}, body='', json_data={}, auth={}, timeout=30)\nRequired: url | Optional: method, headers, body, json_data, auth, timeout",
             examples=[
                 "http(url='https://api.example.com/data', method='get')",
                 "http(url='https://api.example.com/users', method='post', json_data={'name': 'John'})",

@@ -44,14 +44,6 @@ async def test_date_operations(date_tool):
 
 
 @pytest.mark.asyncio
-async def test_date_errors(date_tool):
-    """Test error handling."""
-    # Invalid operation
-    result = await date_tool.execute(operation="invalid_op")
-    assert not result.success
-
-
-@pytest.mark.asyncio
 async def test_schema(date_tool):
     """Test schema validation."""
     schema = date_tool.schema

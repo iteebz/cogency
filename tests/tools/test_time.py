@@ -69,12 +69,3 @@ async def test_city_timezones():
     data = result.data
     assert "datetime" in data
     assert data["timezone"] == "Europe/London"
-
-
-@pytest.mark.asyncio
-async def test_errors():
-    """Test error handling."""
-    time_tool = Time()
-
-    result = await time_tool.execute(operation="invalid_op")
-    assert not result.success

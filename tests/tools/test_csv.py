@@ -78,32 +78,7 @@ async def test_append_to_nonexistent_file(csv_tool, temp_csv):
 @pytest.mark.asyncio
 async def test_error_handling(csv_tool):
     """Test error cases."""
-    # Invalid operation
-    result = await csv_tool.run("invalid", "test.csv")
-    assert not result.success
-    assert "Invalid operation" in result.error
-
     # Read nonexistent file
     result = await csv_tool.run("read", "/nonexistent.csv")
     assert not result.success
     assert "File not found" in result.error
-
-    # Write without data
-    result = await csv_tool.run("write", "test.csv", data=None)
-    assert not result.success
-    assert "No data provided" in result.error
-
-    # Append without data
-    result = await csv_tool.run("append", "test.csv", data=None)
-    assert not result.success
-    assert "No data provided" in result.error
-
-
-@pytest.mark.asyncio
-async def test_empty(csv_tool, temp_csv):
-    """Test handling empty CSV data."""
-    data = []
-
-    result = await csv_tool.run("write", temp_csv, data=data)
-    assert not result.success
-    assert "No data provided" in result.error

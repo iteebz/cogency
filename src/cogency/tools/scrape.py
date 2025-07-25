@@ -28,7 +28,7 @@ class Scrape(BaseTool):
             name="scrape",
             description="Extract clean text content from web pages, removing ads, navigation, and formatting",
             emoji="📖",
-            schema="scrape(url='string', favor_precision=bool)",
+            schema="scrape(url='string', favor_precision=True)\nRequired: url | Optional: favor_precision",
             examples=[
                 "scrape(url='https://example.com/article')",
                 "scrape(url='https://news.site.com/story', favor_precision=True)",
@@ -44,8 +44,6 @@ class Scrape(BaseTool):
 
     async def run(self, url: str, favor_precision: bool = True, **kwargs) -> Dict[str, Any]:
         """Extract clean content from a web page."""
-        if not url or not isinstance(url, str):
-            return ToolResult.fail("URL parameter is required and must be a string")
         try:
             # Fetch URL content with timeout and size limits
             downloaded = trafilatura.fetch_url(url, config=config)

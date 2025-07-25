@@ -69,8 +69,3 @@ async def test_security():
     result = await files_tool.run(action="read", filename="../../../etc/passwd")
     assert not result.success
     assert "Unsafe path access" in result.error
-
-    # Empty filename protection
-    result = await files_tool.run(action="read", filename="")
-    assert not result.success
-    assert "Path cannot be empty" in result.error

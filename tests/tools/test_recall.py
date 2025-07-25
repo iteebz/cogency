@@ -28,16 +28,6 @@ class TestRecall:
         assert isinstance(examples, list) and len(examples) > 0
 
     @pytest.mark.asyncio
-    async def test_empty_query(self):
-        """Recall tool handles empty query."""
-        mock_memory = Mock()
-        recall_tool = Recall(memory=mock_memory)
-
-        result = await recall_tool.run(query="")
-        assert not result.success
-        assert "query parameter is required" in result.error
-
-    @pytest.mark.asyncio
     async def test_basic_recall(self):
         """Recall tool can perform basic memory recall."""
         mock_memory = AsyncMock()

@@ -25,15 +25,6 @@ class TestShell:
         assert isinstance(examples, list) and len(examples) > 0
 
     @pytest.mark.asyncio
-    async def test_empty_command(self):
-        """Shell tool handles empty commands."""
-        shell = Shell()
-
-        result = await shell.run(command="")
-        assert not result.success
-        assert "Command cannot be empty" in result.error
-
-    @pytest.mark.asyncio
     async def test_blocked_command(self):
         """Shell tool blocks dangerous commands."""
         shell = Shell()

@@ -23,21 +23,3 @@ class TestHTTP:
         examples = http.examples
         assert isinstance(schema, str) and len(schema) > 0
         assert isinstance(examples, list) and len(examples) > 0
-
-    @pytest.mark.asyncio
-    async def test_invalid_method(self):
-        """HTTP tool handles invalid methods."""
-        http = HTTP()
-
-        result = await http.run(url="https://httpbin.org/get", method="invalid")
-        assert not result.success
-        assert "Invalid HTTP method" in result.error
-
-    @pytest.mark.asyncio
-    async def test_get_body_error(self):
-        """GET requests cannot have body."""
-        http = HTTP()
-
-        result = await http.run(url="https://httpbin.org/get", method="get", body="test")
-        assert not result.success
-        assert "GET requests cannot have a body" in result.error

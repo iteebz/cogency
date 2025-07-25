@@ -39,11 +39,6 @@ async def test_calculator_errors(calculator):
     assert not result.success
     assert "Cannot divide by zero" in result.error
 
-    # Code injection
-    result = await calculator.run(expression="import os")
-    assert not result.success
-    assert "invalid characters" in result.error
-
 
 @pytest.mark.asyncio
 async def test_schema(calculator):

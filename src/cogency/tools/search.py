@@ -6,7 +6,7 @@ from ddgs import DDGS
 
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
-from cogency.types.errors import ToolError, ValidationError, validate_params
+from cogency.types.errors import ToolError
 from cogency.utils.results import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -32,20 +32,9 @@ class Search(BaseTool):
         self._last_search_time = 0
         self._min_delay = 1.0  # Simple rate limit
 
-    async def run(self, query: str, max_results: int = None, **kwargs) -> Dict[str, Any]:
-        if max_results is None:
-            max_results = 5
-        # Input validation
-        validate_params({"query": query}, ["query"], self.name)
-        if not isinstance(max_results, int) or max_results <= 0:
-            raise ValidationError(
-                "max_results must be a positive integer",
-                error_code="INVALID_MAX_RESULTS",
-                details={
-                    "max_results": max_results,
-                    "type": type(max_results).__name__,
-                },
-            )
+    async def run(self, query: str, max_results: int = 5, **kwargs) -> Dict[str, Any]:
+        # Schema validation handles required params and basic types
+        # Apply business logic constraints
         if max_results > 10:
             max_results = 10  # Cap at 10 results
         # Rate limiting

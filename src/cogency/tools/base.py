@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
+from cogency.types.schema import parse_tool_schema, validate_params
 from cogency.utils.results import ToolResult
 
 
@@ -41,12 +42,21 @@ class BaseTool(ABC):
         self.rules = rules or []
 
     async def execute(self, **kwargs: Any) -> ToolResult:
-        """Execute tool with automatic error handling - USE THIS, NOT run() directly."""
+        """Execute tool with automatic validation and error handling - USE THIS, NOT run() directly."""
         try:
-            return await self.run(**kwargs)
-        except Exception as e:
-            from cogency.utils.results import ToolResult
+            # Parse schema and validate params if schema exists
+            if self.schema:
+                schema_spec = parse_tool_schema(self.schema)
+                if schema_spec:
+                    validated_params = validate_params(kwargs, schema_spec)
+                    return await self.run(**validated_params)
 
+            # Fallback to direct execution if no schema
+            return await self.run(**kwargs)
+        except ValueError as e:
+            # Schema validation errors
+            return ToolResult.fail(f"Invalid parameters: {str(e)}")
+        except Exception as e:
             return ToolResult.fail(f"Tool execution failed: {str(e)}")
 
     @abstractmethod

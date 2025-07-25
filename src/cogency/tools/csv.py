@@ -23,7 +23,7 @@ class CSV(BaseTool):
             name="csv",
             description="Read, write, and append CSV files",
             emoji="📊",
-            schema="csv(operation='read|write|append', file_path='string', data=list_of_dicts)",
+            schema="csv(operation='read|write|append', file_path='string', data=list_of_dicts)\nRequired: operation, file_path | Optional: data",
             examples=[
                 "csv(operation='read', file_path='data.csv')",
                 "csv(operation='write', file_path='output.csv', data=[{'name': 'John', 'age': 30}])",
@@ -78,9 +78,6 @@ class CSV(BaseTool):
     def _write(self, file_path: str, data: Optional[List[Dict]]) -> Dict[str, Any]:
         """Write CSV file."""
         try:
-            if not data:
-                return ToolResult.fail("No data provided")
-
             path = self._get_absolute_path(file_path)
             path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -98,9 +95,6 @@ class CSV(BaseTool):
     def _append(self, file_path: str, data: Optional[List[Dict]]) -> Dict[str, Any]:
         """Append to CSV file."""
         try:
-            if not data:
-                return ToolResult.fail("No data provided")
-
             path = self._get_absolute_path(file_path)
 
             if not path.exists():

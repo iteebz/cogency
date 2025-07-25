@@ -28,18 +28,6 @@ class TestWeather:
         assert isinstance(examples, list) and len(examples) > 0
 
     @pytest.mark.asyncio
-    async def test_empty_city(self):
-        """Weather tool handles empty city."""
-        weather_tool = Weather()
-
-        # Mock httpx for empty city test
-        with patch("httpx.AsyncClient") as mock_async_client:
-            result = await weather_tool.execute(city="")
-            assert not result.success
-            # Should not make any HTTP calls for empty city
-            mock_async_client.assert_not_called()
-
-    @pytest.mark.asyncio
     async def test_invalid_city(self):
         """Weather tool handles invalid city."""
         weather_tool = Weather()
@@ -55,6 +43,6 @@ class TestWeather:
         with patch("httpx.AsyncClient") as mock_async_client:
             mock_async_client.return_value.__aenter__.return_value = mock_client
 
-            result = await weather_tool.execute(city="ThisIsNotARealLocationXYZ123")
+            result = await weather_tool.run(city="ThisIsNotARealLocationXYZ123")
             assert not result.success
             assert "not found" in result.error

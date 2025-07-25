@@ -28,15 +28,6 @@ class TestSearch:
         assert isinstance(examples, list) and len(examples) > 0
 
     @pytest.mark.asyncio
-    async def test_empty_query(self):
-        """Search tool handles empty query."""
-        search_tool = Search()
-
-        # Tool validates and raises ValidationError for empty queries
-        result = await search_tool.execute(query="")
-        assert not result.success
-
-    @pytest.mark.asyncio
     async def test_basic_search(self):
         """Search tool can perform basic search."""
         search_tool = Search()

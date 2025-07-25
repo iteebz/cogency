@@ -19,7 +19,7 @@ class Recall(BaseTool):
             name="recall",
             description="Search memory for relevant information when user asks about themselves, their preferences, past interactions, or references things they've mentioned before. Use when current conversation lacks context the user expects you to know.",
             emoji="🧠",
-            schema="recall(query='string', limit=int, tags=list)",
+            schema="recall(query='string', limit=5, tags=[])\nRequired: query | Optional: limit, tags",
             examples=[
                 "recall(query='user favorite color')",
                 "recall(query='previous project discussion', limit=5)",
@@ -36,18 +36,11 @@ class Recall(BaseTool):
         if memory is None:
             raise ValueError("Recall tool requires a memory backend, but None was provided")
 
-    async def run(self, **kwargs: Any) -> Dict[str, Any]:
-        """Retrieve content from memory.
-        Expected kwargs:
-            query (str): Search query
-            limit (int, optional): Maximum number of results
-            tags (List[str], optional): Filter by tags
-        """
-        query = kwargs.get("query")
-        if not query:
-            return ToolResult.fail("query parameter is required")
-        limit = kwargs.get("limit")
-        tags = kwargs.get("tags", [])
+    async def run(
+        self, query: str, limit: Optional[int] = None, tags: Optional[list] = None, **kwargs: Any
+    ) -> Dict[str, Any]:
+        """Retrieve content from memory."""
+        tags = tags or []
         # Extract user_id from context if available
         context = kwargs.get("_context")
         user_id = getattr(context, "user_id", "default") if context else "default"

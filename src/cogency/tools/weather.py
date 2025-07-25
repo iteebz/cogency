@@ -22,7 +22,7 @@ class Weather(BaseTool):
             name="weather",
             description="Get current weather conditions for any city worldwide",
             emoji="🌤️",
-            schema="weather(city='string')",
+            schema="weather(city='string')\nRequired: city",
             examples=[
                 "weather(city='New York')",
                 "weather(city='London')",
@@ -35,8 +35,7 @@ class Weather(BaseTool):
 
     async def _geocode_city(self, city: str) -> ToolResult:
         """Get coordinates for a city using Open-Meteo geocoding."""
-        if not city or not city.strip():
-            return ToolResult.fail("City name cannot be empty")
+        # Schema validation handles required params
 
         url = f"https://geocoding-api.open-meteo.com/v1/search?name={city}&count=1&language=en&format=json"
         try:

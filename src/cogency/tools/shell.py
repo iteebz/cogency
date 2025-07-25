@@ -24,7 +24,7 @@ class Shell(BaseTool):
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
             emoji="💻",
-            schema="shell(command='string', timeout=30, working_dir='path', env=dict)",
+            schema="shell(command='string', timeout=30, working_dir='', env={})\nRequired: command | Optional: timeout, working_dir, env",
             examples=[
                 "shell(command='ls -la')",
                 "shell(command='pwd')",
@@ -97,9 +97,8 @@ class Shell(BaseTool):
         Returns:
             Command execution results including stdout, stderr, and exit code
         """
+        # Schema validation handles required params
         # Security checks
-        if not command or not command.strip():
-            return ToolResult.fail("Command cannot be empty")
 
         # Limit timeout
         timeout = min(max(timeout, 1), 300)  # 1-300 seconds

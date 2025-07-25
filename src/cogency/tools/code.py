@@ -22,7 +22,7 @@ class Code(BaseTool):
             name="code",
             description="Execute Python and JavaScript code safely in isolated environment",
             emoji="🚀",
-            schema="code(code='string', language='python|javascript|js', timeout=30)",
+            schema="code(code='string', language='python', timeout=30)\nRequired: code | Optional: language, timeout",
             examples=[
                 "code(code='print(2 + 2)', language='python')",
                 "code(code='import pandas as pd; df.describe()', language='python')",
@@ -52,8 +52,7 @@ class Code(BaseTool):
         Returns:
             Execution results including output, errors, and exit code
         """
-        if not code or not code.strip():
-            return ToolResult.fail("Code cannot be empty")
+        # Schema validation handles required params
 
         language = language.lower()
         if language not in self._languages:

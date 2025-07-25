@@ -25,24 +25,6 @@ class TestCode:
         assert isinstance(examples, list) and len(examples) > 0
 
     @pytest.mark.asyncio
-    async def test_empty_code(self):
-        """Code tool handles empty code."""
-        code = Code()
-
-        result = await code.run(code="")
-        assert not result.success
-        assert "Code cannot be empty" in result.error
-
-    @pytest.mark.asyncio
-    async def test_invalid_language(self):
-        """Code tool handles unsupported languages."""
-        code = Code()
-
-        result = await code.run(code="print('hello')", language="ruby")
-        assert not result.success
-        assert "Unsupported language" in result.error
-
-    @pytest.mark.asyncio
     async def test_python_exec(self):
         """Code tool executes Python code."""
         code = Code()

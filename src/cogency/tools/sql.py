@@ -24,7 +24,7 @@ class SQL(BaseTool):
             name="sql",
             description="Execute SQL queries on SQLite, PostgreSQL, MySQL databases with connection string support",
             emoji="🗄️",
-            schema="sql(query='string', connection='string', timeout=int, params=list)",
+            schema="sql(query='string', connection='string', timeout=30, params=[])\nRequired: query, connection | Optional: timeout, params",
             examples=[
                 "sql(query='SELECT * FROM users', connection='sqlite:///database.db')",
                 "sql(query='CREATE TABLE logs (id INTEGER PRIMARY KEY, message TEXT)', connection='sqlite:///app.db')",
@@ -64,10 +64,7 @@ class SQL(BaseTool):
         Returns:
             Query results including rows, columns, and metadata
         """
-        if not query or not query.strip():
-            return ToolResult.fail("SQL query cannot be empty")
-        if not connection:
-            return ToolResult.fail("Database connection string required")
+        # Schema validation handles required params
         # Parse connection string to determine driver
         try:
             parsed = urlparse(connection)
