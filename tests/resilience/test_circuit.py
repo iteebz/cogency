@@ -5,14 +5,14 @@ import time
 
 import pytest
 
-from cogency.resilience.decorators import safe
+from cogency.resilience.circuit import circuit
 
 
 @pytest.mark.asyncio
 async def test_circuit_breaker_opens_after_failures():
     """Test circuit breaker opens after max failures."""
 
-    @safe.circuit(max_failures=2, time_window=60)
+    @circuit(failures=2, window=60)
     async def failing_function():
         raise Exception("Always fails")
 
@@ -34,7 +34,7 @@ async def test_circuit_breaker_opens_after_failures():
 async def test_circuit_breaker_resets_after_time_window():
     """Test circuit breaker resets after time window expires."""
 
-    @safe.circuit(max_failures=1, time_window=0.1)  # 100ms window
+    @circuit(failures=1, window=0.1)  # 100ms window
     async def failing_then_working():
         if not hasattr(failing_then_working, "call_count"):
             failing_then_working.call_count = 0
@@ -64,11 +64,11 @@ async def test_circuit_breaker_resets_after_time_window():
 async def test_circuit_breaker_per_function_isolation():
     """Test circuit breaker isolates failures per function."""
 
-    @safe.circuit(max_failures=1, time_window=60)
+    @circuit(failures=1, window=60)
     async def function_a():
         raise Exception("Function A fails")
 
-    @safe.circuit(max_failures=1, time_window=60)
+    @circuit(failures=1, window=60)
     async def function_b():
         return "Function B works"
 
@@ -89,7 +89,7 @@ async def test_circuit_breaker_per_function_isolation():
 async def test_circuit_breaker_successful_calls_dont_trigger():
     """Test successful calls don't trigger circuit breaker."""
 
-    @safe.circuit(max_failures=3, time_window=60)  # Allow 3 failures
+    @circuit(failures=3, window=60)  # Allow 3 failures
     async def sometimes_failing():
         if not hasattr(sometimes_failing, "call_count"):
             sometimes_failing.call_count = 0
