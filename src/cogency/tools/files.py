@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -6,6 +7,16 @@ from cogency.tools.base import BaseTool, ToolResult
 from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class FilesParams:
+    action: str
+    filename: str
+    content: Optional[str] = None
+    line: Optional[int] = None
+    start: Optional[int] = None
+    end: Optional[int] = None
 
 
 @tool
@@ -17,7 +28,7 @@ class Files(BaseTool):
             name="files",
             description="Create, read, edit and manage complete code files with full implementations.",
             emoji="📁",
-            schema="files(action='create|read|edit|list|delete', filename='/path/to/file.py', content='full_file_content', line=25, start=10, end=20)\nRequired: action, filename | Optional: content, line, start, end",
+            params=FilesParams,
             examples=[
                 "files(action='create', filename='app.py', content='from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\"/\")\\nasync def root():\\n    return {\"message\": \"Hello World\"}')",
                 "files(action='create', filename='models.py', content='from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None')",

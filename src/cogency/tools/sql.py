@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import sqlite3
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
@@ -15,6 +16,14 @@ from .registry import tool
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class SQLParams:
+    query: str
+    connection: str
+    timeout: int = 30
+    params: Optional[List] = None
+
+
 @tool
 class SQL(BaseTool):
     """Execute SQL queries across multiple database types with connection management."""
@@ -24,7 +33,7 @@ class SQL(BaseTool):
             name="sql",
             description="Execute SQL queries on SQLite, PostgreSQL, MySQL databases with connection string support",
             emoji="🗄️",
-            schema="sql(query='string', connection='string', timeout=30, params=[])\nRequired: query, connection | Optional: timeout, params",
+            params=SQLParams,
             examples=[
                 "sql(query='SELECT * FROM users', connection='sqlite:///database.db')",
                 "sql(query='CREATE TABLE logs (id INTEGER PRIMARY KEY, message TEXT)', connection='sqlite:///app.db')",

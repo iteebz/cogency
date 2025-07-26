@@ -41,11 +41,13 @@ async def test_calculator_errors(calculator):
 
 
 @pytest.mark.asyncio
-async def test_schema(calculator):
-    """Test schema validation."""
-    schema = calculator.schema
+async def test_params(calculator):
+    """Test parameter validation."""
+    params = calculator.params
     examples = calculator.examples
 
-    assert "expression" in schema
+    assert params is not None
+    assert hasattr(params, '__annotations__')
+    assert 'expression' in params.__annotations__
     assert isinstance(examples, list)
     assert len(examples) > 0

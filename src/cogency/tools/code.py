@@ -3,6 +3,7 @@
 import asyncio
 import logging
 import subprocess
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
 from cogency.utils.results import ToolResult
@@ -11,6 +12,13 @@ from .base import BaseTool
 from .registry import tool
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CodeParams:
+    code: str
+    language: str = "python"
+    timeout: int = 30
 
 
 @tool
@@ -22,7 +30,7 @@ class Code(BaseTool):
             name="code",
             description="Execute Python and JavaScript code safely in isolated environment",
             emoji="🚀",
-            schema="code(code='string', language='python', timeout=30)\nRequired: code | Optional: language, timeout",
+            params=CodeParams,
             examples=[
                 "code(code='print(2 + 2)', language='python')",
                 "code(code='import pandas as pd; df.describe()', language='python')",

@@ -1,6 +1,7 @@
 """Weather tool using Open-Meteo - NO API KEY NEEDED."""
 
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import httpx
@@ -13,6 +14,11 @@ from .registry import tool
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class WeatherParams:
+    city: str
+
+
 @tool
 class Weather(BaseTool):
     """Get current weather for any city using Open-Meteo (no API key required)."""
@@ -22,7 +28,7 @@ class Weather(BaseTool):
             name="weather",
             description="Get current weather conditions for any city worldwide",
             emoji="🌤️",
-            schema="weather(city='string')\nRequired: city",
+            params=WeatherParams,
             examples=[
                 "weather(city='New York')",
                 "weather(city='London')",

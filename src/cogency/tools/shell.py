@@ -4,6 +4,7 @@ import asyncio
 import logging
 import os
 import shlex
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -15,6 +16,14 @@ from .registry import tool
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ShellParams:
+    command: str
+    timeout: int = 30
+    working_dir: Optional[str] = None
+    env: Optional[Dict[str, str]] = None
+
+
 @tool
 class Shell(BaseTool):
     """Execute system commands safely with timeout and basic sandboxing."""
@@ -24,7 +33,7 @@ class Shell(BaseTool):
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
             emoji="💻",
-            schema="shell(command='string', timeout=30, working_dir='', env={})\nRequired: command | Optional: timeout, working_dir, env",
+            params=ShellParams,
             examples=[
                 "shell(command='ls -la')",
                 "shell(command='pwd')",

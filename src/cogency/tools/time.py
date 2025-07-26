@@ -1,6 +1,7 @@
 """Time tool - focused time and timezone operations with zero network dependencies."""
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Optional
 
@@ -16,6 +17,15 @@ from .registry import tool
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class TimeParams:
+    operation: str
+    timezone: Optional[str] = None
+    datetime_str: Optional[str] = None
+    from_tz: Optional[str] = None
+    to_tz: Optional[str] = None
+
+
 @tool
 class Time(BaseTool):
     """Time operations: current time, timezone conversion, relative time."""
@@ -25,7 +35,7 @@ class Time(BaseTool):
             name="time",
             description="Time operations: current time, timezone conversion, relative time",
             emoji="⏰",
-            schema="time(operation='now|relative|convert_timezone', timezone='UTC|Europe/London|Asia/Tokyo', datetime_str='YYYY-MM-DDTHH:MM:SS', from_tz='UTC', to_tz='America/New_York')\nRequired: operation | Optional: timezone, datetime_str, from_tz, to_tz",
+            params=TimeParams,
             examples=[
                 "time(operation='now')",
                 "time(operation='now', timezone='Europe/London')",

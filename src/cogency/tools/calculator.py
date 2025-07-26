@@ -1,5 +1,6 @@
 import logging
 import re
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from cogency.tools.base import BaseTool
@@ -9,6 +10,11 @@ from cogency.utils.results import ToolResult
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class CalculatorParams:
+    expression: str
+
+
 @tool
 class Calculator(BaseTool):
     def __init__(self):
@@ -16,7 +22,7 @@ class Calculator(BaseTool):
             name="calculator",
             description="Evaluate mathematical expressions with support for +, -, *, /, √, parentheses",
             emoji="🧮",
-            schema="calculator(expression='2+3*4 or √64 or (10+5)/3')\nRequired: expression",
+            params=CalculatorParams,
             examples=[
                 "calculator(expression='450 + 120*3')",
                 "calculator(expression='√64')",

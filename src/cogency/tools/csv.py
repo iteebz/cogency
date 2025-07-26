@@ -3,6 +3,7 @@
 import csv
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -14,6 +15,13 @@ from .registry import tool
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class CSVParams:
+    operation: str
+    file_path: str
+    data: Optional[List[Dict]] = None
+
+
 @tool
 class CSV(BaseTool):
     """Simple CSV operations - smart agent, dumb tool."""
@@ -23,7 +31,7 @@ class CSV(BaseTool):
             name="csv",
             description="Read, write, and append CSV files",
             emoji="📊",
-            schema="csv(operation='read|write|append', file_path='string', data=list_of_dicts)\nRequired: operation, file_path | Optional: data",
+            params=CSVParams,
             examples=[
                 "csv(operation='read', file_path='data.csv')",
                 "csv(operation='write', file_path='output.csv', data=[{'name': 'John', 'age': 30}])",

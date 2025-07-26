@@ -1,6 +1,7 @@
 """Web content extraction tool using trafilatura."""
 
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import trafilatura
@@ -19,6 +20,12 @@ config.set("DEFAULT", "DOWNLOAD_TIMEOUT", "5")  # 5 second timeout
 config.set("DEFAULT", "MAX_FILE_SIZE", "512000")  # 500KB max file size
 
 
+@dataclass
+class ScrapeParams:
+    url: str
+    favor_precision: bool = True
+
+
 @tool
 class Scrape(BaseTool):
     """Extract clean text content from web pages using trafilatura."""
@@ -28,7 +35,7 @@ class Scrape(BaseTool):
             name="scrape",
             description="Extract clean text content from web pages, removing ads, navigation, and formatting",
             emoji="📖",
-            schema="scrape(url='string', favor_precision=True)\nRequired: url | Optional: favor_precision",
+            params=ScrapeParams,
             examples=[
                 "scrape(url='https://example.com/article')",
                 "scrape(url='https://news.site.com/story', favor_precision=True)",

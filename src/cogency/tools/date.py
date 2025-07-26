@@ -1,6 +1,7 @@
 """Date tool - focused date operations with zero network dependencies."""
 
 import logging
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Dict, Optional
 
@@ -16,6 +17,17 @@ from .registry import tool
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class DateParams:
+    operation: str
+    date_str: Optional[str] = None
+    format: Optional[str] = None
+    days: Optional[int] = None
+    weeks: Optional[int] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+
 @tool
 class Date(BaseTool):
     """Date operations: parsing, formatting, arithmetic, weekday calculations."""
@@ -25,7 +37,7 @@ class Date(BaseTool):
             name="date",
             description="Date operations: parsing, formatting, arithmetic, weekday calculations",
             emoji="📅",
-            schema="date(operation='parse|format|add|subtract|diff|is_weekend|weekday', date_str='YYYY-MM-DD', format='%Y-%m-%d', days=int, weeks=int)\nRequired: operation, date_str | Optional: format, days, weeks",
+            params=DateParams,
             examples=[
                 "date(operation='parse', date_str='2024-01-15')",
                 "date(operation='add', date_str='2024-01-15', days=7)",

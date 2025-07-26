@@ -1,5 +1,6 @@
 import logging
 import time
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from ddgs import DDGS
@@ -12,6 +13,12 @@ from cogency.utils.results import ToolResult
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class SearchParams:
+    query: str
+    max_results: int = 5
+
+
 @tool
 class Search(BaseTool):
     def __init__(self):
@@ -19,7 +26,7 @@ class Search(BaseTool):
             name="search",
             description="Search the web using DuckDuckGo for current information and answers to questions.",
             emoji="🔍",
-            schema="search(query='specific search terms', max_results=5)\nRequired: query | Optional: max_results (1-10)",
+            params=SearchParams,
             examples=[
                 "search(query='latest AI developments 2024')",
                 "search(query='Python async programming', max_results=3)",

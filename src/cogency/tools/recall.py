@@ -1,13 +1,21 @@
 """Recall tool for Cogency agents using BaseMemory."""
 
 import logging
-from typing import Any, Dict, Optional
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional
 
 from cogency.memory.core import MemoryBackend
 from cogency.tools.base import BaseTool, ToolResult
 from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RecallParams:
+    query: str
+    limit: Optional[int] = 5
+    tags: Optional[List[str]] = None
 
 
 @tool
@@ -19,7 +27,7 @@ class Recall(BaseTool):
             name="recall",
             description="Search memory for relevant information when user asks about themselves, their preferences, past interactions, or references things they've mentioned before. Use when current conversation lacks context the user expects you to know.",
             emoji="🧠",
-            schema="recall(query='string', limit=5, tags=[])\nRequired: query | Optional: limit, tags",
+            params=RecallParams,
             examples=[
                 "recall(query='user favorite color')",
                 "recall(query='previous project discussion', limit=5)",

@@ -2,6 +2,7 @@
 
 import json
 import logging
+from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import httpx
@@ -14,6 +15,17 @@ from .registry import tool
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class HTTPParams:
+    url: str
+    method: str = "get"
+    headers: Optional[Dict[str, str]] = None
+    body: Optional[str] = None
+    json_data: Optional[Dict[str, Any]] = None
+    auth: Optional[Dict[str, str]] = None
+    timeout: int = 30
+
+
 @tool
 class HTTP(BaseTool):
     """HTTP client for API calls, webhooks, and web requests with full verb support."""
@@ -23,7 +35,7 @@ class HTTP(BaseTool):
             name="http",
             description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with headers, auth, and body support",
             emoji="🌐",
-            schema="http(url='string', method='get', headers={}, body='', json_data={}, auth={}, timeout=30)\nRequired: url | Optional: method, headers, body, json_data, auth, timeout",
+            params=HTTPParams,
             examples=[
                 "http(url='https://api.example.com/data', method='get')",
                 "http(url='https://api.example.com/users', method='post', json_data={'name': 'John'})",
