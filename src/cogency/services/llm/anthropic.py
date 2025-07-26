@@ -8,70 +8,45 @@ except ImportError:
         "Anthropic support not installed. Use `pip install cogency[anthropic]`"
     ) from None
 
-from cogency.constants import MAX_TOKENS
 from cogency.services.llm.base import BaseLLM
 
 logger = logging.getLogger(__name__)
 
 
 class AnthropicLLM(BaseLLM):
-    def __init__(
-        self,
-        api_keys: Union[str, List[str]] = None,
-        model: str = "claude-3-5-sonnet-20241022",
-        timeout: float = 15.0,
-        temperature: float = 0.7,
-        max_tokens: int = MAX_TOKENS,
-        max_retries: int = 3,
-        **kwargs,
-    ):
-        super().__init__("anthropic", api_keys)
-        self.model = model
-
-        # Configuration parameters
-        self.timeout = timeout
-        self.temperature = temperature
-        self.max_tokens = max_tokens
-        self.max_retries = max_retries
-
-        # Build kwargs for Anthropic client
-        self.kwargs = {
-            "timeout": timeout,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "max_retries": max_retries,
-            **kwargs,
-        }
-
-        self._client = anthropic.AsyncAnthropic(api_key="placeholder")
+    def __init__(self, **kwargs):
+        super().__init__("anthropic", **kwargs)
+    
+    @property
+    def default_model(self) -> str:
+        return "claude-3-5-sonnet-20241022"
 
     def _get_client(self):
-        """Get client instance with current API key."""
-        # Update the API key on the existing client
-        self._client.api_key = self.next_key()
-        return self._client
+        return anthropic.AsyncAnthropic(
+            api_key=self.next_key(),
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+        )
 
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        anthropic_messages = self._format(messages)
-
         res = await client.messages.create(
             model=self.model,
-            messages=anthropic_messages,
-            **self.kwargs,
+            messages=self._format(messages),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
             **kwargs,
         )
         return res.content[0].text
 
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
-        anthropic_messages = self._format(messages)
-
         try:
             async with client.messages.stream(
                 model=self.model,
-                messages=anthropic_messages,
-                **self.kwargs,
+                messages=self._format(messages),
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
                 **kwargs,
             ) as stream:
                 async for text in stream.text_stream:

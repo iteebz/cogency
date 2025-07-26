@@ -1,7 +1,8 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, List, Union
+from typing import AsyncIterator, Dict, List, Union
 
+from cogency.constants import MAX_TOKENS
 from cogency.resilience import safe
 from cogency.types.cache import cached_llm_call
 from cogency.utils.keys import KeyManager
@@ -26,6 +27,11 @@ class BaseLLM(ABC):
         self,
         provider_name: str,
         api_keys: Union[str, List[str]] = None,
+        model: str = None,
+        timeout: float = 15.0,
+        temperature: float = 0.7,
+        max_tokens: int = MAX_TOKENS,
+        max_retries: int = 3,
         enable_cache: bool = True,
         **kwargs,
     ):
@@ -33,10 +39,31 @@ class BaseLLM(ABC):
         self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
         self.enable_cache = enable_cache
+        
+        # Common LLM configuration
+        self.model = model or self.default_model
+        self.timeout = timeout
+        self.temperature = temperature
+        self.max_tokens = max_tokens
+        self.max_retries = max_retries
+        
+        # Provider-specific kwargs
+        self.extra_kwargs = kwargs
 
+    @property
+    @abstractmethod
+    def default_model(self) -> str:
+        """Default model for this provider."""
+        pass
+    
     def next_key(self) -> str:
         """Get next API key - rotates automatically on every call."""
         return self.keys.get_next()
+    
+    @abstractmethod
+    def _get_client(self):
+        """Get client instance with current API key."""
+        pass
 
     @safe.network()
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
@@ -64,7 +91,7 @@ class BaseLLM(ABC):
 
     @safe.network()
     @abstractmethod
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate a streaming response from the LLM given a list of messages.
 
         Args:
@@ -73,6 +100,6 @@ class BaseLLM(ABC):
             **kwargs: Additional parameters for the LLM call
 
         Returns:
-            Result containing AsyncIterator[str] for streaming response or error
+            AsyncIterator[str] for streaming response
         """
         pass

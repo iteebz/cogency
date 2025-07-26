@@ -16,7 +16,8 @@ from .exceptions import (
 from .recovery import recover
 
 # User formatting moved to utils.formatting
-from .safe import safe, unwrap
+from .safe import safe
+from .utils import unwrap
 
 __all__ = [
     "CogencyError",

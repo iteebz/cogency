@@ -1,72 +1,48 @@
-from typing import AsyncIterator, Dict, List, Union
+from typing import AsyncIterator, Dict, List
 
 try:
     import openai
 except ImportError:
     raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`") from None
 
-from cogency.constants import MAX_TOKENS
 from cogency.services.llm.base import BaseLLM
 
 
 class OpenAILLM(BaseLLM):
-    def __init__(
-        self,
-        api_keys: Union[str, List[str]] = None,
-        model: str = "gpt-4o",
-        timeout: float = 15.0,
-        temperature: float = 0.7,
-        max_retries: int = 3,
-        max_tokens: int = MAX_TOKENS,
-        **kwargs,
-    ):
-        super().__init__("openai", api_keys)
-        self.model = model
-
-        # Configuration parameters
-        self.timeout = timeout
-        self.temperature = temperature
-        self.max_retries = max_retries
-
-        # Build kwargs for OpenAI chat completions (filtering client-level params)
-        self.kwargs = {
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            **kwargs,
-        }
-        self.client_kwargs = {
-            "timeout": timeout,
-            "max_retries": max_retries,
-        }
-
-        self._client = openai.AsyncOpenAI(api_key="placeholder", **self.client_kwargs)
+    def __init__(self, **kwargs):
+        super().__init__("openai", **kwargs)
+    
+    @property
+    def default_model(self) -> str:
+        return "gpt-4o"
 
     def _get_client(self):
-        """Get client instance with current API key."""
-        # Update the API key on the existing client
-        self._client.api_key = self.next_key()
-        return self._client
+        return openai.AsyncOpenAI(
+            api_key=self.next_key(),
+            timeout=self.timeout,
+            max_retries=self.max_retries,
+        )
 
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()
-        msgs = self._format(messages)
         res = await client.chat.completions.create(
             model=self.model,
-            messages=msgs,
-            **self.kwargs,
+            messages=self._format(messages),
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
             **kwargs,
         )
         return res.choices[0].message.content
 
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
-        msgs = self._format(messages)
         try:
             stream = await client.chat.completions.create(
                 model=self.model,
-                messages=msgs,
+                messages=self._format(messages),
                 stream=True,
-                **self.kwargs,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
                 **kwargs,
             )
             async for chunk in stream:
