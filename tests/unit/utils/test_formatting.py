@@ -6,7 +6,6 @@ from cogency.utils.formatting import format_tool_params, summarize_tool_result, 
 
 
 def test_truncate():
-    """Test string truncation."""
     assert truncate("short", 30) == "short"
     assert (
         truncate("This is a very long text that should be truncated", 20)
@@ -17,8 +16,7 @@ def test_truncate():
     assert truncate(None, 30) == ""
 
 
-def test_format_tool_params():
-    """Test parameter formatting."""
+def test_format_params():
     assert format_tool_params({}) == ""
     assert format_tool_params({"query": "search term"}) == "(search term)"
     assert format_tool_params({"query": "search term", "limit": 10}) == "(search term)"
@@ -32,8 +30,7 @@ def test_format_tool_params():
     assert result.endswith(")")
 
 
-def test_summarize_tool_result():
-    """Test result summarization."""
+def test_summarize_result():
     assert summarize_tool_result(None) == "completed"
     assert summarize_tool_result({"error": "API key invalid"}) == "✗ API key invalid"
     assert summarize_tool_result({"result": "Task completed"}) == "Task completed"

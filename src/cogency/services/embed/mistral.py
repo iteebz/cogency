@@ -50,20 +50,12 @@ class MistralEmbed(BaseEmbed):
         if self.keys.has_multiple():
             self._init_client()
 
-    def embed_one(self, text: str, **kwargs) -> Result[np.ndarray, Exception]:
-        """Embed a single text string."""
+    def embed(self, text: str | list[str], **kwargs) -> Result:
+        """Embed text(s) - handles both single strings and lists."""
         try:
             self._rotate_client()
-            response = self._client.embeddings.create(model=self._model, inputs=[text], **kwargs)
-            return Ok(np.array(response.data[0].embedding))
-        except Exception as e:
-            return Err(e)
-
-    def embed_many(self, texts: list[str], **kwargs) -> Result[list[np.ndarray], Exception]:
-        """Embed multiple texts."""
-        try:
-            self._rotate_client()
-            response = self._client.embeddings.create(model=self._model, inputs=texts, **kwargs)
+            inputs = [text] if isinstance(text, str) else text
+            response = self._client.embeddings.create(model=self._model, inputs=inputs, **kwargs)
             return Ok([np.array(data.embedding) for data in response.data])
         except Exception as e:
             return Err(e)

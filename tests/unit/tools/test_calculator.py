@@ -1,53 +1,48 @@
-"""Test calculator tool business logic."""
+"""Calculator tests."""
 
 import pytest
 
 from cogency.tools.calculator import Calculator
 
 
-@pytest.fixture
-def calculator():
-    return Calculator()
-
-
 @pytest.mark.asyncio
-async def test_calculator_basic_operations(calculator):
-    """Test core calculator functionality."""
-    # Basic arithmetic
-    result = await calculator.run(expression="2 + 2")
+async def test_basic_operations():
+    calc = Calculator()
+
+    result = await calc.run(expression="2 + 2")
     assert result.data["result"] == 4
 
-    result = await calculator.run(expression="10 - 3")
+    result = await calc.run(expression="10 - 3")
     assert result.data["result"] == 7
 
-    result = await calculator.run(expression="7 * 8")
+    result = await calc.run(expression="7 * 8")
     assert result.data["result"] == 56
 
-    result = await calculator.run(expression="10 / 2")
+    result = await calc.run(expression="10 / 2")
     assert result.data["result"] == 5
 
-    # Complex expression
-    result = await calculator.run(expression="(15 + 27) * 2")
+    result = await calc.run(expression="(15 + 27) * 2")
     assert result.data["result"] == 84
 
 
 @pytest.mark.asyncio
-async def test_calculator_errors(calculator):
-    """Test error handling."""
-    # Division by zero
-    result = await calculator.run(expression="4/0")
+async def test_errors():
+    calc = Calculator()
+
+    result = await calc.run(expression="4/0")
     assert not result.success
     assert "Cannot divide by zero" in result.error
 
 
 @pytest.mark.asyncio
-async def test_params(calculator):
-    """Test parameter validation."""
-    params = calculator.params
-    examples = calculator.examples
+async def test_params():
+    calc = Calculator()
+
+    params = calc.params
+    examples = calc.examples
 
     assert params is not None
-    assert hasattr(params, '__annotations__')
-    assert 'expression' in params.__annotations__
+    assert hasattr(params, "__annotations__")
+    assert "expression" in params.__annotations__
     assert isinstance(examples, list)
     assert len(examples) > 0

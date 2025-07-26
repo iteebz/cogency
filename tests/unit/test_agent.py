@@ -1,4 +1,4 @@
-"""Agent integration tests."""
+"""Agent tests."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -9,7 +9,7 @@ from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
 
 
-def test_agent_defaults():
+def test_defaults():
     agent = Agent("test_agent", llm=MockLLM())
 
     assert agent.flow is not None
@@ -50,7 +50,6 @@ async def test_run():
 
     with patch.object(agent.flow.flow, "ainvoke", new_callable=AsyncMock) as mock_execute:
         mock_execute.return_value = "Final Answer"
-
         result = await agent.run("test query")
 
         mock_execute.assert_called_once()

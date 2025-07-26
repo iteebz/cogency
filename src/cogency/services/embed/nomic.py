@@ -65,39 +65,12 @@ class NomicEmbed(BaseEmbed):
                     "nomic package required. Install with: pip install nomic"
                 ) from None
 
-    def embed_one(self, text: str, **kwargs) -> Result[np.ndarray, Exception]:
-        """
-        Embed a single text string
-
-        Args:
-            text: Text to embed
-            **kwargs: Additional parameters for embedding
-
-        Returns:
-            Embedding vector as numpy array
-        """
-        result = self.embed_many([text], **kwargs)
-        if result.failure:
-            return Err(result.error)
-        return Ok(result.data[0])
-
-    def embed_many(
-        self, texts: list[str], batch_size: Optional[int] = None, **kwargs
-    ) -> Result[list[np.ndarray], Exception]:
-        """
-        Embed multiple texts with automatic batching
-
-        Args:
-            texts: List of texts to embed
-            batch_size: Optional batch size override
-            **kwargs: Additional parameters for embedding
-
-        Returns:
-            List of embedding vectors as numpy arrays
-        """
+    def embed(self, text: str | list[str], batch_size: Optional[int] = None, **kwargs) -> Result:
+        """Embed text(s) - handles both single strings and lists."""
         self._rotate_client()
         self._ensure_initialized()
 
+        texts = [text] if isinstance(text, str) else text
         if not texts:
             return Ok([])
 

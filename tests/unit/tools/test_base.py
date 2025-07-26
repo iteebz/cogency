@@ -1,56 +1,46 @@
-"""Test tool base contracts and validation."""
+"""Tool base tests."""
 
 import pytest
 
 from cogency.tools.calculator import Calculator
 
 
-class TestToolContracts:
-    """Test that tools follow base contracts."""
+@pytest.mark.asyncio
+async def test_interface():
+    calc = Calculator()
 
-    @pytest.mark.asyncio
-    async def test_tool_basic_interface(self):
-        """All tools must implement base interface."""
-        calc = Calculator()
+    assert hasattr(calc, "name")
+    assert hasattr(calc, "description")
+    assert calc.name == "calculator"
 
-        # Required attributes
-        assert hasattr(calc, "name")
-        assert hasattr(calc, "description")
-        assert calc.name == "calculator"
+    assert hasattr(calc, "run")
+    assert hasattr(calc, "schema")
+    assert hasattr(calc, "examples")
 
-        # Required methods
-        assert hasattr(calc, "run")
-        assert hasattr(calc, "schema")
-        assert hasattr(calc, "examples")
+    schema = calc.schema
+    examples = calc.examples
 
-        # Schema and examples should be non-empty
-        schema = calc.schema
-        examples = calc.examples
+    assert isinstance(schema, str) and len(schema) > 0
+    assert isinstance(examples, list) and len(examples) > 0
 
-        assert isinstance(schema, str) and len(schema) > 0
-        assert isinstance(examples, list) and len(examples) > 0
 
-    @pytest.mark.asyncio
-    async def test_error_handling(self):
-        """Tools must handle errors gracefully."""
-        calc = Calculator()
+@pytest.mark.asyncio
+async def test_error_handling():
+    calc = Calculator()
 
-        # Invalid expression
-        result = await calc.run(expression="invalid expression $")
-        assert not result.success
-        assert result.error is not None
+    result = await calc.run(expression="invalid expression $")
+    assert not result.success
+    assert result.error is not None
 
-        # Missing parameters - this will cause a TypeError which is caught by execute()
-        result = await calc.execute()  # Missing expression
-        assert not result.success
-        assert result.error is not None
+    result = await calc.execute()
+    assert not result.success
+    assert result.error is not None
 
-    @pytest.mark.asyncio
-    async def test_execute_wrapper(self):
-        """execute should catch exceptions."""
-        calc = Calculator()
 
-        # This should not raise an exception, even with bad input
-        result = await calc.execute(operation=None, x1="not_a_number")
-        assert not result.success
-        assert result.error is not None
+@pytest.mark.asyncio
+async def test_execute_wrapper():
+    calc = Calculator()
+
+    result = await calc.execute(operation=None, x1="not_a_number")
+    assert not result.success
+    assert result.error is not None

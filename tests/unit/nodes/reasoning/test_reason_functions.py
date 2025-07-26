@@ -10,20 +10,16 @@ from cogency.utils.results import Result
 
 
 class MockTool(BaseTool):
-    """Mock tool for testing."""
-
     def __init__(self, name: str):
-        super().__init__(name=name, description="test tool", emoji="🔧", schema="test")
+        super().__init__(name=name, description="test tool", emoji="🔧")
 
     async def run(self, **kwargs):
         return {"test": "result"}
 
     def format_human(self, params, results=None):
-        """Format for human display."""
         return "test", "result"
 
     def format_agent(self, result_data):
-        """Format results for agent history."""
         if not result_data:
             return "No results"
         query = result_data.get("query", "unknown")
@@ -32,10 +28,7 @@ class MockTool(BaseTool):
 
 
 class TestFormatAgentResults:
-    """Test format_actions function."""
-
     def test_format_actions_success(self):
-        """Test successful result extraction with real execution structure."""
         # Create mock tools
         search_tool = MockTool("search")
         selected_tools = [search_tool]
@@ -72,7 +65,6 @@ class TestFormatAgentResults:
         assert result == "'test query' → Found 2 results"
 
     def test_format_actions_multiple_tools(self):
-        """Test with multiple tools executed."""
         # Create mock tools
         search_tool = MockTool("search")
         scrape_tool = MockTool("scrape")
@@ -108,7 +100,6 @@ class TestFormatAgentResults:
         assert result == "'test' → Found 1 results | Scraped: Test Page"
 
     def test_format_actions_no_execution_results(self):
-        """Test with no execution results."""
         result = format_actions(None, [], [])
         assert result == ""
 
@@ -118,7 +109,6 @@ class TestFormatAgentResults:
         assert result == ""
 
     def test_format_actions_malformed_data(self):
-        """Test with malformed execution results."""
         # Missing 'results' key
         bad_results = Result.ok({"summary": "test"})
         result = format_actions(bad_results, [], [])
@@ -130,7 +120,6 @@ class TestFormatAgentResults:
         assert result == ""
 
     def test_format_actions_tool_not_found(self):
-        """Test when tool is not found in selected_tools."""
         tool_calls = [{"name": "unknown_tool", "args": {}}]
         execution_results = Result.ok(
             {"results": [{"tool_name": "unknown_tool", "result": {"test": "data"}}]}
@@ -140,7 +129,6 @@ class TestFormatAgentResults:
         assert result == ""  # No matching tool found
 
     def test_format_actions_empty_result_data(self):
-        """Test when tool result data is empty."""
         search_tool = MockTool("search")
         tool_calls = [{"name": "search", "args": {}}]
         execution_results = Result.ok(

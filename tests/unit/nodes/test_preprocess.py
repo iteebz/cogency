@@ -18,7 +18,6 @@ class MockSearchTool(BaseTool):
             "search",
             "Search for information",
             "🔍",
-            schema="search(query: str) -> str",
             examples=["search('weather today')", "search('python tutorials')"],
         )
 

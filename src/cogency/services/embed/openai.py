@@ -26,7 +26,7 @@ class OpenAIEmbed(BaseEmbed):
         # Beautiful unified key management - auto-detects, handles all scenarios
         self.keys = KeyManager.for_provider("openai", api_keys)
         super().__init__(self.keys.api_key, **kwargs)
-        self.model = model
+        self._model = model
         self._client = None
         self._init_client()
 
@@ -44,32 +44,30 @@ class OpenAIEmbed(BaseEmbed):
         if self.key_rotator:
             self._init_client()
 
-    def embed_one(self, text: str, **kwargs) -> Result[np.ndarray, Exception]:
-        """Embed a single text string."""
+    def embed(self, text: str | list[str], **kwargs) -> Result:
+        """Embed text(s) - handles both single strings and lists."""
         try:
             self._rotate_client()
-            response = self._client.embeddings.create(input=text, model=self.model, **kwargs)
-            return Ok(np.array(response.data[0].embedding))
-        except Exception as e:
-            return Err(e)
-
-    def embed_many(self, texts: list[str], **kwargs) -> Result[list[np.ndarray], Exception]:
-        """Embed multiple texts."""
-        try:
-            self._rotate_client()
-            response = self._client.embeddings.create(input=texts, model=self.model, **kwargs)
+            response = self._client.embeddings.create(input=text, model=self._model, **kwargs)
+            if isinstance(text, str):
+                return Ok([np.array(response.data[0].embedding)])
             return Ok([np.array(data.embedding) for data in response.data])
         except Exception as e:
             return Err(e)
 
     @property
+    def model(self) -> str:
+        """Get the current embedding model."""
+        return self._model
+
+    @property
     def dimensionality(self) -> int:
         """Get embedding dimensionality."""
-        if "3-small" in self.model:
+        if "3-small" in self._model:
             return 1536
-        elif "3-large" in self.model:
+        elif "3-large" in self._model:
             return 3072
-        elif "ada-002" in self.model:
+        elif "ada-002" in self._model:
             return 1536
         else:
             return 1536  # Default

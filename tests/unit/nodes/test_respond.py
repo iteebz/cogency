@@ -22,8 +22,7 @@ def state(context):
     return State(context=context, query="test query", output=Output())
 
 
-def test_build_prompt():
-    """Test prompt building."""
+def test_prompt():
     # Basic knowledge-only prompt
     result = prompt_response("test query")
     assert "USER QUERY" in result
@@ -40,8 +39,7 @@ def test_build_prompt():
 
 
 @pytest.mark.asyncio
-async def test_respond_basic(state):
-    """Test basic respond functionality."""
+async def test_basic(state):
     llm = create_mock_llm("Hello world")
 
     updated_state = await respond(state, llm=llm, tools=[])
@@ -52,8 +50,7 @@ async def test_respond_basic(state):
 
 
 @pytest.mark.asyncio
-async def test_respond_with_tool_results(state):
-    """Test respond with tool execution results."""
+async def test_with_tools(state):
     from unittest.mock import AsyncMock
 
     llm = create_mock_llm("Weather is sunny")
@@ -67,8 +64,7 @@ async def test_respond_with_tool_results(state):
 
 
 @pytest.mark.asyncio
-async def test_respond_error_handling(state):
-    """Test respond handles LLM failures."""
+async def test_error_handling(state):
     from unittest.mock import AsyncMock
 
     from cogency.types.cache import get_cache
@@ -87,8 +83,7 @@ async def test_respond_error_handling(state):
 
 
 @pytest.mark.asyncio
-async def test_with_stop_reason(state):
-    """Test respond with stopping reason fallback."""
+async def test_stop_reason(state):
     from unittest.mock import AsyncMock
 
     llm = create_mock_llm("Fallback response")

@@ -21,11 +21,15 @@ class MockLLM(BaseLLM):
         should_fail: bool = False,
         api_keys: str = "mock_key",
         enable_cache: bool = False,
+        model: str = "mock-model",
+        **kwargs,
     ):
-        super().__init__(provider_name="mock", api_keys=api_keys)
+        super().__init__(
+            provider_name="mock", api_keys=api_keys, enable_cache=enable_cache, **kwargs
+        )
         self.response = response
         self.should_fail = should_fail
-        self.enable_cache = enable_cache
+        self.model = model
 
     async def _run_impl(self, messages, **kwargs) -> str:
         if self.should_fail:

@@ -13,13 +13,11 @@ from cogency.state import State
 
 @pytest.fixture
 def checkpoint_manager(tmp_path):
-    """Create checkpoint manager with temp directory."""
     return CheckpointManager(checkpoint_dir=tmp_path)
 
 
 @pytest.fixture
 def test_state():
-    """Create basic test state."""
     context = Context(query="test query", messages=[{"role": "user", "content": "test"}])
     state = State(context=context, query="test query")
     state.flow["selected_tools"] = []
@@ -27,8 +25,7 @@ def test_state():
     return state
 
 
-def test_checkpoint_roundtrip(checkpoint_manager, test_state):
-    """Test basic save/restore cycle."""
+def test_roundtrip(checkpoint_manager, test_state):
     # Save checkpoint
     checkpoint_id = checkpoint_manager.save_checkpoint(test_state)
     assert checkpoint_id
@@ -45,8 +42,7 @@ def test_checkpoint_roundtrip(checkpoint_manager, test_state):
     assert checkpoint_data["fingerprint"] == checkpoint_id
 
 
-def test_corrupted_checkpoint_fails_gracefully(checkpoint_manager, test_state):
-    """Test corrupted checkpoint detection and cleanup."""
+def test_corruption(checkpoint_manager, test_state):
     # Save valid checkpoint first
     checkpoint_id = checkpoint_manager.save_checkpoint(test_state)
     checkpoint_path = checkpoint_manager._get_checkpoint_path(checkpoint_id)
@@ -61,8 +57,7 @@ def test_corrupted_checkpoint_fails_gracefully(checkpoint_manager, test_state):
     assert not checkpoint_path.exists()
 
 
-def test_recovery_message_format(checkpoint_manager, test_state):
-    """Test recovery context injection for LLM."""
+def test_recovery_message(checkpoint_manager, test_state):
     # Add some tool execution history
     test_state.flow["prev_tool_calls"] = [
         {"name": "search", "args": {"query": "test"}},

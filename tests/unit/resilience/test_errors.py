@@ -11,7 +11,7 @@ from cogency.resilience import (
 from cogency.utils.formatting import format_tool_error
 
 
-def test_cogency_error_basic():
+def test_basic():
     """Test basic error creation."""
     error = CogencyError("test message")
     assert str(error) == "test message"
@@ -19,7 +19,7 @@ def test_cogency_error_basic():
     assert error.details == {}
 
 
-def test_cogency_error_with_details():
+def test_with_details():
     """Test error with custom details."""
     details = {"field": "value"}
     error = CogencyError("test message", error_code="CUSTOM_ERROR", details=details)
@@ -34,7 +34,7 @@ def test_error_inheritance():
     assert isinstance(ConfigError("test"), CogencyError)
 
 
-def test_format_tool_error():
+def test_format_error():
     """Test tool error formatting."""
     error = ValueError("test error")
     result = format_tool_error("test_tool", error)

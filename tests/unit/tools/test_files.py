@@ -1,4 +1,4 @@
-"""Test File tool business logic."""
+"""File tool business logic tests."""
 
 import tempfile
 

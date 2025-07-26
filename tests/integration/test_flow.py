@@ -43,7 +43,7 @@ async def test_tool_flow():
 
 
 @pytest.mark.asyncio
-async def test_reason_direct_answer(basic_state):
+async def test_direct_answer(basic_state):
     """Test reason node when direct answer possible."""
     llm = MockLLM()
     llm.run = AsyncMock(return_value=Result(data='{"reasoning": "I can answer directly."}'))
@@ -53,7 +53,7 @@ async def test_reason_direct_answer(basic_state):
 
 
 @pytest.mark.asyncio
-async def test_reason_needs_tools(basic_state):
+async def test_needs_tools(basic_state):
     """Test reason node when tools needed."""
     llm = MockLLM()
     llm.run = AsyncMock(
@@ -67,16 +67,14 @@ async def test_reason_needs_tools(basic_state):
 
 
 @pytest.mark.asyncio
-async def test_act_executes_tools(basic_state):
+async def test_executes_tools(basic_state):
     """Test act node executes tool calls."""
     from cogency.tools.base import BaseTool
     from cogency.utils.results import ToolResult
 
     class MockTool(BaseTool):
         def __init__(self):
-            super().__init__(
-                name="mock_tool", description="Mock", emoji="🔧", schema="", examples=[]
-            )
+            super().__init__(name="mock_tool", description="Mock", emoji="🔧", examples=[])
 
         async def run(self, **kwargs):
             return ToolResult("mock_result")
@@ -97,7 +95,7 @@ async def test_act_executes_tools(basic_state):
 
 
 @pytest.mark.asyncio
-async def test_respond_formats_response(basic_state):
+async def test_formats_response(basic_state):
     """Test respond node formats final response."""
     llm = MockLLM()
     result = await respond(basic_state, llm=llm, tools=[])

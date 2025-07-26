@@ -20,23 +20,11 @@ class BaseEmbed(ABC):
 
     async def embed_text(self, text: str, **kwargs) -> Result:
         """Embed single text - convenience method for memory backends"""
-        return self.embed_one(text, **kwargs)
-
-    @safe.network()
-    @abstractmethod
-    def embed_one(self, text: str, **kwargs) -> Result:
-        """Embed a single text string"""
-        pass
-
-    @safe.network()
-    @abstractmethod
-    def embed_many(self, texts: list[str], **kwargs) -> Result:
-        """Embed multiple texts"""
-        pass
+        return self.embed(text, **kwargs)
 
     def embed_array(self, texts: list[str], **kwargs) -> Result:
         """Embed texts and return as 2D numpy array"""
-        result = self.embed_many(texts, **kwargs)
+        result = self.embed(texts, **kwargs)
         if not result.success:
             return result
 

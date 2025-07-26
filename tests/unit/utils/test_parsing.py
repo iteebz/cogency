@@ -16,7 +16,6 @@ from cogency.utils.parsing import (
 
 
 def test_parse_json():
-    """Test JSON parsing from LLM responses using ParseResult."""
     # Basic JSON
     parse_result = parse_json('{"action": "respond", "message": "Hello"}')
     assert parse_result.success
@@ -49,7 +48,6 @@ def test_parse_json():
 
 
 def test_clean_json():
-    """Test JSON cleaning utility."""
     # Remove markdown
     result = _clean_json('```json\n{"test": true}\n```')
     assert result == '{"test": true}'
@@ -60,7 +58,6 @@ def test_clean_json():
 
 
 def test_extract_json():
-    """Test JSON extraction with brace matching."""
     # Simple object
     result = _extract_json('Data: {"key": "value"} extra')
     assert result == '{"key": "value"}'
@@ -75,7 +72,6 @@ def test_extract_json():
 
 
 def test_parse_tool_calls():
-    """Test tool call extraction."""
     # Valid tool calls
     json_data = {
         "tool_calls": [
@@ -98,8 +94,7 @@ def test_parse_tool_calls():
 
 # call_llm function was purged - testing unified parser instead
 @pytest.mark.asyncio
-async def test_json_parsing_with_llm_responses():
-    """Test JSON parsing with typical LLM response formats."""
+async def test_llm():
     # Test markdown wrapped JSON
     llm_response = """```json
     {"action": "use_tools", "tool_calls": [{"name": "search", "args": {"query": "test"}}]}
@@ -116,8 +111,7 @@ async def test_json_parsing_with_llm_responses():
     assert parse_result.data["conclusion"] == "success"
 
 
-def test_extract_json_stream_multi_object():
-    """Test extraction from multi-object responses (Gemini bug)."""
+def test_multi():
     # Multiple JSON objects in sequence - should return FIRST only
     multi_json = (
         """{"thinking": "step1", "tool_calls": []} {"thinking": "step2", "tool_calls": []}"""
@@ -129,9 +123,7 @@ def test_extract_json_stream_multi_object():
     assert objects[0]["thinking"] == "step1"
 
 
-def test_extract_with_patterns_common_failures():
-    """Test regex pattern extraction for common LLM failure modes."""
-
+def test_patterns():
     # Pattern 1: JSON with explanation text
     response1 = 'Here is my response: {"thinking": "analysis", "tool_calls": []}'
     extracted = _extract_with_patterns(response1)
@@ -149,9 +141,7 @@ def test_extract_with_patterns_common_failures():
 
 
 @pytest.mark.asyncio
-async def test_parse_json_with_correction():
-    """Test self-correction loop for malformed JSON."""
-
+async def test_correction():
     # Mock LLM function that fixes JSON on second attempt
     async def mock_llm_fix(messages):
         return '{"thinking": "corrected", "tool_calls": []}'

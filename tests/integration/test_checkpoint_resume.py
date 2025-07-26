@@ -124,7 +124,7 @@ class MockCheckpointAgent(BaseAgent):
 
 
 @pytest.mark.asyncio
-async def test_checkpoint_resume():
+async def test_resume():
     """Test agent can save checkpoints and resume from them."""
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -169,7 +169,7 @@ async def test_checkpoint_resume():
 
 
 @pytest.mark.asyncio
-async def test_checkpoint_failure_recovery():
+async def test_failure_recovery():
     """Test checkpoint system handles failures gracefully."""
 
     # Test with invalid checkpoint file path
@@ -194,7 +194,7 @@ async def test_checkpoint_failure_recovery():
 
 
 @pytest.mark.asyncio
-async def test_checkpoint_data_integrity():
+async def test_data_integrity():
     """Test checkpoint data maintains integrity across save/load cycles."""
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -237,5 +237,5 @@ async def test_checkpoint_data_integrity():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_checkpoint_resume())
+    asyncio.run(test_resume())
     print("✓ Checkpoint resume smoke test passed")

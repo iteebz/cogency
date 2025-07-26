@@ -20,7 +20,6 @@ class MockTool(BaseTool):
         super().__init__(
             name=name,
             description=f"Mock tool: {name}",
-            schema="test tool schema",
             examples=[f'{{"name": "{name}", "args": {{"test": "value"}}}}'],
             rules=[],
         )

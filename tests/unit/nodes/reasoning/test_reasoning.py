@@ -1,13 +1,39 @@
-"""Test unified reasoning system."""
+"""Comprehensive reasoning system tests - fast, deep, and unified modes."""
 
 import pytest
 
+from cogency.nodes.reasoning.deep import prompt_deep_mode
+from cogency.nodes.reasoning.fast import prompt_fast_mode
 from cogency.nodes.reasoning.parser import format_thinking, parse_response_result
 
 
+def test_fast_prompt_generation():
+    prompt = prompt_fast_mode("search: query", "What is Python?")
+    assert "What is Python?" in prompt
+    assert "search" in prompt
+    assert "thinking" in prompt
+
+
+def test_deep_prompt_generation():
+    prompt = prompt_deep_mode(
+        "search: query",
+        "Complex question",
+        2,
+        5,
+        "analytical",
+        "No previous attempts",
+        "good",
+    )
+    assert "Complex question" in prompt
+    assert "search" in prompt
+    assert "🤔 REFLECT:" in prompt
+    assert "📋 PLAN:" in prompt
+    assert "🎯 EXECUTE:" in prompt
+    assert "DEEP:" in prompt
+    assert "DOWNSHIFT" in prompt
+
+
 def test_unified_json_structure():
-    """Test that both modes use the same JSON structure."""
-    # Valid unified response
     response = """{
         "thinking": "analyzing the problem",
         "tool_calls": [{"name": "search", "args": {"query": "test"}}],
@@ -20,7 +46,6 @@ def test_unified_json_structure():
     fast_parsed = parse_json(response).data
     deep_parsed = parse_json(response).data
 
-    # Both should parse the same way
     assert fast_parsed["thinking"] == "analyzing the problem"
     assert deep_parsed["thinking"] == "analyzing the problem"
     assert fast_parsed["switch_to"] is None
@@ -28,7 +53,6 @@ def test_unified_json_structure():
 
 
 def test_deep_mode_structured_thinking():
-    """Test that deep mode encourages structured thinking."""
     response = """{
         "thinking": "🤔 REFLECTION: Previous attempt failed. 📋 PLANNING: Try different approach. 🎯 DECISION: Using new tool.",
         "tool_calls": [],
@@ -45,7 +69,6 @@ def test_deep_mode_structured_thinking():
 
 
 def test_mode_switching():
-    """Test mode switching logic."""
     switch_response = """{
         "thinking": "This task needs deeper analysis",
         "tool_calls": [],
@@ -59,11 +82,10 @@ def test_mode_switching():
 
 
 def test_parsing_fallback():
-    """Test parser gracefully handles malformed responses."""
     malformed = "not json at all"
     result = parse_response_result(malformed)
 
-    assert result.success  # Success with fallback data for resilience
+    assert result.success
     assert result.error and "Parse failed" in result.error
     assert result.data["thinking"] == "Processing request..."
     assert result.data["switch_to"] is None
@@ -71,15 +93,12 @@ def test_parsing_fallback():
 
 
 def test_formatting():
-    """Test formatting functions work with unified structure."""
     data = {"thinking": "test thought"}
-
-    from cogency.nodes.reasoning.parser import format_thinking
 
     fast_formatted = format_thinking(data["thinking"], mode="fast")
     deep_formatted = format_thinking(data["thinking"], mode="deep")
 
-    assert "💭" in fast_formatted  # Fast mode emoji
-    assert "🧠" in deep_formatted  # Deep mode emoji
+    assert "💭" in fast_formatted
+    assert "🧠" in deep_formatted
     assert "test thought" in fast_formatted
     assert "test thought" in deep_formatted

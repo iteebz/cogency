@@ -51,7 +51,7 @@ class MockBashTool:
 
 
 @pytest.mark.asyncio
-async def test_tool_failure_recovery():
+async def test_recovery():
     """Test agent recovers gracefully when tools fail."""
 
     # Setup mocks
@@ -73,7 +73,7 @@ async def test_tool_failure_recovery():
 
 
 @pytest.mark.asyncio
-async def test_multiple_tool_failures():
+async def test_multiple_failures():
     """Test agent handles multiple consecutive tool failures."""
 
     class FailingBashTool:
@@ -97,5 +97,5 @@ async def test_multiple_tool_failures():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_tool_failure_recovery())
+    asyncio.run(test_recovery())
     print("✓ Tool failure recovery smoke test passed")

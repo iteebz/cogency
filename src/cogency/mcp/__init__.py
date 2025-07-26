@@ -1,3 +1,3 @@
-from .server import MCPServer, serve_mcp
+from .server import MCPServer
 
-__all__ = ["MCPServer", "serve_mcp"]
+__all__ = ["MCPServer"]

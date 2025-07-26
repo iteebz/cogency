@@ -105,7 +105,7 @@ class Metrics:
                     continue
 
                 name, tags = self._parse(key)
-                summary = self.summary(name, tags)
+                summary = self.get_summary(name, tags)
                 if summary:
                     summaries.append(summary)
                     processed_keys.add(key)

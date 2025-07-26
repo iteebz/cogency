@@ -10,7 +10,7 @@ class SentenceEmbed(BaseEmbed):
 
     def __init__(self, model: str = "all-MiniLM-L6-v2", **kwargs):
         super().__init__(api_key=None, **kwargs)
-        self.model = model
+        self._model = model
         self._model_instance = None
         self._init_model()
 
@@ -19,34 +19,34 @@ class SentenceEmbed(BaseEmbed):
         try:
             from sentence_transformers import SentenceTransformer
 
-            self._model_instance = SentenceTransformer(self.model)
+            self._model_instance = SentenceTransformer(self._model)
         except ImportError:
             raise ImportError(
                 "Sentence Transformers support not installed. "
                 "Use `pip install cogency[sentence-transformers]`"
             ) from None
 
-    def embed_one(self, text: str, **kwargs) -> Result[np.ndarray, Exception]:
-        """Embed a single text string."""
+    def embed(self, text: str | list[str], **kwargs) -> Result:
+        """Embed text(s) - handles both single strings and lists."""
         try:
-            return Ok(self._model_instance.encode(text, **kwargs))
-        except Exception as e:
-            return Err(e)
-
-    def embed_many(self, texts: list[str], **kwargs) -> Result[list[np.ndarray], Exception]:
-        """Embed multiple texts."""
-        try:
-            embeddings = self._model_instance.encode(texts, **kwargs)
+            embeddings = self._model_instance.encode(text, **kwargs)
+            if isinstance(text, str):
+                return Ok([np.array(embeddings)])
             return Ok([np.array(emb) for emb in embeddings])
         except Exception as e:
             return Err(e)
 
     @property
+    def model(self) -> str:
+        """Get the current embedding model."""
+        return self._model
+
+    @property
     def dimensionality(self) -> int:
         """Get embedding dimensionality."""
-        if "MiniLM-L6" in self.model or "MiniLM-L12" in self.model:
+        if "MiniLM-L6" in self._model or "MiniLM-L12" in self._model:
             return 384
-        elif "all-mpnet-base" in self.model:
+        elif "all-mpnet-base" in self._model:
             return 768
         else:
             return 384  # Default for MiniLM

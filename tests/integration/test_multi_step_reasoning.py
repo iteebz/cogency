@@ -93,7 +93,7 @@ tmpfs           8.0G  1.2G  6.8G  15% /tmp"""
 
 
 @pytest.mark.asyncio
-async def test_multi_step_reasoning():
+async def test_multi_step():
     """Test agent can perform complex multi-step reasoning tasks."""
 
     # Setup mocks
@@ -118,7 +118,7 @@ async def test_multi_step_reasoning():
 
 
 @pytest.mark.asyncio
-async def test_reasoning_with_failures():
+async def test_with_failures():
     """Test multi-step reasoning recovers from intermediate failures."""
 
     class SometimesFailingBash:
@@ -161,5 +161,5 @@ async def test_reasoning_with_failures():
 
 
 if __name__ == "__main__":
-    asyncio.run(test_multi_step_reasoning())
+    asyncio.run(test_multi_step())
     print("✓ Multi-step reasoning smoke test passed")

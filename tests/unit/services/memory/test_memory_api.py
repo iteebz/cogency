@@ -40,8 +40,6 @@ class MockBackend(MemoryBackend):
 
 
 class TestMemoryAPI:
-    """Test Memory factory interface."""
-
     @patch("cogency.services.memory")
     def test_create_backend_default(self, mock_memory_func):
         # Setup
@@ -109,11 +107,8 @@ class TestMemoryAPI:
 
 
 class TestMemoryIntegration:
-    """Test Memory API integration patterns."""
-
     @patch("cogency.services.memory")
     def test_magical_creation_pattern(self, mock_memory_func):
-        """Test the magical auto-configuration pattern."""
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
         mock_memory_func.return_value = mock_backend_class
@@ -129,7 +124,6 @@ class TestMemoryIntegration:
     @patch("cogency.services.memory")
     @patch("cogency.services._registry._memory_backends", {"filesystem": Mock(), "chroma": Mock()})
     def test_discovery_integration(self, mock_memory_func):
-        """Test backend discovery works with creation."""
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
         mock_memory_func.return_value = mock_backend_class
@@ -145,7 +139,6 @@ class TestMemoryIntegration:
 
     @patch("cogency.services.memory")
     def test_config_passthrough(self, mock_memory_func):
-        """Test configuration parameters pass through correctly."""
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())
         mock_memory_func.return_value = mock_backend_class

@@ -1,4 +1,4 @@
-"""Test simplified CSV tool."""
+"""CSV tool business logic tests."""
 
 import tempfile
 from pathlib import Path

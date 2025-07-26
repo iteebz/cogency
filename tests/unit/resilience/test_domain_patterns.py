@@ -8,9 +8,7 @@ from cogency.resilience import safe
 
 
 @pytest.mark.asyncio
-async def test_safe_act_decorator():
-    """Test @safe.act() for tool execution resilience."""
-
+async def test_act():
     @safe.act(retries=2, unwrap_state=False)
     async def mock_tool_execution():
         if not hasattr(mock_tool_execution, "call_count"):
@@ -28,9 +26,7 @@ async def test_safe_act_decorator():
 
 
 @pytest.mark.asyncio
-async def test_safe_memory_decorator():
-    """Test @safe.memory() for memory operation resilience."""
-
+async def test_memory():
     @safe.memory(retries=2, unwrap_state=False)
     async def mock_memory_store():
         if not hasattr(mock_memory_store, "call_count"):
@@ -47,9 +43,7 @@ async def test_safe_memory_decorator():
 
 
 @pytest.mark.asyncio
-async def test_safe_reasoning_fallback():
-    """Test @safe.reasoning() mode fallback behavior."""
-
+async def test_reasoning_fallback():
     # Mock state object with react_mode
     state = Mock()
     state.react_mode = "deep"
@@ -68,9 +62,7 @@ async def test_safe_reasoning_fallback():
 
 
 @pytest.mark.asyncio
-async def test_safe_reasoning_no_fallback():
-    """Test @safe.reasoning() when no fallback available."""
-
+async def test_reasoning_no_fallback():
     @safe.reasoning(retries=1, unwrap_state=False)
     async def mock_llm_reasoning():
         raise Exception("reasoning error")

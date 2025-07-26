@@ -239,6 +239,13 @@ class State:
         """Network retry count with intelligent default."""
         return self.flow.get("tool_retries", 0)
 
+    @property
+    def execution_results(self) -> Any:
+        """Execution results with intelligent default."""
+        from cogency.utils.results import Result
+
+        return self.flow.get("execution_results", Result.ok({}))
+
     def get(self, key: str, default: Any = None) -> Any:
         if key in self.flow:
             return self.flow[key]

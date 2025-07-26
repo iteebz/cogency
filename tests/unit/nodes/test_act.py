@@ -21,7 +21,6 @@ class MockTool(BaseTool):
             name=name,
             description=f"Mock {name}",
             emoji="🧪",
-            schema='{"type": "object"}',
             examples=[f'{{"name": "{name}", "args": {{}}}}'],
         )
         self.should_succeed = should_succeed
@@ -64,7 +63,7 @@ def mock_tools():
 
 
 @pytest.mark.asyncio
-async def test_no_tool_calls(state, mock_tools):
+async def test_no_calls(state, mock_tools):
     """Test act node when no tool calls are present."""
     state["tool_calls"] = None
 
@@ -74,7 +73,7 @@ async def test_no_tool_calls(state, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_empty_tool_calls(state, mock_tools):
+async def test_empty_calls(state, mock_tools):
     """Test act node with empty tool call string."""
     state["tool_calls"] = ""
 
@@ -84,7 +83,7 @@ async def test_empty_tool_calls(state, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_invalid_tool_calls(state, mock_tools):
+async def test_invalid_calls(state, mock_tools):
     """Test act node with invalid JSON tool calls."""
     state["tool_calls"] = "invalid json"
 
@@ -94,7 +93,7 @@ async def test_invalid_tool_calls(state, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_successful_tool_execution(state, mock_tools):
+async def test_success(state, mock_tools):
     """Test successful tool execution."""
     state["tool_calls"] = [{"name": "calculator", "args": {"x": 5}}]
 
@@ -108,7 +107,7 @@ async def test_successful_tool_execution(state, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_failed_tool_execution(state):
+async def test_failure(state):
     """Test handling of failed tool execution."""
     failing_tool = MockTool("failing_tool", should_succeed=False)
     state["tool_calls"] = [{"name": "failing_tool", "args": {}}]
@@ -121,7 +120,7 @@ async def test_failed_tool_execution(state):
 
 
 @pytest.mark.asyncio
-async def test_multiple_tool_execution(state, output):
+async def test_multiple(state, output):
     """Test execution of multiple tools in sequence."""
     # Create tools that track execution order
     execution_order = []
@@ -132,7 +131,6 @@ async def test_multiple_tool_execution(state, output):
                 name=name,
                 description=f"Tool {name}",
                 emoji="🔧",
-                schema='{"type": "object"}',
                 examples=[],
             )
 

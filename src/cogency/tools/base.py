@@ -46,45 +46,47 @@ class BaseTool(ABC):
         """Backward compatibility property that generates schema from dataclass."""
         if not self.params:
             return f"{self.name}() - No parameters required"
-        
+
         # Generate schema string from dataclass fields
-        import inspect
         from dataclasses import fields, is_dataclass
-        
+
         if not is_dataclass(self.params):
             return f"{self.name}() - Parameters not defined as dataclass"
-        
+
         param_strs = []
         required = []
         optional = []
-        
+
         from dataclasses import MISSING
-        
+
         for field in fields(self.params):
             field_type = field.type
             has_default = field.default is not MISSING or field.default_factory is not MISSING
-            
+
             # Check if Optional type (Union with None)
             import typing
-            is_optional = (hasattr(field_type, '__origin__') and 
-                          field_type.__origin__ is typing.Union and
-                          type(None) in field_type.__args__)
-            
+
+            is_optional = (
+                hasattr(field_type, "__origin__")
+                and field_type.__origin__ is typing.Union
+                and type(None) in field_type.__args__
+            )
+
             if has_default or is_optional:
                 optional.append(field.name)
             else:
                 required.append(field.name)
-            
+
             # Add to param strings
             if field.default is not MISSING:
                 param_strs.append(f"{field.name}={repr(field.default)}")
             else:
                 param_strs.append(f"{field.name}='...'")
-        
+
         param_str = ", ".join(param_strs)
         req_str = "Required: " + ", ".join(required) if required else ""
         opt_str = "Optional: " + ", ".join(optional) if optional else ""
-        
+
         parts = [f"{self.name}({param_str})"]
         if req_str and opt_str:
             parts.append(f"{req_str} | {opt_str}")
@@ -92,7 +94,7 @@ class BaseTool(ABC):
             parts.append(req_str)
         elif opt_str:
             parts.append(opt_str)
-        
+
         return "\n".join(parts)
 
     async def execute(self, **kwargs: Any) -> ToolResult:
