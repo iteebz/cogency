@@ -4,6 +4,7 @@ import logging
 import time
 from typing import List
 
+from cogency.nodes.base import Node
 from cogency.resilience import safe
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -13,6 +14,43 @@ from cogency.tools.executor import run_tools
 from cogency.utils.results import Result
 
 logger = logging.getLogger(__name__)
+
+
+class Act(Node):
+    def __init__(self, **kwargs):
+        super().__init__(act, **kwargs)
+        
+    def next_node(self, state: State) -> str:
+        execution_results = state.result
+        current_iter = state.iteration
+        max_iter = state.max_iterations
+        stop_reason = state.stop_reason
+
+        if stop_reason in ["max_iterations_reached", "reasoning_loop_detected"]:
+            return "respond"
+        elif current_iter >= max_iter:
+            state["stop_reason"] = "max_iterations_reached"
+            return "respond"
+        elif not execution_results.success:
+            failed_attempts = state.tool_failures
+            if failed_attempts >= 3:
+                state["stop_reason"] = "repeated_tool_failures"
+                return "respond"
+            else:
+                state["tool_failures"] = failed_attempts + 1
+                return "reason"
+        else:
+            from cogency.nodes.reasoning.adaptive import assess_tools
+            tool_quality = assess_tools(execution_results)
+            quality_attempts = state.quality_retries
+            
+            if tool_quality in ["failed", "poor"] and quality_attempts < 2:
+                state["quality_retries"] = quality_attempts + 1
+                return "reason"
+            else:
+                state["quality_retries"] = 0
+                state["tool_failures"] = 0
+                return "reason"
 
 
 @safe.checkpoint("act")

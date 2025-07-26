@@ -3,6 +3,7 @@
 import asyncio
 from typing import List, Optional
 
+from cogency.nodes.base import Node
 from cogency.nodes.reasoning.adaptive import (
     action_fingerprint,
     assess_tools,
@@ -21,6 +22,14 @@ from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
 from cogency.types.reasoning import Reasoning
 from cogency.utils.parsing import parse_json_with_correction
+
+
+class Reason(Node):
+    def __init__(self, **kwargs):
+        super().__init__(reason, **kwargs)
+        
+    def next_node(self, state: State) -> str:
+        return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
 
 
 def build_iterations(cognition, selected_tools, max_iterations=3):

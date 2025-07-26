@@ -5,13 +5,6 @@ from typing import Any, Dict, List, Optional
 
 from cogency.context import Context
 from cogency.output import Output
-from cogency.types.node_io import (
-    ActInput,
-    NodeInput,
-    PreprocessInput,
-    ReasonInput,
-    RespondInput,
-)
 from cogency.utils.results import Result
 
 
@@ -266,40 +259,3 @@ class State:
         """Dict-like assignment for backward compatibility."""
         self.flow[key] = value
 
-    def validate_input(self, node_name: str) -> NodeInput:
-        """Validate state data against node input schema."""
-        schemas = {
-            "preprocess": PreprocessInput,
-            "reason": ReasonInput,
-            "act": ActInput,
-            "respond": RespondInput,
-        }
-
-        if node_name not in schemas:
-            return NodeInput(**self.flow)
-
-        # Extract relevant data for schema validation
-        data = {
-            "iteration": self.get("iteration", 0),
-            "MAX_ITERATIONS": self.get("MAX_ITERATIONS", 10),
-            "context_data": dict(self.flow),
-        }
-
-        # Add node-specific fields
-        if node_name == "preprocess":
-            data["query"] = self.query
-            data["memory_enabled"] = True
-        elif node_name == "reason":
-            data["selected_tools"] = self.get("selected_tools", [])
-            data["react_mode"] = self.get("react_mode", "adaptive")
-            data["cognition_state"] = self.get("cognition").__dict__
-        elif node_name == "act":
-            data["tool_calls"] = self.get("tool_calls", [])
-            data["selected_tools"] = self.get("selected_tools", [])
-        elif node_name == "respond":
-            data["reasoning"] = self.get("reasoning")
-            data["direct_answer"] = self.get("direct_answer", False)
-            data["response"] = self.get("response")
-            data["stop_reason"] = self.get("stop_reason")
-
-        return schemas[node_name](**data)

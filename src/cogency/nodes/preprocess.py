@@ -4,6 +4,7 @@ from typing import List, Optional
 
 from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
+from cogency.nodes.base import Node
 from cogency.resilience import safe, unwrap
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -12,6 +13,14 @@ from cogency.tools.registry import build_registry
 from cogency.types.preprocessed import Preprocessed
 from cogency.utils.heuristics import is_simple_query
 from cogency.utils.parsing import parse_json
+
+
+class Preprocess(Node):
+    def __init__(self, **kwargs):
+        super().__init__(preprocess, **kwargs)
+        
+    def next_node(self, state: State) -> str:
+        return "reason" if state.selected_tools else "respond"
 
 
 @safe.checkpoint("preprocess")

@@ -3,12 +3,23 @@
 import asyncio
 from typing import Dict, List, Optional
 
+from langgraph.graph import END
+
+from cogency.nodes.base import Node
 from cogency.resilience import safe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.types.response import Response
 from cogency.utils.results import Result
+
+
+class Respond(Node):
+    def __init__(self, **kwargs):
+        super().__init__(respond, **kwargs)
+        
+    def next_node(self, state: State) -> str:
+        return END
 
 # Response prompt templates - clean and scannable
 FAILURE_PROMPT = """{identity}A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.

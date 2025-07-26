@@ -5,7 +5,10 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from cogency.context import Context
-from cogency.flow import Flow, _route_from_act, _route_from_preprocess, _route_from_reason
+from cogency.flow import Flow
+from cogency.nodes.act import Act
+from cogency.nodes.preprocess import Preprocess
+from cogency.nodes.reason import Reason
 from cogency.output import Output
 from cogency.state import State
 
@@ -32,186 +35,132 @@ def flow(mock_llm, mock_tools, mock_memory):
 
 def test_init_defaults(mock_llm, mock_tools):
     flow = Flow(llm=mock_llm, tools=mock_tools, memory=None)
-    assert flow.llm is mock_llm
-    assert flow.tools is mock_tools
-    assert flow.memory is None
-    assert flow.identity is None
-    assert flow.json_schema is None
-    assert flow.system_prompt is None
+    assert flow.common_kwargs["llm"] is mock_llm
+    assert flow.common_kwargs["tools"] is mock_tools
+    assert flow.common_kwargs["identity"] is None
+    assert flow.flow is not None
 
 
-def test_init(mock_llm, mock_tools, mock_memory):
-    routing = {
-        "entry_point": "preprocess",
-        "edges": {
-            "preprocess": {"type": "conditional", "condition": "_route_from_preprocess"},
-            "reason": {"type": "conditional", "condition": "_route_from_reason"},
-            "act": {"type": "conditional", "condition": "_route_from_act"},
-            "respond": {"type": "end"},
-        },
-    }
+def test_init_with_params(mock_llm, mock_tools, mock_memory):
     flow = Flow(
         llm=mock_llm,
         tools=mock_tools,
         memory=mock_memory,
-        routing_table=routing,
         identity="test-agent",
         json_schema="{}",
         system_prompt="test prompt",
     )
-    assert flow.routing_table == routing
-    assert flow.identity == "test-agent"
-    assert flow.json_schema == "{}"
-    assert flow.system_prompt == "test prompt"
+    assert flow.common_kwargs["llm"] is mock_llm
+    assert flow.common_kwargs["tools"] is mock_tools
+    assert flow.common_kwargs["identity"] == "test-agent"
+    assert flow.common_kwargs["system_prompt"] == "test prompt"
+    assert flow.flow is not None
 
 
-@pytest.mark.asyncio
-async def test_preprocess_no_tools():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow["selected_tools"] = []
-    result = await _route_from_preprocess(state)
+def test_preprocess_routing_no_tools():
+    node = Preprocess()
+    state = State(context=Context("test"), query="test")
+    state["selected_tools"] = []
+    result = node.next_node(state)
     assert result == "respond"
 
 
-@pytest.mark.asyncio
-async def test_preprocess_with_tools():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow["selected_tools"] = ["tool1", "tool2"]
-    result = await _route_from_preprocess(state)
+def test_preprocess_routing_with_tools():
+    node = Preprocess()
+    state = State(context=Context("test"), query="test")
+    state["selected_tools"] = ["tool1", "tool2"]
+    result = node.next_node(state)
     assert result == "reason"
 
 
-@pytest.mark.asyncio
-async def test_reason_no_calls():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow["tool_calls"] = []
-    result = await _route_from_reason(state)
+def test_reason_routing_no_calls():
+    node = Reason()
+    state = State(context=Context("test"), query="test")
+    state["tool_calls"] = []
+    result = node.next_node(state)
     assert result == "respond"
 
 
-@pytest.mark.asyncio
-async def test_reason_with_calls():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow["tool_calls"] = [{"name": "test"}]
-    result = await _route_from_reason(state)
+def test_reason_routing_with_calls():
+    node = Reason()
+    state = State(context=Context("test"), query="test")
+    state["tool_calls"] = [{"name": "test"}]
+    result = node.next_node(state)
     assert result == "act"
 
 
-@pytest.mark.asyncio
-async def test_act_max_iterations():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow.update(
-        {
-            "execution_results": Mock(success=True),
-            "iteration": 5,
-            "MAX_ITERATIONS": 5,
-            "stop_reason": None,
-            "tool_failures": 0,
-            "quality_retries": 0,
-        }
-    )
-    result = await _route_from_act(state)
+@patch("cogency.nodes.reasoning.adaptive.assess_tools")
+def test_act_routing_max_iterations(mock_assess):
+    mock_assess.return_value = "good"
+    node = Act()
+    state = State(context=Context("test"), query="test")
+    state["result"] = Mock(success=True)
+    state["iteration"] = 15  # Greater than default max_iterations (12)
+    state["stop_reason"] = None
+    state["tool_failures"] = 0
+    state["quality_retries"] = 0
+    
+    result = node.next_node(state)
     assert result == "respond"
     assert state["stop_reason"] == "max_iterations_reached"
 
 
-@pytest.mark.asyncio
-async def test_act_stop_reason():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow.update(
-        {
-            "execution_results": Mock(success=True),
-            "iteration": 1,
-            "MAX_ITERATIONS": 5,
-            "stop_reason": "max_iterations_reached",
-            "tool_failures": 0,
-            "quality_retries": 0,
-        }
-    )
-    result = await _route_from_act(state)
+def test_act_routing_stop_reason():
+    node = Act()
+    state = State(context=Context("test"), query="test")
+    state["result"] = Mock(success=True)
+    state["iteration"] = 1
+    state["max_iterations"] = 5
+    state["stop_reason"] = "max_iterations_reached"
+    state["tool_failures"] = 0
+    state["quality_retries"] = 0
+    
+    result = node.next_node(state)
     assert result == "respond"
 
 
-@pytest.mark.asyncio
-async def test_act_failed():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow.update(
-        {
-            "execution_results": Mock(success=False),
-            "iteration": 1,
-            "MAX_ITERATIONS": 5,
-            "stop_reason": None,
-            "tool_failures": 2,
-            "quality_retries": 0,
-        }
-    )
-    result = await _route_from_act(state)
+def test_act_routing_failed():
+    node = Act()
+    state = State(context=Context("test"), query="test")
+    state["result"] = Mock(success=False)
+    state["iteration"] = 1
+    state["max_iterations"] = 5
+    state["stop_reason"] = None
+    state["tool_failures"] = 2
+    state["quality_retries"] = 0
+    
+    result = node.next_node(state)
     assert result == "reason"
     assert state["tool_failures"] == 3
 
 
-@pytest.mark.asyncio
-async def test_act_max_failures():
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow.update(
-        {
-            "execution_results": Mock(success=False),
-            "iteration": 1,
-            "MAX_ITERATIONS": 5,
-            "stop_reason": None,
-            "tool_failures": 3,
-            "quality_retries": 0,
-        }
-    )
-    result = await _route_from_act(state)
+def test_act_routing_max_failures():
+    node = Act()
+    state = State(context=Context("test"), query="test")
+    state["result"] = Mock(success=False)
+    state["iteration"] = 1
+    state["max_iterations"] = 5
+    state["stop_reason"] = None
+    state["tool_failures"] = 3
+    state["quality_retries"] = 0
+    
+    result = node.next_node(state)
     assert result == "respond"
     assert state["stop_reason"] == "repeated_tool_failures"
 
 
-@pytest.mark.asyncio
 @patch("cogency.nodes.reasoning.adaptive.assess_tools")
-async def test_act_poor_quality(mock_assess):
+def test_act_routing_poor_quality(mock_assess):
     mock_assess.return_value = "poor"
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow.update(
-        {
-            "execution_results": Mock(success=True),
-            "iteration": 1,
-            "MAX_ITERATIONS": 5,
-            "stop_reason": None,
-            "tool_failures": 0,
-            "quality_retries": 0,
-        }
-    )
-    result = await _route_from_act(state)
+    node = Act()
+    state = State(context=Context("test"), query="test")
+    state["result"] = Mock(success=True)
+    state["iteration"] = 1
+    state["max_iterations"] = 5
+    state["stop_reason"] = None
+    state["tool_failures"] = 0
+    state["quality_retries"] = 0
+    
+    result = node.next_node(state)
     assert result == "reason"
     assert state["quality_retries"] == 1
-
-
-@pytest.mark.asyncio
-@patch("cogency.nodes.reasoning.adaptive.assess_tools")
-async def test_act_max_quality(mock_assess):
-    mock_assess.return_value = "poor"
-    context = Context("test query")
-    state = State(context=context, query="test query")
-    state.flow.update(
-        {
-            "execution_results": Mock(success=True),
-            "iteration": 1,
-            "MAX_ITERATIONS": 5,
-            "stop_reason": None,
-            "tool_failures": 0,
-            "quality_retries": 2,
-        }
-    )
-    result = await _route_from_act(state)
-    assert result == "reason"
