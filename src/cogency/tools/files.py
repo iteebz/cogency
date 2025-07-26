@@ -22,6 +22,9 @@ class FilesParams:
 @tool
 class Files(BaseTool):
     """File operations within a safe base directory."""
+    
+    # Template-based formatting - shows action and filename
+    param_key = "filename"
 
     def __init__(self, base_dir: str = "sandbox"):
         super().__init__(
@@ -199,38 +202,3 @@ class Files(BaseTool):
             logger.error(f"File operation failed: {e}")
             return ToolResult.fail(str(e))
 
-    def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
-    ) -> tuple[str, str]:
-        """Format file operation for display."""
-        from cogency.utils.formatting import truncate
-
-        action, filename = params.get("action"), params.get("filename")
-        if action and filename:
-            param_str = f"({action}, {truncate(filename, 25)})"
-        else:
-            param_str = f"({truncate(filename or '', 30)})" if filename else ""
-
-        if results is None:
-            return param_str, ""
-
-        # Format results
-        if results.failure:
-            result_str = f"Failed: {results.error}"
-        else:
-            data = results.data
-            if "result" in data:
-                result_str = data["result"]
-            else:
-                result_str = "File operation completed"
-
-        return param_str, result_str
-
-    def format_agent(self, result_data: Dict[str, Any]) -> str:
-        """Format file results for agent action history."""
-        if not result_data:
-            return "No result"
-
-        # Use action signature for consistent fingerprinting, not dynamic content
-        result_msg = result_data.get("result", "")
-        return result_msg

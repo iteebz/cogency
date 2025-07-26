@@ -17,6 +17,11 @@ class CalculatorParams:
 
 @tool
 class Calculator(BaseTool):
+    # Clean template-based formatting
+    human_template = "= {result}"
+    agent_template = "{expression} = {result}"
+    param_key = "expression"
+
     def __init__(self):
         super().__init__(
             name="calculator",
@@ -77,38 +82,3 @@ class Calculator(BaseTool):
             logger.error(f"Calculator operation failed: {e}")
             return ToolResult.fail(f"Invalid expression: {str(e)}")
 
-    def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
-    ) -> tuple[str, str]:
-        """Format calculator execution for display."""
-        expr = params.get("expression", "")
-        if not expr:
-            param_str = ""
-        else:
-            # Clean up expression for display
-            display_expr = (
-                expr.replace("**", "^").replace("*", "×").replace("/", "÷").replace(" ", "")
-            )
-            param_str = f"({display_expr})"
-
-        if results is None:
-            return param_str, ""
-
-        # Format results
-        if results.failure:
-            result_str = f"Error: {results.error}"
-        else:
-            result = results.data.get("result", "")
-            result_str = f"= {result}"
-
-        return param_str, result_str
-
-    def format_agent(self, result_data: Dict[str, Any]) -> str:
-        """Format calculator results for agent action history."""
-        if not result_data:
-            return "No result"
-        result = result_data.get("result", "")
-        expression = result_data.get("expression", "")
-        if expression:
-            return f"{expression} = {result}"
-        return f"= {result}"

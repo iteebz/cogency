@@ -122,14 +122,86 @@ class BaseTool(ABC):
         """
         pass
 
-    @abstractmethod
-    def format_human(
-        self, params: Dict[str, Any], results: Optional[Dict[str, Any]] = None
-    ) -> tuple[str, str]:
-        """Format tool execution for human display."""
-        pass
+    # Optional formatting templates - override for custom formatting
+    human_template: Optional[str] = None
+    agent_template: Optional[str] = None
+    param_key: Optional[str] = None  # Primary parameter for display
 
-    @abstractmethod
+    def format_human(
+        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+    ) -> tuple[str, str]:
+        """Format tool execution for human display with auto-generation."""
+        param_str = self._format_params(params)
+        
+        if results is None:
+            return param_str, ""
+        
+        if results.failure:
+            return param_str, f"Error: {results.error}"
+        
+        # Use template if provided, otherwise auto-generate
+        if self.human_template:
+            try:
+                result_str = self.human_template.format(**results.data)
+            except (KeyError, ValueError):
+                result_str = self._default_format_result(results.data)
+        else:
+            result_str = self._default_format_result(results.data)
+        
+        return param_str, result_str
+
     def format_agent(self, result_data: Dict[str, Any]) -> str:
-        """Format tool results for agent action history - show knowledge gained."""
-        pass
+        """Format tool results for agent action history with auto-generation."""
+        if not result_data:
+            return "No result"
+        
+        # Use template if provided, otherwise auto-generate
+        if self.agent_template:
+            try:
+                return self.agent_template.format(**result_data)
+            except (KeyError, ValueError):
+                return self._default_format_result(result_data)
+        else:
+            return self._default_format_result(result_data)
+
+    def _format_params(self, params: Dict[str, Any]) -> str:
+        """Format parameters for display with smart truncation."""
+        if not params:
+            return ""
+        
+        # Use hint if provided
+        if self.param_key and self.param_key in params:
+            from cogency.utils.formatting import truncate
+            return f"({truncate(str(params[self.param_key]), 30)})"
+        
+        # Auto-detect primary parameter (first non-None value)
+        for key, value in params.items():
+            if value is not None:
+                from cogency.utils.formatting import truncate
+                return f"({truncate(str(value), 30)})"
+        
+        return ""
+
+    def _default_format_result(self, data: Dict[str, Any]) -> str:
+        """Smart default formatting based on common patterns."""
+        if not data:
+            return "Completed"
+        
+        # Common single-value patterns
+        if 'result' in data:
+            return str(data['result'])
+        if 'message' in data:
+            return str(data['message'])
+        if 'output' in data:
+            return str(data['output'])
+        
+        # Single key-value pair
+        if len(data) == 1:
+            key, value = next(iter(data.items()))
+            return f"{key}: {value}"
+        
+        # Multiple items - show count or summary
+        if 'count' in data:
+            return f"Processed {data['count']} items"
+        
+        return f"Completed ({len(data)} results)"

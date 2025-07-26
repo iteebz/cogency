@@ -54,7 +54,7 @@ def temp_dir():
 
 
 @pytest.fixture
-def memory_backend(temp_dir):
+def memory_service(temp_dir):
     """Filesystem memory backend."""
     return FileBackend(memory_dir=temp_dir)
 

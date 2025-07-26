@@ -24,4 +24,4 @@ class Memory:
         from cogency.services import _registry
 
         _registry._discover_services()
-        return list(_registry._memory_backends.keys())
+        return list(_registry._memory_services.keys())

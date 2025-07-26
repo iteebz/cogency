@@ -22,6 +22,11 @@ class WeatherParams:
 @tool
 class Weather(BaseTool):
     """Get current weather for any city using Open-Meteo (no API key required)."""
+    
+    # Clean weather formatting
+    human_template = "{temperature}, {condition}"
+    agent_template = "Weather in {city}: {temperature}, {condition}"
+    param_key = "city"
 
     def __init__(self):
         super().__init__(
@@ -160,37 +165,3 @@ class Weather(BaseTool):
             logger.error(f"Unexpected error during weather retrieval for {city}: {e}")
             return ToolResult.fail(f"Weather retrieval failed: {e}")
 
-    def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
-    ) -> tuple[str, str]:
-        """Format weather execution for display."""
-
-        city = params.get("city", "")
-        param_str = f"({city})" if city else ""
-
-        if results is None:
-            return param_str, ""
-
-        # Format results
-        if not results.success:
-            result_str = f"Error: {results.error}"
-        else:
-            data = results.data
-            temp = data.get("temperature", "")
-            condition = data.get("condition", "")
-            result_str = f"{temp}, {condition}" if temp and condition else "Weather retrieved"
-
-        return param_str, result_str
-
-    def format_agent(self, result_data: Dict[str, Any]) -> str:
-        """Format weather results for agent action history."""
-        if not result_data:
-            return "No result"
-
-        city = result_data.get("city", "")
-        temperature = result_data.get("temperature", "")
-        condition = result_data.get("condition", "")
-
-        if city and temperature and condition:
-            return f"Weather in {city}: {temperature}, {condition}"
-        return "Weather information retrieved"

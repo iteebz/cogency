@@ -12,7 +12,7 @@ def agent_services(opts: dict[str, Any]) -> tuple[List[Any], Optional[Any]]:
     # Handle memory service
     memory_enabled = opts.get("memory", True)
     if memory_enabled:
-        memory = opts.get("memory_backend") or FileBackend(
+        memory = opts.get("memory_service") or FileBackend(
             opts.get("memory_dir", ".cogency/memory")
         )
     else:

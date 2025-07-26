@@ -257,8 +257,8 @@ async def test_delete_tags(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_create_read(memory_backend):
-    artifact = await memory_backend.create(
+async def test_create_read(memory_service):
+    artifact = await memory_service.create(
         "I work as a software engineer at Google",
         memory_type=MemoryType.FACT,
         tags=["work", "personal"],
@@ -269,7 +269,7 @@ async def test_create_read(memory_backend):
     assert artifact.memory_type == MemoryType.FACT
     assert "work" in artifact.tags
 
-    results = await memory_backend.read(query="software engineer")
+    results = await memory_service.read(query="software engineer")
     assert results is not None
     assert len(results) >= 1
     found = any("software engineer" in r.content for r in results)
@@ -277,7 +277,7 @@ async def test_create_read(memory_backend):
 
 
 @pytest.mark.asyncio
-async def test_memory_filtering(memory_backend):
+async def test_memory_filtering(memory_service):
     sample_content = [
         {"content": "I love hiking", "tags": ["personal", "hobby"]},
         {"content": "Work meeting at 3pm", "tags": ["work", "schedule"]},
@@ -285,27 +285,27 @@ async def test_memory_filtering(memory_backend):
     ]
 
     for item in sample_content:
-        create_result = await memory_backend.create(item["content"], tags=item["tags"])
+        create_result = await memory_service.create(item["content"], tags=item["tags"])
         assert create_result is not None
 
-    results = await memory_backend.read(query="", search_type=SearchType.TAGS, tags=["personal"])
+    results = await memory_service.read(query="", search_type=SearchType.TAGS, tags=["personal"])
     assert results is not None
     assert len(results) >= 1
 
 
 @pytest.mark.asyncio
-async def test_memory_crud(memory_backend):
-    artifact = await memory_backend.create("Test content", tags=["test"])
+async def test_memory_crud(memory_service):
+    artifact = await memory_service.create("Test content", tags=["test"])
     assert artifact.content == "Test content"
 
-    results = await memory_backend.read(artifact_id=artifact.id)
+    results = await memory_service.read(artifact_id=artifact.id)
     assert len(results) == 1
     assert results[0].content == "Test content"
 
-    success = await memory_backend.delete(artifact_id=artifact.id)
+    success = await memory_service.delete(artifact_id=artifact.id)
     assert success is True
 
-    results = await memory_backend.read(artifact_id=artifact.id)
+    results = await memory_service.read(artifact_id=artifact.id)
     assert len(results) == 0
 
 

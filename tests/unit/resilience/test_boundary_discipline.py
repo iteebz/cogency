@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from cogency.resilience import Err, Ok, Result, safe
-from cogency.resilience.safe import unwrap_result
+from cogency.resilience.utils import unwrap
 from cogency.state import State
 
 
@@ -68,21 +68,21 @@ class TestBoundaryContract:
         assert "network failed" in str(exc_info.value.__cause__)
 
     def test_centralized_unwrap_logic(self):
-        """CRITICAL: unwrap_result is single source of truth."""
+        """CRITICAL: unwrap is single source of truth."""
 
         # Success case: Ok -> domain object
         success = Ok("clean_data")
-        assert unwrap_result(success) == "clean_data"
-        assert not isinstance(unwrap_result(success), Result)
+        assert unwrap(success) == "clean_data"
+        assert not isinstance(unwrap(success), Result)
 
         # Error case: Err -> exception
         error = Err(ValueError("domain_error"))
         with pytest.raises(ValueError, match="domain_error"):
-            unwrap_result(error)
+            unwrap(error)
 
         # Passthrough: non-Result -> unchanged
         domain_obj = {"state": "data"}
-        assert unwrap_result(domain_obj) is domain_obj
+        assert unwrap(domain_obj) is domain_obj
 
 
 class TestRegressionPrevention:
@@ -146,12 +146,12 @@ class TestArchitecturalLinchpin:
         domain_data = "clean_state_object"
         assert not isinstance(domain_data, Result)
 
-        # RULE 2: isinstance(Result) allowed ONLY in decorators/unwrap_result
+        # RULE 2: isinstance(Result) allowed ONLY in decorators/unwrap
         result_wrapper = Ok("data")
         assert isinstance(result_wrapper, Result)  # Only acceptable at boundary
 
         # RULE 3: Unwrapping is centralized and consistent
-        unwrapped = unwrap_result(result_wrapper)
+        unwrapped = unwrap(result_wrapper)
         assert unwrapped == "data"
         assert not isinstance(unwrapped, Result)
 

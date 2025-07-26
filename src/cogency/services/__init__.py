@@ -15,7 +15,7 @@ class ServiceRegistry:
     def __init__(self):
         self._llm_providers: Dict[str, Type[BaseLLM]] = {}
         self._embed_providers: Dict[str, Type[BaseEmbed]] = {}
-        self._memory_backends: Dict[str, Type[MemoryBackend]] = {}
+        self._memory_services: Dict[str, Type[MemoryBackend]] = {}
         self._discovered = False
 
     def _discover_services(self):
@@ -30,7 +30,7 @@ class ServiceRegistry:
         self._discover_in_package("cogency.services.embed", BaseEmbed, self._embed_providers)
 
         # Discover memory backends
-        self._discover_in_package("cogency.services.memory", MemoryBackend, self._memory_backends)
+        self._discover_in_package("cogency.services.memory", MemoryBackend, self._memory_services)
 
         self._discovered = True
 
@@ -100,11 +100,11 @@ class ServiceRegistry:
         if backend is None:
             backend = "filesystem"  # Default
 
-        if backend not in self._memory_backends:
-            available = list(self._memory_backends.keys())
+        if backend not in self._memory_services:
+            available = list(self._memory_services.keys())
             raise ValueError(f"Memory backend '{backend}' not found. Available: {available}")
 
-        return self._memory_backends[backend]
+        return self._memory_services[backend]
 
 
 # Global registry instance

@@ -69,7 +69,7 @@ class TestMemoryAPI:
         assert isinstance(backend, MockBackend)
 
     @patch(
-        "cogency.services._registry._memory_backends",
+        "cogency.services._registry._memory_services",
         {"filesystem": Mock(), "chroma": Mock(), "pinecone": Mock(), "postgres": Mock()},
     )
     def test_list_backends(self):
@@ -122,7 +122,7 @@ class TestMemoryIntegration:
         mock_memory_func.assert_called_once_with("filesystem")  # Default backend
 
     @patch("cogency.services.memory")
-    @patch("cogency.services._registry._memory_backends", {"filesystem": Mock(), "chroma": Mock()})
+    @patch("cogency.services._registry._memory_services", {"filesystem": Mock(), "chroma": Mock()})
     def test_discovery_integration(self, mock_memory_func):
         # Setup
         mock_backend_class = Mock(return_value=MockBackend())

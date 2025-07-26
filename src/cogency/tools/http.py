@@ -29,6 +29,11 @@ class HTTPParams:
 @tool
 class HTTP(BaseTool):
     """HTTP client for API calls, webhooks, and web requests with full verb support."""
+    
+    # Custom formatting for HTTP requests
+    human_template = "Status: {status_code}"
+    agent_template = "{method} {url} → {status_code}"
+    param_key = "url"
 
     def __init__(self):
         super().__init__(
@@ -230,46 +235,3 @@ class HTTP(BaseTool):
         """PATCH request."""
         return await self._execute_request("patch", url, headers, body, json_data, auth, timeout)
 
-    def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
-    ) -> tuple[str, str]:
-        """Format HTTP request for display."""
-        from cogency.utils.formatting import truncate
-
-        url, method = params.get("url"), params.get("method", "get").upper()
-        param_str = f"({method} {truncate(url, 30)})" if url else ""
-        if results is None:
-            return param_str, ""
-        # Format results
-        if results.failure:
-            result_str = f"Error: {results.error}"
-        else:
-            data = results.data
-            status = data.get("status_code", "")
-            result_str = f"Status: {status}" if status else "Request completed"
-        return param_str, result_str
-
-    def format_agent(self, result_data: Dict[str, Any]) -> str:
-        """Format HTTP results for agent action history."""
-        if not result_data:
-            return "No result"
-
-        status_code = result_data.get("status_code", "")
-        status = result_data.get("status", "")
-        url = result_data.get("url", "")
-        method = result_data.get("method", "").upper()
-        body = result_data.get("body", "")
-
-        if status == "success":
-            msg = f"{method} {url} → {status_code} OK"
-            if body and isinstance(body, str):
-                msg += f", Body: {body[:50]}..."
-            return msg
-        else:
-            error_msg = result_data.get("error", "")
-            msg = f"{method} {url} → {status_code} Error"
-            if error_msg:
-                msg += f": {error_msg}"
-            elif body and isinstance(body, str):
-                msg += f", Body: {body[:50]}..."
-            return msg
