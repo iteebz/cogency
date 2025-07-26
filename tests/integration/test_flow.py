@@ -92,8 +92,8 @@ async def test_act_executes_tools(basic_state):
     basic_state.flow["selected_tools"] = tools
 
     result = await act(basic_state, tools=tools)
-    action_result = result.action_result
-    assert action_result.success
+    result_data = result.result
+    assert result_data.success
 
 
 @pytest.mark.asyncio

@@ -2,26 +2,26 @@
 
 from typing import Optional
 
-from cogency.utils.results import ActionResult
+from cogency.utils.results import Result
 
 
-def assess_tools(execution_results: Optional[ActionResult]) -> str:
+def assess_tools(results: Optional[Result]) -> str:
     """Assess tool execution with pragmatic heuristics - no semantic bullshit."""
-    if execution_results is None:
+    if results is None:
         return "unknown"
 
     # Basic success/failure check
-    if execution_results.failure:
+    if results.failure:
         return "failed"
 
     # Check if we got any results at all
-    results = execution_results.data.get("results", [])
-    if not results:
+    result_list = results.data.get("results", [])
+    if not result_list:
         return "poor"
 
     # Simple success rate calculation
-    successful_count = execution_results.data.get("successful_count", 0)
-    failed_count = execution_results.data.get("failed_count", 0)
+    successful_count = results.data.get("successful_count", 0)
+    failed_count = results.data.get("failed_count", 0)
     total_count = successful_count + failed_count
 
     if total_count == 0:

@@ -2,8 +2,8 @@
 
 from typing import Any, Dict, List, Tuple
 
-from cogency.resilience import format_tool_error
 from cogency.tools.base import BaseTool
+from cogency.utils.formatting import format_tool_error
 from cogency.utils.results import ToolResult
 
 

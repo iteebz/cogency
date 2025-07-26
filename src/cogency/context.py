@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 # Internal filtering constants
-INTERNAL_ACTIONS = {"tool_needed", "direct_response"}
+INTERNAL_ACTIONS = {"tool_needed", "response"}
 STATUS_VALUES = {"continue", "complete", "error"}
 SYSTEM_PREFIXES = ("TOOL_CALL:",)
 
@@ -17,29 +17,27 @@ class Context:
         self,
         query: str,
         messages: Optional[List[Dict[str, str]]] = None,
-        tool_results: Optional[List[Dict[str, Any]]] = None,
         max_history: Optional[int] = 20,  # Default limit: 20 messages (rolling window)
         history: Optional[List[Dict[str, Any]]] = None,
         user_id: str = "default",
     ):
         self.query = query
-        self.messages = messages or []
-        self.tool_results = tool_results or []
+        self.chat = messages or []  # Active LLM conversation
         self.max_history = max_history
-        self.history = history or []
+        self.archive = history or []  # Completed conversation turns
         self.user_id = user_id
-        self.log_tools: List[Dict[str, Any]] = []
+        self.tool_log: List[Dict[str, Any]] = []  # Tool execution audit trail
 
         # Apply initial limit if messages were provided
-        if self.messages:
+        if self.chat:
             self._limit_history()
 
     def add_message(self, role: str, content: str, trace_id: Optional[str] = None) -> None:
-        """Add message to history."""
+        """Add message to active chat."""
         message_dict = {"role": role, "content": content}
         if trace_id:
             message_dict["trace_id"] = trace_id
-        self.messages.append(message_dict)
+        self.chat.append(message_dict)
         self._limit_history()
 
     def _apply_limit(self, items: List[Any]) -> List[Any]:
@@ -49,16 +47,16 @@ class Context:
         return [] if self.max_history == 0 else items[-self.max_history :]
 
     def _limit_history(self) -> None:
-        """Limit message history."""
-        self.messages = self._apply_limit(self.messages)
+        """Limit active chat history."""
+        self.chat = self._apply_limit(self.chat)
 
     def _limit_turns(self) -> None:
-        """Limit conversation turns."""
-        self.history = self._apply_limit(self.history)
+        """Limit archived turns."""
+        self.archive = self._apply_limit(self.archive)
 
     def add_result(self, tool_name: str, args: Dict[str, Any], output: Dict[str, Any]) -> None:
-        """Add tool result to history."""
-        self.log_tools.append({"tool_name": tool_name, "args": args, "output": output})
+        """Add tool execution to audit log."""
+        self.tool_log.append({"tool_name": tool_name, "args": args, "output": output})
 
     def add_turn(
         self, query: str, response: str, metadata: Optional[Dict[str, Any]] = None
@@ -70,14 +68,14 @@ class Context:
             "timestamp": datetime.now().isoformat(),
             "metadata": metadata or {},
         }
-        self.history.append(turn)
+        self.archive.append(turn)
         self._limit_turns()
 
     def recent_turns(self, n: int = 5) -> List[Dict[str, Any]]:
         """Get last n conversation turns, filtering out system and internal messages."""
         # Filter out system and internal messages
         clean_turns = []
-        for turn in self.history:
+        for turn in self.archive:
             # Skip system messages
             if turn["query"] == "system":
                 continue
@@ -95,14 +93,14 @@ class Context:
         return clean_turns[-n:] if clean_turns else []
 
     def clear_history(self) -> None:
-        """Clear conversation history."""
-        self.history = []
+        """Clear conversation archive."""
+        self.archive = []
 
     def get_clean_conversation(self) -> List[Dict[str, str]]:
         """Get conversation without system messages."""
 
         clean_messages = []
-        for msg in self.messages:
+        for msg in self.chat:
             content = msg["content"]
             # Filter out internal JSON messages
             if self._is_internal(content):
@@ -130,4 +128,4 @@ class Context:
             return False
 
     def __repr__(self) -> str:
-        return f"Context(query='{self.query}', messages={len(self.messages)} messages)"
+        return f"Context(query='{self.query}', chat={len(self.chat)} messages)"

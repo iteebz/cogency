@@ -29,7 +29,7 @@ class CheckpointManager:
             self.session_id,  # Session isolation prevents state collisions
             state.get("query", ""),
             str(sorted(tool_names)),
-            str(state.get("current_iteration", 0)),
+            str(state.get("iteration", 0)),
         ]
         content = "|".join(components)
         return hashlib.sha256(content.encode()).hexdigest()[:16]
@@ -49,7 +49,7 @@ class CheckpointManager:
             "timestamp": datetime.now().isoformat(),
             "checkpoint_type": checkpoint_type,
             "query": state.get("query", ""),
-            "current_iteration": state.get("current_iteration", 0),
+            "iteration": state.get("iteration", 0),
             "react_mode": state.get("react_mode", "fast"),
             "selected_tools": [
                 tool.name if hasattr(tool, "name") else str(tool)
@@ -69,8 +69,8 @@ class CheckpointManager:
             },
             "execution_results": state.get("execution_results"),
             "prev_tool_calls": state.get("prev_tool_calls", []),
-            "context_messages": state.context.messages
-            if hasattr(state, "context") and hasattr(state.context, "messages")
+            "context_messages": state.context.chat
+            if hasattr(state, "context") and hasattr(state.context, "chat")
             else [],
         }
 
@@ -169,8 +169,8 @@ def resume(state: "State") -> bool:
                     state.cognition.react_mode = value.get("react_mode", "fast")
             elif key == "context_messages":
                 # Restore context messages
-                if hasattr(state.context, "messages") and value:
-                    state.context.messages = value
+                if hasattr(state.context, "chat") and value:
+                    state.context.chat = value
             else:
                 # Restore other flow data
                 state.flow[key] = value
@@ -184,7 +184,7 @@ def resume(state: "State") -> bool:
 def _add_checkpoint_context(state: "State", checkpoint_data: Dict[str, Any]) -> None:
     """Add checkpoint recovery context for LLM communication."""
     checkpoint_type = checkpoint_data.get("checkpoint_type", "unknown")
-    iteration = checkpoint_data.get("current_iteration", 0)
+    iteration = checkpoint_data.get("iteration", 0)
 
     # Build recovery message for LLM
     recovery_msg = "RESUMING FROM CHECKPOINT: "
@@ -200,8 +200,8 @@ def _add_checkpoint_context(state: "State", checkpoint_data: Dict[str, Any]) -> 
     recovery_msg += f"Continue from iteration {iteration}. Previous network failure resolved."
 
     # Add to context as system message
-    if hasattr(state.context, "messages"):
-        state.context.messages.insert(0, {"role": "system", "content": recovery_msg})
+    if hasattr(state.context, "chat"):
+        state.context.chat.insert(0, {"role": "system", "content": recovery_msg})
 
 
 # Global checkpoint manager instance

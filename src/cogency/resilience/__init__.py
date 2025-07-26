@@ -13,7 +13,8 @@ from .exceptions import (
     ReasoningError,
     ResponseError,
 )
-from .formatting import format_tool_error, get_user_message
+
+# User formatting moved to utils.formatting
 from .patterns import safe
 from .recovery import recover
 
@@ -28,8 +29,7 @@ __all__ = [
     "recover",
     "resume",
     "safe",
-    "get_user_message",
-    "format_tool_error",
+    # User formatting no longer exported from resilience layer
     "Result",
     "Ok",
     "Err",

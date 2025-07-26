@@ -133,29 +133,29 @@ async def _route_from_reason(state: State) -> str:
 async def _route_from_act(state: State) -> str:
     """Route from act - check iterations and continue research or respond."""
     execution_results = state.execution_results
-    current_iter = state.current_iteration
+    current_iter = state.iteration
     max_iter = state.max_iterations
-    stopping_reason = state.stopping_reason
+    stop_reason = state.stop_reason
 
     # Route back to reason for continued research unless we hit limits
-    if stopping_reason in ["max_iterations_reached", "reasoning_loop_detected"]:
+    if stop_reason in ["max_iterations_reached", "reasoning_loop_detected"]:
         route = "respond"
-        reason = stopping_reason
+        reason = stop_reason
     elif current_iter >= max_iter:
         route = "respond"
         reason = "max_iterations_reached"
-        state["stopping_reason"] = reason
+        state["stop_reason"] = reason
     elif not execution_results.success:
         # For failed executions, check if we should retry or give up
-        failed_attempts = state.failed_tool_attempts
+        failed_attempts = state.tool_failures
         if failed_attempts >= 3:  # Give up after 3 consecutive failures
             route = "respond"
             reason = "repeated_tool_failures"
-            state["stopping_reason"] = reason
+            state["stop_reason"] = reason
         else:
             route = "reason"
             reason = "execution_failed"
-            state["failed_tool_attempts"] = failed_attempts + 1
+            state["tool_failures"] = failed_attempts + 1
     else:
         # Success - use quality assessment for routing decisions
         from cogency.nodes.reasoning.adaptive import assess_tools
@@ -163,20 +163,20 @@ async def _route_from_act(state: State) -> str:
         tool_quality = assess_tools(execution_results)
 
         # Route based on quality with max retry protection
-        quality_attempts = state.quality_retry_attempts
+        quality_attempts = state.quality_retries
         max_quality_retries = 2  # Limit quality-based retries
 
         if tool_quality in ["failed", "poor"] and quality_attempts < max_quality_retries:
             route = "reason"
             reason = f"poor_quality_retry_{quality_attempts + 1}"
-            state["quality_retry_attempts"] = quality_attempts + 1
+            state["quality_retries"] = quality_attempts + 1
         else:
             # Good quality or max retries reached - continue research
             route = "reason"
             reason = "continue_iteration"
-            state["quality_retry_attempts"] = 0  # Reset on good quality
+            state["quality_retries"] = 0  # Reset on good quality
 
-        state["failed_tool_attempts"] = 0  # Reset failure counter on success
+        state["tool_failures"] = 0  # Reset failure counter on success
 
     if hasattr(state, "output") and state.output:
         await state.output.trace(

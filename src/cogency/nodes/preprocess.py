@@ -5,12 +5,13 @@ from typing import List, Optional
 from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
 from cogency.resilience import safe
+from cogency.resilience.patterns import unwrap_or_raise
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
 from cogency.types.preprocessed import Preprocessed
-from cogency.utils.heuristics import is_simple_query, query_needs_tools
+from cogency.utils.heuristics import is_simple_query
 from cogency.utils.parsing import parse_json
 
 
@@ -91,20 +92,11 @@ Example:
 }}
 ```"""
 
-        llm_response_result = await llm.run([{"role": "user", "content": prompt_preprocess}])
-
-        if not llm_response_result.success:
-            await state.output.trace(
-                f"LLM preprocessing failed: {llm_response_result.error}", node="preprocess"
-            )
-            result = Preprocessed(react_mode="fast")  # Fallback
-        else:
-            response = llm_response_result.data
-            parse_result = parse_json(response)
-            if parse_result.success:
-                result = Preprocessed(**parse_result.data)
-            else:
-                result = Preprocessed(react_mode="fast")
+        # @safe.preprocess() auto-unwraps Results - clean boundary discipline
+        llm_result = await llm.run([{"role": "user", "content": prompt_preprocess}])
+        llm_response = unwrap_or_raise(llm_result)  # Unwrap LLM Result first
+        parsed_data = unwrap_or_raise(parse_json(llm_response))
+        result = Preprocessed(**parsed_data)
 
         # Chain 1: Save extracted memory if not null/empty and memory is enabled
         if memory and result.memory:
@@ -121,28 +113,25 @@ Example:
                 output_content = memory_content
             await state.output.update(f"Saved: {output_content}")
 
-            try:
-                if memory_content:
-                    await save_memory(
-                        memory_content,
-                        memory,
-                        user_id,
-                        tags=result.tags,
-                        memory_type=result.memory_type,
-                    )
-            except Exception as e:
-                await state.output.trace(f"Failed to save memory: {e}", node="preprocess")
-                # Continue without saving memory if it fails
+            # Let @safe.preprocess() handle memory save errors
+            if memory_content:
+                await save_memory(
+                    memory_content,
+                    memory,
+                    user_id,
+                    tags=result.tags,
+                    memory_type=result.memory_type,
+                )
 
         # Chain 2: Filter tools based on LLM selection and determine respond_directly
-        selected_tools_from_llm = result.selected_tools
-        if selected_tools_from_llm is not None:  # LLM explicitly provided selected_tools
-            if not selected_tools_from_llm:  # LLM explicitly selected no tools
+        selected_tools = result.selected_tools
+        if selected_tools is not None:  # LLM explicitly provided selected_tools
+            if not selected_tools:  # LLM explicitly selected no tools
                 filtered_tools = []
                 # If LLM explicitly selected no tools, force respond_directly to True
                 state["respond_directly"] = True
             else:
-                selected_names = set(selected_tools_from_llm)
+                selected_names = set(selected_tools)
                 filtered_tools = [tool for tool in tools if tool.name in selected_names]
                 # If tools are selected, respond_directly should be False
                 state["respond_directly"] = False
@@ -150,14 +139,6 @@ Example:
             filtered_tools = tools
             # If LLM didn't specify selected_tools, assume tools are needed, so respond_directly is False
             state["respond_directly"] = False
-
-        # Pragmatic heuristic: Tool availability sanity check
-        if query_needs_tools(query, filtered_tools):
-            state["respond_directly"] = True
-            await state.output.trace(
-                "Query needs tools but none available - responding directly",
-                node="preprocess",
-            )
 
         # Stream tool selection as trace for debugging
         if filtered_tools:
@@ -188,7 +169,7 @@ Example:
 
     # Update flow state - clean routing via respond_directly flag
     state["selected_tools"] = selected_tools
-    state["react_mode"] = result.react_mode
-    state["current_iteration"] = 0
+    state["react_mode"] = result.react_mode if "result" in locals() else "fast"
+    state["iteration"] = 0
 
     return state

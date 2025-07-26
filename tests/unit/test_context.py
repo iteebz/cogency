@@ -9,7 +9,7 @@ class TestContext:
     def test_basic_context_creation(self):
         context = Context("test input")
         assert context.query == "test input"
-        assert context.messages == []
+        assert context.chat == []
         assert context.user_id == "default"
 
     def test_message_history_management(self):
@@ -20,9 +20,9 @@ class TestContext:
         context.add_turn("user", "message 2")
 
         # Should have exactly 2 conversation turns due to limit
-        assert len(context.history) == 2
-        assert context.history[0]["query"] == "assistant"
-        assert context.history[1]["query"] == "user"
+        assert len(context.archive) == 2
+        assert context.archive[0]["query"] == "assistant"
+        assert context.archive[1]["query"] == "user"
 
     def test_clean_conversation_filtering(self):
         context = Context("test")
@@ -47,6 +47,6 @@ class TestContext:
 
         context.add_result("calculator", {"x": 5, "y": 3}, {"result": 8})
 
-        assert len(context.log_tools) == 1
-        assert context.log_tools[0]["tool_name"] == "calculator"
-        assert context.log_tools[0]["output"]["result"] == 8
+        assert len(context.tool_log) == 1
+        assert context.tool_log[0]["tool_name"] == "calculator"
+        assert context.tool_log[0]["output"]["result"] == 8

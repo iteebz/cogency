@@ -6,7 +6,7 @@ from cogency.context import Context
 from cogency.nodes.respond import prompt_response, respond
 from cogency.output import Output
 from cogency.state import State
-from cogency.utils.results import ActionResult
+from cogency.utils.results import Result
 from tests.conftest import MockLLM, create_mock_llm
 
 
@@ -30,9 +30,7 @@ def test_build_prompt():
     assert "test query" in result
 
     # With tool results
-    result = prompt_response(
-        "test query", has_tool_results=True, tool_results_summary="search results"
-    )
+    result = prompt_response("test query", has_tool_results=True, tool_summary="search results")
     assert "TOOL RESULTS" in result
     assert "search results" in result
 
@@ -50,7 +48,7 @@ async def test_respond_basic(state):
 
     assert updated_state["final_response"] == "Hello world"
     assert updated_state["next_node"] == "END"
-    assert len(state.context.messages) >= 2
+    assert len(state.context.chat) >= 2
 
 
 @pytest.mark.asyncio
@@ -60,7 +58,7 @@ async def test_respond_with_tool_results(state):
 
     llm = create_mock_llm("Weather is sunny")
     state.output = AsyncMock()
-    state["execution_results"] = ActionResult.ok([{"temperature": "72F"}])
+    state["execution_results"] = Result.ok([{"temperature": "72F"}])
 
     updated_state = await respond(state, llm=llm, tools=[])
 
@@ -89,13 +87,13 @@ async def test_respond_error_handling(state):
 
 
 @pytest.mark.asyncio
-async def test_with_stopping_reason(state):
+async def test_with_stop_reason(state):
     """Test respond with stopping reason fallback."""
     from unittest.mock import AsyncMock
 
     llm = create_mock_llm("Fallback response")
     state.output = AsyncMock()
-    state["stopping_reason"] = "max_iterations_reached"
+    state["stop_reason"] = "max_iterations_reached"
 
     updated_state = await respond(state, llm=llm, tools=[])
 

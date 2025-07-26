@@ -18,14 +18,14 @@ def test_session_isolation_prevents_collisions():
     state1 = Mock(spec=State)
     state1.get.side_effect = lambda key, default=None: {
         "query": "test query",
-        "current_iteration": 0,
+        "iteration": 0,
     }.get(key, default)
     state1.selected_tools = []
 
     state2 = Mock(spec=State)
     state2.get.side_effect = lambda key, default=None: {
         "query": "test query",
-        "current_iteration": 0,
+        "iteration": 0,
     }.get(key, default)
     state2.selected_tools = []
 
@@ -46,14 +46,14 @@ def test_same_session_same_fingerprint():
     state1 = Mock(spec=State)
     state1.get.side_effect = lambda key, default=None: {
         "query": "test",
-        "current_iteration": 1,
+        "iteration": 1,
     }.get(key, default)
     state1.selected_tools = []
 
     state2 = Mock(spec=State)
     state2.get.side_effect = lambda key, default=None: {
         "query": "test",
-        "current_iteration": 1,
+        "iteration": 1,
     }.get(key, default)
     state2.selected_tools = []
 

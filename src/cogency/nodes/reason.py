@@ -1,35 +1,26 @@
 """Reason node - pure reasoning and decision making."""
 
 import asyncio
-import logging
 from typing import List, Optional
 
 from cogency.nodes.reasoning.adaptive import (
     action_fingerprint,
     assess_tools,
-    detect_fast_loop,
-    detect_loop,
     parse_switch,
+    should_stop_reasoning,
     should_switch,
     summarize_attempts,
     switch_mode,
 )
-from cogency.nodes.reasoning.deep import (
-    prompt_deep_mode,
-)
-from cogency.nodes.reasoning.fast import (
-    prompt_fast_mode,
-)
-from cogency.resilience import ParsingError, ReasoningError, recover, safe
-from cogency.resilience.formatting import get_user_message
+from cogency.nodes.reasoning.deep import prompt_deep_mode
+from cogency.nodes.reasoning.fast import prompt_fast_mode
+from cogency.resilience import safe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
 from cogency.types.reasoning import Reasoning
 from cogency.utils.parsing import parse_json_with_correction
-
-logger = logging.getLogger(__name__)
 
 
 def build_iterations(cognition, selected_tools, max_iterations=3):
@@ -98,7 +89,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
 
 
 @safe.checkpoint("reason")
-@safe.reasoning()
+@safe.reason()
 async def reason(
     state: State,
     *,
@@ -107,274 +98,130 @@ async def reason(
     system_prompt: Optional[str] = None,
     identity: Optional[str] = None,
 ) -> State:
-    """Analyze context and decide next action with adaptive reasoning."""
+    """Pure reasoning orchestration - let decorators handle all ceremony."""
     context = state["context"]
     selected_tools = state.selected_tools or tools or []
-
-    # Simple iteration tracking
-    iter = state.current_iteration
-    max_iter = state.max_iterations
-
-    # Initialize cognitive state - start fast, let LLM discover complexity
     react_mode = state.react_mode
+    iteration = state.iteration
 
     # Set react mode if different from current
     if state.cognition.react_mode != react_mode:
         state.cognition.react_mode = react_mode
 
-    # Start reasoning state with simplified messaging
     await state.output.state("reasoning", react_mode)
 
-    # Adaptive loop detection based on mode
-    if react_mode == "deep":
-        try:
-            loop_detected = detect_loop(state.cognition)
-        except Exception as e:
-            logger.error(f"Deep loop detection failed: {e}")
-            loop_detected = False  # Fallback to no loop detection if it fails
-    else:
-        # Fast react: lightweight loop detection with lower threshold
-        try:
-            loop_detected = detect_fast_loop(state.cognition)
-        except Exception as e:
-            logger.error(f"Fast loop detection failed: {e}")
-            loop_detected = False  # Fallback gracefully
-
-    if iter >= max_iter:
-        # Stop reasoning after max iterations with user-friendly message
-        user_message = get_user_message("MAX_ITERATIONS")
-        await state.output.trace(user_message, node="reason")
-        state["stopping_reason"] = "max_iterations_reached"
-        state["user_error_message"] = user_message
-        state["tool_calls"] = None
-        return state
-    elif loop_detected:
-        # Stop reasoning if loop detected with user-friendly message
-        user_message = get_user_message("REASONING_LOOP")
-        await state.output.trace(user_message, node="reason")
-        state["stopping_reason"] = "reasoning_loop_detected"
-        state["user_error_message"] = user_message
+    # Check stop conditions - pure logic, no ceremony
+    should_stop, stop_reason = should_stop_reasoning(state, react_mode)
+    if should_stop:
+        state["stop_reason"] = stop_reason
         state["tool_calls"] = None
         return state
 
-    tool_registry = build_registry(selected_tools)
-
-    messages = list(context.messages)
+    # Build messages
+    messages = list(context.chat)
     messages.append({"role": "user", "content": context.query})
 
-    # Create unified iteration history for both modes
+    # Build prompt based on mode
     attempts_summary = build_iterations(state.cognition, selected_tools, max_iterations=3)
+    tool_registry = build_registry(selected_tools)
 
-    # Hide verbose iteration history - only show for debugging if needed
-    # await state.output.trace(f"Iteration history: {attempts_summary}", node="reason")
-
-    # Build adaptive reasoning prompt - with reflection for deep mode
     if react_mode == "deep":
-        # Deep mode: use explicit reflection phases
-        current_approach = state.cognition.current_approach
-        last_tool_quality = state.cognition.last_tool_quality
         reasoning_prompt = prompt_deep_mode(
             tool_registry,
             context.query,
-            iter,
-            max_iter,
-            current_approach,
+            iteration,
+            state.max_iterations,
+            state.cognition.current_approach,
             attempts_summary,
-            last_tool_quality,
+            state.cognition.last_tool_quality,
         )
     else:
-        # Fast mode: use streamlined fast reasoning with preserved context
         preserved_context = getattr(state.cognition, "preserved_context", "")
         reasoning_prompt = prompt_fast_mode(
             tool_registry, context.query, attempts_summary, preserved_context
         )
 
-    # Simple identity flow - just add it
+    # Add optional prompts
     if identity:
         reasoning_prompt = f"{identity}\n\n{reasoning_prompt}"
-
     if system_prompt:
         reasoning_prompt = f"{system_prompt}\n\n{reasoning_prompt}"
 
     messages.insert(0, {"role": "system", "content": reasoning_prompt})
 
-    try:
-        # Yield control to allow state message to appear immediately
-        await asyncio.sleep(0)
+    # LLM reasoning - let decorator handle errors
+    await asyncio.sleep(0)  # Yield for UI
+    llm_result = await llm.run(messages)
+    from cogency.resilience.patterns import unwrap_or_raise
 
-        # Clean Result handling - unwrap or fall back to empty reasoning
-        llm_result = await llm.run(messages)
-        if not llm_result.success:
-            await state.output.trace(f"LLM reasoning failed: {llm_result.error}", node="reason")
-            state.update(
-                {
-                    "last_error_type": "llm_failure",
-                    "user_error_message": get_user_message("LLM_FAILURE"),
-                    "tool_calls": None,
-                }
-            )
-            return state
+    raw_response = unwrap_or_raise(llm_result)
 
-        llm_response = llm_result.data
+    # Parse with correction
+    def trace_parsing(msg: str):
+        asyncio.create_task(state.output.trace(msg, node="reason"))
 
-        # Don't add reasoning JSON to context - it's internal planning only
+    parse_result = await parse_json_with_correction(
+        raw_response, llm_fn=llm.run, trace_fn=trace_parsing, max_attempts=2
+    )
 
-        # Create trace function for parsing feedback
-        def trace_parsing(msg: str):
-            asyncio.create_task(state.output.trace(msg, node="reason"))
+    reasoning_response = (
+        Reasoning.from_dict(parse_result.data) if parse_result.success else Reasoning()
+    )
 
-        # Parse response with self-correction and tracing
-        parse_result = await parse_json_with_correction(
-            llm_response, llm_fn=llm.run, trace_fn=trace_parsing, max_attempts=2
+    # Display reasoning phases
+    if state.get("verbose", True):
+        if react_mode == "deep" and reasoning_response:
+            if reasoning_response.thinking:
+                await state.output.update(f"💭 {reasoning_response.thinking}\n")
+            if reasoning_response.reflect:
+                await state.output.update(f"🤔 {reasoning_response.reflect}\n")
+            if reasoning_response.plan:
+                await state.output.update(f"📋 {reasoning_response.plan}\n")
+        elif reasoning_response.thinking:
+            await state.output.update(f"💭 {reasoning_response.thinking}\n")
+
+    # Handle mode switching
+    switch_to, switch_why = parse_switch(raw_response)
+    if should_switch(react_mode, switch_to, switch_why, iteration):
+        await state.output.trace(
+            f"Mode switch: {react_mode} → {switch_to} ({switch_why})", node="reason"
         )
+        state = switch_mode(state, switch_to, switch_why)
 
-        if not parse_result.success:
-            # Create ParsingError for detailed tracking
-            parsing_error = ParsingError(
-                parse_result.error,
-                raw_response=llm_response[:200] + "..."
-                if len(llm_response) > 200
-                else llm_response,
-                correction_attempts=2,  # We attempted 2 corrections
-            )
+    # Update cognitive state
+    tool_calls = reasoning_response.tool_calls
+    update_cognitive_state(state, tool_calls, reasoning_response, iteration)
 
-            # Log technical details for debugging
-            await state.output.trace(
-                f"JSON parsing failed after all attempts: {parse_result.error}", node="reason"
-            )
+    # Update state for next iteration
+    state["reasoning"] = raw_response
+    state["tool_calls"] = tool_calls
+    state["prev_tool_calls"] = tool_calls
+    state["iteration"] = state["iteration"] + 1
 
-            # Show user-friendly parsing-specific message
-            user_message = get_user_message("PARSING_FAILED")
-            await state.output.trace(user_message, node="reason")
+    return state
 
-            # Track parsing failure separately from reasoning failure
-            state["parsing_error"] = parsing_error
-            state["last_error_type"] = "parsing"
 
-            # Fallback to empty Reasoning object if parsing fails
-            json_data = Reasoning()
-        else:
-            json_data = parse_result.data
-            # Clear any previous parsing errors on success
-            state["parsing_error"] = None
-            state["last_error_type"] = None
-            # Explicitly create Reasoning object from parsed data
-            json_data = Reasoning.from_dict(json_data)
-
-        # Show reasoning phases - gated by verbose flag
-        verbose = state.get("verbose", True)  # Default to True for backward compatibility
-        if verbose:
-            if react_mode == "deep" and json_data:
-                thinking_phase = json_data.thinking
-                reflect_phase = json_data.reflect
-                plan_phase = json_data.plan
-
-                if thinking_phase:
-                    await state.output.update(f"💭 {thinking_phase}\n")
-                if reflect_phase:
-                    await state.output.update(f"🤔 {reflect_phase}\n")
-                if plan_phase:
-                    await state.output.update(f"📋 {plan_phase}\n")
-            elif json_data and json_data.thinking:
-                thinking = json_data.thinking
-                if thinking:
-                    await state.output.update(f"💭 {thinking}\n")
-
-        # Initialize variables that need to be available throughout the function
-        tool_calls = None
-
-        # Check for bidirectional mode switching
-        switch_to, switch_why = parse_switch(llm_response)
-        if should_switch(react_mode, switch_to, switch_why, iter):
-            await state.output.trace(
-                f"Mode switch: {react_mode} → {switch_to} ({switch_why})",
-                node="reason",
-            )
-            state = switch_mode(state, switch_to, switch_why)
-            # Update react_mode for this iteration
-            react_mode = switch_to
-
-        # Parse tool calls from JSON - reasoning should never provide direct responses
-        tool_calls = json_data.tool_calls
-
-        state["tool_calls"] = tool_calls
-
-        # Show thinking instantly (not streamed)
-        reasoning = json_data.reasoning
-        if reasoning:
-            pass  # Reasoning is now a list of strings, handled by output.update in flow.py
-
-        state["reasoning_response"] = llm_response
-        # No direct responses from reasoning - only JSON with tool calls or empty
-
-        # Hide internal reasoning - users don't need to see this ceremony
-        current_approach = "unified_react"
-
-    except Exception as e:
-        reasoning_error = ReasoningError(
-            f"Reasoning process failed: {str(e)}",
-            mode=state.get("react_mode", "unknown"),
-            loop_detected=False,
-        )
-        recovery = await recover.reasoning(reasoning_error, state)
-        if recovery.success:
-            # Update state with recovery data - State uses dict-like assignment
-            for key, value in recovery.data.items():
-                state[key] = value
-            user_message = (
-                get_user_message("REASONING_LOOP")
-                if recovery.recovery_action == "fallback_to_fast"
-                else get_user_message("UNKNOWN")
-            )
-        else:
-            user_message = get_user_message("UNKNOWN")
-
-        await state.output.trace(user_message, node="reason")
-
-        # Recovery handled by recover.reasoning
-        tool_calls = None
-        state["user_error_message"] = user_message
-        state["tool_calls"] = tool_calls
-        state["direct_response"] = None
-        state["can_answer_directly"] = True
-        state["reasoning_response"] = user_message
-
-        # Hide error reasoning - users don't need to see ceremony
-        current_approach = "unified_react"
-
-    # Assess previous tool execution results if available
-    action_result = state.action_result
-    if action_result:
-        tool_quality = assess_tools(action_result)
+def update_cognitive_state(state, tool_calls, reasoning_response, iteration: int) -> None:
+    """Update cognitive state after reasoning iteration."""
+    # Assess previous tool execution results
+    result = state.result
+    if result:
+        tool_quality = assess_tools(result)
         state.cognition.set_tool_quality(tool_quality)
 
         # Track failed attempts for loop prevention
         if tool_quality in ["failed", "poor"]:
             prev_tool_calls = state.get("prev_tool_calls", [])
             if prev_tool_calls:
-                state.cognition.track_failure(prev_tool_calls, tool_quality, iter)
+                state.cognition.track_failure(prev_tool_calls, tool_quality, iteration)
 
     # Update cognitive state for next iteration
     if tool_calls:
         fingerprint = action_fingerprint(tool_calls)
-        # Extract decision from reasoning data
-        if react_mode == "deep":
-            current_decision = json_data.reasoning[0] if json_data.reasoning else "unknown"
-        else:
-            current_decision = json_data.reasoning[0] if json_data.reasoning else "unknown"
-
-        # Store current iteration without formatted results (will be added after execution)
-        state.cognition.update(
-            tool_calls, current_approach, current_decision, fingerprint, "", iter + 1
+        current_decision = (
+            reasoning_response.reasoning[0] if reasoning_response.reasoning else "unknown"
         )
 
-    # Store current tool calls for next iteration's assessment
-    state["prev_tool_calls"] = tool_calls
-
-    # Increment iteration counter
-    state["current_iteration"] = iter + 1
-
-    # Store tool calls for routing (flow.py handles the routing logic)
-    state["tool_calls"] = tool_calls
-
-    return state
+        state.cognition.update(
+            tool_calls, "unified_react", current_decision, fingerprint, "", iteration + 1
+        )

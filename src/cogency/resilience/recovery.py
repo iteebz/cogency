@@ -23,7 +23,7 @@ class RecoveryStrategies:
         """Reasoning recovery - mode fallback and loop breaking."""
         if error.loop_detected:
             state["next_node"] = "respond"
-            state["stopping_reason"] = "loop_recovery"
+            state["stop_reason"] = "loop_recovery"
             return RecoveryResult.ok(state, recovery_action="force_respond")
 
         if error.mode == "deep":
@@ -31,8 +31,8 @@ class RecoveryStrategies:
             return RecoveryResult.ok(state, recovery_action="fallback_to_fast")
 
         state["next_node"] = "respond"
-        state["stopping_reason"] = "reasoning_error"
-        return RecoveryResult.ok(state, recovery_action="direct_response")
+        state["stop_reason"] = "reasoning_error"
+        return RecoveryResult.ok(state, recovery_action="response")
 
     @staticmethod
     async def parsing(error: ParsingError, state: Any) -> RecoveryResult:
@@ -45,7 +45,7 @@ class RecoveryStrategies:
         """Action recovery - retry reasoning or force respond."""
         if not error.recoverable:
             state["next_node"] = "respond"
-            state["stopping_reason"] = "non_recoverable_action_error"
+            state["stop_reason"] = "non_recoverable_action_error"
             return RecoveryResult.ok(state, recovery_action="force_respond")
 
         state["execution_results"] = {
@@ -62,7 +62,7 @@ class RecoveryStrategies:
         if error.has_partial_response:
             return RecoveryResult.ok(state, recovery_action="use_partial")
 
-        state["direct_response"] = f"I encountered an issue generating a response: {error.message}"
+        state["response"] = f"I encountered an issue generating a response: {error.message}"
         return RecoveryResult.ok(state, recovery_action="fallback_response")
 
 

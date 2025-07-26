@@ -4,7 +4,7 @@
 def prompt_deep_mode(
     tool_registry: str,
     query: str,
-    current_iteration: int,
+    iteration: int,
     max_iterations: int,
     current_approach: str,
     previous_attempts: str,
@@ -38,7 +38,7 @@ TOOLS:
 {tool_registry}
 
 CONTEXT:
-Iteration {current_iteration}/{max_iterations} - Review completed actions to avoid repetition
+Iteration {iteration}/{max_iterations} - Review completed actions to avoid repetition
 Current approach: {current_approach}
 Action history: {previous_attempts}
 Last quality: {last_tool_quality}

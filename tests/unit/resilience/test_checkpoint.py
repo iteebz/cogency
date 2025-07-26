@@ -23,7 +23,7 @@ def test_state():
     context = Context(query="test query", messages=[{"role": "user", "content": "test"}])
     state = State(context=context, query="test query")
     state.flow["selected_tools"] = []
-    state.flow["current_iteration"] = 1
+    state.flow["iteration"] = 1
     return state
 
 
@@ -41,7 +41,7 @@ def test_checkpoint_roundtrip(checkpoint_manager, test_state):
     checkpoint_data = checkpoint_manager.load_checkpoint(checkpoint_id)
     assert checkpoint_data
     assert checkpoint_data["query"] == "test query"
-    assert checkpoint_data["current_iteration"] == 1
+    assert checkpoint_data["iteration"] == 1
     assert checkpoint_data["fingerprint"] == checkpoint_id
 
 
@@ -68,7 +68,7 @@ def test_recovery_message_format(checkpoint_manager, test_state):
         {"name": "search", "args": {"query": "test"}},
         {"name": "read", "args": {"file": "test.py"}},
     ]
-    test_state.flow["current_iteration"] = 3
+    test_state.flow["iteration"] = 3
 
     # Save checkpoint
     checkpoint_id = checkpoint_manager.save_checkpoint(test_state, "act")
@@ -84,7 +84,7 @@ def test_recovery_message_format(checkpoint_manager, test_state):
         assert test_state.flow["checkpoint_id"] == checkpoint_id
 
         # Check recovery message was injected into context
-        messages = test_state.context.messages
+        messages = test_state.context.chat
         recovery_msg = next((msg for msg in messages if msg["role"] == "system"), None)
         assert recovery_msg
         assert "RESUMING FROM CHECKPOINT" in recovery_msg["content"]

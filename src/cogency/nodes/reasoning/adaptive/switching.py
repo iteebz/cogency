@@ -26,7 +26,7 @@ def should_switch(
     current_mode: str,
     switch_to: Optional[str],
     switch_why: Optional[str],
-    current_iteration: int = 0,
+    iteration: int = 0,
 ) -> bool:
     """Determine if mode switch should occur based on request and iteration context"""
     if not switch_to or not switch_why:
@@ -41,11 +41,11 @@ def should_switch(
         return False
 
     # Prevent switching too early (let mode try at least once)
-    if current_iteration < 1:
+    if iteration < 1:
         return False
 
     # Prevent switching too late (close to max iterations)
-    return not current_iteration >= 4
+    return not iteration >= 4
 
 
 def switch_mode(state: Dict[str, Any], new_mode: str, switch_why: str) -> Dict[str, Any]:
@@ -95,7 +95,7 @@ def switch_mode(state: Dict[str, Any], new_mode: str, switch_why: str) -> Dict[s
             "from_mode": old_mode,
             "to_mode": new_mode,
             "reason": switch_why,
-            "iteration": state.get("current_iteration", 0),
+            "iteration": state.get("iteration", 0),
         }
     )
     state["mode_switches"] = mode_switches

@@ -40,10 +40,10 @@ class ActInput(NodeInput):
 class RespondInput(NodeInput):
     """Input schema for respond node."""
 
-    reasoning_response: Optional[str] = None
-    can_answer_directly: bool = False
-    direct_response: Optional[str] = None
-    stopping_reason: Optional[str] = None
+    reasoning: Optional[str] = None
+    direct_answer: bool = False
+    response: Optional[str] = None
+    stop_reason: Optional[str] = None
 
 
 @dataclass
@@ -68,10 +68,10 @@ class ReasonOutput(NodeOutput):
     """Output schema for reason node."""
 
     tool_calls: Optional[List[Dict[str, Any]]] = None
-    reasoning_response: Optional[str] = None
-    can_answer_directly: bool = False
+    reasoning: Optional[str] = None
+    direct_answer: bool = False
     react_mode: str = "fast"
-    stopping_reason: Optional[str] = None
+    stop_reason: Optional[str] = None
 
 
 @dataclass

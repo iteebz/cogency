@@ -7,8 +7,8 @@ from cogency.resilience import (
     CogencyError,
     ConfigError,
     ParsingError,
-    format_tool_error,
 )
+from cogency.utils.formatting import format_tool_error
 
 
 def test_cogency_error_basic():

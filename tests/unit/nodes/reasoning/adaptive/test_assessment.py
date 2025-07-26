@@ -3,7 +3,7 @@
 import pytest
 
 from cogency.nodes.reasoning.adaptive.assessment import assess_tools
-from cogency.utils.results import ActionResult
+from cogency.utils.results import Result
 
 
 class TestToolQualityAssessment:
@@ -14,11 +14,11 @@ class TestToolQualityAssessment:
         [
             # Edge cases
             (None, "unknown"),  # Empty results
-            (ActionResult(error="test"), "failed"),  # Failed execution
-            (ActionResult(data={"results": []}), "poor"),  # No results
+            (Result(error="test"), "failed"),  # Failed execution
+            (Result(data={"results": []}), "poor"),  # No results
             # Quality assessment cases
             (
-                ActionResult(
+                Result(
                     data={
                         "results": ["result1", "result2"],
                         "successful_count": 4,
@@ -28,7 +28,7 @@ class TestToolQualityAssessment:
                 "good",
             ),  # Good quality
             (
-                ActionResult(
+                Result(
                     data={
                         "results": ["result1"],
                         "successful_count": 3,
@@ -38,7 +38,7 @@ class TestToolQualityAssessment:
                 "partial",
             ),  # Partial quality
             (
-                ActionResult(
+                Result(
                     data={
                         "results": ["result1"],
                         "successful_count": 1,
@@ -48,7 +48,7 @@ class TestToolQualityAssessment:
                 "poor",
             ),  # Poor quality
             (
-                ActionResult(
+                Result(
                     data={
                         "results": ["result1"],
                         "successful_count": 0,

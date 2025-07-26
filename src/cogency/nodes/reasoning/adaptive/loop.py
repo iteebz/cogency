@@ -107,3 +107,23 @@ def detect_fast_loop(cognition) -> bool:
         and fingerprints[-1] == fingerprints[-LOOP_DETECTION_MIN_ACTIONS]
         and fingerprints[-1] != fingerprints[-2]
     )
+
+
+def should_stop_reasoning(state, react_mode: str) -> tuple[bool, str]:
+    """Pure logic: check if reasoning should stop due to iteration limits or loops."""
+    iteration = state.iteration
+    max_iterations = state.max_iterations
+
+    if iteration >= max_iterations:
+        return True, "max_iterations_reached"
+
+    # Adaptive loop detection based on mode
+    if react_mode == "deep":
+        loop_detected = detect_loop(state.cognition)
+    else:
+        loop_detected = detect_fast_loop(state.cognition)
+
+    if loop_detected:
+        return True, "reasoning_loop_detected"
+
+    return False, ""

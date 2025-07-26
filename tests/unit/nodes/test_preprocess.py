@@ -75,7 +75,7 @@ async def test_routing_deep_react():
 
 
 @pytest.mark.asyncio
-async def test_routing_direct_response():
+async def test_routing_response():
     """Test that direct response queries are routed correctly."""
     llm = MockLLM()
     tools = [MockSearchTool()]

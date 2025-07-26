@@ -10,6 +10,16 @@ from functools import wraps
 from resilient_result import Result, resilient
 
 
+def unwrap_or_raise(result):
+    """Unwrap Result or raise error - simple boundary helper."""
+    if not result.success:
+        error = result.error
+        if isinstance(error, str):
+            raise ValueError(error)
+        raise error
+    return result.data
+
+
 def unwrap_result(result):
     """Centralized Result unwrapping logic - maintains clean State boundary."""
     if isinstance(result, Result):
@@ -168,6 +178,59 @@ def act(retries: int = 2, unwrap_state: bool = True):
     return decorator
 
 
+def preprocess(retries: int = 2, unwrap_state: bool = True):
+    """@resilient.preprocess - Preprocessing with graceful degradation."""
+
+    async def handle_preprocess(error):
+        return None  # Retry preprocessing errors
+
+    def decorator(func):
+        # Get the resilient decorator
+        resilient_func = resilient(handler=handle_preprocess, retries=retries)(func)
+
+        if not unwrap_state:
+            return resilient_func
+
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await resilient_func(*args, **kwargs)
+            # Transparently unwrap Result objects to maintain State interface
+            return unwrap_result(result)
+
+        return wrapper
+
+    return decorator
+
+
+def respond(retries: int = 2, unwrap_state: bool = True):
+    """@resilient.respond - Response generation with fallback."""
+
+    async def handle_respond(error):
+        return None  # Retry response errors
+
+    def decorator(func):
+        # Get the resilient decorator
+        resilient_func = resilient(handler=handle_respond, retries=retries)(func)
+
+        if not unwrap_state:
+            return resilient_func
+
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await resilient_func(*args, **kwargs)
+            # Transparently unwrap Result objects to maintain State interface
+            return unwrap_result(result)
+
+        return wrapper
+
+    return decorator
+
+
+def reason(retries: int = 3, unwrap_state: bool = True):
+    """@resilient.reason - Same as reasoning but with cleaner name."""
+    return reasoning(retries, unwrap_state)
+
+
 def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = False):
     """@safe.checkpoint - Workflow recovery with state persistence."""
 
@@ -301,8 +364,11 @@ def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = Fa
 
 # Register Cogency patterns with resilient-result
 resilient.register("reasoning", reasoning)
+resilient.register("reason", reason)
 resilient.register("memory", memory)
 resilient.register("act", act)
+resilient.register("preprocess", preprocess)
+resilient.register("respond", respond)
 
 
 # Create Cogency-specific safe instance that extends resilient-result

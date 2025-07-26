@@ -89,8 +89,8 @@ class TestFlow:
 
         result = await act(full_state, tools=tools)
 
-        action_result = result.action_result
-        assert action_result.success
+        result_data = result.result
+        assert result_data.success
 
     @pytest.mark.asyncio
     async def test_respond_formats_response(self, agent_state, mock_llm):
@@ -113,10 +113,10 @@ class TestFlow:
         # Copy specific keys we know are in the result
         if "next_node" in reason_result:
             current_state.flow["next_node"] = reason_result["next_node"]
-        if "reasoning_response" in reason_result:
-            current_state.flow["reasoning_response"] = reason_result["reasoning_response"]
-        if "can_answer_directly" in reason_result:
-            current_state.flow["can_answer_directly"] = reason_result["can_answer_directly"]
+        if "reasoning" in reason_result:
+            current_state.flow["reasoning"] = reason_result["reasoning"]
+        if "direct_answer" in reason_result:
+            current_state.flow["direct_answer"] = reason_result["direct_answer"]
         if "tool_calls" in reason_result:
             current_state.flow["tool_calls"] = reason_result["tool_calls"]
         respond_result = await respond(current_state, llm=mock_llm, tools=[])
@@ -137,17 +137,17 @@ class TestFlow:
         # Copy specific keys we know are in the result
         if "next_node" in reason_result:
             state_for_act.flow["next_node"] = reason_result["next_node"]
-        if "reasoning_response" in reason_result:
-            state_for_act.flow["reasoning_response"] = reason_result["reasoning_response"]
-        if "can_answer_directly" in reason_result:
-            state_for_act.flow["can_answer_directly"] = reason_result["can_answer_directly"]
+        if "reasoning" in reason_result:
+            state_for_act.flow["reasoning"] = reason_result["reasoning"]
+        if "direct_answer" in reason_result:
+            state_for_act.flow["direct_answer"] = reason_result["direct_answer"]
         if "tool_calls" in reason_result:
             state_for_act.flow["tool_calls"] = reason_result["tool_calls"]
         state_for_act.flow["selected_tools"] = tools
         state_for_act.flow["selected_tools"] = tools
         act_result = await act(state_for_act, tools=tools)
-        action_result = act_result.action_result
-        assert action_result.success
+        result_data = act_result.result
+        assert result_data.success
 
         # 3. Reason (reflect on results)
         mock_llm.run = AsyncMock(

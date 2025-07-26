@@ -40,27 +40,6 @@ class ParseResult(Result):
             return f"ParseResult.fail({repr(self.error)})"
 
 
-class ActionResult(Result):
-    """Action result with stopping reason."""
-
-    def __init__(
-        self,
-        data: Any = None,
-        error: str = None,
-        stopping_reason: str = None,
-        can_continue: bool = True,
-    ):
-        super().__init__(data, error)
-        self.stopping_reason = stopping_reason
-        self.can_continue = can_continue
-
-    def __repr__(self) -> str:
-        if self.success:
-            return f"ActionResult.ok({repr(self.data)})"
-        else:
-            return f"ActionResult.fail({repr(self.error)})"
-
-
 class RecoveryResult(Result):
     """Recovery result with action info."""
 
@@ -93,4 +72,4 @@ class RecoveryResult(Result):
 
 
 # Re-export resilient-result aliases for backward compatibility
-__all__ = ["Result", "Ok", "Err", "ToolResult", "ActionResult", "ParseResult", "RecoveryResult"]
+__all__ = ["Result", "Ok", "Err", "ToolResult", "ParseResult", "RecoveryResult"]

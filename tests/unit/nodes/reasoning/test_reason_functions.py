@@ -6,7 +6,7 @@ import pytest
 
 from cogency.nodes.reason import format_actions
 from cogency.tools.base import BaseTool
-from cogency.utils.results import ActionResult
+from cogency.utils.results import Result
 
 
 class MockTool(BaseTool):
@@ -44,7 +44,7 @@ class TestFormatAgentResults:
         tool_calls = [{"name": "search", "args": {"query": "test query", "max_results": 3}}]
 
         # Create execution results (as they come from act node)
-        execution_results = ActionResult.ok(
+        execution_results = Result.ok(
             {
                 "results": [
                     {
@@ -85,7 +85,7 @@ class TestFormatAgentResults:
             {"name": "scrape", "args": {"url": "http://example.com"}},
         ]
 
-        execution_results = ActionResult.ok(
+        execution_results = Result.ok(
             {
                 "results": [
                     {
@@ -113,26 +113,26 @@ class TestFormatAgentResults:
         assert result == ""
 
         # Test with execution results but no data
-        empty_results = ActionResult.ok(None)
+        empty_results = Result.ok(None)
         result = format_actions(empty_results, [], [])
         assert result == ""
 
     def test_format_actions_malformed_data(self):
         """Test with malformed execution results."""
         # Missing 'results' key
-        bad_results = ActionResult.ok({"summary": "test"})
+        bad_results = Result.ok({"summary": "test"})
         result = format_actions(bad_results, [], [])
         assert result == ""
 
         # Wrong data type
-        bad_results = ActionResult.ok("not a dict")
+        bad_results = Result.ok("not a dict")
         result = format_actions(bad_results, [], [])
         assert result == ""
 
     def test_format_actions_tool_not_found(self):
         """Test when tool is not found in selected_tools."""
         tool_calls = [{"name": "unknown_tool", "args": {}}]
-        execution_results = ActionResult.ok(
+        execution_results = Result.ok(
             {"results": [{"tool_name": "unknown_tool", "result": {"test": "data"}}]}
         )
 
@@ -143,7 +143,7 @@ class TestFormatAgentResults:
         """Test when tool result data is empty."""
         search_tool = MockTool("search")
         tool_calls = [{"name": "search", "args": {}}]
-        execution_results = ActionResult.ok(
+        execution_results = Result.ok(
             {"results": [{"tool_name": "search", "result": {}}]}  # Empty result
         )
 

@@ -41,7 +41,7 @@ dependencies = [
     "pytz>=2023.0",
     "trafilatura (>=2.0.0,<3.0.0)",
     "typing-extensions>=4.0",
-    "resilient-result>=0.2.0,<1.0.0",
+    "resilient-result (==0.2.1)",
 ]
 
 [project.optional-dependencies]

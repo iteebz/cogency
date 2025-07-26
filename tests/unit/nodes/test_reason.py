@@ -26,6 +26,7 @@ class TestReasonNode:
         """Create mock context."""
         context = Mock()
         context.messages = []
+        context.chat = []  # Add missing chat attribute
         context.query = "test query"
         context.add_message = Mock()
         return context
@@ -72,23 +73,23 @@ class TestReasonNode:
     @pytest.mark.asyncio
     async def test_iteration_tracking(self, basic_state, mock_llm, mock_tools):
         """Test iteration counter increments."""
-        basic_state["current_iteration"] = 2
+        basic_state["iteration"] = 2
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
         assert isinstance(result, State)
-        assert result["current_iteration"] == 3
+        assert result["iteration"] == 3
 
     @pytest.mark.asyncio
     async def test_max_iterations_stopping(self, basic_state, mock_llm, mock_tools):
         """Test that reasoning stops at max iterations."""
-        basic_state["current_iteration"] = 5
+        basic_state["iteration"] = 5
         basic_state["MAX_ITERATIONS"] = 5
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
 
         assert isinstance(result, State)
-        assert result["stopping_reason"] == "max_iterations_reached"
+        assert result["stop_reason"] == "max_iterations_reached"
 
     @pytest.mark.asyncio
     async def test_loop_detection_stopping(self, basic_state, mock_llm, mock_tools):
@@ -122,7 +123,7 @@ class TestReasonNode:
 
         result = await reason(basic_state, llm=mock_llm, tools=mock_tools)
         assert isinstance(result, State)
-        assert result.get("stopping_reason") == "reasoning_loop_detected"
+        assert result.get("stop_reason") == "reasoning_loop_detected"
 
     @pytest.mark.asyncio
     async def test_graceful_degradation_on_llm_error(self, basic_state, mock_llm, mock_tools):
@@ -140,9 +141,9 @@ class TestReasonNode:
     async def test_failed_attempts_tracking(self, basic_state, mock_llm, mock_tools):
         """Test that failed attempts are tracked properly."""
         # Set up previous execution results indicating failure
-        from cogency.utils.results import ActionResult
+        from cogency.utils.results import Result
 
-        basic_state["action_result"] = ActionResult(
+        basic_state["result"] = Result(
             data={
                 "success": True,
                 "results": [],

@@ -1,7 +1,7 @@
 """Cogency State container."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from cogency.context import Context
 from cogency.output import Output
@@ -12,7 +12,7 @@ from cogency.types.node_io import (
     ReasonInput,
     RespondInput,
 )
-from cogency.utils.results import ActionResult
+from cogency.utils.results import Result
 
 
 class Cognition:
@@ -175,19 +175,19 @@ class State:
         return self.flow.get("selected_tools", [])
 
     @property
-    def action_result(self):
-        """Action result from act node."""
-        return self.flow.get("action_result", ActionResult.ok({}))
+    def result(self) -> Result:
+        """Result from act node."""
+        return self.flow.get("result", Result.ok({}))
 
     @property
-    def current_iteration(self) -> int:
+    def iteration(self) -> int:
         """Current iteration with intelligent default."""
-        return self.flow.get("current_iteration", 0)
+        return self.flow.get("iteration", 0)
 
-    @current_iteration.setter
-    def current_iteration(self, value: int) -> None:
+    @iteration.setter
+    def iteration(self, value: int) -> None:
         """Set current iteration."""
-        self.flow["current_iteration"] = value
+        self.flow["iteration"] = value
 
     @property
     def max_iterations(self) -> int:
@@ -195,9 +195,9 @@ class State:
         return self.flow.get("MAX_ITERATIONS", 12)
 
     @property
-    def stopping_reason(self) -> str:
+    def stop_reason(self) -> Optional[str]:
         """Stopping reason with intelligent default."""
-        return self.flow.get("stopping_reason")
+        return self.flow.get("stop_reason")
 
     @property
     def react_mode(self) -> str:
@@ -210,34 +210,34 @@ class State:
         self.flow["react_mode"] = value
 
     @property
-    def reasoning_response(self) -> Any:
+    def reasoning(self) -> Optional[str]:
         """Reasoning response with intelligent default."""
-        return self.flow.get("reasoning_response")
+        return self.flow.get("reasoning")
 
     @property
-    def direct_response(self) -> str:
+    def response(self) -> Optional[str]:
         """Direct response with intelligent default."""
-        return self.flow.get("direct_response")
+        return self.flow.get("response")
 
     @property
-    def can_answer_directly(self) -> bool:
+    def direct_answer(self) -> bool:
         """Can answer directly with intelligent default."""
-        return self.flow.get("can_answer_directly", False)
+        return self.flow.get("direct_answer", False)
 
     @property
-    def failed_tool_attempts(self) -> int:
+    def tool_failures(self) -> int:
         """Failed tool attempts with intelligent default."""
-        return self.flow.get("failed_tool_attempts", 0)
+        return self.flow.get("tool_failures", 0)
 
     @property
-    def quality_retry_attempts(self) -> int:
+    def quality_retries(self) -> int:
         """Quality retry attempts with intelligent default."""
-        return self.flow.get("quality_retry_attempts", 0)
+        return self.flow.get("quality_retries", 0)
 
     @property
-    def network_retry_count(self) -> int:
+    def tool_retries(self) -> int:
         """Network retry count with intelligent default."""
-        return self.flow.get("network_retry_count", 0)
+        return self.flow.get("tool_retries", 0)
 
     def get(self, key: str, default: Any = None) -> Any:
         if key in self.flow:
@@ -273,7 +273,7 @@ class State:
 
         # Extract relevant data for schema validation
         data = {
-            "iteration": self.get("current_iteration", 0),
+            "iteration": self.get("iteration", 0),
             "MAX_ITERATIONS": self.get("MAX_ITERATIONS", 10),
             "context_data": dict(self.flow),
         }
@@ -290,9 +290,9 @@ class State:
             data["tool_calls"] = self.get("tool_calls", [])
             data["selected_tools"] = self.get("selected_tools", [])
         elif node_name == "respond":
-            data["reasoning_response"] = self.get("reasoning_response")
-            data["can_answer_directly"] = self.get("can_answer_directly", False)
-            data["direct_response"] = self.get("direct_response")
-            data["stopping_reason"] = self.get("stopping_reason")
+            data["reasoning"] = self.get("reasoning")
+            data["direct_answer"] = self.get("direct_answer", False)
+            data["response"] = self.get("response")
+            data["stop_reason"] = self.get("stop_reason")
 
         return schemas[node_name](**data)

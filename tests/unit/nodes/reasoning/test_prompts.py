@@ -11,7 +11,7 @@ def test_deep_mode_prompt_generation():
     prompt = prompt_deep_mode(
         tool_registry="test_tool: description",
         query="test query",
-        current_iteration=1,
+        iteration=1,
         max_iterations=5,
         current_approach="test approach",
         previous_attempts="none",
