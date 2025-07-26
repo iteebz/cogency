@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cogency.resilience.decorators import interruptible_context, safe
+from cogency.resilience.patterns import interruptible_context, safe
 from cogency.state import State
 
 
@@ -43,6 +43,7 @@ async def test_checkpoint_saves_on_interrupt():
 
     state = Mock(spec=State)
     state.get.side_effect = lambda key, default=None: {"query": "test"}.get(key, default)
+    state.flow = {"selected_tools": []}
     state.selected_tools = []
 
     # Mock checkpoint manager to verify save is called
@@ -76,6 +77,7 @@ async def test_non_interruptible_checkpoint_works_normally():
 
     state = Mock(spec=State)
     state.get.side_effect = lambda key, default=None: {"query": "test"}.get(key, default)
+    state.flow = {"selected_tools": []}
     state.selected_tools = []
 
     result = await normal_function(state)

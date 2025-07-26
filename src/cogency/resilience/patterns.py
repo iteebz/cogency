@@ -1,5 +1,5 @@
-"""Domain-specific @safe plugins for Cogency.
-Extends resilient-result with AI agent specific recovery patterns.
+"""Domain-specific resilience patterns for Cogency.
+World-class resilience with AI agent specific recovery patterns using resilient-result.
 """
 
 import asyncio
@@ -7,9 +7,17 @@ import signal
 from contextlib import asynccontextmanager
 from functools import wraps
 
-from resilient_result import resilient as base_resilient
+from resilient_result import Result, resilient
 
-from cogency.state import State
+
+def unwrap_result(result):
+    """Centralized Result unwrapping logic - maintains clean State boundary."""
+    if isinstance(result, Result):
+        if result.success:
+            return result.data
+        else:
+            raise result.error
+    return result
 
 
 @asynccontextmanager
@@ -34,94 +42,130 @@ async def interruptible_context():
         loop.remove_signal_handler(signal.SIGINT)
 
 
-def state_aware_decorator(handler=None, retries: int = 3, unwrap_state: bool = True, **kwargs):
-    """Decorator that handles State objects properly - can unwrap them from Result objects."""
-    from resilient_result import Result
-    from resilient_result.resilient import decorator as base_decorator
+def state_aware_handler(unwrap_state: bool = True):
+    """Create a handler that properly manages State objects."""
 
-    def wrapper(func):
-        # Apply the base resilient decorator
-        resilient_func = base_decorator(handler=handler, retries=retries, **kwargs)(func)
+    async def handler(error, func, args, kwargs):
+        """Handle State-specific errors with domain knowledge."""
+        # For State operations, we can add specific recovery logic here
+        # For now, just retry
+        return None  # Trigger retry
 
-        @wraps(func)
-        async def state_unwrapper(*args, **kwargs):
-            result = await resilient_func(*args, **kwargs)
+    return handler
 
-            # If unwrap_state is False, return the Result object as-is
-            if not unwrap_state:
-                return result
 
-            # If the result is a Result object containing a State, unwrap it
-            if isinstance(result, Result):
-                if result.success and isinstance(result.data, State):
-                    return result.data
-                elif not result.success:
-                    # For failures, we still need to handle them appropriately
-                    # In cogency, we typically want to raise the exception
-                    if isinstance(result.error, Exception):
-                        raise result.error
-                    else:
-                        raise Exception(str(result.error))
+def state_aware(handler=None, retries: int = 3, unwrap_state: bool = True, **kwargs):
+    """State-aware decorator using resilient-result as base."""
 
-            return result
+    # Use state-aware handler if none provided
+    if handler is None:
+        handler = state_aware_handler(unwrap_state)
 
-        return state_unwrapper
-
-    return wrapper
+    return resilient(handler=handler, retries=retries, **kwargs)
 
 
 # Domain-specific recovery patterns for AI agents
 
 
 def reasoning(retries: int = 3, unwrap_state: bool = True):
-    """@safe.reasoning - LLM reasoning with mode fallback."""
+    """@resilient.reasoning - LLM reasoning with mode fallback."""
 
-    def create_handler(func_args, func_kwargs):
+    def decorator(func):
+        # State-aware handler using closure to access args
         async def handle_reasoning(error):
-            # Fallback to fast mode if available in state - this is actual recovery
+            # Access args through closure from wrapper
             if (
-                len(func_args) > 0
-                and hasattr(func_args[0], "react_mode")
-                and func_args[0].react_mode == "deep"
+                hasattr(handle_reasoning, "_current_args")
+                and len(handle_reasoning._current_args) > 0
+                and hasattr(handle_reasoning._current_args[0], "react_mode")
+                and handle_reasoning._current_args[0].react_mode == "deep"
             ):
-                func_args[0].react_mode = "fast"
+                handle_reasoning._current_args[0].react_mode = "fast"
                 return None  # Retry with modified state
             return False  # No recovery possible
 
-        return handle_reasoning
+        # Get resilient decorator
+        resilient_func = resilient(handler=handle_reasoning, retries=retries)(func)
 
-    def wrapper(func):
-        @wraps(func)
-        async def reasoning_wrapper(*args, **kwargs):
-            # Create handler with access to function arguments
-            handler = create_handler(args, kwargs)
-            # Apply the state_aware_decorator with the handler
-            decorated_func = state_aware_decorator(
-                handler=handler, retries=retries, unwrap_state=unwrap_state
-            )(func)
-            return await decorated_func(*args, **kwargs)
+        if not unwrap_state:
 
-        return reasoning_wrapper
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                # Store args for handler access
+                handle_reasoning._current_args = args
+                try:
+                    return await resilient_func(*args, **kwargs)
+                finally:
+                    # Clean up
+                    if hasattr(handle_reasoning, "_current_args"):
+                        delattr(handle_reasoning, "_current_args")
 
-    return wrapper
+            return wrapper
+        else:
+
+            @wraps(func)
+            async def wrapper(*args, **kwargs):
+                # Store args for handler access
+                handle_reasoning._current_args = args
+                try:
+                    result = await resilient_func(*args, **kwargs)
+                    return unwrap_result(result)
+                finally:
+                    # Clean up
+                    if hasattr(handle_reasoning, "_current_args"):
+                        delattr(handle_reasoning, "_current_args")
+
+            return wrapper
+
+    return decorator
 
 
 def memory(retries: int = 1, unwrap_state: bool = True):
-    """@safe.memory - Memory ops with graceful degradation."""
+    """@resilient.memory - Memory ops with graceful degradation."""
 
     async def handle_memory(error):
         return None  # Retry memory errors
 
-    return state_aware_decorator(handler=handle_memory, retries=retries, unwrap_state=unwrap_state)
+    def decorator(func):
+        # Get the resilient decorator
+        resilient_func = resilient(handler=handle_memory, retries=retries)(func)
+
+        if not unwrap_state:
+            return resilient_func
+
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await resilient_func(*args, **kwargs)
+            # Transparently unwrap Result objects to maintain State interface
+            return unwrap_result(result)
+
+        return wrapper
+
+    return decorator
 
 
 def act(retries: int = 2, unwrap_state: bool = True):
-    """@safe.act - Tool execution with domain-specific recovery."""
+    """@resilient.act - Tool execution with domain-specific recovery."""
 
     async def handle_act(error):
         return None  # Retry action errors
 
-    return state_aware_decorator(handler=handle_act, retries=retries, unwrap_state=unwrap_state)
+    def decorator(func):
+        # Get the resilient decorator
+        resilient_func = resilient(handler=handle_act, retries=retries)(func)
+
+        if not unwrap_state:
+            return resilient_func
+
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            result = await resilient_func(*args, **kwargs)
+            # Transparently unwrap Result objects to maintain State interface
+            return unwrap_result(result)
+
+        return wrapper
+
+    return decorator
 
 
 def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = False):
@@ -255,9 +299,29 @@ def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = Fa
     return decorator
 
 
-# Create enhanced safe instance with domain plugins
-safe = base_resilient
-safe.reasoning = reasoning
-safe.memory = memory
-safe.act = act
-safe.checkpoint = checkpoint
+# Register Cogency patterns with resilient-result
+resilient.register("reasoning", reasoning)
+resilient.register("memory", memory)
+resilient.register("act", act)
+
+
+# Create Cogency-specific safe instance that extends resilient-result
+class CogencySafe:
+    """Cogency-specific resilience patterns built on resilient-result."""
+
+    def __call__(self, *args, **kwargs):
+        """Direct decorator usage - delegates to resilient-result."""
+        return resilient(*args, **kwargs)
+
+    def __getattr__(self, name: str):
+        """Auto-discover patterns from resilient-result registry."""
+        return getattr(resilient, name)
+
+    # Complex patterns that don't fit the standard registry pattern
+    def checkpoint(self, checkpoint_type: str = "tool_execution", interruptible: bool = False):
+        """@safe.checkpoint - Workflow recovery with state persistence."""
+        return globals()["checkpoint"](checkpoint_type, interruptible)
+
+
+# Beautiful global instance
+safe = CogencySafe()

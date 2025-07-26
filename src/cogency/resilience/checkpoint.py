@@ -21,10 +21,14 @@ class CheckpointManager:
 
     def _generate_fingerprint(self, state: State) -> str:
         """Generate deterministic fingerprint for state matching with session isolation."""
+        # Handle both real State objects and mocks
+        selected_tools = getattr(state, "selected_tools", []) or []
+        tool_names = [tool.name if hasattr(tool, "name") else str(tool) for tool in selected_tools]
+
         components = [
             self.session_id,  # Session isolation prevents state collisions
             state.get("query", ""),
-            str(sorted([tool.name for tool in state.selected_tools or []])),
+            str(sorted(tool_names)),
             str(state.get("current_iteration", 0)),
         ]
         content = "|".join(components)
@@ -47,7 +51,10 @@ class CheckpointManager:
             "query": state.get("query", ""),
             "current_iteration": state.get("current_iteration", 0),
             "react_mode": state.get("react_mode", "fast"),
-            "selected_tools": [tool.name for tool in state.selected_tools or []],
+            "selected_tools": [
+                tool.name if hasattr(tool, "name") else str(tool)
+                for tool in state.selected_tools or []
+            ],
             "cognition": {
                 "iterations": state.cognition.iterations if hasattr(state, "cognition") else [],
                 "failed_attempts": state.cognition.failed_attempts

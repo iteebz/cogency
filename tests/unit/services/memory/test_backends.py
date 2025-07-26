@@ -9,22 +9,20 @@ from cogency.memory.core import MemoryType, SearchType
 async def test_memory_create_read(memory_backend):
     """Test memory creation and retrieval."""
     # Store memory
-    result = await memory_backend.create(
+    artifact = await memory_backend.create(
         "I work as a software engineer at Google",
         memory_type=MemoryType.FACT,
         tags=["work", "personal"],
     )
-    assert result.success
-    artifact = result.data
+    assert artifact is not None
 
     assert artifact.content == "I work as a software engineer at Google"
     assert artifact.memory_type == MemoryType.FACT
     assert "work" in artifact.tags
 
     # Retrieve by text search
-    results_result = await memory_backend.read(query="software engineer")
-    assert results_result.success
-    results = results_result.data
+    results = await memory_backend.read(query="software engineer")
+    assert results is not None
     assert len(results) >= 1
     found = any("software engineer" in r.content for r in results)
     assert found
@@ -42,14 +40,11 @@ async def test_memory_filtering(memory_backend):
 
     for item in sample_content:
         create_result = await memory_backend.create(item["content"], tags=item["tags"])
-        assert create_result.success
+        assert create_result is not None
 
     # Filter by tags
-    results_result = await memory_backend.read(
-        query="", search_type=SearchType.TAGS, tags=["personal"]
-    )
-    assert results_result.success
-    results = results_result.data
+    results = await memory_backend.read(query="", search_type=SearchType.TAGS, tags=["personal"])
+    assert results is not None
     assert len(results) >= 1
 
 
@@ -57,24 +52,20 @@ async def test_memory_filtering(memory_backend):
 async def test_memory_crud(memory_backend):
     """Test CRUD operations."""
     # CREATE
-    create_result = await memory_backend.create("Test content", tags=["test"])
-    artifact = create_result.data
+    artifact = await memory_backend.create("Test content", tags=["test"])
     assert artifact.content == "Test content"
 
     # READ by ID
-    read_result = await memory_backend.read(artifact_id=artifact.id)
-    results = read_result.data
+    results = await memory_backend.read(artifact_id=artifact.id)
     assert len(results) == 1
     assert results[0].content == "Test content"
 
     # DELETE
-    delete_result = await memory_backend.delete(artifact_id=artifact.id)
-    success = delete_result.data
+    success = await memory_backend.delete(artifact_id=artifact.id)
     assert success is True
 
     # Verify deletion
-    verify_result = await memory_backend.read(artifact_id=artifact.id)
-    results = verify_result.data
+    results = await memory_backend.read(artifact_id=artifact.id)
     assert len(results) == 0
 
 
@@ -93,8 +84,7 @@ async def test_persistence(tmp_path):
 
     # New instance should find it
     backend2 = FileBackend(memory_dir=str(temp_memory_dir))
-    read_result = await backend2.read(query="persistent memory")
-    results = read_result.data
+    results = await backend2.read(query="persistent memory")
 
     assert len(results) >= 1
     assert any("persistent memory test" in r.content for r in results)
