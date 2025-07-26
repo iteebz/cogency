@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 
 from cogency.resilience import Err, Ok, Result, safe
-from cogency.resilience.patterns import unwrap_result
+from cogency.resilience.safe import unwrap_result
 from cogency.state import State
 
 

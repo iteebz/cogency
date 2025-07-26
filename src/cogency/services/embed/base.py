@@ -14,6 +14,16 @@ class BaseEmbed(ABC):
 
     @safe.network()
     @abstractmethod
+    def embed(self, text: str | list[str], **kwargs) -> Result:
+        """Embed text(s) - handles both single strings and lists"""
+        pass
+
+    async def embed_text(self, text: str, **kwargs) -> Result:
+        """Embed single text - convenience method for memory backends"""
+        return self.embed_one(text, **kwargs)
+
+    @safe.network()
+    @abstractmethod
     def embed_one(self, text: str, **kwargs) -> Result:
         """Embed a single text string"""
         pass

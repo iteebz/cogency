@@ -81,7 +81,7 @@ All notable changes to this project will be documented in this file.
 ### ✨ New Features
 - **ReAct Architecture** - Migrated from PRARR to industry-standard ReAct loop (Reason → Act → Observe)
 - **Production Hardening** - Metrics, resilience, and enterprise-grade reliability
-- **Parallel Tool Execution** - Concurrent tool calls with robust error handling
+- **Sequential Tool Execution** - Robust tool execution with comprehensive error handling
 - **Smart Memory** - Relevance scoring and intelligent memory management
 - **Infinite Loop Detection** - Built-in protection against reasoning cycles
 

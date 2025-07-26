@@ -13,10 +13,10 @@ from .exceptions import (
     ReasoningError,
     ResponseError,
 )
+from .recovery import recover
 
 # User formatting moved to utils.formatting
-from .patterns import safe
-from .recovery import recover
+from .safe import safe, unwrap
 
 __all__ = [
     "CogencyError",
@@ -29,6 +29,7 @@ __all__ = [
     "recover",
     "resume",
     "safe",
+    "unwrap",
     # User formatting no longer exported from resilience layer
     "Result",
     "Ok",

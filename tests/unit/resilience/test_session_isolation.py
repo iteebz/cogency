@@ -67,7 +67,7 @@ def test_same_session_same_fingerprint():
 async def test_interruptible_checkpoint_creates_session_isolated_paths():
     """Test interruptible checkpoint creates session-isolated checkpoint paths."""
     from cogency.resilience.checkpoint import CheckpointManager
-    from cogency.resilience.patterns import safe
+    from cogency.resilience.safe import safe
 
     # Create manager with specific session ID
     _ = CheckpointManager(session_id="test_session")

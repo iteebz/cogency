@@ -10,7 +10,7 @@ from functools import wraps
 from resilient_result import Result, resilient
 
 
-def unwrap_or_raise(result):
+def unwrap(result):
     """Unwrap Result or raise error - simple boundary helper."""
     if not result.success:
         error = result.error

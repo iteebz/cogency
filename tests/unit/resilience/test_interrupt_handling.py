@@ -7,7 +7,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cogency.resilience.patterns import interruptible_context, safe
+from cogency.resilience.safe import interruptible_context, safe
 from cogency.state import State
 
 

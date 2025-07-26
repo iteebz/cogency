@@ -4,8 +4,7 @@ from typing import List, Optional
 
 from cogency.memory.core import MemoryBackend
 from cogency.memory.prepare import save_memory
-from cogency.resilience import safe
-from cogency.resilience.patterns import unwrap_or_raise
+from cogency.resilience import safe, unwrap
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -94,8 +93,8 @@ Example:
 
         # @safe.preprocess() auto-unwraps Results - clean boundary discipline
         llm_result = await llm.run([{"role": "user", "content": prompt_preprocess}])
-        llm_response = unwrap_or_raise(llm_result)  # Unwrap LLM Result first
-        parsed_data = unwrap_or_raise(parse_json(llm_response))
+        llm_response = unwrap(llm_result)  # Unwrap LLM Result first
+        parsed_data = unwrap(parse_json(llm_response))
         result = Preprocessed(**parsed_data)
 
         # Chain 1: Save extracted memory if not null/empty and memory is enabled

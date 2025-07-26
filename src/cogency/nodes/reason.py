@@ -152,9 +152,9 @@ async def reason(
     # LLM reasoning - let decorator handle errors
     await asyncio.sleep(0)  # Yield for UI
     llm_result = await llm.run(messages)
-    from cogency.resilience.patterns import unwrap_or_raise
+    from cogency.resilience import unwrap
 
-    raw_response = unwrap_or_raise(llm_result)
+    raw_response = unwrap(llm_result)
 
     # Parse with correction
     def trace_parsing(msg: str):
