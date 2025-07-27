@@ -5,6 +5,7 @@ from typing import Any, Dict, List
 
 from resilient_result import Result
 
+from cogency.constants import DEFAULT_MAX_ITERATIONS, MAX_FAILURES_HISTORY, MAX_ITERATIONS_HISTORY
 from cogency.context import Context
 
 
@@ -23,7 +24,7 @@ class State(dict):
                 "query": query,
                 # Flow control
                 "iteration": 0,
-                "max_iterations": 12,
+                "max_iterations": DEFAULT_MAX_ITERATIONS,
                 "react_mode": "fast",
                 "stop_reason": None,
                 # Tool execution
@@ -39,11 +40,10 @@ class State(dict):
                 "reasoning": None,
                 "response": None,
                 "direct_answer": False,
-                # Cognition data (flattened from old Cognition class)
+                # Reasoning state data
                 "iterations": [],  # Complete ReAct cycles
                 "failed_attempts": [],  # Failed tool attempts
                 "mode_switches": [],  # React mode changes
-                "preserved_context": "",  # Context from truncated history
                 "last_tool_quality": "unknown",
                 "current_approach": "initial",
                 # Output streaming (flattened from old Output class)
@@ -66,35 +66,29 @@ class State(dict):
         """Dot notation assignment to dict keys."""
         self[name] = value
 
-    # Cognition behavior (formerly Cognition class)
-    def update_cognition(
+    def add_iteration(
         self,
         tool_calls: List[Any],
-        current_approach: str,
-        current_decision: str,
-        action_fingerprint: str,
-        formatted_result: str = "",
+        approach: str,
+        decision: str,
+        fingerprint: str,
+        result: str = "",
     ) -> None:
-        """Update cognitive state with new iteration."""
-        self.current_approach = current_approach
+        """Add iteration to reasoning history."""
+        self.current_approach = approach
 
-        # Store complete iteration
         iteration_entry = {
             "iteration": self.iteration,
-            "fingerprint": action_fingerprint,
+            "fingerprint": fingerprint,
             "tool_calls": tool_calls,
-            "result": formatted_result,
-            "decision": current_decision,
+            "result": result,
+            "decision": decision,
         }
         self.iterations.append(iteration_entry)
 
-        # Enforce history limit with context preservation
-        max_history = 5  # Reasonable default
-        if len(self.iterations) > max_history:
-            truncated = self.iterations[:-max_history]
-            if truncated and not self.preserved_context:
-                self.preserved_context = self._extract_cognitive_summary(truncated)
-            self.iterations = self.iterations[-max_history:]
+        # Enforce history limit
+        if len(self.iterations) > MAX_ITERATIONS_HISTORY:
+            self.iterations = self.iterations[-MAX_ITERATIONS_HISTORY:]
 
     def update_result(self, formatted_result: str) -> None:
         """Update the last iteration's result after execution."""
@@ -111,9 +105,8 @@ class State(dict):
         self.failed_attempts.append(failure_entry)
 
         # Enforce failure history limit
-        max_failures = 5
-        if len(self.failed_attempts) > max_failures:
-            self.failed_attempts = self.failed_attempts[-max_failures:]
+        if len(self.failed_attempts) > MAX_FAILURES_HISTORY:
+            self.failed_attempts = self.failed_attempts[-MAX_FAILURES_HISTORY:]
 
     def switch_mode(self, new_mode: str, reason: str) -> None:
         """Record mode switch with reason."""
@@ -125,8 +118,8 @@ class State(dict):
         self.mode_switches.append(switch_entry)
         self.react_mode = new_mode
 
-    def _extract_cognitive_summary(self, truncated_iterations: List[Dict[str, Any]]) -> str:
-        """Extract cognitive summary from iterations about to be truncated."""
+    def _preserve_context(self, truncated_iterations: List[Dict[str, Any]]) -> str:
+        """Preserve context from iterations about to be truncated."""
         if not truncated_iterations:
             return ""
 

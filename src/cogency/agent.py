@@ -1,20 +1,3 @@
-"""Agent execution patterns.
-
-Usage:
-    from cogency import Agent
-    from cogency.resilience import reason, act
-    
-    @reason(retries=3)
-    async def reason(state: State) -> State:
-        # Business logic here
-        pass
-        
-    @act(tool_timeout=60)
-    async def act(state: State) -> State:
-        # Business logic here  
-        pass
-"""
-
 from typing import Any, AsyncIterator, Optional
 
 from cogency.context import Context
@@ -27,6 +10,8 @@ from cogency.utils.setup import agent_services
 
 MAX_QUERY_LENGTH = 10000
 
+DEFAULT_SYSTEM_PROMPT = 'You are Cogency, an AI assistant with access to tools like code execution, file operations, web search, and more. Be honest about your capabilities. Be concise and direct unless detail is specifically requested.\n\nFor reasoning phases, output JSON: {"reasoning": "brief thought", "tool_calls": [{"name": "tool_name", "args": {...}}]}. Empty tool_calls array if no tools needed.\n\nFor final responses, be brief and helpful. Don\'t over-explain unless asked.'
+
 
 class Agent:
     """Cognitive agent with streaming execution, tool integration, memory and adaptive reasoning"""
@@ -34,35 +19,48 @@ class Agent:
     def __init__(
         self,
         name: str = "cogency",
+        *,  # Force keyword-only args
+        llm: Optional[Any] = None,
+        tools: Optional[Any] = None,
+        memory: Any = True,
+        memory_dir: str = ".cogency/memory",
+        identity: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        max_iterations: int = 10,
         trace: bool = False,
         verbose: bool = True,
-        **opts: Any,
+        enable_mcp: bool = False,
+        json_schema: Optional[Any] = None,
     ) -> None:
         self.name = name
         self.trace = trace
         self.verbose = verbose
-        self.max_iterations = opts.get("MAX_ITERATIONS", 10)
+        self.max_iterations = max_iterations
 
         # Setup tools and memory services
-        tools, memory = agent_services(opts)
+        agent_opts = {
+            "tools": tools,
+            "memory": memory,
+            "memory_dir": memory_dir,
+        }
+        tools, memory = agent_services(agent_opts)
 
         # Get LLM (already @safe protected)
-        llm = opts.get("llm") or detect_llm()
+        llm = llm or detect_llm()
 
         self.flow = Flow(
             llm=llm,
             tools=tools,
             memory=memory,
-            system_prompt=opts.get("system_prompt")
-            or 'You are Cogency, an AI assistant with access to tools like code execution, file operations, web search, and more. Be honest about your capabilities. Be concise and direct unless detail is specifically requested.\n\nFor reasoning phases, output JSON: {"reasoning": "brief thought", "tool_calls": [{"name": "tool_name", "args": {...}}]}. Empty tool_calls array if no tools needed.\n\nFor final responses, be brief and helpful. Don\'t over-explain unless asked.',
-            identity=process_identity(opts.get("identity")),
-            json_schema=opts.get("json_schema"),
+            system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
+            identity=process_identity(identity),
+            json_schema=json_schema,
         )
         self.contexts: dict[str, Context] = {}
         self.last_state: Optional[dict] = None  # Store for traces()
 
         # MCP server setup if enabled
-        if opts.get("enable_mcp"):
+        if enable_mcp:
             try:
                 from cogency.mcp.server import MCPServer
 

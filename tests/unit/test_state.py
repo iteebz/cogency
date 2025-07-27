@@ -74,20 +74,19 @@ def test_default_values():
     assert state.iterations == []
     assert state.failed_attempts == []
     assert state.mode_switches == []
-    assert state.preserved_context == ""
     assert state.last_tool_quality == "unknown"
     assert state.current_approach == "initial"
     assert state.notifications == []
     assert state.verbose is False
 
 
-def test_update_cognition():
-    """Test cognition update functionality."""
+def test_add_iteration():
+    """Test iteration tracking functionality."""
     context = mock_context()
     state = State(context=context, query="test query")
     tool_calls = [mock_tool_call("search", {"query": "test"})]
 
-    state.update_cognition(
+    state.add_iteration(
         tool_calls, "analytical", "search for info", "search:123", "Found 3 results"
     )
 
@@ -104,7 +103,7 @@ def test_update_result():
     state = State(context=context, query="test query")
     tool_calls = [mock_tool_call("search", {"query": "test"})]
 
-    state.update_cognition(tool_calls, "analytical", "search for info", "search:123", "")
+    state.add_iteration(tool_calls, "analytical", "search for info", "search:123", "")
     assert state.iterations[0]["result"] == ""
 
     state.update_result("Found 3 relevant documents")

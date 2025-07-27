@@ -2,62 +2,38 @@
 
 from typing import Any, List
 
-LOOP_DETECTION_MIN_ACTIONS = 3
-FAST_MIN_ACTIONS = 2
-SEARCH_FINGERPRINT_KEY_TERMS = 5
 
 
 def action_fingerprint(tool_calls: List[Any]) -> str:
-    """Create a fingerprint of tool calls for loop detection."""
+    """Create readable fingerprint of tool calls for loop detection."""
     if not tool_calls:
         return "no_action"
 
-    # Create simple fingerprint from tool names and key args
-    fingerprints = []
+    parts = []
     for call in tool_calls:
-        tool_name = call.get("name", "unknown")
+        name = call.get("name", "unknown")
         args = call.get("args", {})
-
-        # Create fingerprint from tool + relevant args
+        
+        # Extract key parameters for readable fingerprint
         if isinstance(args, dict):
-            key_args = {
-                k: v
-                for k, v in args.items()
-                if k
-                in [
-                    "query",
-                    "url",
-                    "code",
-                    "content",
-                    "operation",
-                    "command",
-                    "filename",
-                    "action",
-                ]
-            }
-            # For search queries, normalize to catch similar searches
-            if tool_name == "search" and "query" in key_args:
-                query = key_args["query"].lower()
-                # Extract key terms to catch semantic similarity
-                key_terms = set(
-                    query.split()[:SEARCH_FINGERPRINT_KEY_TERMS]
-                )  # First 5 words as key terms
-                fingerprint = f"{tool_name}:{hash(str(sorted(key_terms)))}"
+            key_args = {k: v for k, v in args.items() if k in ["query", "url", "filename", "command"]}
+            if key_args:
+                args_str = ",".join(f"{k}={v}" for k, v in key_args.items())
+                parts.append(f"{name}({args_str})")
             else:
-                fingerprint = f"{tool_name}:{hash(str(sorted(key_args.items())))}"
+                parts.append(name)
         else:
-            fingerprint = f"{tool_name}:{hash(str(args))}"
-
-        fingerprints.append(fingerprint)
-
-    return "|".join(fingerprints)
+            parts.append(f"{name}({args})")
+    
+    return "|".join(parts)
 
 
 def detect_loop(state) -> bool:
-    """Detect if agent is stuck in an iteration loop."""
+    """Detect if agent is stuck in an iteration loop (deep mode)."""
     iteration_entries = state.iterations
+    min_actions = 3
 
-    if len(iteration_entries) < LOOP_DETECTION_MIN_ACTIONS:
+    if len(iteration_entries) < min_actions:
         return False
 
     # Extract fingerprints from iteration entries
@@ -68,8 +44,8 @@ def detect_loop(state) -> bool:
     ]
 
     # Check for repeated identical iterations
-    recent_iterations = fingerprints[-LOOP_DETECTION_MIN_ACTIONS:]
-    if len(set(recent_iterations)) == 1:  # All 3 recent iterations are identical
+    recent_iterations = fingerprints[-min_actions:]
+    if len(set(recent_iterations)) == 1:  # All recent iterations are identical
         return True
 
     # Check for alternating pattern (A-B-A)
@@ -83,9 +59,9 @@ def detect_loop(state) -> bool:
 def detect_fast_loop(state) -> bool:
     """Lightweight loop detection for fast mode - lower threshold."""
     iteration_entries = state.iterations
+    min_actions = 2
 
-    # Fast mode: detect loops earlier - even just 2 identical iterations
-    if len(iteration_entries) < FAST_MIN_ACTIONS:
+    if len(iteration_entries) < min_actions:
         return False
 
     # Extract fingerprints from iteration entries
@@ -95,16 +71,16 @@ def detect_fast_loop(state) -> bool:
         if entry and isinstance(entry, dict)
     ]
 
-    # Check for excessive repetition (5+ identical) - verification up to 4x is reasonable
+    # Check for excessive repetition (5+ identical)
     if len(fingerprints) >= 5:
         recent_iterations = fingerprints[-5:]
-        if len(set(recent_iterations)) == 1:  # All 5 identical
+        if len(set(recent_iterations)) == 1:
             return True
 
     # Check for immediate back-and-forth (A-B-A) pattern
     return (
-        len(fingerprints) >= LOOP_DETECTION_MIN_ACTIONS
-        and fingerprints[-1] == fingerprints[-LOOP_DETECTION_MIN_ACTIONS]
+        len(fingerprints) >= 3
+        and fingerprints[-1] == fingerprints[-3]
         and fingerprints[-1] != fingerprints[-2]
     )
 

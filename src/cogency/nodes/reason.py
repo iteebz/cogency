@@ -129,11 +129,11 @@ async def reason(
     messages = list(context.chat)
     messages.append({"role": "user", "content": context.query})
 
-    # Build prompt based on mode
-    attempts_summary = build_iterations(state, selected_tools, max_iterations=3)
+    # Build prompt based on mode with mode-specific limits
     tool_registry = build_registry(selected_tools)
 
     if react_mode == "deep":
+        attempts_summary = build_iterations(state, selected_tools, max_iterations=10)
         reasoning_prompt = prompt_deep_mode(
             tool_registry,
             context.query,
@@ -144,10 +144,8 @@ async def reason(
             state.last_tool_quality,
         )
     else:
-        preserved_context = state.preserved_context
-        reasoning_prompt = prompt_fast_mode(
-            tool_registry, context.query, attempts_summary, preserved_context
-        )
+        attempts_summary = build_iterations(state, selected_tools, max_iterations=3)
+        reasoning_prompt = prompt_fast_mode(tool_registry, context.query, attempts_summary)
 
     # Add optional prompts
     if identity:
@@ -198,9 +196,9 @@ async def reason(
             )
         state = switch_mode(state, switch_to, switch_why)
 
-    # Update cognitive state
+    # Update reasoning state
     tool_calls = reasoning_response.tool_calls
-    update_cognitive_state(state, tool_calls, reasoning_response, iteration)
+    update_reasoning_state(state, tool_calls, reasoning_response, iteration)
 
     # Update state for next iteration
     state["reasoning"] = raw_response
@@ -211,8 +209,8 @@ async def reason(
     return state
 
 
-def update_cognitive_state(state, tool_calls, reasoning_response, iteration: int) -> None:
-    """Update cognitive state after reasoning iteration."""
+def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int) -> None:
+    """Update reasoning state after iteration."""
     # Assess previous tool execution results
     result = state.result
     if result:
@@ -225,11 +223,8 @@ def update_cognitive_state(state, tool_calls, reasoning_response, iteration: int
             if prev_tool_calls:
                 state.track_failure(prev_tool_calls, tool_quality)
 
-    # Update cognitive state for next iteration
+    # Add iteration to reasoning history
     if tool_calls:
         fingerprint = action_fingerprint(tool_calls)
-        current_decision = (
-            reasoning_response.reasoning[0] if reasoning_response.reasoning else "unknown"
-        )
-
-        state.update_cognition(tool_calls, "unified_react", current_decision, fingerprint, "")
+        decision = reasoning_response.reasoning[0] if reasoning_response.reasoning else "unknown"
+        state.add_iteration(tool_calls, "unified_react", decision, fingerprint)

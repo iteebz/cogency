@@ -6,7 +6,6 @@ from cogency.nodes.reasoning.adaptive.switching import (
     parse_switch,
     should_switch,
     switch_mode,
-    switch_prompt,
 )
 
 
@@ -52,15 +51,74 @@ def test_switch_mode():
     assert state["react_mode"] == "deep"
 
 
-def test_switch_prompt():
-    """Test switch prompt generation."""
-    # Fast mode prompt
-    prompt = switch_prompt("fast")
-    assert "switch_to" in prompt
-    assert "switch_reason" in prompt
-    assert "deep" in prompt
+def test_context_preservation_during_switch():
+    """Test that switching modes preserves all context."""
+    from cogency.context import Context
+    from cogency.state import State
 
-    # Deep mode prompt
-    prompt = switch_prompt("deep")
-    assert "switch_to" in prompt
-    assert "downshift to fast" in prompt
+    # Create state with some iterations
+    context = Context("test query")
+    state = State(context=context, query="test")
+
+    # Add multiple iterations
+    iterations = [
+        {
+            "iteration": 1,
+            "decision": "search for info",
+            "fingerprint": "search:123",
+            "tool_calls": [],
+            "result": "found 3 results",
+        },
+        {
+            "iteration": 2,
+            "decision": "analyze data",
+            "fingerprint": "analyze:456",
+            "tool_calls": [],
+            "result": "patterns identified",
+        },
+        {
+            "iteration": 3,
+            "decision": "verify findings",
+            "fingerprint": "verify:789",
+            "tool_calls": [],
+            "result": "confirmed",
+        },
+        {
+            "iteration": 4,
+            "decision": "synthesize",
+            "fingerprint": "synth:101",
+            "tool_calls": [],
+            "result": "complete",
+        },
+        {
+            "iteration": 5,
+            "decision": "final check",
+            "fingerprint": "check:112",
+            "tool_calls": [],
+            "result": "validated",
+        },
+    ]
+
+    state.iterations = iterations.copy()
+    state.react_mode = "fast"
+
+    # Switch to deep mode
+    result = switch_mode(state, "deep", "needs deeper analysis")
+
+    # Verify mode changed
+    assert result["react_mode"] == "deep"
+    assert state.react_mode == "deep"
+
+    # Verify ALL iterations preserved
+    assert len(state.iterations) == 5
+    assert state.iterations == iterations
+
+    # Switch back to fast
+    switch_mode(state, "fast", "simpler approach")
+
+    # Verify ALL iterations still preserved
+    assert len(state.iterations) == 5
+    assert state.iterations == iterations
+    assert state.react_mode == "fast"
+
+

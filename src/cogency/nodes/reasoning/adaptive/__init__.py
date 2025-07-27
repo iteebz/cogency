@@ -5,7 +5,7 @@ from cogency.state import summarize_attempts
 from .assessment import assess_tools
 from .loop import action_fingerprint, detect_fast_loop, detect_loop, should_stop
 from .relevance import relevant_context, score_memory_relevance
-from .switching import parse_switch, should_switch, switch_mode, switch_prompt
+from .switching import parse_switch, should_switch, switch_mode
 
 __all__ = [
     # Cognitive state
@@ -14,7 +14,6 @@ __all__ = [
     "parse_switch",
     "should_switch",
     "switch_mode",
-    "switch_prompt",
     # Loop detection
     "action_fingerprint",
     "detect_loop",

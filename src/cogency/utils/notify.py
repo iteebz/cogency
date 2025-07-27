@@ -1,11 +1,23 @@
 """Notification orchestration utilities."""
 
 import asyncio
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from cogency.context import Context
 from cogency.flow import Flow
 from cogency.state import State
+
+
+def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:
+    """Format thinking content for display."""
+    if not thinking:
+        return "Processing request..."
+
+    # Add mode-specific emoji prefixes for visual distinction
+    if mode == "deep":
+        return f"🧠 {thinking}"
+    else:
+        return f"💭 {thinking}"
 
 
 class Notifier:

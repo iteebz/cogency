@@ -178,11 +178,11 @@ async def test_memory_limit():
     state = basic_state()
     # Add many iterations to test memory limits
     for i in range(15):
-        state.update_cognition(
+        state.add_iteration(
             tool_calls=[{"name": f"tool{i}", "args": {}}],
-            current_approach="test",
-            current_decision="test",
-            action_fingerprint=f"action{i}",
+            approach="test",
+            decision="test",
+            fingerprint=f"action{i}",
         )
 
     llm = mock_llm()

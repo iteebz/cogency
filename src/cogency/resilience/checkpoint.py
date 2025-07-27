@@ -77,17 +77,11 @@ class Checkpoint:
                 tool.name if hasattr(tool, "name") else str(tool)
                 for tool in state.selected_tools or []
             ],
-            "cognition": {
-                "iterations": state.cognition.iterations if hasattr(state, "cognition") else [],
-                "failed_attempts": state.cognition.failed_attempts
-                if hasattr(state, "cognition")
-                else [],
-                "current_approach": getattr(state.cognition, "current_approach", "unified_react")
-                if hasattr(state, "cognition")
-                else "unified_react",
-                "react_mode": getattr(state.cognition, "react_mode", "fast")
-                if hasattr(state, "cognition")
-                else "fast",
+            "reasoning": {
+                "iterations": state.get("iterations", []),
+                "failed_attempts": state.get("failed_attempts", []),
+                "current_approach": state.get("current_approach", "unified_react"),
+                "react_mode": state.get("react_mode", "fast"),
             },
             "execution_results": state.get("execution_results"),
             "prev_tool_calls": state.get("prev_tool_calls", []),
