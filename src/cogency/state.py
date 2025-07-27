@@ -71,7 +71,7 @@ class State(dict):
         tool_calls: List[Any],
         approach: str,
         decision: str,
-        fingerprint: str,
+        action_summary: str,
         result: str = "",
     ) -> None:
         """Add iteration to reasoning history."""
@@ -79,7 +79,7 @@ class State(dict):
 
         iteration_entry = {
             "iteration": self.iteration,
-            "fingerprint": fingerprint,
+            "action_summary": action_summary,
             "tool_calls": tool_calls,
             "result": result,
             "decision": decision,

@@ -5,10 +5,8 @@ from typing import List, Optional
 
 from cogency.nodes.base import Node
 from cogency.nodes.reasoning.adaptive import (
-    action_fingerprint,
     assess_tools,
     parse_switch,
-    should_stop,
     should_switch,
     summarize_attempts,
     switch_mode,
@@ -32,6 +30,29 @@ class Reason(Node):
         return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
 
 
+def format_tool_calls_readable(tool_calls):
+    """Format tool calls as readable action summary."""
+    if not tool_calls:
+        return "no_action"
+    
+    parts = []
+    for call in tool_calls:
+        name = call.get("name", "unknown")
+        args = call.get("args", {})
+        
+        if isinstance(args, dict) and args:
+            key_args = {k: v for k, v in args.items() if k in ["query", "url", "filename", "command"]}
+            if key_args:
+                args_str = ", ".join(f"{k}={v}" for k, v in key_args.items())
+                parts.append(f"{name}({args_str})")
+            else:
+                parts.append(name)
+        else:
+            parts.append(name)
+    
+    return " | ".join(parts)
+
+
 def build_iterations(state, selected_tools, max_iterations=3):
     """Show last N reasoning iterations with their outcomes."""
     iteration_entries = state.iterations
@@ -52,7 +73,7 @@ def build_iterations(state, selected_tools, max_iterations=3):
             continue
 
         iteration_num = entry.get("iteration", 0)
-        fingerprint = entry.get("fingerprint", "unknown")
+        action_summary = entry.get("action_summary", "unknown action")
         result = entry.get("result", "")
 
         if result:
@@ -119,9 +140,8 @@ async def reason(
     await state.notify("state_change", {"state": "reasoning", "mode": react_mode})
 
     # Check stop conditions - pure logic, no ceremony
-    should_stop_val, stop_reason = should_stop(state, react_mode)
-    if should_stop_val:
-        state["stop_reason"] = stop_reason
+    if iteration >= state.max_iterations:
+        state["stop_reason"] = "max_iterations_reached"
         state["tool_calls"] = None
         return state
 
@@ -225,6 +245,6 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
 
     # Add iteration to reasoning history
     if tool_calls:
-        fingerprint = action_fingerprint(tool_calls)
-        decision = reasoning_response.reasoning[0] if reasoning_response.reasoning else "unknown"
-        state.add_iteration(tool_calls, "unified_react", decision, fingerprint)
+        action_summary = format_tool_calls_readable(tool_calls)
+        decision = reasoning_response.thinking or "reasoning"
+        state.add_iteration(tool_calls, "unified_react", decision, action_summary)
