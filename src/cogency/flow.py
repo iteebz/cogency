@@ -38,7 +38,7 @@ class Flow:
             "system_prompt": system_prompt or "",
             "identity": identity,
         }
-        self.flow = self._build(memory, json_schema)
+        self.graph = self._build(memory, json_schema)
 
     def _build(self, memory: Optional[MemoryBackend], json_schema: Optional[str]) -> Any:
         """Build flow graph with self-routing nodes."""

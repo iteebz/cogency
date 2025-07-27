@@ -98,7 +98,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
     return " | ".join(formatted_parts) if formatted_parts else ""
 
 
-@robust.reason()
+# @robust.reason()  # DISABLED FOR DEBUGGING
 async def reason(
     state: State,
     *,
@@ -108,7 +108,7 @@ async def reason(
     identity: Optional[str] = None,
 ) -> State:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
-    context = state["context"]
+    context = state.context
     selected_tools = state.selected_tools or tools or []
     react_mode = state.react_mode
     iteration = state.iteration
@@ -121,8 +121,8 @@ async def reason(
 
     # Check stop conditions - pure logic, no ceremony
     if iteration >= state.max_iterations:
-        state["stop_reason"] = "max_iterations_reached"
-        state["tool_calls"] = None
+        state.stop_reason = "max_iterations_reached"
+        state.tool_calls = None
         return state
 
     # Build messages
@@ -176,7 +176,7 @@ async def reason(
     )
 
     # Display reasoning phases
-    if state.get("verbose", True):
+    if state.verbose:
         if react_mode == "deep" and reasoning_response:
             if reasoning_response.thinking:
                 await state.notify("update", f"💭 {reasoning_response.thinking}\n")
@@ -201,9 +201,8 @@ async def reason(
     update_reasoning_state(state, tool_calls, reasoning_response, iteration)
 
     # Update state for next iteration
-    state["tool_calls"] = tool_calls
-    state["prev_tool_calls"] = tool_calls
-    state["iteration"] = state["iteration"] + 1
+    state.tool_calls = tool_calls
+    state.iteration = state.iteration + 1
 
     return state
 
@@ -213,9 +212,9 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
     # Track failed attempts for loop prevention  
     result = state.result
     if result and result.failure:
-        prev_tool_calls = state.get("prev_tool_calls", [])
-        if prev_tool_calls:
-            state.track_failure(prev_tool_calls, "failed")
+        # Use current tool_calls for failure tracking
+        if state.tool_calls:
+            state.track_failure(state.tool_calls, "failed")
 
     # Add action to reasoning history
     if tool_calls:

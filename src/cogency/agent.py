@@ -3,7 +3,7 @@ from typing import Any, AsyncIterator, Optional
 from cogency.context import Context
 from cogency.flow import Flow
 from cogency.identity import process_identity
-from cogency.services.llm import detect_llm
+from cogency.utils.auto import detect_llm
 from cogency.state import State
 from cogency.utils.notify import Notifier
 from cogency.utils.setup import agent_services
@@ -103,12 +103,40 @@ class Agent:
         # Store state for traces()
         self.last_state = notifier.get_notifications()
 
-    async def run(self, query: str, user_id: str = "default") -> str:
+    def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return complete response as string"""
-        chunks = []
-        async for chunk in self.stream(query, user_id):
-            chunks.append(chunk)
-        return "".join(chunks).strip() or "No response generated"
+        # TODO: Fix streaming implementation later
+        # Bypass streaming for now and test core flow directly
+        try:
+            # Get or create context
+            if user_id not in self.contexts:
+                self.contexts[user_id] = Context(query)
+            context = self.contexts[user_id]
+            
+            # Create state as dataclass with proper initialization
+            from cogency.state import State
+            state = State(
+                context=context,
+                query=query,
+                verbose=True,
+                trace=True,
+            )
+            
+            # Run flow directly (sync wrapper for LangGraph)
+            import asyncio
+            result_state = asyncio.run(self.flow.graph.ainvoke(state))
+            self.last_state = result_state
+            
+            # Extract response (LangGraph returns dict, not dataclass)
+            response = result_state.get('response') if isinstance(result_state, dict) else getattr(result_state, 'response', None)
+            return response or "No response generated"
+            
+        except Exception as e:
+            # Make errors EXPLICIT
+            import traceback
+            error_msg = f"Flow execution failed: {e}\n{traceback.format_exc()}"
+            print(error_msg)
+            return f"ERROR: {e}"
 
     def traces(self) -> list[dict[str, Any]]:
         """Get traces from last execution for debugging"""

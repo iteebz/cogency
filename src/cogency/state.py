@@ -1,59 +1,47 @@
 """Cogency State - Zero ceremony, maximum beauty."""
 
 import asyncio
-from typing import Any, Dict, List
-
-from resilient_result import Result
+from typing import Any, Dict, List, Optional
+from dataclasses import dataclass, field
 
 from cogency.constants import DEFAULT_MAX_ITERATIONS, MAX_FAILURES_HISTORY, MAX_ITERATIONS_HISTORY
 from cogency.context import Context
 
 
-class State(dict):
-    """LangGraph-native state with zero ceremony.
-
-    Pure dict for framework compatibility + dot notation for ergonomics.
-    All behavior unified, no abstraction penalty.
-    """
-
-    def __init__(self, context: Context, query: str, **kwargs):
-        super().__init__(
-            {
-                # Core immutable
-                "context": context,
-                "query": query,
-                # Flow control
-                "iteration": 0,
-                "max_iterations": DEFAULT_MAX_ITERATIONS,
-                "react_mode": "fast",
-                "stop_reason": None,
-                # Tool execution
-                "selected_tools": [], # @preprocess
-                "tool_calls": [], # @reason
-                "result": Result,
-                # Two-layer state architecture
-                "actions": [],  # Complete ReAct cycles with rich records  
-                "attempts": [],  # Compressed context for LLM prompting
-                # Output
-                "response": None,
-                "verbose": kwargs.get("verbose", False),
-                "trace": kwargs.get("trace", False),
-                "callback": kwargs.get("callback"),
-                **{k: v for k, v in kwargs.items() if k not in ["verbose", "trace", "callback"]},
-            }
-        )
-
-    def __getattr__(self, name: str) -> Any:
-        """Dot notation access to dict keys."""
-        try:
-            return self[name]
-        except KeyError as err:
-            raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'") from err
-
-    def __setattr__(self, name: str, value: Any) -> None:
-        """Dot notation assignment to dict keys."""
-        self[name] = value
-
+@dataclass 
+class State:
+    """Clean dataclass state for LangGraph compatibility."""
+    # Core immutable
+    context: Context
+    query: str
+    # Flow control  
+    iteration: int = 0
+    max_iterations: int = DEFAULT_MAX_ITERATIONS
+    react_mode: str = "fast"
+    stop_reason: Optional[str] = None
+    # Tool execution
+    selected_tools: List[Any] = field(default_factory=list)
+    tool_calls: List[Any] = field(default_factory=list)
+    result: Any = None
+    # Two-layer state architecture
+    actions: List[Dict[str, Any]] = field(default_factory=list)
+    attempts: List[Any] = field(default_factory=list)
+    current_approach: str = "initial"
+    # Output
+    response: Optional[str] = None
+    respond_directly: bool = False
+    verbose: bool = True
+    trace: bool = False
+    callback: Any = None
+    
+    async def notify(self, event_type: str, data: Any) -> None:
+        """Notify user of progress."""
+        if self.callback and self.verbose and callable(self.callback):
+            if asyncio.iscoroutinefunction(self.callback):
+                await self.callback(str(data))
+            else:
+                self.callback(str(data))
+    
     def add_action(
         self,
         mode: str,
@@ -67,7 +55,7 @@ class State(dict):
         from datetime import datetime
         
         self.current_approach = approach
-
+        
         action_entry = {
             "iteration": self.iteration,
             "timestamp": datetime.now().isoformat(),
@@ -76,7 +64,7 @@ class State(dict):
             "planning": planning,
             "reflection": reflection,
             "approach": approach,
-            "tool_calls": tool_calls,  # Tool execution results
+            "tool_calls": tool_calls,
             # Phase 2 compression fields (empty for now)
             "synthesis": "",
             "progress": "",
@@ -101,14 +89,8 @@ class State(dict):
         if len(self.attempts) > MAX_FAILURES_HISTORY:
             self.attempts = self.attempts[-MAX_FAILURES_HISTORY:]
 
-    # Output behavior (formerly Output class)
-    async def notify(self, event_type: str, data: Any) -> None:
-        """Notify user of reasoning progress."""
-        if self.callback and self.verbose and callable(self.callback):
-            if asyncio.iscoroutinefunction(self.callback):
-                await self.callback(str(data))
-            else:
-                self.callback(str(data))
+
+# Export clean State class
 
 # Function to compress actions into attempts for LLM prompting
 def compress_actions(actions: List[Dict[str, Any]]) -> List[str]:

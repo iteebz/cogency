@@ -54,7 +54,7 @@ class Act(Node):
                 return "reason"
 
 
-@robust.act()
+# @robust.act()  # DISABLED FOR DEBUGGING
 async def act(state: State, *, tools: List[BaseTool]) -> State:
     """Act: execute tools based on reasoning decision."""
     time.time()

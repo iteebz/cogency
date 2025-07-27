@@ -65,7 +65,7 @@ class ServiceRegistry:
 
         if provider is None:
             # Auto-detect based on environment
-            from cogency.services.llm import detect_llm
+            from cogency.utils.auto import detect_llm
 
             return detect_llm()
 

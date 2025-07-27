@@ -121,7 +121,7 @@ def prompt_response(
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
-@robust.respond()
+# @robust.respond()  # DISABLED FOR DEBUGGING
 async def respond(
     state: State,
     *,
@@ -132,7 +132,7 @@ async def respond(
     json_schema: Optional[str] = None,
 ) -> State:
     """Respond: generate final formatted response with personality."""
-    context = state["context"]
+    context = state.context
 
     # Start responding state
     await state.notify("state_change", {"state": "responding"})
@@ -140,7 +140,7 @@ async def respond(
     # Streaming handled by Output
 
     # ALWAYS generate response - handle tool results, direct reasoning, or knowledge-based
-    messages = list(context.chat)
+    messages = list(context.messages)
     response = Response()
 
     # Check for stopping reason
@@ -148,9 +148,7 @@ async def respond(
 
     if stop_reason:
         # Handle reasoning stopped scenario with user-friendly message
-        user_error_message = state.get(
-            "user_error_message", "I encountered an issue but will try to help."
-        )
+        user_error_message = getattr(state, 'user_error_message', "I encountered an issue but will try to help.")
         if state.trace:
             await state.notify(
                 "trace", {"message": f"Fallback response due to: {stop_reason}", "node": "respond"}
@@ -269,21 +267,7 @@ async def respond(
     response_text = response.text if hasattr(response, "text") else response
     context.add_message("assistant", response_text)
 
-    # Update flow state
-    state["final_response"] = response_text
-
-    # Store response data directly in state
-    state["reasoning_decision"] = Result.ok(
-        data={
-            "should_respond": True,
-            "response_text": response_text,
-            "task_complete": True,
-        }
-    )
-    state["last_node_output"] = response_text
-    state["next_node"] = "END"
-
-    # Clear reasoning to prevent leakage
-    state["reasoning"] = None
+    # Update flow state with clean assignment
+    state.response = response_text
 
     return state

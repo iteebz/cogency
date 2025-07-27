@@ -22,16 +22,10 @@ class Preprocess(Node):
         super().__init__(preprocess, **kwargs)
 
     def next_node(self, state: State) -> str:
-        # Defensive check for dict vs State object
-        selected_tools = (
-            state.get("selected_tools", [])
-            if hasattr(state, "get")
-            else getattr(state, "selected_tools", [])
-        )
-        return "reason" if selected_tools else "respond"
+        return "reason" if state.selected_tools else "respond"
 
 
-@robust.preprocess()
+# @robust.preprocess()  # DISABLED FOR DEBUGGING
 async def preprocess(
     state: State,
     *,
@@ -42,8 +36,8 @@ async def preprocess(
     identity: Optional[str] = None,
 ) -> State:
     """Preprocess: routing decisions, memory extraction, tool selection."""
-    query = state["query"]
-    context = state["context"]
+    query = state.query
+    context = state.context
     user_id = getattr(context, "user_id", "default")
 
     # Pre-React phases will stream via MEMORIZE and TOOLING messages below
@@ -149,16 +143,16 @@ Example:
             if not selected_tools:  # LLM explicitly selected no tools
                 filtered_tools = []
                 # If LLM explicitly selected no tools, force respond_directly to True
-                state["respond_directly"] = True
+                state.respond_directly = True
             else:
                 selected_names = set(selected_tools)
                 filtered_tools = [tool for tool in tools if tool.name in selected_names]
                 # If tools are selected, respond_directly should be False
-                state["respond_directly"] = False
+                state.respond_directly = False
         else:  # LLM did not provide selected_tools, fallback to all tools and default respond_directly
             filtered_tools = tools
             # If LLM didn't specify selected_tools, assume tools are needed, so respond_directly is False
-            state["respond_directly"] = False
+            state.respond_directly = False
 
         # Stream tool selection as trace for debugging
         if filtered_tools:
@@ -184,7 +178,7 @@ Example:
     else:
         # Simple case: no tools available, respond directly
         filtered_tools = []  # No tools to filter if initial 'tools' list is empty
-        state["respond_directly"] = True  # Force respond directly if no tools are available
+        state.respond_directly = True  # Force respond directly if no tools are available
 
         # Tool selection is now silent - no ceremony
 
@@ -195,8 +189,8 @@ Example:
     )  # Use empty list if no tools selected/prepared
 
     # Update flow state - clean routing via respond_directly flag
-    state["selected_tools"] = selected_tools
-    state["react_mode"] = result.react_mode if "result" in locals() else "fast"
-    state["iteration"] = 0
+    state.selected_tools = selected_tools
+    state.react_mode = result.react_mode if "result" in locals() else "fast"
+    state.iteration = 0
 
     return state
