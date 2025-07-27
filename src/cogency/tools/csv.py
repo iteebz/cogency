@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from cogency.utils.results import ToolResult
+from resilient_result import Result
 
 from .base import BaseTool
 from .registry import tool
@@ -62,7 +62,7 @@ class CSV(BaseTool):
         elif operation == "append":
             return self._append(file_path, data)
         else:
-            return ToolResult.fail(f"Invalid operation: {operation}. Use: read, write, append")
+            return Result.fail(f"Invalid operation: {operation}. Use: read, write, append")
 
     def _get_absolute_path(self, file_path: str) -> Path:
         """Get absolute path relative to project root."""
@@ -73,15 +73,15 @@ class CSV(BaseTool):
         try:
             path = self._get_absolute_path(file_path)
             if not path.exists():
-                return ToolResult.fail(f"File not found: {file_path}")
+                return Result.fail(f"File not found: {file_path}")
 
             with open(path, newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 data = list(reader)
 
-            return ToolResult.ok({"data": data, "row_count": len(data)})
+            return Result.ok({"data": data, "row_count": len(data)})
         except Exception as e:
-            return ToolResult.fail(f"Read failed: {str(e)}")
+            return Result.fail(f"Read failed: {str(e)}")
 
     def _write(self, file_path: str, data: Optional[List[Dict]]) -> Dict[str, Any]:
         """Write CSV file."""
@@ -95,10 +95,10 @@ class CSV(BaseTool):
                     writer.writeheader()
                     writer.writerows(data)
 
-            return ToolResult.ok({"rows_written": len(data)})
+            return Result.ok({"rows_written": len(data)})
         except Exception as e:
             logger.error(f"CSV write failed for {file_path}: {e}")
-            return ToolResult.fail(f"Write failed: {str(e)}")
+            return Result.fail(f"Write failed: {str(e)}")
 
     def _append(self, file_path: str, data: Optional[List[Dict]]) -> Dict[str, Any]:
         """Append to CSV file."""
@@ -112,12 +112,12 @@ class CSV(BaseTool):
                 writer = csv.DictWriter(f, fieldnames=data[0].keys())
                 writer.writerows(data)
 
-            return ToolResult.ok({"rows_appended": len(data)})
+            return Result.ok({"rows_appended": len(data)})
         except Exception as e:
-            return ToolResult.fail(f"Append failed: {str(e)}")
+            return Result.fail(f"Append failed: {str(e)}")
 
     def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+        self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format CSV execution for display."""
         op = params.get("operation", "")

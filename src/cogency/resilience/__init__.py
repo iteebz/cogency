@@ -1,9 +1,9 @@
 """Beautiful resilience - world-class simplicity built on resilient-result."""
 
-# Re-export resilient-result - no local duplication
-from resilient_result import Err, Ok, Result, resilient
+# Import resilient-result for internal use only
 
-from .checkpoint import resume
+# No local decorators - use resilient-result directly or agent.* patterns
+from .decorators import act, preprocess, reason, respond, robust
 from .exceptions import (
     ActionError,
     CogencyError,
@@ -13,11 +13,7 @@ from .exceptions import (
     ReasoningError,
     ResponseError,
 )
-from .recovery import recover
-
-# User formatting moved to utils.formatting
-from .safe import safe
-from .utils import unwrap
+from .recovery import recovery
 
 __all__ = [
     "CogencyError",
@@ -27,13 +23,11 @@ __all__ = [
     "PreprocessError",
     "ReasoningError",
     "ResponseError",
-    "recover",
-    "resume",
-    "safe",
-    "unwrap",
-    # User formatting no longer exported from resilience layer
-    "Result",
-    "Ok",
-    "Err",
-    "resilient",
+    "recovery",
+    "robust",
+    "act",
+    "preprocess",
+    "reason",
+    "respond",
+    # No resilient-result re-exports - import directly from resilient_result
 ]

@@ -4,11 +4,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 from ddgs import DDGS
+from resilient_result import Result
 
 from cogency.resilience import ActionError
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
-from cogency.utils.results import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ class Search(BaseTool):
                 }
             )
         if not formatted_results:
-            return ToolResult(
+            return Result(
                 {
                     "results": [],
                     "query": query,
@@ -84,7 +84,7 @@ class Search(BaseTool):
                     "message": "No results found for your query",
                 }
             )
-        return ToolResult(
+        return Result(
             {
                 "results": formatted_results,
                 "query": query,
@@ -94,7 +94,7 @@ class Search(BaseTool):
         )
 
     def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+        self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format search execution for human display."""
         query = params.get("query", params.get("q", ""))

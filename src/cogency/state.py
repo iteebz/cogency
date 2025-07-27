@@ -1,44 +1,86 @@
-"""Cogency State container."""
+"""Cogency State - Zero ceremony, maximum beauty."""
 
-from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+import asyncio
+from typing import Any, Dict, List
+
+from resilient_result import Result
 
 from cogency.context import Context
-from cogency.output import Output
-from cogency.utils.results import Result
 
 
-class Cognition:
-    """Agent's cognitive state - memory, reasoning history, and action outcomes."""
+class State(dict):
+    """LangGraph-native state with zero ceremony.
 
-    def __init__(self, react_mode: str = "fast", max_history: int = 5, max_failures: int = 5):
-        self.react_mode = react_mode
-        self.current_approach = "initial"
-        # Store complete iterations (ReAct cycles)
-        self.iterations: List[Dict[str, Any]] = []
-        self.failed_attempts: List[Dict[str, Any]] = []
-        self.last_tool_quality = "unknown"
-        self.mode_switches: List[Dict[str, str]] = []
-        self.max_history = max_history  # Now limits iterations, not individual actions
-        self.max_failures = max_failures
-        # Preserve cognitive context across mode switches
-        self.preserved_context: str = ""
+    Pure dict for framework compatibility + dot notation for ergonomics.
+    All behavior unified, no abstraction penalty.
+    """
 
-    def update(
+    def __init__(self, context: Context, query: str, **kwargs):
+        super().__init__(
+            {
+                # Core immutable
+                "context": context,
+                "query": query,
+                # Flow control
+                "iteration": 0,
+                "max_iterations": 12,
+                "react_mode": "fast",
+                "stop_reason": None,
+                # Tool execution
+                "tool_calls": [],
+                "selected_tools": [],
+                "result": Result.ok({}),
+                "execution_results": Result.ok({}),
+                # Retry/failure tracking
+                "tool_failures": 0,
+                "quality_retries": 0,
+                "tool_retries": 0,
+                # Responses
+                "reasoning": None,
+                "response": None,
+                "direct_answer": False,
+                # Cognition data (flattened from old Cognition class)
+                "iterations": [],  # Complete ReAct cycles
+                "failed_attempts": [],  # Failed tool attempts
+                "mode_switches": [],  # React mode changes
+                "preserved_context": "",  # Context from truncated history
+                "last_tool_quality": "unknown",
+                "current_approach": "initial",
+                # Output streaming (flattened from old Output class)
+                "notifications": [],
+                "verbose": kwargs.get("verbose", False),
+                "trace": kwargs.get("trace", False),
+                "callback": kwargs.get("callback"),
+                **{k: v for k, v in kwargs.items() if k not in ["verbose", "trace", "callback"]},
+            }
+        )
+
+    def __getattr__(self, name: str) -> Any:
+        """Dot notation access to dict keys."""
+        try:
+            return self[name]
+        except KeyError as err:
+            raise AttributeError(f"'{type(self).__name__}' has no attribute '{name}'") from err
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        """Dot notation assignment to dict keys."""
+        self[name] = value
+
+    # Cognition behavior (formerly Cognition class)
+    def update_cognition(
         self,
         tool_calls: List[Any],
         current_approach: str,
         current_decision: str,
         action_fingerprint: str,
         formatted_result: str = "",
-        iteration: int = 0,
     ) -> None:
         """Update cognitive state with new iteration."""
         self.current_approach = current_approach
 
-        # Store as iteration entry
+        # Store complete iteration
         iteration_entry = {
-            "iteration": iteration,
+            "iteration": self.iteration,
             "fingerprint": action_fingerprint,
             "tool_calls": tool_calls,
             "result": formatted_result,
@@ -46,34 +88,32 @@ class Cognition:
         }
         self.iterations.append(iteration_entry)
 
-        # Enforce iteration limit with context preservation
-        if len(self.iterations) > self.max_history:
-            # Preserve context before truncation
-            truncated_iterations = self.iterations[: -self.max_history]
-            if truncated_iterations and not self.preserved_context:
-                self.preserved_context = self._extract_cognitive_summary(truncated_iterations)
-            self.iterations = self.iterations[-self.max_history :]
+        # Enforce history limit with context preservation
+        max_history = 5  # Reasonable default
+        if len(self.iterations) > max_history:
+            truncated = self.iterations[:-max_history]
+            if truncated and not self.preserved_context:
+                self.preserved_context = self._extract_cognitive_summary(truncated)
+            self.iterations = self.iterations[-max_history:]
 
     def update_result(self, formatted_result: str) -> None:
-        """Update the last iteration's formatted result after execution."""
+        """Update the last iteration's result after execution."""
         if self.iterations:
             self.iterations[-1]["result"] = formatted_result
 
-    def track_failure(self, tool_calls: List[Any], quality: str, iteration: int) -> None:
+    def track_failure(self, tool_calls: List[Any], quality: str) -> None:
         """Track failed tool attempts."""
         failure_entry = {
             "tool_calls": tool_calls,
             "quality": quality,
-            "iteration": iteration,
+            "iteration": self.iteration,
         }
         self.failed_attempts.append(failure_entry)
-        # Enforce failure history limit
-        if len(self.failed_attempts) > self.max_failures:
-            self.failed_attempts = self.failed_attempts[-self.max_failures :]
 
-    def set_tool_quality(self, quality: str) -> None:
-        """Set the quality assessment of the last tool execution."""
-        self.last_tool_quality = quality
+        # Enforce failure history limit
+        max_failures = 5
+        if len(self.failed_attempts) > max_failures:
+            self.failed_attempts = self.failed_attempts[-max_failures:]
 
     def switch_mode(self, new_mode: str, reason: str) -> None:
         """Record mode switch with reason."""
@@ -90,7 +130,6 @@ class Cognition:
         if not truncated_iterations:
             return ""
 
-        # Extract key decisions and patterns from truncated iterations
         decisions = []
         patterns = []
 
@@ -113,9 +152,18 @@ class Cognition:
 
         return " | ".join(summary_parts) if summary_parts else ""
 
-    def get(self, key: str, default: Any = None) -> Any:
-        """Dict-like access for backward compatibility."""
-        return getattr(self, key, default)
+    # Output behavior (formerly Output class)
+    async def notify(self, event_type: str, data: Any) -> None:
+        """Notify user of reasoning progress."""
+        notification_entry = {"event_type": event_type, "data": data, "iteration": self.iteration}
+        self.notifications.append(notification_entry)
+
+        # Call the callback if available
+        if self.callback and self.verbose and callable(self.callback):
+            if asyncio.iscoroutinefunction(self.callback):
+                await self.callback(str(data))
+            else:
+                self.callback(str(data))
 
 
 def summarize_attempts(failed_attempts: List[Dict[str, Any]]) -> str:
@@ -129,7 +177,6 @@ def summarize_attempts(failed_attempts: List[Dict[str, Any]]) -> str:
         quality = attempt.get("quality", "unknown")
 
         if tool_calls:
-            # Extract tool names from tool calls
             tool_names = [call.get("name", "unknown") for call in tool_calls]
             tools_str = ", ".join(tool_names)
             failure_summaries.append(f"{tools_str} ({quality})")
@@ -140,122 +187,3 @@ def summarize_attempts(failed_attempts: List[Dict[str, Any]]) -> str:
         f"Previous failed attempts: {len(failed_attempts)} attempts failed. "
         f"Last failures: {', '.join(failure_summaries)}"
     )
-
-
-# Input/Output Schemas for Clear Data Flow
-
-
-@dataclass
-class State:
-    """Agent state with dict-like access and schema validation."""
-
-    # WORLD-CLASS MINIMALISM
-    context: Context
-    query: str
-    output: Output = field(default_factory=Output)
-    flow: Dict[str, Any] = field(default_factory=dict)  # Ephemeral workflow data
-    cognition: Cognition = field(default_factory=lambda: Cognition())
-
-    # Smart defaults - eliminate manual ceremony
-    @property
-    def tool_calls(self) -> List[Dict[str, Any]]:
-        """Tool calls with intelligent default."""
-        return self.flow.get("tool_calls", [])
-
-    @property
-    def selected_tools(self) -> List[Any]:
-        """Selected tools with intelligent default."""
-        return self.flow.get("selected_tools", [])
-
-    @property
-    def result(self) -> Result:
-        """Result from act node."""
-        return self.flow.get("result", Result.ok({}))
-
-    @property
-    def iteration(self) -> int:
-        """Current iteration with intelligent default."""
-        return self.flow.get("iteration", 0)
-
-    @iteration.setter
-    def iteration(self, value: int) -> None:
-        """Set current iteration."""
-        self.flow["iteration"] = value
-
-    @property
-    def max_iterations(self) -> int:
-        """Max iterations with intelligent default."""
-        return self.flow.get("MAX_ITERATIONS", 12)
-
-    @property
-    def stop_reason(self) -> Optional[str]:
-        """Stopping reason with intelligent default."""
-        return self.flow.get("stop_reason")
-
-    @property
-    def react_mode(self) -> str:
-        """React mode with intelligent default."""
-        return self.flow.get("react_mode", "fast")
-
-    @react_mode.setter
-    def react_mode(self, value: str) -> None:
-        """Set react mode."""
-        self.flow["react_mode"] = value
-
-    @property
-    def reasoning(self) -> Optional[str]:
-        """Reasoning response with intelligent default."""
-        return self.flow.get("reasoning")
-
-    @property
-    def response(self) -> Optional[str]:
-        """Direct response with intelligent default."""
-        return self.flow.get("response")
-
-    @property
-    def direct_answer(self) -> bool:
-        """Can answer directly with intelligent default."""
-        return self.flow.get("direct_answer", False)
-
-    @property
-    def tool_failures(self) -> int:
-        """Failed tool attempts with intelligent default."""
-        return self.flow.get("tool_failures", 0)
-
-    @property
-    def quality_retries(self) -> int:
-        """Quality retry attempts with intelligent default."""
-        return self.flow.get("quality_retries", 0)
-
-    @property
-    def tool_retries(self) -> int:
-        """Network retry count with intelligent default."""
-        return self.flow.get("tool_retries", 0)
-
-    @property
-    def execution_results(self) -> Any:
-        """Execution results with intelligent default."""
-        from cogency.utils.results import Result
-
-        return self.flow.get("execution_results", Result.ok({}))
-
-    def get(self, key: str, default: Any = None) -> Any:
-        if key in self.flow:
-            return self.flow[key]
-        return getattr(self, key, default)
-
-    def __contains__(self, key: str) -> bool:
-        return key in self.flow or hasattr(self, key)
-
-    def __getitem__(self, key: str) -> Any:
-        """Dict-like access for backward compatibility."""
-        if key in self.flow:
-            return self.flow[key]
-        if hasattr(self, key):
-            return getattr(self, key)
-        raise KeyError(f"'{key}' not found in state")
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        """Dict-like assignment for backward compatibility."""
-        self.flow[key] = value
-

@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.utils.formatting import format_tool_params, summarize_tool_result, truncate
+from cogency.utils.formatting import format_tool_params, summarize_result, truncate
 
 
 def test_truncate():
@@ -31,18 +31,18 @@ def test_format_params():
 
 
 def test_summarize_result():
-    assert summarize_tool_result(None) == "completed"
-    assert summarize_tool_result({"error": "API key invalid"}) == "✗ API key invalid"
-    assert summarize_tool_result({"result": "Task completed"}) == "Task completed"
-    assert summarize_tool_result({"success": True}) == "✓ success"
-    assert summarize_tool_result({"success": False}) == "✗ failed"
-    assert summarize_tool_result(["item1", "item2", "item3"]) == "3 items"
-    assert summarize_tool_result("Simple string") == "Simple string"
+    assert summarize_result(None) == "completed"
+    assert summarize_result({"error": "API key invalid"}) == "✗ API key invalid"
+    assert summarize_result({"result": "Task completed"}) == "Task completed"
+    assert summarize_result({"success": True}) == "✓ success"
+    assert summarize_result({"success": False}) == "✗ failed"
+    assert summarize_result(["item1", "item2", "item3"]) == "3 items"
+    assert summarize_result("Simple string") == "Simple string"
 
     # Long string truncation
     long_string = (
         "This is a very long string that should be truncated because it exceeds the maximum length"
     )
-    result = summarize_tool_result(long_string)
+    result = summarize_result(long_string)
     assert len(result) <= 60
     assert result.endswith("...")

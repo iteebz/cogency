@@ -4,8 +4,8 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from cogency.memory.core import MemoryBackend
-from cogency.tools.base import BaseTool, ToolResult
+from cogency.memory.backends.base import MemoryBackend
+from cogency.tools.base import BaseTool, Result
 from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class Recall(BaseTool):
                         "metadata": artifact.metadata,
                     }
                 )
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "query": query,
                     "results_count": len(results),
@@ -76,10 +76,10 @@ class Recall(BaseTool):
             )
         except Exception as e:
             logger.error(f"Failed to recall content for query '{query}': {e}")
-            return ToolResult.fail(f"Failed to recall content: {str(e)}")
+            return Result.fail(f"Failed to recall content: {str(e)}")
 
     def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+        self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format recall execution for display."""
         from cogency.utils.formatting import truncate

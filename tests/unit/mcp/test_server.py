@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.mcp.server import AgentInteractionRequest, MCPServer
+from cogency.mcp.server import InteractionRequest, MCPServer
 
 
 @pytest.fixture
@@ -26,13 +26,13 @@ def test_init(mock_agent):
 
 
 def test_interaction_request():
-    req = AgentInteractionRequest(input_text="test", context={"key": "value"})
+    req = InteractionRequest(input_text="test", context={"key": "value"})
     assert req.input_text == "test"
     assert req.context == {"key": "value"}
 
 
 def test_interaction_request_defaults():
-    req = AgentInteractionRequest(input_text="test")
+    req = InteractionRequest(input_text="test")
     assert req.input_text == "test"
     assert req.context == {}
 

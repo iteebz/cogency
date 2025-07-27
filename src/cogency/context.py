@@ -96,7 +96,7 @@ class Context:
         """Clear conversation archive."""
         self.archive = []
 
-    def get_clean_conversation(self) -> List[Dict[str, str]]:
+    def get_conversation(self) -> List[Dict[str, str]]:
         """Get conversation without system messages."""
 
         clean_messages = []

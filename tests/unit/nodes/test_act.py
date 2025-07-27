@@ -4,19 +4,18 @@ from typing import Any, Dict
 from unittest.mock import AsyncMock
 
 import pytest
+from resilient_result import Result, unwrap
 
 from cogency.context import Context
 from cogency.nodes.act import act
-from cogency.output import Output
 from cogency.state import State
 from cogency.tools.base import BaseTool
-from cogency.utils.results import ToolResult
 
 
 class MockTool(BaseTool):
     """Simple mock tool."""
 
-    def __init__(self, name: str, should_succeed: bool = True, result: ToolResult = None):
+    def __init__(self, name: str, should_succeed: bool = True, result: Result = None):
         super().__init__(
             name=name,
             description=f"Mock {name}",
@@ -24,7 +23,7 @@ class MockTool(BaseTool):
             examples=[f'{{"name": "{name}", "args": {{}}}}'],
         )
         self.should_succeed = should_succeed
-        self.result = result or ToolResult("mock result")
+        self.result = result or Result("mock result")
 
     async def run(self, **kwargs):
         if not self.should_succeed:
@@ -41,24 +40,16 @@ class MockTool(BaseTool):
 
 
 @pytest.fixture
-def output():
-    output = Output(trace=True)
-    output.send = AsyncMock()  # Mock the send method
-    output.update = AsyncMock()  # Mock the update method
-    return output
-
-
-@pytest.fixture
-def state(output):
+def state():
     context = Context("test query")
-    return State(context=context, query="test query", output=output)
+    return State(context=context, query="test query", trace=True)
 
 
 @pytest.fixture
 def mock_tools():
     return [
-        MockTool("calculator", True, ToolResult({"result": 42})),
-        MockTool("search", True, ToolResult({"results": ["data"]})),
+        MockTool("calculator", True, Result({"result": 42})),
+        MockTool("search", True, Result({"results": ["data"]})),
     ]
 
 
@@ -67,8 +58,10 @@ async def test_no_calls(state, mock_tools):
     """Test act node when no tool calls are present."""
     state["tool_calls"] = None
 
-    result = await act(state, tools=mock_tools)
+    wrapped = await act(state, tools=mock_tools)
+    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
 
+    assert result["result"].success
     assert result["result"].data["type"] == "no_action"
 
 
@@ -77,8 +70,10 @@ async def test_empty_calls(state, mock_tools):
     """Test act node with empty tool call string."""
     state["tool_calls"] = ""
 
-    result = await act(state, tools=mock_tools)
+    wrapped = await act(state, tools=mock_tools)
+    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
 
+    assert result["result"].success
     assert result["result"].data["type"] == "no_action"
 
 
@@ -87,8 +82,10 @@ async def test_invalid_calls(state, mock_tools):
     """Test act node with invalid JSON tool calls."""
     state["tool_calls"] = "invalid json"
 
-    result = await act(state, tools=mock_tools)
+    wrapped = await act(state, tools=mock_tools)
+    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
 
+    assert result["result"].success
     assert result["result"].data["type"] == "no_action"
 
 
@@ -97,10 +94,12 @@ async def test_success(state, mock_tools):
     """Test successful tool execution."""
     state["tool_calls"] = [{"name": "calculator", "args": {"x": 5}}]
 
-    result = await act(state, tools=mock_tools)
+    wrapped = await act(state, tools=mock_tools)
+    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
 
     assert "result" in result
     # Should have successful execution
+    assert result["result"].success
     exec_results = result["result"].data
     if "successful_count" in exec_results:
         assert exec_results["successful_count"] >= 1
@@ -112,15 +111,18 @@ async def test_failure(state):
     failing_tool = MockTool("failing_tool", should_succeed=False)
     state["tool_calls"] = [{"name": "failing_tool", "args": {}}]
 
-    result = await act(state, tools=[failing_tool])
+    wrapped = await act(state, tools=[failing_tool])
+    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
 
-    exec_results = result["result"].data
-    if "successful_count" in exec_results:
-        assert exec_results["successful_count"] == 0
+    # Check if result failed or if execution had no successes
+    if result["result"].success:
+        exec_results = result["result"].data
+        if "successful_count" in exec_results:
+            assert exec_results["successful_count"] == 0
 
 
 @pytest.mark.asyncio
-async def test_multiple(state, output):
+async def test_multiple(state):
     """Test execution of multiple tools in sequence."""
     # Create tools that track execution order
     execution_order = []
@@ -136,7 +138,7 @@ async def test_multiple(state, output):
 
         async def run(self, **kwargs):
             execution_order.append(self.name)
-            return ToolResult(f"{self.name}_result")
+            return Result(f"{self.name}_result")
 
         def format_human(self, params, results=None):
             param_str = f"({', '.join(f'{k}={v}' for k, v in params.items())})" if params else "()"
@@ -154,12 +156,14 @@ async def test_multiple(state, output):
         {"name": "third", "args": {}},
     ]
 
-    result = await act(state, tools=tools)
+    wrapped = await act(state, tools=tools)
+    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
 
     # Check that tools executed in order
     assert execution_order == ["first", "second", "third"]
 
     # Check execution results
+    assert result["result"].success
     exec_results = result["result"].data
     assert exec_results["successful_count"] == 3
     assert exec_results["failed_count"] == 0

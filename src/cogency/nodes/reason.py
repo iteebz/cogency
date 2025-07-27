@@ -8,14 +8,14 @@ from cogency.nodes.reasoning.adaptive import (
     action_fingerprint,
     assess_tools,
     parse_switch,
-    should_stop_reasoning,
+    should_stop,
     should_switch,
     summarize_attempts,
     switch_mode,
 )
 from cogency.nodes.reasoning.deep import prompt_deep_mode
 from cogency.nodes.reasoning.fast import prompt_fast_mode
-from cogency.resilience import safe
+from cogency.resilience import robust
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -27,15 +27,15 @@ from cogency.utils.parsing import parse_json_with_correction
 class Reason(Node):
     def __init__(self, **kwargs):
         super().__init__(reason, **kwargs)
-        
+
     def next_node(self, state: State) -> str:
         return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
 
 
-def build_iterations(cognition, selected_tools, max_iterations=3):
+def build_iterations(state, selected_tools, max_iterations=3):
     """Show last N reasoning iterations with their outcomes."""
-    iteration_entries = cognition.iterations
-    failed_attempts = summarize_attempts(cognition.failed_attempts)
+    iteration_entries = state.iterations
+    failed_attempts = summarize_attempts(state.failed_attempts)
 
     if not iteration_entries:
         return (
@@ -97,8 +97,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
     return " | ".join(formatted_parts) if formatted_parts else ""
 
 
-@safe.checkpoint("reason")
-@safe.reason()
+@robust.reason()
 async def reason(
     state: State,
     *,
@@ -114,14 +113,14 @@ async def reason(
     iteration = state.iteration
 
     # Set react mode if different from current
-    if state.cognition.react_mode != react_mode:
-        state.cognition.react_mode = react_mode
+    if state.react_mode != react_mode:
+        state.react_mode = react_mode
 
-    await state.output.state("reasoning", react_mode)
+    await state.notify("state_change", {"state": "reasoning", "mode": react_mode})
 
     # Check stop conditions - pure logic, no ceremony
-    should_stop, stop_reason = should_stop_reasoning(state, react_mode)
-    if should_stop:
+    should_stop_val, stop_reason = should_stop(state, react_mode)
+    if should_stop_val:
         state["stop_reason"] = stop_reason
         state["tool_calls"] = None
         return state
@@ -131,7 +130,7 @@ async def reason(
     messages.append({"role": "user", "content": context.query})
 
     # Build prompt based on mode
-    attempts_summary = build_iterations(state.cognition, selected_tools, max_iterations=3)
+    attempts_summary = build_iterations(state, selected_tools, max_iterations=3)
     tool_registry = build_registry(selected_tools)
 
     if react_mode == "deep":
@@ -140,12 +139,12 @@ async def reason(
             context.query,
             iteration,
             state.max_iterations,
-            state.cognition.current_approach,
+            state.current_approach,
             attempts_summary,
-            state.cognition.last_tool_quality,
+            state.last_tool_quality,
         )
     else:
-        preserved_context = getattr(state.cognition, "preserved_context", "")
+        preserved_context = state.preserved_context
         reasoning_prompt = prompt_fast_mode(
             tool_registry, context.query, attempts_summary, preserved_context
         )
@@ -161,13 +160,14 @@ async def reason(
     # LLM reasoning - let decorator handle errors
     await asyncio.sleep(0)  # Yield for UI
     llm_result = await llm.run(messages)
-    from cogency.resilience import unwrap
+    from resilient_result import unwrap
 
     raw_response = unwrap(llm_result)
 
     # Parse with correction
     def trace_parsing(msg: str):
-        asyncio.create_task(state.output.trace(msg, node="reason"))
+        if state.trace:
+            asyncio.create_task(state.notify("trace", {"message": msg, "node": "reason"}))
 
     parse_result = await parse_json_with_correction(
         raw_response, llm_fn=llm.run, trace_fn=trace_parsing, max_attempts=2
@@ -181,20 +181,21 @@ async def reason(
     if state.get("verbose", True):
         if react_mode == "deep" and reasoning_response:
             if reasoning_response.thinking:
-                await state.output.update(f"💭 {reasoning_response.thinking}\n")
+                await state.notify("update", f"💭 {reasoning_response.thinking}\n")
             if reasoning_response.reflect:
-                await state.output.update(f"🤔 {reasoning_response.reflect}\n")
+                await state.notify("update", f"🤔 {reasoning_response.reflect}\n")
             if reasoning_response.plan:
-                await state.output.update(f"📋 {reasoning_response.plan}\n")
+                await state.notify("update", f"📋 {reasoning_response.plan}\n")
         elif reasoning_response.thinking:
-            await state.output.update(f"💭 {reasoning_response.thinking}\n")
+            await state.notify("update", f"💭 {reasoning_response.thinking}\n")
 
     # Handle mode switching
     switch_to, switch_why = parse_switch(raw_response)
     if should_switch(react_mode, switch_to, switch_why, iteration):
-        await state.output.trace(
-            f"Mode switch: {react_mode} → {switch_to} ({switch_why})", node="reason"
-        )
+        if state.trace:
+            await state.notify(
+                "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_why})", node="reason"
+            )
         state = switch_mode(state, switch_to, switch_why)
 
     # Update cognitive state
@@ -216,13 +217,13 @@ def update_cognitive_state(state, tool_calls, reasoning_response, iteration: int
     result = state.result
     if result:
         tool_quality = assess_tools(result)
-        state.cognition.set_tool_quality(tool_quality)
+        state.last_tool_quality = tool_quality
 
         # Track failed attempts for loop prevention
         if tool_quality in ["failed", "poor"]:
             prev_tool_calls = state.get("prev_tool_calls", [])
             if prev_tool_calls:
-                state.cognition.track_failure(prev_tool_calls, tool_quality, iteration)
+                state.track_failure(prev_tool_calls, tool_quality)
 
     # Update cognitive state for next iteration
     if tool_calls:
@@ -231,6 +232,4 @@ def update_cognitive_state(state, tool_calls, reasoning_response, iteration: int
             reasoning_response.reasoning[0] if reasoning_response.reasoning else "unknown"
         )
 
-        state.cognition.update(
-            tool_calls, "unified_react", current_decision, fingerprint, "", iteration + 1
-        )
+        state.update_cognition(tool_calls, "unified_react", current_decision, fingerprint, "")

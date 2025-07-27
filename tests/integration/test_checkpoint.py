@@ -7,9 +7,7 @@ import tempfile
 from unittest.mock import AsyncMock
 
 import pytest
-
-from cogency.agents.base import BaseAgent
-from cogency.utils.results import Result
+from resilient_result import Result
 
 
 class MockCheckpointLLM:
@@ -45,11 +43,13 @@ class MockCheckpointLLM:
             return Result.ok("Step 4: Final analysis complete. Task finished successfully.")
 
 
-class MockCheckpointAgent(BaseAgent):
+class MockCheckpointAgent:
     """Agent with checkpoint/resume capabilities."""
 
-    def __init__(self, *args, checkpoint_file=None, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, llm=None, tools=None, max_iterations=10, checkpoint_file=None, **kwargs):
+        from cogency.agent import Agent
+
+        self.agent = Agent(llm=llm, tools=tools or [], max_iterations=max_iterations)
         self.checkpoint_file = checkpoint_file
         self.execution_state = {"step": 0, "completed_actions": [], "current_task": None}
 
@@ -100,7 +100,14 @@ class MockCheckpointAgent(BaseAgent):
             if load_result.success:
                 # Add resume context to messages
                 resume_prompt = f"You are resuming from a checkpoint. Previous context: {prompt}. Please continue from where you left off."
-                return await super().run(resume_prompt)
+                result_string = await self.agent.run(resume_prompt)
+                from resilient_result import Result
+
+                return (
+                    Result.ok(result_string)
+                    if result_string.strip()
+                    else Result.fail("Empty response")
+                )
 
         # Normal execution with periodic checkpoints
         self.execution_state["current_task"] = prompt
@@ -112,7 +119,14 @@ class MockCheckpointAgent(BaseAgent):
             return checkpoint_result
 
         # Run the actual task
-        result = await super().run(prompt)
+        result_string = await self.agent.run(prompt)
+
+        # Wrap string result in Result object for test compatibility
+        from resilient_result import Result
+
+        result = (
+            Result.ok(result_string) if result_string.strip() else Result.fail("Empty response")
+        )
 
         # Update execution state on completion
         if result.success:

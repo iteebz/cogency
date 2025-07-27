@@ -6,8 +6,7 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import httpx
-
-from cogency.utils.results import ToolResult
+from resilient_result import Result
 
 from .base import BaseTool
 from .registry import tool
@@ -29,7 +28,7 @@ class HTTPParams:
 @tool
 class HTTP(BaseTool):
     """HTTP client for API calls, webhooks, and web requests with full verb support."""
-    
+
     # Custom formatting for HTTP requests
     human_template = "Status: {status_code}"
     agent_template = "{method} {url} → {status_code}"
@@ -92,7 +91,7 @@ class HTTP(BaseTool):
         method = method.lower()
         if method not in self._methods:
             available = ", ".join(self._methods.keys())
-            return ToolResult.fail(f"Invalid HTTP method. Use: {available}")
+            return Result.fail(f"Invalid HTTP method. Use: {available}")
         # Dispatch to appropriate method
         method_func = self._methods[method]
         return await method_func(url, headers, body, json_data, auth, timeout)
@@ -125,19 +124,19 @@ class HTTP(BaseTool):
                 if auth_type == "bearer":
                     token = auth.get("token")
                     if not token:
-                        return ToolResult.fail("Bearer token required for bearer auth")
+                        return Result.fail("Bearer token required for bearer auth")
                     request_kwargs.setdefault("headers", {})["Authorization"] = f"Bearer {token}"
                 elif auth_type == "basic":
                     username = auth.get("username")
                     password = auth.get("password")
                     if not username or not password:
-                        return ToolResult.fail("Username and password required for basic auth")
+                        return Result.fail("Username and password required for basic auth")
                     request_kwargs["auth"] = (username, password)
                 elif auth_type == "api_key":
                     key = auth.get("key")
                     header = auth.get("header", "X-API-Key")
                     if not key:
-                        return ToolResult.fail("API key required for api_key auth")
+                        return Result.fail("API key required for api_key auth")
                     request_kwargs.setdefault("headers", {})[header] = key
             # Execute request
             async with httpx.AsyncClient() as client:
@@ -153,7 +152,7 @@ class HTTP(BaseTool):
                         f"Failed to decode JSON response, falling back to text. Error: {e}"
                     )
                     response_body = response.text
-                return ToolResult.ok(
+                return Result.ok(
                     {
                         "status_code": response.status_code,
                         "status": "success" if 200 <= response.status_code < 300 else "error",
@@ -165,13 +164,13 @@ class HTTP(BaseTool):
                 )
         except httpx.TimeoutException as e:
             logger.error(f"HTTP request timed out after {timeout} seconds: {e}")
-            return ToolResult.fail(f"Request timed out after {timeout} seconds")
+            return Result.fail(f"Request timed out after {timeout} seconds")
         except httpx.ConnectError as e:
             logger.error(f"HTTP connection failed to {url}: {e}")
-            return ToolResult.fail(f"Could not connect to {url}")
+            return Result.fail(f"Could not connect to {url}")
         except Exception as e:
             logger.error(f"HTTP request failed: {e}")
-            return ToolResult.fail(f"HTTP request failed: {str(e)}")
+            return Result.fail(f"HTTP request failed: {str(e)}")
 
     async def _get(
         self,
@@ -184,7 +183,7 @@ class HTTP(BaseTool):
     ) -> Dict[str, Any]:
         """GET request."""
         if body or json_data:
-            return ToolResult.fail("GET requests cannot have a body")
+            return Result.fail("GET requests cannot have a body")
         return await self._execute_request("get", url, headers, None, None, auth, timeout)
 
     async def _post(
@@ -234,4 +233,3 @@ class HTTP(BaseTool):
     ) -> Dict[str, Any]:
         """PATCH request."""
         return await self._execute_request("patch", url, headers, body, json_data, auth, timeout)
-

@@ -9,7 +9,6 @@ from cogency.flow import Flow
 from cogency.nodes.act import Act
 from cogency.nodes.preprocess import Preprocess
 from cogency.nodes.reason import Reason
-from cogency.output import Output
 from cogency.state import State
 
 
@@ -99,7 +98,7 @@ def test_act_routing_max_iterations(mock_assess):
     state["stop_reason"] = None
     state["tool_failures"] = 0
     state["quality_retries"] = 0
-    
+
     result = node.next_node(state)
     assert result == "respond"
     assert state["stop_reason"] == "max_iterations_reached"
@@ -114,7 +113,7 @@ def test_act_routing_stop_reason():
     state["stop_reason"] = "max_iterations_reached"
     state["tool_failures"] = 0
     state["quality_retries"] = 0
-    
+
     result = node.next_node(state)
     assert result == "respond"
 
@@ -128,7 +127,7 @@ def test_act_routing_failed():
     state["stop_reason"] = None
     state["tool_failures"] = 2
     state["quality_retries"] = 0
-    
+
     result = node.next_node(state)
     assert result == "reason"
     assert state["tool_failures"] == 3
@@ -143,7 +142,7 @@ def test_act_routing_max_failures():
     state["stop_reason"] = None
     state["tool_failures"] = 3
     state["quality_retries"] = 0
-    
+
     result = node.next_node(state)
     assert result == "respond"
     assert state["stop_reason"] == "repeated_tool_failures"
@@ -160,7 +159,7 @@ def test_act_routing_poor_quality(mock_assess):
     state["stop_reason"] = None
     state["tool_failures"] = 0
     state["quality_retries"] = 0
-    
+
     result = node.next_node(state)
     assert result == "reason"
     assert state["quality_retries"] == 1

@@ -6,7 +6,7 @@ import subprocess
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from cogency.utils.results import ToolResult
+from resilient_result import Result
 
 from .base import BaseTool
 from .registry import tool
@@ -65,7 +65,7 @@ class Code(BaseTool):
         language = language.lower()
         if language not in self._languages:
             available = ", ".join(set(self._languages.keys()))
-            return ToolResult.fail(f"Unsupported language. Use: {available}")
+            return Result.fail(f"Unsupported language. Use: {available}")
 
         # Limit timeout
         timeout = min(max(timeout, 1), 120)  # 1-120 seconds
@@ -87,11 +87,11 @@ class Code(BaseTool):
                 ["node", "--version"], capture_output=True, text=True, timeout=5
             )
             if result.returncode != 0:
-                return ToolResult.fail(
+                return Result.fail(
                     "Node.js not found. Please install Node.js to execute JavaScript code."
                 )
         except (subprocess.TimeoutExpired, FileNotFoundError):
-            return ToolResult.fail(
+            return Result.fail(
                 "Node.js not found. Please install Node.js to execute JavaScript code."
             )
 
@@ -123,7 +123,7 @@ class Code(BaseTool):
                     await process.wait()
                 except (ProcessLookupError, OSError) as e:
                     logger.warning(f"Failed to kill process after timeout: {e}")
-                return ToolResult.fail(f"Code execution timed out after {timeout} seconds")
+                return Result.fail(f"Code execution timed out after {timeout} seconds")
 
             # Decode output
             stdout_text = stdout.decode("utf-8", errors="replace") if stdout else ""
@@ -136,7 +136,7 @@ class Code(BaseTool):
             if len(stderr_text) > max_output:
                 stderr_text = stderr_text[:max_output] + "\n... (output truncated)"
 
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "exit_code": exit_code,
                     "success": exit_code == 0,
@@ -148,10 +148,10 @@ class Code(BaseTool):
 
         except Exception as e:
             logger.error(f"Code execution failed: {e}")
-            return ToolResult.fail(f"Code execution failed: {str(e)}")
+            return Result.fail(f"Code execution failed: {str(e)}")
 
     def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+        self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format code execution for display."""
         from cogency.utils.formatting import truncate

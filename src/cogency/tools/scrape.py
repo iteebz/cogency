@@ -5,9 +5,8 @@ from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
 import trafilatura
+from resilient_result import Result
 from trafilatura.settings import use_config
-
-from cogency.utils.results import ToolResult
 
 from .base import BaseTool
 from .registry import tool
@@ -55,11 +54,11 @@ class Scrape(BaseTool):
             # Fetch URL content with timeout and size limits
             downloaded = trafilatura.fetch_url(url, config=config)
             if not downloaded:
-                return ToolResult.fail(f"Could not fetch content from {url}")
+                return Result.fail(f"Could not fetch content from {url}")
 
             # Check content size before processing
             if len(downloaded) > 512000:  # 500KB limit
-                return ToolResult.fail(f"Content too large ({len(downloaded)} bytes) from {url}")
+                return Result.fail(f"Content too large ({len(downloaded)} bytes) from {url}")
 
             # Extract content with options for cleanest output
             content = trafilatura.extract(
@@ -77,7 +76,7 @@ class Scrape(BaseTool):
 
                 # Also extract metadata
                 metadata = trafilatura.extract_metadata(downloaded)
-                return ToolResult.ok(
+                return Result.ok(
                     {
                         "content": content.strip(),
                         "metadata": {
@@ -90,13 +89,13 @@ class Scrape(BaseTool):
                     }
                 )
             else:
-                return ToolResult.fail(f"Could not extract content from {url}")
+                return Result.fail(f"Could not extract content from {url}")
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
-            return ToolResult.fail(f"Scraping failed: {str(e)}")
+            return Result.fail(f"Scraping failed: {str(e)}")
 
     def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+        self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format scrape execution for display."""
         from urllib.parse import urlparse
@@ -118,7 +117,7 @@ class Scrape(BaseTool):
         if results is None:
             return param_str, ""
 
-        # Format results - results is now the ToolResult.data
+        # Format results - results is now the Result.data
         if results.failure:
             result_str = f"Error: {results.error}"
         else:

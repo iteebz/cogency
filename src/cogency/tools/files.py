@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from cogency.tools.base import BaseTool, ToolResult
+from cogency.tools.base import BaseTool, Result
 from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class FilesParams:
 @tool
 class Files(BaseTool):
     """File operations within a safe base directory."""
-    
+
     # Template-based formatting - shows action and filename
     param_key = "filename"
 
@@ -98,12 +98,12 @@ class Files(BaseTool):
             if action == "create":
                 path = self._safe_path(filename)
                 if path.exists():
-                    return ToolResult.fail(
+                    return Result.fail(
                         f"File already exists: {filename}. Read it first with files(action='read', filename='{filename}') before creating."
                     )
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
-                return ToolResult.ok({"result": f"Created file: {filename}", "size": len(content)})
+                return Result.ok({"result": f"Created file: {filename}", "size": len(content)})
 
             elif action == "read":
                 path = self._safe_path(filename)
@@ -111,14 +111,14 @@ class Files(BaseTool):
                     # Try fuzzy matching for common mistakes
                     suggestions = self._suggest_similar_files(filename)
                     if suggestions:
-                        return ToolResult.fail(
+                        return Result.fail(
                             f"File not found: {filename}. Did you mean: {', '.join(suggestions)}?"
                         )
                     else:
-                        return ToolResult.fail(f"File not found: {filename}")
+                        return Result.fail(f"File not found: {filename}")
 
                 content = path.read_text(encoding="utf-8")
-                return ToolResult.ok(
+                return Result.ok(
                     {
                         "result": f"Read file: {filename}",
                         "content": content,
@@ -131,18 +131,18 @@ class Files(BaseTool):
                 if not path.exists():
                     suggestions = self._suggest_similar_files(filename)
                     if suggestions:
-                        return ToolResult.fail(
+                        return Result.fail(
                             f"File not found: {filename}. Did you mean: {', '.join(suggestions)}?"
                         )
                     else:
-                        return ToolResult.fail(f"File not found: {filename}")
+                        return Result.fail(f"File not found: {filename}")
 
                 lines = path.read_text(encoding="utf-8").splitlines()
 
                 if line is not None:
                     # Single line edit
                     if line < 1 or line > len(lines):
-                        return ToolResult.fail(f"Line {line} out of range (1-{len(lines)})")
+                        return Result.fail(f"Line {line} out of range (1-{len(lines)})")
                     lines[line - 1] = content
                     result_msg = f"Edited line {line}"
 
@@ -155,7 +155,7 @@ class Files(BaseTool):
                         or end > len(lines)
                         or start > end
                     ):
-                        return ToolResult.fail(
+                        return Result.fail(
                             f"Invalid range {start}-{end} (file has {len(lines)} lines)"
                         )
                     # Replace lines start to end (inclusive) with new content
@@ -170,7 +170,7 @@ class Files(BaseTool):
 
                 new_content = "\n".join(lines)
                 path.write_text(new_content, encoding="utf-8")
-                return ToolResult.ok(
+                return Result.ok(
                     {
                         "result": f"{result_msg} in {filename}",
                         "size": len(new_content),
@@ -188,17 +188,16 @@ class Files(BaseTool):
                             "size": item.stat().st_size if item.is_file() else None,
                         }
                     )
-                return ToolResult.ok({"result": f"Listed {len(items)} items", "items": items})
+                return Result.ok({"result": f"Listed {len(items)} items", "items": items})
 
             elif action == "delete":
                 path = self._safe_path(filename)
                 path.unlink()
-                return ToolResult.ok({"result": f"Deleted file: {filename}"})
+                return Result.ok({"result": f"Deleted file: {filename}"})
 
             else:
-                return ToolResult.fail(f"Unknown action: {action}")
+                return Result.fail(f"Unknown action: {action}")
 
         except Exception as e:
             logger.error(f"File operation failed: {e}")
-            return ToolResult.fail(str(e))
-
+            return Result.fail(str(e))

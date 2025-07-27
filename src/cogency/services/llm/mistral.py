@@ -11,7 +11,7 @@ from cogency.services.llm.base import BaseLLM
 class MistralLLM(BaseLLM):
     def __init__(self, **kwargs):
         super().__init__("mistral", **kwargs)
-    
+
     @property
     def default_model(self) -> str:
         return "mistral-large-latest"

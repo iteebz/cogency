@@ -2,7 +2,7 @@
 
 from typing import List, Optional
 
-from cogency.memory.core import MemoryBackend, MemoryType
+from cogency.memory.backends.base import MemoryBackend, MemoryType
 
 
 def should_extract(query: str) -> bool:

@@ -1,19 +1,70 @@
-"""BaseBackend - Template method pattern to eliminate CRUD duplication."""
+"""Memory backend interface and shared implementation."""
 
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
-from cogency.memory.core import Memory, MemoryBackend, MemoryType, SearchType
+from resilient_result import Result, Retry, resilient
+
+from cogency.memory.core import Memory, MemoryType, SearchType
 from cogency.memory.search import search
-from cogency.resilience import safe
-from cogency.utils.results import Result
 
 
-class BaseBackend(MemoryBackend, ABC):
-    """Base backend using template method pattern - delegates storage to subclasses."""
+class MemoryBackend(ABC):
+    """Interface that all memory backends must implement."""
 
-    @safe.memory()
+    def __init__(self, embedder=None):
+        self.embedder = embedder
+
+    @abstractmethod
+    async def create(
+        self,
+        content: str,
+        memory_type: MemoryType = MemoryType.FACT,
+        tags: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Result:
+        """CREATE - Store new content in memory."""
+        pass
+
+    @abstractmethod
+    async def read(
+        self,
+        query: str = None,
+        artifact_id: UUID = None,
+        search_type: SearchType = SearchType.AUTO,
+        limit: int = 10,
+        threshold: float = 0.7,
+        tags: Optional[List[str]] = None,
+        memory_type: Optional[MemoryType] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> Result:
+        """READ - Retrieve memories from storage."""
+        pass
+
+    @abstractmethod
+    async def update(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result:
+        """UPDATE - Modify existing memory."""
+        pass
+
+    @abstractmethod
+    async def delete(
+        self,
+        artifact_id: UUID = None,
+        tags: Optional[List[str]] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        delete_all: bool = False,
+    ) -> Result:
+        """DELETE - Remove memories from storage."""
+        pass
+
+
+class BaseBackend(MemoryBackend):
+    """Shared implementation for concrete backends."""
+
+    @resilient(retry=Retry.api())
     async def create(
         self,
         content: str,
@@ -34,9 +85,9 @@ class BaseBackend(MemoryBackend, ABC):
 
         embedding = await self._embed(content)
         await self._store(artifact, embedding, **kwargs)
-        return artifact
+        return Result.ok(artifact)
 
-    @safe.memory()
+    @resilient(retry=Retry.api())
     async def read(
         self,
         query: str = None,
@@ -54,15 +105,19 @@ class BaseBackend(MemoryBackend, ABC):
 
         # Read by specific artifact_id
         if artifact_id:
-            return await self._read_by_id(artifact_id)
+            results = await self._read_by_id(artifact_id)
+            return Result.ok(results)
 
         # No query - return filtered artifacts
         if not query:
-            return await self._read(memory_type=memory_type, tags=tags, filters=filters, **kwargs)
+            results = await self._read(
+                memory_type=memory_type, tags=tags, filters=filters, **kwargs
+            )
+            return Result.ok(results)
 
         # Query-based search with storage-specific optimizations
         if self._has_search(search_type):
-            return await self._search(
+            results = await self._search(
                 query,
                 search_type,
                 limit,
@@ -72,12 +127,13 @@ class BaseBackend(MemoryBackend, ABC):
                 filters,
                 **kwargs,
             )
+            return Result.ok(results)
 
         # Fallback to search module
         artifacts = await self._read(memory_type=memory_type, tags=tags, filters=filters, **kwargs)
 
         if not artifacts:
-            return []
+            return Result.ok([])
 
         results = await search(
             query,
@@ -87,9 +143,9 @@ class BaseBackend(MemoryBackend, ABC):
             self.embedder,
             self._embed,
         )
-        return results[:limit]
+        return Result.ok(results[:limit])
 
-    @safe.memory()
+    @resilient(retry=Retry.api())
     async def update(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result:
         """UPDATE - Standard update logic with storage delegation."""
         await self._ready()
@@ -97,11 +153,12 @@ class BaseBackend(MemoryBackend, ABC):
         # Filter internal keys
         clean_updates = {k: v for k, v in updates.items() if k != "user_id"}
         if not clean_updates:
-            return True
+            return Result.ok(True)
 
-        return await self._update(artifact_id, clean_updates)
+        success = await self._update(artifact_id, clean_updates)
+        return Result.ok(success)
 
-    @safe.memory()
+    @resilient(retry=Retry.api())
     async def delete(
         self,
         artifact_id: UUID = None,
@@ -113,15 +170,15 @@ class BaseBackend(MemoryBackend, ABC):
         await self._ready()
 
         if delete_all:
-            return await self._delete_all()
+            success = await self._delete_all()
+        elif artifact_id:
+            success = await self._delete_by_id(artifact_id)
+        elif tags or filters:
+            success = await self._delete_by_filters(tags, filters)
+        else:
+            success = False
 
-        if artifact_id:
-            return await self._delete_by_id(artifact_id)
-
-        if tags or filters:
-            return await self._delete_by_filters(tags, filters)
-
-        return False
+        return Result.ok(success)
 
     # Storage primitives - implement these in subclasses
 
@@ -193,6 +250,6 @@ class BaseBackend(MemoryBackend, ABC):
         """Override for native search implementation."""
         raise NotImplementedError("Native search not implemented")
 
-    async def _embed(self, artifact_id: UUID) -> Optional[List[float]]:
-        """Override for efficient embedding retrieval during search."""
+    async def _embed(self, content: str) -> Optional[List[float]]:
+        """Override for efficient embedding generation."""
         return None

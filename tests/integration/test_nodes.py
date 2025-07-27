@@ -3,16 +3,15 @@
 from unittest.mock import AsyncMock
 
 import pytest
+from resilient_result import Result
 
 from cogency.context import Context
 from cogency.nodes.act import act
 from cogency.nodes.respond import respond
-from cogency.output import Output
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import execute_single_tool
 from cogency.utils.parsing import parse_tool_calls
-from cogency.utils.results import ToolResult
 
 
 class MockTool(BaseTool):
@@ -28,7 +27,7 @@ class MockTool(BaseTool):
     async def run(self, **kwargs):
         if self.should_fail:
             raise Exception("Tool execution failed")
-        return ToolResult(f"success from {self.name}")
+        return Result(f"success from {self.name}")
 
     def format_human(self, params, results=None):
         return f"({self.name})", str(results) if results else ""
@@ -89,7 +88,7 @@ async def test_respond_node_output():
         yield "The weather is sunny today!"
 
     async def mock_run(*args, **kwargs):
-        from cogency.utils.results import Result
+        from resilient_result import Result
 
         return Result.ok("The weather is sunny today!")
 
@@ -97,9 +96,12 @@ async def test_respond_node_output():
     mock_llm.run = mock_run
 
     context = Context(query="weather?", messages=[], user_id="test")
-    state = State(context=context, query="test", output=Output())
+    state = State(context=context, query="test")
 
-    result_state = await respond(state, llm=mock_llm, tools=[])
+    from cogency.nodes.respond import Respond
+
+    respond_node = Respond(llm=mock_llm, tools=[])
+    result_state = await respond_node(state)
 
     assert isinstance(result_state["final_response"], str)
     assert not result_state["final_response"].startswith("{")
@@ -111,14 +113,18 @@ async def test_act_routing():
     """Test act node routing behavior."""
     tool = MockTool("test_tool")
     context = Context(query="test", messages=[], user_id="test")
-    state = State(context=context, query="test", output=Output())
+    state = State(context=context, query="test")
     state["tool_calls"] = '[{"name": "test_tool", "args": {}}]'
 
-    result_state = await act(state, tools=[tool])
+    from cogency.nodes.act import Act
+
+    act_node = Act(tools=[tool])
+    result_state = await act_node(state)
     assert result_state["result"].success
 
     # Test no tool calls
     state["tool_calls"] = None
-    result_state = await act(state, tools=[])
+    act_node2 = Act(tools=[])
+    result_state = await act_node2(state)
     assert result_state["result"].success
     assert result_state["result"].data["type"] == "no_action"

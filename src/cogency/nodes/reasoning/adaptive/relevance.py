@@ -4,14 +4,14 @@ import json
 from typing import Any, Dict, List
 
 DEFAULT_MAX_ITEMS_TO_SCORE = 5
-DEFAULT_CONTENT_TRUNCATE_LENGTH = 200
+CONTENT_TRUNCATE_LEN = 200
 DEFAULT_SCORE_FALLBACK = 0.5
 FAST_MODE_MAX_HISTORY = 3
-FAST_MODE_MAX_FAILURES_CONTEXT = 2
+FAST_MAX_FAILURES = 2
 DEEP_MODE_MAX_HISTORY = 10
-DEEP_MODE_MAX_DECISIONS_TO_SCORE = 5
-DEEP_MODE_MAX_FAILURES_TO_SCORE = 3
-DEEP_MODE_MAX_FAILURES_CONTEXT = 5
+DEEP_MAX_DECISIONS = 5
+DEEP_MAX_FAILURES = 3
+DEEP_FAILURE_CONTEXT = 5
 
 
 async def score_memory_relevance(
@@ -41,7 +41,7 @@ async def score_memory_relevance(
         items_for_scoring.append(
             {
                 "id": i,
-                "content": content[:DEFAULT_CONTENT_TRUNCATE_LENGTH],  # Truncate for efficiency
+                "content": content[:CONTENT_TRUNCATE_LEN],  # Truncate for efficiency
             }
         )
 
@@ -124,9 +124,7 @@ async def relevant_context(
         max_history = FAST_MODE_MAX_HISTORY
         return {
             "recent_decisions": decision_history[-max_history:],
-            "recent_failures": failed_attempts[-FAST_MODE_MAX_FAILURES_CONTEXT:]
-            if failed_attempts
-            else [],
+            "recent_failures": failed_attempts[-FAST_MAX_FAILURES:] if failed_attempts else [],
         }
 
     else:  # Deep mode
@@ -138,12 +136,12 @@ async def relevant_context(
 
         # Add recent decisions
         for i, decision in enumerate(
-            decision_history[-DEEP_MODE_MAX_DECISIONS_TO_SCORE:]
+            decision_history[-DEEP_MAX_DECISIONS:]
         ):  # Look at more items to score
             all_items.append({"type": "decision", "content": f"Decision: {decision}", "index": i})
 
         # Add failed attempts with more context
-        for i, failure in enumerate(failed_attempts[-DEEP_MODE_MAX_FAILURES_TO_SCORE:]):
+        for i, failure in enumerate(failed_attempts[-DEEP_MAX_FAILURES:]):
             all_items.append(
                 {"type": "failure", "content": f"Failed attempt: {failure}", "index": i}
             )
@@ -179,7 +177,5 @@ async def relevant_context(
         # Fallback: FIFO with deep mode limits
         return {
             "recent_decisions": decision_history[-max_history:],
-            "recent_failures": failed_attempts[-DEEP_MODE_MAX_FAILURES_CONTEXT:]
-            if failed_attempts
-            else [],
+            "recent_failures": failed_attempts[-DEEP_FAILURE_CONTEXT:] if failed_attempts else [],
         }

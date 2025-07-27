@@ -45,9 +45,8 @@ async def test_routing_fast_react():
     )
 
     context = Context(query=query)
-    from cogency.output import Output
 
-    state = State(query=query, context=context, output=Output())
+    state = State(query=query, context=context)
 
     await preprocess(state, llm=llm, tools=tools, memory=None)
 
@@ -64,9 +63,8 @@ async def test_routing_deep_react():
     llm.response = '{"react_mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
 
     context = Context(query=query)
-    from cogency.output import Output
 
-    state = State(query=query, context=context, output=Output())
+    state = State(query=query, context=context)
 
     await preprocess(state, llm=llm, tools=tools, memory=None)
 
@@ -83,9 +81,8 @@ async def test_routing_response():
     llm.response = '{"selected_tools": [], "reasoning": "Simple greeting"}'
 
     context = Context(query=query)
-    from cogency.output import Output
 
-    state = State(query=query, context=context, output=Output())
+    state = State(query=query, context=context)
 
     await preprocess(state, llm=llm, tools=tools, memory=None)
 

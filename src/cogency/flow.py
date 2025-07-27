@@ -4,7 +4,7 @@ from typing import Any, Optional
 
 from langgraph.graph import END, StateGraph
 
-from cogency.memory.core import MemoryBackend
+from cogency.memory.backends.base import MemoryBackend
 from cogency.nodes.act import Act
 from cogency.nodes.preprocess import Preprocess
 from cogency.nodes.reason import Reason
@@ -24,6 +24,14 @@ class Flow:
         json_schema: Optional[str] = None,
         system_prompt: Optional[str] = None,
     ):
+        # Store key attributes for test access
+        self.llm = llm
+        self.tools = tools
+        self.memory = memory
+        self.identity = identity
+        self.json_schema = json_schema
+        self.system_prompt = system_prompt
+
         self.common_kwargs = {
             "llm": llm,
             "tools": tools,
@@ -42,20 +50,18 @@ class Flow:
         }
 
         flow = StateGraph(State)
-        
+
         for name, node in nodes.items():
             flow.add_node(name, node)
-            
+
         flow.set_entry_point("preprocess")
-        
+
         # All nodes self-route except respond which ends
         for name, node in nodes.items():
-            if hasattr(node, 'next_node') and callable(node.next_node):
+            if hasattr(node, "next_node") and callable(node.next_node):
                 if name == "respond":
                     flow.add_edge(name, END)
                 else:
                     flow.add_conditional_edges(name, node.next_node)
 
         return flow.compile()
-
-

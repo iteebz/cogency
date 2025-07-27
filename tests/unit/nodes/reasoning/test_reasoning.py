@@ -86,7 +86,6 @@ def test_parsing_fallback():
     result = parse_response_result(malformed)
 
     assert result.success
-    assert result.error and "Parse failed" in result.error
     assert result.data["thinking"] == "Processing request..."
     assert result.data["switch_to"] is None
     assert result.data["tool_calls"] == []

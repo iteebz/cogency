@@ -8,8 +8,9 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from resilient_result import Err, Ok, Result
+
 from cogency.memory.core import Memory, MemoryType, SearchType
-from cogency.utils.results import Err, Ok, Result
 
 from .base import BaseBackend
 
@@ -114,7 +115,7 @@ class PineconeBackend(BaseBackend):
             artifacts = []
             for match in results.matches:
                 if match.score >= threshold:
-                    artifact = self._to_memory_from_match(match)
+                    artifact = self._match_to_memory(match)
                     artifact.relevance_score = match.score
                     artifacts.append(artifact)
 
@@ -154,7 +155,7 @@ class PineconeBackend(BaseBackend):
             fetch_result = self._index.fetch(ids=[str(artifact_id)])
             if str(artifact_id) in fetch_result.vectors:
                 vector_data = fetch_result.vectors[str(artifact_id)]
-                artifact = self._to_memory_from_vector(str(artifact_id), vector_data)
+                artifact = self._vector_to_memory(str(artifact_id), vector_data)
                 return Ok([artifact])
             return Ok([])
         except Exception as e:
@@ -192,7 +193,7 @@ class PineconeBackend(BaseBackend):
 
             artifacts = []
             for match in results.matches:
-                artifact = self._to_memory_from_match(match)
+                artifact = self._match_to_memory(match)
                 artifacts.append(artifact)
 
             return Ok(artifacts)
@@ -269,7 +270,7 @@ class PineconeBackend(BaseBackend):
             logger.error(f"Failed to delete artifacts by filters {pinecone_filter}: {e}")
             return Err(e)
 
-    def _to_memory_from_vector(self, vector_id: str, vector: Dict) -> Memory:
+    def _vector_to_memory(self, vector_id: str, vector: Dict) -> Memory:
         """Convert Pinecone vector data to Memory."""
         metadata = vector.metadata
 
@@ -307,7 +308,7 @@ class PineconeBackend(BaseBackend):
 
         return artifact
 
-    def _to_memory_from_match(self, match) -> Memory:
+    def _match_to_memory(self, match) -> Memory:
         """Convert Pinecone match to Memory."""
         metadata = match.metadata
 

@@ -2,10 +2,10 @@ import logging
 from typing import Optional, Union
 
 import numpy as np
+from resilient_result import Err, Ok, Result
 
 from cogency.resilience import ConfigError
 from cogency.utils.keys import KeyManager
-from cogency.utils.results import Err, Ok, Result
 
 from .base import BaseEmbed
 

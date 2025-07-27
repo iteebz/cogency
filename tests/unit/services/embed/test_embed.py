@@ -1,9 +1,9 @@
 """Embedding service tests."""
 
 import pytest
+from resilient_result import Result
 
 from cogency.services.embed.base import BaseEmbed
-from cogency.utils.results import Result
 
 
 class MockEmbedder(BaseEmbed):

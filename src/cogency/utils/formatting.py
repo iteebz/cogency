@@ -146,13 +146,13 @@ def format_tool_params(params: Dict[str, Any]) -> str:
     return ""
 
 
-def summarize_tool_result(result: Any) -> str:
+def summarize_result(result: Any) -> str:
     """Extract key information from tool results for compact display"""
     if result is None:
         return "completed"
 
     try:
-        from cogency.utils.results import Result
+        from resilient_result import Result
 
         # Handle Result objects directly
         if isinstance(result, Result):

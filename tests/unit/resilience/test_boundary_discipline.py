@@ -1,179 +1,87 @@
-"""Essential boundary discipline tests - architectural contract enforcement."""
+"""Test boundary discipline - proper Result unwrapping in decorated functions."""
 
 from unittest.mock import Mock
 
 import pytest
+from resilient_result import Err, Ok, Result, Retry, resilient, unwrap
 
-from cogency.resilience import Err, Ok, Result, safe
-from cogency.resilience.utils import unwrap
+from cogency.context import Context
 from cogency.state import State
 
 
-class TestBoundaryContract:
-    """Core contract: Result objects NEVER leak beyond decorator boundary."""
-
-    @pytest.mark.asyncio
-    async def test_all_decorators_unwrap_consistently(self):
-        """CRITICAL: All decorators must unwrap Results to domain objects."""
-
-        @safe.memory()
-        async def memory_op(state):
-            return Ok("memory_result")
-
-        @safe.reasoning()
-        async def reasoning_op(state):
-            return Ok("reasoning_result")
-
-        @safe.act()
-        async def act_op(state):
-            return Ok("act_result")
-
-        state = Mock(spec=State)
-
-        # All must return unwrapped domain objects
-        memory_result = await memory_op(state)
-        reasoning_result = await reasoning_op(state)
-        act_result = await act_op(state)
-
-        # ARCHITECTURAL CONTRACT: No Result leakage
-        assert not isinstance(memory_result, Result)
-        assert not isinstance(reasoning_result, Result)
-        assert not isinstance(act_result, Result)
-
-        # Clean domain objects only
-        assert memory_result == "memory_result"
-        assert reasoning_result == "reasoning_result"
-        assert act_result == "act_result"
-
-    @pytest.mark.asyncio
-    async def test_error_unwrapping_preserves_exceptions(self):
-        """CRITICAL: Errors must unwrap to exceptions, preserving chains."""
-
-        @safe.memory(retries=1)
-        async def failing_op(state):
-            original = ConnectionError("network failed")
-            try:
-                raise ValueError("retry failed") from original
-            except ValueError as chained_error:
-                return Err(chained_error)
-
-        state = Mock(spec=State)
-
-        # Should raise unwrapped exception with preserved chain
-        with pytest.raises(ValueError, match="retry failed") as exc_info:
-            await failing_op(state)
-
-        # Exception chain MUST be preserved for debugging
-        assert isinstance(exc_info.value.__cause__, ConnectionError)
-        assert "network failed" in str(exc_info.value.__cause__)
-
-    def test_centralized_unwrap_logic(self):
-        """CRITICAL: unwrap is single source of truth."""
-
-        # Success case: Ok -> domain object
-        success = Ok("clean_data")
-        assert unwrap(success) == "clean_data"
-        assert not isinstance(unwrap(success), Result)
-
-        # Error case: Err -> exception
-        error = Err(ValueError("domain_error"))
-        with pytest.raises(ValueError, match="domain_error"):
-            unwrap(error)
-
-        # Passthrough: non-Result -> unchanged
-        domain_obj = {"state": "data"}
-        assert unwrap(domain_obj) is domain_obj
+def test_unwrap_success():
+    """Test unwrap extracts data from Ok Results."""
+    result = Ok("test data")
+    assert unwrap(result) == "test data"
 
 
-class TestRegressionPrevention:
-    """High-signal regression tests - these MUST NOT break."""
-
-    @pytest.mark.asyncio
-    async def test_end_to_end_boundary_integrity(self):
-        """REGRESSION GUARD: Full chain must maintain clean boundaries."""
-
-        @safe.memory()
-        async def memory_layer(state):
-            return Ok({"retrieved": "data"})
-
-        @safe.reasoning()
-        async def reasoning_layer(state):
-            # Domain operations should never see Results
-            memory_data = await memory_layer(state)
-            assert not isinstance(memory_data, Result), "BOUNDARY VIOLATION: Result leaked!"
-            return Ok(state)
-
-        @safe.act()
-        async def action_layer(state):
-            reasoning_result = await reasoning_layer(state)
-            assert not isinstance(reasoning_result, Result), "BOUNDARY VIOLATION: Result leaked!"
-            return Ok({"completed": True})
-
-        state = Mock(spec=State)
-        final_result = await action_layer(state)
-
-        # Final result must be clean domain object
-        assert not isinstance(final_result, Result)
-        assert final_result == {"completed": True}
-
-    def test_unwrap_state_false_internal_usage(self):
-        """REGRESSION GUARD: Internal code can still use Results when needed."""
-
-        @safe.memory(unwrap_state=False)
-        async def internal_resilience_op(state):
-            return Ok("internal_data")
-
-        # Internal resilience code can work with Results directly
-        async def test_internal():
-            state = Mock(spec=State)
-            result = await internal_resilience_op(state)
-            assert isinstance(result, Result)
-            assert result.success
-            assert result.data == "internal_data"
-
-        import asyncio
-
-        asyncio.run(test_internal())
+def test_unwrap_failure():
+    """Test unwrap raises exception for Err Results."""
+    result = Err("test error")
+    with pytest.raises(Exception):
+        unwrap(result)
 
 
-class TestArchitecturalLinchpin:
-    """Document the pattern that keeps everything clean."""
+def test_unwrap_standard():
+    """Test standard unwrap behavior with Result objects."""
+    # Standard unwrap expects Result objects - proper boundary discipline
+    assert unwrap(Ok("test")) == "test"
+    assert unwrap(Ok(42)) == 42
+    assert unwrap(Ok(None)) is None
 
-    def test_boundary_pattern_documentation(self):
-        """Living documentation of the Result boundary pattern."""
 
-        # RULE 1: Domain code works with clean objects
-        domain_data = "clean_state_object"
-        assert not isinstance(domain_data, Result)
+@pytest.mark.asyncio
+async def test_boundary_discipline_in_decorated_function():
+    """Test proper unwrapping inside @agent decorated functions."""
 
-        # RULE 2: isinstance(Result) allowed ONLY in decorators/unwrap
-        result_wrapper = Ok("data")
-        assert isinstance(result_wrapper, Result)  # Only acceptable at boundary
+    @resilient(retry=Retry.api())
+    async def mock_llm_call():
+        # Simulate LLM returning Result
+        return Ok("LLM response")
 
-        # RULE 3: Unwrapping is centralized and consistent
-        unwrapped = unwrap(result_wrapper)
-        assert unwrapped == "data"
-        assert not isinstance(unwrapped, Result)
+    # This simulates how nodes use unwrap inside decorated functions
+    @resilient(retry=Retry.api())
+    async def process_with_unwrap():
+        llm_result = await mock_llm_call()
+        # Boundary discipline: unwrap the Result inside the decorated function
+        raw_response = unwrap(llm_result)
+        return f"processed: {raw_response}"
 
-    def test_critical_regression_detector(self):
-        """High-signal test that fails immediately if boundary breaks."""
+    result = await process_with_unwrap()
+    assert result.success
+    assert result.data == "processed: LLM response"
 
-        @safe.memory()
-        async def test_function(state):
-            return Ok("should_be_unwrapped")
 
-        async def verify_boundary():
-            state = Mock(spec=State)
-            result = await test_function(state)
+@pytest.mark.asyncio
+async def test_unwrap_with_state_object():
+    """Test unwrap works correctly with State objects in decorated functions."""
 
-            # This assertion MUST pass - if it fails, the boundary is broken
-            assert not isinstance(result, Result), (
-                "CRITICAL REGRESSION: Result object leaked into domain layer! "
-                "The automatic unwrap mechanism is broken."
-            )
+    @resilient(retry=Retry.api())
+    async def node_function(state):
+        # Simulate parsing that returns Result
+        parse_result = Ok({"tool_calls": ["test_call"]})
 
-            return result == "should_be_unwrapped"
+        # Boundary discipline: unwrap inside the decorated function
+        parsed_data = unwrap(parse_result)
 
-        import asyncio
+        # Update state with unwrapped data
+        state["tool_calls"] = parsed_data["tool_calls"]
+        return state
 
-        assert asyncio.run(verify_boundary())
+    # Create test state
+    context = Context("test query")
+    state = State(context=context, query="test query")
+
+    result_state = await node_function(state)
+    assert result_state.success
+    assert result_state.data["tool_calls"] == ["test_call"]
+
+
+def test_unwrap_utility():
+    """Test standard unwrap utility with Result objects."""
+    # Test with Result objects - proper boundary discipline
+    assert unwrap(Ok("data")) == "data"
+
+    # Test error unwrapping
+    with pytest.raises(ValueError):
+        unwrap(Err("error message"))

@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional
 
 import pytz
 from dateutil import parser as date_parser
+from resilient_result import Result
 
 from cogency.resilience import ActionError
-from cogency.utils.results import ToolResult
 
 from .base import BaseTool
 from .registry import tool
@@ -72,7 +72,7 @@ class Time(BaseTool):
             "vancouver": "America/Vancouver",
         }
 
-    async def run(self, operation: str = "now", **kwargs) -> ToolResult:
+    async def run(self, operation: str = "now", **kwargs) -> Result:
         """Execute time operation.
 
         Args:
@@ -89,7 +89,7 @@ class Time(BaseTool):
 
         return await self._operations[operation](**kwargs)
 
-    async def _now(self, timezone: str = "UTC", format: str = None) -> ToolResult:
+    async def _now(self, timezone: str = "UTC", format: str = None) -> Result:
         """Get current time for timezone."""
         # Handle both location names and timezone names
         location_lower = timezone.lower()
@@ -116,9 +116,9 @@ class Time(BaseTool):
             "week_number": int(now.strftime("%W")),
         }
 
-        return ToolResult.ok(result)
+        return Result.ok(result)
 
-    async def _relative(self, datetime_str: str, reference: str = None) -> ToolResult:
+    async def _relative(self, datetime_str: str, reference: str = None) -> Result:
         """Get relative time description."""
         try:
             dt = date_parser.parse(datetime_str)
@@ -148,7 +148,7 @@ class Time(BaseTool):
                 days = int(abs(total_seconds) // 86400)
                 relative = f"{days} day{'s' if days != 1 else ''} {'ago' if total_seconds < 0 else 'from now'}"
 
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "datetime": datetime_str,
                     "reference": reference or "now",
@@ -159,7 +159,7 @@ class Time(BaseTool):
         except Exception as e:
             raise ActionError(f"Failed to calculate relative time: {str(e)}") from None
 
-    async def _convert_timezone(self, datetime_str: str, from_tz: str, to_tz: str) -> ToolResult:
+    async def _convert_timezone(self, datetime_str: str, from_tz: str, to_tz: str) -> Result:
         """Convert datetime between timezones."""
         try:
             dt = date_parser.parse(datetime_str)
@@ -171,7 +171,7 @@ class Time(BaseTool):
             to_timezone = pytz.timezone(to_tz)
             converted = dt.astimezone(to_timezone)
 
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "original": datetime_str,
                     "from_timezone": from_tz,
@@ -184,10 +184,10 @@ class Time(BaseTool):
             logger.error(
                 f"Failed to convert timezone from {from_tz} to {to_tz} for {datetime_str}: {e}"
             )
-            return ToolResult.fail(f"Failed to convert timezone: {str(e)}")
+            return Result.fail(f"Failed to convert timezone: {str(e)}")
 
     def format_human(
-        self, params: dict[str, Any], results: Optional[ToolResult] = None
+        self, params: dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format time execution for display."""
 

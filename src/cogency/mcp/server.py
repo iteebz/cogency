@@ -10,7 +10,7 @@ from mcp.types import TextContent, Tool
 from pydantic import BaseModel
 
 
-class AgentInteractionRequest(BaseModel):
+class InteractionRequest(BaseModel):
     """Request for agent interaction from UI component"""
 
     input_text: str

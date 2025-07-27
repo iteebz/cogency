@@ -2,11 +2,11 @@
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[project]
+[tool.poetry]
 name = "cogency"
 version = "1.0.0"
 description = "Smart AI agents that think as hard as they need to."
-authors = [{ name = "Tyson Chan", email = "tyson.chan@proton.me" }]
+authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
 license = "Apache-2.0"
 homepage = "https://github.com/iteebz/cogency"
@@ -24,34 +24,58 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-requires-python = ">=3.10,<4.0"
-dependencies = [
-    "aiohttp>=3.12.14,<4.0.0",
-    "ddgs",
-    "google-genai (>=1.26.0,<2.0.0)",
-    "langgraph",
-    "mcp>=1.0.0",
-    "nomic (>=3.5.3,<4.0.0)",
-    "numpy>=1.24.0",
-    "psutil>=5.9.0",
-    "pydantic>=2.0",
-    "pytest-timeout>=2.4.0,<3.0.0",
-    "python-dateutil>=2.8.0",
-    "python-dotenv>=1.0.0",
-    "pytz>=2023.0",
-    "trafilatura (>=2.0.0,<3.0.0)",
-    "typing-extensions>=4.0",
-    "resilient-result (==0.2.1)",
-]
+packages = [{ include = "cogency", from = "src" }]
 
-[project.optional-dependencies]
-openai = ["openai"]
-anthropic = ["anthropic"]
-mistral = ["mistralai"]
+[tool.poetry.dependencies]
+python = ">=3.10,<4.0"
+
+# Core dependencies
+pydantic = ">=2.0"
+typing-extensions = ">=4.0"
+python-dotenv = ">=1.0.0"
+resilient-result = "0.3.0"
+
+# AI/ML frameworks
+langgraph = "*"
+google-genai = ">=1.26.0,<2.0.0"
+nomic = ">=3.5.3,<4.0.0"
+
+# Networking & HTTP
+aiohttp = ">=3.12.14,<4.0.0"
+mcp = ">=1.0.0"
+
+# Data processing
+numpy = ">=1.24.0"
+trafilatura = ">=2.0.0,<3.0.0"
+ddgs = "*"
+
+# System utilities
+psutil = ">=5.9.0"
+python-dateutil = ">=2.8.0"
+pytz = ">=2023.0"
+
+
+# LLM providers - included by default
+openai = "*"
+anthropic = "*"
+mistralai = "*"
+
+# Optional embedding providers
+sentence-transformers = { version = "*", optional = true }
+
+# Vector databases - pinecone included by default
+pinecone = "*"
+
+# Optional vector databases (heavy dependencies)
+chromadb = { version = "*", optional = true }
+pgvector = { version = "*", optional = true }
+asyncpg = { version = "*", optional = true }
+psycopg2-binary = { version = "*", optional = true }
+
+[tool.poetry.extras]
 sentence-transformers = ["sentence-transformers"]
 chromadb = ["chromadb"]
-pgvector = ["pgvector", "psycopg2-binary"]
-pinecone = ["pinecone-client"]
+pgvector = ["pgvector", "asyncpg", "psycopg2-binary"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.0.0"
@@ -59,13 +83,11 @@ isort = "^5.12.0"
 mypy = "^1.8.0"
 pytest = "^8.4.1"
 pytest-asyncio = "^0.21.0"
+pytest-timeout = "^2.4.0"
 types-psutil = "^6.0.0"
 types-python-dateutil = "^2.8.0"
 types-pytz = "^2024.0"
 
-
-[tool.poetry]
-packages = [{ include = "cogency", from = "src" }]
 
 [tool.black]
 line-length = 100
@@ -75,36 +97,6 @@ target-version = ['py39']
 profile = "black"
 line_length = 88
 
-[tool.mypy]
-python_version = "3.10"
-# Enable strict mode but with practical exceptions
-strict = true
-warn_return_any = false  # Too noisy for practical development
-warn_unused_configs = true
-ignore_missing_imports = true
-# Allow some flexibility for rapid development
-allow_untyped_calls = true
-allow_untyped_defs = false  # Still require function signatures
-check_untyped_defs = true
-# Be more lenient with Any usage in complex scenarios
-disallow_any_generics = false
-
-[[tool.mypy.overrides]]
-module = [
-    "mcp.*",
-    "nomic.*",
-    "pinecone.*",
-    "asyncpg.*",
-    "aiomysql.*",
-    "langgraph.*",
-    "chromadb.*",
-]
-ignore_errors = true
-
-# Allow more flexibility in test files
-[[tool.mypy.overrides]]
-module = "tests.*"
-ignore_errors = true
 
 [tool.ruff]
 line-length = 100

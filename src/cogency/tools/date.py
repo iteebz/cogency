@@ -7,9 +7,9 @@ from typing import Any, Dict, Optional
 
 import pytz
 from dateutil import parser as date_parser
+from resilient_result import Result
 
 from cogency.resilience import ActionError
-from cogency.utils.results import ToolResult
 
 from .base import BaseTool
 from .registry import tool
@@ -58,7 +58,7 @@ class Date(BaseTool):
             "weekday": self._weekday,
         }
 
-    async def run(self, operation: str = "parse", **kwargs) -> ToolResult:
+    async def run(self, operation: str = "parse", **kwargs) -> Result:
         """Execute date operation.
         Args:
             operation: Operation to perform (parse, format, add, subtract, diff, is_weekend, weekday)
@@ -72,7 +72,7 @@ class Date(BaseTool):
             )
         return await self._operations[operation](**kwargs)
 
-    async def _parse(self, date_string: str, timezone: str = None) -> ToolResult:
+    async def _parse(self, date_string: str, timezone: str = None) -> Result:
         """Parse date string."""
         try:
             parsed = date_parser.parse(date_string)
@@ -83,7 +83,7 @@ class Date(BaseTool):
                 else:
                     tz = pytz.timezone(timezone)
                     parsed = parsed.astimezone(tz)
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "original": date_string,
                     "parsed": parsed.date().isoformat(),
@@ -94,18 +94,18 @@ class Date(BaseTool):
                 }
             )
         except Exception as e:
-            return ToolResult.fail(f"Failed to parse date string '{date_string}': {str(e)}")
+            return Result.fail(f"Failed to parse date string '{date_string}': {str(e)}")
 
-    async def _format(self, date_str: str, format: str) -> ToolResult:
+    async def _format(self, date_str: str, format: str) -> Result:
         """Format date string."""
         try:
             dt = date_parser.parse(date_str)
             formatted = dt.strftime(format)
-            return ToolResult.ok({"original": date_str, "format": format, "formatted": formatted})
+            return Result.ok({"original": date_str, "format": format, "formatted": formatted})
         except Exception as e:
-            return ToolResult.fail(f"Failed to format date: {str(e)}")
+            return Result.fail(f"Failed to format date: {str(e)}")
 
-    async def _add(self, date_str: str, **kwargs) -> ToolResult:
+    async def _add(self, date_str: str, **kwargs) -> Result:
         """Add time to date."""
         try:
             dt = date_parser.parse(date_str)
@@ -114,10 +114,10 @@ class Date(BaseTool):
                 if key in kwargs:
                     delta_kwargs[key] = kwargs[key]
             if not delta_kwargs:
-                return ToolResult.fail("No time units provided. Use days or weeks.")
+                return Result.fail("No time units provided. Use days or weeks.")
             delta = timedelta(**delta_kwargs)
             result_dt = dt + delta
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "original": date_str,
                     "added": delta_kwargs,
@@ -127,9 +127,9 @@ class Date(BaseTool):
                 }
             )
         except Exception as e:
-            return ToolResult.fail(f"Failed to add time: {str(e)}")
+            return Result.fail(f"Failed to add time: {str(e)}")
 
-    async def _subtract(self, date_str: str, **kwargs) -> ToolResult:
+    async def _subtract(self, date_str: str, **kwargs) -> Result:
         """Subtract time from date."""
         try:
             dt = date_parser.parse(date_str)
@@ -138,10 +138,10 @@ class Date(BaseTool):
                 if key in kwargs:
                     delta_kwargs[key] = kwargs[key]
             if not delta_kwargs:
-                return ToolResult.fail("No time units provided. Use days or weeks.")
+                return Result.fail("No time units provided. Use days or weeks.")
             delta = timedelta(**delta_kwargs)
             result_dt = dt - delta
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "original": date_str,
                     "subtracted": delta_kwargs,
@@ -151,15 +151,15 @@ class Date(BaseTool):
                 }
             )
         except Exception as e:
-            return ToolResult.fail(f"Failed to subtract time: {str(e)}")
+            return Result.fail(f"Failed to subtract time: {str(e)}")
 
-    async def _diff(self, start_date: str, end_date: str) -> ToolResult:
+    async def _diff(self, start_date: str, end_date: str) -> Result:
         """Calculate difference between two dates."""
         try:
             start = date_parser.parse(start_date)
             end = date_parser.parse(end_date)
             diff = end.date() - start.date()
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "start": start_date,
                     "end": end_date,
@@ -169,14 +169,14 @@ class Date(BaseTool):
                 }
             )
         except Exception as e:
-            return ToolResult.fail(f"Failed to calculate difference: {str(e)}")
+            return Result.fail(f"Failed to calculate difference: {str(e)}")
 
-    async def _is_weekend(self, date_str: str) -> ToolResult:
+    async def _is_weekend(self, date_str: str) -> Result:
         """Check if date falls on weekend."""
         try:
             dt = date_parser.parse(date_str)
             is_weekend = dt.weekday() >= 5
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "date": date_str,
                     "is_weekend": is_weekend,
@@ -185,13 +185,13 @@ class Date(BaseTool):
                 }
             )
         except Exception as e:
-            return ToolResult.fail(f"Failed to check weekend: {str(e)}")
+            return Result.fail(f"Failed to check weekend: {str(e)}")
 
-    async def _weekday(self, date_str: str) -> ToolResult:
+    async def _weekday(self, date_str: str) -> Result:
         """Get weekday information."""
         try:
             dt = date_parser.parse(date_str)
-            return ToolResult.ok(
+            return Result.ok(
                 {
                     "date": date_str,
                     "weekday": dt.strftime("%A"),
@@ -201,10 +201,10 @@ class Date(BaseTool):
                 }
             )
         except Exception as e:
-            return ToolResult.fail(f"Failed to get weekday: {str(e)}")
+            return Result.fail(f"Failed to get weekday: {str(e)}")
 
     def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+        self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format date execution for display."""
         operation = params.get("operation", "")

@@ -11,7 +11,7 @@ from cogency.services.llm.base import BaseLLM
 class OpenAILLM(BaseLLM):
     def __init__(self, **kwargs):
         super().__init__("openai", **kwargs)
-    
+
     @property
     def default_model(self) -> str:
         return "gpt-4o"

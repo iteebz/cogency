@@ -6,7 +6,6 @@ from typing import Dict, Optional, Type
 
 from .embed.base import BaseEmbed
 from .llm.base import BaseLLM
-from .memory.base import MemoryBackend
 
 
 class ServiceRegistry:
@@ -15,7 +14,6 @@ class ServiceRegistry:
     def __init__(self):
         self._llm_providers: Dict[str, Type[BaseLLM]] = {}
         self._embed_providers: Dict[str, Type[BaseEmbed]] = {}
-        self._memory_services: Dict[str, Type[MemoryBackend]] = {}
         self._discovered = False
 
     def _discover_services(self):
@@ -24,17 +22,14 @@ class ServiceRegistry:
             return
 
         # Discover LLM providers
-        self._discover_in_package("cogency.services.llm", BaseLLM, self._llm_providers)
+        self._discover_package("cogency.services.llm", BaseLLM, self._llm_providers)
 
         # Discover embed providers
-        self._discover_in_package("cogency.services.embed", BaseEmbed, self._embed_providers)
-
-        # Discover memory backends
-        self._discover_in_package("cogency.services.memory", MemoryBackend, self._memory_services)
+        self._discover_package("cogency.services.embed", BaseEmbed, self._embed_providers)
 
         self._discovered = True
 
-    def _discover_in_package(self, package_name: str, base_class: Type, registry: Dict[str, Type]):
+    def _discover_package(self, package_name: str, base_class: Type, registry: Dict[str, Type]):
         """Discover implementations in a package."""
         try:
             package = importlib.import_module(package_name)
@@ -93,19 +88,6 @@ class ServiceRegistry:
 
         return self._embed_providers[provider]
 
-    def get_memory(self, backend: Optional[str] = None) -> Type[MemoryBackend]:
-        """Get memory backend class."""
-        self._discover_services()
-
-        if backend is None:
-            backend = "filesystem"  # Default
-
-        if backend not in self._memory_services:
-            available = list(self._memory_services.keys())
-            raise ValueError(f"Memory backend '{backend}' not found. Available: {available}")
-
-        return self._memory_services[backend]
-
 
 # Global registry instance
 _registry = ServiceRegistry()
@@ -113,6 +95,5 @@ _registry = ServiceRegistry()
 # PURE CLEAN API - zero ceremony
 llm = _registry.get_llm
 embed = _registry.get_embed
-memory = _registry.get_memory
 
-__all__ = ["llm", "embed", "memory"]
+__all__ = ["llm", "embed"]

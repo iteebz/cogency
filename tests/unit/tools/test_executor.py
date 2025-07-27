@@ -3,20 +3,20 @@
 from unittest.mock import AsyncMock, Mock
 
 import pytest
+from resilient_result import Result
 
 from cogency.tools.executor import run_tools
-from cogency.utils.results import ToolResult
 
 
 @pytest.mark.asyncio
 async def test_basic_execution():
     search_tool = Mock()
     search_tool.name = "search"
-    search_tool.execute = AsyncMock(return_value=ToolResult("search results"))
+    search_tool.execute = AsyncMock(return_value=Result("search results"))
 
     weather_tool = Mock()
     weather_tool.name = "weather"
-    weather_tool.execute = AsyncMock(return_value=ToolResult("sunny"))
+    weather_tool.execute = AsyncMock(return_value=Result("sunny"))
 
     tools = [search_tool, weather_tool]
     context = Mock()
@@ -35,11 +35,11 @@ async def test_basic_execution():
 async def test_file_shell_exec():
     file_tool = Mock()
     file_tool.name = "create_file"
-    file_tool.execute = AsyncMock(return_value=ToolResult("file created"))
+    file_tool.execute = AsyncMock(return_value=Result("file created"))
 
     shell_tool = Mock()
     shell_tool.name = "run_shell"
-    shell_tool.execute = AsyncMock(return_value=ToolResult("command executed"))
+    shell_tool.execute = AsyncMock(return_value=Result("command executed"))
 
     tools = [file_tool, shell_tool]
     context = Mock()

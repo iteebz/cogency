@@ -72,7 +72,7 @@ def query_needs_tools(query: str, available_tools: List) -> bool:
     return needs_tools
 
 
-def calculate_backoff_delay(retry_count: int, base_delay: float = 1.0) -> float:
+def calc_backoff(retry_count: int, base_delay: float = 1.0) -> float:
     """Calculate exponential backoff delay for network retries.
 
     Structural heuristic: Standard exponential backoff to avoid hammering

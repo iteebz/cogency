@@ -4,9 +4,7 @@ import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
-
-from cogency.agents.base import BaseAgent
-from cogency.utils.results import Result
+from resilient_result import Result
 
 
 class MockMultiStepLLM:
@@ -93,7 +91,7 @@ tmpfs           8.0G  1.2G  6.8G  15% /tmp"""
 
 
 @pytest.mark.asyncio
-async def test_multi_step():
+async def test_multi_step(base_agent):
     """Test agent can perform complex multi-step reasoning tasks."""
 
     # Setup mocks
@@ -101,7 +99,7 @@ async def test_multi_step():
     mock_bash = MockBashTool()
 
     # Create agent
-    agent = BaseAgent(llm=mock_llm, tools=[mock_bash], max_iterations=8)
+    agent = base_agent(llm=mock_llm, tools=[mock_bash], max_iterations=8)
 
     # Run complex analysis task
     result = await agent.run(
@@ -118,7 +116,7 @@ async def test_multi_step():
 
 
 @pytest.mark.asyncio
-async def test_with_failures():
+async def test_with_failures(base_agent):
     """Test multi-step reasoning recovers from intermediate failures."""
 
     class SometimesFailingBash:
@@ -152,7 +150,7 @@ async def test_with_failures():
             else:
                 return Result.ok("Analysis complete using alternative methods.")
 
-    agent = BaseAgent(llm=RecoveryLLM(), tools=[SometimesFailingBash()], max_iterations=6)
+    agent = base_agent(llm=RecoveryLLM(), tools=[SometimesFailingBash()], max_iterations=6)
 
     result = await agent.run("Analyze system configuration files")
 

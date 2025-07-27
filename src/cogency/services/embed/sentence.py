@@ -1,6 +1,5 @@
 import numpy as np
-
-from cogency.utils.results import Err, Ok, Result
+from resilient_result import Err, Ok, Result
 
 from .base import BaseEmbed
 

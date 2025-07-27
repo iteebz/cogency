@@ -1,16 +1,38 @@
-"""Checkpoint storage and state management for workflow recovery."""
+"""Checkpoint decorator for workflow recovery - focused and clean."""
 
 import hashlib
 import json
 import os
 from datetime import datetime, timedelta
+from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, Optional
 
 from cogency.state import State
 
+"""Checkpoint storage and state management for workflow recovery."""
 
-class CheckpointManager:
+
+def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = False):
+    """@safe.checkpoint - Workflow recovery with state persistence."""
+
+    def decorator(func):
+        @wraps(func)
+        async def checkpointed_func(*args, **kwargs):
+            # Simple pass-through for now - checkpoint functionality disabled
+            # TODO: Implement proper checkpoint functionality
+            return await func(*args, **kwargs)
+
+        return checkpointed_func
+
+    return decorator
+
+
+# Checkpoint functionality temporarily disabled
+# TODO: Implement proper checkpoint functionality with state persistence
+
+
+class Checkpoint:
     """Manages checkpoint storage and retrieval."""
 
     def __init__(self, checkpoint_dir: Optional[Path] = None, session_id: Optional[str] = None):
@@ -38,7 +60,7 @@ class CheckpointManager:
         """Get filesystem path for checkpoint."""
         return self.checkpoint_dir / f"{fingerprint}.json"
 
-    def save_checkpoint(self, state: State, checkpoint_type: str = "tool_execution") -> str:
+    def save(self, state: State, checkpoint_type: str = "tool_execution") -> str:
         """Save checkpoint with meaningful progress."""
         fingerprint = self._generate_fingerprint(state)
         checkpoint_path = self._get_checkpoint_path(fingerprint)
@@ -86,7 +108,7 @@ class CheckpointManager:
 
         return fingerprint
 
-    def find_checkpoint(self, state: State) -> Optional[str]:
+    def find(self, state: State) -> Optional[str]:
         """Find matching checkpoint for current state."""
         fingerprint = self._generate_fingerprint(state)
         checkpoint_path = self._get_checkpoint_path(fingerprint)
@@ -111,7 +133,7 @@ class CheckpointManager:
             checkpoint_path.unlink()
             return None
 
-    def load_checkpoint(self, fingerprint: str) -> Optional[Dict[str, Any]]:
+    def load(self, fingerprint: str) -> Optional[Dict[str, Any]]:
         """Load checkpoint data by fingerprint."""
         checkpoint_path = self._get_checkpoint_path(fingerprint)
 
@@ -141,19 +163,19 @@ class CheckpointManager:
                 checkpoint_file.unlink()
 
 
-def resume(state: "State") -> bool:
+def resume(state: State) -> bool:
     """Resume workflow from saved checkpoint if available."""
-    checkpoint_id = checkpoints.find_checkpoint(state)
+    checkpoint_id = checkpointer.find(state)
     if not checkpoint_id:
         return False
 
-    checkpoint_data = checkpoints.load_checkpoint(checkpoint_id)
+    checkpoint_data = checkpointer.load(checkpoint_id)
     if not checkpoint_data:
         return False
 
     # Restore state from checkpoint
-    state.flow["resume_from_checkpoint"] = True
-    state.flow["checkpoint_id"] = checkpoint_id
+    state["resume_from_checkpoint"] = True
+    state["checkpoint_id"] = checkpoint_id
 
     # Restore flow data
     for key, value in checkpoint_data.items():
@@ -173,7 +195,7 @@ def resume(state: "State") -> bool:
                     state.context.chat = value
             else:
                 # Restore other flow data
-                state.flow[key] = value
+                state[key] = value
 
     # Add recovery context for LLM
     _add_checkpoint_context(state, checkpoint_data)
@@ -205,4 +227,4 @@ def _add_checkpoint_context(state: "State", checkpoint_data: Dict[str, Any]) -> 
 
 
 # Global checkpoint manager instance
-checkpoints = CheckpointManager()
+checkpointer = Checkpoint()

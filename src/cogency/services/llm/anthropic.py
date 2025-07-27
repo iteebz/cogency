@@ -1,5 +1,5 @@
 import logging
-from typing import AsyncIterator, Dict, List, Union
+from typing import AsyncIterator, Dict, List
 
 try:
     import anthropic
@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class AnthropicLLM(BaseLLM):
     def __init__(self, **kwargs):
         super().__init__("anthropic", **kwargs)
-    
+
     @property
     def default_model(self) -> str:
         return "claude-3-5-sonnet-20241022"

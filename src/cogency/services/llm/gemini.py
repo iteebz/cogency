@@ -13,7 +13,7 @@ from cogency.services.llm.base import BaseLLM
 class GeminiLLM(BaseLLM):
     def __init__(self, **kwargs):
         super().__init__("gemini", **kwargs)
-    
+
     @property
     def default_model(self) -> str:
         return "gemini-2.5-flash"
@@ -24,7 +24,7 @@ class GeminiLLM(BaseLLM):
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
         client = self._get_client()
-        
+
         response = await client.aio.models.generate_content(
             model=self.model,
             contents=prompt,
@@ -39,7 +39,7 @@ class GeminiLLM(BaseLLM):
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
         client = self._get_client()
-        
+
         try:
             async for chunk in await client.aio.models.generate_content_stream(
                 model=self.model,
@@ -47,7 +47,9 @@ class GeminiLLM(BaseLLM):
                 config=genai.types.GenerateContentConfig(
                     temperature=self.temperature,
                     max_output_tokens=self.max_tokens,
-                    **{k: v for k, v in kwargs.items() if k in ["top_p", "top_k", "stop_sequences"]},
+                    **{
+                        k: v for k, v in kwargs.items() if k in ["top_p", "top_k", "stop_sequences"]
+                    },
                 ),
             ):
                 if chunk.text:

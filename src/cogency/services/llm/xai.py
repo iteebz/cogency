@@ -14,7 +14,7 @@ from cogency.services.llm.base import BaseLLM
 class xAILLM(BaseLLM):
     def __init__(self, **kwargs):
         super().__init__("xai", **kwargs)
-    
+
     @property
     def default_model(self) -> str:
         return "grok-beta"

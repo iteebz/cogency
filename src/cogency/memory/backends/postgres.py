@@ -5,8 +5,9 @@ import logging
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from resilient_result import Err, Ok, Result
+
 from cogency.memory.core import Memory, MemoryType, SearchType
-from cogency.utils.results import Err, Ok, Result
 
 from .base import BaseBackend
 

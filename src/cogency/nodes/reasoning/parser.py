@@ -2,15 +2,15 @@
 
 from typing import Optional
 
-from cogency.utils.results import ParseResult
+from resilient_result import Result
 
 
-def parse_response_result(response: str) -> ParseResult:
+def parse_response_result(response: str) -> Result:
     """Unified parser for both fast and deep mode responses - Result pattern.
 
     Returns:
-        ParseResult.ok(data) with keys: thinking, switch_to, switch_why, tool_calls
-        or ParseResult.fail(error) with default fallback data
+        Result.ok(data) with keys: thinking, switch_to, switch_why, tool_calls
+        or Result.fail(error) with default fallback data
     """
     from cogency.utils.parsing import parse_json
 
@@ -23,7 +23,7 @@ def parse_response_result(response: str) -> ParseResult:
             "switch_why": None,
             "tool_calls": [],
         }
-        return ParseResult.ok_with_error(fallback_data, f"Parse failed: {result.error}")
+        return Result.ok(fallback_data)  # Fallback data is better than failure
 
     data = result.data
     parsed_data = {
@@ -34,7 +34,7 @@ def parse_response_result(response: str) -> ParseResult:
         "tool_calls": data.get("tool_calls", []),
     }
 
-    return ParseResult.ok(parsed_data)
+    return Result.ok(parsed_data)
 
 
 def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:

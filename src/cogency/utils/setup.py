@@ -2,7 +2,7 @@
 
 from typing import Any, List, Optional
 
-from cogency.services.memory.filesystem import FileBackend
+from cogency.memory.backends.filesystem import FileBackend
 from cogency.tools.registry import ToolRegistry
 
 

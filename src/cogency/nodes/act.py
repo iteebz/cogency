@@ -4,14 +4,14 @@ import logging
 import time
 from typing import List
 
+# Tool retry logic now handled by @safe.act() decorator
+from resilient_result import Result
+
 from cogency.nodes.base import Node
-from cogency.resilience import safe
+from cogency.resilience import robust
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import run_tools
-
-# Tool retry logic now handled by @safe.act() decorator
-from cogency.utils.results import Result
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class Act(Node):
     def __init__(self, **kwargs):
         super().__init__(act, **kwargs)
-        
+
     def next_node(self, state: State) -> str:
         execution_results = state.result
         current_iter = state.iteration
@@ -41,9 +41,10 @@ class Act(Node):
                 return "reason"
         else:
             from cogency.nodes.reasoning.adaptive import assess_tools
+
             tool_quality = assess_tools(execution_results)
             quality_attempts = state.quality_retries
-            
+
             if tool_quality in ["failed", "poor"] and quality_attempts < 2:
                 state["quality_retries"] = quality_attempts + 1
                 return "reason"
@@ -53,8 +54,7 @@ class Act(Node):
                 return "reason"
 
 
-@safe.checkpoint("act")
-@safe.act()
+@robust.act()
 async def act(state: State, *, tools: List[BaseTool]) -> State:
     """Act: execute tools based on reasoning decision."""
     time.time()
@@ -79,7 +79,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     tool_tuples = [(call["name"], call["args"]) for call in tool_calls]
 
     # Let @safe.act() handle all tool execution errors, retries, and recovery
-    tool_result = await run_tools(tool_tuples, selected_tools, context, state.output)
+    tool_result = await run_tools(tool_tuples, selected_tools, context, state)
     results = Result.ok(tool_result.data)
 
     # Removed trace - clean tool output speaks for itself
@@ -88,13 +88,13 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     state["result"] = results
 
     # Update cognition with formatted results after tool execution
-    if results.success and state.tool_calls and state.cognition.iterations:
+    if results.success and state.tool_calls and state.iterations:
         from cogency.nodes.reason import format_actions
 
         tool_calls = state.tool_calls
         formatted_result = format_actions(results, tool_calls, selected_tools)
         # Update the last entry with formatted results
-        state.cognition.update_result(formatted_result)
+        state.update_result(formatted_result)
 
     # Note: iteration is incremented in reason.py, not here
 

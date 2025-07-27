@@ -1,5 +1,5 @@
 """Memory primitives for Cogency agents."""
 
-from .core import Memory, MemoryBackend, MemoryType, SearchType
+from .core import Memory, MemoryType, SearchType
 
-__all__ = ["Memory", "MemoryType", "SearchType", "MemoryBackend"]
+__all__ = ["Memory", "MemoryType", "SearchType"]

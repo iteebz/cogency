@@ -3,43 +3,10 @@
 import asyncio
 import signal
 from contextlib import asynccontextmanager
-from typing import Any
-from resilient_result import Result, resilient
 
+from resilient_result import resilient
 
-def unwrap(obj):
-    """Universal unwrapper - handles Result objects and passes through everything else.
-    
-    NOTE: This extends resilient-result which surprisingly lacks an unwrap() method.
-    Should probably be contributed upstream to resilient-result library.
-    """
-    if isinstance(obj, Result):
-        if obj.success:
-            return obj.data
-        # Handle string errors consistently  
-        error = obj.error
-        if isinstance(error, str):
-            raise ValueError(error)
-        raise error
-    return obj  # Pass through non-Result objects
-
-
-
-
-def smart_unwrap(obj: Any) -> Any:
-    """Smart Result unwrapping - clean boundary discipline helper.
-
-    Unwraps Result objects when needed, passes through everything else.
-    Use inside decorated functions where boundary discipline requires manual unwrapping.
-    """
-    if hasattr(obj, "success") and hasattr(obj, "data") and hasattr(obj, "error"):
-        if not obj.success:
-            error = obj.error
-            if isinstance(error, str):
-                raise ValueError(error)
-            raise error
-        return obj.data
-    return obj
+# unwrap() now available from resilient-result v0.3.0
 
 
 @asynccontextmanager
@@ -64,13 +31,17 @@ async def interruptible_context():
 
 def state_aware_handler(unwrap_state: bool = True):
     """Create a handler that properly manages State objects."""
+
     async def handler(error, func, args, kwargs):
         return None  # Trigger retry
+
     return handler
 
 
 def state_aware(handler=None, retries: int = 3, unwrap_state: bool = True, **kwargs):
     """State-aware decorator using resilient-result as base."""
+    from resilient_result import Retry
+
     if handler is None:
         handler = state_aware_handler(unwrap_state)
-    return resilient(handler=handler, retries=retries, **kwargs)
+    return resilient(retry=Retry(attempts=retries), handler=handler, **kwargs)

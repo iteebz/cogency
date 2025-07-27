@@ -242,7 +242,7 @@ def profile_sync(operation_name: str, func: Callable, *args, **kwargs):
     return asyncio.run(wrapper())
 
 
-class CogencyProfiler:
+class Profiler:
     """Specialized profiler for cogency framework operations."""
 
     def __init__(self):
@@ -252,15 +252,15 @@ class CogencyProfiler:
         """Profile the complete reasoning loop."""
         return await profile_async("reasoning_loop", func, *args, **kwargs)
 
-    async def profile_tool_execution(self, func, *args, **kwargs) -> Any:
+    async def profile_tools(self, func, *args, **kwargs) -> Any:
         """Profile tool execution operations."""
         return await profile_async("tool_execution", func, *args, **kwargs)
 
-    async def profile_memory_access(self, func, *args, **kwargs) -> Any:
+    async def profile_memory(self, func, *args, **kwargs) -> Any:
         """Profile memory access operations."""
         return await profile_async("memory_access", func, *args, **kwargs)
 
-    async def profile_llm_inference(self, func, *args, **kwargs) -> Any:
+    async def profile_llm(self, func, *args, **kwargs) -> Any:
         """Profile LLM inference operations."""
         return await profile_async("llm_inference", func, *args, **kwargs)
 

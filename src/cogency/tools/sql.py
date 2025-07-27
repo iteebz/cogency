@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 
-from cogency.utils.results import ToolResult
+from resilient_result import Result
 
 from .base import BaseTool
 from .registry import tool
@@ -63,7 +63,7 @@ class SQL(BaseTool):
         timeout: int = 30,
         params: Optional[List] = None,
         **kwargs,
-    ) -> ToolResult:
+    ) -> Result:
         """Execute SQL query using dispatch pattern.
         Args:
             query: SQL query to execute
@@ -80,10 +80,10 @@ class SQL(BaseTool):
             driver = parsed.scheme.lower()
         except Exception as e:
             logger.error(f"Context: {e}")
-            return ToolResult.fail("Invalid connection string format")
+            return Result.fail("Invalid connection string format")
         if driver not in self._drivers:
             available = ", ".join(set(self._drivers.keys()))
-            return ToolResult.fail(f"Unsupported database driver. Use: {available}")
+            return Result.fail(f"Unsupported database driver. Use: {available}")
         # Limit timeout
         timeout = min(max(timeout, 1), 300)  # 1-300 seconds for DB queries
         # Dispatch to appropriate database handler
@@ -92,7 +92,7 @@ class SQL(BaseTool):
 
     async def _execute_sqlite(
         self, query: str, connection: str, timeout: int, params: List
-    ) -> ToolResult:
+    ) -> Result:
         """Execute SQLite query."""
         try:
             # Parse SQLite path from connection string
@@ -118,7 +118,7 @@ class SQL(BaseTool):
                         columns = (
                             [desc[0] for desc in cursor.description] if cursor.description else []
                         )
-                        return ToolResult.ok(
+                        return Result.ok(
                             {
                                 "rows": [dict(row) for row in rows],
                                 "columns": columns,
@@ -129,7 +129,7 @@ class SQL(BaseTool):
                     else:
                         # Query modifies data
                         conn.commit()
-                        return ToolResult.ok(
+                        return Result.ok(
                             {
                                 "rows_affected": cursor.rowcount,
                                 "query_type": "modify",
@@ -145,21 +145,21 @@ class SQL(BaseTool):
             )
             return result
         except asyncio.TimeoutError:
-            return ToolResult.fail(f"Query timed out after {timeout} seconds")
+            return Result.fail(f"Query timed out after {timeout} seconds")
         except sqlite3.Error as e:
-            return ToolResult.fail(f"SQLite error: {str(e)}")
+            return Result.fail(f"SQLite error: {str(e)}")
         except Exception as e:
-            return ToolResult.fail(f"Database error: {str(e)}")
+            return Result.fail(f"Database error: {str(e)}")
 
     async def _execute_postgresql(
         self, query: str, connection: str, timeout: int, params: List
-    ) -> ToolResult:
+    ) -> Result:
         """Execute PostgreSQL query."""
         try:
             # Try to import asyncpg
             import asyncpg
         except ImportError:
-            return ToolResult.ok(
+            return Result.ok(
                 error="PostgreSQL support requires 'asyncpg' package. Install with: pip install asyncpg"
             )
         try:
@@ -171,7 +171,7 @@ class SQL(BaseTool):
                     # Query returns results
                     rows = await asyncio.wait_for(conn.fetch(query, *params), timeout=timeout)
                     columns = list(rows[0].keys()) if rows else []
-                    return ToolResult.ok(
+                    return Result.ok(
                         {
                             "rows": [dict(row) for row in rows],
                             "columns": columns,
@@ -188,7 +188,7 @@ class SQL(BaseTool):
                         parts = result.split()
                         if len(parts) > 1 and parts[-1].isdigit():
                             rows_affected = int(parts[-1])
-                    return ToolResult.ok(
+                    return Result.ok(
                         {
                             "rows_affected": rows_affected,
                             "query_type": "modify",
@@ -197,19 +197,19 @@ class SQL(BaseTool):
             finally:
                 await conn.close()
         except asyncio.TimeoutError:
-            return ToolResult.fail(f"Query timed out after {timeout} seconds")
+            return Result.fail(f"Query timed out after {timeout} seconds")
         except Exception as e:
-            return ToolResult.fail(f"PostgreSQL error: {str(e)}")
+            return Result.fail(f"PostgreSQL error: {str(e)}")
 
     async def _execute_mysql(
         self, query: str, connection: str, timeout: int, params: List
-    ) -> ToolResult:
+    ) -> Result:
         """Execute MySQL query."""
         try:
             # Try to import aiomysql
             import aiomysql
         except ImportError:
-            return ToolResult.ok(
+            return Result.ok(
                 error="MySQL support requires 'aiomysql' package. Install with: pip install aiomysql"
             )
         try:
@@ -237,7 +237,7 @@ class SQL(BaseTool):
                     # Query returns results
                     rows = await cursor.fetchall()
                     columns = [desc[0] for desc in cursor.description] if cursor.description else []
-                    return ToolResult.ok(
+                    return Result.ok(
                         {
                             "rows": rows,
                             "columns": columns,
@@ -248,7 +248,7 @@ class SQL(BaseTool):
                 else:
                     # Query modifies data
                     await conn.commit()
-                    return ToolResult.ok(
+                    return Result.ok(
                         {
                             "rows_affected": cursor.rowcount,
                             "query_type": "modify",
@@ -259,13 +259,13 @@ class SQL(BaseTool):
                 conn.close()
         except asyncio.TimeoutError:
             logger.error(f"MySQL query timed out after {timeout} seconds: {query}")
-            return ToolResult.fail(f"Query timed out after {timeout} seconds")
+            return Result.fail(f"Query timed out after {timeout} seconds")
         except Exception as e:
             logger.error(f"MySQL error executing query '{query}': {e}")
-            return ToolResult.fail(f"MySQL error: {str(e)}")
+            return Result.fail(f"MySQL error: {str(e)}")
 
     def format_human(
-        self, params: Dict[str, Any], results: Optional[ToolResult] = None
+        self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format SQL execution for display."""
         from cogency.utils.formatting import truncate

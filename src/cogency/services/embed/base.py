@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
-
-from cogency.resilience import safe
-from cogency.utils.results import Result
+from resilient_result import Result, Retry, resilient
 
 
 class BaseEmbed(ABC):
@@ -12,7 +10,7 @@ class BaseEmbed(ABC):
     def __init__(self, api_key: str = None, **kwargs):
         self.api_key = api_key
 
-    @safe.network()
+    @resilient(retry=Retry.api())
     @abstractmethod
     def embed(self, text: str | list[str], **kwargs) -> Result:
         """Embed text(s) - handles both single strings and lists"""

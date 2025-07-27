@@ -4,22 +4,23 @@ import asyncio
 from typing import Dict, List, Optional
 
 from langgraph.graph import END
+from resilient_result import Result
 
 from cogency.nodes.base import Node
-from cogency.resilience import safe
+from cogency.resilience import robust
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.types.response import Response
-from cogency.utils.results import Result
 
 
 class Respond(Node):
     def __init__(self, **kwargs):
         super().__init__(respond, **kwargs)
-        
+
     def next_node(self, state: State) -> str:
         return END
+
 
 # Response prompt templates - clean and scannable
 FAILURE_PROMPT = """{identity}A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.
@@ -120,8 +121,7 @@ def prompt_response(
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
-@safe.checkpoint("respond")
-@safe.respond()
+@robust.respond()
 async def respond(
     state: State,
     *,
@@ -135,7 +135,7 @@ async def respond(
     context = state["context"]
 
     # Start responding state
-    await state.output.state("responding")
+    await state.notify("state_change", {"state": "responding"})
 
     # Streaming handled by Output
 
@@ -151,7 +151,10 @@ async def respond(
         user_error_message = state.get(
             "user_error_message", "I encountered an issue but will try to help."
         )
-        await state.output.trace(f"Fallback response due to: {stop_reason}", node="respond")
+        if state.trace:
+            await state.notify(
+                "trace", {"message": f"Fallback response due to: {stop_reason}", "node": "respond"}
+            )
 
         # Use unified prompt function for fallback with user-friendly context
         failures = {"reasoning": user_error_message}
@@ -171,7 +174,7 @@ async def respond(
             if llm_result.success
             else "I encountered an issue but will try to help."
         )
-        await state.output.update(f"🤖: {response.text}")
+        await state.notify("update", f"🤖: {response.text}")
         await asyncio.sleep(0)
     else:
         # Generate response based on context and any tool results
@@ -210,7 +213,7 @@ async def respond(
                 if llm_result.success
                 else "I encountered an issue while generating a response."
             )
-            await state.output.update(f"🤖: {response.text}")
+            await state.notify("update", f"🤖: {response.text}")
         elif result and not result.success:
             # Format failure details - handle both dict and list formats
             results_data = result.data
@@ -241,7 +244,7 @@ async def respond(
                 if llm_result.success
                 else "I encountered an issue while processing the request."
             )
-            await state.output.update(f"🤖: {response.text}")
+            await state.notify("update", f"🤖: {response.text}")
         else:
             # No tool results - answer with knowledge or based on conversation
             prompt = prompt_response(
@@ -260,7 +263,7 @@ async def respond(
                 if llm_result.success
                 else "I'm here to help. How can I assist you?"
             )
-            await state.output.update(f"🤖: {response.text}")
+            await state.notify("update", f"🤖: {response.text}")
 
     # Add response to context
     response_text = response.text if hasattr(response, "text") else response

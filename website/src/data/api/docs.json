@@ -83,7 +83,7 @@
         {
           "name": "FileBackend",
           "docstring": "Filesystem storage implementation.",
-          "module": "cogency.services.memory.filesystem",
+          "module": "cogency.memory.filesystem",
           "methods": [
             {
               "name": "create",

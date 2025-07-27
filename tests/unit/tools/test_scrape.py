@@ -3,9 +3,9 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from resilient_result import Result
 
 from cogency.tools.scrape import Scrape
-from cogency.utils.results import ToolResult
 
 
 @pytest.mark.asyncio

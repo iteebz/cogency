@@ -1,12 +1,29 @@
+"""Agent execution patterns.
+
+Usage:
+    from cogency import Agent
+    from cogency.resilience import reason, act
+    
+    @reason(retries=3)
+    async def reason(state: State) -> State:
+        # Business logic here
+        pass
+        
+    @act(tool_timeout=60)
+    async def act(state: State) -> State:
+        # Business logic here  
+        pass
+"""
+
 from typing import Any, AsyncIterator, Optional
 
 from cogency.context import Context
 from cogency.flow import Flow
 from cogency.identity import process_identity
-from cogency.output import Output
 from cogency.services.llm import detect_llm
+from cogency.state import State
+from cogency.utils.notify import Notifier
 from cogency.utils.setup import agent_services
-from cogency.utils.streaming import StreamManager
 
 MAX_QUERY_LENGTH = 10000
 
@@ -42,7 +59,7 @@ class Agent:
             json_schema=opts.get("json_schema"),
         )
         self.contexts: dict[str, Context] = {}
-        self.last_output: Optional[Output] = None  # Store for traces()
+        self.last_state: Optional[dict] = None  # Store for traces()
 
         # MCP server setup if enabled
         if opts.get("enable_mcp"):
@@ -72,8 +89,8 @@ class Agent:
         context.add_message("user", query)  # Add user query to message history
         self.contexts[user_id] = context
 
-        # Stream execution using StreamManager
-        manager = StreamManager(
+        # Stream execution using Notifier
+        notifier = Notifier(
             flow=self.flow,
             context=context,
             query=query,
@@ -82,11 +99,11 @@ class Agent:
             max_iterations=self.max_iterations,
         )
 
-        async for chunk in manager.stream():
+        async for chunk in notifier.notify():
             yield chunk
 
-        # Store output for traces()
-        self.last_output = manager.get_output()
+        # Store state for traces()
+        self.last_state = notifier.get_notifications()
 
     async def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return complete response as string"""
@@ -97,8 +114,8 @@ class Agent:
 
     def traces(self) -> list[dict[str, Any]]:
         """Get traces from last execution for debugging"""
-        if self.last_output:
-            return self.last_output.entries
+        if self.last_state:
+            return self.last_state
         return []
 
     async def serve_mcp(
@@ -114,3 +131,6 @@ class Agent:
             await self.mcp_server.serve_websocket(host, port)
         else:
             raise ValueError(f"Unsupported transport: {transport}")
+
+
+__all__ = ["Agent", "Context", "Flow", "State"]

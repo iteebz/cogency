@@ -5,7 +5,8 @@ from cogency.nodes.reasoning.adaptive import (
     detect_fast_loop,
     detect_loop,
 )
-from cogency.state import Cognition
+
+# Cognition functionality now part of State directly
 
 
 class MockToolCall:
@@ -22,24 +23,28 @@ class MockToolCall:
 
 
 def test_action_fingerprint():
-    """Test action fingerprinting."""
-    # Empty tool calls
-    assert action_fingerprint([]) == "no_action"
+    """Test action fingerprint generation."""
+    # Empty call list
+    fp = action_fingerprint([])
+    assert fp == "no_action"
 
-    # Single tool call
-    tool_calls = [MockToolCall("search", {"query": "test"})]
-    result = action_fingerprint(tool_calls)
-    assert result.startswith("search:")
+    # Single tool call - just check it generates consistently
+    fp1 = action_fingerprint([MockToolCall("search", {"query": "test"})])
+    fp2 = action_fingerprint([MockToolCall("search", {"query": "test"})])
+    assert fp1 == fp2
+    assert fp1.startswith("search:")
 
-    # Multiple tool calls
-    tool_calls = [
-        MockToolCall("search", {"query": "test1"}),
-        MockToolCall("scrape", {"url": "http://example.com"}),
+    # Multiple tool calls generate combined fingerprints
+    tools = [
+        MockToolCall("search", {"query": "test"}),
+        MockToolCall("files", {"path": "/tmp"}),
     ]
-    result = action_fingerprint(tool_calls)
-    assert "|" in result and "search:" in result and "scrape:" in result
+    fp = action_fingerprint(tools)
+    # Should contain both tool names
+    assert "search:" in fp
+    assert "files:" in fp
 
-    # Identical calls produce same fingerprint
+    # Same tool name, different args
     fp1 = action_fingerprint([MockToolCall("search", {"query": "test"})])
     fp2 = action_fingerprint([MockToolCall("search", {"query": "test"})])
     assert fp1 == fp2
@@ -47,9 +52,13 @@ def test_action_fingerprint():
 
 def test_fast_loop_detection():
     """Test fast loop detection."""
-    # Should detect immediate loop
-    cognition = Cognition()
-    cognition.iterations = [
+    from cogency.context import Context
+    from cogency.state import State
+
+    # Create state with cognition functionality built-in
+    context = Context("test")
+    state = State(context=context, query="test")
+    state.iterations = [
         {
             "iteration": 1,
             "fingerprint": "search:123",
@@ -65,12 +74,12 @@ def test_fast_loop_detection():
             "tool_calls": [],
         },
     ]
-    is_loop = detect_fast_loop(cognition)
+    is_loop = detect_fast_loop(state)
     assert is_loop is False
 
     # No loop in short history
-    cognition = Cognition()
-    cognition.iterations = [
+
+    state.iterations = [
         {
             "iteration": 1,
             "fingerprint": "search:123",
@@ -86,15 +95,21 @@ def test_fast_loop_detection():
             "tool_calls": [],
         },
     ]
-    is_loop = detect_fast_loop(cognition)
+    is_loop = detect_fast_loop(state)
     assert is_loop is False
 
 
 def test_comprehensive_loop():
     """Test comprehensive loop detection."""
+    from cogency.context import Context
+    from cogency.state import State
+
+    # Create state with cognition functionality built-in
+    context = Context("test")
+    state = State(context=context, query="test")
+
     # Pattern loop (A-B-A)
-    cognition = Cognition()
-    cognition.iterations = [
+    state.iterations = [
         {
             "iteration": 1,
             "fingerprint": "search:123",
@@ -117,12 +132,11 @@ def test_comprehensive_loop():
             "tool_calls": [],
         },
     ]
-    is_loop = detect_loop(cognition)
+    is_loop = detect_loop(state)
     assert is_loop is True
 
     # No loop detected
-    cognition = Cognition()
-    cognition.iterations = [
+    state.iterations = [
         {
             "iteration": 1,
             "fingerprint": "search:123",
@@ -145,12 +159,11 @@ def test_comprehensive_loop():
             "tool_calls": [],
         },
     ]
-    is_loop = detect_loop(cognition)
+    is_loop = detect_loop(state)
     assert is_loop is False
 
     # Repeated identical actions
-    cognition = Cognition()
-    cognition.iterations = [
+    state.iterations = [
         {
             "iteration": 1,
             "fingerprint": "search:123",
@@ -173,14 +186,20 @@ def test_comprehensive_loop():
             "tool_calls": [],
         },
     ]
-    is_loop = detect_loop(cognition)
+    is_loop = detect_loop(state)
     assert is_loop is True
 
 
 def test_loop_empty_history():
     """Test loop detection with minimal history."""
+    from cogency.context import Context
+    from cogency.state import State
+
+    # Create state with cognition functionality built-in
+    context = Context("test")
+    state = State(context=context, query="test")
+
     # Empty history
-    cognition = Cognition()
-    cognition.iterations = []
-    assert detect_loop(cognition) is False
-    assert detect_fast_loop(cognition) is False
+    state.iterations = []
+    assert detect_loop(state) is False
+    assert detect_fast_loop(state) is False

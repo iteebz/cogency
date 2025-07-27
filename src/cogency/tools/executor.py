@@ -2,9 +2,10 @@
 
 from typing import Any, Dict, List, Tuple
 
+from resilient_result import Result
+
 from cogency.tools.base import BaseTool
 from cogency.utils.formatting import format_tool_error
-from cogency.utils.results import ToolResult
 
 
 async def execute_single_tool(
@@ -36,7 +37,7 @@ async def execute_single_tool(
                     return (
                         tool_name,
                         tool_args,
-                        ToolResult.fail(f"Tool execution failed: {str(e)}"),
+                        Result.fail(f"Tool execution failed: {str(e)}"),
                     )
         raise ValueError(f"Tool '{tool_name}' not found.")
 
@@ -44,11 +45,11 @@ async def execute_single_tool(
 
 
 async def execute_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context, output=None
+    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context, state=None
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
-        return ToolResult(
+        return Result(
             {
                 "results": [],
                 "errors": [],
@@ -66,8 +67,8 @@ async def execute_tools(
         # Find the tool instance for formatting
         tool_instance = next((t for t in tools if t.name == tool_name), None)
 
-        # Show tool execution start if output is available
-        if output:
+        # Show tool execution start if state is available
+        if state:
             tool_emoji = tool_emoji_map.get(tool_name, "💡")
 
             # Use tool's format method for params, otherwise fallback
@@ -83,7 +84,7 @@ async def execute_tools(
                     )
                     tool_input = f"({first_val})"
 
-            await output.update(f"{tool_emoji} {tool_name}{tool_input}")
+            await state.notify("update", f"{tool_emoji} {tool_name}{tool_input}")
 
         try:
             result = await execute_single_tool(tool_name, tool_args, tools, context)
@@ -93,8 +94,8 @@ async def execute_tools(
                 # Use user-friendly error message
                 raw_error = tool_output.error or "Unknown error"
                 user_friendly_error = format_tool_error(actual_tool_name, Exception(raw_error))
-                if output:
-                    await output.update(f"✗ {user_friendly_error}\n")
+                if state:
+                    await state.notify("update", f"✗ {user_friendly_error}\n")
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -106,7 +107,7 @@ async def execute_tools(
                 tool_result = tool_output.data
 
                 # Show result using tool's format method if available
-                if output:
+                if state:
                     if tool_instance:
                         _, result_str = tool_instance.format_human(actual_args, tool_output)
                         readable_result = result_str
@@ -120,7 +121,7 @@ async def execute_tools(
                             )
 
                     # Add success indicator to result
-                    await output.update(f"✓ {readable_result}\n")
+                    await state.notify("update", f"✓ {readable_result}\n")
 
                 success_result = {
                     "tool_name": actual_tool_name,
@@ -133,8 +134,8 @@ async def execute_tools(
         except Exception as e:
             # Use user-friendly error message
             user_friendly_error = format_tool_error(tool_name, e)
-            if output:
-                await output.update(f"✗ {user_friendly_error}")
+            if state:
+                await state.notify("update", f"✗ {user_friendly_error}")
             failure_result = {
                 "tool_name": tool_name,
                 "args": tool_args,
@@ -161,7 +162,7 @@ async def execute_tools(
 
     # Tool results stored in state, not conversation messages
 
-    return ToolResult(
+    return Result(
         {
             "results": successes,
             "errors": failures,
@@ -174,7 +175,7 @@ async def execute_tools(
 
 
 async def run_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context, output=None
+    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context, state=None
 ) -> Dict[str, Any]:
     """Execute tools."""
-    return await execute_tools(tool_calls, tools, context, output)
+    return await execute_tools(tool_calls, tools, context, state)

@@ -4,7 +4,7 @@ import json
 import re
 from typing import Any, Callable, Dict, List, Optional
 
-from .results import ParseResult
+from resilient_result import Result
 
 
 def normalize_reasoning(val: Any) -> List[str]:
@@ -37,39 +37,39 @@ def normalize_reasoning(val: Any) -> List[str]:
     return [str(val)]  # Catch-all for any other unexpected type
 
 
-def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) -> ParseResult:
+def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) -> Result:
     """Extract JSON from LLM response - clean Result pattern.
 
     Handles:
     - Markdown code fences (```json and ```)
     - Proper brace matching for JSON objects
     - Regex-based pattern extraction for common failure modes
-    - Graceful ParseResult.fail() on errors
+    - Graceful Result.fail() on errors
 
     Args:
         response: Raw LLM response string
 
     Returns:
-        ParseResult.ok(data) or ParseResult.fail(error)
+        Result.ok(data) or Result.fail(error)
     """
     if not response or not isinstance(response, str):
-        return ParseResult.fail("Empty or invalid response")
+        return Result.fail("Empty or invalid response")
 
     # Try direct JSON parsing first (fastest path)
     try:
         data = json.loads(response.strip())
-        return ParseResult.ok(data)
+        return Result.ok(data)
     except json.JSONDecodeError:
         pass
 
     # Clean and extract JSON text from markdown
     json_text = _clean_json(response.strip())
     if not json_text:
-        return ParseResult.fail("No JSON content found")
+        return Result.fail("No JSON content found")
 
     try:
         data = json.loads(json_text)
-        return ParseResult.ok(data)
+        return Result.ok(data)
     except json.JSONDecodeError as e:
         # Fallback 1: Use incremental parser to recover partial JSON
         try:
@@ -78,7 +78,7 @@ def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) 
                     trace_fn(
                         "JSON recovery: extracted first valid object from multi-object response"
                     )
-                return ParseResult.ok(obj)  # Return first valid JSON object
+                return Result.ok(obj)  # Return first valid JSON object
         except Exception:
             pass
 
@@ -91,7 +91,7 @@ def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) 
                         f"JSON recovery: extracted using regex patterns - {extracted_json[:100]}..."
                     )
                 data = json.loads(extracted_json)
-                return ParseResult.ok(data)
+                return Result.ok(data)
         except (json.JSONDecodeError, Exception):
             pass
 
@@ -99,7 +99,7 @@ def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) 
         if trace_fn:
             trace_fn(f"JSON parsing failed after all fallbacks: {str(e)}")
 
-        return ParseResult.fail(f"JSON decode error: {str(e)}")
+        return Result.fail(f"JSON decode error: {str(e)}")
 
 
 def _clean_json(response: str) -> str:
@@ -214,10 +214,10 @@ def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]
     return tool_calls
 
 
-def recover_json(response: str) -> ParseResult:
+def recover_json(response: str) -> Result:
     """Extract JSON from broken LLM responses - Result pattern."""
     if not response:
-        return ParseResult.fail("No response to recover")
+        return Result.fail("No response to recover")
 
     return parse_json(response)
 
@@ -227,7 +227,7 @@ async def parse_json_with_correction(
     llm_fn: Optional[Callable] = None,
     trace_fn: Optional[Callable[[str], None]] = None,
     max_attempts: int = 2,
-) -> ParseResult:
+) -> Result:
     """Parse JSON with self-correction loop for malformed responses."""
 
     # Try normal parsing first

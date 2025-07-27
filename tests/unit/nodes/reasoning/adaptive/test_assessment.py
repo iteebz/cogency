@@ -1,9 +1,9 @@
 """Tests for tool assessment functionality."""
 
 import pytest
+from resilient_result import Result
 
 from cogency.nodes.reasoning.adaptive.assessment import assess_tools
-from cogency.utils.results import Result
 
 
 class TestToolQualityAssessment:

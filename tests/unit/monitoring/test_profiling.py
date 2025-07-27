@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 from cogency.monitoring.profiling import (
-    CogencyProfiler,
     ProfileMetrics,
     Profiler,
     get_profiler,
@@ -17,7 +16,9 @@ from cogency.monitoring.profiling import (
 
 @pytest.fixture
 def profiler():
-    return Profiler(sample_interval=0.01)
+    p = get_profiler()
+    p.metrics = []  # Clear metrics before each test
+    return p
 
 
 @pytest.fixture
@@ -66,7 +67,7 @@ def test_bottlenecks(profiler, profile_metrics):
 
 def test_summary_empty(profiler):
     summary = profiler.summary()
-    assert summary["message"] == "No profiling data available"
+    assert summary == {"message": "No profiling data available"}
 
 
 def test_summary_with_data(profiler, profile_metrics):
@@ -123,13 +124,13 @@ def test_profile_sync():
 
 
 def test_cogency_profiler():
-    cogency_profiler = CogencyProfiler()
+    cogency_profiler = Profiler()
     assert cogency_profiler.profiler is get_profiler()
 
 
 @pytest.mark.asyncio
 async def test_cogency_profile_methods():
-    cogency_profiler = CogencyProfiler()
+    cogency_profiler = Profiler()
 
     async def mock_func():
         return "test"
@@ -138,11 +139,11 @@ async def test_cogency_profile_methods():
     result = await cogency_profiler.profile_reasoning_loop(mock_func)
     assert result == "test"
 
-    result = await cogency_profiler.profile_tool_execution(mock_func)
+    result = await cogency_profiler.profile_tools(mock_func)
     assert result == "test"
 
-    result = await cogency_profiler.profile_memory_access(mock_func)
+    result = await cogency_profiler.profile_memory(mock_func)
     assert result == "test"
 
-    result = await cogency_profiler.profile_llm_inference(mock_func)
+    result = await cogency_profiler.profile_llm(mock_func)
     assert result == "test"

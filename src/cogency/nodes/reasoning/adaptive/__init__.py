@@ -3,7 +3,7 @@
 from cogency.state import summarize_attempts
 
 from .assessment import assess_tools
-from .loop import action_fingerprint, detect_fast_loop, detect_loop, should_stop_reasoning
+from .loop import action_fingerprint, detect_fast_loop, detect_loop, should_stop
 from .relevance import relevant_context, score_memory_relevance
 from .switching import parse_switch, should_switch, switch_mode, switch_prompt
 
@@ -19,7 +19,7 @@ __all__ = [
     "action_fingerprint",
     "detect_loop",
     "detect_fast_loop",
-    "should_stop_reasoning",
+    "should_stop",
     # Assessment
     "assess_tools",
     # Relevance

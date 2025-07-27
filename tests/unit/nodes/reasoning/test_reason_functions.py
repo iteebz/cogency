@@ -3,10 +3,10 @@
 from unittest.mock import Mock
 
 import pytest
+from resilient_result import Result
 
 from cogency.nodes.reason import format_actions
 from cogency.tools.base import BaseTool
-from cogency.utils.results import Result
 
 
 class MockTool(BaseTool):

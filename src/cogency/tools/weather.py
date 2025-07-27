@@ -2,11 +2,9 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
 
 import httpx
-
-from cogency.utils.results import ToolResult
+from resilient_result import Result
 
 from .base import BaseTool
 from .registry import tool
@@ -22,7 +20,7 @@ class WeatherParams:
 @tool
 class Weather(BaseTool):
     """Get current weather for any city using Open-Meteo (no API key required)."""
-    
+
     # Clean weather formatting
     human_template = "{temperature}, {condition}"
     agent_template = "Weather in {city}: {temperature}, {condition}"
@@ -44,7 +42,7 @@ class Weather(BaseTool):
             ],
         )
 
-    async def _geocode_city(self, city: str) -> ToolResult:
+    async def _geocode_city(self, city: str) -> Result:
         """Get coordinates for a city using Open-Meteo geocoding."""
         # Schema validation handles required params
 
@@ -56,10 +54,10 @@ class Weather(BaseTool):
                 data = response.json()
 
                 if not data.get("results"):
-                    return ToolResult.fail(f"City '{city}' not found")
+                    return Result.fail(f"City '{city}' not found")
 
                 result = data["results"][0]
-                return ToolResult(
+                return Result(
                     {
                         "latitude": result["latitude"],
                         "longitude": result["longitude"],
@@ -69,15 +67,15 @@ class Weather(BaseTool):
                 )
         except httpx.RequestError as e:
             logger.error(f"Geocoding API request failed for {city}: {e}")
-            return ToolResult.fail(f"Failed to connect to geocoding service: {e}")
+            return Result.fail(f"Failed to connect to geocoding service: {e}")
         except httpx.HTTPStatusError as e:
             logger.error(f"Geocoding API returned an error for {city}: {e}")
-            return ToolResult.fail(f"Geocoding API error: {e}")
+            return Result.fail(f"Geocoding API error: {e}")
         except Exception as e:
             logger.error(f"Unexpected error during geocoding for {city}: {e}")
-            return ToolResult.fail(f"Geocoding failed: {e}")
+            return Result.fail(f"Geocoding failed: {e}")
 
-    async def run(self, city: str, **kwargs) -> ToolResult:
+    async def run(self, city: str, **kwargs) -> Result:
         """Get weather for a city.
 
         Args:
@@ -145,7 +143,7 @@ class Weather(BaseTool):
                 temp_c = current["temperature_2m"]
                 temp_f = round(temp_c * 9 / 5 + 32, 1)
 
-                return ToolResult(
+                return Result(
                     {
                         "city": f"{location['name']}, {location.get('country', '')}",
                         "temperature": f"{temp_c}°C ({temp_f}°F)",
@@ -157,11 +155,10 @@ class Weather(BaseTool):
                 )
         except httpx.RequestError as e:
             logger.error(f"Weather API request failed for {city}: {e}")
-            return ToolResult.fail(f"Failed to connect to weather service: {e}")
+            return Result.fail(f"Failed to connect to weather service: {e}")
         except httpx.HTTPStatusError as e:
             logger.error(f"Weather API returned an error for {city}: {e}")
-            return ToolResult.fail(f"Weather API error: {e}")
+            return Result.fail(f"Weather API error: {e}")
         except Exception as e:
             logger.error(f"Unexpected error during weather retrieval for {city}: {e}")
-            return ToolResult.fail(f"Weather retrieval failed: {e}")
-
+            return Result.fail(f"Weather retrieval failed: {e}")

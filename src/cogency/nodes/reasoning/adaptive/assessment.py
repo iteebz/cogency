@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from cogency.utils.results import Result
+from resilient_result import Result
 
 
 def assess_tools(results: Optional[Result]) -> str:

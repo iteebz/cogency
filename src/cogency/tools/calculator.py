@@ -1,11 +1,12 @@
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Dict
+
+from resilient_result import Result
 
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import tool
-from cogency.utils.results import ToolResult
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,7 @@ class Calculator(BaseTool):
             # Only allow safe characters (after symbol replacement)
             allowed_chars = set("0123456789+-*/.() ")
             if not all(c in allowed_chars for c in expr):
-                return ToolResult.fail("Expression contains invalid characters")
+                return Result.fail("Expression contains invalid characters")
 
             # Safe evaluation
             safe_dict = {"__builtins__": {}}
@@ -67,18 +68,17 @@ class Calculator(BaseTool):
             if isinstance(result, float) and result.is_integer():
                 result = int(result)
 
-            return ToolResult.ok({"result": result, "expression": expression})
+            return Result.ok({"result": result, "expression": expression})
 
         except ZeroDivisionError as e:
             logger.error(f"Calculator operation failed due to division by zero: {e}")
-            return ToolResult.fail("Cannot divide by zero")
+            return Result.fail("Cannot divide by zero")
         except SyntaxError as e:
             logger.error(f"Calculator operation failed due to invalid syntax: {e}")
-            return ToolResult.fail(f"Invalid expression syntax: {str(e)}")
+            return Result.fail(f"Invalid expression syntax: {str(e)}")
         except TypeError as e:
             logger.error(f"Calculator operation failed due to type error: {e}")
-            return ToolResult.fail(f"Invalid expression type: {str(e)}")
+            return Result.fail(f"Invalid expression type: {str(e)}")
         except Exception as e:
             logger.error(f"Calculator operation failed: {e}")
-            return ToolResult.fail(f"Invalid expression: {str(e)}")
-
+            return Result.fail(f"Invalid expression: {str(e)}")

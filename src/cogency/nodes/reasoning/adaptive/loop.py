@@ -3,7 +3,7 @@
 from typing import Any, List
 
 LOOP_DETECTION_MIN_ACTIONS = 3
-FAST_LOOP_DETECTION_MIN_ACTIONS = 2
+FAST_MIN_ACTIONS = 2
 SEARCH_FINGERPRINT_KEY_TERMS = 5
 
 
@@ -53,9 +53,9 @@ def action_fingerprint(tool_calls: List[Any]) -> str:
     return "|".join(fingerprints)
 
 
-def detect_loop(cognition) -> bool:
+def detect_loop(state) -> bool:
     """Detect if agent is stuck in an iteration loop."""
-    iteration_entries = cognition.iterations
+    iteration_entries = state.iterations
 
     if len(iteration_entries) < LOOP_DETECTION_MIN_ACTIONS:
         return False
@@ -80,12 +80,12 @@ def detect_loop(cognition) -> bool:
     )
 
 
-def detect_fast_loop(cognition) -> bool:
+def detect_fast_loop(state) -> bool:
     """Lightweight loop detection for fast mode - lower threshold."""
-    iteration_entries = cognition.iterations
+    iteration_entries = state.iterations
 
     # Fast mode: detect loops earlier - even just 2 identical iterations
-    if len(iteration_entries) < FAST_LOOP_DETECTION_MIN_ACTIONS:
+    if len(iteration_entries) < FAST_MIN_ACTIONS:
         return False
 
     # Extract fingerprints from iteration entries
@@ -109,7 +109,7 @@ def detect_fast_loop(cognition) -> bool:
     )
 
 
-def should_stop_reasoning(state, react_mode: str) -> tuple[bool, str]:
+def should_stop(state, react_mode: str) -> tuple[bool, str]:
     """Pure logic: check if reasoning should stop due to iteration limits or loops."""
     iteration = state.iteration
     max_iterations = state.max_iterations
@@ -119,9 +119,9 @@ def should_stop_reasoning(state, react_mode: str) -> tuple[bool, str]:
 
     # Adaptive loop detection based on mode
     if react_mode == "deep":
-        loop_detected = detect_loop(state.cognition)
+        loop_detected = detect_loop(state)
     else:
-        loop_detected = detect_fast_loop(state.cognition)
+        loop_detected = detect_fast_loop(state)
 
     if loop_detected:
         return True, "reasoning_loop_detected"

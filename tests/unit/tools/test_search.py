@@ -3,9 +3,9 @@
 from unittest.mock import Mock, patch
 
 import pytest
+from resilient_result import Result
 
 from cogency.tools.search import Search
-from cogency.utils.results import ToolResult
 
 
 @pytest.mark.asyncio

@@ -1,77 +1,78 @@
-"""AI agent-specific resilient decorators - ZERO ceremony, maximum elegance."""
+"""Agent decorator implementations - Definitive composition of resilience + checkpointing."""
 
 from functools import wraps
-from resilient_result import resilient
+
+from resilient_result import Retry
+from resilient_result import resilient as resilient_decorator
+
+from cogency.resilience.checkpoint import checkpoint
 
 
-def _create_domain_decorator(handler_name: str, default_retries: int = 2):
-    """DRY factory for domain decorators - eliminates all boilerplate."""
-    
-    def domain_decorator(retries: int = default_retries, unwrap_state: bool = True):
-        async def handler(error):
-            return None  # Retry domain errors
-            
-        def decorator(func):
-            resilient_func = resilient(handler=handler, retries=retries)(func)
-            
-            if not unwrap_state:
-                return resilient_func
-                
-            @wraps(func)
-            async def wrapper(*args, **kwargs):
-                from .utils import unwrap
-                result = await resilient_func(*args, **kwargs)
-                return unwrap(result)
-            return wrapper
-        return decorator
-    return domain_decorator
+def _checkpoint(name: str, interruptible: bool = True):
+    """Context-driven checkpointing wrapper - applies only when task_id exists."""
 
-
-def reasoning(retries: int = 3, unwrap_state: bool = True):
-    """@resilient.reasoning - LLM reasoning with mode fallback."""
-    
     def decorator(func):
-        async def handle_reasoning(error):
-            if (hasattr(handle_reasoning, "_current_args") 
-                and len(handle_reasoning._current_args) > 0
-                and hasattr(handle_reasoning._current_args[0], "react_mode")
-                and handle_reasoning._current_args[0].react_mode == "deep"):
-                handle_reasoning._current_args[0].react_mode = "fast"
-                return None  # Retry with modified state
-            return False  # No recovery possible
-            
-        resilient_func = resilient(handler=handle_reasoning, retries=retries)(func)
-        
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            handle_reasoning._current_args = args
-            try:
-                result = await resilient_func(*args, **kwargs)
-                if unwrap_state:
-                    from .utils import unwrap
-                    return unwrap(result)
-                return result
-            finally:
-                if hasattr(handle_reasoning, "_current_args"):
-                    delattr(handle_reasoning, "_current_args")
+            # Extract state from function arguments
+            state = args[0] if args else kwargs.get("state")
+
+            # Apply checkpointing only when task context exists
+            if hasattr(state, "context") and hasattr(state.context, "task_id"):
+                checkpointed = checkpoint(name, interruptible=interruptible)(func)
+                return await checkpointed(*args, **kwargs)
+
+            # No checkpointing overhead for non-task contexts
+            return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
 
 
-# Auto-generated domain decorators - ZERO duplication
-memory = _create_domain_decorator("memory", 1)
-act = _create_domain_decorator("act", 2) 
-preprocess = _create_domain_decorator("preprocess", 2)
-respond = _create_domain_decorator("respond", 2)
+def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None):
+    """Universal agent policy factory - composes resilience + context-driven checkpointing."""
 
-# Alias
-reason = reasoning
+    def policy(retry=None, **kwargs):
+        retry = retry or default_retry or Retry.api()
+
+        def decorator(func):
+            # 1. Apply resilience
+            resilient_func = resilient_decorator(retry=retry)(func)
+
+            # 2. Apply context-driven checkpointing
+            checkpointed_func = _checkpoint(checkpoint_name, interruptible)(resilient_func)
+
+            return checkpointed_func
+
+        return decorator
+
+    return policy
 
 
-# Register with resilient-result
-resilient.register("reasoning", reasoning)
-resilient.register("reason", reason)
-resilient.register("memory", memory)
-resilient.register("act", act)
-resilient.register("preprocess", preprocess)
-resilient.register("respond", respond)
+# Domain-specific policies with smart defaults
+reason = _policy("reasoning", interruptible=True, default_retry=Retry.api())
+act = _policy("tool_execution", interruptible=True, default_retry=Retry.db())
+preprocess = _policy(
+    "preprocessing", interruptible=False, default_retry=Retry(attempts=2, timeout=10.0)
+)
+respond = _policy("response", interruptible=False, default_retry=Retry(attempts=2, timeout=15.0))
+
+
+# Generic policy for one-off use cases
+generic = _policy("generic", interruptible=True)
+
+
+class _RobustDecorators:
+    """Clean decorator factory for robust behaviors."""
+
+    reason = staticmethod(reason)
+    act = staticmethod(act)
+    preprocess = staticmethod(preprocess)
+    respond = staticmethod(respond)
+    generic = staticmethod(generic)
+
+
+robust = _RobustDecorators()
+
+__all__ = ["robust", "reason", "act", "preprocess", "respond", "generic"]
