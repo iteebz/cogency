@@ -4,11 +4,9 @@ import asyncio
 from typing import List, Optional
 
 from cogency.nodes.base import Node
-from cogency.nodes.reasoning.adaptive import (
-    assess_tools,
+from cogency.nodes.reasoning import (
     parse_switch,
     should_switch,
-    summarize_attempts,
     switch_mode,
 )
 from cogency.nodes.reasoning.deep import prompt_deep_mode
@@ -54,40 +52,22 @@ def format_tool_calls_readable(tool_calls):
 
 
 def build_iterations(state, selected_tools, max_iterations=3):
-    """Show last N reasoning iterations with their outcomes."""
-    iteration_entries = state.iterations
-    failed_attempts = summarize_attempts(state.failed_attempts)
+    """Show last N reasoning actions with their outcomes."""
+    from cogency.state import compress_actions
+    
+    actions = state.actions
+    attempts = state.attempts
 
-    if not iteration_entries:
-        return (
-            failed_attempts
-            if failed_attempts != "No previous failed attempts"
-            else "No previous iterations"
-        )
+    if not actions:
+        return "No previous actions" if not attempts else f"Attempts: {'; '.join(attempts)}"
 
-    iterations = []
-    last_iterations = iteration_entries[-max_iterations:]
-
-    for entry in last_iterations:
-        if not entry or not isinstance(entry, dict):
-            continue
-
-        iteration_num = entry.get("iteration", 0)
-        action_summary = entry.get("action_summary", "unknown action")
-        result = entry.get("result", "")
-
-        if result:
-            iterations.append(f"Iteration {iteration_num}: {fingerprint}\n→ {result}")
-        else:
-            iterations.append(f"Iteration {iteration_num}: {fingerprint}")
-
-    iteration_summary = "\n".join(iterations)
-
-    # Include failures if they exist
-    if failed_attempts != "No previous failed attempts":
-        return f"PREVIOUS ITERATIONS:\n{iteration_summary}\n\nFAILED ATTEMPTS:\n{failed_attempts}"
-
-    return f"PREVIOUS ITERATIONS:\n{iteration_summary}"
+    # Use new compression function
+    compressed = compress_actions(actions[-max_iterations:])
+    
+    if attempts:
+        return f"Previous actions: {'; '.join(compressed)}\nFailed attempts: {'; '.join(attempts)}"
+    
+    return f"Previous actions: {'; '.join(compressed)}" if compressed else "No previous actions"
 
 
 def format_actions(execution_results, prev_tool_calls, selected_tools):
@@ -146,7 +126,7 @@ async def reason(
         return state
 
     # Build messages
-    messages = list(context.chat)
+    messages = list(context.messages)
     messages.append({"role": "user", "content": context.query})
 
     # Build prompt based on mode with mode-specific limits
@@ -161,7 +141,7 @@ async def reason(
             state.max_iterations,
             state.current_approach,
             attempts_summary,
-            state.last_tool_quality,
+            "unknown",  # TODO: derive from latest action outcome
         )
     else:
         attempts_summary = build_iterations(state, selected_tools, max_iterations=3)
@@ -221,7 +201,6 @@ async def reason(
     update_reasoning_state(state, tool_calls, reasoning_response, iteration)
 
     # Update state for next iteration
-    state["reasoning"] = raw_response
     state["tool_calls"] = tool_calls
     state["prev_tool_calls"] = tool_calls
     state["iteration"] = state["iteration"] + 1
@@ -231,20 +210,20 @@ async def reason(
 
 def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int) -> None:
     """Update reasoning state after iteration."""
-    # Assess previous tool execution results
+    # Track failed attempts for loop prevention  
     result = state.result
-    if result:
-        tool_quality = assess_tools(result)
-        state.last_tool_quality = tool_quality
+    if result and result.failure:
+        prev_tool_calls = state.get("prev_tool_calls", [])
+        if prev_tool_calls:
+            state.track_failure(prev_tool_calls, "failed")
 
-        # Track failed attempts for loop prevention
-        if tool_quality in ["failed", "poor"]:
-            prev_tool_calls = state.get("prev_tool_calls", [])
-            if prev_tool_calls:
-                state.track_failure(prev_tool_calls, tool_quality)
-
-    # Add iteration to reasoning history
+    # Add action to reasoning history
     if tool_calls:
-        action_summary = format_tool_calls_readable(tool_calls)
-        decision = reasoning_response.thinking or "reasoning"
-        state.add_iteration(tool_calls, "unified_react", decision, action_summary)
+        state.add_action(
+            mode=state.react_mode,
+            thinking=reasoning_response.thinking or "",
+            planning=getattr(reasoning_response, 'plan', "") or "",
+            reflection=getattr(reasoning_response, 'reflect', "") or "",
+            approach=state.current_approach,
+            tool_calls=tool_calls,
+        )

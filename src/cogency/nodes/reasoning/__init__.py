@@ -1,15 +1,9 @@
 """Enhanced cognitive reasoning subsystem."""
 
-from .adaptive import (
-    action_fingerprint,
-    assess_tools,
-    detect_loop,
-    summarize_attempts,
-)
+from .switching import parse_switch, should_switch, switch_mode
 
 __all__ = [
-    "action_fingerprint",
-    "assess_tools",
-    "detect_loop",
-    "summarize_attempts",
+    "parse_switch",
+    "should_switch", 
+    "switch_mode",
 ]
