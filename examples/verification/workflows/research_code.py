@@ -19,7 +19,8 @@ async def main():
         memory=False,
         max_iterations=8,
         trace=True,
-        react_mode="deep",  # Force deep mode for testing
+        # deep=True,  # Force deep mode
+        # adapt=False,  # Disable adaptive switching
     )
 
     # Query that requires research then implementation

@@ -10,8 +10,7 @@ from cogency.phases.reasoning import (
     should_switch,
     switch_mode,
 )
-from cogency.phases.reasoning.deep import prompt_deep_mode
-from cogency.phases.reasoning.fast import prompt_fast_mode
+from cogency.phases.reasoning.unified import prompt_unified_mode
 from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -23,9 +22,10 @@ from cogency.utils.notify import notify
 
 
 class Reason(Phase):
-    def __init__(self, llm, tools, system_prompt=None, identity=None):
+    def __init__(self, llm, tools, system_prompt=None, identity=None, adapt=True):
         super().__init__(reason, llm=llm, tools=tools, 
                         system_prompt=system_prompt, identity=identity)
+        self.adapt = adapt
 
     def next_phase(self, state: State) -> str:
         return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
@@ -103,7 +103,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
 
 @observe.reason()
 @robust.reason()
-async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None) -> None:
+async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None, adapt: bool = True) -> None:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
     # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools or []
@@ -126,22 +126,23 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
     messages = state.get_conversation()
     messages.append({"role": "user", "content": state.query})
 
-    # Build prompt based on mode with mode-specific limits
+    # Build unified prompt with mode-specific context
     tool_registry = build_registry(selected_tools)
-
+    
     if react_mode == "deep":
-        reasoning_prompt = prompt_deep_mode(
-            tool_registry,
-            state.query,
-            iteration,
-            state.max_iterations,
-            state.current_approach,
-            state.format_actions_for_deep_mode(max_history=3),
-            state.format_latest_results_detailed(),
-        )
+        context = state.format_actions_for_deep_mode(max_history=3) + "\n\nLATEST TOOL RESULTS:\n" + state.format_latest_results_detailed()
     else:
-        attempts_summary = state.format_actions_for_fast_mode(max_history=3)
-        reasoning_prompt = prompt_fast_mode(tool_registry, state.query, attempts_summary)
+        context = state.format_actions_for_fast_mode(max_history=3)
+    
+    reasoning_prompt = prompt_unified_mode(
+        mode=react_mode,
+        tool_registry=tool_registry,
+        query=state.query,
+        context=context,
+        iteration=iteration,
+        max_iterations=state.max_iterations,
+        current_approach=state.current_approach,
+    )
     
     # DEBUG: Show what LLM sees
     if state.trace:
@@ -186,8 +187,8 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
         elif reasoning_response.thinking:
             await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
 
-    # Handle mode switching (disabled for debugging)
-    if ADAPT_REACT:
+    # Handle mode switching (check both global and instance flags)
+    if ADAPT_REACT and adapt:
         switch_to, switch_why = parse_switch(raw_response)
         if should_switch(react_mode, switch_to, switch_why, iteration):
             if state.trace:
@@ -196,7 +197,8 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
                 )
             state = switch_mode(state, switch_to, switch_why)
     elif state.trace:
-        await notify(state, "trace", "Mode switching disabled (ADAPT_REACT=False)")
+        reason = "ADAPT_REACT=False" if not ADAPT_REACT else "adapt=False (agent flag)"
+        await notify(state, "trace", f"Mode switching disabled ({reason})")
 
     # Update reasoning state
     tool_calls = reasoning_response.tool_calls
@@ -213,6 +215,7 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
     """Update reasoning state after iteration."""
     # Add action to reasoning history (tool results added later in act node)
     if tool_calls:
+        # Get the current action to update with compression fields
         state.add_action(
             mode=state.react_mode,
             thinking=reasoning_response.thinking or "",
@@ -221,3 +224,10 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
             approach=state.current_approach,
             tool_calls=tool_calls,
         )
+        
+        # Update the latest action with Phase 2 compression fields
+        if state.actions:
+            latest_action = state.actions[-1]
+            latest_action["synthesis"] = reasoning_response.synthesis or ""
+            latest_action["progress"] = reasoning_response.progress or ""
+            latest_action["hypothesis"] = reasoning_response.hypothesis or {"belief": "", "test": ""}

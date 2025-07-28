@@ -32,11 +32,15 @@ class Agent:
         observe: bool = False,
         persist: bool = False,
         persist_backend: Optional[Any] = None,
+        deep: bool = False,
+        adapt: bool = True,
     ) -> None:
         self.name = name
         self.trace = trace
         self.verbose = verbose
         self.max_iterations = max_iterations
+        self.deep = deep
+        self.adapt = adapt
         
         # Set global robust and observe flags for decorators
         decorators._robust_enabled = robust
@@ -88,7 +92,8 @@ class Agent:
             llm=self.llm,
             tools=self.tools,
             system_prompt=self.system_prompt,
-            identity=self.identity
+            identity=self.identity,
+            adapt=self.adapt
         )
         self.act_phase = Act(tools=self.tools)
         self.respond_phase = Respond(
@@ -160,6 +165,11 @@ class Agent:
             )
             state.verbose = self.verbose
             state.trace = self.trace
+            
+            # Apply deep mode and adapt overrides
+            if self.deep:
+                state.react_mode = "deep"
+            # Note: adapt flag will be used in reason phase to disable mode switching
             
             # Set up trace callback for non-streaming mode
             if self.trace:
