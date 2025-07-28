@@ -1,129 +1,182 @@
-# State Management Schema
+# State Management Schema - Canonical Specification
 
-## Two-Layer Architecture
+**PRINCIPLE**: This document is the definitive specification. State implementation must match exactly.
 
-### Layer 1: Rich Action Records (`actions`)
-Complete iteration records for debugging, analysis, and future compression.
+## Semantic Context Summarization Architecture
 
-### Layer 2: Compressed Context (`attempts`) 
-Derived strings optimized for LLM prompting to prevent context overflow.
+### Core Insight
+Instead of complex per-tool compression, we maintain a **living semantic summary** that gets smarter over time. The LLM updates 5 key fields each iteration, providing semantic understanding vs mechanical truncation.
 
-## Schema Definition
+## State Schema
 
 ```python
-"actions": [
-    {
-        # Iteration metadata
-        "iteration": int,              # Iteration number (0-indexed)
-        "timestamp": datetime,         # ISO format: "2024-01-15T10:30:00Z"
-        "mode": "fast" | "deep",      # Reasoning mode for this iteration
+@dataclass 
+class State:
+    # Core execution context
+    query: str
+    user_id: str = "default"
+    messages: List[Dict[str, str]] = field(default_factory=list)
+    
+    # Flow control  
+    iteration: int = 0
+    max_iterations: int = DEFAULT_MAX_ITERATIONS
+    react_mode: str = "fast"
+    stop_reason: Optional[str] = None
+    
+    # Tool execution
+    selected_tools: List[Any] = field(default_factory=list)
+    tool_calls: List[Any] = field(default_factory=list)
+    result: Any = None
+    
+    # Action history (rich records for debugging)
+    actions: List[Dict[str, Any]] = field(default_factory=list)
+    attempts: List[Any] = field(default_factory=list)  # Legacy - unused
+    current_approach: str = "initial"
+    
+    # SEMANTIC CONTEXT SUMMARIZATION - The canonical solution
+    situation_summary: Dict[str, str] = field(default_factory=lambda: {
+        "goal": "",           # What is the main objective?
+        "progress": "",       # What has been accomplished so far?
+        "current_approach": "",  # What strategy are we using?
+        "key_findings": "",   # What important information have we discovered?
+        "next_focus": ""      # What should be the next priority?
+    })
+    
+    # Output
+    response: Optional[str] = None
+    respond_directly: bool = False
+    verbose: bool = True
+    trace: bool = False
+    callback: Any = None
+    notifications: List[Dict[str, Any]] = field(default_factory=list)
+```
+
+## Action Record Schema
+
+**Purpose**: Rich debugging records. Tool-level compression fields are OBSOLETE.
+
+```python
+action_entry = {
+    "iteration": int,
+    "timestamp": str,          # ISO format
+    "mode": str,              # "fast" | "deep"
+    "thinking": str,          # LLM reasoning
+    "planning": str,          # Deep mode planning
+    "reflection": str,        # Deep mode reflection  
+    "approach": str,          # Current strategy
+    "tool_calls": [
+        {
+            "name": str,
+            "args": dict,
+            "result": str,        # Truncated to ~1000 chars
+            "outcome": str,       # ToolOutcome enum value
+            # NO per-tool compression fields - handled by situation_summary
+        }
+    ],
+    # NO iteration-level compression fields - handled by situation_summary
+}
+```
+
+## Context Assembly Methods
+
+### Primary: Semantic Context
+```python
+def get_compressed_attempts(self, max_history: int = 3) -> List[str]:
+    """Use situation_summary for intelligent context vs primitive truncation."""
+    if any(v.strip() for v in self.situation_summary.values()):
+        summary_parts = []
+        for key, value in self.situation_summary.items():
+            if value.strip():
+                summary_parts.append(f"{key}: {value}")
+        return ["; ".join(summary_parts)] if summary_parts else []
+    
+    # Fallback only if summary empty
+    return compress_actions(self.actions[:-1][-max_history:])
+```
+
+### Clean Context Assembly
+```python
+def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:
+    """Clean context assembly using semantic compression."""
+    if mode == "deep":
+        # Deep: semantic summary + latest action details
+        summary_context = self.format_actions_for_fast_mode(max_history)
+        latest_context = self.format_latest_results_detailed()
         
-        # Structured reasoning phases
-        "thinking": str,               # Core reasoning output (all modes)
-        "planning": str,               # Strategic planning (deep mode only)
-        "reflection": str,             # Retrospective analysis (deep mode only)  
-        "approach": str,               # Current persistent strategy
-        
-        # Tool execution results
-        "tool_calls": [
-            {
-                "name": str,           # Tool name (e.g., "search", "read_file") 
-                "args": dict,          # Tool arguments as provided
-                "result": str,         # Tool result, truncated to ~1000 chars
-                "outcome": enum,       # Enum: SUCCESS, FAILURE, ERROR, TIMEOUT
-                
-                # LLM compression fields (Phase 2 - empty strings in Phase 1)
-                "insights": str,       # Key findings relevant to goal (1-2 sentences)
-                "learning": str,       # Strategic learnings about approach effectiveness
-                "relevance": str,      # How important to current goal: "high", "medium", "low"
-            }
-        ],
-        
-        # Iteration-level compression (Phase 2 - empty strings in Phase 1)
-        "synthesis": str,              # How this iteration advances overall goal
-        "progress": str,               # "advancing", "stuck", "regressing"
-        "hypothesis": {                # Current belief being tested
-            "belief": str,             # What agent thinks is true
-            "test": str,               # How this iteration tests the belief
-        },
-    }
-]
-
-# Derived context for LLM prompting
-"attempts": [                          # Generated by compress_actions()
-    "searched 'python tutorial' → found 3 results, too general for debugging",
-    "read logs/error.log → file empty, suggests logging not configured"
-]
+        if summary_context == "No previous attempts":
+            return latest_context if latest_context else "No context available"
+        elif latest_context == "No tool results from current iteration":
+            return summary_context
+        else:
+            return f"{summary_context}\n\nLATEST DETAILS:\n{latest_context}"
+    else:
+        # Fast: just semantic summary
+        return self.format_actions_for_fast_mode(max_history)
 ```
 
-## Field Descriptions
+## Reasoning Integration
 
-### Core Metadata
-- **iteration**: Sequential number starting from 0
-- **timestamp**: ISO 8601 format for chronological ordering
-- **mode**: Reasoning complexity level (`fast` for speed, `deep` for complex problems)
+### LLM Schema Extension
+```python
+# In unified reasoning prompt - LLM outputs:
+{
+  "summary_update": {
+    "goal": "What is the main objective?",
+    "progress": "What has been accomplished so far?", 
+    "current_approach": "What strategy are we using?",
+    "key_findings": "What important information have we discovered?",
+    "next_focus": "What should be the next priority?"
+  }
+}
+```
 
-### Reasoning Fields
-- **thinking**: Raw reasoning output from LLM (present in all modes)
-- **planning**: Strategic planning phase (deep mode only, empty string in fast mode)
-- **reflection**: Retrospective analysis of previous iterations (deep mode only)
-- **approach**: Persistent strategy that spans multiple iterations (e.g., "debug API integration")
+### State Update Logic
+```python
+# In reason.py - merge LLM updates into persistent summary:
+if reasoning_response.summary_update:
+    for key, value in reasoning_response.summary_update.items():
+        if key in state.situation_summary and value.strip():
+            state.situation_summary[key] = value
+```
 
-### Tool Execution
-- **name**: Exact tool name as registered in tool registry (matches LLM tool call format)
-- **args**: Complete argument dict passed to tool (matches LLM tool call format)
-- **result**: Tool response truncated to prevent memory bloat
-- **outcome**: Standardized execution result (SUCCESS, FAILURE, ERROR, TIMEOUT)
-- **execution_time**: Basic performance monitoring for debugging
+## Key Design Decisions
 
-### Compression Fields (Phase 2)
-- **insights**: LLM-extracted key findings relevant to current goal
-- **learning**: Strategic insights about approach effectiveness
-- **relevance**: Goal-relevance scoring for context filtering
-- **synthesis**: Iteration-level summary of goal advancement
-- **progress**: Trajectory assessment for stuck detection
-- **hypothesis**: Structured belief tracking for hypothesis-driven reasoning
+**1. Semantic vs Mechanical**
+- LLM maintains living understanding vs string truncation
+- 5 semantic fields vs 20+ complex compression fields
+- Natural language synthesis vs brittle heuristics
 
-## Tool Outcome Enum
+**2. Single Source of Truth**
+- `situation_summary` handles all context compression
+- No redundant per-tool or per-iteration fields
+- Clean separation: actions for debugging, summary for reasoning
+
+**3. Graceful Degradation**
+- Semantic summary takes priority when available
+- Automatic fallback to basic compression if summary empty
+- Handles edge cases (tool failures) transparently
+
+**4. Zero Ceremony**
+- LLM does the work, not complex code architecture
+- Minimal state, maximum intelligence
+- Beautiful simplicity
+
+## Implementation Status
+
+✅ **COMPLETE**: Semantic context summarization fully operational
+❌ **OBSOLETE**: All tool-level and iteration-level compression fields
+📋 **TODO**: Clean up obsolete fields from codebase
+
+## Obsolete Patterns - DO NOT USE
 
 ```python
-class ToolOutcome(Enum):
-    SUCCESS = "success"    # Tool executed successfully with expected output
-    FAILURE = "failure"    # Tool executed but failed (e.g., file not found)
-    ERROR = "error"        # Tool execution error (e.g., syntax error, crash)
-    TIMEOUT = "timeout"    # Tool execution exceeded time limit
+# OBSOLETE - handled by situation_summary
+"synthesis": "",
+"progress": "", 
+"hypothesis": {"belief": "", "test": ""},
+"insights": "",
+"learning": "",
+"relevance": "",
 ```
 
-## Implementation Phases
-
-**Phase 1**: Schema migration
-- Replace `iterations` with `actions` structure
-- Set compression fields to empty strings
-- Implement basic `compress_actions()` using tool summaries
-
-**Phase 2**: Intelligent compression
-- Extend reasoning prompts to populate compression fields
-- Implement relevance-based context filtering
-- Use compressed fields in `attempts` generation
-
-## Context Derivation
-
-### Phase 1: Basic readable format
-```python
-def compress_actions(actions):
-    return [f"{call['name']}({args_summary}) → {call['outcome']}" 
-            for action in actions for call in action['tool_calls']]
-```
-
-### Phase 2: Use LLM-generated insights
-```python
-def compress_actions(actions, relevance_filter="medium"):
-    compressed = []
-    for action in actions:
-        for call in action['tool_calls']:
-            if call['relevance'] in ['high', 'medium']:  # Filter by relevance
-                compressed.append(call['insights'] or fallback_format(call))
-    return compressed
-```
-
-The `attempts` list is always derived from `actions` - never stored independently.
+**Philosophy**: Elegant solutions supersede complex ones. Our semantic approach proves complexity was solving the wrong problem.

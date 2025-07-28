@@ -12,10 +12,8 @@ class Reasoning:
     reasoning: List[str] = field(default_factory=list)
     reflect: Optional[str] = None
     plan: Optional[str] = None
-    # Phase 2 compression fields
-    synthesis: Optional[str] = None
-    progress: Optional[str] = None
-    hypothesis: Optional[Dict[str, str]] = None
+    # Semantic context summarization - the canonical solution
+    summary_update: Optional[Dict[str, str]] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Reasoning":
@@ -29,8 +27,6 @@ class Reasoning:
             reasoning=normalized_reasoning,
             reflect=data.get("reflect"),
             plan=data.get("plan"),
-            # Phase 2 compression fields
-            synthesis=data.get("synthesis"),
-            progress=data.get("progress"),
-            hypothesis=data.get("hypothesis"),
+            # Semantic context summarization
+            summary_update=data.get("summary_update"),
         )

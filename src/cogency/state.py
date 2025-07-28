@@ -28,6 +28,14 @@ class State:
     actions: List[Dict[str, Any]] = field(default_factory=list)
     attempts: List[Any] = field(default_factory=list)
     current_approach: str = "initial"
+    # Phase 2B: Semantic context summarization
+    situation_summary: Dict[str, str] = field(default_factory=lambda: {
+        "goal": "",
+        "progress": "", 
+        "current_approach": "",
+        "key_findings": "",
+        "next_focus": ""
+    })
     # Output
     response: Optional[str] = None
     respond_directly: bool = False
@@ -68,10 +76,7 @@ class State:
             "reflection": reflection,
             "approach": approach,
             "tool_calls": tool_calls,
-            # Phase 2 compression fields (empty for now)
-            "synthesis": "",
-            "progress": "",
-            "hypothesis": {"belief": "", "test": ""},
+            # NO compression fields - handled by situation_summary
         }
         self.actions.append(action_entry)
 
@@ -97,10 +102,7 @@ class State:
             "args": args,
             "result": result[:1000],  # Truncate per schema
             "outcome": outcome.value,
-            # Phase 2 fields - empty for now
-            "insights": "",
-            "learning": "",
-            "relevance": "",
+            # NO compression fields - handled by situation_summary
         }
         
         # Initialize tool_calls if needed
@@ -118,11 +120,20 @@ class State:
         return latest_action.get("tool_calls", [])
 
     def get_compressed_attempts(self, max_history: int = 3) -> List[str]:
-        """Get compressed attempts using schema-compliant compress_actions."""
+        """Get compressed attempts using semantic context summarization."""
         if len(self.actions) <= 1:
             return []
         
-        # Compress all but the latest action
+        # Phase 2B: Return situation_summary instead of compressed strings
+        if any(v.strip() for v in self.situation_summary.values()):
+            # Convert summary to readable format for reasoning context
+            summary_parts = []
+            for key, value in self.situation_summary.items():
+                if value.strip():
+                    summary_parts.append(f"{key}: {value}")
+            return ["; ".join(summary_parts)] if summary_parts else []
+        
+        # Fallback to basic compression if summary empty
         past_actions = self.actions[:-1][-max_history:]
         return compress_actions(past_actions)
 
@@ -188,6 +199,23 @@ class State:
                 formatted.append(f"  Result: {result}")
         
         return "\n".join(formatted)
+
+    def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:
+        """Phase 3: Clean context assembly for reasoning with semantic compression."""
+        if mode == "deep":
+            # Deep mode: situation_summary + latest action details
+            summary_context = self.format_actions_for_fast_mode(max_history)
+            latest_context = self.format_latest_results_detailed()
+            
+            if summary_context == "No previous attempts":
+                return latest_context if latest_context else "No context available"
+            elif latest_context == "No tool results from current iteration":
+                return summary_context
+            else:
+                return f"{summary_context}\n\nLATEST DETAILS:\n{latest_context}"
+        else:
+            # Fast mode: just situation_summary
+            return self.format_actions_for_fast_mode(max_history)
 
 
 

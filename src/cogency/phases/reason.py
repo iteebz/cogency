@@ -129,10 +129,8 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
     # Build unified prompt with mode-specific context
     tool_registry = build_registry(selected_tools)
     
-    if react_mode == "deep":
-        context = state.format_actions_for_deep_mode(max_history=3) + "\n\nLATEST TOOL RESULTS:\n" + state.format_latest_results_detailed()
-    else:
-        context = state.format_actions_for_fast_mode(max_history=3)
+    # Phase 2B/3: Use clean context assembly
+    context = state.build_reasoning_context(react_mode, max_history=3)
     
     reasoning_prompt = prompt_unified_mode(
         mode=react_mode,
@@ -225,9 +223,8 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
             tool_calls=tool_calls,
         )
         
-        # Update the latest action with Phase 2 compression fields
-        if state.actions:
-            latest_action = state.actions[-1]
-            latest_action["synthesis"] = reasoning_response.synthesis or ""
-            latest_action["progress"] = reasoning_response.progress or ""
-            latest_action["hypothesis"] = reasoning_response.hypothesis or {"belief": "", "test": ""}
+        # Semantic context summarization: merge summary_update into situation_summary
+        if reasoning_response.summary_update:
+            for key, value in reasoning_response.summary_update.items():
+                if key in state.situation_summary and value.strip():
+                    state.situation_summary[key] = value

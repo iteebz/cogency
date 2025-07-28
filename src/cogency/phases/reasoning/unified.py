@@ -91,14 +91,18 @@ JSON Response Format:
   ],
   "switch_to": null,
   "switch_why": null,
-  "synthesis": "How does this iteration advance the overall goal?",
-  "progress": "advancing|stuck|regressing",
-  "hypothesis": {{"belief": "What I believe is true", "test": "How this iteration tests that belief"}}
+  "summary_update": {{
+    "goal": "What is the main objective?",
+    "progress": "What has been accomplished so far?",
+    "current_approach": "What strategy are we using?",
+    "key_findings": "What important information have we discovered?",
+    "next_focus": "What should be the next priority?"
+  }}
 }}
 
 IMPORTANT: All {MAX_TOOL_CALLS_PER_ITERATION} tool calls must be in ONE tool_calls array, not separate JSON objects.
 
-When done: {{"thinking": "explanation", "tool_calls": [], "switch_to": null, "switch_why": null, "synthesis": "goal achieved", "progress": "advancing", "hypothesis": {{"belief": "task complete", "test": "no further action needed"}}}}
+When done: {{"thinking": "explanation", "tool_calls": [], "switch_to": null, "switch_why": null, "summary_update": {{"goal": "updated goal", "progress": "final progress", "current_approach": "approach used", "key_findings": "what was learned", "next_focus": "none - complete"}}}}
 
 TOOLS:
 {tool_registry}
