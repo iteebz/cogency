@@ -3,7 +3,7 @@
 import asyncio
 from typing import List, Optional
 
-from cogency.phases.base import Node
+from cogency.phases.base import Phase
 from cogency.constants import ADAPT_REACT
 from cogency.phases.reasoning import (
     parse_switch,
@@ -21,7 +21,7 @@ from cogency.types.reasoning import Reasoning
 from cogency.utils.parsing import parse_json_with_correction
 
 
-class Reason(Node):
+class Reason(Phase):
     def __init__(self, **kwargs):
         super().__init__(reason, **kwargs)
 

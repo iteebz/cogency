@@ -6,7 +6,7 @@ from resilient_result import unwrap
 
 from cogency.memory.backends.base import MemoryBackend
 from cogency.memory.prepare import save_memory
-from cogency.phases.base import Node
+from cogency.phases.base import Phase
 from cogency.resilience import robust
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -17,7 +17,7 @@ from cogency.utils.heuristics import is_simple_query
 from cogency.utils.parsing import parse_json
 
 
-class Preprocess(Node):
+class Preprocess(Phase):
     def __init__(self, **kwargs):
         super().__init__(preprocess, **kwargs)
 

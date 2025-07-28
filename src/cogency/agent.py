@@ -104,8 +104,8 @@ class Agent:
         # Store state for traces()
         self.last_state = notifier.get_notifications()
 
-    def run(self, query: str, user_id: str = "default") -> str:
-        """Run agent and return complete response as string"""
+    async def run(self, query: str, user_id: str = "default") -> str:
+        """Run agent and return complete response as string (async)"""
         try:
             # Get or create state
             if user_id not in self.user_states:
@@ -116,7 +116,6 @@ class Agent:
             state.trace = True
             
             # Use simple execution loop
-            import asyncio
             from cogency.execution import run_agent
             
             # Pass configuration directly
@@ -129,7 +128,7 @@ class Agent:
                 "memory": self.memory,
             }
             
-            result_state = asyncio.run(run_agent(state, **kwargs))
+            result_state = await run_agent(state, **kwargs)
             self.last_state = result_state
             
             # Extract response from state
@@ -142,6 +141,7 @@ class Agent:
             error_msg = f"Flow execution failed: {e}\n{traceback.format_exc()}"
             print(error_msg)
             return f"ERROR: {e}"
+
 
     def traces(self) -> list[dict[str, Any]]:
         """Get traces from last execution for debugging"""

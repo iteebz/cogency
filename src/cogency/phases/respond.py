@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 # Removed LangGraph dependency
 from resilient_result import Result
 
-from cogency.phases.base import Node
+from cogency.phases.base import Phase
 from cogency.resilience import robust
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -14,7 +14,7 @@ from cogency.tools.base import BaseTool
 from cogency.types.response import Response
 
 
-class Respond(Node):
+class Respond(Phase):
     def __init__(self, **kwargs):
         super().__init__(respond, **kwargs)
 

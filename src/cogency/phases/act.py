@@ -7,7 +7,7 @@ from typing import List
 # Tool retry logic now handled by @safe.act() decorator
 from resilient_result import Result
 
-from cogency.phases.base import Node
+from cogency.phases.base import Phase
 from cogency.resilience import robust
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -16,7 +16,7 @@ from cogency.tools.executor import run_tools
 logger = logging.getLogger(__name__)
 
 
-class Act(Node):
+class Act(Phase):
     def __init__(self, **kwargs):
         super().__init__(act, **kwargs)
 
