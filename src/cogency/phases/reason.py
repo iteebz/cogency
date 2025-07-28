@@ -12,7 +12,7 @@ from cogency.phases.reasoning import (
 )
 from cogency.phases.reasoning.deep import prompt_deep_mode
 from cogency.phases.reasoning.fast import prompt_fast_mode
-from cogency.resilience import robust
+from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -101,6 +101,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
     return " | ".join(formatted_parts) if formatted_parts else ""
 
 
+@observe.reason()
 @robust.reason()
 async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None) -> None:
     """Pure reasoning orchestration - let decorators handle all ceremony."""

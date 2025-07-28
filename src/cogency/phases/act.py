@@ -8,7 +8,7 @@ from typing import List
 from resilient_result import Result
 
 from cogency.phases.base import Phase
-from cogency.resilience import robust
+from cogency.decorators import robust, observe
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import run_tools
@@ -36,6 +36,7 @@ class Act(Phase):
             return "reason"
 
 
+@observe.act()
 @robust.act()
 async def act(state: State, tools: List[BaseTool]) -> None:
     """Act: execute tools based on reasoning decision."""

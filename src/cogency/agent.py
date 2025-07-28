@@ -3,6 +3,7 @@ from cogency.utils.auto import detect_llm
 from cogency.state import State
 from cogency.utils.notify import Notifier
 from cogency.utils.setup import agent_services
+from cogency import decorators
 
 MAX_QUERY_LENGTH = 10000
 
@@ -28,6 +29,7 @@ class Agent:
         enable_mcp: bool = False,
         json_schema: Optional[Any] = None,
         robust: bool = True,
+        observe: bool = False,
         persist: bool = False,
         persist_backend: Optional[Any] = None,
     ) -> None:
@@ -36,9 +38,9 @@ class Agent:
         self.verbose = verbose
         self.max_iterations = max_iterations
         
-        # Set global robust flag for decorators
-        import cogency.resilience.decorators as decorators
+        # Set global robust and observe flags for decorators
         decorators._robust_enabled = robust
+        decorators.set_observe_enabled(observe)
         
         # Set up state persistence
         if persist:

@@ -7,7 +7,7 @@ from resilient_result import unwrap
 from cogency.memory.backends.base import MemoryBackend
 from cogency.memory.prepare import save_memory
 from cogency.phases.base import Phase
-from cogency.resilience import robust
+from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -27,6 +27,7 @@ class Preprocess(Phase):
         return "reason" if state.selected_tools else "respond"
 
 
+@observe.preprocess()
 @robust.preprocess()
 async def preprocess(state: State, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend, system_prompt: str = None, identity: Optional[str] = None) -> None:
     """Preprocess: routing decisions, memory extraction, tool selection."""

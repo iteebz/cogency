@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 from resilient_result import Result
 
 from cogency.phases.base import Phase
-from cogency.resilience import robust
+from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -123,6 +123,7 @@ def prompt_response(
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
+@observe.respond()
 @robust.respond()
 async def respond(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None, json_schema: Optional[str] = None) -> None:
     """Respond: generate final formatted response with personality."""
