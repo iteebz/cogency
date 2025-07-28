@@ -118,7 +118,7 @@ async def reason(
     if state.react_mode != react_mode:
         state.react_mode = react_mode
 
-    await state.notify("state_change", {"state": "reasoning", "mode": react_mode})
+    await state.notify("reason", {"state": "reasoning", "mode": react_mode})
 
     # Check stop conditions - pure logic, no ceremony
     if iteration >= state.max_iterations:
@@ -184,13 +184,13 @@ async def reason(
     if state.verbose:
         if react_mode == "deep" and reasoning_response:
             if reasoning_response.thinking:
-                await state.notify("update", f"💭 {reasoning_response.thinking}\n")
+                await state.notify("reason", f"💭 {reasoning_response.thinking}\n")
             if reasoning_response.reflect:
-                await state.notify("update", f"🤔 {reasoning_response.reflect}\n")
+                await state.notify("reason", f"🤔 {reasoning_response.reflect}\n")
             if reasoning_response.plan:
-                await state.notify("update", f"📋 {reasoning_response.plan}\n")
+                await state.notify("reason", f"📋 {reasoning_response.plan}\n")
         elif reasoning_response.thinking:
-            await state.notify("update", f"💭 {reasoning_response.thinking}\n")
+            await state.notify("reason", f"💭 {reasoning_response.thinking}\n")
 
     # Handle mode switching (disabled for debugging)
     if ADAPT_REACT:

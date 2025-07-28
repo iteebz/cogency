@@ -125,7 +125,7 @@ Example:
                 output_content = f"{memory_content[:break_point]}..."
             else:
                 output_content = memory_content
-            await state.notify("update", f"Saved: {output_content}")
+            await state.notify("preprocess", f"Saved: {output_content}")
 
             # Let @safe.preprocess() handle memory save errors
             if memory_content:

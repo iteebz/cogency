@@ -6,7 +6,6 @@ from typing import AsyncIterator
 import pytest
 from resilient_result import Result
 
-from cogency.context import Context
 from cogency.memory.backends.filesystem import FileBackend
 from cogency.services.llm.base import BaseLLM
 from cogency.state import State
@@ -80,16 +79,9 @@ def mock_llm():
 
 
 @pytest.fixture
-def context():
-    """Basic context."""
-    return Context(query="test query", messages=[], user_id="test_user")
-
-
-@pytest.fixture
-def agent_state(context):
+def agent_state():
     """Basic agent state."""
-
-    return State(context=context, query="test query")
+    return State(query="test query")
 
 
 @pytest.fixture

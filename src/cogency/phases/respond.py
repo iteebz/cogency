@@ -135,7 +135,7 @@ async def respond(
     # Direct access to state properties - no context wrapper needed
 
     # Start responding state
-    await state.notify("state_change", {"state": "responding"})
+    await state.notify("respond", {"state": "responding"})
 
     # Streaming handled by Output
 
@@ -157,7 +157,7 @@ async def respond(
         # Use unified prompt function for fallback with user-friendly context
         failures = {"reasoning": user_error_message}
         prompt = prompt_response(
-            context.query,
+            state.query,
             system_prompt=system_prompt,
             failures=failures,
             identity=identity,
@@ -172,7 +172,7 @@ async def respond(
             if llm_result.success
             else "I encountered an issue but will try to help."
         )
-        await state.notify("update", f"🤖: {response.text}")
+        await state.notify("respond", f"🤖: {response.text}")
         await asyncio.sleep(0)
     else:
         # Generate response based on context and any tool results
@@ -205,7 +205,7 @@ async def respond(
                 if llm_result.success
                 else "I encountered an issue while generating a response."
             )
-            await state.notify("update", f"🤖: {response.text}")
+            await state.notify("respond", f"🤖: {response.text}")
         else:
             # Check for any failure outcomes in latest results
             failures = {}
@@ -231,7 +231,7 @@ async def respond(
                     if llm_result.success
                     else "I encountered an issue while processing the request."
                 )
-                await state.notify("update", f"🤖: {response.text}")
+                await state.notify("respond", f"🤖: {response.text}")
             else:
                 # No tool results - answer with knowledge or based on conversation
                 prompt = prompt_response(
@@ -250,7 +250,7 @@ async def respond(
                     if llm_result.success
                     else "I'm here to help. How can I assist you?"
                 )
-                await state.notify("update", f"🤖: {response.text}")
+                await state.notify("respond", f"🤖: {response.text}")
 
     # Add response to state conversation
     response_text = response.text if hasattr(response, "text") else response

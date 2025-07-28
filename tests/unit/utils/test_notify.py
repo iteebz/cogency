@@ -4,20 +4,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogency.context import Context
 from cogency.state import State
-
-
-def mock_context():
-    return Context("test")
 
 
 @pytest.mark.asyncio
 async def test_stream_functionality():
     """Test streaming functionality in State."""
     callback = AsyncMock()
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=True, callback=callback)
+    state = State(query="test query", verbose=True, callback=callback)
 
     await state.notify("test_event", {"message": "test data"})
 
@@ -36,8 +30,7 @@ async def test_stream_functionality():
 async def test_stream_without_verbose():
     """Test that streaming doesn't call callback when verbose=False."""
     callback = AsyncMock()
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=False, callback=callback)
+    state = State(query="test query", verbose=False, callback=callback)
 
     await state.notify("test_event", {"message": "test data"})
 
@@ -49,43 +42,40 @@ async def test_stream_without_verbose():
 
 
 @pytest.mark.asyncio
-async def test_state_change_streaming():
-    """Test state change streaming."""
+async def test_reason_phase_streaming():
+    """Test reason phase streaming."""
     callback = AsyncMock()
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=True, callback=callback)
+    state = State(query="test query", verbose=True, callback=callback)
 
-    await state.notify("state_change", {"state": "reasoning", "mode": "fast"})
+    await state.notify("reason", {"state": "reasoning", "mode": "fast"})
 
     # Check notification was recorded with correct structure
     assert len(state.notifications) == 1
     entry = state.notifications[0]
-    assert entry["event_type"] == "state_change"
+    assert entry["event_type"] == "reason"
     assert entry["data"] == {"state": "reasoning", "mode": "fast"}
 
 
 @pytest.mark.asyncio
-async def test_reasoning_streaming():
-    """Test reasoning content streaming."""
+async def test_preprocess_phase_streaming():
+    """Test preprocess phase streaming."""
     callback = AsyncMock()
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=True, callback=callback)
+    state = State(query="test query", verbose=True, callback=callback)
 
-    await state.notify("reasoning", {"content": "I need to search for information"})
+    await state.notify("preprocess", {"content": "Setting up tools and memory"})
 
     # Check notification was recorded
     assert len(state.notifications) == 1
     entry = state.notifications[0]
-    assert entry["event_type"] == "reasoning"
-    assert entry["data"] == {"content": "I need to search for information"}
+    assert entry["event_type"] == "preprocess"
+    assert entry["data"] == {"content": "Setting up tools and memory"}
 
 
 @pytest.mark.asyncio
 async def test_action_streaming():
     """Test action execution streaming."""
     callback = AsyncMock()
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=True, callback=callback)
+    state = State(query="test query", verbose=True, callback=callback)
 
     action_data = {"tool": "search", "args": {"query": "test"}}
     await state.notify("action", action_data)
@@ -98,26 +88,39 @@ async def test_action_streaming():
 
 
 @pytest.mark.asyncio
-async def test_response_streaming():
-    """Test final response streaming."""
+async def test_respond_phase_streaming():
+    """Test respond phase streaming."""
     callback = AsyncMock()
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=True, callback=callback)
+    state = State(query="test query", verbose=True, callback=callback)
 
-    await state.notify("response", {"text": "Here is my final response"})
+    await state.notify("respond", {"text": "Here is my final response"})
 
     # Check notification was recorded
     assert len(state.notifications) == 1
     entry = state.notifications[0]
-    assert entry["event_type"] == "response"
+    assert entry["event_type"] == "respond"
     assert entry["data"] == {"text": "Here is my final response"}
+
+
+@pytest.mark.asyncio
+async def test_trace_streaming():
+    """Test trace streaming for debug information."""
+    callback = AsyncMock()
+    state = State(query="test query", verbose=True, callback=callback)
+
+    await state.notify("trace", {"message": "Debug info", "phase": "reason"})
+
+    # Check notification was recorded
+    assert len(state.notifications) == 1
+    entry = state.notifications[0]
+    assert entry["event_type"] == "trace"
+    assert entry["data"] == {"message": "Debug info", "phase": "reason"}
 
 
 @pytest.mark.asyncio
 async def test_no_callback():
     """Test streaming when no callback is provided."""
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=True)
+    state = State(query="test query", verbose=True)
 
     # Should not raise error
     await state.notify("test_event", {"message": "test data"})
@@ -134,8 +137,7 @@ async def test_callback_function_vs_coroutine():
     def sync_callback(x):
         pass
 
-    context = mock_context()
-    state = State(context=context, query="test query", verbose=True, callback=sync_callback)
+    state = State(query="test query", verbose=True, callback=sync_callback)
 
     # Should not raise error
     await state.notify("test_event", {"message": "test data"})

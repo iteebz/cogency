@@ -42,6 +42,7 @@ class State:
     verbose: bool = True
     trace: bool = False
     callback: Any = None
+    notifications: List[Dict[str, Any]] = field(default_factory=list)
     
     def add_message(self, role: str, content: str) -> None:
         """Add message to conversation history."""
@@ -53,6 +54,15 @@ class State:
     
     async def notify(self, event_type: str, data: Any) -> None:
         """Notify user of progress."""
+        # Record notification for testing/debugging
+        notification = {
+            "event_type": event_type,
+            "data": data,
+            "iteration": self.iteration
+        }
+        self.notifications.append(notification)
+        
+        # Call user callback if available
         if self.callback and self.verbose and callable(self.callback):
             if asyncio.iscoroutinefunction(self.callback):
                 await self.callback(str(data))

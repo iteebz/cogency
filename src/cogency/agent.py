@@ -112,8 +112,12 @@ class Agent:
                 self.user_states[user_id] = State(query=query, user_id=user_id, max_iterations=self.max_iterations)
             state = self.user_states[user_id]
             state.query = query
-            state.verbose = True
-            state.trace = True
+            state.verbose = self.verbose
+            state.trace = self.trace
+            
+            # Set up trace callback for non-streaming mode
+            if self.trace:
+                state.callback = print
             
             # Use simple execution loop
             from cogency.execution import run_agent
