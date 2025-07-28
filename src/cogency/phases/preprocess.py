@@ -15,26 +15,20 @@ from cogency.tools.registry import build_registry
 from cogency.types.preprocessed import Preprocessed
 from cogency.utils.heuristics import is_simple_query
 from cogency.utils.parsing import parse_json
+from cogency.utils.notify import notify
 
 
 class Preprocess(Phase):
-    def __init__(self, **kwargs):
-        super().__init__(preprocess, **kwargs)
+    def __init__(self, llm, tools, memory, system_prompt=None, identity=None):
+        super().__init__(preprocess, llm=llm, tools=tools, memory=memory, 
+                        system_prompt=system_prompt, identity=identity)
 
     def next_phase(self, state: State) -> str:
         return "reason" if state.selected_tools else "respond"
 
 
-# @robust.preprocess()  # DISABLED FOR DEBUGGING
-async def preprocess(
-    state: State,
-    *,
-    llm: BaseLLM,
-    tools: List[BaseTool],
-    memory: MemoryBackend,
-    system_prompt: str = None,
-    identity: Optional[str] = None,
-) -> State:
+@robust.preprocess()
+async def preprocess(state: State, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend, system_prompt: str = None, identity: Optional[str] = None) -> None:
     """Preprocess: routing decisions, memory extraction, tool selection."""
     query = state.query
     # Direct access to state properties - no context wrapper needed
@@ -50,10 +44,7 @@ async def preprocess(
 
         # Trace for dev debugging
         if state.trace:
-            await state.notify(
-                "trace",
-                {"message": f"Built tool registry with {len(tools)} tools", "phase": "preprocess"},
-            )
+            await notify(state, "trace", f"Built tool registry with {len(tools)} tools")
 
         # Pragmatic heuristic: Simple queries likely don't need deep reasoning
         suggested_mode = "fast" if is_simple_query(query) else None
@@ -125,7 +116,7 @@ Example:
                 output_content = f"{memory_content[:break_point]}..."
             else:
                 output_content = memory_content
-            await state.notify("preprocess", f"Saved: {output_content}")
+            await notify(state, "preprocess", f"Saved: {output_content}")
 
             # Let @safe.preprocess() handle memory save errors
             if memory_content:
@@ -159,22 +150,10 @@ Example:
             if len(filtered_tools) < len(tools):
                 # Show smart filtering in traces
                 if state.trace:
-                    await state.notify(
-                        "trace",
-                        {
-                            "message": f"Selected tools: {', '.join([t.name for t in filtered_tools])}",
-                            "phase": "preprocess",
-                        },
-                    )
+                    await notify(state, "trace", f"Selected tools: {', '.join([t.name for t in filtered_tools])}")
             elif len(filtered_tools) > 1 and state.trace:
                 # Show tools being prepared for ReAct in traces
-                await state.notify(
-                    "trace",
-                    {
-                        "message": f"Preparing tools: {', '.join([t.name for t in filtered_tools])}",
-                        "phase": "preprocess",
-                    },
-                )
+                await notify(state, "trace", f"Preparing tools: {', '.join([t.name for t in filtered_tools])}")
     else:
         # Simple case: no tools available, respond directly
         filtered_tools = []  # No tools to filter if initial 'tools' list is empty
@@ -193,4 +172,4 @@ Example:
     state.react_mode = result.react_mode if "result" in locals() else "fast"
     state.iteration = 0
 
-    return state
+    # State mutated in place, no return needed

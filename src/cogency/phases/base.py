@@ -14,25 +14,19 @@ class Phase:
     def __init__(self, func: Any, **kwargs):
         self.func = partial(func, **kwargs)
 
-    async def __call__(self, state: State) -> State:
+    async def __call__(self, state: State) -> None:
+        """Execute phase function - mutates state in place."""
         result = await self.func(state)
 
-        # Unwrap Result objects from @robust decorators
+        # Handle Result objects from @robust decorators
         if hasattr(result, "success"):
             try:
-                return unwrap(result)
+                unwrap(result)  # Just unwrap, don't return - state already mutated
             except Exception as e:
-                # Simple error propagation - add error to state and continue
-                if isinstance(state, State):
-                    state["error"] = str(e)
-                    return state
-                else:
-                    # Fallback: create a new State with error
-                    error_state = State(query="error")
-                    error_state["error"] = str(e)
-                    return error_state
-
-        return result  # Already State
+                # Simple error propagation - add error to state
+                state.error = str(e)
+        
+        # State was mutated in place by the function, no return needed
 
     def next_phase(self, state: State) -> str:
         """Default: end flow."""

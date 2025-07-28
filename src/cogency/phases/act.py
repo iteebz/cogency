@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 
 class Act(Phase):
-    def __init__(self, **kwargs):
-        super().__init__(act, **kwargs)
+    def __init__(self, tools):
+        super().__init__(act, tools=tools)
 
     def next_phase(self, state: State) -> str:
         current_iter = state.iteration
@@ -36,14 +36,14 @@ class Act(Phase):
             return "reason"
 
 
-# @robust.act()  # DISABLED FOR DEBUGGING
-async def act(state: State, *, tools: List[BaseTool]) -> State:
+@robust.act()
+async def act(state: State, tools: List[BaseTool]) -> None:
     """Act: execute tools based on reasoning decision."""
     time.time()
 
     tool_call_str = state.tool_calls
     if not tool_call_str:
-        return state
+        return  # State mutated in place
 
     # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools
@@ -51,7 +51,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     # Tool calls come from reason node as parsed list
     tool_calls = state.tool_calls
     if not tool_calls or not isinstance(tool_calls, list):
-        return state
+        return  # State mutated in place
 
     # Start acting state
     # Acting is implicit - tool execution shows progress
@@ -87,4 +87,4 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
                 outcome=ToolOutcome.FAILURE
             )
 
-    return state
+    # State mutated in place, no return needed

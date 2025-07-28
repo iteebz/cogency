@@ -15,15 +15,15 @@ class TestTool(BaseTool):
     async def run(self, query: str) -> str:
         return f"Test result for: {query}"
 
-def main():
+async def main():
     # Create agent with max 3 iterations to test recursion limit
     tools = [TestTool()]
     agent = Agent('test', tools=tools, max_iterations=3, trace=True, verbose=True)
     
     # This should NOT hit recursion limit - agent should stop after getting results
-    result = agent.run("Use test_tool to help me")
+    result = await agent.run("Use test_tool to help me")
     print(f"Result: {result}")
     print(f"Final state: {agent.last_state}")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

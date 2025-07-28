@@ -12,11 +12,13 @@ from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.types.response import Response
+from cogency.utils.notify import notify
 
 
 class Respond(Phase):
-    def __init__(self, **kwargs):
-        super().__init__(respond, **kwargs)
+    def __init__(self, llm, tools, system_prompt=None, identity=None, json_schema=None):
+        super().__init__(respond, llm=llm, tools=tools, 
+                        system_prompt=system_prompt, identity=identity, json_schema=json_schema)
 
     def next_phase(self, state: State) -> str:
         return "END"  # End token, no longer using LangGraph
@@ -121,21 +123,13 @@ def prompt_response(
     return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
 
 
-# @robust.respond()  # DISABLED FOR DEBUGGING
-async def respond(
-    state: State,
-    *,
-    llm: BaseLLM,
-    tools: List[BaseTool],
-    system_prompt: Optional[str] = None,
-    identity: Optional[str] = None,
-    json_schema: Optional[str] = None,
-) -> State:
+@robust.respond()
+async def respond(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None, json_schema: Optional[str] = None) -> None:
     """Respond: generate final formatted response with personality."""
     # Direct access to state properties - no context wrapper needed
 
     # Start responding state
-    await state.notify("respond", {"state": "responding"})
+    await notify(state, "respond", "Generating response")
 
     # Streaming handled by Output
 
@@ -150,9 +144,7 @@ async def respond(
         # Handle reasoning stopped scenario with user-friendly message
         user_error_message = getattr(state, 'user_error_message', "I encountered an issue but will try to help.")
         if state.trace:
-            await state.notify(
-                "trace", {"message": f"Fallback response due to: {stop_reason}", "phase": "respond"}
-            )
+            await notify(state, "trace", f"Fallback response due to: {stop_reason}")
 
         # Use unified prompt function for fallback with user-friendly context
         failures = {"reasoning": user_error_message}
@@ -172,7 +164,7 @@ async def respond(
             if llm_result.success
             else "I encountered an issue but will try to help."
         )
-        await state.notify("respond", f"🤖: {response.text}")
+        await notify(state, "respond", f"🤖: {response.text}")
         await asyncio.sleep(0)
     else:
         # Generate response based on context and any tool results
@@ -205,7 +197,7 @@ async def respond(
                 if llm_result.success
                 else "I encountered an issue while generating a response."
             )
-            await state.notify("respond", f"🤖: {response.text}")
+            await notify(state, "respond", f"🤖: {response.text}")
         else:
             # Check for any failure outcomes in latest results
             failures = {}
@@ -231,7 +223,7 @@ async def respond(
                     if llm_result.success
                     else "I encountered an issue while processing the request."
                 )
-                await state.notify("respond", f"🤖: {response.text}")
+                await notify(state, "respond", f"🤖: {response.text}")
             else:
                 # No tool results - answer with knowledge or based on conversation
                 prompt = prompt_response(
@@ -250,7 +242,7 @@ async def respond(
                     if llm_result.success
                     else "I'm here to help. How can I assist you?"
                 )
-                await state.notify("respond", f"🤖: {response.text}")
+                await notify(state, "respond", f"🤖: {response.text}")
 
     # Add response to state conversation
     response_text = response.text if hasattr(response, "text") else response
@@ -259,4 +251,4 @@ async def respond(
     # Update flow state with clean assignment
     state.response = response_text
 
-    return state
+    # State mutated in place, no return needed

@@ -6,6 +6,16 @@ from typing import AsyncIterator, Optional
 from cogency.state import State
 
 
+async def notify(state: State, event_type: str, message: str) -> None:
+    """Clean notification function - no coupling to state methods."""
+    if state.callback and state.verbose and callable(state.callback):
+        import asyncio
+        if asyncio.iscoroutinefunction(state.callback):
+            await state.callback(f"{event_type}: {message}")
+        else:
+            state.callback(f"{event_type}: {message}")
+
+
 def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:
     """Format thinking content for display."""
     if not thinking:

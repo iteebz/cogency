@@ -19,11 +19,13 @@ from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
 from cogency.types.reasoning import Reasoning
 from cogency.utils.parsing import parse_json_with_correction
+from cogency.utils.notify import notify
 
 
 class Reason(Phase):
-    def __init__(self, **kwargs):
-        super().__init__(reason, **kwargs)
+    def __init__(self, llm, tools, system_prompt=None, identity=None):
+        super().__init__(reason, llm=llm, tools=tools, 
+                        system_prompt=system_prompt, identity=identity)
 
     def next_phase(self, state: State) -> str:
         return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
@@ -99,15 +101,8 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
     return " | ".join(formatted_parts) if formatted_parts else ""
 
 
-# @robust.reason()  # DISABLED FOR DEBUGGING
-async def reason(
-    state: State,
-    *,
-    llm: BaseLLM,
-    tools: List[BaseTool],
-    system_prompt: Optional[str] = None,
-    identity: Optional[str] = None,
-) -> State:
+@robust.reason()
+async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None) -> None:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
     # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools or []
@@ -118,13 +113,13 @@ async def reason(
     if state.react_mode != react_mode:
         state.react_mode = react_mode
 
-    await state.notify("reason", {"state": "reasoning", "mode": react_mode})
+    await notify(state, "reason", f"Starting {react_mode} mode reasoning")
 
     # Check stop conditions - pure logic, no ceremony
     if iteration >= state.max_iterations:
         state.stop_reason = "max_iterations_reached"
         state.tool_calls = None
-        return state
+        return  # State mutated in place
 
     # Build messages
     messages = state.get_conversation()
@@ -150,7 +145,7 @@ async def reason(
     
     # DEBUG: Show what LLM sees
     if state.trace:
-        await state.notify("trace", {"message": f"Iteration {iteration}: attempts_summary = '{attempts_summary}'", "phase": "reason"})
+        await notify(state, "trace", f"Iteration {iteration}: attempts_summary = '{attempts_summary}'")
 
     # Add optional prompts
     if identity:
@@ -168,12 +163,8 @@ async def reason(
     raw_response = unwrap(llm_result)
 
     # Parse with correction
-    def trace_parsing(msg: str):
-        if state.trace:
-            asyncio.create_task(state.notify("trace", {"message": msg, "phase": "reason"}))
-
     parse_result = await parse_json_with_correction(
-        raw_response, llm_fn=llm.run, trace_fn=trace_parsing, max_attempts=2
+        raw_response, llm_fn=llm.run, max_attempts=2
     )
 
     reasoning_response = (
@@ -184,25 +175,25 @@ async def reason(
     if state.verbose:
         if react_mode == "deep" and reasoning_response:
             if reasoning_response.thinking:
-                await state.notify("reason", f"💭 {reasoning_response.thinking}\n")
+                await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
             if reasoning_response.reflect:
-                await state.notify("reason", f"🤔 {reasoning_response.reflect}\n")
+                await notify(state, "reason", f"🤔 {reasoning_response.reflect}\n")
             if reasoning_response.plan:
-                await state.notify("reason", f"📋 {reasoning_response.plan}\n")
+                await notify(state, "reason", f"📋 {reasoning_response.plan}\n")
         elif reasoning_response.thinking:
-            await state.notify("reason", f"💭 {reasoning_response.thinking}\n")
+            await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
 
     # Handle mode switching (disabled for debugging)
     if ADAPT_REACT:
         switch_to, switch_why = parse_switch(raw_response)
         if should_switch(react_mode, switch_to, switch_why, iteration):
             if state.trace:
-                await state.notify(
+                await notify(state, 
                     "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_why})", node="reason"
                 )
             state = switch_mode(state, switch_to, switch_why)
     elif state.trace:
-        await state.notify("trace", {"message": "Mode switching disabled (ADAPT_REACT=False)", "phase": "reason"})
+        await notify(state, "trace", "Mode switching disabled (ADAPT_REACT=False)")
 
     # Update reasoning state
     tool_calls = reasoning_response.tool_calls
@@ -212,7 +203,7 @@ async def reason(
     state.tool_calls = tool_calls
     state.iteration = state.iteration + 1
 
-    return state
+    # State mutated in place, no return needed
 
 
 def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int) -> None:

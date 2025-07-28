@@ -7,6 +7,9 @@ from resilient_result import resilient as resilient_decorator
 
 from cogency.resilience.checkpoint import checkpoint
 
+# Global flag for toggleable robust behavior
+_robust_enabled = True  # Default enabled
+
 
 def _checkpoint(name: str, interruptible: bool = True):
     """Context-driven checkpointing wrapper - applies only when task_id exists."""
@@ -37,6 +40,11 @@ def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None
         retry = retry or default_retry or Retry.api()
 
         def decorator(func):
+            # Check global robust flag
+            if not _robust_enabled:
+                # Pass-through decorator - no resilience or checkpointing  
+                return func
+            
             # 1. Apply resilience
             resilient_func = resilient_decorator(retry=retry)(func)
 
@@ -75,4 +83,10 @@ class _RobustDecorators:
 
 robust = _RobustDecorators()
 
-__all__ = ["robust", "reason", "act", "preprocess", "respond", "generic"]
+
+def is_robust_enabled() -> bool:
+    """Check if robust decorators are enabled."""
+    return _robust_enabled
+
+
+__all__ = ["robust", "reason", "act", "preprocess", "respond", "generic", "is_robust_enabled"]

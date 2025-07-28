@@ -29,11 +29,16 @@ class Agent:
         verbose: bool = True,
         enable_mcp: bool = False,
         json_schema: Optional[Any] = None,
+        robust: bool = True,
     ) -> None:
         self.name = name
         self.trace = trace
         self.verbose = verbose
         self.max_iterations = max_iterations
+        
+        # Set global robust flag for decorators
+        import cogency.resilience.decorators as decorators
+        decorators._robust_enabled = robust
 
         # Setup tools and memory services
         agent_opts = {
@@ -52,6 +57,34 @@ class Agent:
         self.json_schema = json_schema
         self.user_states: dict[str, State] = {}
         self.last_state: Optional[dict] = None  # Store for traces()
+
+        # Create phase instances with injected dependencies - zero ceremony
+        from cogency.phases.preprocess import Preprocess
+        from cogency.phases.reason import Reason
+        from cogency.phases.act import Act
+        from cogency.phases.respond import Respond
+        
+        self.preprocess_phase = Preprocess(
+            llm=self.llm,
+            tools=self.tools,
+            memory=self.memory,
+            system_prompt=self.system_prompt,
+            identity=self.identity
+        )
+        self.reason_phase = Reason(
+            llm=self.llm,
+            tools=self.tools,
+            system_prompt=self.system_prompt,
+            identity=self.identity
+        )
+        self.act_phase = Act(tools=self.tools)
+        self.respond_phase = Respond(
+            llm=self.llm,
+            tools=self.tools,
+            system_prompt=self.system_prompt,
+            identity=self.identity,
+            json_schema=self.json_schema
+        )
 
         # MCP server setup if enabled
         if enable_mcp:
@@ -119,24 +152,21 @@ class Agent:
             if self.trace:
                 state.callback = print
             
-            # Use simple execution loop
+            # Use simple execution loop with zero ceremony
             from cogency.execution import run_agent
             
-            # Pass configuration directly
-            kwargs = {
-                "llm": self.llm,
-                "tools": self.tools,
-                "system_prompt": self.system_prompt,
-                "identity": self.identity,
-                "json_schema": self.json_schema,
-                "memory": self.memory,
-            }
-            
-            result_state = await run_agent(state, **kwargs)
-            self.last_state = result_state
+            # Phase instances already have dependencies injected
+            await run_agent(
+                state,
+                self.preprocess_phase,
+                self.reason_phase, 
+                self.act_phase,
+                self.respond_phase
+            )
+            self.last_state = state
             
             # Extract response from state
-            response = getattr(result_state, 'response', None)
+            response = getattr(state, 'response', None)
             return response or "No response generated"
             
         except Exception as e:
