@@ -105,8 +105,6 @@ class Agent:
 
     def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return complete response as string"""
-        # TODO: Fix streaming implementation later
-        # Bypass streaming for now and test core flow directly
         try:
             # Get or create context
             if user_id not in self.contexts:
@@ -122,13 +120,25 @@ class Agent:
                 trace=True,
             )
             
-            # Run flow directly (sync wrapper for LangGraph)
+            # Use simple execution loop
             import asyncio
-            result_state = asyncio.run(self.flow.graph.ainvoke(state))
+            from cogency.execution import run_agent
+            
+            # Build kwargs from flow attributes
+            kwargs = {
+                "llm": self.flow.llm,
+                "tools": self.flow.tools,
+                "system_prompt": self.flow.system_prompt,
+                "identity": self.flow.identity,
+                "json_schema": self.flow.json_schema,
+                "memory": self.flow.memory,
+            }
+            
+            result_state = asyncio.run(run_agent(state, **kwargs))
             self.last_state = result_state
             
-            # Extract response (LangGraph returns dict, not dataclass)
-            response = result_state.get('response') if isinstance(result_state, dict) else getattr(result_state, 'response', None)
+            # Extract response from state
+            response = getattr(result_state, 'response', None)
             return response or "No response generated"
             
         except Exception as e:

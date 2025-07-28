@@ -3,7 +3,7 @@
 import asyncio
 from typing import Dict, List, Optional
 
-from langgraph.graph import END
+# Removed LangGraph dependency
 from resilient_result import Result
 
 from cogency.nodes.base import Node
@@ -19,7 +19,7 @@ class Respond(Node):
         super().__init__(respond, **kwargs)
 
     def next_node(self, state: State) -> str:
-        return END
+        return "END"  # End token, no longer using LangGraph
 
 
 # Response prompt templates - clean and scannable

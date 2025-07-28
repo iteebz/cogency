@@ -17,7 +17,7 @@ class Node:
     async def __call__(self, state: State) -> State:
         result = await self.func(state)
 
-        # Unwrap Result objects from @robust decorators for LangGraph compatibility
+        # Unwrap Result objects from @robust decorators
         if hasattr(result, "success"):
             try:
                 return unwrap(result)

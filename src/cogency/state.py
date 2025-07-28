@@ -19,7 +19,7 @@ class ToolOutcome(Enum):
 
 @dataclass 
 class State:
-    """Clean dataclass state for LangGraph compatibility."""
+    """Clean dataclass state for agent execution."""
     # Core immutable
     context: Context
     query: str
