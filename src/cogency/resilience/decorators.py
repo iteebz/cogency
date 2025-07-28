@@ -10,6 +10,9 @@ from cogency.resilience.checkpoint import checkpoint
 # Global flag for toggleable robust behavior
 _robust_enabled = True  # Default enabled
 
+# Global persistence manager - set by Agent during initialization
+_persistence_manager = None
+
 
 def _checkpoint(name: str, interruptible: bool = True):
     """Context-driven checkpointing wrapper - applies only when task_id exists."""
@@ -33,8 +36,44 @@ def _checkpoint(name: str, interruptible: bool = True):
     return decorator
 
 
+def _auto_save(phase_name: str):
+    """Auto-save state after successful phase completion."""
+    
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            # Execute the phase
+            result = await func(*args, **kwargs)
+            
+            # Auto-save state after successful completion
+            if _persistence_manager and _persistence_manager.enabled:
+                try:
+                    # Extract state from function arguments
+                    state = args[0] if args else kwargs.get("state")
+                    if state and hasattr(state, 'user_id'):
+                        # Extract LLM info from kwargs for validation
+                        llm = kwargs.get('llm') or (args[1] if len(args) > 1 else None)
+                        tools = kwargs.get('tools') or (args[2] if len(args) > 2 else None)
+                        
+                        await _persistence_manager.save_state(
+                            state,
+                            llm_provider=getattr(llm, 'provider', 'unknown') if llm else 'unknown',
+                            llm_model=getattr(llm, 'model', 'unknown') if llm else 'unknown',
+                            tools_count=len(tools) if tools else 0,
+                            memory_backend='unknown',  # Could extract from memory backend
+                            phase_completed=phase_name
+                        )
+                except Exception:
+                    # Graceful degradation - don't break agent execution on persistence failure
+                    pass
+            
+            return result
+        return wrapper
+    return decorator
+
+
 def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None):
-    """Universal agent policy factory - composes resilience + context-driven checkpointing."""
+    """Universal agent policy factory - composes resilience + checkpointing + persistence."""
 
     def policy(retry=None, **kwargs):
         retry = retry or default_retry or Retry.api()
@@ -50,8 +89,11 @@ def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None
 
             # 2. Apply context-driven checkpointing
             checkpointed_func = _checkpoint(checkpoint_name, interruptible)(resilient_func)
+            
+            # 3. Apply auto-save after successful completion
+            persisted_func = _auto_save(checkpoint_name)(checkpointed_func)
 
-            return checkpointed_func
+            return persisted_func
 
         return decorator
 
@@ -89,4 +131,15 @@ def is_robust_enabled() -> bool:
     return _robust_enabled
 
 
-__all__ = ["robust", "reason", "act", "preprocess", "respond", "generic", "is_robust_enabled"]
+def set_persistence_manager(manager):
+    """Set global persistence manager for auto-save functionality."""
+    global _persistence_manager
+    _persistence_manager = manager
+
+
+def get_persistence_manager():
+    """Get current persistence manager."""
+    return _persistence_manager
+
+
+__all__ = ["robust", "reason", "act", "preprocess", "respond", "generic", "is_robust_enabled", "set_persistence_manager", "get_persistence_manager"]

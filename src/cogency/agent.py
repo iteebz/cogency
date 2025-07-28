@@ -30,6 +30,8 @@ class Agent:
         enable_mcp: bool = False,
         json_schema: Optional[Any] = None,
         robust: bool = True,
+        persist: bool = False,
+        persist_backend: Optional[Any] = None,
     ) -> None:
         self.name = name
         self.trace = trace
@@ -39,6 +41,17 @@ class Agent:
         # Set global robust flag for decorators
         import cogency.resilience.decorators as decorators
         decorators._robust_enabled = robust
+        
+        # Set up state persistence
+        if persist:
+            from cogency.persistence import StateManager
+            self.persistence_manager = StateManager(
+                backend=persist_backend, 
+                enabled=True
+            )
+            decorators.set_persistence_manager(self.persistence_manager)
+        else:
+            self.persistence_manager = None
 
         # Setup tools and memory services
         agent_opts = {
@@ -108,13 +121,12 @@ class Agent:
             yield "⚠️ Query too long (max 10,000 characters)\n"
             return
 
-        # Get or create state
-        state = self.user_states.get(user_id)
-        if not state:
-            state = State(query=query, user_id=user_id, max_iterations=self.max_iterations)
-            self.user_states[user_id] = state
-        else:
-            state.query = query
+        # Get or create state with persistence support
+        from cogency.persistence import get_state
+        state = await get_state(
+            user_id, query, self.max_iterations,
+            self.user_states, self.persistence_manager, self.llm
+        )
         
         state.add_message("user", query)
 
@@ -140,11 +152,12 @@ class Agent:
     async def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return complete response as string (async)"""
         try:
-            # Get or create state
-            if user_id not in self.user_states:
-                self.user_states[user_id] = State(query=query, user_id=user_id, max_iterations=self.max_iterations)
-            state = self.user_states[user_id]
-            state.query = query
+            # Get or create state with persistence support
+            from cogency.persistence import get_state
+            state = await get_state(
+                user_id, query, self.max_iterations,
+                self.user_states, self.persistence_manager, self.llm
+            )
             state.verbose = self.verbose
             state.trace = self.trace
             
