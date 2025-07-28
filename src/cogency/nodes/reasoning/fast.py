@@ -33,12 +33,16 @@ PREVIOUS CONTEXT:
 {attempts_summary if attempts_summary else "Initial execution - no prior actions"}
 
 
+CRITICAL STOP CONDITIONS:
+- If you see previous attempts that ALREADY answered the query → tool_calls: []
+- If query is fully satisfied by previous results → tool_calls: []  
+- If no tool can help with this query → tool_calls: []
+- If repeating same failed action → tool_calls: []
+
 GUIDANCE:
-- Review previous iterations (if any) before deciding next actions
-- Use multiple sequential tools when they address different aspects
-- Empty tool_calls array ([ ]) if query fully answered or no suitable tools
-- If original query has been fully resolved, return tool_calls: []
-- LIMIT: Maximum {MAX_TOOL_CALLS_PER_ITERATION} tool calls per iteration to avoid JSON parsing issues
+- FIRST: Review previous attempts to avoid repeating actions
+- Use tools only if query needs MORE information
+- LIMIT: Maximum {MAX_TOOL_CALLS_PER_ITERATION} tool calls per iteration
 
 ESCALATE to DEEP if encountering:
 - Tool results conflict and need synthesis

@@ -176,20 +176,14 @@ async def respond(
         await asyncio.sleep(0)
     else:
         # Generate response based on context and any tool results
-        result = state.result
+        latest_results = state.get_latest_results()
 
-        if result and result.success:
-            # Format tool results for display - handle both dict and list formats
-            results_data = result.data
-            if isinstance(results_data, dict):
-                results = results_data.get("results", [])
-            else:
-                results = results_data if isinstance(results_data, list) else []
-
+        if latest_results:
+            # Format tool results using schema-compliant structure
             tool_summary = "\n".join(
                 [
-                    f"• {result.get('tool_name', 'unknown')}: {str(result.get('result', 'no result'))[:200]}..."
-                    for result in results[:5]  # Limit to 5 results
+                    f"• {call['name']}: {str(call.get('result', 'no result'))[:200]}..."
+                    for call in latest_results[:5]  # Limit to 5 results
                 ]
             )
 
@@ -212,56 +206,51 @@ async def respond(
                 else "I encountered an issue while generating a response."
             )
             await state.notify("update", f"🤖: {response.text}")
-        elif result and not result.success:
-            # Format failure details - handle both dict and list formats
-            results_data = result.data
-            if isinstance(results_data, dict):
-                results = results_data.get("results", [])
-            else:
-                results = results_data if isinstance(results_data, list) else []
-
-            failures = {}
-            for result in results:
-                tool_name = result.get("tool_name", "unknown")
-                error = result.get("error", "Tool execution failed")
-                failures[tool_name] = error
-
-            prompt = prompt_response(
-                context.query,
-                system_prompt=system_prompt,
-                failures=failures,
-                identity=identity,
-                json_schema=json_schema,
-            )
-            messages.insert(0, {"role": "system", "content": prompt})
-
-            # Let @safe.respond() handle all LLM errors and fallbacks
-            llm_result = await llm.run(messages)
-            response.text = (
-                llm_result.data.strip()
-                if llm_result.success
-                else "I encountered an issue while processing the request."
-            )
-            await state.notify("update", f"🤖: {response.text}")
         else:
-            # No tool results - answer with knowledge or based on conversation
-            prompt = prompt_response(
-                context.query,
-                system_prompt=system_prompt,
-                has_tool_results=False,
-                identity=identity,
-                json_schema=json_schema,
-            )
-            messages.insert(0, {"role": "system", "content": prompt})
+            # Check for any failure outcomes in latest results
+            failures = {}
+            if latest_results:
+                for call in latest_results:
+                    if call.get("outcome") in ["failure", "error", "timeout"]:
+                        failures[call["name"]] = call.get("result", "Tool execution failed")
 
-            # Let @safe.respond() handle all LLM errors and fallbacks
-            llm_result = await llm.run(messages)
-            response.text = (
-                llm_result.data.strip()
-                if llm_result.success
-                else "I'm here to help. How can I assist you?"
-            )
-            await state.notify("update", f"🤖: {response.text}")
+            if failures:
+                prompt = prompt_response(
+                    context.query,
+                    system_prompt=system_prompt,
+                    failures=failures,
+                    identity=identity,
+                    json_schema=json_schema,
+                )
+                messages.insert(0, {"role": "system", "content": prompt})
+
+                # Let @safe.respond() handle all LLM errors and fallbacks
+                llm_result = await llm.run(messages)
+                response.text = (
+                    llm_result.data.strip()
+                    if llm_result.success
+                    else "I encountered an issue while processing the request."
+                )
+                await state.notify("update", f"🤖: {response.text}")
+            else:
+                # No tool results - answer with knowledge or based on conversation
+                prompt = prompt_response(
+                    context.query,
+                    system_prompt=system_prompt,
+                    has_tool_results=False,
+                    identity=identity,
+                    json_schema=json_schema,
+                )
+                messages.insert(0, {"role": "system", "content": prompt})
+
+                # Let @safe.respond() handle all LLM errors and fallbacks
+                llm_result = await llm.run(messages)
+                response.text = (
+                    llm_result.data.strip()
+                    if llm_result.success
+                    else "I'm here to help. How can I assist you?"
+                )
+                await state.notify("update", f"🤖: {response.text}")
 
     # Add response to context
     response_text = response.text if hasattr(response, "text") else response

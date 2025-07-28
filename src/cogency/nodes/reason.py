@@ -4,6 +4,7 @@ import asyncio
 from typing import List, Optional
 
 from cogency.nodes.base import Node
+from cogency.constants import ADAPT_REACT
 from cogency.nodes.reasoning import (
     parse_switch,
     should_switch,
@@ -52,22 +53,22 @@ def format_tool_calls_readable(tool_calls):
 
 
 def build_iterations(state, selected_tools, max_iterations=3):
-    """Show last N reasoning actions with their outcomes."""
-    from cogency.state import compress_actions
+    """Build reasoning context using State methods (schema-compliant)."""
+    context_parts = []
     
-    actions = state.actions
-    attempts = state.attempts
-
-    if not actions:
-        return "No previous actions" if not attempts else f"Attempts: {'; '.join(attempts)}"
-
-    # Use new compression function
-    compressed = compress_actions(actions[-max_iterations:])
+    # Latest results (fresh output from most recent action)
+    latest_results = state.get_latest_results()
+    if latest_results:
+        for call in latest_results:
+            result_snippet = call.get("result", "")[:200] + ("..." if len(call.get("result", "")) > 200 else "")
+            context_parts.append(f"Latest: {call['name']}() → {result_snippet}")
     
-    if attempts:
-        return f"Previous actions: {'; '.join(compressed)}\nFailed attempts: {'; '.join(attempts)}"
+    # Compressed history (past actions)
+    compressed = state.get_compressed_attempts(max_history=max_iterations)
+    if compressed:
+        context_parts.extend([f"Prior: {attempt}" for attempt in compressed])
     
-    return f"Previous actions: {'; '.join(compressed)}" if compressed else "No previous actions"
+    return "; ".join(context_parts) if context_parts else "No previous attempts"
 
 
 def format_actions(execution_results, prev_tool_calls, selected_tools):
@@ -146,6 +147,10 @@ async def reason(
     else:
         attempts_summary = build_iterations(state, selected_tools, max_iterations=3)
         reasoning_prompt = prompt_fast_mode(tool_registry, context.query, attempts_summary)
+    
+    # DEBUG: Show what LLM sees
+    if state.trace:
+        await state.notify("trace", {"message": f"Iteration {iteration}: attempts_summary = '{attempts_summary}'", "node": "reason"})
 
     # Add optional prompts
     if identity:
@@ -187,14 +192,17 @@ async def reason(
         elif reasoning_response.thinking:
             await state.notify("update", f"💭 {reasoning_response.thinking}\n")
 
-    # Handle mode switching
-    switch_to, switch_why = parse_switch(raw_response)
-    if should_switch(react_mode, switch_to, switch_why, iteration):
-        if state.trace:
-            await state.notify(
-                "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_why})", node="reason"
-            )
-        state = switch_mode(state, switch_to, switch_why)
+    # Handle mode switching (disabled for debugging)
+    if ADAPT_REACT:
+        switch_to, switch_why = parse_switch(raw_response)
+        if should_switch(react_mode, switch_to, switch_why, iteration):
+            if state.trace:
+                await state.notify(
+                    "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_why})", node="reason"
+                )
+            state = switch_mode(state, switch_to, switch_why)
+    elif state.trace:
+        await state.notify("trace", {"message": "Mode switching disabled (ADAPT_REACT=False)", "node": "reason"})
 
     # Update reasoning state
     tool_calls = reasoning_response.tool_calls
@@ -209,14 +217,7 @@ async def reason(
 
 def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int) -> None:
     """Update reasoning state after iteration."""
-    # Track failed attempts for loop prevention  
-    result = state.result
-    if result and result.failure:
-        # Use current tool_calls for failure tracking
-        if state.tool_calls:
-            state.track_failure(state.tool_calls, "failed")
-
-    # Add action to reasoning history
+    # Add action to reasoning history (tool results added later in act node)
     if tool_calls:
         state.add_action(
             mode=state.react_mode,

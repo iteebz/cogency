@@ -1,11 +1,20 @@
 """Cogency State - Zero ceremony, maximum beauty."""
 
 import asyncio
+from enum import Enum
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 
 from cogency.constants import DEFAULT_MAX_ITERATIONS, MAX_FAILURES_HISTORY, MAX_ITERATIONS_HISTORY
 from cogency.context import Context
+
+
+class ToolOutcome(Enum):
+    """Tool execution outcomes matching schema."""
+    SUCCESS = "success"
+    FAILURE = "failure" 
+    ERROR = "error"
+    TIMEOUT = "timeout"
 
 
 @dataclass 
@@ -76,32 +85,75 @@ class State:
         if len(self.actions) > MAX_ITERATIONS_HISTORY:
             self.actions = self.actions[-MAX_ITERATIONS_HISTORY:]
 
-    def track_failure(self, tool_calls: List[Any], quality: str) -> None:
-        """Track failed tool attempts."""
-        failure_entry = {
-            "tool_calls": tool_calls,
-            "quality": quality,
-            "iteration": self.iteration,
+    def add_tool_result(
+        self,
+        name: str,
+        args: dict,
+        result: str,
+        outcome: ToolOutcome,
+        iteration: Optional[int] = None
+    ) -> None:
+        """Add tool execution result to current action (schema-compliant)."""
+        if not self.actions:
+            raise ValueError("Cannot add tool result without an active action")
+        
+        current_action = self.actions[-1]
+        tool_call = {
+            "name": name,
+            "args": args,
+            "result": result[:1000],  # Truncate per schema
+            "outcome": outcome.value,
+            # Phase 2 fields - empty for now
+            "insights": "",
+            "learning": "",
+            "relevance": "",
         }
-        self.attempts.append(failure_entry)
+        
+        # Initialize tool_calls if needed
+        if "tool_calls" not in current_action:
+            current_action["tool_calls"] = []
+        
+        current_action["tool_calls"].append(tool_call)
 
-        # Enforce failure history limit
-        if len(self.attempts) > MAX_FAILURES_HISTORY:
-            self.attempts = self.attempts[-MAX_FAILURES_HISTORY:]
+    def get_latest_results(self) -> List[Dict[str, Any]]:
+        """Get tool results from most recent action."""
+        if not self.actions:
+            return []
+        
+        latest_action = self.actions[-1]
+        return latest_action.get("tool_calls", [])
+
+    def get_compressed_attempts(self, max_history: int = 3) -> List[str]:
+        """Get compressed attempts using schema-compliant compress_actions."""
+        if len(self.actions) <= 1:
+            return []
+        
+        # Compress all but the latest action
+        past_actions = self.actions[:-1][-max_history:]
+        return compress_actions(past_actions)
+
 
 
 # Export clean State class
 
 # Function to compress actions into attempts for LLM prompting
 def compress_actions(actions: List[Dict[str, Any]]) -> List[str]:
-    """Phase 1: Basic compression of actions to readable format."""
+    """Phase 1: Basic compression of actions to readable format (schema-compliant)."""
     compressed = []
     for action in actions:
         for call in action.get("tool_calls", []):
-            tool = call.get("tool", "unknown")
-            outcome = call.get("outcome", "unknown") 
-            params = call.get("params", {})
-            # Simple readable format for Phase 1
-            params_summary = str(params)[:50] + "..." if len(str(params)) > 50 else str(params)
-            compressed.append(f"{tool}({params_summary}) → {outcome}")
+            name = call.get("name", "unknown")
+            args = call.get("args", {})
+            outcome = call.get("outcome", "unknown")
+            result = call.get("result", "")
+            
+            # Format: tool(args) → outcome: result_snippet
+            args_summary = str(args)[:20] + "..." if len(str(args)) > 20 else str(args)
+            result_snippet = result[:50] + "..." if len(result) > 50 else result
+            
+            if result_snippet:
+                compressed.append(f"{name}({args_summary}) → {outcome}: {result_snippet}")
+            else:
+                compressed.append(f"{name}({args_summary}) → {outcome}")
+    
     return compressed

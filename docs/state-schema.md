@@ -27,9 +27,9 @@ Derived strings optimized for LLM prompting to prevent context overflow.
         # Tool execution results
         "tool_calls": [
             {
-                "tool": str,           # Tool name (e.g., "search", "read_file")
-                "params": dict,        # Tool parameters as provided
-                "raw_output": str,     # Tool output, truncated to ~1000 chars
+                "name": str,           # Tool name (e.g., "search", "read_file") 
+                "args": dict,          # Tool arguments as provided
+                "result": str,         # Tool result, truncated to ~1000 chars
                 "outcome": enum,       # Enum: SUCCESS, FAILURE, ERROR, TIMEOUT
                 
                 # LLM compression fields (Phase 2 - empty strings in Phase 1)
@@ -70,10 +70,10 @@ Derived strings optimized for LLM prompting to prevent context overflow.
 - **approach**: Persistent strategy that spans multiple iterations (e.g., "debug API integration")
 
 ### Tool Execution
-- **tool**: Exact tool name as registered in tool registry
-- **params**: Complete parameter dict passed to tool
-- **raw_output**: Tool response truncated to prevent memory bloat
-- **outcome**: Standardized execution result
+- **name**: Exact tool name as registered in tool registry (matches LLM tool call format)
+- **args**: Complete argument dict passed to tool (matches LLM tool call format)
+- **result**: Tool response truncated to prevent memory bloat
+- **outcome**: Standardized execution result (SUCCESS, FAILURE, ERROR, TIMEOUT)
 - **execution_time**: Basic performance monitoring for debugging
 
 ### Compression Fields (Phase 2)
@@ -111,7 +111,7 @@ class ToolOutcome(Enum):
 ### Phase 1: Basic readable format
 ```python
 def compress_actions(actions):
-    return [f"{call['tool']}({params_summary}) → {call['outcome']}" 
+    return [f"{call['name']}({args_summary}) → {call['outcome']}" 
             for action in actions for call in action['tool_calls']]
 ```
 

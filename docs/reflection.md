@@ -19,9 +19,9 @@ iteration = {
     "mode": "fast" | "deep",
     "tool_calls": [
         {
-            "tool": str,
-            "params": dict,
-            "raw_output": str,  # Truncated to ~1000 chars for debugging
+            "name": str,
+            "args": dict,
+            "result": str,  # Truncated to ~1000 chars for debugging
             "outcome": "success" | "failure" | "timeout" | "error",
             "execution_time": float,
             "cost": {"tokens": int, "time": float},

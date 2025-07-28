@@ -21,37 +21,19 @@ class Act(Node):
         super().__init__(act, **kwargs)
 
     def next_node(self, state: State) -> str:
-        execution_results = state.result
         current_iter = state.iteration
         max_iter = state.max_iterations
         stop_reason = state.stop_reason
 
+        # Check stop conditions first
         if stop_reason in ["max_iterations_reached", "reasoning_loop_detected"]:
             return "respond"
         elif current_iter >= max_iter:
-            state["stop_reason"] = "max_iterations_reached"
+            state.stop_reason = "max_iterations_reached"
             return "respond"
-        elif not execution_results.success:
-            failed_attempts = state.tool_failures
-            if failed_attempts >= 3:
-                state["stop_reason"] = "repeated_tool_failures"
-                return "respond"
-            else:
-                state["tool_failures"] = failed_attempts + 1
-                return "reason"
         else:
-            from cogency.nodes.reasoning.adaptive import assess_tools
-
-            tool_quality = assess_tools(execution_results)
-            quality_attempts = state.quality_retries
-
-            if tool_quality in ["failed", "poor"] and quality_attempts < 2:
-                state["quality_retries"] = quality_attempts + 1
-                return "reason"
-            else:
-                state["quality_retries"] = 0
-                state["tool_failures"] = 0
-                return "reason"
+            # Continue reasoning loop
+            return "reason"
 
 
 # @robust.act()  # DISABLED FOR DEBUGGING
@@ -61,7 +43,6 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
 
     tool_call_str = state.tool_calls
     if not tool_call_str:
-        state["result"] = Result.ok(data={"type": "no_action"})
         return state
 
     context = state.context
@@ -70,7 +51,6 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     # Tool calls come from reason node as parsed list
     tool_calls = state.tool_calls
     if not tool_calls or not isinstance(tool_calls, list):
-        state["result"] = Result.ok(data={"type": "no_action"})
         return state
 
     # Start acting state
@@ -80,22 +60,31 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
 
     # Let @safe.act() handle all tool execution errors, retries, and recovery
     tool_result = await run_tools(tool_tuples, selected_tools, context, state)
-    results = Result.ok(tool_result.data)
-
-    # Removed trace - clean tool output speaks for itself
-
-    # Update flow state - routing handled by flow.py
-    state["result"] = results
-
-    # Update cognition with formatted results after tool execution
-    if results.success and state.tool_calls and state.iterations:
-        from cogency.nodes.reason import format_actions
-
-        tool_calls = state.tool_calls
-        formatted_result = format_actions(results, tool_calls, selected_tools)
-        # Update the last entry with formatted results
-        state.update_result(formatted_result)
-
-    # Note: iteration is incremented in reason.py, not here
+    
+    # Store results using State methods (schema-compliant)
+    if tool_result.success and tool_result.data:
+        results_data = tool_result.data
+        successes = results_data.get("results", [])
+        failures = results_data.get("errors", [])
+        
+        # Add successful tool results
+        for success in successes:
+            from cogency.state import ToolOutcome
+            state.add_tool_result(
+                name=success["tool_name"],
+                args=success["args"],
+                result=str(success["result"]),
+                outcome=ToolOutcome.SUCCESS
+            )
+        
+        # Add failed tool results  
+        for failure in failures:
+            from cogency.state import ToolOutcome
+            state.add_tool_result(
+                name=failure["tool_name"],
+                args=failure["args"],
+                result=failure.get("error", "Tool execution failed"),
+                outcome=ToolOutcome.FAILURE
+            )
 
     return state
