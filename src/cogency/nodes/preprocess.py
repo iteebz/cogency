@@ -37,8 +37,8 @@ async def preprocess(
 ) -> State:
     """Preprocess: routing decisions, memory extraction, tool selection."""
     query = state.query
-    context = state.context
-    user_id = getattr(context, "user_id", "default")
+    # Direct access to state properties - no context wrapper needed
+    user_id = state.user_id
 
     # Pre-React phases will stream via MEMORIZE and TOOLING messages below
 

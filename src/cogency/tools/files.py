@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FilesParams:
     action: str
-    filename: str
+    filename: str = ""  # Default to empty for list action
     content: Optional[str] = None
     line: Optional[int] = None
     start: Optional[int] = None

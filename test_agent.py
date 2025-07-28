@@ -33,10 +33,10 @@ def test_basic_tool_execution():
         if hasattr(agent, 'last_state') and agent.last_state:
             state = agent.last_state
             print(f"\nDEBUG INFO:")
-            print(f"Final iteration: {state.get('iteration', 'unknown')}")
-            print(f"Stop reason: {state.get('stop_reason', 'none')}")
-            print(f"Tool calls: {state.get('tool_calls', 'none')}")
-            print(f"Actions taken: {len(state.get('actions', []))}")
+            print(f"Final iteration: {state.iteration}")
+            print(f"Stop reason: {state.stop_reason}")
+            print(f"Tool calls: {state.tool_calls}")
+            print(f"Actions taken: {len(state.actions)}")
         
         print("✅ Test completed successfully")
     except Exception as e:

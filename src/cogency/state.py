@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 
 from cogency.constants import DEFAULT_MAX_ITERATIONS, MAX_FAILURES_HISTORY, MAX_ITERATIONS_HISTORY
-from cogency.context import Context
 
 
 class ToolOutcome(Enum):
@@ -20,9 +19,10 @@ class ToolOutcome(Enum):
 @dataclass 
 class State:
     """Clean dataclass state for agent execution."""
-    # Core immutable
-    context: Context
+    # Core execution context
     query: str
+    user_id: str = "default"
+    messages: List[Dict[str, str]] = field(default_factory=list)
     # Flow control  
     iteration: int = 0
     max_iterations: int = DEFAULT_MAX_ITERATIONS
@@ -42,6 +42,14 @@ class State:
     verbose: bool = True
     trace: bool = False
     callback: Any = None
+    
+    def add_message(self, role: str, content: str) -> None:
+        """Add message to conversation history."""
+        self.messages.append({"role": role, "content": content})
+    
+    def get_conversation(self) -> List[Dict[str, str]]:
+        """Get clean conversation for LLM."""
+        return [{"role": msg["role"], "content": msg["content"]} for msg in self.messages]
     
     async def notify(self, event_type: str, data: Any) -> None:
         """Notify user of progress."""

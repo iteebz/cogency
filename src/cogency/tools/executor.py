@@ -9,7 +9,7 @@ from cogency.utils.formatting import format_tool_error
 
 
 async def execute_single_tool(
-    tool_name: str, tool_args: dict, tools: List[BaseTool], context=None
+    tool_name: str, tool_args: dict, tools: List[BaseTool]
 ) -> Tuple[str, Dict, Any]:
     """Execute a tool with structured error handling."""
 
@@ -17,20 +17,6 @@ async def execute_single_tool(
         for tool in tools:
             if tool.name == tool_name:
                 try:
-                    # Inject context for user isolation if tool supports it
-                    if context:
-                        # Check if tool accepts _context parameter
-                        import inspect
-
-                        sig = inspect.signature(tool.run)
-                        if "_context" in sig.parameters:
-                            tool_args["_context"] = context
-                        elif any(
-                            p.kind == inspect.Parameter.VAR_KEYWORD for p in sig.parameters.values()
-                        ):
-                            # Only inject if it has **kwargs AND the operation method can handle it
-                            # For now, don't inject into tools with dispatch patterns until we have better detection
-                            pass
                     result = await tool.execute(**tool_args)
                     return tool_name, tool_args, result
                 except Exception as e:
@@ -45,7 +31,7 @@ async def execute_single_tool(
 
 
 async def execute_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context, state=None
+    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], state
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
@@ -87,7 +73,7 @@ async def execute_tools(
             await state.notify("update", f"{tool_emoji} {tool_name}{tool_input}")
 
         try:
-            result = await execute_single_tool(tool_name, tool_args, tools, context)
+            result = await execute_single_tool(tool_name, tool_args, tools)
             actual_tool_name, actual_args, tool_output = result
 
             if not tool_output.success:
@@ -129,7 +115,6 @@ async def execute_tools(
                     "result": tool_result,
                 }
                 successes.append(success_result)
-                context.add_result(actual_tool_name, actual_args, tool_result)
 
         except Exception as e:
             # Use user-friendly error message
@@ -175,7 +160,7 @@ async def execute_tools(
 
 
 async def run_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], context, state=None
+    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], state
 ) -> Dict[str, Any]:
     """Execute tools."""
-    return await execute_tools(tool_calls, tools, context, state)
+    return await execute_tools(tool_calls, tools, state)

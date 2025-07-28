@@ -132,7 +132,7 @@ async def respond(
     json_schema: Optional[str] = None,
 ) -> State:
     """Respond: generate final formatted response with personality."""
-    context = state.context
+    # Direct access to state properties - no context wrapper needed
 
     # Start responding state
     await state.notify("state_change", {"state": "responding"})
@@ -140,7 +140,7 @@ async def respond(
     # Streaming handled by Output
 
     # ALWAYS generate response - handle tool results, direct reasoning, or knowledge-based
-    messages = list(context.messages)
+    messages = state.get_conversation()
     response = Response()
 
     # Check for stopping reason
@@ -188,7 +188,7 @@ async def respond(
             )
 
             prompt = prompt_response(
-                context.query,
+                state.query,
                 system_prompt=system_prompt,
                 has_tool_results=True,
                 tool_summary=tool_summary,
@@ -216,7 +216,7 @@ async def respond(
 
             if failures:
                 prompt = prompt_response(
-                    context.query,
+                    state.query,
                     system_prompt=system_prompt,
                     failures=failures,
                     identity=identity,
@@ -235,7 +235,7 @@ async def respond(
             else:
                 # No tool results - answer with knowledge or based on conversation
                 prompt = prompt_response(
-                    context.query,
+                    state.query,
                     system_prompt=system_prompt,
                     has_tool_results=False,
                     identity=identity,
@@ -252,9 +252,9 @@ async def respond(
                 )
                 await state.notify("update", f"🤖: {response.text}")
 
-    # Add response to context
+    # Add response to state conversation
     response_text = response.text if hasattr(response, "text") else response
-    context.add_message("assistant", response_text)
+    state.add_message("assistant", response_text)
 
     # Update flow state with clean assignment
     state.response = response_text

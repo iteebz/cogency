@@ -45,7 +45,7 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
     if not tool_call_str:
         return state
 
-    context = state.context
+    # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools
 
     # Tool calls come from reason node as parsed list
@@ -58,8 +58,8 @@ async def act(state: State, *, tools: List[BaseTool]) -> State:
 
     tool_tuples = [(call["name"], call["args"]) for call in tool_calls]
 
-    # Let @safe.act() handle all tool execution errors, retries, and recovery
-    tool_result = await run_tools(tool_tuples, selected_tools, context, state)
+    # Let @safe.act() handle all tool execution errors, retries, and recovery  
+    tool_result = await run_tools(tool_tuples, selected_tools, state)
     
     # Store results using State methods (schema-compliant)
     if tool_result.success and tool_result.data:

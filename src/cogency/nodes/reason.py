@@ -109,7 +109,7 @@ async def reason(
     identity: Optional[str] = None,
 ) -> State:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
-    context = state.context
+    # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools or []
     react_mode = state.react_mode
     iteration = state.iteration
@@ -127,8 +127,8 @@ async def reason(
         return state
 
     # Build messages
-    messages = list(context.messages)
-    messages.append({"role": "user", "content": context.query})
+    messages = state.get_conversation()
+    messages.append({"role": "user", "content": state.query})
 
     # Build prompt based on mode with mode-specific limits
     tool_registry = build_registry(selected_tools)
@@ -137,7 +137,7 @@ async def reason(
         attempts_summary = build_iterations(state, selected_tools, max_iterations=10)
         reasoning_prompt = prompt_deep_mode(
             tool_registry,
-            context.query,
+            state.query,
             iteration,
             state.max_iterations,
             state.current_approach,
@@ -146,7 +146,7 @@ async def reason(
         )
     else:
         attempts_summary = build_iterations(state, selected_tools, max_iterations=3)
-        reasoning_prompt = prompt_fast_mode(tool_registry, context.query, attempts_summary)
+        reasoning_prompt = prompt_fast_mode(tool_registry, state.query, attempts_summary)
     
     # DEBUG: Show what LLM sees
     if state.trace:

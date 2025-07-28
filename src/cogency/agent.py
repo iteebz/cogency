@@ -1,7 +1,5 @@
 from typing import Any, AsyncIterator, Optional
 
-from cogency.context import Context
-from cogency.flow import Flow
 from cogency.identity import process_identity
 from cogency.utils.auto import detect_llm
 from cogency.state import State
@@ -45,18 +43,14 @@ class Agent:
         }
         tools, memory = agent_services(agent_opts)
 
-        # Get LLM (already @safe protected)
-        llm = llm or detect_llm()
-
-        self.flow = Flow(
-            llm=llm,
-            tools=tools,
-            memory=memory,
-            system_prompt=system_prompt or DEFAULT_SYSTEM_PROMPT,
-            identity=process_identity(identity),
-            json_schema=json_schema,
-        )
-        self.contexts: dict[str, Context] = {}
+        # Store configuration directly
+        self.llm = llm or detect_llm()
+        self.tools = tools
+        self.memory = memory
+        self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
+        self.identity = process_identity(identity)
+        self.json_schema = json_schema
+        self.user_states: dict[str, State] = {}
         self.last_state: Optional[dict] = None  # Store for traces()
 
         # MCP server setup if enabled
@@ -81,20 +75,27 @@ class Agent:
             yield "⚠️ Query too long (max 10,000 characters)\n"
             return
 
-        # Get or create context
-        context = self.contexts.get(user_id) or Context(query, user_id=user_id)
-        context.query = query
-        context.add_message("user", query)  # Add user query to message history
-        self.contexts[user_id] = context
+        # Get or create state
+        state = self.user_states.get(user_id)
+        if not state:
+            state = State(query=query, user_id=user_id, max_iterations=self.max_iterations)
+            self.user_states[user_id] = state
+        else:
+            state.query = query
+        
+        state.add_message("user", query)
 
         # Stream execution using Notifier
         notifier = Notifier(
-            flow=self.flow,
-            context=context,
-            query=query,
+            state=state,
+            llm=self.llm,
+            tools=self.tools,
+            memory=self.memory,
+            system_prompt=self.system_prompt,
+            identity=self.identity,
+            json_schema=self.json_schema,
             trace=self.trace,
             verbose=self.verbose,
-            max_iterations=self.max_iterations,
         )
 
         async for chunk in notifier.notify():
@@ -106,32 +107,26 @@ class Agent:
     def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return complete response as string"""
         try:
-            # Get or create context
-            if user_id not in self.contexts:
-                self.contexts[user_id] = Context(query)
-            context = self.contexts[user_id]
-            
-            # Create state as dataclass with proper initialization
-            from cogency.state import State
-            state = State(
-                context=context,
-                query=query,
-                verbose=True,
-                trace=True,
-            )
+            # Get or create state
+            if user_id not in self.user_states:
+                self.user_states[user_id] = State(query=query, user_id=user_id, max_iterations=self.max_iterations)
+            state = self.user_states[user_id]
+            state.query = query
+            state.verbose = True
+            state.trace = True
             
             # Use simple execution loop
             import asyncio
             from cogency.execution import run_agent
             
-            # Build kwargs from flow attributes
+            # Pass configuration directly
             kwargs = {
-                "llm": self.flow.llm,
-                "tools": self.flow.tools,
-                "system_prompt": self.flow.system_prompt,
-                "identity": self.flow.identity,
-                "json_schema": self.flow.json_schema,
-                "memory": self.flow.memory,
+                "llm": self.llm,
+                "tools": self.tools,
+                "system_prompt": self.system_prompt,
+                "identity": self.identity,
+                "json_schema": self.json_schema,
+                "memory": self.memory,
             }
             
             result_state = asyncio.run(run_agent(state, **kwargs))
@@ -169,4 +164,4 @@ class Agent:
             raise ValueError(f"Unsupported transport: {transport}")
 
 
-__all__ = ["Agent", "Context", "Flow", "State"]
+__all__ = ["Agent", "State"]

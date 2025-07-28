@@ -3,8 +3,6 @@
 import asyncio
 from typing import AsyncIterator, Optional
 
-from cogency.context import Context
-from cogency.flow import Flow
 from cogency.state import State
 
 
@@ -25,19 +23,25 @@ class Notifier:
 
     def __init__(
         self,
-        flow: Flow,
-        context: Context,
-        query: str,
+        state: State,
+        llm,
+        tools,
+        memory,
+        system_prompt: str,
+        identity: str,
+        json_schema,
         trace: bool = False,
         verbose: bool = True,
-        max_iterations: int = 10,
     ):
-        self.flow = flow
-        self.context = context
-        self.query = query
+        self.state = state
+        self.llm = llm
+        self.tools = tools
+        self.memory = memory
+        self.system_prompt = system_prompt
+        self.identity = identity
+        self.json_schema = json_schema
         self.trace = trace
         self.verbose = verbose
-        self.max_iterations = max_iterations
 
     async def notify(self) -> AsyncIterator[str]:
         """Notify user of reasoning progress."""
@@ -46,18 +50,22 @@ class Notifier:
         async def cb(message: str) -> None:
             await queue.put(message)
 
-        # Create state for execution with notification parameters
-        state = State(
-            context=self.context,
-            query=self.query,
-            max_iterations=self.max_iterations,
-            verbose=self.verbose,
-            trace=self.trace,
-            callback=cb,
-        )
+        # Set callback for notifications
+        self.state.callback = cb
+        self.state.verbose = self.verbose
+        self.state.trace = self.trace
 
         # Start execution in background
-        task = asyncio.create_task(self.flow.flow.ainvoke(state))
+        from cogency.execution import run_agent
+        kwargs = {
+            "llm": self.llm,
+            "tools": self.tools,
+            "memory": self.memory,
+            "system_prompt": self.system_prompt,
+            "identity": self.identity,
+            "json_schema": self.json_schema,
+        }
+        task = asyncio.create_task(run_agent(self.state, **kwargs))
 
         # Notification messages as they arrive
         try:
