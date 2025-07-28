@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.types.cache import configure_cache, get_cache
+from cogency.services.llm.cache import configure_cache, get_cache
 from tests.conftest import MockLLM
 
 

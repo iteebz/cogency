@@ -66,7 +66,7 @@ async def test_with_tools(state):
 
 @pytest.mark.asyncio
 async def test_error_handling(state):
-    from cogency.types.cache import get_cache
+    from cogency.services.llm.cache import get_cache
 
     # Clear cache to avoid interference from other tests
     cache = get_cache()

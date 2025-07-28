@@ -3,7 +3,7 @@
 # Import resilient-result for internal use only
 
 # No local decorators - use resilient-result directly or agent.* patterns
-from .decorators import act, preprocess, reason, respond, robust
+from cogency.decorators import act, preprocess, reason, respond, robust
 from .exceptions import (
     ActionError,
     CogencyError,
