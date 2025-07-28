@@ -22,7 +22,7 @@ class Recovery:
     async def reasoning(error: ReasoningError, state: Any) -> Result:
         """Reasoning recovery - mode fallback and loop breaking."""
         if error.loop_detected:
-            state["next_node"] = "respond"
+            state["next_phase"] = "respond"
             state["stop_reason"] = "loop_recovery"
             return Result.ok(state, recovery_action="force_respond")
 
@@ -30,7 +30,7 @@ class Recovery:
             state["react_mode"] = "fast"
             return Result.ok(state, recovery_action="fallback_to_fast")
 
-        state["next_node"] = "respond"
+        state["next_phase"] = "respond"
         state["stop_reason"] = "reasoning_error"
         return Result.ok(state, recovery_action="response")
 
@@ -44,7 +44,7 @@ class Recovery:
     async def action(error: ActionError, state: Any) -> Result:
         """Action recovery - retry reasoning or force respond."""
         if not error.recoverable:
-            state["next_node"] = "respond"
+            state["next_phase"] = "respond"
             state["stop_reason"] = "non_recoverable_action_error"
             return Result.ok(state, recovery_action="force_respond")
 
@@ -53,7 +53,7 @@ class Recovery:
             "failed_tools": error.failed_tools,
             "error_msg": error.message,
         }
-        state["next_node"] = "reason"
+        state["next_phase"] = "reason"
         return Result.ok(state, recovery_action="retry_reasoning")
 
     @staticmethod

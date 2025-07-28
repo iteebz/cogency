@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from cogency.nodes.reasoning.adaptive.relevance import (
+from cogency.phases.reasoning.adaptive.relevance import (
     relevant_context,
     score_memory_relevance,
 )

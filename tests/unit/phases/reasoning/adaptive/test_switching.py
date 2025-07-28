@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.nodes.reasoning.adaptive.switching import (
+from cogency.phases.reasoning.adaptive.switching import (
     parse_switch,
     should_switch,
     switch_mode,

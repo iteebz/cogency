@@ -7,7 +7,7 @@ from typing import List
 # Tool retry logic now handled by @safe.act() decorator
 from resilient_result import Result
 
-from cogency.nodes.base import Node
+from cogency.phases.base import Node
 from cogency.resilience import robust
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -20,7 +20,7 @@ class Act(Node):
     def __init__(self, **kwargs):
         super().__init__(act, **kwargs)
 
-    def next_node(self, state: State) -> str:
+    def next_phase(self, state: State) -> str:
         current_iter = state.iteration
         max_iter = state.max_iterations
         stop_reason = state.stop_reason

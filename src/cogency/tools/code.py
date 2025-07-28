@@ -84,7 +84,7 @@ class Code(BaseTool):
         # Check if Node.js is available
         try:
             result = subprocess.run(
-                ["node", "--version"], capture_output=True, text=True, timeout=5
+                ["phase", "--version"], capture_output=True, text=True, timeout=5
             )
             if result.returncode != 0:
                 return Result.fail(
@@ -95,7 +95,7 @@ class Code(BaseTool):
                 "Node.js not found. Please install Node.js to execute JavaScript code."
             )
 
-        return await self._run_in_subprocess(["node", "-e", code], timeout)
+        return await self._run_in_subprocess(["phase", "-e", code], timeout)
 
     async def _run_in_subprocess(self, cmd: List[str], timeout: int) -> Dict[str, Any]:
         """Run command in subprocess with timeout and output capture."""

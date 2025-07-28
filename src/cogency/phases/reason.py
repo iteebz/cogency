@@ -3,15 +3,15 @@
 import asyncio
 from typing import List, Optional
 
-from cogency.nodes.base import Node
+from cogency.phases.base import Node
 from cogency.constants import ADAPT_REACT
-from cogency.nodes.reasoning import (
+from cogency.phases.reasoning import (
     parse_switch,
     should_switch,
     switch_mode,
 )
-from cogency.nodes.reasoning.deep import prompt_deep_mode
-from cogency.nodes.reasoning.fast import prompt_fast_mode
+from cogency.phases.reasoning.deep import prompt_deep_mode
+from cogency.phases.reasoning.fast import prompt_fast_mode
 from cogency.resilience import robust
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -25,7 +25,7 @@ class Reason(Node):
     def __init__(self, **kwargs):
         super().__init__(reason, **kwargs)
 
-    def next_node(self, state: State) -> str:
+    def next_phase(self, state: State) -> str:
         return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
 
 
@@ -150,7 +150,7 @@ async def reason(
     
     # DEBUG: Show what LLM sees
     if state.trace:
-        await state.notify("trace", {"message": f"Iteration {iteration}: attempts_summary = '{attempts_summary}'", "node": "reason"})
+        await state.notify("trace", {"message": f"Iteration {iteration}: attempts_summary = '{attempts_summary}'", "phase": "reason"})
 
     # Add optional prompts
     if identity:
@@ -170,7 +170,7 @@ async def reason(
     # Parse with correction
     def trace_parsing(msg: str):
         if state.trace:
-            asyncio.create_task(state.notify("trace", {"message": msg, "node": "reason"}))
+            asyncio.create_task(state.notify("trace", {"message": msg, "phase": "reason"}))
 
     parse_result = await parse_json_with_correction(
         raw_response, llm_fn=llm.run, trace_fn=trace_parsing, max_attempts=2
@@ -202,7 +202,7 @@ async def reason(
                 )
             state = switch_mode(state, switch_to, switch_why)
     elif state.trace:
-        await state.notify("trace", {"message": "Mode switching disabled (ADAPT_REACT=False)", "node": "reason"})
+        await state.notify("trace", {"message": "Mode switching disabled (ADAPT_REACT=False)", "phase": "reason"})
 
     # Update reasoning state
     tool_calls = reasoning_response.tool_calls

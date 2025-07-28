@@ -5,7 +5,7 @@ from resilient_result import Result
 from resilient_result import Result as ResilientResult
 
 from cogency.context import Context
-from cogency.nodes.respond import prompt_response, respond
+from cogency.phases.respond import prompt_response, respond
 from cogency.state import State
 from tests.conftest import MockLLM, create_mock_llm
 

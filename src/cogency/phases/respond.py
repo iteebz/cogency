@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 # Removed LangGraph dependency
 from resilient_result import Result
 
-from cogency.nodes.base import Node
+from cogency.phases.base import Node
 from cogency.resilience import robust
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -18,7 +18,7 @@ class Respond(Node):
     def __init__(self, **kwargs):
         super().__init__(respond, **kwargs)
 
-    def next_node(self, state: State) -> str:
+    def next_phase(self, state: State) -> str:
         return "END"  # End token, no longer using LangGraph
 
 
@@ -151,7 +151,7 @@ async def respond(
         user_error_message = getattr(state, 'user_error_message', "I encountered an issue but will try to help.")
         if state.trace:
             await state.notify(
-                "trace", {"message": f"Fallback response due to: {stop_reason}", "node": "respond"}
+                "trace", {"message": f"Fallback response due to: {stop_reason}", "phase": "respond"}
             )
 
         # Use unified prompt function for fallback with user-friendly context

@@ -6,7 +6,7 @@ import pytest
 from resilient_result import Result
 
 from cogency.context import Context
-from cogency.nodes.reason import build_iterations, reason
+from cogency.phases.reason import build_iterations, reason
 from cogency.state import State
 from tests.conftest import MockLLM
 
@@ -204,7 +204,7 @@ def test_empty_fingerprints():
     state.iterations = []
     state.failed_attempts = []
 
-    with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
+    with patch("cogency.phases.reason.summarize_attempts") as mock_summarize:
         mock_summarize.return_value = "No previous failed attempts"
         result = build_iterations(state, [])
 
@@ -238,7 +238,7 @@ def test_basic_iterations():
     ]
     state.failed_attempts = []
 
-    with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
+    with patch("cogency.phases.reason.summarize_attempts") as mock_summarize:
         mock_summarize.return_value = "No previous failed attempts"
         result = build_iterations(state, [], max_iterations=3)
 
@@ -262,7 +262,7 @@ def test_truncation():
     ]
     state.failed_attempts = []
 
-    with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
+    with patch("cogency.phases.reason.summarize_attempts") as mock_summarize:
         mock_summarize.return_value = "No previous failed attempts"
         result = build_iterations(state, [], max_iterations=3)
 
@@ -296,7 +296,7 @@ def test_with_failures():
         {"tool_calls": [MockToolCall("search", {})], "quality": "failed", "iteration": 1}
     ]
 
-    with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
+    with patch("cogency.phases.reason.summarize_attempts") as mock_summarize:
         mock_summarize.return_value = "Previous failed attempts: 1 attempts failed"
         result = build_iterations(state, [])
 
@@ -314,7 +314,7 @@ def test_only_failures():
         {"tool_calls": [MockToolCall("search", {})], "quality": "failed", "iteration": 1}
     ]
 
-    with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
+    with patch("cogency.phases.reason.summarize_attempts") as mock_summarize:
         mock_summarize.return_value = "Previous failed attempts: 1 attempts failed"
         result = build_iterations(state, [])
 
@@ -330,7 +330,7 @@ def test_step_numbering():
     ]
     state.failed_attempts = []
 
-    with patch("cogency.nodes.reason.summarize_attempts") as mock_summarize:
+    with patch("cogency.phases.reason.summarize_attempts") as mock_summarize:
         mock_summarize.return_value = "No previous failed attempts"
         result = build_iterations(state, [], max_iterations=2)
 

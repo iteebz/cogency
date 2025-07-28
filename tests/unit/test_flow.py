@@ -6,9 +6,9 @@ import pytest
 
 from cogency.context import Context
 from cogency.flow import Flow
-from cogency.nodes.act import Act
-from cogency.nodes.preprocess import Preprocess
-from cogency.nodes.reason import Reason
+from cogency.phases.act import Act
+from cogency.phases.preprocess import Preprocess
+from cogency.phases.reason import Reason
 from cogency.state import State
 
 
@@ -88,7 +88,7 @@ def test_reason_routing_with_calls():
     assert result == "act"
 
 
-@patch("cogency.nodes.reasoning.adaptive.assess_tools")
+@patch("cogency.phases.reasoning.adaptive.assess_tools")
 def test_act_routing_max_iterations(mock_assess):
     mock_assess.return_value = "good"
     node = Act()
@@ -148,7 +148,7 @@ def test_act_routing_max_failures():
     assert state["stop_reason"] == "repeated_tool_failures"
 
 
-@patch("cogency.nodes.reasoning.adaptive.assess_tools")
+@patch("cogency.phases.reasoning.adaptive.assess_tools")
 def test_act_routing_poor_quality(mock_assess):
     mock_assess.return_value = "poor"
     node = Act()

@@ -6,7 +6,7 @@ from resilient_result import unwrap
 
 from cogency.memory.backends.base import MemoryBackend
 from cogency.memory.prepare import save_memory
-from cogency.nodes.base import Node
+from cogency.phases.base import Node
 from cogency.resilience import robust
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -21,7 +21,7 @@ class Preprocess(Node):
     def __init__(self, **kwargs):
         super().__init__(preprocess, **kwargs)
 
-    def next_node(self, state: State) -> str:
+    def next_phase(self, state: State) -> str:
         return "reason" if state.selected_tools else "respond"
 
 
@@ -52,7 +52,7 @@ async def preprocess(
         if state.trace:
             await state.notify(
                 "trace",
-                {"message": f"Built tool registry with {len(tools)} tools", "node": "preprocess"},
+                {"message": f"Built tool registry with {len(tools)} tools", "phase": "preprocess"},
             )
 
         # Pragmatic heuristic: Simple queries likely don't need deep reasoning
@@ -163,7 +163,7 @@ Example:
                         "trace",
                         {
                             "message": f"Selected tools: {', '.join([t.name for t in filtered_tools])}",
-                            "node": "preprocess",
+                            "phase": "preprocess",
                         },
                     )
             elif len(filtered_tools) > 1 and state.trace:
@@ -172,7 +172,7 @@ Example:
                     "trace",
                     {
                         "message": f"Preparing tools: {', '.join([t.name for t in filtered_tools])}",
-                        "node": "preprocess",
+                        "phase": "preprocess",
                     },
                 )
     else:

@@ -2,9 +2,9 @@
 
 import pytest
 
-from cogency.nodes.reasoning.deep import prompt_deep_mode
-from cogency.nodes.reasoning.fast import prompt_fast_mode
-from cogency.nodes.reasoning.parser import format_thinking, parse_response_result
+from cogency.phases.reasoning.deep import prompt_deep_mode
+from cogency.phases.reasoning.fast import prompt_fast_mode
+from cogency.phases.reasoning.parser import format_thinking, parse_response_result
 
 
 def test_fast_prompt_generation():

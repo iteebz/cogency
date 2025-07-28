@@ -7,9 +7,9 @@ from resilient_result import Result
 
 from cogency.context import Context
 from cogency.flow import Flow
-from cogency.nodes.act import act
-from cogency.nodes.reason import reason
-from cogency.nodes.respond import respond
+from cogency.phases.act import act
+from cogency.phases.reason import reason
+from cogency.phases.respond import respond
 from cogency.state import State
 from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
@@ -89,7 +89,7 @@ async def test_executes_tools(basic_state):
     basic_state["tool_calls"] = [{"name": "mock_tool", "args": {"param": "value"}}]
     basic_state["selected_tools"] = tools
 
-    from cogency.nodes.act import Act
+    from cogency.phases.act import Act
 
     act_node = Act(tools=tools)
     state = await act_node(basic_state)
@@ -101,7 +101,7 @@ async def test_executes_tools(basic_state):
 async def test_formats_response(basic_state):
     """Test respond node formats final response."""
     llm = MockLLM()
-    from cogency.nodes.respond import Respond
+    from cogency.phases.respond import Respond
 
     respond_node = Respond(llm=llm, tools=[])
     state = await respond_node(basic_state)
@@ -116,9 +116,9 @@ async def test_complete_node_flow(basic_state):
 
     from resilient_result import Result
 
-    from cogency.nodes.act import Act
-    from cogency.nodes.reason import Reason
-    from cogency.nodes.respond import Respond
+    from cogency.phases.act import Act
+    from cogency.phases.reason import Reason
+    from cogency.phases.respond import Respond
     from cogency.tools.base import BaseTool
 
     class MockTool(BaseTool):
@@ -171,8 +171,8 @@ async def test_simple_reason_respond_flow(basic_state):
     """Test simple reason -> respond flow without tools."""
     from unittest.mock import AsyncMock
 
-    from cogency.nodes.reason import Reason
-    from cogency.nodes.respond import Respond
+    from cogency.phases.reason import Reason
+    from cogency.phases.respond import Respond
 
     mock_llm = MockLLM()
     mock_llm.run = AsyncMock(return_value=Result(data='{"reasoning": "Simple greeting."}'))

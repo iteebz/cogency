@@ -1,4 +1,4 @@
-"""Core node tests - essential business logic only."""
+"""Core phase tests - essential business logic only."""
 
 from unittest.mock import AsyncMock
 
@@ -6,8 +6,8 @@ import pytest
 from resilient_result import Result
 
 from cogency.context import Context
-from cogency.nodes.act import act
-from cogency.nodes.respond import respond
+from cogency.phases.act import act
+from cogency.phases.respond import respond
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import execute_single_tool
@@ -80,8 +80,8 @@ async def test_tool_execution_errors():
 
 
 @pytest.mark.asyncio
-async def test_respond_node_output():
-    """Test respond node produces conversational text only."""
+async def test_respond_phase_output():
+    """Test respond phase produces conversational text only."""
     mock_llm = AsyncMock()
 
     async def mock_stream(*args, **kwargs):
@@ -98,33 +98,33 @@ async def test_respond_node_output():
     context = Context(query="weather?", messages=[], user_id="test")
     state = State(context=context, query="test")
 
-    from cogency.nodes.respond import Respond
+    from cogency.phases.respond import Respond
 
-    respond_node = Respond(llm=mock_llm, tools=[])
-    result_state = await respond_node(state)
+    respond_phase = Respond(llm=mock_llm, tools=[])
+    result_state = await respond_phase(state)
 
     assert isinstance(result_state["final_response"], str)
     assert not result_state["final_response"].startswith("{")
-    assert result_state["next_node"] == "END"
+    assert result_state["next_phase"] == "END"
 
 
 @pytest.mark.asyncio
 async def test_act_routing():
-    """Test act node routing behavior."""
+    """Test act phase routing behavior."""
     tool = MockTool("test_tool")
     context = Context(query="test", messages=[], user_id="test")
     state = State(context=context, query="test")
     state["tool_calls"] = '[{"name": "test_tool", "args": {}}]'
 
-    from cogency.nodes.act import Act
+    from cogency.phases.act import Act
 
-    act_node = Act(tools=[tool])
-    result_state = await act_node(state)
+    act_phase = Act(tools=[tool])
+    result_state = await act_phase(state)
     assert result_state["result"].success
 
     # Test no tool calls
     state["tool_calls"] = None
-    act_node2 = Act(tools=[])
-    result_state = await act_node2(state)
+    act_phase2 = Act(tools=[])
+    result_state = await act_phase2(state)
     assert result_state["result"].success
     assert result_state["result"].data["type"] == "no_action"

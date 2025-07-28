@@ -7,7 +7,7 @@ import pytest
 from resilient_result import Result, unwrap
 
 from cogency.context import Context
-from cogency.nodes.act import act
+from cogency.phases.act import act
 from cogency.state import State
 from cogency.tools.base import BaseTool
 
