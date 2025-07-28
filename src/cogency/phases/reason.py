@@ -130,23 +130,25 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
     tool_registry = build_registry(selected_tools)
 
     if react_mode == "deep":
-        attempts_summary = build_iterations(state, selected_tools, max_iterations=10)
         reasoning_prompt = prompt_deep_mode(
             tool_registry,
             state.query,
             iteration,
             state.max_iterations,
             state.current_approach,
-            attempts_summary,
-            "unknown",  # TODO: derive from latest action outcome
+            state.format_actions_for_deep_mode(max_history=3),
+            state.format_latest_results_detailed(),
         )
     else:
-        attempts_summary = build_iterations(state, selected_tools, max_iterations=3)
+        attempts_summary = state.format_actions_for_fast_mode(max_history=3)
         reasoning_prompt = prompt_fast_mode(tool_registry, state.query, attempts_summary)
     
     # DEBUG: Show what LLM sees
     if state.trace:
-        await notify(state, "trace", f"Iteration {iteration}: attempts_summary = '{attempts_summary}'")
+        if react_mode == "deep":
+            await notify(state, "trace", f"Iteration {iteration}: deep mode with structured actions")
+        else:
+            await notify(state, "trace", f"Iteration {iteration}: attempts_summary = '{attempts_summary}'")
 
     # Add optional prompts
     if identity:

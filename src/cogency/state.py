@@ -126,6 +126,69 @@ class State:
         past_actions = self.actions[:-1][-max_history:]
         return compress_actions(past_actions)
 
+    def format_actions_for_fast_mode(self, max_history: int = 3) -> str:
+        """Format actions as simple compressed string for fast mode."""
+        compressed = self.get_compressed_attempts(max_history)
+        return "; ".join(compressed) if compressed else "No previous attempts"
+
+    def format_actions_for_deep_mode(self, max_history: int = 3) -> str:
+        """Format structured actions with full context for deep mode reflection."""
+        if not self.actions:
+            return "No previous actions"
+        
+        formatted = []
+        for action in self.actions[-max_history:]:
+            iter_num = action.get("iteration", "?")
+            mode = action.get("mode", "unknown")
+            thinking = action.get("thinking", "")
+            planning = action.get("planning", "")
+            reflection = action.get("reflection", "")
+            
+            # Format action header
+            action_header = f"[Iteration {iter_num}] {mode.upper()} mode:"
+            parts = [action_header]
+            
+            if thinking:
+                parts.append(f"  Thinking: {thinking[:200]}{'...' if len(thinking) > 200 else ''}")
+            if planning:
+                parts.append(f"  Planning: {planning[:200]}{'...' if len(planning) > 200 else ''}")
+            if reflection:
+                parts.append(f"  Reflection: {reflection[:200]}{'...' if len(reflection) > 200 else ''}")
+            
+            # Format tool outcomes
+            tool_calls = action.get("tool_calls", [])
+            if tool_calls:
+                parts.append("  Tool Outcomes:")
+                for call in tool_calls:
+                    name = call.get("name", "unknown")
+                    outcome = call.get("outcome", "unknown")
+                    result_snippet = call.get("result", "")[:100] + ("..." if len(call.get("result", "")) > 100 else "")
+                    parts.append(f"    {name}() → {outcome}: {result_snippet}")
+            
+            formatted.append("\n".join(parts))
+        
+        return "\n\n".join(formatted)
+
+    def format_latest_results_detailed(self) -> str:
+        """Format latest tool results with full detail for deep mode analysis."""
+        latest_results = self.get_latest_results()
+        if not latest_results:
+            return "No tool results from current iteration"
+        
+        formatted = []
+        for call in latest_results:
+            name = call.get("name", "unknown")
+            args = call.get("args", {})
+            outcome = call.get("outcome", "unknown")
+            result = call.get("result", "")
+            
+            # Show full result for current iteration analysis
+            formatted.append(f"{name}({args}) → {outcome}")
+            if result:
+                formatted.append(f"  Result: {result}")
+        
+        return "\n".join(formatted)
+
 
 
 # Export clean State class

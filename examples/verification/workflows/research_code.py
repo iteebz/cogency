@@ -18,7 +18,8 @@ async def main():
         tools=[Search(), Code()],
         memory=False,
         max_iterations=8,
-        trace=False,
+        trace=True,
+        react_mode="deep",  # Force deep mode for testing
     )
 
     # Query that requires research then implementation

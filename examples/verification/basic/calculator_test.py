@@ -18,7 +18,7 @@ async def main():
         tools=[Calculator()],
         memory=False,
         max_iterations=3,
-        trace=False,  # Clean output
+        trace=True,  # Show first iteration deep mode
     )
 
     # Test basic arithmetic

@@ -18,7 +18,7 @@ async def main():
         tools=[Calculator(), Code()],
         memory=False,
         max_iterations=8,  # Allow for multi-step workflow
-        trace=False,
+        trace=True,
     )
 
     # Complex calculation that benefits from verification

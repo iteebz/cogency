@@ -7,7 +7,8 @@ def prompt_deep_mode(
     iteration: int,
     max_iterations: int,
     current_approach: str,
-    previous_attempts: str,
+    structured_actions: str,
+    latest_results_detail: str,
 ) -> str:
     """Generate structured prompt for deep mode reasoning."""
     from cogency.constants import MAX_TOOL_CALLS_PER_ITERATION
@@ -39,7 +40,12 @@ TOOLS:
 CONTEXT:
 Iteration {iteration}/{max_iterations} - Review completed actions to avoid repetition
 Current approach: {current_approach}
-Action history: {previous_attempts}
+
+PREVIOUS ACTIONS:
+{structured_actions}
+
+LATEST TOOL RESULTS:
+{latest_results_detail}
 
 REASONING PHASES:
 🤔 REFLECT: Review completed actions and their DETAILED results - what information do you already have? What gaps remain?
