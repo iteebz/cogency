@@ -1,19 +1,11 @@
 """Cogency State - Zero ceremony, maximum beauty."""
 
 import asyncio
-from enum import Enum
 from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 
 from cogency.constants import DEFAULT_MAX_ITERATIONS, MAX_FAILURES_HISTORY, MAX_ITERATIONS_HISTORY
-
-
-class ToolOutcome(Enum):
-    """Tool execution outcomes matching schema."""
-    SUCCESS = "success"
-    FAILURE = "failure" 
-    ERROR = "error"
-    TIMEOUT = "timeout"
+from cogency.types.outcomes import ToolOutcome
 
 
 @dataclass 
@@ -52,22 +44,6 @@ class State:
         """Get clean conversation for LLM."""
         return [{"role": msg["role"], "content": msg["content"]} for msg in self.messages]
     
-    async def notify(self, event_type: str, data: Any) -> None:
-        """Notify user of progress."""
-        # Record notification for testing/debugging
-        notification = {
-            "event_type": event_type,
-            "data": data,
-            "iteration": self.iteration
-        }
-        self.notifications.append(notification)
-        
-        # Call user callback if available
-        if self.callback and self.verbose and callable(self.callback):
-            if asyncio.iscoroutinefunction(self.callback):
-                await self.callback(str(data))
-            else:
-                self.callback(str(data))
     
     def add_action(
         self,

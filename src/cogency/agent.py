@@ -1,6 +1,4 @@
 from typing import Any, AsyncIterator, Optional
-
-from cogency.identity import process_identity
 from cogency.utils.auto import detect_llm
 from cogency.state import State
 from cogency.utils.notify import Notifier
@@ -66,7 +64,7 @@ class Agent:
         self.tools = tools
         self.memory = memory
         self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
-        self.identity = process_identity(identity)
+        self.identity = identity or ""
         self.json_schema = json_schema
         self.user_states: dict[str, State] = {}
         self.last_state: Optional[dict] = None  # Store for traces()

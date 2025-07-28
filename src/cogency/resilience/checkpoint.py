@@ -14,22 +14,45 @@ from cogency.state import State
 
 
 def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = False):
-    """@safe.checkpoint - Workflow recovery with state persistence."""
+    """@checkpoint - Workflow recovery with state persistence."""
 
     def decorator(func):
         @wraps(func)
         async def checkpointed_func(*args, **kwargs):
-            # Simple pass-through for now - checkpoint functionality disabled
-            # TODO: Implement proper checkpoint functionality
-            return await func(*args, **kwargs)
+            # Extract state from function arguments
+            state = args[0] if args else kwargs.get("state")
+            
+            if not state or not isinstance(state, State):
+                # No state to checkpoint, just run the function
+                return await func(*args, **kwargs)
+            
+            # Try to resume from existing checkpoint first
+            checkpoint_id = checkpointer.find(state)
+            if checkpoint_id:
+                checkpoint_data = checkpointer.load(checkpoint_id)
+                if checkpoint_data and resume(state):
+                    # Successfully resumed from checkpoint
+                    pass
+            
+            try:
+                # Execute the function
+                result = await func(*args, **kwargs)
+                
+                # Save checkpoint after successful execution if interruptible
+                if interruptible:
+                    checkpointer.save(state, checkpoint_type)
+                
+                return result
+                
+            except Exception as e:
+                # Save checkpoint on failure for recovery
+                if interruptible:
+                    checkpointer.save(state, checkpoint_type)
+                raise
 
         return checkpointed_func
 
     return decorator
-
-
-# Checkpoint functionality temporarily disabled
-# TODO: Implement proper checkpoint functionality with state persistence
 
 
 class Checkpoint:
@@ -43,15 +66,14 @@ class Checkpoint:
 
     def _generate_fingerprint(self, state: State) -> str:
         """Generate deterministic fingerprint for state matching with session isolation."""
-        # Handle both real State objects and mocks
-        selected_tools = getattr(state, "selected_tools", []) or []
+        selected_tools = state.selected_tools or []
         tool_names = [tool.name if hasattr(tool, "name") else str(tool) for tool in selected_tools]
 
         components = [
             self.session_id,  # Session isolation prevents state collisions
-            state.get("query", ""),
+            state.query,
             str(sorted(tool_names)),
-            str(state.get("iteration", 0)),
+            str(state.iteration),
         ]
         content = "|".join(components)
         return hashlib.sha256(content.encode()).hexdigest()[:16]
@@ -70,24 +92,20 @@ class Checkpoint:
             "fingerprint": fingerprint,
             "timestamp": datetime.now().isoformat(),
             "checkpoint_type": checkpoint_type,
-            "query": state.get("query", ""),
-            "iteration": state.get("iteration", 0),
-            "react_mode": state.get("react_mode", "fast"),
+            "query": state.query,
+            "user_id": state.user_id,
+            "iteration": state.iteration,
+            "react_mode": state.react_mode,
             "selected_tools": [
                 tool.name if hasattr(tool, "name") else str(tool)
                 for tool in state.selected_tools or []
             ],
-            "reasoning": {
-                "iterations": state.get("iterations", []),
-                "failed_attempts": state.get("failed_attempts", []),
-                "current_approach": state.get("current_approach", "unified_react"),
-                "react_mode": state.get("react_mode", "fast"),
-            },
-            "execution_results": state.get("execution_results"),
-            "prev_tool_calls": state.get("prev_tool_calls", []),
-            "context_messages": state.context.chat
-            if hasattr(state, "context") and hasattr(state.context, "chat")
-            else [],
+            "tool_calls": state.tool_calls,
+            "actions": state.actions,
+            "attempts": state.attempts,
+            "current_approach": state.current_approach,
+            "messages": state.messages,
+            "result": str(state.result) if state.result else None,
         }
 
         # Write checkpoint atomically to prevent corruption during interrupts
@@ -167,57 +185,58 @@ def resume(state: State) -> bool:
     if not checkpoint_data:
         return False
 
-    # Restore state from checkpoint
-    state["resume_from_checkpoint"] = True
-    state["checkpoint_id"] = checkpoint_id
+    # Restore state fields from checkpoint
+    try:
+        # Core execution state
+        if "iteration" in checkpoint_data:
+            state.iteration = checkpoint_data["iteration"]
+        if "react_mode" in checkpoint_data:
+            state.react_mode = checkpoint_data["react_mode"]
+        if "current_approach" in checkpoint_data:
+            state.current_approach = checkpoint_data["current_approach"]
+            
+        # Tool execution state
+        if "tool_calls" in checkpoint_data:
+            state.tool_calls = checkpoint_data["tool_calls"]
+        if "actions" in checkpoint_data:
+            state.actions = checkpoint_data["actions"]
+        if "attempts" in checkpoint_data:
+            state.attempts = checkpoint_data["attempts"]
+            
+        # Message history
+        if "messages" in checkpoint_data:
+            state.messages = checkpoint_data["messages"]
+            
+        # Add resume context message to LLM
+        _add_resume_message(state, checkpoint_data)
+        
+        return True
+        
+    except Exception:
+        # If resume fails, just continue without resuming
+        return False
 
-    # Restore flow data
-    for key, value in checkpoint_data.items():
-        if key not in ["fingerprint", "timestamp", "checkpoint_type"]:
-            if key == "cognition":
-                # Restore cognition state
-                if value:
-                    state.cognition.iterations = value.get("iterations", [])
-                    state.cognition.failed_attempts = value.get("failed_attempts", [])
-                    state.cognition.current_approach = value.get(
-                        "current_approach", "unified_react"
-                    )
-                    state.cognition.react_mode = value.get("react_mode", "fast")
-            elif key == "context_messages":
-                # Restore context messages
-                if hasattr(state.context, "chat") and value:
-                    state.context.chat = value
-            else:
-                # Restore other flow data
-                state[key] = value
 
-    # Add recovery context for LLM
-    _add_checkpoint_context(state, checkpoint_data)
-
-    return True
-
-
-def _add_checkpoint_context(state: "State", checkpoint_data: Dict[str, Any]) -> None:
-    """Add checkpoint recovery context for LLM communication."""
+def _add_resume_message(state: State, checkpoint_data: Dict[str, Any]) -> None:
+    """Add resume context to message history for LLM awareness."""
     checkpoint_type = checkpoint_data.get("checkpoint_type", "unknown")
     iteration = checkpoint_data.get("iteration", 0)
 
     # Build recovery message for LLM
     recovery_msg = "RESUMING FROM CHECKPOINT: "
 
-    if checkpoint_type == "act":
-        prev_tools = checkpoint_data.get("prev_tool_calls", [])
-        if prev_tools:
+    if checkpoint_type == "tool_execution":
+        tool_calls = checkpoint_data.get("tool_calls", [])
+        if tool_calls:
             tool_names = [
-                call.get("name", "unknown") for call in prev_tools if isinstance(call, dict)
+                call.get("name", "unknown") for call in tool_calls if isinstance(call, dict)
             ]
             recovery_msg += f"Previously completed tools: {', '.join(tool_names)}. "
 
-    recovery_msg += f"Continue from iteration {iteration}. Previous network failure resolved."
+    recovery_msg += f"Continue from iteration {iteration}. Previous session was interrupted."
 
-    # Add to context as system message
-    if hasattr(state.context, "chat"):
-        state.context.chat.insert(0, {"role": "system", "content": recovery_msg})
+    # Add to message history using the proper State method
+    state.add_message("system", recovery_msg)
 
 
 # Global checkpoint manager instance
