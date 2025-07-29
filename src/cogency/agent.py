@@ -1,9 +1,10 @@
 from typing import Any, AsyncIterator, Optional
-from cogency.utils.auto import detect_llm
+
+from cogency import decorators
 from cogency.state import State
+from cogency.utils.auto import detect_llm
 from cogency.utils.notify import Notifier
 from cogency.utils.setup import agent_services
-from cogency import decorators
 
 MAX_QUERY_LENGTH = 10000
 
@@ -41,18 +42,16 @@ class Agent:
         self.max_iterations = max_iterations
         self.deep = deep
         self.adapt = adapt
-        
+
         # Set global robust and observe flags for decorators
         decorators._robust_enabled = robust
         decorators.set_observe_enabled(observe)
-        
+
         # Set up state persistence
         if persist:
             from cogency.persistence import StateManager
-            self.persistence_manager = StateManager(
-                backend=persist_backend, 
-                enabled=True
-            )
+
+            self.persistence_manager = StateManager(backend=persist_backend, enabled=True)
             decorators.set_persistence_manager(self.persistence_manager)
         else:
             self.persistence_manager = None
@@ -76,24 +75,24 @@ class Agent:
         self.last_state: Optional[dict] = None  # Store for traces()
 
         # Create phase instances with injected dependencies - zero ceremony
+        from cogency.phases.act import Act
         from cogency.phases.preprocess import Preprocess
         from cogency.phases.reason import Reason
-        from cogency.phases.act import Act
         from cogency.phases.respond import Respond
-        
+
         self.preprocess_phase = Preprocess(
             llm=self.llm,
             tools=self.tools,
             memory=self.memory,
             system_prompt=self.system_prompt,
-            identity=self.identity
+            identity=self.identity,
         )
         self.reason_phase = Reason(
             llm=self.llm,
             tools=self.tools,
             system_prompt=self.system_prompt,
             identity=self.identity,
-            adapt=self.adapt
+            adapt=self.adapt,
         )
         self.act_phase = Act(tools=self.tools)
         self.respond_phase = Respond(
@@ -101,7 +100,7 @@ class Agent:
             tools=self.tools,
             system_prompt=self.system_prompt,
             identity=self.identity,
-            json_schema=self.json_schema
+            json_schema=self.json_schema,
         )
 
         # MCP server setup if enabled
@@ -128,11 +127,16 @@ class Agent:
 
         # Get or create state with persistence support
         from cogency.persistence import get_state
+
         state = await get_state(
-            user_id, query, self.max_iterations,
-            self.user_states, self.persistence_manager, self.llm
+            user_id,
+            query,
+            self.max_iterations,
+            self.user_states,
+            self.persistence_manager,
+            self.llm,
         )
-        
+
         state.add_message("user", query)
 
         # Stream execution using Notifier
@@ -159,46 +163,47 @@ class Agent:
         try:
             # Get or create state with persistence support
             from cogency.persistence import get_state
+
             state = await get_state(
-                user_id, query, self.max_iterations,
-                self.user_states, self.persistence_manager, self.llm
+                user_id,
+                query,
+                self.max_iterations,
+                self.user_states,
+                self.persistence_manager,
+                self.llm,
             )
             state.verbose = self.verbose
             state.trace = self.trace
-            
+
             # Apply deep mode and adapt overrides
             if self.deep:
                 state.react_mode = "deep"
             # Note: adapt flag will be used in reason phase to disable mode switching
-            
+
             # Set up trace callback for non-streaming mode
             if self.trace:
                 state.callback = print
-            
+
             # Use simple execution loop with zero ceremony
             from cogency.execution import run_agent
-            
+
             # Phase instances already have dependencies injected
             await run_agent(
-                state,
-                self.preprocess_phase,
-                self.reason_phase, 
-                self.act_phase,
-                self.respond_phase
+                state, self.preprocess_phase, self.reason_phase, self.act_phase, self.respond_phase
             )
             self.last_state = state
-            
+
             # Extract response from state
-            response = getattr(state, 'response', None)
+            response = getattr(state, "response", None)
             return response or "No response generated"
-            
+
         except Exception as e:
             # Make errors EXPLICIT
             import traceback
+
             error_msg = f"Flow execution failed: {e}\n{traceback.format_exc()}"
             print(error_msg)
             return f"ERROR: {e}"
-
 
     def traces(self) -> list[dict[str, Any]]:
         """Get traces from last execution for debugging"""

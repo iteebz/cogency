@@ -37,7 +37,7 @@ Examples:
 switch_to: "fast", switch_why: "Query simplified to direct search"
 switch_to: "fast", switch_why: "Single tool execution sufficient"
 """
-        
+
         mode_context = f"""
 CONTEXT:
 Iteration {iteration}/{max_iterations} - Review completed actions to avoid repetition
@@ -68,22 +68,26 @@ Examples:
 switch_to: "deep", switch_why: "Search results contradict, need analysis"
 switch_to: "deep", switch_why: "Multi-step calculation required"
 """
-        
+
         mode_context = f"""
 PREVIOUS CONTEXT:
 {context if context else "Initial execution - no prior actions"}
 """
 
     return f"""
-{mode.upper()}: {"Structured reasoning" if mode == "deep" else "Direct execution"} for query: {query}
+{mode.upper()}: {"Structured reasoning" if mode == "deep" else "Direct execution"} for query: {
+        query
+    }
 
 CRITICAL: Output ONE JSON object for THIS ITERATION ONLY. Do not anticipate future steps.
 
 JSON Response Format:
 {{
   "thinking": "What am I trying to accomplish? What's my approach to this problem?",{
-  '"reflect": "What worked/failed in previous actions? What gaps remain?",' if mode == "deep" else ""}{
-  '"plan": "What specific tools to use next and expected outcomes?",' if mode == "deep" else ""}
+        '"reflect": "What worked/failed in previous actions? What gaps remain?",'
+        if mode == "deep"
+        else ""
+    }{'"plan": "What specific tools to use next and expected outcomes?",' if mode == "deep" else ""}
   "tool_calls": [
     {{"name": "tool_a", "args": {{"param": "value"}}}},
     {{"name": "tool_b", "args": {{"param": "value"}}}},
@@ -100,7 +104,9 @@ JSON Response Format:
   }}
 }}
 
-IMPORTANT: All {MAX_TOOL_CALLS_PER_ITERATION} tool calls must be in ONE tool_calls array, not separate JSON objects.
+IMPORTANT: All {
+        MAX_TOOL_CALLS_PER_ITERATION
+    } tool calls must be in ONE tool_calls array, not separate JSON objects.
 
 When done: {{"thinking": "explanation", "tool_calls": [], "switch_to": null, "switch_why": null, "summary_update": {{"goal": "updated goal", "progress": "final progress", "current_approach": "approach used", "key_findings": "what was learned", "next_focus": "none - complete"}}}}
 
@@ -113,5 +119,7 @@ TOOLS:
 
 - Empty tool_calls array ([ ]) if query fully answered or no progress possible
 - If original query has been fully resolved, say so explicitly and return tool_calls: []
-- LIMIT: Maximum {MAX_TOOL_CALLS_PER_ITERATION} tool calls per iteration to avoid JSON parsing issues
+- LIMIT: Maximum {
+        MAX_TOOL_CALLS_PER_ITERATION
+    } tool calls per iteration to avoid JSON parsing issues
 """

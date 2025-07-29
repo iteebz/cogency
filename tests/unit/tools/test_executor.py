@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from resilient_result import Result
 
-from cogency.tools.executor import run_tools
 from cogency.tools.base import BaseTool
+from cogency.tools.executor import run_tools
 
 
 class MockTool(BaseTool):

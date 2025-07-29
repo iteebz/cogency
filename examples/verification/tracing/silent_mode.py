@@ -13,7 +13,7 @@ async def main():
 
     # Agent with tracing disabled - clean, production-ready output
     agent = Agent(
-        "silent_agent", 
+        "silent_agent",
         identity="helpful assistant with clean, direct responses",
         tools=[Calculator(), Weather()],
         memory=False,
@@ -29,20 +29,20 @@ async def main():
 
     for i, query in enumerate(queries, 1):
         print(f"Query {i}: {query}")
-        
+
         try:
             result = await agent.run(query)
             print(f"Result: {result}\n")
         except Exception as e:
             print(f"Error: {e}\n")
-        
+
         await asyncio.sleep(1)
 
     print("✅ Silent mode verification complete!")
     print("\nNotice the difference:")
     print("  • No internal phase logging")
     print("  • No tool execution details")
-    print("  • Clean, user-focused output") 
+    print("  • Clean, user-focused output")
     print("  • Same powerful functionality underneath")
 
 

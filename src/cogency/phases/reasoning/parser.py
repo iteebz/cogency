@@ -32,5 +32,3 @@ def parse_response_result(response: str) -> Result:
     }
 
     return Result.ok(parsed_data)
-
-

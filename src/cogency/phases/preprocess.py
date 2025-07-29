@@ -4,24 +4,30 @@ from typing import List, Optional
 
 from resilient_result import unwrap
 
+from cogency.decorators import observe, robust
 from cogency.memory.backends.base import MemoryBackend
 from cogency.memory.prepare import save_memory
 from cogency.phases.base import Phase
-from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
 from cogency.types.preprocessed import Preprocessed
 from cogency.utils.heuristics import is_simple_query
-from cogency.utils.parsing import parse_json
 from cogency.utils.notify import notify
+from cogency.utils.parsing import parse_json
 
 
 class Preprocess(Phase):
     def __init__(self, llm, tools, memory, system_prompt=None, identity=None):
-        super().__init__(preprocess, llm=llm, tools=tools, memory=memory, 
-                        system_prompt=system_prompt, identity=identity)
+        super().__init__(
+            preprocess,
+            llm=llm,
+            tools=tools,
+            memory=memory,
+            system_prompt=system_prompt,
+            identity=identity,
+        )
 
     def next_phase(self, state: State) -> str:
         return "reason" if state.selected_tools else "respond"
@@ -29,7 +35,14 @@ class Preprocess(Phase):
 
 @observe.preprocess()
 @robust.preprocess()
-async def preprocess(state: State, llm: BaseLLM, tools: List[BaseTool], memory: MemoryBackend, system_prompt: str = None, identity: Optional[str] = None) -> None:
+async def preprocess(
+    state: State,
+    llm: BaseLLM,
+    tools: List[BaseTool],
+    memory: MemoryBackend,
+    system_prompt: str = None,
+    identity: Optional[str] = None,
+) -> None:
     """Preprocess: routing decisions, memory extraction, tool selection."""
     query = state.query
     # Direct access to state properties - no context wrapper needed
@@ -151,10 +164,18 @@ Example:
             if len(filtered_tools) < len(tools):
                 # Show smart filtering in traces
                 if state.trace:
-                    await notify(state, "trace", f"Selected tools: {', '.join([t.name for t in filtered_tools])}")
+                    await notify(
+                        state,
+                        "trace",
+                        f"Selected tools: {', '.join([t.name for t in filtered_tools])}",
+                    )
             elif len(filtered_tools) > 1 and state.trace:
                 # Show tools being prepared for ReAct in traces
-                await notify(state, "trace", f"Preparing tools: {', '.join([t.name for t in filtered_tools])}")
+                await notify(
+                    state,
+                    "trace",
+                    f"Preparing tools: {', '.join([t.name for t in filtered_tools])}",
+                )
     else:
         # Simple case: no tools available, respond directly
         filtered_tools = []  # No tools to filter if initial 'tools' list is empty

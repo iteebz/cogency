@@ -5,8 +5,9 @@ from typing import AsyncIterator, Dict, List, Union
 from resilient_result import Result, Retry, resilient
 
 from cogency.constants import MAX_TOKENS
-from .cache import cached_llm_call
 from cogency.utils.keys import KeyManager
+
+from .cache import cached_llm_call
 
 logger = logging.getLogger(__name__)
 

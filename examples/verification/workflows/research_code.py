@@ -4,7 +4,7 @@
 import asyncio
 
 from cogency import Agent
-from cogency.tools import Search, Code
+from cogency.tools import Code, Search
 
 
 async def main():
@@ -29,7 +29,7 @@ async def main():
     First, research what makes an efficient prime checking algorithm, 
     then implement and test it with a few examples like 17, 25, and 97."""
 
-    print(f"🎯 WORKFLOW QUERY:")
+    print("🎯 WORKFLOW QUERY:")
     print(f"{query}\n")
     print("=" * 40)
 

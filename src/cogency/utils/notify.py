@@ -17,6 +17,7 @@ async def notify(state: State, event_type: str, message: str) -> None:
 
     if state.callback and state.verbose and callable(state.callback):
         import asyncio
+
         if asyncio.iscoroutinefunction(state.callback):
             await state.callback(f"{event_type}: {message}")
         else:
@@ -74,6 +75,7 @@ class Notifier:
 
         # Start execution in background
         from cogency.execution import run_agent
+
         kwargs = {
             "llm": self.llm,
             "tools": self.tools,

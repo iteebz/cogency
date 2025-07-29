@@ -3,28 +3,29 @@
 import asyncio
 from typing import List, Optional
 
-from cogency.phases.base import Phase
 from cogency.constants import ADAPT_REACT
+from cogency.decorators import observe, robust
+from cogency.phases.base import Phase
 from cogency.phases.reasoning import (
     parse_switch,
     should_switch,
     switch_mode,
 )
 from cogency.phases.reasoning.prompt import prompt_reasoning
-from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
 from cogency.tools.registry import build_registry
 from cogency.types.reasoning import Reasoning
-from cogency.utils.parsing import parse_json_with_correction
 from cogency.utils.notify import notify
+from cogency.utils.parsing import parse_json_with_correction
 
 
 class Reason(Phase):
     def __init__(self, llm, tools, system_prompt=None, identity=None, adapt=True):
-        super().__init__(reason, llm=llm, tools=tools, 
-                        system_prompt=system_prompt, identity=identity)
+        super().__init__(
+            reason, llm=llm, tools=tools, system_prompt=system_prompt, identity=identity
+        )
         self.adapt = adapt
 
     def next_phase(self, state: State) -> str:
@@ -35,14 +36,16 @@ def format_tool_calls_readable(tool_calls):
     """Format tool calls as readable action summary."""
     if not tool_calls:
         return "no_action"
-    
+
     parts = []
     for call in tool_calls:
         name = call.get("name", "unknown")
         args = call.get("args", {})
-        
+
         if isinstance(args, dict) and args:
-            key_args = {k: v for k, v in args.items() if k in ["query", "url", "filename", "command"]}
+            key_args = {
+                k: v for k, v in args.items() if k in ["query", "url", "filename", "command"]
+            }
             if key_args:
                 args_str = ", ".join(f"{k}={v}" for k, v in key_args.items())
                 parts.append(f"{name}({args_str})")
@@ -50,26 +53,28 @@ def format_tool_calls_readable(tool_calls):
                 parts.append(name)
         else:
             parts.append(name)
-    
+
     return " | ".join(parts)
 
 
 def build_iterations(state, selected_tools, max_iterations=3):
     """Build reasoning context using State methods (schema-compliant)."""
     context_parts = []
-    
+
     # Latest results (fresh output from most recent action)
     latest_results = state.get_latest_results()
     if latest_results:
         for call in latest_results:
-            result_snippet = call.get("result", "")[:200] + ("..." if len(call.get("result", "")) > 200 else "")
+            result_snippet = call.get("result", "")[:200] + (
+                "..." if len(call.get("result", "")) > 200 else ""
+            )
             context_parts.append(f"Latest: {call['name']}() → {result_snippet}")
-    
+
     # Compressed history (past actions)
     compressed = state.get_compressed_attempts(max_history=max_iterations)
     if compressed:
         context_parts.extend([f"Prior: {attempt}" for attempt in compressed])
-    
+
     return "; ".join(context_parts) if context_parts else "No previous attempts"
 
 
@@ -105,7 +110,14 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
 @robust.reason()
 @observe.reason()
 @robust.reason()
-async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None, adapt: bool = True) -> None:
+async def reason(
+    state: State,
+    llm: BaseLLM,
+    tools: List[BaseTool],
+    system_prompt: Optional[str] = None,
+    identity: Optional[str] = None,
+    adapt: bool = True,
+) -> None:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
     # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools or []
@@ -130,10 +142,10 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
 
     # Build unified prompt with mode-specific context
     tool_registry = build_registry(selected_tools)
-    
+
     # Phase 2B/3: Use clean context assembly
     context = state.build_reasoning_context(react_mode, max_history=3)
-    
+
     reasoning_prompt = prompt_reasoning(
         mode=react_mode,
         tool_registry=tool_registry,
@@ -143,13 +155,16 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
         max_iterations=state.max_iterations,
         current_approach=state.situation_summary.get("current_approach", "initial"),
     )
-    
+
     # DEBUG: Show what LLM sees
     if state.trace:
         if react_mode == "deep":
-            await notify(state, "trace", f"Iteration {iteration}: deep mode with structured actions")
+            await notify(
+                state, "trace", f"Iteration {iteration}: deep mode with structured actions"
+            )
         else:
-            await notify(state, "trace", f"Iteration {iteration}: attempts_summary = '{attempts_summary}'")
+            context = state.build_reasoning_context(react_mode)
+            await notify(state, "trace", f"Iteration {iteration}: context = '{context}'")
 
     # Add optional prompts
     if identity:
@@ -167,9 +182,7 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
     raw_response = unwrap(llm_result)
 
     # Parse with correction
-    parse_result = await parse_json_with_correction(
-        raw_response, llm_fn=llm.run, max_attempts=2
-    )
+    parse_result = await parse_json_with_correction(raw_response, llm_fn=llm.run, max_attempts=2)
 
     reasoning_response = (
         Reasoning.from_dict(parse_result.data) if parse_result.success else Reasoning()
@@ -192,8 +205,11 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
         switch_to, switch_why = parse_switch(raw_response)
         if should_switch(react_mode, switch_to, switch_why, iteration):
             if state.trace:
-                await notify(state, 
-                    "trace", f"Mode switch: {react_mode} → {switch_to} ({switch_why})", node="reason"
+                await notify(
+                    state,
+                    "trace",
+                    f"Mode switch: {react_mode} → {switch_to} ({switch_why})",
+                    node="reason",
                 )
             state = switch_mode(state, switch_to, switch_why)
     elif state.trace:
@@ -219,12 +235,12 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
         state.add_action(
             mode=state.react_mode,
             thinking=reasoning_response.thinking or "",
-            planning=getattr(reasoning_response, 'plan', "") or "",
-            reflection=getattr(reasoning_response, 'reflect', "") or "",
+            planning=getattr(reasoning_response, "plan", "") or "",
+            reflection=getattr(reasoning_response, "reflect", "") or "",
             approach=state.current_approach,
             tool_calls=tool_calls,
         )
-        
+
         # Semantic context summarization: merge summary_update into situation_summary
         if reasoning_response.summary_update:
             for key, value in reasoning_response.summary_update.items():

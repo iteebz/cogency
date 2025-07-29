@@ -72,6 +72,7 @@ async def execute_tools(
                     tool_input = f"({first_val})"
 
             from cogency.utils.notify import notify
+
             await notify(state, "action", f"{tool_emoji} {tool_name}{tool_input}")
 
         try:
@@ -84,6 +85,7 @@ async def execute_tools(
                 user_friendly_error = format_tool_error(actual_tool_name, Exception(raw_error))
                 if state:
                     from cogency.utils.notify import notify
+
                     await notify(state, "action", f"✗ {user_friendly_error}\n")
                 failure_result = {
                     "tool_name": actual_tool_name,
@@ -111,6 +113,7 @@ async def execute_tools(
 
                     # Add success indicator to result
                     from cogency.utils.notify import notify
+
                     await notify(state, "action", f"✓ {readable_result}\n")
 
                 success_result = {
@@ -125,6 +128,7 @@ async def execute_tools(
             user_friendly_error = format_tool_error(tool_name, e)
             if state:
                 from cogency.utils.notify import notify
+
                 await notify(state, "action", f"✗ {user_friendly_error}")
             failure_result = {
                 "tool_name": tool_name,

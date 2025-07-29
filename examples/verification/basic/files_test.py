@@ -2,8 +2,8 @@
 """Basic file operations tool verification - file system interaction."""
 
 import asyncio
-import tempfile
 import os
+import tempfile
 
 from cogency import Agent
 from cogency.tools import Files
@@ -16,11 +16,11 @@ async def main():
     # Create temporary directory for testing
     with tempfile.TemporaryDirectory() as temp_dir:
         print(f"Using temp directory: {temp_dir}\n")
-        
+
         # Change to temp directory for clean testing
         original_cwd = os.getcwd()
         os.chdir(temp_dir)
-        
+
         try:
             # Simple agent with file operations
             agent = Agent(

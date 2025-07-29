@@ -28,28 +28,28 @@ async def main():
     ]
 
     for i, query in enumerate(queries, 1):
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"TRACED QUERY {i}: {query}")
-        print('='*50)
-        
+        print("=" * 50)
+
         try:
             result = await agent.run(query)
             print(f"\n🎯 FINAL RESULT: {result}")
         except Exception as e:
             print(f"\n❌ ERROR: {e}")
-        
+
         if i < len(queries):
             print("\n" + "⏳ Next query in 2 seconds..." + "\n")
             await asyncio.sleep(2)
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print("✅ TRACING VERIFICATION COMPLETE!")
     print("Notice how you can see:")
     print("  • Phase transitions (preprocess → reason → act → respond)")
     print("  • Tool selection and execution")
     print("  • State updates between phases")
     print("  • Internal reasoning process")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
 
 
 if __name__ == "__main__":

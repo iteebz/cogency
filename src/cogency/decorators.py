@@ -5,8 +5,8 @@ from functools import wraps
 from resilient_result import Retry
 from resilient_result import resilient as resilient_decorator
 
+from cogency.monitoring.metrics import counter, histogram, timer
 from cogency.resilience.checkpoint import checkpoint
-from cogency.monitoring.metrics import timer, counter, histogram
 
 # Global flag for toggleable robust behavior
 _robust_enabled = True  # Default enabled
@@ -42,43 +42,45 @@ def _checkpoint(name: str, interruptible: bool = True):
 
 def _auto_save(phase_name: str):
     """Auto-save state after successful phase completion."""
-    
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Execute the phase
             result = await func(*args, **kwargs)
-            
+
             # Auto-save state after successful completion
             if _persistence_manager and _persistence_manager.enabled:
                 try:
                     # Extract state from function arguments
                     state = args[0] if args else kwargs.get("state")
-                    if state and hasattr(state, 'user_id'):
+                    if state and hasattr(state, "user_id"):
                         # Extract LLM info from kwargs for validation
-                        llm = kwargs.get('llm') or (args[1] if len(args) > 1 else None)
-                        tools = kwargs.get('tools') or (args[2] if len(args) > 2 else None)
-                        
+                        llm = kwargs.get("llm") or (args[1] if len(args) > 1 else None)
+                        tools = kwargs.get("tools") or (args[2] if len(args) > 2 else None)
+
                         await _persistence_manager.save_state(
                             state,
-                            llm_provider=getattr(llm, 'provider', 'unknown') if llm else 'unknown',
-                            llm_model=getattr(llm, 'model', 'unknown') if llm else 'unknown',
+                            llm_provider=getattr(llm, "provider", "unknown") if llm else "unknown",
+                            llm_model=getattr(llm, "model", "unknown") if llm else "unknown",
                             tools_count=len(tools) if tools else 0,
-                            memory_backend='unknown',  # Could extract from memory backend
-                            phase_completed=phase_name
+                            memory_backend="unknown",  # Could extract from memory backend
+                            phase_completed=phase_name,
                         )
                 except Exception:
                     # Graceful degradation - don't break agent execution on persistence failure
                     pass
-            
+
             return result
+
         return wrapper
+
     return decorator
 
 
 def _observe_metrics(phase_name: str):
     """Observability wrapper - metrics collection and timing for phase operations."""
-    
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -86,39 +88,40 @@ def _observe_metrics(phase_name: str):
             if not _observe_enabled:
                 # Pass-through decorator - no observability overhead
                 return await func(*args, **kwargs)
-            
+
             # Extract state for context tags (prioritize kwargs, fallback to args[0])
             state = kwargs.get("state") or (args[0] if args else None)
             tags = {
                 "phase": phase_name,
                 "iteration": str(getattr(state, "iteration", 0)) if state else "0",
-                "react_mode": getattr(state, "react_mode", "unknown") if state else "unknown"
+                "react_mode": getattr(state, "react_mode", "unknown") if state else "unknown",
             }
-            
+
             # Count phase executions
             counter(f"{phase_name}.executions", 1.0, tags)
-            
+
             # Time the phase execution
             with timer(f"{phase_name}.duration", tags):
                 try:
                     result = await func(*args, **kwargs)
-                    
+
                     # Success metrics
                     counter(f"{phase_name}.success", 1.0, tags)
-                    
+
                     # Result size metrics if applicable
-                    if result and hasattr(result, '__len__'):
+                    if result and hasattr(result, "__len__"):
                         histogram(f"{phase_name}.result_size", len(str(result)), tags)
-                    
+
                     return result
-                    
+
                 except Exception as e:
                     # Error metrics
                     error_tags = {**tags, "error_type": type(e).__name__}
                     counter(f"{phase_name}.errors", 1.0, error_tags)
                     raise
-        
+
         return wrapper
+
     return decorator
 
 
@@ -131,15 +134,15 @@ def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None
         def decorator(func):
             # Check global robust flag
             if not _robust_enabled:
-                # Pass-through decorator - no resilience or checkpointing  
+                # Pass-through decorator - no resilience or checkpointing
                 return func
-            
+
             # 1. Apply resilience
             resilient_func = resilient_decorator(retry=retry)(func)
 
             # 2. Apply context-driven checkpointing
             checkpointed_func = _checkpoint(checkpoint_name, interruptible)(resilient_func)
-            
+
             # 3. Apply auto-save after successful completion
             persisted_func = _auto_save(checkpoint_name)(checkpointed_func)
 
@@ -152,12 +155,14 @@ def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None
 
 def _observe_policy(phase_name: str):
     """Observability policy factory - metrics and telemetry collection."""
-    
+
     def policy(**kwargs):
         def decorator(func):
             # Apply observability instrumentation
             return _observe_metrics(phase_name)(func)
+
         return decorator
+
     return policy
 
 
@@ -175,7 +180,7 @@ generic = _policy("generic", interruptible=True)
 
 # Observability decorators - phase-specific telemetry collection
 observe_reason = _observe_policy("reasoning")
-observe_act = _observe_policy("tool_execution") 
+observe_act = _observe_policy("tool_execution")
 observe_preprocess = _observe_policy("preprocessing")
 observe_respond = _observe_policy("response")
 observe_generic = _observe_policy("generic")
@@ -233,7 +238,16 @@ def get_persistence_manager():
 
 
 __all__ = [
-    "robust", "reason", "act", "preprocess", "respond", "generic", "is_robust_enabled", 
-    "observe", "is_observe_enabled", "set_observe_enabled",
-    "set_persistence_manager", "get_persistence_manager"
+    "robust",
+    "reason",
+    "act",
+    "preprocess",
+    "respond",
+    "generic",
+    "is_robust_enabled",
+    "observe",
+    "is_observe_enabled",
+    "set_observe_enabled",
+    "set_persistence_manager",
+    "get_persistence_manager",
 ]

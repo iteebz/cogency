@@ -8,9 +8,9 @@ from resilient_result import Result
 from cogency.phases.act import act
 from cogency.phases.respond import respond
 from cogency.state import State
-from cogency.types.tools import ToolOutcome
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import execute_single_tool
+from cogency.types.tools import ToolOutcome
 from cogency.utils.parsing import parse_tool_calls
 
 
@@ -114,19 +114,19 @@ async def test_respond_phase_output():
 async def test_act_routing():
     """Test act phase routing behavior."""
     from cogency.types.tools import ToolCall
-    
+
     tool = MockTool("test_tool")
     state = State(query="test", messages=[], user_id="test")
-    
-    # Create proper ToolCall objects  
-    tool_calls = [ToolCall(name='test_tool', args={})]
+
+    # Create proper ToolCall objects
+    tool_calls = [ToolCall(name="test_tool", args={})]
     state.tool_calls = tool_calls
-    
+
     # Add action first (required by act phase)
     state.add_action(
         mode="fast",
         thinking="test thinking",
-        planning="test planning", 
+        planning="test planning",
         reflection="test reflection",
         approach="test approach",
         tool_calls=tool_calls,

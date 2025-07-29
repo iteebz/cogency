@@ -4,9 +4,8 @@ from unittest.mock import Mock
 
 import pytest
 from resilient_result import Err, Ok, Result, Retry, resilient, unwrap
+
 from cogency.state import State
-
-
 
 
 def test_unwrap_success():

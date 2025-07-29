@@ -21,11 +21,11 @@ def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = Fa
         async def checkpointed_func(*args, **kwargs):
             # Extract state from function arguments
             state = args[0] if args else kwargs.get("state")
-            
+
             if not state or not isinstance(state, State):
                 # No state to checkpoint, just run the function
                 return await func(*args, **kwargs)
-            
+
             # Try to resume from existing checkpoint first
             checkpoint_id = checkpointer.find(state)
             if checkpoint_id:
@@ -33,18 +33,18 @@ def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = Fa
                 if checkpoint_data and resume(state):
                     # Successfully resumed from checkpoint
                     pass
-            
+
             try:
                 # Execute the function
                 result = await func(*args, **kwargs)
-                
+
                 # Save checkpoint after successful execution if interruptible
                 if interruptible:
                     checkpointer.save(state, checkpoint_type)
-                
+
                 return result
-                
-            except Exception as e:
+
+            except Exception:
                 # Save checkpoint on failure for recovery
                 if interruptible:
                     checkpointer.save(state, checkpoint_type)
@@ -194,7 +194,7 @@ def resume(state: State) -> bool:
             state.react_mode = checkpoint_data["react_mode"]
         if "current_approach" in checkpoint_data:
             state.current_approach = checkpoint_data["current_approach"]
-            
+
         # Tool execution state
         if "tool_calls" in checkpoint_data:
             state.tool_calls = checkpoint_data["tool_calls"] or []
@@ -202,16 +202,16 @@ def resume(state: State) -> bool:
             state.actions = checkpoint_data["actions"]
         if "attempts" in checkpoint_data:
             state.attempts = checkpoint_data["attempts"]
-            
+
         # Message history
         if "messages" in checkpoint_data:
             state.messages = checkpoint_data["messages"]
-            
+
         # Add resume context message to LLM
         _add_resume_message(state, checkpoint_data)
-        
+
         return True
-        
+
     except Exception:
         # If resume fails, just continue without resuming
         return False

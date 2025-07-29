@@ -1,8 +1,8 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from cogency.utils.parsing import normalize_reasoning
 from cogency.types.tools import ToolCall
+from cogency.utils.parsing import normalize_reasoning
 
 
 @dataclass

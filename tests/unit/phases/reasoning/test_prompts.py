@@ -27,7 +27,9 @@ def test_deep_mode_prompt_generation():
 
 def test_fast_mode_prompt_generation():
     """Test that fast mode prompt generates without f-string errors."""
-    prompt = prompt_reasoning(mode="fast", tool_registry="test_tool: description", query="test query", context="")
+    prompt = prompt_reasoning(
+        mode="fast", tool_registry="test_tool: description", query="test query", context=""
+    )
 
     # Should contain key components and not crash on generation
     assert "FAST:" in prompt

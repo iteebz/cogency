@@ -25,7 +25,7 @@ class Phase:
             except Exception as e:
                 # Simple error propagation - add error to state
                 state.error = str(e)
-        
+
         # State was mutated in place by the function, no return needed
 
     def next_phase(self, state: State) -> str:

@@ -37,7 +37,7 @@ async def test_basic(state):
     await respond(state, llm=llm, tools=[])
 
     assert state.response == "Hello world"
-    assert state.stop_reason is None # The respond function doesn't set this
+    assert state.stop_reason is None  # The respond function doesn't set this
     assert len(state.messages) == 1
 
 

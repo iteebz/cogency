@@ -8,8 +8,8 @@ from resilient_result import Result, unwrap
 
 from cogency.phases.act import act
 from cogency.state import State
-from cogency.types.tools import ToolOutcome
 from cogency.tools.base import BaseTool
+from cogency.types.tools import ToolOutcome
 
 
 class MockTool(BaseTool):

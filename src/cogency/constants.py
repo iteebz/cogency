@@ -12,4 +12,6 @@ RECURSION_LIMIT = 3  # Hard limit for testing
 
 # Response context limits
 RESPOND_MAX_ITERATIONS = 3  # Number of recent iterations to include in final response
-RESPOND_MAX_RESULT_LENGTH = 200  # Max chars per iteration result (TODO: replace with LLM compression)
+RESPOND_MAX_RESULT_LENGTH = (
+    200  # Max chars per iteration result (TODO: replace with LLM compression)
+)

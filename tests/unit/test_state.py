@@ -53,7 +53,7 @@ def test_default_values():
         "progress": "",
         "current_approach": "",
         "key_findings": "",
-        "next_focus": ""
+        "next_focus": "",
     }
     assert state.response is None
     assert state.respond_directly is False
@@ -77,7 +77,7 @@ def test_state_update():
         "progress": "",
         "current_approach": "",
         "key_findings": "",
-        "next_focus": ""
+        "next_focus": "",
     }
     state.situation_summary = {"summary": "The user wants to test the state."}
     assert state.situation_summary == {"summary": "The user wants to test the state."}

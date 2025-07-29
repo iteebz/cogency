@@ -1,24 +1,27 @@
 """Respond node - final response formatting and personality."""
 
-import asyncio
 from typing import Dict, List, Optional
 
-# Removed LangGraph dependency
-from resilient_result import Result
+from cogency.decorators import observe, robust
 
+# Removed LangGraph dependency
 from cogency.phases.base import Phase
-from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
 from cogency.tools.base import BaseTool
-from cogency.types.response import Response
 from cogency.utils.notify import notify
 
 
 class Respond(Phase):
     def __init__(self, llm, tools, system_prompt=None, identity=None, json_schema=None):
-        super().__init__(respond, llm=llm, tools=tools, 
-                        system_prompt=system_prompt, identity=identity, json_schema=json_schema)
+        super().__init__(
+            respond,
+            llm=llm,
+            tools=tools,
+            system_prompt=system_prompt,
+            identity=identity,
+            json_schema=json_schema,
+        )
 
     def next_phase(self, state: State) -> str:
         return "END"  # End token, no longer using LangGraph
@@ -126,18 +129,20 @@ def prompt_response(
 def collect_failures(state: State) -> Optional[Dict[str, str]]:
     """Collect all failure scenarios into unified dict."""
     failures = {}
-    
+
     # Check for stop reason (reasoning failures)
     if state.stop_reason:
-        user_error_message = getattr(state, 'user_error_message', "I encountered an issue but will try to help.")
+        user_error_message = getattr(
+            state, "user_error_message", "I encountered an issue but will try to help."
+        )
         failures["reasoning"] = user_error_message
         return failures
-    
+
     # Check for tool failures in latest results
     for result in state.latest_tool_results:
         if result.outcome in ["failure", "error", "timeout"]:
             failures[result.name] = result.result or "Tool execution failed"
-    
+
     return failures if failures else None
 
 
@@ -145,32 +150,42 @@ def format_tool_results(state: State) -> Optional[str]:
     """Extract and format tool results for response context."""
     if not state.latest_tool_results:
         return None
-    
+
     # Format successful tool results only
     successful_results = [
-        result for result in state.latest_tool_results[:5] 
+        result
+        for result in state.latest_tool_results[:5]
         if result.outcome not in ["failure", "error", "timeout"]
     ]
-    
+
     if not successful_results:
         return None
-        
-    return "\n".join([
-        f"• {result.name}: {str(result.result or 'no result')[:200]}..."
-        for result in successful_results
-    ])
+
+    return "\n".join(
+        [
+            f"• {result.name}: {str(result.result or 'no result')[:200]}..."
+            for result in successful_results
+        ]
+    )
 
 
 @observe.respond()
 @robust.respond()
-async def respond(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None, json_schema: Optional[str] = None) -> None:
+async def respond(
+    state: State,
+    llm: BaseLLM,
+    tools: List[BaseTool],
+    system_prompt: Optional[str] = None,
+    identity: Optional[str] = None,
+    json_schema: Optional[str] = None,
+) -> None:
     """Respond: generate final formatted response with personality."""
     await notify(state, "respond", "Generating response")
-    
-    # Collect all context upfront - no branching ceremony  
+
+    # Collect all context upfront - no branching ceremony
     failures = collect_failures(state)
     tool_results = format_tool_results(state)
-    
+
     # Single decision point for prompt routing
     prompt = prompt_response(
         state.query,
@@ -181,20 +196,24 @@ async def respond(state: State, llm: BaseLLM, tools: List[BaseTool], system_prom
         identity=identity,
         json_schema=json_schema,
     )
-    
+
     # Single LLM call with unified error handling
     if llm is None:
         response_text = "I'm here to help. How can I assist you?"
     else:
         messages = state.get_conversation()
         messages.insert(0, {"role": "system", "content": prompt})
-        
+
         llm_result = await llm.run(messages)
-        response_text = llm_result.data.strip() if llm_result.success else "I'm here to help. How can I assist you?"
-    
+        response_text = (
+            llm_result.data.strip()
+            if llm_result.success
+            else "I'm here to help. How can I assist you?"
+        )
+
     await notify(state, "respond", f"🤖: {response_text}")
-    
-    # Update state 
+
+    # Update state
     state.add_message("assistant", response_text)
     if not state.response:
         state.response = response_text

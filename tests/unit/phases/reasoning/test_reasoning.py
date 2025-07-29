@@ -7,7 +7,9 @@ from cogency.utils.parsing import parse_json
 
 
 def test_fast_prompt_generation():
-    prompt = prompt_reasoning(mode="fast", tool_registry="search: query", query="What is Python?", context="")
+    prompt = prompt_reasoning(
+        mode="fast", tool_registry="search: query", query="What is Python?", context=""
+    )
     assert "What is Python?" in prompt
     assert "search" in prompt
     assert "thinking" in prompt

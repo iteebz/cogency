@@ -2,11 +2,11 @@
 """Multi-tool workflow: Complex data processing pipeline."""
 
 import asyncio
-import tempfile
 import os
+import tempfile
 
 from cogency import Agent
-from cogency.tools import Files, Code, Calculator
+from cogency.tools import Calculator, Code, Files
 
 
 async def main():
@@ -17,7 +17,7 @@ async def main():
     with tempfile.TemporaryDirectory() as temp_dir:
         original_cwd = os.getcwd()
         os.chdir(temp_dir)
-        
+
         try:
             # Agent with file ops, code execution, and calculator
             agent = Agent(
@@ -47,7 +47,7 @@ async def main():
 
             Please execute this complete data processing pipeline."""
 
-            print(f"🎯 WORKFLOW QUERY:")
+            print("🎯 WORKFLOW QUERY:")
             print(f"{query}\n")
             print("=" * 45)
 

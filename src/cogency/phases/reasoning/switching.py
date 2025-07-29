@@ -54,9 +54,7 @@ def switch_mode(state: Dict[str, Any], new_mode: str, switch_why: str) -> Dict[s
     state["react_mode"] = new_mode
 
     # Track mode switch if state is a State object
-    if hasattr(state, 'switch_mode'):
+    if hasattr(state, "switch_mode"):
         state.switch_mode(new_mode, switch_why)
 
     return state
-
-

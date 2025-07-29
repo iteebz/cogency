@@ -32,7 +32,7 @@ async def main():
 
     First calculate it step by step, then verify with code execution."""
 
-    print(f"🎯 WORKFLOW QUERY:")
+    print("🎯 WORKFLOW QUERY:")
     print(f"{query}\n")
     print("=" * 40)
 
