@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Tuple
 
 from resilient_result import Result
 
-from cogency.tools import Tool
+from cogency.tools.base import Tool
 from cogency.utils import format_tool_error
 
 

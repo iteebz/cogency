@@ -8,7 +8,8 @@ from typing import Any, Dict, List, Optional
 
 from resilient_result import Result
 
-from .base import Tool, tool
+from cogency.tools.base import Tool
+from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
 

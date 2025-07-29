@@ -25,20 +25,20 @@ def test_init(mock_agent):
     assert server.server.name == "cogency"
 
 
-def test_interaction_request():
+def test_request():
     req = InteractionRequest(input_text="test", context={"key": "value"})
     assert req.input_text == "test"
     assert req.context == {"key": "value"}
 
 
-def test_interaction_request_defaults():
+def test_defaults():
     req = InteractionRequest(input_text="test")
     assert req.input_text == "test"
     assert req.context == {}
 
 
 @pytest.mark.asyncio
-async def test_interact_success(mcp_server, mock_agent):
+async def test_success(mcp_server, mock_agent):
     args = {"input_text": "hello", "context": {"test": True}}
     result = await mcp_server._interact(args)
 
@@ -49,7 +49,7 @@ async def test_interact_success(mcp_server, mock_agent):
 
 
 @pytest.mark.asyncio
-async def test_interact_error(mcp_server, mock_agent):
+async def test_error(mcp_server, mock_agent):
     mock_agent.process.side_effect = Exception("test error")
     args = {"input_text": "hello"}
     result = await mcp_server._interact(args)
@@ -60,7 +60,7 @@ async def test_interact_error(mcp_server, mock_agent):
 
 
 @pytest.mark.asyncio
-async def test_query_success(mcp_server, mock_agent):
+async def test_query_ok(mcp_server, mock_agent):
     args = {"query": "what?", "context": {"key": "val"}}
     result = await mcp_server._query(args)
 
@@ -71,7 +71,7 @@ async def test_query_success(mcp_server, mock_agent):
 
 
 @pytest.mark.asyncio
-async def test_query_error(mcp_server, mock_agent):
+async def test_query_fail(mcp_server, mock_agent):
     mock_agent.process.side_effect = Exception("query error")
     args = {"query": "what?"}
     result = await mcp_server._query(args)

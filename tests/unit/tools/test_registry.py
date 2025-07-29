@@ -8,7 +8,7 @@ from cogency.tools.files import Files
 from cogency.tools.registry import build_registry
 
 
-def test_decorator_registration():
+def test_register():
     from cogency.tools.registry import get_tools
 
     tools = get_tools()
@@ -17,7 +17,7 @@ def test_decorator_registration():
     assert "calculator" in tool_names
 
 
-def test_discovery_contract():
+def test_discover():
     from cogency.tools.registry import get_tools
 
     tools = get_tools()

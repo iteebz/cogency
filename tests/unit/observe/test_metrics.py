@@ -25,7 +25,7 @@ def metrics():
     return Metrics(max_points=100)
 
 
-def test_metric_point():
+def test_point():
     point = MetricPoint("test", 1.5, {"tag": "value"})
     assert point.name == "test"
     assert point.value == 1.5
@@ -59,7 +59,7 @@ def test_histogram(metrics):
     assert metrics.points[key][1].value == 200.0
 
 
-def test_timer_context():
+def test_timer():
     metrics_collector = Metrics()
 
     with patch("time.time", side_effect=[1.0, 1.5]):
@@ -86,12 +86,12 @@ def test_summary(metrics):
     assert summary.p50 == 30
 
 
-def test_summary_empty(metrics):
+def test_empty(metrics):
     summary = metrics.get_summary("nonexistent")
     assert summary is None
 
 
-def test_key_generation(metrics):
+def test_key_gen(metrics):
     key1 = metrics._key("metric", {})
     key2 = metrics._key("metric", {"a": "1", "b": "2"})
 
@@ -99,7 +99,7 @@ def test_key_generation(metrics):
     assert key2 == "metric#a=1,b=2"
 
 
-def test_key_parsing(metrics):
+def test_parse(metrics):
     name, tags = metrics._parse("metric")
     assert name == "metric"
     assert tags == {}
@@ -121,7 +121,7 @@ def test_reset(metrics):
     assert len(metrics.points) == 0
 
 
-def test_to_dict(metrics):
+def test_dict(metrics):
     metrics.counter("c", 5)
     metrics.gauge("g", 10)
     metrics.histogram("h", 15)
@@ -132,7 +132,7 @@ def test_to_dict(metrics):
     assert "histograms" in data
 
 
-def test_percentile_calculation(metrics):
+def test_percentile(metrics):
     values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
     p50 = metrics._pct(values, 0.5)
@@ -144,7 +144,7 @@ def test_percentile_calculation(metrics):
     assert abs(p99 - 9.91) < 0.01
 
 
-def test_metrics_reporter(metrics):
+def test_reporter(metrics):
     reporter = MetricsReporter(metrics)
 
     # Add some test data
@@ -155,7 +155,7 @@ def test_metrics_reporter(metrics):
     reporter.log_summary()
 
 
-def test_to_json(metrics, tmp_path):
+def test_json(metrics, tmp_path):
     reporter = MetricsReporter(metrics)
     metrics.histogram("test", 100.0)
 
@@ -174,7 +174,7 @@ def test_to_json(metrics, tmp_path):
     assert "raw" in data
 
 
-def test_global_functions():
+def test_global():
     # Test module-level convenience functions
     counter("test_counter", 1.0, {"env": "test"})
     gauge("test_gauge", 50.0)
@@ -187,7 +187,7 @@ def test_global_functions():
     assert len(global_metrics.counters) > 0
 
 
-def test_measure_decorator():
+def test_measure():
     @measure("decorated_function")
     def test_func():
         return "result"
@@ -201,7 +201,7 @@ def test_measure_decorator():
 
 
 @pytest.mark.asyncio
-async def test_measure_async_decorator():
+async def test_async_measure():
     @measure("async_decorated_function")
     async def async_test_func():
         return "async_result"

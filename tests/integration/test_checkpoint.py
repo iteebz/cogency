@@ -9,38 +9,49 @@ from unittest.mock import AsyncMock
 import pytest
 from resilient_result import Result
 
+from cogency.services import LLM
 
-class MockCheckpointLLM:
+
+class MockCheckpointLLM(LLM):
     """Mock LLM that simulates checkpoint/resume behavior."""
 
     def __init__(self):
         self.call_count = 0
+        # Skip parent init to avoid API key requirements
+        self.provider_name = "mock"
+        self.enable_cache = False
+        self._cache = None
 
-    async def run(self, messages, **kwargs):
+    @property
+    def default_model(self) -> str:
+        return "mock-model"
+
+    def _get_client(self):
+        return None
+
+    async def _run_impl(self, messages, **kwargs) -> str:
         self.call_count += 1
         last_msg = messages[-1]["content"].lower()
 
         if "checkpoint" in last_msg and "resume" in last_msg:
             # Resuming from checkpoint
-            return Result.ok(
-                "Resuming from checkpoint. I was analyzing data and had completed steps 1-3. Now continuing with step 4: final analysis."
-            )
+            return "Resuming from checkpoint. I was analyzing data and had completed steps 1-3. Now continuing with step 4: final analysis."
 
         elif self.call_count == 1:
             # Initial request - simulate long-running task
-            return Result.ok(
-                "I'll analyze this data in multiple steps. Step 1: Data validation complete. Creating checkpoint..."
-            )
+            return "I'll analyze this data in multiple steps. Step 1: Data validation complete. Creating checkpoint..."
 
         elif self.call_count == 2:
             # Second step after checkpoint
-            return Result.ok(
-                "Step 2: Data processing complete. Step 3: Intermediate analysis done. Ready for step 4."
-            )
+            return "Step 2: Data processing complete. Step 3: Intermediate analysis done. Ready for step 4."
 
-        else:
-            # Final step
-            return Result.ok("Step 4: Final analysis complete. Task finished successfully.")
+    async def run(self, messages, **kwargs):
+        response = await self._run_impl(messages, **kwargs)
+        return Result.ok(response)
+
+    async def stream(self, messages, **kwargs):
+        response = await self._run_impl(messages, **kwargs)
+        yield response
 
 
 class MockCheckpointAgent:

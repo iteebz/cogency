@@ -34,6 +34,7 @@ def test_memory_disabled():
         (False, ["calculator"]),
         (True, ["calculator", "recall"]),
     ],
+    ids=["no_memory", "with_memory"]
 )
 def test_custom_tools(memory_enabled, expected_tools):
     agent = Agent(name="test", llm=MockLLM(), tools=[Calculator()], memory=memory_enabled)

@@ -6,7 +6,7 @@ from cogency.tools.time import Time
 
 
 @pytest.mark.asyncio
-async def test_time_interface():
+async def test_interface():
     """Test time tool interface."""
     time_tool = Time()
     assert time_tool.name == "time"
@@ -15,7 +15,7 @@ async def test_time_interface():
 
 
 @pytest.mark.asyncio
-async def test_current_time():
+async def test_current():
     """Test getting current time."""
     time_tool = Time()
     result = await time_tool.run(operation="now", timezone="UTC")
@@ -27,7 +27,7 @@ async def test_current_time():
 
 
 @pytest.mark.asyncio
-async def test_timezone_operations():
+async def test_timezone():
     """Test timezone conversion."""
     time_tool = Time()
 
@@ -44,7 +44,7 @@ async def test_timezone_operations():
 
 
 @pytest.mark.asyncio
-async def test_relative_time():
+async def test_relative():
     """Test relative time calculations."""
     time_tool = Time()
 
@@ -60,7 +60,7 @@ async def test_relative_time():
 
 
 @pytest.mark.asyncio
-async def test_city_timezones():
+async def test_cities():
     """Test city name timezone mapping."""
     time_tool = Time()
 

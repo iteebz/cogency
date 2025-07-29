@@ -11,7 +11,7 @@ def prompt_reasoning(
     summary: dict = None,
 ) -> str:
     """Generate unified prompt with mode-specific sections injected."""
-    from cogency import MAX_TOOL_CALLS
+    from cogency.config import MAX_TOOL_CALLS
 
     # Mode-specific reasoning instructions
     if mode == "deep":

@@ -87,9 +87,9 @@ class Chroma(Store):
     ) -> List[Memory]:
         """Native ChromaDB semantic search."""
         if search_type == SearchType.TEXT:
-            raise NotImplementedError("Text search not supported by ChromaDB backend")
+            raise NotImplementedError("Text search not supported by ChromaDB store")
         if search_type == SearchType.HYBRID:
-            raise NotImplementedError("Hybrid search not supported by ChromaDB backend")
+            raise NotImplementedError("Hybrid search not supported by ChromaDB store")
 
         query_embedding = await self.embedder.embed_text(query)
 

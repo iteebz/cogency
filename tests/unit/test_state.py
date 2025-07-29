@@ -3,13 +3,13 @@
 from cogency.state import State
 
 
-def test_state_creation():
+def test_create():
     """Test creating a State instance."""
     state = State(query="test query")
     assert state.query == "test query"
 
 
-def test_attribute_access():
+def test_attrs():
     """Test attribute access patterns."""
     state = State(query="test query")
 
@@ -21,7 +21,7 @@ def test_attribute_access():
     assert state.iteration == 1
 
 
-def test_dot_notation_access():
+def test_dot():
     """Test dot notation access to state attributes."""
     state = State(query="test query")
 
@@ -33,14 +33,14 @@ def test_dot_notation_access():
     assert state.iteration == 5
 
 
-def test_default_values():
+def test_defaults():
     """Test that default values are properly set."""
     state = State(query="test query")
 
     assert state.user_id == "default"
     assert state.messages == []
     assert state.iteration == 0
-    assert state.depth == 3
+    assert state.depth == 10
     assert state.mode == "fast"
     assert state.stop_reason is None
     assert state.selected_tools == []
@@ -63,13 +63,13 @@ def test_default_values():
     assert state.notifications == []
 
 
-def test_kwargs_support():
+def test_kwargs():
     """Test that additional kwargs are properly handled."""
     state = State(query="test query", notify=True)
     assert state.notify is True
 
 
-def test_state_update():
+def test_update():
     """Test updating a state attribute."""
     state = State(query="test query")
     assert state.summary == {

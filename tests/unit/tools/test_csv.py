@@ -22,7 +22,7 @@ def temp_csv():
 
 
 @pytest.mark.asyncio
-async def test_write_read(csv_tool, temp_csv):
+async def test_write(csv_tool, temp_csv):
     """Test basic write then read operations."""
     data = [{"name": "Alice", "age": "30"}, {"name": "Bob", "age": "25"}]
 
@@ -62,7 +62,7 @@ async def test_append(csv_tool, temp_csv):
 
 
 @pytest.mark.asyncio
-async def test_append_to_nonexistent_file(csv_tool, temp_csv):
+async def test_append_missing(csv_tool, temp_csv):
     """Test append creates file if it doesn't exist."""
     data = [{"name": "Alice", "age": "30"}]
 
@@ -76,7 +76,7 @@ async def test_append_to_nonexistent_file(csv_tool, temp_csv):
 
 
 @pytest.mark.asyncio
-async def test_error_handling(csv_tool):
+async def test_error(csv_tool):
     """Test error cases."""
     # Read nonexistent file
     result = await csv_tool.run("read", "/nonexistent.csv")

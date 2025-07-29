@@ -2,7 +2,7 @@
 
 ## ✅ Completed
 - **FileBackend** - Production-ready file-based persistence with atomic operations and process isolation
-- **StateManager** - LLM validation, graceful degradation, metadata handling  
+- **StatePersistence** - LLM validation, graceful degradation, metadata handling  
 - **Zero Ceremony Integration** - Auto-save/auto-load via `@robust` decorator extension
 - **Comprehensive Testing** - 22/22 tests passing with unit and integration coverage
 

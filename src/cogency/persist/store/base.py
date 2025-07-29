@@ -3,25 +3,25 @@ from typing import Any, Dict, List, Optional
 
 from cogency.state import State
 
-# Singleton instance for default persistence backend
+# Singleton instance for default persistence store
 _persist_instance = None
 
 
 class Store(ABC):
-    """Interface for state persistence backends."""
+    """Interface for state persistence stores."""
 
     @abstractmethod
-    async def save(self, state_key: str, state: State, metadata: Dict[str, Any]) -> bool:
-        """Save state with metadata."""
+    async def save(self, state_key: str, state: State) -> bool:
+        """Save state."""
         pass
 
     @abstractmethod
-    async def load_state(self, state_key: str) -> Optional[Dict[str, Any]]:
-        """Load state and metadata. Returns None if not found."""
+    async def load(self, state_key: str) -> Optional[Dict[str, Any]]:
+        """Load state. Returns None if not found."""
         pass
 
     @abstractmethod
-    async def delete_state(self, state_key: str) -> bool:
+    async def delete(self, state_key: str) -> bool:
         """Delete persisted state."""
         pass
 
@@ -35,7 +35,7 @@ def setup_persistence(persist):
     """Setup persistence backend with auto-detection."""
     if not persist:
         return None
-    if hasattr(persist, "backend"):  # It's a Persist config object
+    if hasattr(persist, "store"):  # It's a Persist config object
         return persist
 
     # Auto-detect default singleton with Persist wrapper
@@ -46,4 +46,4 @@ def setup_persistence(persist):
         from cogency.persist import Filesystem
 
         _persist_instance = Filesystem()
-    return Persist(backend=_persist_instance)
+    return Persist(store=_persist_instance)

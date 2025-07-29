@@ -1,4 +1,4 @@
-"""Memory backend interface and shared implementation."""
+"""Memory store interface and shared implementation."""
 
 from typing import Any, Dict, List, Optional
 from uuid import UUID
@@ -8,7 +8,7 @@ from resilient_result import Result, Retry, resilient
 from cogency.memory.search import search
 from cogency.memory.types import Memory, MemoryType, SearchType
 
-# Singleton instance for default memory backend
+# Singleton instance for default memory store
 _memory_instance = None
 
 
@@ -137,7 +137,7 @@ class Store:
     # Storage primitives - implement these in subclasses
 
     async def _ready(self) -> None:
-        """Ensure backend is initialized and ready."""
+        """Ensure store is initialized and ready."""
         raise NotImplementedError
 
     async def _store(self, artifact: Memory, embedding: Optional[List[float]], **kwargs) -> None:
@@ -179,7 +179,7 @@ class Store:
     # Optional overrides for storage-specific optimizations
 
     def _has_search(self, search_type: SearchType) -> bool:
-        """Override if backend has native search capabilities."""
+        """Override if store has native search capabilities."""
         return False
 
     async def _search(

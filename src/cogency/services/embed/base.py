@@ -17,7 +17,7 @@ class Embed(ABC):
         pass
 
     async def embed_text(self, text: str, **kwargs) -> Result:
-        """Embed single text - convenience method for memory backends"""
+        """Embed single text - convenience method for memory stores"""
         return self.embed(text, **kwargs)
 
     def embed_array(self, texts: list[str], **kwargs) -> Result:

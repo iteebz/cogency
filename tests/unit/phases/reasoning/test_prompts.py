@@ -5,7 +5,7 @@ import pytest
 from cogency.phases import prompt_reasoning
 
 
-def test_deep_mode_prompt_generation():
+def test_deep_prompt():
     """Test that deep mode prompt generates without f-string errors."""
     prompt = prompt_reasoning(
         mode="deep",
@@ -14,7 +14,7 @@ def test_deep_mode_prompt_generation():
         context="",
         iteration=1,
         depth=5,
-        current_approach="test approach",
+        summary={"current_approach": "test approach"},
     )
 
     # Should contain key components and not crash on generation
@@ -25,7 +25,7 @@ def test_deep_mode_prompt_generation():
     assert "tool_calls" in prompt
 
 
-def test_fast_mode_prompt_generation():
+def test_fast_prompt():
     """Test that fast mode prompt generates without f-string errors."""
     prompt = prompt_reasoning(
         mode="fast", tool_registry="test_tool: description", query="test query", context=""

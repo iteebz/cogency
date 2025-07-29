@@ -393,7 +393,7 @@ class PGVector(Store):
                 row = await conn.fetchrow(f"SELECT COUNT(*) as count FROM {self.table_name}")
                 return {
                     "total_memories": row["count"],
-                    "backend": "pgvector",
+                    "store": "pgvector",
                     "table_name": self.table_name,
                 }
 

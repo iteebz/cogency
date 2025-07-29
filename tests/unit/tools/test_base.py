@@ -25,7 +25,7 @@ async def test_interface():
 
 
 @pytest.mark.asyncio
-async def test_error_handling():
+async def test_error():
     calc = Calculator()
 
     result = await calc.run(expression="invalid expression $")
@@ -38,7 +38,7 @@ async def test_error_handling():
 
 
 @pytest.mark.asyncio
-async def test_execute_wrapper():
+async def test_wrapper():
     calc = Calculator()
 
     result = await calc.execute(operation=None, x1="not_a_number")

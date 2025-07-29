@@ -62,7 +62,7 @@ class Agent:
             {
                 "robust": setup_config(Robust, robust),
                 "observe": setup_config(Observe, observe),
-                "persist": setup_config(Persist, persist, backend=persist),
+                "persist": setup_config(Persist, persist, store=persist),
             },
         )()
 

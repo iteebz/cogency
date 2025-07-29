@@ -5,26 +5,29 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency import Agent, State
-from cogency.persist import Filesystem, StateManager
+from cogency import Agent
+from cogency.config import Persist
+from cogency.persist import Filesystem, StatePersistence
+from cogency.state import State
 
 
 @pytest.mark.asyncio
-async def test_persistence_setup_in_agent():
+async def test_agent_setup():
     """Test that Agent properly sets up persistence components."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        backend = Filesystem(base_dir=temp_dir)
+        store = Filesystem(base_dir=temp_dir)
 
         # Test persistence enabled
-        Agent(name="test_agent", persist=backend)
+        with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+            Agent(name="test_agent", persist=store)
 
-        from cogency import get_config
+        from cogency.decorators import get_config
 
         config = get_config()
         assert config.persist is not None
-        assert isinstance(config.persist, StateManager)
-        assert config.persist.backend is backend
+        assert isinstance(config.persist, Persist)
+        assert config.persist.store is store
         assert config.persist.enabled is True
 
         # Test persistence disabled
@@ -35,7 +38,7 @@ async def test_persistence_setup_in_agent():
 
 
 @pytest.mark.asyncio
-async def test_get_state_utility():
+async def test_get_state():
     """Test the get_state utility function directly."""
 
     from cogency.persist.utils import get_state
@@ -48,8 +51,7 @@ async def test_get_state_utility():
         query="test query",
         depth=10,
         user_states=user_states,
-        persistence_manager=None,
-        llm=None,
+        persistence=None,
     )
 
     assert state is not None
@@ -63,8 +65,7 @@ async def test_get_state_utility():
         query="new query",
         depth=10,
         user_states=user_states,
-        persistence_manager=None,
-        llm=None,
+        persistence=None,
     )
 
     assert state2 is state  # Should be same object
@@ -72,12 +73,12 @@ async def test_get_state_utility():
 
 
 @pytest.mark.asyncio
-async def test_state_persistence_end_to_end():
+async def test_end_to_end():
     """Test complete state persistence flow without full agent execution."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        backend = Filesystem(base_dir=temp_dir)
-        manager = StateManager(backend=backend)
+        store = Filesystem(base_dir=temp_dir)
+        manager = StatePersistence(store=store)
 
         # Create and save state
         state = State(query="test query", user_id="test_user")
@@ -85,18 +86,11 @@ async def test_state_persistence_end_to_end():
         state.add_message("assistant", "Hi there")
         state.iteration = 3
 
-        success = await manager.save(
-            state, llm_provider="test_provider", llm_model="test_model", tools_count=2
-        )
+        success = await manager.save(state)
         assert success is True
 
         # Load state back
-        loaded_state = await manager.load_state(
-            "test_user",
-            validate_llm=True,
-            expected_llm_provider="test_provider",
-            expected_llm_model="test_model",
-        )
+        loaded_state = await manager.load("test_user")
 
         assert loaded_state is not None
         assert loaded_state.user_id == "test_user"

@@ -8,7 +8,8 @@ import trafilatura
 from resilient_result import Result
 from trafilatura.settings import use_config
 
-from cogency.tools import Tool, tool
+from cogency.tools.base import Tool
+from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
 

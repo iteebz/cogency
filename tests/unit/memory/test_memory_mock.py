@@ -88,7 +88,7 @@ async def test_create(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_read_by_id(mock_backend):
+async def test_read_id(mock_backend):
     create_result = await mock_backend.create("Test")
     assert create_result.success
     memory = create_result.data
@@ -102,7 +102,7 @@ async def test_read_by_id(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_read_all(mock_backend):
+async def test_read(mock_backend):
     create1_result = await mock_backend.create("Content 1")
     assert create1_result.success
     create2_result = await mock_backend.create("Content 2")
@@ -131,7 +131,7 @@ async def test_update(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_delete_by_id(mock_backend):
+async def test_delete_id(mock_backend):
     create_result = await mock_backend.create("Test")
     assert create_result.success
     memory = create_result.data
@@ -145,7 +145,7 @@ async def test_delete_by_id(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_delete_all(mock_backend):
+async def test_delete(mock_backend):
     create1_result = await mock_backend.create("Test 1")
     assert create1_result.success
     create2_result = await mock_backend.create("Test 2")
@@ -159,25 +159,27 @@ async def test_delete_all(mock_backend):
     assert len(mock_backend.artifacts) == 0
 
 
-def test_memory_backend_interface():
-    from cogency.memory.backends.base import Store
+def test_interface():
+    from cogency.memory.store.base import Store
 
-    with pytest.raises(TypeError):
-        Store()
+    # Store is no longer abstract, should instantiate successfully
+    store = Store()
+    assert store is not None
 
 
-def test_abstract_methods():
-    from cogency.memory.backends.base import Store
+def test_abstract():
+    from cogency.memory.store.base import Store
 
     class IncompleteBackend(Store):
         pass
 
-    with pytest.raises(TypeError):
-        IncompleteBackend()
+    # Store is no longer abstract, incomplete backends should instantiate
+    backend = IncompleteBackend()
+    assert backend is not None
 
 
 @pytest.mark.asyncio
-async def test_by_type(mock_backend):
+async def test_type(mock_backend):
     fact = Memory(content="Fact", memory_type=MemoryType.FACT)
     episode = Memory(content="Episode", memory_type=MemoryType.EPISODIC)
     await mock_backend._store(fact, None)
@@ -192,7 +194,7 @@ async def test_by_type(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_by_tags(mock_backend):
+async def test_tags(mock_backend):
     tagged = Memory(content="Tagged", tags=["important"])
     untagged = Memory(content="Untagged", tags=[])
     await mock_backend._store(tagged, None)
@@ -207,7 +209,7 @@ async def test_by_tags(mock_backend):
 
 
 @pytest.mark.asyncio
-async def test_delete_tags(mock_backend):
+async def test_del_tags(mock_backend):
     tagged = Memory(content="Tagged", tags=["remove"])
     untagged = Memory(content="Keep", tags=[])
     await mock_backend._store(tagged, None)

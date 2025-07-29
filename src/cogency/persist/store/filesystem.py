@@ -25,7 +25,7 @@ class Filesystem(Store):
         safe_key = state_key.replace(":", "_").replace("/", "_")
         return self.base_dir / f"{safe_key}_{self.process_id}.json"
 
-    async def save(self, state_key: str, state: State, metadata: Dict[str, Any]) -> bool:
+    async def save(self, state_key: str, state: State) -> bool:
         """Save state atomically with file locking."""
         try:
             state_path = self._get_state_path(state_key)
@@ -34,7 +34,6 @@ class Filesystem(Store):
             # Prepare serializable state data
             state_data = {
                 "state": asdict(state),
-                "metadata": metadata,
                 "schema_version": "1.0",
                 "process_id": self.process_id,
             }
@@ -57,7 +56,7 @@ class Filesystem(Store):
                 temp_path.unlink()
             return False
 
-    async def load_state(self, state_key: str) -> Optional[Dict[str, Any]]:
+    async def load(self, state_key: str) -> Optional[Dict[str, Any]]:
         """Load state with validation."""
         try:
             state_path = self._get_state_path(state_key)
@@ -79,7 +78,7 @@ class Filesystem(Store):
         except Exception:
             return None
 
-    async def delete_state(self, state_key: str) -> bool:
+    async def delete(self, state_key: str) -> bool:
         """Delete state file."""
         try:
             state_path = self._get_state_path(state_key)

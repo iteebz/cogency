@@ -15,7 +15,7 @@ from cogency.utils.parsing import (
 )
 
 
-def test_parse_json():
+def test_json():
     # Basic JSON
     parse_result = parse_json('{"action": "respond", "message": "Hello"}')
     assert parse_result.success
@@ -47,7 +47,7 @@ def test_parse_json():
     assert parse_result.error is not None
 
 
-def test_clean_json():
+def test_clean():
     # Remove markdown
     result = _clean_json('```json\n{"test": true}\n```')
     assert result == '{"test": true}'
@@ -57,7 +57,7 @@ def test_clean_json():
     assert result == '{"clean": true}'
 
 
-def test_extract_json():
+def test_extract():
     # Simple object
     result = _extract_json('Data: {"key": "value"} extra')
     assert result == '{"key": "value"}'
@@ -71,7 +71,7 @@ def test_extract_json():
     assert result == "No JSON here"
 
 
-def test_parse_tool_calls():
+def test_calls():
     # Valid tool calls
     json_data = {
         "tool_calls": [

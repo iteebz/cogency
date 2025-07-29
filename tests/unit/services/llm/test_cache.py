@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.services import LLMCache, cached_llm_call, configure_cache, get_cache
+from cogency.services import LLMCache
 
 
 def test_creation():
@@ -18,7 +18,7 @@ def test_disabled():
 
 
 @pytest.mark.asyncio
-async def test_miss_and_set():
+async def test_miss():
     cache = LLMCache()
     messages = [{"role": "user", "content": "Hello"}]
 
@@ -35,7 +35,7 @@ async def test_miss_and_set():
 
 
 @pytest.mark.asyncio
-async def test_key_generation():
+async def test_key_gen():
     cache = LLMCache()
     messages1 = [{"role": "user", "content": "Hello"}]
     messages2 = [{"role": "user", "content": "Hello"}]
@@ -84,66 +84,3 @@ async def test_clear():
 
     await cache.clear()
     assert await cache.get(messages) is None
-
-
-@pytest.mark.asyncio
-async def test_cached_call():
-    call_count = 0
-
-    async def mock_llm_func(messages, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return f"Response {call_count}"
-
-    messages = [{"role": "user", "content": "Hello"}]
-
-    # Clear cache first
-    cache = get_cache()
-    await cache.clear()
-
-    # First call should execute function
-    result1 = await cached_llm_call(mock_llm_func, messages)
-    assert result1 == "Response 1"
-    assert call_count == 1
-
-    # Second call should use cache
-    result2 = await cached_llm_call(mock_llm_func, messages)
-    assert result2 == "Response 1"  # Same as first call
-    assert call_count == 1  # Function not called again
-
-    # Different messages should execute function
-    different_messages = [{"role": "user", "content": "Hi"}]
-    result3 = await cached_llm_call(mock_llm_func, different_messages)
-    assert result3 == "Response 2"
-    assert call_count == 2
-
-
-@pytest.mark.asyncio
-async def test_cached_call_disabled():
-    call_count = 0
-
-    async def mock_llm_func(messages, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return f"Response {call_count}"
-
-    messages = [{"role": "user", "content": "Hello"}]
-
-    # Call with caching disabled
-    result1 = await cached_llm_call(mock_llm_func, messages, use_cache=False)
-    assert result1 == "Response 1"
-    assert call_count == 1
-
-    # Second call should also execute function
-    result2 = await cached_llm_call(mock_llm_func, messages, use_cache=False)
-    assert result2 == "Response 2"
-    assert call_count == 2
-
-
-def test_global_configuration():
-    # Configure with custom settings
-    configure_cache(max_size=500, ttl_seconds=1800)
-
-    cache = get_cache()
-    assert cache._max_size == 500
-    assert cache._ttl_seconds == 1800

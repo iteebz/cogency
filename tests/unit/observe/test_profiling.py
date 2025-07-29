@@ -38,7 +38,7 @@ def profile_metrics():
 
 
 @pytest.mark.asyncio
-async def test_profile_context(profiler):
+async def test_context(profiler):
     with patch("psutil.Process") as mock_process:
         mock_process.return_value.memory_info.return_value.rss = 100 * 1024 * 1024
         mock_process.return_value.cpu_percent.return_value = 25.0
@@ -65,12 +65,12 @@ def test_bottlenecks(profiler, profile_metrics):
     assert len(bottlenecks) == 0
 
 
-def test_summary_empty(profiler):
+def test_empty(profiler):
     summary = profiler.summary()
     assert summary == {"message": "No profiling data available"}
 
 
-def test_summary_with_data(profiler, profile_metrics):
+def test_summary(profiler, profile_metrics):
     profiler.metrics = [profile_metrics]
 
     summary = profiler.summary()
@@ -84,7 +84,7 @@ def test_summary_with_data(profiler, profile_metrics):
     assert op_summary["max_duration"] == 1.0
 
 
-def test_to_json(profiler, profile_metrics, tmp_path):
+def test_json(profiler, profile_metrics, tmp_path):
     profiler.metrics = [profile_metrics]
 
     filepath = tmp_path / "profile.json"
@@ -103,7 +103,7 @@ def test_to_json(profiler, profile_metrics, tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_profile_async():
+async def test_async():
     async def test_func(x, y):
         await asyncio.sleep(0.01)
         return x + y
@@ -115,7 +115,7 @@ async def test_profile_async():
     assert len(global_profiler.metrics) > 0
 
 
-def test_profile_sync():
+def test_sync():
     def test_func(x, y):
         return x * y
 
@@ -123,13 +123,13 @@ def test_profile_sync():
     assert result == 12
 
 
-def test_cogency_profiler():
+def test_profiler():
     cogency_profiler = Profiler()
     assert cogency_profiler.profiler is get_profiler()
 
 
 @pytest.mark.asyncio
-async def test_cogency_profile_methods():
+async def test_methods():
     cogency_profiler = Profiler()
 
     async def mock_func():

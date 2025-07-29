@@ -16,7 +16,7 @@ def test_truncate():
     assert truncate(None, 30) == ""
 
 
-def test_format_params():
+def test_params():
     assert format_tool_params({}) == ""
     assert format_tool_params({"query": "search term"}) == "(search term)"
     assert format_tool_params({"query": "search term", "limit": 10}) == "(search term)"
@@ -30,7 +30,7 @@ def test_format_params():
     assert result.endswith(")")
 
 
-def test_summarize_result():
+def test_summary():
     assert summarize_result(None) == "completed"
     assert summarize_result({"error": "API key invalid"}) == "✗ API key invalid"
     assert summarize_result({"result": "Task completed"}) == "Task completed"

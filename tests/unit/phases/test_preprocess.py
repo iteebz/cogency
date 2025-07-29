@@ -1,8 +1,11 @@
 """Test adaptive routing behavior - fast_react vs deep_react."""
 
+from unittest.mock import AsyncMock, Mock
+
 import pytest
 
-from cogency.phases.preprocess import preprocess
+# Import the preprocess function directly
+import cogency.phases.preprocess as preprocess_module
 from cogency.state import State
 from cogency.tools.base import Tool
 from tests.conftest import MockLLM
@@ -32,7 +35,7 @@ class MockSearchTool(Tool):
 
 
 @pytest.mark.asyncio
-async def test_routing_fast_react():
+async def test_fast():
     """Test that simple queries get fast_react."""
     llm = MockLLM()
     tools = [MockSearchTool()]
@@ -42,13 +45,13 @@ async def test_routing_fast_react():
 
     state = State(query=query)
 
-    await preprocess(state, llm=llm, tools=tools, memory=None)
+    await preprocess_module.preprocess(state, notify=Mock(), llm=llm, tools=tools, memory=None)
 
     assert state.respond_directly is False
 
 
 @pytest.mark.asyncio
-async def test_routing_deep_react():
+async def test_deep():
     """Test that complex queries get deep_react."""
     llm = MockLLM()
     tools = [MockSearchTool()]
@@ -60,13 +63,13 @@ async def test_routing_deep_react():
 
     state = State(query=query)
 
-    await preprocess(state, llm=llm, tools=tools, memory=None)
+    await preprocess_module.preprocess(state, notify=Mock(), llm=llm, tools=tools, memory=None)
 
     assert state.respond_directly is False
 
 
 @pytest.mark.asyncio
-async def test_routing_response():
+async def test_response():
     """Test that direct response queries are routed correctly."""
     llm = MockLLM()
     tools = [MockSearchTool()]
@@ -76,6 +79,6 @@ async def test_routing_response():
 
     state = State(query=query)
 
-    await preprocess(state, llm=llm, tools=tools, memory=None)
+    await preprocess_module.preprocess(state, notify=Mock(), llm=llm, tools=tools, memory=None)
 
     assert state.respond_directly is True

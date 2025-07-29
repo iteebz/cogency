@@ -4,7 +4,7 @@ from .act import Act
 from .base import Phase
 from .preprocess import Preprocess
 from .reason import Reason
-from .reasoning import parse_switch, should_switch, switch_mode
+from .reasoning import parse_switch, prompt_reasoning, should_switch, switch_mode
 from .respond import Respond
 
 __all__ = [
@@ -17,6 +17,7 @@ __all__ = [
     "parse_switch",
     "should_switch",
     "switch_mode",
+    "prompt_reasoning",
 ]
 
 

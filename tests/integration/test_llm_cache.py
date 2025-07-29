@@ -15,6 +15,7 @@ async def test_caching():
 
     # Create LLM with caching enabled
     llm = MockLLM(response="Cached response", enable_cache=True)
+    llm._cache = cache  # Use our test cache instance
     messages = [{"role": "user", "content": "Test caching"}]
 
     # First call should execute and cache
@@ -70,6 +71,7 @@ async def test_different_messages():
     await cache.clear()
 
     llm = MockLLM(enable_cache=True)
+    llm._cache = cache  # Use our test cache instance
 
     # Two different messages
     messages1 = [{"role": "user", "content": "First message"}]

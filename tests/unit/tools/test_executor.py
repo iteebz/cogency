@@ -52,7 +52,7 @@ async def test_basic_execution():
 
 
 @pytest.mark.asyncio
-async def test_file_shell_exec():
+async def test_shell():
     file_tool = MockTool("create_file")
     file_tool.run = AsyncMock(return_value=Result.ok("file created"))
 

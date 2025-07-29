@@ -342,7 +342,7 @@ class Pinecone(Store):
             stats = self._index.describe_index_stats()
             return {
                 "total_memories": stats.total_vector_count,
-                "backend": "pinecone",
+                "store": "pinecone",
                 "index_name": self.index_name,
                 "dimension": stats.dimension,
                 "index_fullness": stats.index_fullness,

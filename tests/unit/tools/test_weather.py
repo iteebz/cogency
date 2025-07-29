@@ -22,7 +22,7 @@ async def test_interface():
 
 
 @pytest.mark.asyncio
-async def test_invalid_city():
+async def test_invalid():
     weather_tool = Weather()
 
     mock_response = Mock()

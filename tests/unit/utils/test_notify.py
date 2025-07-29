@@ -1,6 +1,6 @@
 """Test Agent notification callback functionality."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -9,13 +9,14 @@ from cogency.state import State
 
 
 @pytest.mark.asyncio
-async def test_notification_callback():
+async def test_callback():
     """Test Agent notification callback functionality."""
     callback = AsyncMock()
     state = State(query="test query", notify=True, callback=callback)
 
     # Create an agent to test the callback pattern
-    agent = Agent()
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+        agent = Agent()
     notify = agent._notify_cb(state)
 
     # Test callback notification
@@ -38,11 +39,12 @@ async def test_notification_callback():
 
 
 @pytest.mark.asyncio
-async def test_notification_without_callback():
+async def test_none():
     """Test that notifications work without a callback."""
     state = State(query="test query", notify=False, callback=None)
 
-    agent = Agent()
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+        agent = Agent()
     notify = agent._notify_cb(state)
 
     # Should not raise error
@@ -61,12 +63,13 @@ async def test_notification_without_callback():
 
 
 @pytest.mark.asyncio
-async def test_notification_disabled():
+async def test_disabled():
     """Test that callback is not called when notify=False."""
     callback = AsyncMock()
     state = State(query="test query", notify=False, callback=callback)
 
-    agent = Agent()
+    with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
+        agent = Agent()
     notify = agent._notify_cb(state)
 
     notify("test_event", "test message")

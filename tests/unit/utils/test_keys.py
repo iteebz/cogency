@@ -9,7 +9,7 @@ from cogency.utils.keys import KeyManager, KeyRotator
 from tests.conftest import MockLLM
 
 
-def test_llm_integration():
+def test_llm():
     # Single key
     llm = MockLLM(api_keys="single_key")
     assert llm.keys.get_current() == "single_key"
@@ -92,20 +92,20 @@ def test_manager():
     "os.environ",
     {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2", "TEST_API_KEY_3": "key3"},
 )
-def test_env_numbered():
+def test_numbered():
     manager = KeyManager.for_provider("test")
     assert manager.has_multiple()
     assert len(manager.key_rotator.keys) == 3
 
 
 @patch.dict("os.environ", {"TEST_API_KEY": "single_key"})
-def test_env_single():
+def test_single():
     manager = KeyManager.for_provider("test")
     assert not manager.has_multiple()
     assert manager.get_current() == "single_key"
 
 
 @patch.dict("os.environ", {}, clear=True)
-def test_no_keys():
+def test_none():
     with pytest.raises(Exception):
         KeyManager.for_provider("test")

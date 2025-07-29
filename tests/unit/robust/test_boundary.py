@@ -8,20 +8,20 @@ from resilient_result import Err, Ok, Result, Retry, resilient, unwrap
 from cogency.state import State
 
 
-def test_unwrap_success():
+def test_success():
     """Test unwrap extracts data from Ok Results."""
     result = Ok("test data")
     assert unwrap(result) == "test data"
 
 
-def test_unwrap_failure():
+def test_failure():
     """Test unwrap raises exception for Err Results."""
     result = Err("test error")
     with pytest.raises(Exception):
         unwrap(result)
 
 
-def test_unwrap_standard():
+def test_standard():
     """Test standard unwrap behavior with Result objects."""
     # Standard unwrap expects Result objects - proper boundary discipline
     assert unwrap(Ok("test")) == "test"
@@ -30,7 +30,7 @@ def test_unwrap_standard():
 
 
 @pytest.mark.asyncio
-async def test_boundary_discipline_in_decorated_function():
+async def test_decorated():
     """Test proper unwrapping inside @agent decorated functions."""
 
     @resilient(retry=Retry.api())
@@ -52,7 +52,7 @@ async def test_boundary_discipline_in_decorated_function():
 
 
 @pytest.mark.asyncio
-async def test_unwrap_with_state_object():
+async def test_with_state():
     """Test unwrap works correctly with State objects in decorated functions."""
 
     @resilient(retry=Retry.api())
@@ -75,7 +75,7 @@ async def test_unwrap_with_state_object():
     assert result_state.data.tool_calls == ["test_call"]
 
 
-def test_unwrap_utility():
+def test_utility():
     """Test standard unwrap utility with Result objects."""
     # Test with Result objects - proper boundary discipline
     assert unwrap(Ok("data")) == "data"

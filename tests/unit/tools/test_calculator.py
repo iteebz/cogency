@@ -6,7 +6,7 @@ from cogency.tools.calculator import Calculator
 
 
 @pytest.mark.asyncio
-async def test_basic_operations():
+async def test_operations():
     calc = Calculator()
 
     result = await calc.run(expression="2 + 2")

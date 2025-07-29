@@ -22,7 +22,7 @@ def temp_db():
 
 
 @pytest.mark.asyncio
-async def test_sqlite_crud_operations(sql_tool, temp_db):
+async def test_crud(sql_tool, temp_db):
     """Test complete CRUD operations in SQLite."""
     # Create table
     result = await sql_tool.run(
@@ -61,14 +61,14 @@ async def test_sqlite_crud_operations(sql_tool, temp_db):
 
 
 @pytest.mark.asyncio
-async def test_sqlite_pragma_queries(sql_tool, temp_db):
+async def test_pragma(sql_tool, temp_db):
     """Test SQLite PRAGMA commands."""
     result = await sql_tool.run(query="PRAGMA table_info(sqlite_master)", connection=temp_db)
     assert result.success
 
 
 @pytest.mark.asyncio
-async def test_parameter_handling(sql_tool, temp_db):
+async def test_params(sql_tool, temp_db):
     """Test parameterized queries."""
     # Create table first
     await sql_tool.run(query="CREATE TABLE test (id INTEGER, name TEXT)", connection=temp_db)

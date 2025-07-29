@@ -42,7 +42,7 @@ def test_single():
     assert len(result.data[0]) == 384
 
 
-def test_multiple():
+def test_multi():
     embedder = MockEmbedder()
     texts = ["first", "second", "third"]
     result = embedder.embed(texts)

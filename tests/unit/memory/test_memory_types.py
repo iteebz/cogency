@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from cogency.memory.types import Memory, MemoryType
 
 
-def test_memory_creation():
+def test_create():
     memory = Memory(content="test memory", memory_type=MemoryType.FACT, tags=["test"])
 
     assert memory.content == "test memory"
@@ -16,14 +16,14 @@ def test_memory_creation():
     assert isinstance(memory.created_at, datetime)
 
 
-def test_decay_score():
+def test_decay():
     memory = Memory(content="test", confidence_score=1.0)
 
     score = memory.decay()
     assert 0.8 < score <= 1.0
 
 
-def test_access_tracking():
+def test_access():
     memory = Memory(content="test")
 
     initial_count = memory.access_count
@@ -37,7 +37,7 @@ def test_access_tracking():
     assert memory.last_accessed > initial_accessed
 
 
-def test_type_enum():
+def test_enum():
     assert MemoryType.FACT
     assert MemoryType.EPISODIC
     assert MemoryType.EXPERIENCE

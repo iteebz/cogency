@@ -1,4 +1,4 @@
-"""Pure search logic for memory backends."""
+"""Pure search logic for memory stores."""
 
 import logging
 from typing import Callable, List, Optional

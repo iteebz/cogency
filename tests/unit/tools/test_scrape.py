@@ -9,7 +9,7 @@ from cogency.tools.scrape import Scrape
 
 
 @pytest.mark.asyncio
-async def test_scrape_interface():
+async def test_interface():
     """Test scrape tool interface."""
     scrape = Scrape()
     assert scrape.name == "scrape"
@@ -21,7 +21,7 @@ async def test_scrape_interface():
 @patch("trafilatura.fetch_url")
 @patch("trafilatura.extract")
 @patch("trafilatura.extract_metadata")
-async def test_successful_scrape(mock_metadata, mock_extract, mock_fetch):
+async def test_success(mock_metadata, mock_extract, mock_fetch):
     """Test successful content extraction."""
     scrape = Scrape()
 
@@ -43,7 +43,7 @@ async def test_successful_scrape(mock_metadata, mock_extract, mock_fetch):
 
 @pytest.mark.asyncio
 @patch("trafilatura.fetch_url")
-async def test_fetch_failure(mock_fetch):
+async def test_failure(mock_fetch):
     """Test fetch failure handling."""
     scrape = Scrape()
     mock_fetch.return_value = None
@@ -56,7 +56,7 @@ async def test_fetch_failure(mock_fetch):
 
 @pytest.mark.asyncio
 @patch("trafilatura.fetch_url")
-async def test_extract_exception(mock_fetch):
+async def test_exception(mock_fetch):
     """Test exception handling."""
     scrape = Scrape()
     mock_fetch.side_effect = Exception("Network error")

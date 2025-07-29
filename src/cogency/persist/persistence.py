@@ -6,16 +6,16 @@ from cogency.persist.store import Filesystem, Store
 from cogency.state import State
 
 
-class StateManager:
+class StatePersistence:
     """Manages state persistence with validation and error handling."""
 
-    def __init__(self, backend: Optional[Store] = None, enabled: bool = True):
-        self.backend = backend or Filesystem()
+    def __init__(self, store: Optional[Store] = None, enabled: bool = True):
+        self.store = store or Filesystem()
         self.enabled = enabled
 
-    def _generate_state_key(self, user_id: str, process_id: Optional[str] = None) -> str:
+    def _state_key(self, user_id: str, process_id: Optional[str] = None) -> str:
         """Generate unique state key with process isolation."""
-        proc_id = process_id or getattr(self.backend, "process_id", "default")
+        proc_id = process_id or getattr(self.store, "process_id", "default")
         return f"{user_id}:{proc_id}"
 
     async def save(self, state: State) -> bool:
@@ -24,8 +24,8 @@ class StateManager:
             return True
 
         try:
-            state_key = self._generate_state_key(state.user_id)
-            return await self.backend.save(state_key, state, {})
+            state_key = self._state_key(state.user_id)
+            return await self.store.save(state_key, state)
 
         except Exception:
             return False
@@ -36,8 +36,8 @@ class StateManager:
             return None
 
         try:
-            state_key = self._generate_state_key(user_id)
-            data = await self.backend.load_state(state_key)
+            state_key = self._state_key(user_id)
+            data = await self.store.load(state_key)
 
             if not data:
                 return None
@@ -79,7 +79,7 @@ class StateManager:
             return True
 
         try:
-            state_key = self._generate_state_key(user_id)
-            return await self.backend.delete_state(state_key)
+            state_key = self._state_key(user_id)
+            return await self.store.delete(state_key)
         except Exception:
             return False

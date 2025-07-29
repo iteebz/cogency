@@ -31,7 +31,7 @@ async def test_stream():
     assert len(chunks) >= 2
 
 
-def test_key_rotation():
+def test_rotation():
     keys = ["key1", "key2", "key3"]
     llm = MockLLM(api_keys=keys)
 

@@ -7,7 +7,8 @@ from typing import Any, Dict, List, Optional
 from resilient_result import Result
 
 from cogency.memory import Store
-from cogency.tools import Tool, tool
+from cogency.tools.base import Tool
+from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
 

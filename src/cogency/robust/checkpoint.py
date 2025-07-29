@@ -103,7 +103,7 @@ class Checkpoint:
             "tool_calls": state.tool_calls,
             "actions": state.actions,
             "attempts": state.attempts,
-            "current_approach": state.current_approach,
+            "current_approach": state.summary.get("current_approach", ""),
             "messages": state.messages,
             "result": str(state.result) if state.result else None,
         }
@@ -193,7 +193,7 @@ def resume(state: State) -> bool:
         if "mode" in checkpoint_data:
             state.mode = checkpoint_data["mode"]
         if "current_approach" in checkpoint_data:
-            state.current_approach = checkpoint_data["current_approach"]
+            state.summary["current_approach"] = checkpoint_data["current_approach"]
 
         # Tool execution state
         if "tool_calls" in checkpoint_data:

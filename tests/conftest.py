@@ -24,6 +24,9 @@ class MockLLM(LLM):
         model: str = "mock-model",
         **kwargs,
     ):
+        self.response = response
+        self.should_fail = should_fail
+        self._model = model
         super().__init__(
             provider_name="mock",
             api_keys=api_keys,
@@ -31,9 +34,6 @@ class MockLLM(LLM):
             model=model,
             **kwargs,
         )
-        self.response = response
-        self.should_fail = should_fail
-        self._model = model
 
     @property
     def default_model(self) -> str:

@@ -7,30 +7,50 @@ import pytest
 from resilient_result import Result
 
 from cogency import Agent
+from cogency.services.llm.base import LLM
 
 
-class MockLLM:
+class MockLLM(LLM):
     """Mock LLM that returns predictable responses."""
 
     def __init__(self):
         self.call_count = 0
+        # Skip parent init to avoid API key requirements
+        self.provider_name = "mock"
+        self.enable_cache = False
+        self._cache = None
 
-    async def run(self, messages, **kwargs):
+    @property
+    def default_model(self) -> str:
+        return "mock-model"
+
+    def _get_client(self):
+        return None
+
+    async def _run_impl(self, messages, **kwargs) -> str:
         self.call_count += 1
         last_msg = messages[-1]["content"].lower()
 
         if self.call_count == 1:
             # Initial response - try risky command
-            return Result.ok("I'll run a command that might fail: cat /nonexistent/file.txt")
+            return "I'll run a command that might fail: cat /nonexistent/file.txt"
         elif "error" in last_msg and "failed" in last_msg:
             # Recovery response after tool failure
-            return Result.ok("I see the command failed. Let me try a simpler approach: ls -la")
+            return "I see the command failed. Let me try a simpler approach: ls -la"
         elif "total" in last_msg:
             # Got successful output - finish
-            return Result.ok("Perfect! I can see the directory contents. The task is complete.")
+            return "Perfect! I can see the directory contents. The task is complete."
         else:
             # Fallback
-            return Result.ok("Task completed successfully.")
+            return "Task completed successfully."
+
+    async def run(self, messages, **kwargs):
+        response = await self._run_impl(messages, **kwargs)
+        return Result.ok(response)
+
+    async def stream(self, messages, **kwargs):
+        response = await self._run_impl(messages, **kwargs)
+        yield response
 
 
 class MockBashTool:
@@ -87,9 +107,30 @@ async def test_multiple_failures():
             self.call_count += 1
             return Result.fail(f"Command failed (attempt {self.call_count})")
 
-    class PersistentLLM:
+    class PersistentLLM(LLM):
+        def __init__(self):
+            # Skip parent init to avoid API key requirements
+            self.provider_name = "mock"
+            self.enable_cache = False
+            self._cache = None
+
+        @property
+        def default_model(self) -> str:
+            return "mock-model"
+
+        def _get_client(self):
+            return None
+
+        async def _run_impl(self, messages, **kwargs) -> str:
+            return "Let me try another command: echo 'hello'"
+
         async def run(self, messages, **kwargs):
-            return Result.ok("Let me try another command: echo 'hello'")
+            response = await self._run_impl(messages, **kwargs)
+            return Result.ok(response)
+
+        async def stream(self, messages, **kwargs):
+            response = await self._run_impl(messages, **kwargs)
+            yield response
 
     agent = Agent(llm=PersistentLLM(), tools=[FailingBashTool()], depth=3)
 

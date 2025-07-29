@@ -23,7 +23,7 @@ async def test_interface():
 
 
 @pytest.mark.asyncio
-async def test_basic_recall():
+async def test_recall():
     mock_memory = AsyncMock()
     mock_memory.search_similarity = AsyncMock(return_value=[])
     recall_tool = Recall(memory=mock_memory)

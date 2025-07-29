@@ -60,18 +60,17 @@ class Persist:
     """Configuration for state persistence."""
 
     enabled: bool = True
-    backend: Optional[Any] = None  # This will hold the actual backend instance (e.g., FileBackend)
+    store: Optional[Any] = None  # This will hold the actual store instance (e.g., Filesystem)
     # Add any other persistence-specific settings here
 
 
-def setup_config(config_type, param, backend=None):
-    """Setup config objects with auto-detection."""
+def setup_config(config_type, param, store=None):
     if param is False:
         return None
     if isinstance(param, config_type):
         return param
     if param is True:
         return config_type()
-    if backend:
-        return config_type(backend=backend)
+    if store:
+        return config_type(store=store)
     return None

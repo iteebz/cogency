@@ -1,17 +1,20 @@
-"""Core phase tests - essential business logic only."""
+"""Comprehensive phase tests - integration and unit testing."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 from resilient_result import Result
 
 from cogency.phases.act import act
+from cogency.phases.reason import reason
 from cogency.phases.respond import respond
 from cogency.state import State
 from cogency.tools.base import Tool
+from cogency.tools.calculator import Calculator
 from cogency.tools.executor import execute_single_tool
 from cogency.types.tools import ToolOutcome
 from cogency.utils.parsing import parse_tool_calls
+from tests.conftest import MockLLM
 
 
 class MockTool(Tool):
@@ -36,7 +39,7 @@ class MockTool(Tool):
         return f"Tool output: {result_data}"
 
 
-def test_tool_call_parsing():
+def test_parse_calls():
     """Test basic tool call parsing."""
     from cogency.utils.parsing import parse_json
 
@@ -65,7 +68,7 @@ def test_tool_call_parsing():
 
 
 @pytest.mark.asyncio
-async def test_tool_execution_errors():
+async def test_execution_errors():
     """Test tool execution error handling."""
     failing_tool = MockTool("fail", should_fail=True)
     working_tool = MockTool("work", should_fail=False)
@@ -86,7 +89,7 @@ async def test_tool_execution_errors():
 
 
 @pytest.mark.asyncio
-async def test_respond_phase_output():
+async def test_respond_output():
     """Test respond phase produces conversational text only."""
     mock_llm = AsyncMock()
 
@@ -103,7 +106,7 @@ async def test_respond_phase_output():
 
     state = State(query="weather?", messages=[], user_id="test")
 
-    await respond(state, llm=mock_llm, tools=[])
+    await respond(state, notify=Mock(), llm=mock_llm, tools=[])
 
     assert isinstance(state.response, str)
     assert not state.response.startswith("{")
@@ -111,7 +114,7 @@ async def test_respond_phase_output():
 
 
 @pytest.mark.asyncio
-async def test_act_routing():
+async def test_routing():
     """Test act phase routing behavior."""
     from cogency.types.tools import ToolCall
 
@@ -132,13 +135,143 @@ async def test_act_routing():
         tool_calls=tool_calls,
     )
 
-    await act(state, tools=[tool])
+    await act(state, notify=Mock(), tools=[tool])
     latest_results = state.latest_tool_results
     assert len(latest_results) > 0
     assert latest_results[0].success
 
     # Test no tool calls
     state.tool_calls = []
-    await act(state, tools=[])
+    await act(state, notify=Mock(), tools=[])
     # Should not change existing results
     assert len(state.latest_tool_results) > 0  # Still has previous results
+
+
+# Integration tests from test_phase_integration.py
+
+
+@pytest.fixture
+def state():
+    """Basic state for testing."""
+    return State(query="What is 2 + 2?")
+
+
+@pytest.mark.asyncio
+async def test_reason_direct(state):
+    """Test reason phase when it can answer directly."""
+    llm = MockLLM()
+    llm.run = AsyncMock(
+        return_value=Result.ok('{"reasoning": "I can answer this directly: 2 + 2 = 4"}')
+    )
+
+    await reason(state, notify=Mock(), llm=llm, tools=[])
+
+    # Should have no tool calls for direct answer
+    assert not state.tool_calls
+    # No action added for direct answers (correct behavior)
+    assert len(state.actions) == 0
+
+
+@pytest.mark.asyncio
+async def test_reason_tools(state):
+    """Test reason phase when it needs tools."""
+    llm = MockLLM()
+    llm.run = AsyncMock(
+        return_value=Result.ok(
+            '{"reasoning": "I need to calculate this.", "tool_calls": [{"name": "calculator", "args": {"expression": "2 + 2"}}]}'
+        )
+    )
+
+    await reason(state, notify=Mock(), llm=llm, tools=[Calculator()])
+
+    # Should have tool calls
+    assert state.tool_calls
+    assert len(state.tool_calls) == 1
+    assert state.tool_calls[0].name == "calculator"
+
+
+@pytest.mark.asyncio
+async def test_act_execution(state):
+    """Test act phase actually executes tools."""
+    # Setup state with tool calls and add action first
+    state.tool_calls = [{"name": "calculator", "args": {"expression": "2 + 2"}}]
+    state.add_action(
+        mode="fast",
+        thinking="Need to calculate",
+        planning="Use calculator",
+        reflection="",
+        approach="calculate",
+        tool_calls=state.tool_calls,
+    )
+
+    tools = [Calculator()]
+    await act(state, notify=Mock(), tools=tools)
+
+    # Should have results (tool calls with outcome key)
+    results = state.get_latest_results()
+    assert len(results) > 0
+    assert results[0]["outcome"] == "success"
+    assert "4" in str(results[0]["result"])
+
+
+@pytest.mark.asyncio
+async def test_respond_formats(state):
+    """Test respond phase creates final response."""
+    llm = MockLLM()
+
+    await respond(state, notify=Mock(), llm=llm, tools=[])
+
+    # Should have a response
+    assert state.response is not None
+
+
+@pytest.mark.asyncio
+async def test_full_cycle(state):
+    """Test full reasoning cycle: reason -> act -> reason -> respond."""
+    tools = [Calculator()]
+    llm = MockLLM()
+
+    # 1. First reason (needs tools) - this adds an action
+    llm.run = AsyncMock(
+        return_value=Result.ok(
+            '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "calculator", "args": {"expression": "2 + 2"}}]}'
+        )
+    )
+    await reason(state, notify=Mock(), llm=llm, tools=tools)
+    assert state.tool_calls
+    assert len(state.actions) > 0  # reason() should have added an action
+
+    # 2. Act (execute tools)
+    await act(state, notify=Mock(), tools=tools)
+    results = state.get_latest_results()
+    assert len(results) > 0
+
+    # 3. Second reason (reflect on results)
+    llm.run = AsyncMock(
+        return_value=Result.ok(
+            '{"reasoning": "The calculator shows 2 + 2 = 4. I can now respond."}'
+        )
+    )
+    await reason(state, notify=Mock(), llm=llm, tools=tools)
+
+    # 4. Respond (final answer)
+    await respond(state, notify=Mock(), llm=llm, tools=[])
+    assert state.response
+
+
+@pytest.mark.asyncio
+async def test_no_tools_flow(state):
+    """Test simple question that needs no tools."""
+    state.query = "Hello, how are you?"
+    llm = MockLLM()
+    llm.run = AsyncMock(
+        return_value=Result.ok('{"reasoning": "This is a greeting, I can respond directly."}')
+    )
+
+    # 1. Reason (no tools needed)
+    await reason(state, notify=Mock(), llm=llm, tools=[])
+    assert not state.tool_calls
+
+    # 2. Respond directly
+    await respond(state, notify=Mock(), llm=llm, tools=[])
+    assert state.response

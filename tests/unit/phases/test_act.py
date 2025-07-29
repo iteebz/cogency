@@ -1,7 +1,7 @@
 """Test Act node - tool execution logic."""
 
 from typing import Any, Dict
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from resilient_result import Result, unwrap
@@ -53,26 +53,26 @@ def mock_tools():
 
 
 @pytest.mark.asyncio
-async def test_no_calls(state, mock_tools):
+async def test_none(state, mock_tools):
     """Test act node when no tool calls are present."""
     state.tool_calls = None
-    await act(state, tools=mock_tools)
+    await act(state, notify=Mock(), tools=mock_tools)
     assert not state.latest_tool_results  # No tool results should be added
 
 
 @pytest.mark.asyncio
-async def test_empty_calls(state, mock_tools):
+async def test_empty(state, mock_tools):
     """Test act node with empty tool call list."""
     state.tool_calls = []
-    await act(state, tools=mock_tools)
+    await act(state, notify=Mock(), tools=mock_tools)
     assert not state.latest_tool_results
 
 
 @pytest.mark.asyncio
-async def test_invalid_calls_format(state, mock_tools):
+async def test_invalid(state, mock_tools):
     """Test act node with invalid tool calls format (not a list)."""
     state.tool_calls = "invalid json"
-    await act(state, tools=mock_tools)
+    await act(state, notify=Mock(), tools=mock_tools)
     assert not state.latest_tool_results
 
 
@@ -89,7 +89,7 @@ async def test_success(state, mock_tools):
         tool_calls=state.tool_calls,
     )
 
-    await act(state, tools=mock_tools)
+    await act(state, notify=Mock(), tools=mock_tools)
 
     assert len(state.latest_tool_results) == 1
     result = state.latest_tool_results[0]
@@ -112,7 +112,7 @@ async def test_failure(state):
         tool_calls=state.tool_calls,
     )
 
-    await act(state, tools=[failing_tool])
+    await act(state, notify=Mock(), tools=[failing_tool])
 
     assert len(state.latest_tool_results) == 1
     result = state.latest_tool_results[0]
@@ -122,7 +122,7 @@ async def test_failure(state):
 
 
 @pytest.mark.asyncio
-async def test_multiple(state):
+async def test_multi(state):
     """Test execution of multiple tools in sequence."""
     tools = [MockTool("first"), MockTool("second"), MockTool("third")]
     state.tool_calls = [
@@ -139,7 +139,7 @@ async def test_multiple(state):
         tool_calls=state.tool_calls,
     )
 
-    await act(state, tools=tools)
+    await act(state, notify=Mock(), tools=tools)
 
     assert len(state.latest_tool_results) == 3
     assert state.latest_tool_results[0].name == "first"

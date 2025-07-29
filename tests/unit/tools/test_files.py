@@ -61,7 +61,7 @@ async def test_files_edit():
 
 
 @pytest.mark.asyncio
-async def test_security():
+async def test_secure():
     """Test security protections."""
     files_tool = Files()
 

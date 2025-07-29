@@ -23,7 +23,7 @@ async def test_interface():
 
 
 @pytest.mark.asyncio
-async def test_basic_search():
+async def test_search():
     search_tool = Search()
 
     mock_results = [{"title": "Test Result", "href": "https://example.com", "body": "Test content"}]

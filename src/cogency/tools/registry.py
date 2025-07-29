@@ -1,11 +1,8 @@
 """Tool registry for auto-discovery."""
 
-import contextlib
-import importlib
 import inspect
 import logging
-from pathlib import Path
-from typing import Any, Dict, List, Type
+from typing import List, Type
 
 from cogency.tools.base import Tool
 
@@ -86,26 +83,6 @@ def tool(cls):
 def get_tools(**kwargs) -> List[Tool]:
     """Get all registered tool instances."""
     return ToolRegistry.get_tools(**kwargs)
-
-
-def get_tool_classes() -> Dict[str, Any]:
-    """Auto-discover tool classes for direct import."""
-    # Auto-discover tools by importing all tool modules and collect exported classes
-    _tools_dir = Path(__file__).parent
-    _exported_classes: Dict[str, Any] = {}
-
-    for tool_file in _tools_dir.glob("*.py"):
-        if tool_file.name not in ["__init__.py", "base.py", "registry.py", "executor.py"]:
-            module_name = f"cogency.tools.{tool_file.stem}"
-            with contextlib.suppress(ImportError):
-                module = importlib.import_module(module_name)
-                # Export tool classes that are decorated with @tool
-                for attr_name in dir(module):
-                    attr = getattr(module, attr_name)
-                    if isinstance(attr, type) and issubclass(attr, Tool) and attr is not Tool:
-                        _exported_classes[attr_name] = attr
-
-    return _exported_classes
 
 
 def build_registry(tools: List[Tool], lite: bool = False) -> str:

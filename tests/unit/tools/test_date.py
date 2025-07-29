@@ -11,7 +11,7 @@ def date_tool():
 
 
 @pytest.mark.asyncio
-async def test_date_operations(date_tool):
+async def test_ops(date_tool):
     """Test core date operations."""
     # Parse date
     result = await date_tool.run(operation="parse", date_string="2024-01-15")

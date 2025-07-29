@@ -6,7 +6,7 @@ from resilient_result import Result, Retry, resilient
 
 from cogency.utils import KeyManager
 
-from .cache import cached_llm_call
+from .cache import LLMCache
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +50,9 @@ class LLM(ABC):
         # Provider-specific kwargs
         self.extra_kwargs = kwargs
 
+        # Cache instance
+        self._cache = LLMCache() if enable_cache else None
+
     @property
     @abstractmethod
     def default_model(self) -> str:
@@ -76,9 +79,20 @@ class LLM(ABC):
         Returns:
             Result containing string response from the LLM or error
         """
-        return await cached_llm_call(
-            self._run_impl, messages, use_cache=self.enable_cache, **kwargs
-        )
+        # Check cache first if enabled
+        if self._cache:
+            cached_response = await self._cache.get(messages, **kwargs)
+            if cached_response:
+                return Result.ok(cached_response)
+
+        # Call implementation
+        response = await self._run_impl(messages, **kwargs)
+
+        # Cache response if enabled
+        if self._cache:
+            await self._cache.set(messages, response, **kwargs)
+
+        return Result.ok(response)
 
     @abstractmethod
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:

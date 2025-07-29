@@ -207,7 +207,7 @@ def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]
         return None
 
     # Limit tool calls to prevent JSON parsing issues
-    from cogency import MAX_TOOL_CALLS
+    from cogency.config import MAX_TOOL_CALLS
 
     if len(tool_calls) > MAX_TOOL_CALLS:
         # Truncate to max allowed tool calls

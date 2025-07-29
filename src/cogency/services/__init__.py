@@ -1,6 +1,6 @@
-"""Services - automagical discovery for LLM and embed backends."""
+"""Services - automagical discovery for LLM and embed stores."""
 
-from typing import Optional, Type
+from typing import Optional, Type, Union
 
 from cogency.utils import Provider, detect_provider
 
@@ -49,9 +49,11 @@ _embed_provider = Provider(
 )
 
 
-def setup_llm(provider: Optional[str] = None) -> Type[LLM]:
-    """Get LLM provider class with automagical discovery."""
-    return _llm_provider.get(provider)
+def setup_llm(provider: Optional[Union[str, LLM]] = None) -> LLM:
+    """Get LLM provider class or instance with automagical discovery."""
+    if isinstance(provider, LLM):
+        return provider
+    return _llm_provider.instance(provider)
 
 
 def setup_embed(provider: Optional[str] = None) -> Type[Embed]:

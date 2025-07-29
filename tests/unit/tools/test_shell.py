@@ -20,7 +20,7 @@ async def test_interface():
 
 
 @pytest.mark.asyncio
-async def test_blocked_command():
+async def test_blocked():
     shell = Shell()
 
     result = await shell.run(command="rm -rf /")
@@ -29,7 +29,7 @@ async def test_blocked_command():
 
 
 @pytest.mark.asyncio
-async def test_safe_command():
+async def test_safe():
     shell = Shell()
 
     result = await shell.run(command="echo hello")
