@@ -11,15 +11,15 @@ async def main():
     print("🔍 TRACING ENABLED VERIFICATION")
     print("=" * 40 + "\n")
 
-    # Agent with tracing enabled - shows internal phase execution
+    # Agent with notifications enabled - shows internal phase execution
     agent = Agent(
         "traced_agent",
         identity="helpful assistant with visible internal reasoning",
         tools=[Calculator(), Weather()],
         memory=False,
         depth=5,
-        trace=True,  # 🔍 TRACING ON - see the magic happen
-        verbose=True,
+        notify=True,  # 🔍 NOTIFICATIONS ON - see the magic happen
+        debug=True,
     )
 
     queries = [

@@ -11,15 +11,15 @@ async def main():
     print("🤫 SILENT MODE VERIFICATION")
     print("=" * 30 + "\n")
 
-    # Agent with tracing disabled - clean, production-ready output
+    # Agent with notifications disabled - clean, production-ready output
     agent = Agent(
         "silent_agent",
         identity="helpful assistant with clean, direct responses",
         tools=[Calculator(), Weather()],
         memory=False,
         depth=5,
-        trace=False,  # 🤫 NO TRACING - clean output only
-        verbose=False,
+        notify=False,  # 🤫 NO NOTIFICATIONS - clean output only
+        debug=False,
     )
 
     queries = [
