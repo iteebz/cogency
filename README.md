@@ -11,9 +11,9 @@ from cogency import Agent
 agent = Agent("assistant")
 
 # Simple task → thinks fast
-await agent.run("What's 2+2?") 
+await agent.run("What's 2+2?")
 
-# Complex task → thinks deep  
+# Complex task → thinks deep
 await agent.run("Analyze this codebase and suggest architectural improvements")
 # Automatically escalates reasoning, uses relevant tools, streams thinking
 ```
@@ -23,32 +23,32 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 **Thinks fast or deep as needed** - agents discover task complexity during execution and adapt their cognitive approach automatically.
 
 - **Fast React**: Direct execution for simple queries
-- **Deep React**: Reflection + planning for complex analysis  
+- **Deep React**: Reflection + planning for complex analysis
 - **Zero-cost switching**: Seamless transitions preserve full context
 - **Runtime discovery**: No upfront classification - intelligence governs intelligence
 
 ## 🚀 Key Features
 
 - **🤖 Agents in 3 lines** - Fully functional, tool-using agents from a single import
-- **🔥 Adaptive reasoning** - Thinks fast or deep as needed, switches seamlessly during execution  
+- **🔥 Adaptive reasoning** - Thinks fast or deep as needed, switches seamlessly during execution
 - **🌊 Streaming first** - Watch agents think in real-time with full transparency
 - **🛠️ Automatic tool discovery** - Drop tools in, they auto-register and route intelligently
 - **⚡️ Zero configuration** - Auto-detects LLMs, tools, memory from environment
 - **🧠 Built-in memory** - Persistent memory with extensible backends (Pinecone, ChromaDB, PGVector)
-- **✨ Clean tracing** - Every reasoning step traced and streamed with clear phase indicators  
+- **✨ Clean tracing** - Every reasoning step traced and streamed with clear phase indicators
 - **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Grok, Mistral out of the box
 - **🧩 Extensible design** - Add tools, memory backends, embedders with zero friction
 - **👥 Multi-tenancy** - Built-in user contexts and conversation isolation
 - **🏗️ Production hardened** - Resilience, rate limiting, metrics, tracing included
 
-## AdaptReAct Architecture
+## How It Works
 
 **Preprocess → Reason → Act → Respond**
 
 ```
 👤 Plan a Tokyo trip with $2000 budget
 
-🔧 Tools: weather, calculator, search  
+🔧 Tools: weather, calculator, search
 🧠 Task complexity → escalating to Deep React
 🌤️ weather(Tokyo) → 25°C sunny, rain Thu-Fri
 🧮 calculator($2000 ÷ 5 days) → $400/day
@@ -58,7 +58,7 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 🤖 Here's your optimized Tokyo itinerary...
 ```
 
-The **preprocess node** enables everything: tool selection, memory operations, and intelligent routing between reasoning modes.
+The preprocessing phase handles tool selection, memory operations, and intelligent routing between reasoning modes.
 
 ## Quick Examples
 
@@ -83,14 +83,35 @@ await agent.run("Use my_tool with hello")
 **Real-World Applications**
 
 ```python
-# Research Agent (Perplexity-style)
-agent = Agent("researcher", tools=[Search(), Scrape()])
+# Research Agent
+agent = Agent("researcher")
 await agent.run("Latest quantum computing developments?")
 
-# Coding Agent (Cursor-style)
-agent = Agent("coder", tools=[Files(), Shell(), Code()])
+# Coding Assistant
+agent = Agent("coder")
 await agent.run("Fix the auth bug in this Flask app")
+
+# Data Analyst
+agent = Agent("analyst")
+await agent.run("Analyze sales trends in quarterly_data.csv")
 ```
+
+## Built-in Tools
+
+Agents automatically discover and use relevant tools:
+
+🧮 **Calculator** - Mathematical expressions and calculations  
+🔍 **Search** - Web search for current information  
+🌤️ **Weather** - Current conditions and forecasts  
+📁 **Files** - Create, read, edit, list, delete files  
+💻 **Shell** - Execute system commands safely  
+🐍 **Code** - Python code execution in sandbox  
+📊 **CSV** - Data processing and analysis  
+🗄️ **SQL** - Database querying and management  
+🌐 **HTTP** - Make HTTP requests with JSON parsing  
+🕒 **Time** - Date/time operations and timezone conversions  
+🔗 **Scrape** - Web scraping with content extraction  
+🧠 **Recall** - Memory search and retrieval
 
 ## Installation
 
@@ -108,10 +129,14 @@ export GEMINI_API_KEY=...        # etc
 
 ## Documentation
 
-- **[Quick Start](docs/quickstart.md)** - Get running in 2 minutes
-- **[Cogency](docs/cogency.md)** - Core breakthroughs and philosophy
-- **[Reasoning](docs/reasoning.md)** - Adaptive cognitive architecture
-- **[Architecture](docs/architecture.md)** - Technical implementation
+- **[Quick Start](docs/quickstart.md)** - Get running in 5 minutes
+- **[API Reference](docs/api.md)** - Complete Agent class documentation
+- **[Tools](docs/tools.md)** - Built-in tools and custom tool creation
+- **[Examples](docs/examples.md)** - Detailed code examples and walkthroughs
+- **[Memory](docs/memory.md)** - Memory backends and configuration
+- **[Reasoning](docs/reasoning.md)** - Adaptive reasoning modes
+- **[Configuration](docs/configuration.md)** - Advanced configuration options
+- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 
 ## 📄 License
 
@@ -120,5 +145,3 @@ Apache 2.0 - Build whatever you want.
 ---
 
 _Built for developers who want agents that just work, not frameworks that require PhD-level configuration._
-
-**Cogency: A complete cognitive AI framework built from first principles in exactly 10 days using human-AI collaborative development.**
