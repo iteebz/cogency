@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock
 import pytest
 from resilient_result import Result
 
-from cogency.context import Context
 from cogency.phases.act import act
 from cogency.phases.respond import respond
 from cogency.state import State
+from cogency.types.tools import ToolOutcome
 from cogency.tools.base import BaseTool
 from cogency.tools.executor import execute_single_tool
 from cogency.utils.parsing import parse_tool_calls
@@ -27,7 +27,7 @@ class MockTool(BaseTool):
     async def run(self, **kwargs):
         if self.should_fail:
             raise Exception("Tool execution failed")
-        return Result(f"success from {self.name}")
+        return Result.ok(f"success from {self.name}")
 
     def format_human(self, params, results=None):
         return f"({self.name})", str(results) if results else ""
@@ -51,11 +51,17 @@ def test_tool_call_parsing():
     # Handle malformed JSON
     parse_result = parse_json("invalid json")
     assert not parse_result.success
+    # parse_tool_calls should not be called with invalid data, but if it is, it should return None
     assert parse_tool_calls(parse_result.data) is None
 
     no_calls_json_result = parse_json('{"no_tools": true}')
     assert no_calls_json_result.success
     assert parse_tool_calls(no_calls_json_result.data) is None
+
+    # Test with empty tool_calls list
+    empty_calls_json_result = parse_json('{"tool_calls": []}')
+    assert empty_calls_json_result.success
+    assert parse_tool_calls(empty_calls_json_result.data) == []
 
 
 @pytest.mark.asyncio
@@ -95,36 +101,44 @@ async def test_respond_phase_output():
     mock_llm.stream = mock_stream
     mock_llm.run = mock_run
 
-    context = Context(query="weather?", messages=[], user_id="test")
-    state = State(context=context, query="test")
+    state = State(query="weather?", messages=[], user_id="test")
 
-    from cogency.phases.respond import Respond
+    await respond(state, llm=mock_llm, tools=[])
 
-    respond_phase = Respond(llm=mock_llm, tools=[])
-    result_state = await respond_phase(state)
-
-    assert isinstance(result_state["final_response"], str)
-    assert not result_state["final_response"].startswith("{")
-    assert result_state["next_phase"] == "END"
+    assert isinstance(state.response, str)
+    assert not state.response.startswith("{")
+    # The respond function doesn't set stop_reason to "finished"
 
 
 @pytest.mark.asyncio
 async def test_act_routing():
     """Test act phase routing behavior."""
+    from cogency.types.tools import ToolCall
+    
     tool = MockTool("test_tool")
-    context = Context(query="test", messages=[], user_id="test")
-    state = State(context=context, query="test")
-    state["tool_calls"] = '[{"name": "test_tool", "args": {}}]'
+    state = State(query="test", messages=[], user_id="test")
+    
+    # Create proper ToolCall objects  
+    tool_calls = [ToolCall(name='test_tool', args={})]
+    state.tool_calls = tool_calls
+    
+    # Add action first (required by act phase)
+    state.add_action(
+        mode="fast",
+        thinking="test thinking",
+        planning="test planning", 
+        reflection="test reflection",
+        approach="test approach",
+        tool_calls=tool_calls,
+    )
 
-    from cogency.phases.act import Act
-
-    act_phase = Act(tools=[tool])
-    result_state = await act_phase(state)
-    assert result_state["result"].success
+    await act(state, tools=[tool])
+    latest_results = state.latest_tool_results
+    assert len(latest_results) > 0
+    assert latest_results[0].success
 
     # Test no tool calls
-    state["tool_calls"] = None
-    act_phase2 = Act(tools=[])
-    result_state = await act_phase2(state)
-    assert result_state["result"].success
-    assert result_state["result"].data["type"] == "no_action"
+    state.tool_calls = []
+    await act(state, tools=[])
+    # Should not change existing results
+    assert len(state.latest_tool_results) > 0  # Still has previous results

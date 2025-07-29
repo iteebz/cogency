@@ -8,6 +8,13 @@ from cogency.state import State
 
 async def notify(state: State, event_type: str, message: str) -> None:
     """Clean notification function - no coupling to state methods."""
+    notification_entry = {
+        "event_type": event_type,
+        "data": message,
+        "iteration": state.iteration,
+    }
+    state.notifications.append(notification_entry)
+
     if state.callback and state.verbose and callable(state.callback):
         import asyncio
         if asyncio.iscoroutinefunction(state.callback):

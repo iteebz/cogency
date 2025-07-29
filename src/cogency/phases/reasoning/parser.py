@@ -27,7 +27,7 @@ def parse_response_result(response: str) -> Result:
     parsed_data = {
         "thinking": data.get("thinking"),
         "switch_to": data.get("switch_to"),
-        "switch_why": data.get("switch_why")
+        "switch_why": data.get("switch_why"),
         "tool_calls": data.get("tool_calls", []),
     }
 

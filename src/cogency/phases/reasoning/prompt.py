@@ -1,7 +1,7 @@
-"""Unified reasoning prompt with mode-specific injection."""
+"""Reasoning prompt with mode-specific injection."""
 
 
-def prompt_unified_mode(
+def prompt_reasoning(
     mode: str,
     tool_registry: str,
     query: str,

@@ -35,7 +35,8 @@ async def execute_tools(
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
-        return Result(
+        print("execute_tools: No tool calls, returning empty result.")
+        return Result.ok(
             {
                 "results": [],
                 "errors": [],
@@ -70,7 +71,8 @@ async def execute_tools(
                     )
                     tool_input = f"({first_val})"
 
-            await state.notify("action", f"{tool_emoji} {tool_name}{tool_input}")
+            from cogency.utils.notify import notify
+            await notify(state, "action", f"{tool_emoji} {tool_name}{tool_input}")
 
         try:
             result = await execute_single_tool(tool_name, tool_args, tools)
@@ -81,7 +83,8 @@ async def execute_tools(
                 raw_error = tool_output.error or "Unknown error"
                 user_friendly_error = format_tool_error(actual_tool_name, Exception(raw_error))
                 if state:
-                    await state.notify("action", f"✗ {user_friendly_error}\n")
+                    from cogency.utils.notify import notify
+                    await notify(state, "action", f"✗ {user_friendly_error}\n")
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -107,7 +110,8 @@ async def execute_tools(
                             )
 
                     # Add success indicator to result
-                    await state.notify("action", f"✓ {readable_result}\n")
+                    from cogency.utils.notify import notify
+                    await notify(state, "action", f"✓ {readable_result}\n")
 
                 success_result = {
                     "tool_name": actual_tool_name,
@@ -120,7 +124,8 @@ async def execute_tools(
             # Use user-friendly error message
             user_friendly_error = format_tool_error(tool_name, e)
             if state:
-                await state.notify("action", f"✗ {user_friendly_error}")
+                from cogency.utils.notify import notify
+                await notify(state, "action", f"✗ {user_friendly_error}")
             failure_result = {
                 "tool_name": tool_name,
                 "args": tool_args,
@@ -138,16 +143,7 @@ async def execute_tools(
 
     summary = "; ".join(summary_parts) if summary_parts else "No tools executed"
 
-    # Add execution log to context
-    combined_output = "Tool execution results:\n"
-    for success in successes:
-        combined_output += f"✓ {success['tool_name']}: {success['result']}\n"
-    for failure in failures:
-        combined_output += f"✗ {failure['tool_name']}: {failure['error']}\n"
-
-    # Tool results stored in state, not conversation messages
-
-    return Result(
+    final_result = Result.ok(
         {
             "results": successes,
             "errors": failures,
@@ -157,6 +153,8 @@ async def execute_tools(
             "failed_count": len(failures),
         }
     )
+    print(f"execute_tools: Returning final_result: {final_result}")
+    return final_result
 
 
 async def run_tools(

@@ -197,7 +197,7 @@ def resume(state: State) -> bool:
             
         # Tool execution state
         if "tool_calls" in checkpoint_data:
-            state.tool_calls = checkpoint_data["tool_calls"]
+            state.tool_calls = checkpoint_data["tool_calls"] or []
         if "actions" in checkpoint_data:
             state.actions = checkpoint_data["actions"]
         if "attempts" in checkpoint_data:

@@ -1,3 +1,4 @@
+
 """Cogency State - Zero ceremony, maximum beauty."""
 
 import asyncio
@@ -5,7 +6,7 @@ from typing import Any, Dict, List, Optional
 from dataclasses import dataclass, field
 
 from cogency.constants import DEFAULT_MAX_ITERATIONS, MAX_FAILURES_HISTORY, MAX_ITERATIONS_HISTORY
-from cogency.types.outcomes import ToolOutcome
+from cogency.types.tools import ToolCall, ToolResult, ToolOutcome
 
 
 @dataclass 
@@ -20,6 +21,7 @@ class State:
     max_iterations: int = DEFAULT_MAX_ITERATIONS
     react_mode: str = "fast"
     stop_reason: Optional[str] = None
+    current_approach: str = ""
     # Tool execution
     selected_tools: List[Any] = field(default_factory=list)
     tool_calls: List[Any] = field(default_factory=list)
@@ -59,7 +61,7 @@ class State:
         planning: str,
         reflection: str,
         approach: str,
-        tool_calls: List[Any],
+        tool_calls: List[ToolCall],
     ) -> None:
         """Add action to reasoning history with new schema."""
         from datetime import datetime
@@ -74,7 +76,7 @@ class State:
             "planning": planning,
             "reflection": reflection,
             "approach": approach,
-            "tool_calls": tool_calls,
+            "tool_calls": [call.to_dict() if hasattr(call, 'to_dict') else call for call in tool_calls],
             # NO compression fields - handled by situation_summary
         }
         self.actions.append(action_entry)
@@ -94,7 +96,7 @@ class State:
         """Add tool execution result to current action (schema-compliant)."""
         if not self.actions:
             raise ValueError("Cannot add tool result without an active action")
-        
+
         current_action = self.actions[-1]
         tool_call = {
             "name": name,
@@ -103,20 +105,26 @@ class State:
             "outcome": outcome.value,
             # NO compression fields - handled by situation_summary
         }
-        
+
         # Initialize tool_calls if needed
         if "tool_calls" not in current_action:
             current_action["tool_calls"] = []
-        
+
         current_action["tool_calls"].append(tool_call)
 
     def get_latest_results(self) -> List[Dict[str, Any]]:
-        """Get tool results from most recent action."""
+        """Get tool results from most recent action as dicts."""
         if not self.actions:
             return []
         
         latest_action = self.actions[-1]
-        return latest_action.get("tool_calls", [])
+        # Filter for tool calls that have a non-None 'outcome' value, indicating they are executed results
+        return [call for call in latest_action.get("tool_calls", []) if call.get("outcome") is not None]
+    
+    @property
+    def latest_tool_results(self) -> List[ToolResult]:
+        """Beautiful property wrapper for latest tool results."""
+        return [ToolResult(call) for call in self.get_latest_results()]
 
     def get_compressed_attempts(self, max_history: int = 3) -> List[str]:
         """Get compressed attempts using semantic context summarization."""

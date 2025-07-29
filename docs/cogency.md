@@ -28,8 +28,7 @@ Thinks fast or deep as needed - agents discover task complexity during execution
 
 ### 3. Zero-Ceremony Tool Integration
 ```python
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import tool
+from cogency.tools import BaseTool, tool
 
 @tool
 class MyTool(BaseTool):

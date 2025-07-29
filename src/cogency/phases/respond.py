@@ -134,33 +134,30 @@ def collect_failures(state: State) -> Optional[Dict[str, str]]:
         return failures
     
     # Check for tool failures in latest results
-    latest_results = state.get_latest_results()
-    if latest_results:
-        for call in latest_results:
-            if call.get("outcome") in ["failure", "error", "timeout"]:
-                failures[call["name"]] = call.get("result", "Tool execution failed")
+    for result in state.latest_tool_results:
+        if result.outcome in ["failure", "error", "timeout"]:
+            failures[result.name] = result.result or "Tool execution failed"
     
     return failures if failures else None
 
 
 def format_tool_results(state: State) -> Optional[str]:
     """Extract and format tool results for response context."""
-    latest_results = state.get_latest_results()
-    if not latest_results:
+    if not state.latest_tool_results:
         return None
     
     # Format successful tool results only
     successful_results = [
-        call for call in latest_results[:5] 
-        if call.get("outcome") not in ["failure", "error", "timeout"]
+        result for result in state.latest_tool_results[:5] 
+        if result.outcome not in ["failure", "error", "timeout"]
     ]
     
     if not successful_results:
         return None
         
     return "\n".join([
-        f"• {call['name']}: {str(call.get('result', 'no result'))[:200]}..."
-        for call in successful_results
+        f"• {result.name}: {str(result.result or 'no result')[:200]}..."
+        for result in successful_results
     ])
 
 
@@ -186,14 +183,19 @@ async def respond(state: State, llm: BaseLLM, tools: List[BaseTool], system_prom
     )
     
     # Single LLM call with unified error handling
-    messages = state.get_conversation()
-    messages.insert(0, {"role": "system", "content": prompt})
-    
-    llm_result = await llm.run(messages)
-    response_text = llm_result.data.strip() if llm_result.success else "I'm here to help. How can I assist you?"
+    if llm is None:
+        response_text = "I'm here to help. How can I assist you?"
+    else:
+        messages = state.get_conversation()
+        messages.insert(0, {"role": "system", "content": prompt})
+        
+        llm_result = await llm.run(messages)
+        response_text = llm_result.data.strip() if llm_result.success else "I'm here to help. How can I assist you?"
     
     await notify(state, "respond", f"🤖: {response_text}")
     
     # Update state 
     state.add_message("assistant", response_text)
-    state.response = response_text
+    if not state.response:
+        state.response = response_text
+    return state

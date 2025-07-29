@@ -1,14 +1,14 @@
 """Test Act node - tool execution logic."""
 
 from typing import Any, Dict
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from resilient_result import Result, unwrap
 
-from cogency.context import Context
 from cogency.phases.act import act
 from cogency.state import State
+from cogency.types.tools import ToolOutcome
 from cogency.tools.base import BaseTool
 
 
@@ -23,11 +23,11 @@ class MockTool(BaseTool):
             examples=[f'{{"name": "{name}", "args": {{}}}}'],
         )
         self.should_succeed = should_succeed
-        self.result = result or Result("mock result")
+        self.result = result or Result.ok("mock result")
 
     async def run(self, **kwargs):
         if not self.should_succeed:
-            raise Exception("Tool failed")
+            return Result.err("Tool failed")
         return self.result
 
     def format_human(self, params, results=None):
@@ -41,129 +41,108 @@ class MockTool(BaseTool):
 
 @pytest.fixture
 def state():
-    context = Context("test query")
-    return State(context=context, query="test query", trace=True)
+    return State(query="test query", trace=True)
 
 
 @pytest.fixture
 def mock_tools():
     return [
-        MockTool("calculator", True, Result({"result": 42})),
-        MockTool("search", True, Result({"results": ["data"]})),
+        MockTool("calculator", True, Result.ok({"result": 42})),
+        MockTool("search", True, Result.ok({"results": ["data"]})),
     ]
 
 
 @pytest.mark.asyncio
 async def test_no_calls(state, mock_tools):
     """Test act node when no tool calls are present."""
-    state["tool_calls"] = None
-
-    wrapped = await act(state, tools=mock_tools)
-    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
-
-    assert result["result"].success
-    assert result["result"].data["type"] == "no_action"
+    state.tool_calls = None
+    await act(state, tools=mock_tools)
+    assert not state.latest_tool_results  # No tool results should be added
 
 
 @pytest.mark.asyncio
 async def test_empty_calls(state, mock_tools):
-    """Test act node with empty tool call string."""
-    state["tool_calls"] = ""
-
-    wrapped = await act(state, tools=mock_tools)
-    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
-
-    assert result["result"].success
-    assert result["result"].data["type"] == "no_action"
+    """Test act node with empty tool call list."""
+    state.tool_calls = []
+    await act(state, tools=mock_tools)
+    assert not state.latest_tool_results
 
 
 @pytest.mark.asyncio
-async def test_invalid_calls(state, mock_tools):
-    """Test act node with invalid JSON tool calls."""
-    state["tool_calls"] = "invalid json"
-
-    wrapped = await act(state, tools=mock_tools)
-    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
-
-    assert result["result"].success
-    assert result["result"].data["type"] == "no_action"
+async def test_invalid_calls_format(state, mock_tools):
+    """Test act node with invalid tool calls format (not a list)."""
+    state.tool_calls = "invalid json"
+    await act(state, tools=mock_tools)
+    assert not state.latest_tool_results
 
 
 @pytest.mark.asyncio
 async def test_success(state, mock_tools):
     """Test successful tool execution."""
-    state["tool_calls"] = [{"name": "calculator", "args": {"x": 5}}]
+    state.tool_calls = [{"name": "calculator", "args": {"x": 5}}]
+    state.add_action(
+        mode="fast",
+        thinking="test",
+        planning="test",
+        reflection="test",
+        approach="test",
+        tool_calls=state.tool_calls,
+    )
 
-    wrapped = await act(state, tools=mock_tools)
-    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
+    await act(state, tools=mock_tools)
 
-    assert "result" in result
-    # Should have successful execution
-    assert result["result"].success
-    exec_results = result["result"].data
-    if "successful_count" in exec_results:
-        assert exec_results["successful_count"] >= 1
+    assert len(state.latest_tool_results) == 1
+    result = state.latest_tool_results[0]
+    assert result.name == "calculator"
+    assert result.success
+    assert "42" in result.result
 
 
 @pytest.mark.asyncio
 async def test_failure(state):
     """Test handling of failed tool execution."""
     failing_tool = MockTool("failing_tool", should_succeed=False)
-    state["tool_calls"] = [{"name": "failing_tool", "args": {}}]
+    state.tool_calls = [{"name": "failing_tool", "args": {}}]
+    state.add_action(
+        mode="fast",
+        thinking="test",
+        planning="test",
+        reflection="test",
+        approach="test",
+        tool_calls=state.tool_calls,
+    )
 
-    wrapped = await act(state, tools=[failing_tool])
-    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
+    await act(state, tools=[failing_tool])
 
-    # Check if result failed or if execution had no successes
-    if result["result"].success:
-        exec_results = result["result"].data
-        if "successful_count" in exec_results:
-            assert exec_results["successful_count"] == 0
+    assert len(state.latest_tool_results) == 1
+    result = state.latest_tool_results[0]
+    assert result.name == "failing_tool"
+    assert not result.success
+    assert "missing required information" in result.result
 
 
 @pytest.mark.asyncio
 async def test_multiple(state):
     """Test execution of multiple tools in sequence."""
-    # Create tools that track execution order
-    execution_order = []
-
-    class OrderedTool(BaseTool):
-        def __init__(self, name: str):
-            super().__init__(
-                name=name,
-                description=f"Tool {name}",
-                emoji="🔧",
-                examples=[],
-            )
-
-        async def run(self, **kwargs):
-            execution_order.append(self.name)
-            return Result(f"{self.name}_result")
-
-        def format_human(self, params, results=None):
-            param_str = f"({', '.join(f'{k}={v}' for k, v in params.items())})" if params else "()"
-            result_str = str(results) if results else "pending"
-            return param_str, result_str
-
-        def format_agent(self, result_data: dict[str, any]) -> str:
-            return f"Tool output: {result_data}"
-
-    tools = [OrderedTool("first"), OrderedTool("second"), OrderedTool("third")]
-
-    state["tool_calls"] = [
+    tools = [MockTool("first"), MockTool("second"), MockTool("third")]
+    state.tool_calls = [
         {"name": "first", "args": {}},
         {"name": "second", "args": {}},
         {"name": "third", "args": {}},
     ]
+    state.add_action(
+        mode="fast",
+        thinking="test",
+        planning="test",
+        reflection="test",
+        approach="test",
+        tool_calls=state.tool_calls,
+    )
 
-    wrapped = await act(state, tools=tools)
-    result = unwrap(wrapped)  # Unwrap @robust Result wrapper
+    await act(state, tools=tools)
 
-    # Check that tools executed in order
-    assert execution_order == ["first", "second", "third"]
-
-    # Check execution results
-    assert result["result"].success
-    exec_results = result["result"].data
-    assert exec_results["successful_count"] == 3
-    assert exec_results["failed_count"] == 0
+    assert len(state.latest_tool_results) == 3
+    assert state.latest_tool_results[0].name == "first"
+    assert state.latest_tool_results[1].name == "second"
+    assert state.latest_tool_results[2].name == "third"
+    assert all(result.success for result in state.latest_tool_results)

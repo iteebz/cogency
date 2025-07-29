@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from cogency.tools.base import BaseTool
-from cogency.tools.registry import build_registry, get_tools
+from cogency.tools.registry import build_registry, get_tools, tool
 
 # Auto-discover tools by importing all tool modules and collect exported classes
 _tools_dir = Path(__file__).parent
@@ -24,4 +24,4 @@ for tool_file in _tools_dir.glob("*.py"):
 # Make tool classes available for direct import
 globals().update(_exported_classes)
 
-__all__ = ["BaseTool", "get_tools", "build_registry"] + list(_exported_classes.keys())
+__all__ = ["BaseTool", "get_tools", "build_registry", "tool"] + list(_exported_classes.keys())

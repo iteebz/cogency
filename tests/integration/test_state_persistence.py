@@ -78,7 +78,7 @@ async def test_get_state_utility():
 async def test_decorator_persistence_integration():
     """Test that decorators properly integrate with persistence manager."""
     
-    from cogency.resilience.decorators import set_persistence_manager, get_persistence_manager
+    from cogency.decorators import set_persistence_manager, get_persistence_manager
     from cogency.persistence import StateManager, FileBackend
     
     with tempfile.TemporaryDirectory() as temp_dir:

@@ -61,8 +61,7 @@ Available tools: Calculator, Weather, Web Search, File Manager, Shell, Code Exec
 Create tools with zero ceremony:
 
 ```python
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import tool
+from cogency.tools import BaseTool, tool
 
 @tool
 class MyTool(BaseTool):

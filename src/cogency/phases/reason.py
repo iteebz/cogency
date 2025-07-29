@@ -10,7 +10,7 @@ from cogency.phases.reasoning import (
     should_switch,
     switch_mode,
 )
-from cogency.phases.reasoning.unified import prompt_unified_mode
+from cogency.phases.reasoning.prompt import prompt_reasoning
 from cogency.decorators import robust, observe
 from cogency.services.llm import BaseLLM
 from cogency.state import State
@@ -103,6 +103,8 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
 
 @observe.reason()
 @robust.reason()
+@observe.reason()
+@robust.reason()
 async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_prompt: Optional[str] = None, identity: Optional[str] = None, adapt: bool = True) -> None:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
     # Direct access to state properties - no context wrapper needed
@@ -132,14 +134,14 @@ async def reason(state: State, llm: BaseLLM, tools: List[BaseTool], system_promp
     # Phase 2B/3: Use clean context assembly
     context = state.build_reasoning_context(react_mode, max_history=3)
     
-    reasoning_prompt = prompt_unified_mode(
+    reasoning_prompt = prompt_reasoning(
         mode=react_mode,
         tool_registry=tool_registry,
         query=state.query,
         context=context,
         iteration=iteration,
         max_iterations=state.max_iterations,
-        current_approach=state.current_approach,
+        current_approach=state.situation_summary.get("current_approach", "initial"),
     )
     
     # DEBUG: Show what LLM sees

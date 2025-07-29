@@ -34,8 +34,7 @@ await agent.run("Create a file called notes.txt") # Uses Files
 ### Basic Tool
 
 ```python
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import tool
+from cogency.tools import BaseTool, tool
 
 @tool
 class MyTool(BaseTool):

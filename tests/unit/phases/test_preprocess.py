@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
 """Test adaptive routing behavior - fast_react vs deep_react."""
 
 import pytest
 
-from cogency import State
-from cogency.context import Context
+from cogency.state import State
 from cogency.phases.preprocess import preprocess
 from cogency.tools.base import BaseTool
 from tests.conftest import MockLLM
@@ -44,13 +42,11 @@ async def test_routing_fast_react():
         '{"react_mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
     )
 
-    context = Context(query=query)
-
-    state = State(query=query, context=context)
+    state = State(query=query)
 
     await preprocess(state, llm=llm, tools=tools, memory=None)
 
-    assert state.get("respond_directly") is False
+    assert state.respond_directly is False
 
 
 @pytest.mark.asyncio
@@ -62,13 +58,11 @@ async def test_routing_deep_react():
     query = "Analyze the economic implications of AI development and compare different regulatory approaches across multiple countries, synthesizing policy recommendations."
     llm.response = '{"react_mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
 
-    context = Context(query=query)
-
-    state = State(query=query, context=context)
+    state = State(query=query)
 
     await preprocess(state, llm=llm, tools=tools, memory=None)
 
-    assert state.get("respond_directly") is False
+    assert state.respond_directly is False
 
 
 @pytest.mark.asyncio
@@ -80,10 +74,8 @@ async def test_routing_response():
     query = "Hello, how are you?"
     llm.response = '{"selected_tools": [], "reasoning": "Simple greeting"}'
 
-    context = Context(query=query)
-
-    state = State(query=query, context=context)
+    state = State(query=query)
 
     await preprocess(state, llm=llm, tools=tools, memory=None)
 
-    assert state.get("respond_directly") is True
+    assert state.respond_directly is True

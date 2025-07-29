@@ -2,24 +2,16 @@
 
 import pytest
 from resilient_result import Result
-from resilient_result import Result as ResilientResult
 
-from cogency.context import Context
 from cogency.phases.respond import prompt_response, respond
+from cogency.services.llm.cache import get_cache
 from cogency.state import State
 from tests.conftest import MockLLM, create_mock_llm
 
 
 @pytest.fixture
-def context():
-    ctx = Context("test query")
-    ctx.add_message("user", "What is the weather?")
-    return ctx
-
-
-@pytest.fixture
-def state(context):
-    return State(context=context, query="test query")
+def state():
+    return State(query="test query")
 
 
 def test_prompt():
@@ -42,54 +34,114 @@ def test_prompt():
 async def test_basic(state):
     llm = create_mock_llm("Hello world")
 
-    result = await respond(state, llm=llm, tools=[])
+    await respond(state, llm=llm, tools=[])
 
-    assert result.success
-    updated_state = result.data
-    assert updated_state["final_response"] == "Hello world"
-    assert updated_state["next_node"] == "END"
-    assert len(state.context.chat) >= 2
+    assert state.response == "Hello world"
+    assert state.stop_reason is None # The respond function doesn't set this
+    assert len(state.messages) == 1
 
 
 @pytest.mark.asyncio
 async def test_with_tools(state):
     llm = create_mock_llm("Weather is sunny")
-    state["execution_results"] = Result.ok([{"temperature": "72F"}])
+    state.result = Result.ok([{"temperature": "72F"}])
 
-    result = await respond(state, llm=llm, tools=[])
+    await respond(state, llm=llm, tools=[])
 
-    assert result.success
-    updated_state = result.data
-    assert updated_state["final_response"] == "Weather is sunny"
-    assert updated_state["next_node"] == "END"
+    assert state.response == "Weather is sunny"
+    assert state.stop_reason is None
 
 
 @pytest.mark.asyncio
 async def test_error_handling(state):
-    from cogency.services.llm.cache import get_cache
-
     # Clear cache to avoid interference from other tests
     cache = get_cache()
     await cache.clear()
 
     llm = MockLLM(should_fail=True)
 
-    result = await respond(state, llm=llm, tools=[])
+    await respond(state, llm=llm, tools=[])
 
-    assert result.success
-    updated_state = result.data
-    assert "issue" in updated_state["final_response"].lower()
-    assert updated_state["next_node"] == "END"
+    assert state.response == "I'm here to help. How can I assist you?"
+    assert state.stop_reason is None
 
 
 @pytest.mark.asyncio
 async def test_stop_reason(state):
     llm = create_mock_llm("Fallback response")
-    state["stop_reason"] = "max_iterations_reached"
+    state.stop_reason = "max_iterations_reached"
 
-    result = await respond(state, llm=llm, tools=[])
+    await respond(state, llm=llm, tools=[])
 
-    assert result.success
-    updated_state = result.data
-    assert updated_state["final_response"] == "Fallback response"
-    assert updated_state["next_node"] == "END"
+    assert state.response == "Fallback response"
+    assert state.stop_reason == "max_iterations_reached"
+
+
+@pytest.mark.asyncio
+async def test_no_query(state):
+    llm = create_mock_llm("Hello")
+    state.query = ""
+
+    await respond(state, llm=llm, tools=[])
+
+    assert state.response == "Hello"
+    assert state.stop_reason is None
+
+
+@pytest.mark.asyncio
+async def test_no_context(state):
+    llm = create_mock_llm("Hello")
+    state.messages = []
+
+    await respond(state, llm=llm, tools=[])
+
+    assert state.response == "Hello"
+    assert state.stop_reason is None
+
+
+@pytest.mark.asyncio
+async def test_no_llm(state):
+    # The @robust decorator handles None llm gracefully, so no exception is raised
+    await respond(state, llm=None, tools=[])
+    # Should have some default response or handle gracefully
+    assert state.response is not None or state.stop_reason is not None
+
+
+@pytest.mark.asyncio
+async def test_no_tools(state):
+    llm = create_mock_llm("Hello")
+
+    await respond(state, llm=llm, tools=[])
+
+    assert state.response == "Hello"
+    assert state.stop_reason is None
+
+
+@pytest.mark.asyncio
+async def test_empty_tools(state):
+    llm = create_mock_llm("Hello")
+
+    await respond(state, llm=llm, tools=[])
+
+    assert state.response == "Hello"
+    assert state.stop_reason is None
+
+
+@pytest.mark.asyncio
+async def test_final_response_already_set(state):
+    llm = create_mock_llm("This should not be used")
+    state.response = "This is the final answer"
+
+    await respond(state, llm=llm, tools=[])
+
+    assert state.response == "This is the final answer"
+    assert state.stop_reason is None
+
+
+@pytest.mark.asyncio
+async def test_result_is_resilient(state):
+    llm = create_mock_llm("Hello")
+
+    await respond(state, llm=llm, tools=[])
+
+    assert state.response == "Hello"

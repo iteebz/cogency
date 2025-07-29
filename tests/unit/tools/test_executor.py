@@ -6,26 +6,46 @@ import pytest
 from resilient_result import Result
 
 from cogency.tools.executor import run_tools
+from cogency.tools.base import BaseTool
+
+
+class MockTool(BaseTool):
+    def __init__(self, name: str = "test_tool", should_fail: bool = False):
+        super().__init__(
+            name=name,
+            description=f"Mock tool: {name}",
+            examples=[f'{{"name": "{name}", "args": {{"test": "value"}}}}'],
+            rules=[],
+        )
+        self.should_fail = should_fail
+
+    async def run(self, **kwargs):
+        if self.should_fail:
+            raise Exception("Tool execution failed")
+        return Result.ok(f"success from {self.name}")
+
+    def format_human(self, params, results=None):
+        return f"({self.name})", str(results) if results else ""
+
+    def format_agent(self, result_data: dict[str, any]) -> str:
+        return f"Tool output: {result_data}"
 
 
 @pytest.mark.asyncio
 async def test_basic_execution():
-    search_tool = Mock()
-    search_tool.name = "search"
-    search_tool.execute = AsyncMock(return_value=Result("search results"))
+    search_tool = MockTool("search")
+    search_tool.run = AsyncMock(return_value=Result.ok("search results"))
 
-    weather_tool = Mock()
-    weather_tool.name = "weather"
-    weather_tool.execute = AsyncMock(return_value=Result("sunny"))
+    weather_tool = MockTool("weather")
+    weather_tool.run = AsyncMock(return_value=Result.ok("sunny"))
 
     tools = [search_tool, weather_tool]
-    context = Mock()
-    context.add_result = Mock()
-    context.add_message = Mock()
+    state = Mock()
+    state.notify = AsyncMock()
 
     tool_calls = [("search", {"query": "cats"}), ("weather", {"city": "SF"})]
 
-    result = await run_tools(tool_calls, tools, context)
+    result = await run_tools(tool_calls, tools, state)
 
     assert result.success
     assert result.data["successful_count"] == 2
@@ -33,18 +53,17 @@ async def test_basic_execution():
 
 @pytest.mark.asyncio
 async def test_file_shell_exec():
-    file_tool = Mock()
-    file_tool.name = "create_file"
-    file_tool.execute = AsyncMock(return_value=Result("file created"))
+    file_tool = MockTool("create_file")
+    file_tool.run = AsyncMock(return_value=Result.ok("file created"))
 
-    shell_tool = Mock()
-    shell_tool.name = "run_shell"
-    shell_tool.execute = AsyncMock(return_value=Result("command executed"))
+    shell_tool = MockTool("run_shell")
+    shell_tool.run = AsyncMock(return_value=Result.ok("command executed"))
 
     tools = [file_tool, shell_tool]
     context = Mock()
     context.add_result = Mock()
     context.add_message = Mock()
+    context.notify = AsyncMock()
 
     tool_calls = [
         ("create_file", {"path": "test.py", "content": "print('hello')"}),

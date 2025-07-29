@@ -4,7 +4,7 @@
 import asyncio
 from unittest.mock import Mock, AsyncMock, patch
 
-from cogency.resilience.decorators import observe, set_observe_enabled, is_observe_enabled
+from cogency.decorators import observe, set_observe_enabled, is_observe_enabled
 from cogency.state import State
 
 
@@ -52,9 +52,9 @@ async def test_observe_decorators_integration():
     # Mock the metrics module
     mock_metrics = MockMetrics()
     
-    with patch('cogency.monitoring.metrics.counter', mock_metrics.counter), \
-         patch('cogency.monitoring.metrics.timer', mock_metrics.timer), \
-         patch('cogency.monitoring.metrics.histogram', mock_metrics.histogram):
+    with patch('cogency.decorators.counter', mock_metrics.counter), \
+         patch('cogency.decorators.timer', mock_metrics.timer), \
+         patch('cogency.decorators.histogram', mock_metrics.histogram):
         
         # Test observability disabled by default
         assert is_observe_enabled() is False

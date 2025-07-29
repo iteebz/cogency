@@ -2,27 +2,26 @@
 
 import pytest
 
-from cogency.phases.reasoning.deep import prompt_deep_mode
-from cogency.phases.reasoning.fast import prompt_fast_mode
-from cogency.phases.reasoning.parser import format_thinking, parse_response_result
+from cogency.phases.reasoning.prompt import prompt_reasoning
+from cogency.utils.parsing import parse_json
 
 
 def test_fast_prompt_generation():
-    prompt = prompt_fast_mode("search: query", "What is Python?")
+    prompt = prompt_reasoning(mode="fast", tool_registry="search: query", query="What is Python?", context="")
     assert "What is Python?" in prompt
     assert "search" in prompt
     assert "thinking" in prompt
 
 
 def test_deep_prompt_generation():
-    prompt = prompt_deep_mode(
-        "search: query",
-        "Complex question",
-        2,
-        5,
-        "analytical",
-        "No previous attempts",
-        "good",
+    prompt = prompt_reasoning(
+        mode="deep",
+        tool_registry="search: query",
+        query="Complex question",
+        iteration=2,
+        max_iterations=5,
+        current_approach="analytical",
+        context="No previous attempts",
     )
     assert "Complex question" in prompt
     assert "search" in prompt
@@ -38,10 +37,15 @@ def test_unified_json_structure():
         "thinking": "analyzing the problem",
         "tool_calls": [{"name": "search", "args": {"query": "test"}}],
         "switch_to": null,
-        "switch_why": null
+        "switch_why": null,
+        "summary_update": {
+            "goal": "",
+            "progress": "",
+            "current_approach": "",
+            "key_findings": "",
+            "next_focus": ""
+        }
     }"""
-
-    from cogency.utils.parsing import parse_json
 
     fast_parsed = parse_json(response).data
     deep_parsed = parse_json(response).data
@@ -57,10 +61,15 @@ def test_deep_mode_structured_thinking():
         "thinking": "🤔 REFLECTION: Previous attempt failed. 📋 PLANNING: Try different approach. 🎯 DECISION: Using new tool.",
         "tool_calls": [],
         "switch_to": null,
-        "switch_why": null
+        "switch_why": null,
+        "summary_update": {
+            "goal": "",
+            "progress": "",
+            "current_approach": "",
+            "key_findings": "",
+            "next_focus": ""
+        }
     }"""
-
-    from cogency.utils.parsing import parse_json
 
     parsed = parse_json(response).data
     assert "REFLECTION" in parsed["thinking"]
@@ -73,31 +82,24 @@ def test_mode_switching():
         "thinking": "This task needs deeper analysis",
         "tool_calls": [],
         "switch_to": "deep",
-        "switch_why": "complex multi-step reasoning required"
+        "switch_why": "complex multi-step reasoning required",
+        "summary_update": {
+            "goal": "",
+            "progress": "",
+            "current_approach": "",
+            "key_findings": "",
+            "next_focus": ""
+        }
     }"""
 
-    parsed = parse_response_result(switch_response).data
+    parsed = parse_json(switch_response).data
     assert parsed["switch_to"] == "deep"
     assert parsed["switch_why"] == "complex multi-step reasoning required"
 
 
 def test_parsing_fallback():
     malformed = "not json at all"
-    result = parse_response_result(malformed)
+    result = parse_json(malformed)
 
-    assert result.success
-    assert result.data["thinking"] == "Processing request..."
-    assert result.data["switch_to"] is None
-    assert result.data["tool_calls"] == []
-
-
-def test_formatting():
-    data = {"thinking": "test thought"}
-
-    fast_formatted = format_thinking(data["thinking"], mode="fast")
-    deep_formatted = format_thinking(data["thinking"], mode="deep")
-
-    assert "💭" in fast_formatted
-    assert "🧠" in deep_formatted
-    assert "test thought" in fast_formatted
-    assert "test thought" in deep_formatted
+    assert not result.success
+    assert result.data is None

@@ -203,13 +203,15 @@ def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]
     # Direct tool_calls array - clean format only
     tool_calls = json_data.get("tool_calls")
 
-    # Limit tool calls to prevent JSON parsing issues
-    if tool_calls:
-        from cogency.constants import MAX_TOOL_CALLS_PER_ITERATION
+    if tool_calls is None:
+        return None
 
-        if len(tool_calls) > MAX_TOOL_CALLS_PER_ITERATION:
-            # Truncate to max allowed tool calls
-            return tool_calls[:MAX_TOOL_CALLS_PER_ITERATION]
+    # Limit tool calls to prevent JSON parsing issues
+    from cogency.constants import MAX_TOOL_CALLS_PER_ITERATION
+
+    if len(tool_calls) > MAX_TOOL_CALLS_PER_ITERATION:
+        # Truncate to max allowed tool calls
+        return tool_calls[:MAX_TOOL_CALLS_PER_ITERATION]
 
     return tool_calls
 
