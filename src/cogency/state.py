@@ -27,7 +27,6 @@ class State:
     # Two-layer state architecture
     actions: List[Dict[str, Any]] = field(default_factory=list)
     attempts: List[Any] = field(default_factory=list)
-    current_approach: str = "initial"
     # Phase 2B: Semantic context summarization
     situation_summary: Dict[str, str] = field(default_factory=lambda: {
         "goal": "",

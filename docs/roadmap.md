@@ -18,6 +18,11 @@
 - **Audit Logging** - Comprehensive audit trail for enterprise compliance
 - **Rate Limiting** - Built-in rate limiting and quotas management
 
+### Memory & Intelligence
+- **Self-Organizing Hierarchical Knowledge Graphs** - Dynamic knowledge organization that structures memories hierarchically based on semantic relationships and usage patterns
+- **Daemon Memory Compression/Consolidation/Defragmentation** - Background processes for intelligent memory cleanup, consolidation of related memories, and removal of obsolete information
+- **Tool Result Relevance & Compression** - Semantic filtering and compression of tool outputs to prevent noise pollution in reasoning context
+
 ### Ecosystem
 - **Plugin System** - Extensible plugin architecture for third-party integrations
 - **Template System** - Pre-built agent templates for common use cases
