@@ -155,6 +155,8 @@ async def execute_tools(
     return final_result
 
 
-async def run_tools(tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notify=None) -> Dict[str, Any]:
+async def run_tools(
+    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notify=None
+) -> Dict[str, Any]:
     """Execute tools."""
     return await execute_tools(tool_calls, tools, state, notify)

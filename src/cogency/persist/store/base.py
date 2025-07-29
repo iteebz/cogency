@@ -44,5 +44,6 @@ def setup_persistence(persist):
     global _persist_instance
     if _persist_instance is None:
         from cogency.persist import Filesystem
+
         _persist_instance = Filesystem()
     return Persist(backend=_persist_instance)

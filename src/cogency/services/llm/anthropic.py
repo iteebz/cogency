@@ -3,7 +3,7 @@ from typing import AsyncIterator, Dict, List
 
 import anthropic
 
-from cogency.services import LLM
+from cogency.services.llm.base import LLM
 
 logger = logging.getLogger(__name__)
 

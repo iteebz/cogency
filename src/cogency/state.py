@@ -213,7 +213,6 @@ class State:
 
         return "\n".join(formatted)
 
-
     def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:
         """Phase 3: Clean context assembly for reasoning with semantic compression."""
         if mode == "deep":

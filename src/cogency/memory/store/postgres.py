@@ -7,7 +7,8 @@ from uuid import UUID
 
 from resilient_result import Err, Ok, Result
 
-from cogency.memory import Memory, MemoryType, SearchType, Store
+from cogency.memory.store.base import Store
+from cogency.memory.types import Memory, MemoryType, SearchType
 
 logger = logging.getLogger(__name__)
 

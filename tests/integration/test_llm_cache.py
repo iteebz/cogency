@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.services import configure_cache, get_cache
+from cogency.services import LLMCache
 from tests.conftest import MockLLM
 
 
@@ -10,8 +10,7 @@ from tests.conftest import MockLLM
 async def test_caching():
     """Test that LLM caching works in practice."""
     # Create fresh cache for this test
-    configure_cache()
-    cache = get_cache()
+    cache = LLMCache()
     await cache.clear()
 
     # Create LLM with caching enabled
@@ -44,8 +43,7 @@ async def test_caching():
 async def test_disabled():
     """Test LLM with caching disabled."""
     # Create fresh cache for this test
-    configure_cache()
-    cache = get_cache()
+    cache = LLMCache()
     await cache.clear()
 
     # Create LLM with caching disabled
@@ -68,8 +66,7 @@ async def test_disabled():
 async def test_different_messages():
     """Test that different messages create different cache entries."""
     # Create fresh cache for this test
-    configure_cache()
-    cache = get_cache()
+    cache = LLMCache()
     await cache.clear()
 
     llm = MockLLM(enable_cache=True)

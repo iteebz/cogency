@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from cogency import Agent, State
-from cogency.persist import FilesystemBackend, StateManager
+from cogency.persist import Filesystem, StateManager
 
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_persistence_setup_in_agent():
     """Test that Agent properly sets up persistence components."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        backend = FilesystemBackend(base_dir=temp_dir)
+        backend = Filesystem(base_dir=temp_dir)
 
         # Test persistence enabled
         Agent(name="test_agent", persist=backend)
@@ -76,7 +76,7 @@ async def test_state_persistence_end_to_end():
     """Test complete state persistence flow without full agent execution."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        backend = FilesystemBackend(base_dir=temp_dir)
+        backend = Filesystem(base_dir=temp_dir)
         manager = StateManager(backend=backend)
 
         # Create and save state

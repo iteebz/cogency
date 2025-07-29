@@ -8,11 +8,11 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.persist import FilesystemBackend
+from cogency.persist import Filesystem
 from cogency.state import State
 
 
-class TestFilesystemBackend:
+class TestFilesystem:
     """Test file-based state persistence."""
 
     @pytest.fixture
@@ -24,7 +24,7 @@ class TestFilesystemBackend:
     @pytest.fixture
     def backend(self, temp_dir):
         """Create backend with temp directory."""
-        return FilesystemBackend(base_dir=temp_dir)
+        return Filesystem(base_dir=temp_dir)
 
     @pytest.fixture
     def sample_state(self):
@@ -90,8 +90,8 @@ class TestFilesystemBackend:
     @pytest.mark.asyncio
     async def test_process_isolation(self, temp_dir):
         """Test that different process IDs create separate files."""
-        backend1 = FilesystemBackend(base_dir=temp_dir)
-        backend2 = FilesystemBackend(base_dir=temp_dir)
+        backend1 = Filesystem(base_dir=temp_dir)
+        backend2 = Filesystem(base_dir=temp_dir)
 
         # Different backends should have different process IDs
         assert backend1.process_id != backend2.process_id

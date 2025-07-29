@@ -4,7 +4,7 @@ from typing import Any, AsyncIterator, Dict, List, Literal, Optional, Union
 from cogency import decorators
 from cogency.config import Observe, Persist, Robust, setup_config
 from cogency.mcp import setup_mcp
-from cogency.memory import Store, setup_memory
+from cogency.memory.store import Store, setup_memory
 from cogency.persist.utils import get_state
 from cogency.phases import setup_phases
 from cogency.services import LLM, Embed, setup_embed, setup_llm
@@ -95,21 +95,21 @@ class Agent:
 
     def _notify_cb(self, state: State):
         """Create notification callback for phases."""
+
         def notify(event_type: str, message: str):
             asyncio.create_task(self._handle_notification(event_type, message, state))
+
         return notify
 
     async def _handle_notification(self, event_type: str, message: str, state: State) -> None:
         """Handle notification with proper separation of concerns."""
         if state.callback and state.notify:
             await state.callback(message)
-        
+
         # Store notification for debugging
-        state.notifications.append({
-            "event_type": event_type,
-            "message": message,
-            "iteration": state.iteration
-        })
+        state.notifications.append(
+            {"event_type": event_type, "message": message, "iteration": state.iteration}
+        )
 
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution"""

@@ -2,7 +2,7 @@
 
 from .anthropic import Anthropic
 from .base import LLM
-from .cache import LLMCache, cached_llm_call, configure_cache, get_cache
+from .cache import LLMCache
 from .gemini import Gemini
 from .mistral import Mistral
 from .openai import OpenAI
@@ -16,7 +16,4 @@ __all__ = [
     "OpenAI",
     "xAI",
     "LLMCache",
-    "cached_llm_call",
-    "configure_cache",
-    "get_cache",
 ]

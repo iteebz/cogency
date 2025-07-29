@@ -6,8 +6,9 @@ from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from cogency.persist import Store
 from cogency.state import State
+
+from .base import Store
 
 
 class Filesystem(Store):

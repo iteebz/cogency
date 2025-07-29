@@ -2,23 +2,29 @@
 
 from typing import Optional, Type
 
-from cogency.utils.discovery import AutoRegistry
+from cogency.utils import Provider
 
 from .base import Store, setup_memory
+from .chroma import Chroma
+from .filesystem import Filesystem
+from .pinecone import Pinecone
+from .postgres import PGVector
 
-# Automagical memory store discovery
-_memory_registry = AutoRegistry("cogency.memory.store", Store)
+# Provider registry
+_memory_provider = Provider(
+    {
+        "chroma": Chroma,
+        "filesystem": Filesystem,
+        "pinecone": Pinecone,
+        "postgres": PGVector,
+    },
+    default="filesystem",
+)
 
 
 def get_store(provider: Optional[str] = None) -> Type[Store]:
     """Get memory store with automagical discovery."""
-    if provider is None:
-        provider = "filesystem"  # Default
-    return _memory_registry.get(provider)
+    return _memory_provider.get(provider)
 
 
-# Make store classes available for direct import
-_exported_classes = _memory_registry.all()
-globals().update(_exported_classes)
-
-__all__ = ["Store", "get_store", "setup_memory"] + list(_exported_classes.keys())
+__all__ = ["Store", "get_store", "setup_memory", "Chroma", "Filesystem", "Pinecone", "PGVector"]

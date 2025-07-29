@@ -4,10 +4,11 @@ import logging
 import time
 from typing import List
 
-from cogency.phases import Phase
+from cogency.decorators import phase
+from cogency.phases.base import Phase
 
 # Tool retry logic now handled by @safe.act() decorator
-from cogency.state import State, phase
+from cogency.state import State
 from cogency.tools import Tool, run_tools
 
 logger = logging.getLogger(__name__)

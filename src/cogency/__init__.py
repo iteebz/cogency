@@ -1,6 +1,6 @@
 """Cogency - A framework for building intelligent agents."""
 
-# Clean public API - only agent and config
+# Clean public API - agent + config
 from .agent import Agent
 from .config import Observe, Persist, Robust
 

@@ -3,10 +3,11 @@
 import asyncio
 from typing import List, Optional
 
-from cogency.phases import Phase
+from cogency.decorators import phase
+from cogency.phases.base import Phase
 from cogency.phases.reasoning import parse_switch, prompt_reasoning, should_switch, switch_mode
 from cogency.services import LLM
-from cogency.state import State, phase
+from cogency.state import State
 from cogency.tools import Tool, build_registry
 from cogency.types.reasoning import Reasoning
 from cogency.utils.parsing import parse_json_with_correction

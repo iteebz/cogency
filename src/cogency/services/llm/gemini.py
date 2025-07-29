@@ -2,7 +2,7 @@ from typing import AsyncIterator, Dict, List
 
 import google.genai as genai
 
-from cogency.services import LLM
+from cogency.services.llm.base import LLM
 
 
 class Gemini(LLM):

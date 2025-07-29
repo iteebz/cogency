@@ -2,7 +2,7 @@ from typing import AsyncIterator, Dict, List
 
 from mistralai import Mistral as MistralClient
 
-from cogency.services import LLM
+from cogency.services.llm.base import LLM
 
 
 class Mistral(LLM):

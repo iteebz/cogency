@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.memory import FilesystemBackend, Store
+from cogency.memory import Filesystem, Store
 from cogency.memory.api import Memory
 
 

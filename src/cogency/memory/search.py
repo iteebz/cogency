@@ -6,7 +6,7 @@ from uuid import UUID
 
 import numpy as np
 
-from .core import Memory, SearchType
+from cogency.memory.types import Memory, SearchType
 
 logger = logging.getLogger(__name__)
 

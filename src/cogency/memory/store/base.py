@@ -5,7 +5,8 @@ from uuid import UUID
 
 from resilient_result import Result, Retry, resilient
 
-from cogency.memory import Memory, MemoryType, SearchType, search
+from cogency.memory.search import search
+from cogency.memory.types import Memory, MemoryType, SearchType
 
 # Singleton instance for default memory backend
 _memory_instance = None
@@ -211,5 +212,6 @@ def setup_memory(memory):
     global _memory_instance
     if _memory_instance is None:
         from cogency.memory import Filesystem
+
         _memory_instance = Filesystem(".cogency/memory")
     return _memory_instance

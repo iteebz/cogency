@@ -6,7 +6,7 @@ from typing import AsyncIterator
 import pytest
 from resilient_result import Result
 
-from cogency.memory import FilesystemBackend
+from cogency.memory import Filesystem
 from cogency.services.llm import LLM
 from cogency.state import State
 from cogency.tools.base import Tool
@@ -69,7 +69,7 @@ def temp_dir():
 @pytest.fixture
 def memory_service(temp_dir):
     """Filesystem memory backend."""
-    return FilesystemBackend(memory_dir=temp_dir)
+    return Filesystem(memory_dir=temp_dir)
 
 
 @pytest.fixture

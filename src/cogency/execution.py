@@ -3,7 +3,9 @@
 from cogency.state import State
 
 
-async def run_agent(state: State, preprocess_phase, reason_phase, act_phase, respond_phase, notify=None) -> None:
+async def run_agent(
+    state: State, preprocess_phase, reason_phase, act_phase, respond_phase, notify=None
+) -> None:
     """Simple execution loop using phase instances with injected dependencies."""
 
     # Preprocessing step - dependencies already injected

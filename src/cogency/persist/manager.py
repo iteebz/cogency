@@ -2,15 +2,15 @@
 
 from typing import Optional
 
-from cogency.persist import FileBackend, StateBackend
+from cogency.persist.store import Filesystem, Store
 from cogency.state import State
 
 
 class StateManager:
     """Manages state persistence with validation and error handling."""
 
-    def __init__(self, backend: Optional[StateBackend] = None, enabled: bool = True):
-        self.backend = backend or FileBackend()
+    def __init__(self, backend: Optional[Store] = None, enabled: bool = True):
+        self.backend = backend or Filesystem()
         self.enabled = enabled
 
     def _generate_state_key(self, user_id: str, process_id: Optional[str] = None) -> str:

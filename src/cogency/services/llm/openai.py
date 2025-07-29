@@ -2,7 +2,7 @@ from typing import AsyncIterator, Dict, List
 
 import openai
 
-from cogency.services import LLM
+from cogency.services.llm.base import LLM
 
 
 class OpenAI(LLM):

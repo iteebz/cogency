@@ -4,10 +4,11 @@ from typing import List, Optional
 
 from resilient_result import unwrap
 
+from cogency.decorators import phase
 from cogency.memory import Store
 from cogency.phases import Phase
 from cogency.services import LLM
-from cogency.state import State, phase
+from cogency.state import State
 from cogency.tools import Tool, build_registry
 from cogency.types.preprocessed import Preprocessed
 from cogency.utils import is_simple_query, parse_json
@@ -167,7 +168,9 @@ Example:
             if len(filtered_tools) < len(tools):
                 # Show smart filtering in traces
                 if state.debug and notify:
-                    notify("trace", f"Selected tools: {', '.join([t.name for t in filtered_tools])}")
+                    notify(
+                        "trace", f"Selected tools: {', '.join([t.name for t in filtered_tools])}"
+                    )
             elif len(filtered_tools) > 1 and state.trace and notify:
                 # Show tools being prepared for ReAct in traces
                 notify("trace", f"Preparing tools: {', '.join([t.name for t in filtered_tools])}")

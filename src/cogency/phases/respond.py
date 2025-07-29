@@ -2,10 +2,12 @@
 
 from typing import Dict, List, Optional
 
+from cogency.decorators import phase
+
 # Removed LangGraph dependency
-from cogency.phases import Phase
+from cogency.phases.base import Phase
 from cogency.services import LLM
-from cogency.state import State, phase
+from cogency.state import State
 from cogency.tools import Tool
 
 
