@@ -1,6 +1,6 @@
 """MCP Server implementation for Cogency Agent - Clean MCP standards-compliant implementation"""
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
@@ -114,3 +114,13 @@ class MCPServer:
     async def serve_websocket(self, host: str = "localhost", port: int = 8765) -> None:
         """Serve MCP over websocket"""
         await websocket_server(self.server, host, port)
+
+
+def setup_mcp(agent, enabled: bool) -> Optional[MCPServer]:
+    """Setup MCP server if enabled and available."""
+    if not enabled:
+        return None
+    try:
+        return MCPServer(agent)
+    except ImportError:
+        raise ImportError("Install cogency[mcp] for MCP support")

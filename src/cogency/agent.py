@@ -1,11 +1,18 @@
-from typing import Any, AsyncIterator, Optional, Union, Literal
+# TYPE_CHECKING import for MCP
+from typing import TYPE_CHECKING, Any, AsyncIterator, Dict, List, Literal, Optional, Union
 
 from cogency import decorators
-from cogency.config import Robust, Observe, Persist
-from cogency.state import State
-from cogency.utils.auto import detect_llm
-from cogency.utils.notify import Notifier
+from cogency.config import Observe, Persist, Robust
+from cogency.memory.backends.base import BaseBackend as MemoryBackend
+from cogency.persistence.backends import StateBackend
 from cogency.phases.act import Act, Preprocess, Reason, Respond
+from cogency.services.llm.base import BaseLLM
+from cogency.services.embed.base import BaseEmbed
+from cogency.state import State
+from cogency.tools.base import BaseTool
+from cogency.utils.notify import Notifier
+from cogency.mcp.server import MCPServer
+
 
 MAX_QUERY_LENGTH = 10000
 
@@ -20,28 +27,24 @@ class Agent:
         name: str = "cogency",
         *,  # Force keyword-only arguments
         # Backend Systems (things with constructors)
-        llm: Optional[Any] = None,
-        tools: Optional[Any] = None,
-        memory: Optional[Any] = None,
-        
+        llm: Optional[BaseLLM] = None,
+        embed: Optional[BaseEmbed] = None,
+        tools: Optional[List[BaseTool]] = None,
+        memory: Optional[MemoryBackend] = None,
         # Agent Personality
         prompt: Optional[str] = None,
         identity: Optional[str] = None,
-        output_schema: Optional[Any] = None,
-        
+        output_schema: Optional[Dict[str, Any]] = None,
         # Execution Control
         mode: Literal["fast", "deep", "adapt"] = "adapt",
         depth: int = 10,
-        
         # User Feedback
         notify: bool = True,
         debug: bool = False,
-        
         # System Behaviors (@phase decorator control)
         robust: Union[bool, Robust] = True,
         observe: Union[bool, Observe] = False,
         persist: Union[bool, Persist] = False,
-        
         # Integrations
         mcp: bool = False,
     ) -> None:
@@ -49,67 +52,62 @@ class Agent:
         self.debug = debug
         self.notify = notify
         self.depth = depth
-        
+
         # Mode handling
         self.deep = mode == "deep"
         self.adapt = mode == "adapt"
 
         # Configure @phase decorator behavior
         self.robust_config = robust if isinstance(robust, Robust) else Robust() if robust else None
-        self.observe_config = observe if isinstance(observe, Observe) else Observe() if observe else None
-        
+        self.observe_config = (
+            observe if isinstance(observe, Observe) else Observe() if observe else None
+        )
+
         # Set up state persistence
-        if persist:
-            if isinstance(persist, Persist):
-                self.persistence = persist
-            else:
-                self.persistence = Persist()
-        else:
-            self.persistence = None
-            
+        from cogency.persistence.backends import setup_persistence
+        self.persistence = setup_persistence(persist)
+
         # Configure decorators with actual config objects - no ceremony
         decorators.configure_decorators(
             robust_config=self.robust_config,
             observe_config=self.observe_config,
-            persistence_manager=self.persistence
+            persistence_manager=self.persistence,
         )
 
         # Backend auto-detection and setup
-        self.llm = llm or detect_llm()
-        
-        # Setup memory - default enabled
-        if memory is None:
-            from cogency.memory.backends.filesystem import FileBackend
-            self.memory = FileBackend(".cogency/memory")
-        elif memory is False:
-            self.memory = None
-        else:
-            self.memory = memory
-            
+        from cogency.utils.auto import setup_llm, setup_embed
+        self.llm = setup_llm(llm)
+        self.embed = setup_embed(embed)
+
+        # Setup memory
+        from cogency.memory.backends.base import setup_memory
+        self.memory = setup_memory(memory)
+
         # Setup tools - auto-discover if not provided
         if tools is None:
             from cogency.tools.registry import ToolRegistry
+
             self.tools = ToolRegistry.get_tools(memory=self.memory)
         else:
             self.tools = tools
-            
+
         # Add recall tool if memory enabled
         if self.memory:
             from cogency.tools.recall import Recall
+
             if not any(isinstance(tool, Recall) for tool in self.tools):
                 self.tools.append(Recall(self.memory))
-        
+
         # Agent personality
         self.system_prompt = prompt or DEFAULT_SYSTEM_PROMPT
         self.identity = identity or ""
         self.json_schema = output_schema
-        
+
         # State management
         self.user_states: dict[str, State] = {}
         self.last_state: Optional[dict] = None  # Store for traces()
 
         # Create phase instances with injected dependencies - zero ceremony
-
 
         self.preprocess_phase = Preprocess(
             llm=self.llm,
@@ -134,15 +132,9 @@ class Agent:
             json_schema=self.json_schema,
         )
 
-        # MCP server setup if enabled
-        if mcp:
-            try:
-                from cogency.mcp.server import MCPServer
-                self.mcp_server: Optional[Any] = MCPServer(self)
-            except ImportError as e:
-                raise ImportError("MCP package required for mcp=True") from e
-        else:
-            self.mcp_server: Optional[Any] = None
+        # Setup MCP server
+        from cogency.mcp.server import setup_mcp
+        self.mcp_server = setup_mcp(self, mcp)
 
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution"""
@@ -241,6 +233,36 @@ class Agent:
             return self.last_state
         return []
 
+    async def cleanup(self) -> None:
+        """Clean up resources - call this when done with the agent"""
+        # Cleanup MCP server
+        if self.mcp_server:
+            # MCP servers don't have explicit cleanup, but we can clear the reference
+            self.mcp_server = None
+            
+        # Cleanup memory backend if it has cleanup method
+        if self.memory and hasattr(self.memory, 'cleanup'):
+            await self.memory.cleanup()
+            
+        # Cleanup LLM if it has cleanup method  
+        if self.llm and hasattr(self.llm, 'cleanup'):
+            await self.llm.cleanup()
+            
+        # Cleanup persistence backend
+        if self.persistence and hasattr(self.persistence, 'cleanup'):
+            await self.persistence.cleanup()
+            
+        # Clear user states
+        self.user_states.clear()
+        
+    async def __aenter__(self):
+        """Async context manager entry"""
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit with cleanup"""
+        await self.cleanup()
+
     async def serve_mcp(
         self, transport: str = "stdio", host: str = "localhost", port: int = 8765
     ) -> None:
@@ -254,6 +276,5 @@ class Agent:
             await self.mcp_server.serve_websocket(host, port)
         else:
             raise ValueError(f"Unsupported transport: {transport}")
-
 
 __all__ = ["Agent", "State"]

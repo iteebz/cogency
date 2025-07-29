@@ -21,6 +21,7 @@ async def test_persistence_setup_in_agent():
         agent = Agent(name="test_agent", persistence=backend)
 
         from cogency.decorators import get_config
+
         config = get_config()
         assert config["persistence"] is not None
         assert isinstance(config["persistence"], StateManager)
@@ -31,6 +32,7 @@ async def test_persistence_setup_in_agent():
         agent_disabled = Agent(name="test_agent", persistence=None)
 
         from cogency.decorators import get_config
+
         config = get_config()
         assert config["persistence"] is None
 
@@ -70,9 +72,6 @@ async def test_get_state_utility():
 
     assert state2 is state  # Should be same object
     assert state2.query == "new query"  # Query updated
-
-
-
 
 
 @pytest.mark.asyncio

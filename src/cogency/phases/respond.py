@@ -28,7 +28,8 @@ class Respond(Phase):
 
 
 # Response prompt templates - clean and scannable
-FAILURE_PROMPT = """{identity}A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.
+FAILURE_PROMPT = """{identity}
+A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.
 
 USER QUERY: "{query}"
 
@@ -42,7 +43,8 @@ RESPONSE STRATEGY:
 - Maintain a helpful and solution-focused tone
 - Offer to retry with different parameters if applicable"""
 
-JSON_PROMPT = """{identity}Your goal is to generate a final response formatted as a JSON object.
+JSON_PROMPT = """{identity}
+Your goal is to generate a final response formatted as a JSON object.
 
 JSON RESPONSE FORMAT (required):
 {json_schema}
@@ -55,7 +57,8 @@ RESPONSE STRATEGY:
 - Ensure JSON is valid, complete, and properly formatted
 - Use tool results as evidence, synthesize don't just dump data"""
 
-TOOL_RESULTS_PROMPT = """{identity}Your goal is to generate a final, comprehensive response synthesizing the available information.
+TOOL_RESULTS_PROMPT = """{identity}
+Your goal is to generate a final, comprehensive response synthesizing the available information.
 
 USER QUERY: "{query}"
 
@@ -70,7 +73,8 @@ RESPONSE STRATEGY:
 - Reference conversation context when building on previous exchanges
 - Maintain conversational flow while being thorough"""
 
-KNOWLEDGE_PROMPT = """{identity}Your goal is to answer the user's question directly using your internal knowledge.
+KNOWLEDGE_PROMPT = """{identity}
+Your goal is to answer the user's question directly using your internal knowledge.
 
 USER QUERY: "{query}"
 

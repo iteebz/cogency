@@ -1,7 +1,6 @@
 """Agent @phase decorator - Unified composition of resilience + checkpointing + observability."""
 
 from functools import wraps
-from typing import Optional, Any
 
 from resilient_result import Retry
 from resilient_result import resilient as resilient_decorator
@@ -13,7 +12,7 @@ from cogency.resilience.checkpoint import checkpoint
 _config = {
     "robust": None,  # Robust config or None
     "observe": None,  # Observe config or None
-    "persistence": None  # Persistence backend or None
+    "perist": None,  # Persistejce backend or None
 }
 
 
@@ -49,11 +48,11 @@ def _auto_save(phase_name: str):
             result = await func(*args, **kwargs)
 
             # Auto-save only if persistence is configured and phase succeeded
-            if _config["persistence"] and result:
+            if _config["persist"] and result:
                 try:
                     state = args[0] if args else kwargs.get("state")
                     if state:
-                        await _config["persistence"].save(state)
+                        await _config["persist"].save(state)
                 except Exception:
                     # Don't fail the phase due to persistence issues
                     pass
@@ -150,33 +149,37 @@ def _observe_policy(phase_name: str):
 
 def _phase_factory(phase_name: str, interruptible: bool, default_retry):
     """Phase decorator factory that combines robust + observe based on config."""
-    
+
     def phase_decorator(**kwargs):
         def decorator(func):
             # Start with the original function
             result_func = func
-            
+
             # Apply robust behavior if enabled
             if _config["robust"]:
                 robust_policy = _policy(phase_name, interruptible, default_retry)
                 result_func = robust_policy(**kwargs)(result_func)
-            
+
             # Apply observability if enabled
             if _config["observe"]:
                 observe_policy = _observe_policy(phase_name)
                 result_func = observe_policy(**kwargs)(result_func)
-                
+
             return result_func
+
         return decorator
+
     return phase_decorator
 
 
 class _PhaseDecorators:
     """Unified @phase decorator with beautiful IDE autocomplete."""
-    
+
     reason = staticmethod(_phase_factory("reasoning", True, Retry.api()))
     act = staticmethod(_phase_factory("tool_execution", True, Retry.db()))
-    preprocess = staticmethod(_phase_factory("preprocessing", False, Retry(attempts=2, timeout=10.0)))
+    preprocess = staticmethod(
+        _phase_factory("preprocessing", False, Retry(attempts=2, timeout=10.0))
+    )
     respond = staticmethod(_phase_factory("response", False, Retry(attempts=2, timeout=15.0)))
     generic = staticmethod(_phase_factory("generic", True, None))
 
@@ -185,11 +188,11 @@ class _PhaseDecorators:
 phase = _PhaseDecorators()
 
 
-def configure_decorators(robust_config=None, observe_config=None, persistence_manager=None):
+def configure(robust=None, observe=None, persistence=None):
     """Configure @phase decorator behavior - called by Agent constructor."""
-    _config["robust"] = robust_config
-    _config["observe"] = observe_config  
-    _config["persistence"] = persistence_manager
+    _config["robust"] = robust
+    _config["observe"] = observe
+    _config["persistence"] = persistence
 
 
 def get_config():

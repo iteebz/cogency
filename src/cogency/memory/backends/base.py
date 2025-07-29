@@ -9,6 +9,9 @@ from resilient_result import Result, Retry, resilient
 from cogency.memory.core import Memory, MemoryType, SearchType
 from cogency.memory.search import search
 
+# Singleton instance for default memory backend
+_memory_instance = None
+
 
 class MemoryBackend(ABC):
     """Interface that all memory backends must implement."""
@@ -253,3 +256,18 @@ class BaseBackend(MemoryBackend):
     async def _embed(self, content: str) -> Optional[List[float]]:
         """Override for efficient embedding generation."""
         return None
+
+
+def setup_memory(memory):
+    """Setup memory backend with auto-detection."""
+    if memory is False:
+        return None
+    if memory is not None:
+        return memory
+    
+    # Auto-detect default singleton
+    global _memory_instance
+    if _memory_instance is None:
+        from cogency.memory.backends.filesystem import FileBackend
+        _memory_instance = FileBackend(".cogency/memory")
+    return _memory_instance

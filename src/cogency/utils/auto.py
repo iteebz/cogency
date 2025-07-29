@@ -87,27 +87,47 @@ def _scan_providers(module: str, names: list[str], suffix: str) -> dict:
     return providers
 
 
-def detect_llm():
-    """Auto-detect LLM from environment."""
-    providers = _scan_providers(
-        "cogency.services.llm", ["openai", "anthropic", "gemini", "xai", "mistral"], "LLM"
-    )
-    return detect_provider(providers, "LLM")
+# Simple singleton for LLM
+_llm_instance = None
+
+def setup_llm(llm):
+    """Setup LLM with auto-detection."""
+    if llm is not None:
+        return llm
+    
+    # Auto-detect singleton
+    global _llm_instance
+    if _llm_instance is None:
+        providers = _scan_providers(
+            "cogency.services.llm", ["openai", "anthropic", "gemini", "xai", "mistral"], "LLM"
+        )
+        _llm_instance = detect_provider(providers, "LLM")
+    return _llm_instance
 
 
-def detect_embedder():
-    """Auto-detect embedder from environment."""
-    providers = _scan_providers("cogency.services.embed", ["openai", "nomic", "mistral"], "Embed")
+# Simple singleton for embedder
+_embed_instance = None
 
-    try:
-        return detect_provider(providers, "embedding")
-    except RuntimeError:
-        # Fallback to local sentence transformers
+def setup_embed(embed):
+    """Setup embedding service with auto-detection."""
+    if embed is not None:
+        return embed
+        
+    # Auto-detect singleton
+    global _embed_instance
+    if _embed_instance is None:
+        providers = _scan_providers("cogency.services.embed", ["openai", "nomic", "mistral"], "Embed")
+
         try:
-            from cogency.services.embed.sentence import SentenceEmbed
-
-            return SentenceEmbed()
-        except ImportError:
-            raise RuntimeError(
-                "No embedding providers available. Install cogency[openai] or cogency[sentence-transformers]"
-            ) from None
+            _embed_instance = detect_provider(providers, "embedding")
+        except RuntimeError:
+            # Fallback to local sentence transformers
+            try:
+                from cogency.services.embed.sentence import SentenceEmbed
+                _embed_instance = SentenceEmbed()
+            except ImportError:
+                raise RuntimeError(
+                    "No embedding providers available. Install cogency[openai] or cogency[sentence-transformers]"
+                ) from None
+    
+    return _embed_instance

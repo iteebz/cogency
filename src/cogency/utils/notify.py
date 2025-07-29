@@ -20,14 +20,14 @@ async def notify(state: State, event_type: str, message: str) -> None:
 
     # Canonical phase notifications (verbose=True)
     phase_events = {"preprocess", "reason", "act", "respond"}
-    
+
     # Send phase notifications if notify enabled
     if event_type in phase_events and state.notify:
         if asyncio.iscoroutinefunction(state.callback):
             await state.callback(f"{event_type}: {message}")
         else:
             state.callback(f"{event_type}: {message}")
-    
+
     # Send debug notifications if debug enabled
     elif event_type == "trace" and state.debug:
         if asyncio.iscoroutinefunction(state.callback):
@@ -87,18 +87,24 @@ class Notifier:
 
         # Start execution in background
         from cogency.execution import run_agent
+        from cogency.phases.act import Act
         from cogency.phases.preprocess import Preprocess
         from cogency.phases.reason import Reason
-        from cogency.phases.act import Act
         from cogency.phases.respond import Respond
-        
+
         # Create phase instances with dependencies
-        preprocess_phase = Preprocess(self.llm, self.tools, self.memory, self.system_prompt, self.identity)
+        preprocess_phase = Preprocess(
+            self.llm, self.tools, self.memory, self.system_prompt, self.identity
+        )
         reason_phase = Reason(self.llm, self.tools, self.system_prompt, self.identity)
         act_phase = Act(self.llm, self.tools, self.system_prompt, self.identity)
-        respond_phase = Respond(self.llm, self.tools, self.system_prompt, self.identity, self.json_schema)
-        
-        task = asyncio.create_task(run_agent(self.state, preprocess_phase, reason_phase, act_phase, respond_phase))
+        respond_phase = Respond(
+            self.llm, self.tools, self.system_prompt, self.identity, self.json_schema
+        )
+
+        task = asyncio.create_task(
+            run_agent(self.state, preprocess_phase, reason_phase, act_phase, respond_phase)
+        )
 
         # Notification messages as they arrive
         try:

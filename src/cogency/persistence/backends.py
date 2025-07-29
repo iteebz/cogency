@@ -11,6 +11,9 @@ from typing import Any, Dict, List, Optional
 
 from cogency.state import State
 
+# Singleton instance for default persistence backend
+_persist_instance = None
+
 
 class StateBackend(ABC):
     """Interface for state persistence backends."""
@@ -136,3 +139,18 @@ class FileBackend(StateBackend):
             return result
         except Exception:
             return []
+
+
+def setup_persistence(persist):
+    """Setup persistence backend with auto-detection."""
+    if not persist:
+        return None
+    if hasattr(persist, 'backend'):  # It's a Persist config object
+        return persist
+    
+    # Auto-detect default singleton with Persist wrapper
+    from cogency.config import Persist
+    global _persist_instance
+    if _persist_instance is None:
+        _persist_instance = FileBackend()
+    return Persist(backend=_persist_instance)
