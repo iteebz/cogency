@@ -7,7 +7,7 @@ from cogency.state import State
 
 
 async def notify(state: State, event_type: str, message: str) -> None:
-    """Clean notification function - no coupling to state methods."""
+    """Clean notification function - separate verbose and trace channels."""
     notification_entry = {
         "event_type": event_type,
         "data": message,
@@ -15,13 +15,25 @@ async def notify(state: State, event_type: str, message: str) -> None:
     }
     state.notifications.append(notification_entry)
 
-    if state.callback and state.verbose and callable(state.callback):
-        import asyncio
+    if not state.callback or not callable(state.callback):
+        return
 
+    # Canonical phase notifications (verbose=True)
+    phase_events = {"preprocess", "reason", "act", "respond"}
+    
+    # Send phase notifications if verbose enabled
+    if event_type in phase_events and state.verbose:
         if asyncio.iscoroutinefunction(state.callback):
             await state.callback(f"{event_type}: {message}")
         else:
             state.callback(f"{event_type}: {message}")
+    
+    # Send trace notifications if trace enabled
+    elif event_type == "trace" and state.trace:
+        if asyncio.iscoroutinefunction(state.callback):
+            await state.callback(f"TRACE: {message}")
+        else:
+            state.callback(f"TRACE: {message}")
 
 
 def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:

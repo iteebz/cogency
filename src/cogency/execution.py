@@ -9,24 +9,26 @@ async def run_agent(state: State, preprocess_phase, reason_phase, act_phase, res
     # Preprocessing step - dependencies already injected
     await preprocess_phase(state)
 
-    # Main reasoning loop
-    while state.iteration < state.max_iterations:
-        # Reason about what to do
-        await reason_phase(state)
+    # Two execution paths: direct response OR ReAct loop
+    if not state.respond_directly:
+        # ReAct loop: reason until ready to respond
+        while state.iteration < state.max_iterations:
+            # Reason about what to do
+            await reason_phase(state)
 
-        # If no tools needed, break to response
-        if not state.tool_calls:
-            break
+            # If ready to respond, break to response
+            if not state.tool_calls:
+                break
 
-        # Execute tools
-        await act_phase(state)
+            # Act on the tools (execute them)
+            await act_phase(state)
 
-        # Increment iteration
-        state.iteration += 1
+            # Increment iteration after complete ReAct cycle
+            state.iteration += 1
 
-        # Check stop conditions
-        if state.stop_reason:
-            break
+            # Check stop conditions
+            if state.stop_reason:
+                break
 
-    # Generate final response
+    # Generate final response (both paths converge here)
     await respond_phase(state)
