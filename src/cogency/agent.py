@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, AsyncIterator, Dict, List, Literal, Optional, Union
 
 from cogency import decorators
@@ -92,6 +93,24 @@ class Agent:
         # Setup MCP server
         self.mcp_server = setup_mcp(self, mcp)
 
+    def _notify_cb(self, state: State):
+        """Create notification callback for phases."""
+        def notify(event_type: str, message: str):
+            asyncio.create_task(self._handle_notification(event_type, message, state))
+        return notify
+
+    async def _handle_notification(self, event_type: str, message: str, state: State) -> None:
+        """Handle notification with proper separation of concerns."""
+        if state.callback and state.notify:
+            await state.callback(message)
+        
+        # Store notification for debugging
+        state.notifications.append({
+            "event_type": event_type,
+            "message": message,
+            "iteration": state.iteration
+        })
+
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution"""
         # Input validation
@@ -151,6 +170,9 @@ class Agent:
             # Use simple execution loop with zero ceremony
             from cogency.execution import run_agent
 
+            # Create notify callback
+            notify = self._notify_cb(state)
+
             # Phase instances already have dependencies injected
             await run_agent(
                 state,
@@ -158,6 +180,7 @@ class Agent:
                 self.phases["reason"],
                 self.phases["act"],
                 self.phases["respond"],
+                notify,
             )
             self.last_state = state
 

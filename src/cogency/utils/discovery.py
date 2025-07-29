@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import importlib
 import pkgutil
-from typing import Callable, Dict, Optional, Type, TypeVar
+from typing import Callable, Dict, Type, TypeVar
 
 T = TypeVar("T")
 
@@ -17,8 +17,8 @@ class AutoRegistry:
         self,
         package_name: str,
         base_class: Type[T],
-        key_extractor: Optional[Callable[[str], str]] = None,
-        skip_modules: Optional[list[str]] = None,
+        key_extractor: Callable[[str], str] | None = None,
+        skip_modules: list[str] | None = None,
     ):
         """Initialize automagical discovery registry.
 
@@ -69,7 +69,7 @@ class AutoRegistry:
 
         self._discovered = True
 
-    def get(self, provider: Optional[str] = None) -> Type[T]:
+    def get(self, provider: str | None = None) -> Type[T]:
         """Get provider class by name."""
         self.discover()
 

@@ -6,8 +6,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from cogency.state import State
 from cogency.robust.checkpoint import Checkpoint, checkpoint, checkpointer
+from cogency.state import State
 
 
 @pytest.fixture

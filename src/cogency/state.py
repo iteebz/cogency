@@ -1,6 +1,5 @@
 """Cogency State - Zero ceremony, maximum beauty."""
 
-import asyncio
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
@@ -214,34 +213,6 @@ class State:
 
         return "\n".join(formatted)
 
-    async def notify(self, event_type: str, message: str) -> None:
-        """Clean notification method - separate verbose and trace channels."""
-        notification_entry = {
-            "event_type": event_type,
-            "data": message,
-            "iteration": self.iteration,
-        }
-        self.notifications.append(notification_entry)
-
-        if not self.callback or not callable(self.callback):
-            return
-
-        # Canonical phase notifications (verbose=True)
-        phase_events = {"preprocess", "reason", "act", "respond"}
-
-        # Send phase notifications if notify enabled
-        if event_type in phase_events and self.notify:
-            if asyncio.iscoroutinefunction(self.callback):
-                await self.callback(f"{event_type}: {message}")
-            else:
-                self.callback(f"{event_type}: {message}")
-
-        # Send debug notifications if debug enabled
-        elif event_type == "trace" and self.debug:
-            if asyncio.iscoroutinefunction(self.callback):
-                await self.callback(f"TRACE: {message}")
-            else:
-                self.callback(f"TRACE: {message}")
 
     def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:
         """Phase 3: Clean context assembly for reasoning with semantic compression."""

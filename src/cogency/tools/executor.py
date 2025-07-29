@@ -31,7 +31,7 @@ async def execute_single_tool(
 
 
 async def execute_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state
+    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notify=None
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
@@ -71,9 +71,8 @@ async def execute_tools(
                     )
                     tool_input = f"({first_val})"
 
-            from cogency.utils.notify import notify
-
-            await notify(state, "action", f"{tool_emoji} {tool_name}{tool_input}")
+            if notify:
+                notify("action", f"{tool_emoji} {tool_name}{tool_input}")
 
         try:
             result = await execute_single_tool(tool_name, tool_args, tools)
@@ -83,10 +82,8 @@ async def execute_tools(
                 # Use user-friendly error message
                 raw_error = tool_output.error or "Unknown error"
                 user_friendly_error = format_tool_error(actual_tool_name, Exception(raw_error))
-                if state:
-                    from cogency.utils.notify import notify
-
-                    await notify(state, "action", f"✗ {user_friendly_error}\n")
+                if notify:
+                    notify("action", f"✗ {user_friendly_error}\n")
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -112,9 +109,8 @@ async def execute_tools(
                             )
 
                     # Add success indicator to result
-                    from cogency.utils.notify import notify
-
-                    await notify(state, "action", f"✓ {readable_result}\n")
+                    if notify:
+                        notify("action", f"✓ {readable_result}\n")
 
                 success_result = {
                     "tool_name": actual_tool_name,
@@ -126,10 +122,8 @@ async def execute_tools(
         except Exception as e:
             # Use user-friendly error message
             user_friendly_error = format_tool_error(tool_name, e)
-            if state:
-                from cogency.utils.notify import notify
-
-                await notify(state, "action", f"✗ {user_friendly_error}")
+            if notify:
+                notify("action", f"✗ {user_friendly_error}")
             failure_result = {
                 "tool_name": tool_name,
                 "args": tool_args,
@@ -161,6 +155,6 @@ async def execute_tools(
     return final_result
 
 
-async def run_tools(tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state) -> Dict[str, Any]:
+async def run_tools(tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notify=None) -> Dict[str, Any]:
     """Execute tools."""
-    return await execute_tools(tool_calls, tools, state)
+    return await execute_tools(tool_calls, tools, state, notify)

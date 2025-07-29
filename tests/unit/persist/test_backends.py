@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.state import State
 from cogency.persist import FilesystemBackend
+from cogency.state import State
 
 
 class TestFilesystemBackend:

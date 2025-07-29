@@ -2,13 +2,11 @@
 
 from typing import Dict, List, Optional
 
-from cogency.state import State, phase
-
 # Removed LangGraph dependency
 from cogency.phases import Phase
 from cogency.services import LLM
+from cogency.state import State, phase
 from cogency.tools import Tool
-from cogency.utils import notify
 
 
 class Respond(Phase):
@@ -173,13 +171,15 @@ def format_tool_results(state: State) -> Optional[str]:
 @phase.respond()
 async def respond(
     state: State,
+    notify,
     llm: LLM,
     tools: List[Tool],
     identity: Optional[str] = None,
     output_schema: Optional[str] = None,
 ) -> None:
     """Respond: generate final formatted response with personality."""
-    await notify(state, "respond", "Generating response")
+    if notify:
+        notify("respond", "Generating response")
 
     # Collect all context upfront - no branching ceremony
     failures = collect_failures(state)
@@ -209,7 +209,8 @@ async def respond(
             else "I'm here to help. How can I assist you?"
         )
 
-    await notify(state, "respond", f"🤖: {response_text}")
+    if notify:
+        notify("respond", f"🤖: {response_text}")
 
     # Update state
     state.add_message("assistant", response_text)

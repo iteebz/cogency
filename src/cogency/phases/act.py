@@ -4,9 +4,10 @@ import logging
 import time
 from typing import List
 
+from cogency.phases import Phase
+
 # Tool retry logic now handled by @safe.act() decorator
 from cogency.state import State, phase
-from cogency.phases import Phase
 from cogency.tools import Tool, run_tools
 
 logger = logging.getLogger(__name__)
@@ -33,7 +34,7 @@ class Act(Phase):
 
 
 @phase.act()
-async def act(state: State, tools: List[Tool]) -> None:
+async def act(state: State, notify, tools: List[Tool]) -> None:
     """Act: execute tools based on reasoning decision."""
     time.time()
 
@@ -60,7 +61,7 @@ async def act(state: State, tools: List[Tool]) -> None:
     ]
 
     # Let @safe.act() handle all tool execution errors, retries, and recovery
-    tool_result = await run_tools(tool_tuples, selected_tools, state)
+    tool_result = await run_tools(tool_tuples, selected_tools, state, notify)
 
     print(f"act: tool_result.success: {tool_result.success}")
     print(f"act: tool_result.data: {tool_result.data}")

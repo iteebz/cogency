@@ -1,5 +1,7 @@
 """Beautiful recovery - Result-first phase recovery that reads like English."""
 
+from typing import Dict, Union
+
 from resilient_result import Result
 
 from cogency.state import State

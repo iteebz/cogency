@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from resilient_result import Result
 
-from cogency.state import State
 from cogency.phases.reason import reason
+from cogency.state import State
 from tests.conftest import MockLLM
 
 

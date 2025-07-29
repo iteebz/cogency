@@ -6,8 +6,8 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from resilient_result import Result, unwrap
 
-from cogency.state import State
 from cogency.phases.act import act
+from cogency.state import State
 from cogency.tools.base import Tool
 from cogency.types.tools import ToolOutcome
 

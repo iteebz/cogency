@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from cogency.state import State
 from cogency.persist.backends import StateBackend
 from cogency.persist.manager import StateManager
+from cogency.state import State
 
 
 class MockBackend(StateBackend):

@@ -3,13 +3,12 @@
 import asyncio
 from typing import List, Optional
 
-from cogency.state import State, phase
 from cogency.phases import Phase
 from cogency.phases.reasoning import parse_switch, prompt_reasoning, should_switch, switch_mode
 from cogency.services import LLM
+from cogency.state import State, phase
 from cogency.tools import Tool, build_registry
 from cogency.types.reasoning import Reasoning
-from cogency.utils.notify import notify
 from cogency.utils.parsing import parse_json_with_correction
 
 
@@ -98,6 +97,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
 @phase.reason()
 async def reason(
     state: State,
+    notify,
     llm: LLM,
     tools: List[Tool],
     identity: Optional[str] = None,
@@ -112,7 +112,8 @@ async def reason(
     if state.mode != mode:
         state.mode = mode
 
-    await notify(state, "reason", f"Starting {mode} mode reasoning")
+    if notify:
+        notify("reason", f"Starting {mode} mode reasoning")
 
     # Check stop conditions - pure logic, no ceremony
     if iteration >= state.depth:
@@ -141,14 +142,12 @@ async def reason(
     )
 
     # DEBUG: Show what LLM sees
-    if state.debug:
+    if state.debug and notify:
         if mode == "deep":
-            await notify(
-                state, "trace", f"Iteration {iteration}: deep mode with structured actions"
-            )
+            notify("trace", f"Iteration {iteration}: deep mode with structured actions")
         else:
             context = state.build_reasoning_context(mode)
-            await notify(state, "trace", f"Iteration {iteration}: context = '{context}'")
+            notify("trace", f"Iteration {iteration}: context = '{context}'")
 
     # Add optional identity prompt
     if identity:
@@ -171,32 +170,27 @@ async def reason(
     )
 
     # Display reasoning phases
-    if state.notify:
+    if state.notify and notify:
         if mode == "deep" and reasoning_response:
             if reasoning_response.thinking:
-                await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
+                notify("reason", f"💭 {reasoning_response.thinking}\n")
             if reasoning_response.reflect:
-                await notify(state, "reason", f"🤔 {reasoning_response.reflect}\n")
+                notify("reason", f"🤔 {reasoning_response.reflect}\n")
             if reasoning_response.plan:
-                await notify(state, "reason", f"📋 {reasoning_response.plan}\n")
+                notify("reason", f"📋 {reasoning_response.plan}\n")
         elif reasoning_response.thinking:
-            await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
+            notify("reason", f"💭 {reasoning_response.thinking}\n")
 
     # Handle mode switching - only if agent mode is "adapt"
     agent_mode = getattr(state, "agent_mode", "adapt")
     if agent_mode == "adapt":
         switch_to, switch_why = parse_switch(raw_response)
         if should_switch(mode, switch_to, switch_why, iteration):
-            if state.debug:
-                await notify(
-                    state,
-                    "trace",
-                    f"Mode switch: {mode} → {switch_to} ({switch_why})",
-                    node="reason",
-                )
+            if state.debug and notify:
+                notify("trace", f"Mode switch: {mode} → {switch_to} ({switch_why})")
             state = switch_mode(state, switch_to, switch_why)
-    elif state.debug:
-        await notify(state, "trace", f"Mode switching disabled (agent mode: {agent_mode})")
+    elif state.debug and notify:
+        notify("trace", f"Mode switching disabled (agent mode: {agent_mode})")
 
     # Update reasoning state
     tool_calls = reasoning_response.tool_calls

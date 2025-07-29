@@ -3,9 +3,9 @@
 import pytest
 from resilient_result import Result
 
-from cogency.state import State
 from cogency.phases.respond import prompt_response, respond
 from cogency.services import get_cache
+from cogency.state import State
 from tests.conftest import MockLLM, create_mock_llm
 
 

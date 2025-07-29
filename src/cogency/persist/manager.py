@@ -2,8 +2,8 @@
 
 from typing import Optional
 
-from cogency.state import State
 from cogency.persist import FileBackend, StateBackend
+from cogency.state import State
 
 
 class StateManager:

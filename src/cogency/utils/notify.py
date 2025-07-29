@@ -1,7 +1,10 @@
 """Notification orchestration utilities."""
 
 import asyncio
-from typing import AsyncIterator, Optional
+from typing import TYPE_CHECKING, AsyncIterator, Optional
+
+if TYPE_CHECKING:
+    from cogency.state import State
 
 
 def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:
@@ -19,7 +22,7 @@ def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:
 class Notifier:
     """Manages notifications for agent flows."""
 
-    def __init__(self, state: State, phases: dict, trace: bool = False, verbose: bool = True):
+    def __init__(self, state: "State", phases: dict, trace: bool = False, verbose: bool = True):
         self.state = state
         self.phases = phases
         self.trace = trace

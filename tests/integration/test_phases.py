@@ -5,9 +5,9 @@ from unittest.mock import AsyncMock
 import pytest
 from resilient_result import Result
 
-from cogency.state import State
 from cogency.phases.act import act
 from cogency.phases.respond import respond
+from cogency.state import State
 from cogency.tools.base import Tool
 from cogency.tools.executor import execute_single_tool
 from cogency.types.tools import ToolOutcome

@@ -6,9 +6,9 @@ from typing import AsyncIterator
 import pytest
 from resilient_result import Result
 
-from cogency.state import State
 from cogency.memory import FilesystemBackend
 from cogency.services.llm import LLM
+from cogency.state import State
 from cogency.tools.base import Tool
 
 

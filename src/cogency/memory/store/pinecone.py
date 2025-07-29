@@ -8,10 +8,10 @@ from datetime import datetime
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from pinecone import Pinecone as PineconeClient
 from resilient_result import Err, Ok, Result
 
 from cogency.memory import Memory, MemoryType, SearchType, Store
-from pinecone import Pinecone as PineconeClient
 
 logger = logging.getLogger(__name__)
 

@@ -3,25 +3,25 @@
 from cogency.state import State
 
 
-async def run_agent(state: State, preprocess_phase, reason_phase, act_phase, respond_phase) -> None:
+async def run_agent(state: State, preprocess_phase, reason_phase, act_phase, respond_phase, notify=None) -> None:
     """Simple execution loop using phase instances with injected dependencies."""
 
     # Preprocessing step - dependencies already injected
-    await preprocess_phase(state)
+    await preprocess_phase(state, notify)
 
     # Two execution paths: direct response OR ReAct loop
     if not state.respond_directly:
         # ReAct loop: reason until ready to respond
         while state.iteration < state.depth:
             # Reason about what to do
-            await reason_phase(state)
+            await reason_phase(state, notify)
 
             # If ready to respond, break to response
             if not state.tool_calls:
                 break
 
             # Act on the tools (execute them)
-            await act_phase(state)
+            await act_phase(state, notify)
 
             # Increment iteration after complete ReAct cycle
             state.iteration += 1
@@ -31,4 +31,4 @@ async def run_agent(state: State, preprocess_phase, reason_phase, act_phase, res
                 break
 
     # Generate final response (both paths converge here)
-    await respond_phase(state)
+    await respond_phase(state, notify)

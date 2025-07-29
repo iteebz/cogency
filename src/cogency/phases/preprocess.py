@@ -4,10 +4,10 @@ from typing import List, Optional
 
 from resilient_result import unwrap
 
-from cogency.state import State, phase
 from cogency.memory import Store
 from cogency.phases import Phase
 from cogency.services import LLM
+from cogency.state import State, phase
 from cogency.tools import Tool, build_registry
 from cogency.types.preprocessed import Preprocessed
 from cogency.utils import is_simple_query, parse_json
@@ -30,6 +30,7 @@ class Preprocess(Phase):
 @phase.preprocess()
 async def preprocess(
     state: State,
+    notify,
     llm: LLM,
     tools: List[Tool],
     memory: Store,
@@ -49,8 +50,8 @@ async def preprocess(
         # Skip preprocessing state - no ceremony
 
         # Debug for dev tracing
-        if state.debug:
-            await state.notify("trace", f"Built tool registry with {len(tools)} tools")
+        if state.debug and notify:
+            notify("trace", f"Built tool registry with {len(tools)} tools")
 
         # Pragmatic heuristic: Simple queries likely don't need deep reasoning
         suggested_mode = "fast" if is_simple_query(query) else None
@@ -122,7 +123,8 @@ Example:
                 output_content = f"{memory_content[:break_point]}..."
             else:
                 output_content = memory_content
-            await notify(state, "preprocess", f"Saved: {output_content}")
+            if notify:
+                notify("preprocess", f"Saved: {output_content}")
 
             # Save memory directly - no ceremony
             if memory_content:
@@ -164,19 +166,11 @@ Example:
         if filtered_tools:
             if len(filtered_tools) < len(tools):
                 # Show smart filtering in traces
-                if state.debug:
-                    await notify(
-                        state,
-                        "trace",
-                        f"Selected tools: {', '.join([t.name for t in filtered_tools])}",
-                    )
-            elif len(filtered_tools) > 1 and state.trace:
+                if state.debug and notify:
+                    notify("trace", f"Selected tools: {', '.join([t.name for t in filtered_tools])}")
+            elif len(filtered_tools) > 1 and state.trace and notify:
                 # Show tools being prepared for ReAct in traces
-                await notify(
-                    state,
-                    "trace",
-                    f"Preparing tools: {', '.join([t.name for t in filtered_tools])}",
-                )
+                notify("trace", f"Preparing tools: {', '.join([t.name for t in filtered_tools])}")
     else:
         # Simple case: no tools available, respond directly
         filtered_tools = []  # No tools to filter if initial 'tools' list is empty
