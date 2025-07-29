@@ -5,19 +5,18 @@ from typing import Any, Dict
 
 from resilient_result import Result
 
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CalculatorParams:
+class CalculatorArgs:
     expression: str
 
 
 @tool
-class Calculator(BaseTool):
+class Calculator(Tool):
     # Clean template-based formatting
     human_template = "= {result}"
     agent_template = "{expression} = {result}"
@@ -28,7 +27,7 @@ class Calculator(BaseTool):
             name="calculator",
             description="Evaluate mathematical expressions with support for +, -, *, /, √, parentheses",
             emoji="🧮",
-            params=CalculatorParams,
+            params=CalculatorArgs,
             examples=[
                 "calculator(expression='450 + 120*3')",
                 "calculator(expression='√64')",

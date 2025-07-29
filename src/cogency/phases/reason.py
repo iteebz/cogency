@@ -3,30 +3,19 @@
 import asyncio
 from typing import List, Optional
 
-from cogency.constants import ADAPT_REACT
-from cogency.decorators import phase
-from cogency.phases.base import Phase
-from cogency.phases.reasoning import (
-    parse_switch,
-    should_switch,
-    switch_mode,
-)
-from cogency.phases.reasoning.prompt import prompt_reasoning
-from cogency.services.llm import BaseLLM
-from cogency.state import State
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import build_registry
+from cogency.state import State, phase
+from cogency.phases import Phase
+from cogency.phases.reasoning import parse_switch, prompt_reasoning, should_switch, switch_mode
+from cogency.services import LLM
+from cogency.tools import Tool, build_registry
 from cogency.types.reasoning import Reasoning
 from cogency.utils.notify import notify
 from cogency.utils.parsing import parse_json_with_correction
 
 
 class Reason(Phase):
-    def __init__(self, llm, tools, system_prompt=None, identity=None, adapt=True):
-        super().__init__(
-            reason, llm=llm, tools=tools, system_prompt=system_prompt, identity=identity
-        )
-        self.adapt = adapt
+    def __init__(self, llm, tools, identity=None):
+        super().__init__(reason, llm=llm, tools=tools, identity=identity)
 
     def next_phase(self, state: State) -> str:
         return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
@@ -109,23 +98,21 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
 @phase.reason()
 async def reason(
     state: State,
-    llm: BaseLLM,
-    tools: List[BaseTool],
-    system_prompt: Optional[str] = None,
+    llm: LLM,
+    tools: List[Tool],
     identity: Optional[str] = None,
-    adapt: bool = True,
 ) -> None:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
     # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools or []
-    react_mode = state.react_mode
+    mode = state.mode
     iteration = state.iteration
 
     # Set react mode if different from current
-    if state.react_mode != react_mode:
-        state.react_mode = react_mode
+    if state.mode != mode:
+        state.mode = mode
 
-    await notify(state, "reason", f"Starting {react_mode} mode reasoning")
+    await notify(state, "reason", f"Starting {mode} mode reasoning")
 
     # Check stop conditions - pure logic, no ceremony
     if iteration >= state.depth:
@@ -141,33 +128,31 @@ async def reason(
     tool_registry = build_registry(selected_tools)
 
     # Phase 2B/3: Use clean context assembly
-    context = state.build_reasoning_context(react_mode, max_history=3)
+    context = state.build_reasoning_context(mode, max_history=3)
 
     reasoning_prompt = prompt_reasoning(
-        mode=react_mode,
+        mode=mode,
         tool_registry=tool_registry,
         query=state.query,
         context=context,
         iteration=iteration,
         depth=state.depth,
-        current_approach=state.situation_summary.get("current_approach", "initial"),
+        summary=state.summary,
     )
 
     # DEBUG: Show what LLM sees
     if state.debug:
-        if react_mode == "deep":
+        if mode == "deep":
             await notify(
                 state, "trace", f"Iteration {iteration}: deep mode with structured actions"
             )
         else:
-            context = state.build_reasoning_context(react_mode)
+            context = state.build_reasoning_context(mode)
             await notify(state, "trace", f"Iteration {iteration}: context = '{context}'")
 
-    # Add optional prompts
+    # Add optional identity prompt
     if identity:
         reasoning_prompt = f"{identity}\n\n{reasoning_prompt}"
-    if system_prompt:
-        reasoning_prompt = f"{system_prompt}\n\n{reasoning_prompt}"
 
     messages.insert(0, {"role": "system", "content": reasoning_prompt})
 
@@ -187,7 +172,7 @@ async def reason(
 
     # Display reasoning phases
     if state.notify:
-        if react_mode == "deep" and reasoning_response:
+        if mode == "deep" and reasoning_response:
             if reasoning_response.thinking:
                 await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
             if reasoning_response.reflect:
@@ -197,21 +182,21 @@ async def reason(
         elif reasoning_response.thinking:
             await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
 
-    # Handle mode switching (check both global and instance flags)
-    if ADAPT_REACT and adapt:
+    # Handle mode switching - only if agent mode is "adapt"
+    agent_mode = getattr(state, "agent_mode", "adapt")
+    if agent_mode == "adapt":
         switch_to, switch_why = parse_switch(raw_response)
-        if should_switch(react_mode, switch_to, switch_why, iteration):
+        if should_switch(mode, switch_to, switch_why, iteration):
             if state.debug:
                 await notify(
                     state,
                     "trace",
-                    f"Mode switch: {react_mode} → {switch_to} ({switch_why})",
+                    f"Mode switch: {mode} → {switch_to} ({switch_why})",
                     node="reason",
                 )
             state = switch_mode(state, switch_to, switch_why)
     elif state.debug:
-        reason = "ADAPT_REACT=False" if not ADAPT_REACT else "adapt=False (agent flag)"
-        await notify(state, "trace", f"Mode switching disabled ({reason})")
+        await notify(state, "trace", f"Mode switching disabled (agent mode: {agent_mode})")
 
     # Update reasoning state
     tool_calls = reasoning_response.tool_calls
@@ -230,16 +215,16 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
     if tool_calls:
         # Get the current action to update with compression fields
         state.add_action(
-            mode=state.react_mode,
+            mode=state.mode,
             thinking=reasoning_response.thinking or "",
             planning=getattr(reasoning_response, "plan", "") or "",
             reflection=getattr(reasoning_response, "reflect", "") or "",
-            approach=state.current_approach,
+            approach=state.summary.get("current_approach", ""),
             tool_calls=tool_calls,
         )
 
-        # Semantic context summarization: merge summary_update into situation_summary
+        # Semantic context summarization: merge summary_update into summary
         if reasoning_response.summary_update:
             for key, value in reasoning_response.summary_update.items():
-                if key in state.situation_summary and value.strip():
-                    state.situation_summary[key] = value
+                if key in state.summary and value.strip():
+                    state.summary[key] = value

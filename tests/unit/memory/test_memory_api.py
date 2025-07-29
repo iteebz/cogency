@@ -2,8 +2,8 @@
 
 import pytest
 
+from cogency.memory import FilesystemBackend, Store
 from cogency.memory.api import Memory
-from cogency.memory.backends.base import MemoryBackend
 
 
 class TestMemoryAPI:
@@ -11,7 +11,7 @@ class TestMemoryAPI:
         """Test that default filesystem backend is created."""
         backend = Memory.create()
 
-        assert isinstance(backend, MemoryBackend)
+        assert isinstance(backend, Store)
         # FileBackend should be the default
         assert backend.__class__.__name__ == "FileBackend"
 
@@ -19,7 +19,7 @@ class TestMemoryAPI:
         """Test backend creation with custom config."""
         backend = Memory.create("filesystem", memory_dir="/tmp/test")
 
-        assert isinstance(backend, MemoryBackend)
+        assert isinstance(backend, Store)
         assert backend.__class__.__name__ == "FileBackend"
         # Config should be passed through
         assert hasattr(backend, "memory_dir")
@@ -41,7 +41,7 @@ class TestMemoryAPI:
         # Should work with no arguments
         memory = Memory.create()
         assert memory is not None
-        assert isinstance(memory, MemoryBackend)
+        assert isinstance(memory, Store)
 
     def test_config_passthrough(self):
         """Test that configuration is passed through correctly."""
@@ -54,7 +54,7 @@ class TestMemoryAPI:
         assert backend.embedder == mock_embedder
 
 
-class TestMemoryBackendTypes:
+class TestStoreTypes:
     """Test that different backend types can be instantiated."""
 
     def test_filesystem_backend(self):

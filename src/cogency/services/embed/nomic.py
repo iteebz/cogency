@@ -4,15 +4,14 @@ from typing import Optional, Union
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from cogency.resilience import ConfigError
-from cogency.utils.keys import KeyManager
+from cogency.utils import KeyManager
 
-from .base import BaseEmbed
+from .base import Embed
 
 logger = logging.getLogger(__name__)
 
 
-class NomicEmbed(BaseEmbed):
+class Nomic(Embed):
     """Nomic embedding provider with key rotation."""
 
     def __init__(self, api_keys: Union[str, list[str]] = None, **kwargs):
@@ -52,7 +51,7 @@ class NomicEmbed(BaseEmbed):
         """Initialize Nomic API connection if not already done"""
         if not self._initialized:
             if not self.api_key:
-                raise ConfigError("NOMIC_API_KEY required for NomicEmbed", error_code="NO_API_KEY")
+                raise ValueError("NOMIC_API_KEY required for NomicEmbed")
 
             try:
                 import nomic

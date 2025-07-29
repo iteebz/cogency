@@ -1,19 +1,14 @@
 import logging
 from typing import AsyncIterator, Dict, List
 
-try:
-    import anthropic
-except ImportError:
-    raise ImportError(
-        "Anthropic support not installed. Use `pip install cogency[anthropic]`"
-    ) from None
+import anthropic
 
-from cogency.services.llm.base import BaseLLM
+from cogency.services import LLM
 
 logger = logging.getLogger(__name__)
 
 
-class AnthropicLLM(BaseLLM):
+class Anthropic(LLM):
     def __init__(self, **kwargs):
         super().__init__("anthropic", **kwargs)
 

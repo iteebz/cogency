@@ -1,27 +1,11 @@
-import contextlib
-import importlib
-from pathlib import Path
-from typing import Any, Dict
-
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import build_registry, get_tools, tool
-
-# Auto-discover tools by importing all tool modules and collect exported classes
-_tools_dir = Path(__file__).parent
-_exported_classes: Dict[str, Any] = {}
-
-for tool_file in _tools_dir.glob("*.py"):
-    if tool_file.name not in ["__init__.py", "base.py", "registry.py", "executor.py"]:
-        module_name = f"cogency.tools.{tool_file.stem}"
-        with contextlib.suppress(ImportError):
-            module = importlib.import_module(module_name)
-            # Export tool classes that are decorated with @tool
-            for attr_name in dir(module):
-                attr = getattr(module, attr_name)
-                if isinstance(attr, type) and issubclass(attr, BaseTool) and attr is not BaseTool:
-                    _exported_classes[attr_name] = attr
+from cogency.tools.base import Tool
+from cogency.tools.executor import run_tools
+from cogency.tools.registry import build_registry, get_tool_classes, get_tools, setup_tools, tool
 
 # Make tool classes available for direct import
+_exported_classes = get_tool_classes()
 globals().update(_exported_classes)
 
-__all__ = ["BaseTool", "get_tools", "build_registry", "tool"] + list(_exported_classes.keys())
+__all__ = ["Tool", "get_tools", "build_registry", "tool", "setup_tools", "run_tools"] + list(
+    _exported_classes.keys()
+)

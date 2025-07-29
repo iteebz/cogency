@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 from resilient_result import Result
 
-from cogency.agent import Agent
+from cogency import Agent
 
 
 class MockLLM:

@@ -1,19 +1,27 @@
 """Agent @phase decorator - Unified composition of resilience + checkpointing + observability."""
 
+from dataclasses import dataclass, replace
 from functools import wraps
+from typing import Any, Optional
 
 from resilient_result import Retry
 from resilient_result import resilient as resilient_decorator
 
-from cogency.observation.metrics import counter, histogram, timer
-from cogency.resilience.checkpoint import checkpoint
+from cogency.observe import counter, histogram, timer
+from cogency.robust import checkpoint
+
+
+@dataclass
+class PhaseConfig:
+    """Configuration state for phase decorators - injected by Agent at runtime."""
+
+    robust: Optional[Any] = None
+    observe: Optional[Any] = None
+    persist: Optional[Any] = None
+
 
 # Phase decorator configuration - injected by Agent
-_config = {
-    "robust": None,  # Robust config or None
-    "observe": None,  # Observe config or None
-    "perist": None,  # Persistejce backend or None
-}
+_config = PhaseConfig()
 
 
 def _checkpoint(name: str, interruptible: bool = True):
@@ -48,11 +56,11 @@ def _auto_save(phase_name: str):
             result = await func(*args, **kwargs)
 
             # Auto-save only if persistence is configured and phase succeeded
-            if _config["persist"] and result:
+            if _config.persist and result:
                 try:
                     state = args[0] if args else kwargs.get("state")
                     if state:
-                        await _config["persist"].save(state)
+                        await _config.persist.save(state)
                 except Exception:
                     # Don't fail the phase due to persistence issues
                     pass
@@ -71,7 +79,7 @@ def _observe_metrics(phase_name: str):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Check if observability is enabled
-            if not _config["observe"]:
+            if not _config.observe:
                 # Pass-through decorator - no observability overhead
                 return await func(*args, **kwargs)
 
@@ -80,7 +88,7 @@ def _observe_metrics(phase_name: str):
             tags = {
                 "phase": phase_name,
                 "iteration": str(getattr(state, "iteration", 0)) if state else "0",
-                "react_mode": getattr(state, "react_mode", "unknown") if state else "unknown",
+                "mode": getattr(state, "mode", "unknown") if state else "unknown",
             }
 
             # Count phase executions
@@ -118,7 +126,7 @@ def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None
         retry = retry or default_retry or Retry.api()
 
         def decorator(func):
-            if not _config["robust"]:
+            if not _config.robust:
                 return func
 
             # 1. Apply resilience
@@ -156,12 +164,12 @@ def _phase_factory(phase_name: str, interruptible: bool, default_retry):
             result_func = func
 
             # Apply robust behavior if enabled
-            if _config["robust"]:
+            if _config.robust:
                 robust_policy = _policy(phase_name, interruptible, default_retry)
                 result_func = robust_policy(**kwargs)(result_func)
 
             # Apply observability if enabled
-            if _config["observe"]:
+            if _config.observe:
                 observe_policy = _observe_policy(phase_name)
                 result_func = observe_policy(**kwargs)(result_func)
 
@@ -190,18 +198,18 @@ phase = _PhaseDecorators()
 
 def configure(robust=None, observe=None, persistence=None):
     """Configure @phase decorator behavior - called by Agent constructor."""
-    _config["robust"] = robust
-    _config["observe"] = observe
-    _config["persistence"] = persistence
+    _config.robust = robust
+    _config.observe = observe
+    _config.persist = persistence
 
 
 def get_config():
     """Get current decorator configuration."""
-    return _config.copy()
+    return replace(_config)
 
 
 __all__ = [
     "phase",
-    "configure_decorators",
+    "configure",
     "get_config",
 ]

@@ -10,14 +10,13 @@ from typing import Any, Dict, Optional
 
 from resilient_result import Result
 
-from .base import BaseTool
-from .registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ShellParams:
+class ShellArgs:
     command: str
     timeout: int = 30
     working_dir: Optional[str] = None
@@ -25,7 +24,7 @@ class ShellParams:
 
 
 @tool
-class Shell(BaseTool):
+class Shell(Tool):
     """Execute system commands safely with timeout and basic sandboxing."""
 
     def __init__(self, default_working_dir: str = "sandbox"):
@@ -33,7 +32,7 @@ class Shell(BaseTool):
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
             emoji="💻",
-            params=ShellParams,
+            params=ShellArgs,
             examples=[
                 "shell(command='ls -la')",
                 "shell(command='pwd')",
@@ -225,7 +224,7 @@ class Shell(BaseTool):
         self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format shell execution for display."""
-        from cogency.utils.formatting import truncate
+        from cogency.utils import truncate
 
         cmd = params.get("command", "")
         param_str = f"({truncate(cmd, 35)})" if cmd else ""

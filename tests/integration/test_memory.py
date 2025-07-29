@@ -2,8 +2,8 @@
 
 import pytest
 
-from cogency.memory.backends.filesystem import FileBackend
-from cogency.memory.core import MemoryType, SearchType
+from cogency.memory import FilesystemBackend
+from cogency.memory.types import MemoryType, SearchType
 
 
 @pytest.mark.asyncio
@@ -77,11 +77,11 @@ async def test_persistence(tmp_path):
     temp_memory_dir = tmp_path / "memory"
     temp_memory_dir.mkdir()
 
-    backend1 = FileBackend(memory_dir=str(temp_memory_dir))
+    backend1 = FilesystemBackend(memory_dir=str(temp_memory_dir))
     create_result = await backend1.create("persistent memory test")
     assert create_result.success
 
-    backend2 = FileBackend(memory_dir=str(temp_memory_dir))
+    backend2 = FilesystemBackend(memory_dir=str(temp_memory_dir))
     read_result = await backend2.read(query="persistent memory")
     assert read_result.success
     results = read_result.data

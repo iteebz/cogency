@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.phases.reasoning.prompt import prompt_reasoning
+from cogency.phases import prompt_reasoning
 
 
 def test_deep_mode_prompt_generation():

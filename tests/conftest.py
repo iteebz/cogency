@@ -6,13 +6,13 @@ from typing import AsyncIterator
 import pytest
 from resilient_result import Result
 
-from cogency.memory.backends.filesystem import FileBackend
-from cogency.services.llm.base import BaseLLM
 from cogency.state import State
-from cogency.tools.base import BaseTool
+from cogency.memory import FilesystemBackend
+from cogency.services.llm import LLM
+from cogency.tools.base import Tool
 
 
-class MockLLM(BaseLLM):
+class MockLLM(LLM):
     """Mock LLM for testing."""
 
     def __init__(
@@ -69,7 +69,7 @@ def temp_dir():
 @pytest.fixture
 def memory_service(temp_dir):
     """Filesystem memory backend."""
-    return FileBackend(memory_dir=temp_dir)
+    return FilesystemBackend(memory_dir=temp_dir)
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ def agent_state():
 def tools():
     """Mock tools fixture for testing."""
 
-    class MockTool(BaseTool):
+    class MockTool(Tool):
         def __init__(self):
             super().__init__(
                 name="mock_tool",
@@ -166,7 +166,7 @@ def base_agent():
 def mock_tool():
     """Mock tool for testing."""
 
-    class MockTool(BaseTool):
+    class MockTool(Tool):
         def __init__(self):
             super().__init__(
                 name="mock_tool",

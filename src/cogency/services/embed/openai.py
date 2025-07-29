@@ -1,19 +1,15 @@
 from typing import Union
 
 import numpy as np
+import openai
 from resilient_result import Err, Ok, Result
 
-try:
-    import openai
-except ImportError:
-    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`") from None
+from cogency.utils import KeyManager
 
-from cogency.utils.keys import KeyManager
-
-from .base import BaseEmbed
+from .base import Embed
 
 
-class OpenAIEmbed(BaseEmbed):
+class OpenAIEmbed(Embed):
     """OpenAI embedding provider with key rotation."""
 
     def __init__(

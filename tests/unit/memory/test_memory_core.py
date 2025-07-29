@@ -3,7 +3,7 @@
 import time
 from datetime import UTC, datetime
 
-from cogency.memory.core import Memory, MemoryType
+from cogency.memory.types import Memory, MemoryType
 
 
 def test_memory_creation():

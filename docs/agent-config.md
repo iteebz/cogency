@@ -42,7 +42,7 @@ class Robust:
     ckpt_dir: Optional[str] = None
 
 # Usage
-from cogency.config import Robust
+from cogency import Robust
 
 # Simple - change one thing
 agent = Agent(robust=Robust(attempts=10))
@@ -75,7 +75,7 @@ class Observe:
     export_endpoint: Optional[str] = None
 
 # Usage
-from cogency.config import Observe
+from cogency import Observe
 
 agent = Agent(observe=Observe(
     metrics=True,
@@ -94,7 +94,7 @@ class Persist:
     backend: Optional[Any] = None  # Backend instance (e.g., FileBackend)
 
 # Usage
-from cogency.config import Persist
+from cogency import Persist
 
 agent = Agent(persist=Persist(
     enabled=True,
@@ -106,7 +106,7 @@ agent = Agent(persist=Persist(
 
 ### Production Configuration
 ```python
-from cogency.config import Robust, Observe
+from cogency import Robust, Observe
 
 agent = Agent(
     "production-agent",
@@ -131,7 +131,7 @@ agent = Agent(
 
 ### Development Configuration
 ```python
-from cogency.config import Robust
+from cogency import Robust
 
 # Faster iteration, more aggressive checkpointing
 agent = Agent(

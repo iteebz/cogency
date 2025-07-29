@@ -3,14 +3,15 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from cogency.tools.base import BaseTool, Result
-from cogency.tools.registry import tool
+from resilient_result import Result
+
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class FilesParams:
+class FilesArgs:
     action: str
     filename: str = ""  # Default to empty for list action
     content: Optional[str] = None
@@ -20,7 +21,7 @@ class FilesParams:
 
 
 @tool
-class Files(BaseTool):
+class Files(Tool):
     """File operations within a safe base directory."""
 
     # Template-based formatting - shows action and filename
@@ -31,7 +32,7 @@ class Files(BaseTool):
             name="files",
             description="Create, read, edit and manage complete code files with full implementations.",
             emoji="📁",
-            params=FilesParams,
+            params=FilesArgs,
             examples=[
                 "files(action='create', filename='app.py', content='from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\"/\")\\nasync def root():\\n    return {\"message\": \"Hello World\"}')",
                 "files(action='create', filename='models.py', content='from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None')",

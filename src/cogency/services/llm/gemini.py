@@ -1,16 +1,11 @@
 from typing import AsyncIterator, Dict, List
 
-try:
-    import google.genai as genai
-except ImportError:
-    raise ImportError(
-        "Google Gemini support not installed. Use `pip install google-genai`"
-    ) from None
+import google.genai as genai
 
-from cogency.services.llm.base import BaseLLM
+from cogency.services import LLM
 
 
-class GeminiLLM(BaseLLM):
+class Gemini(LLM):
     def __init__(self, **kwargs):
         super().__init__("gemini", **kwargs)
 

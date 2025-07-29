@@ -6,10 +6,10 @@ import pytest
 from resilient_result import Result
 
 from cogency.phases.reason import format_actions
-from cogency.tools.base import BaseTool
+from cogency.tools.base import Tool
 
 
-class MockTool(BaseTool):
+class MockTool(Tool):
     def __init__(self, name: str):
         super().__init__(name=name, description="test tool", emoji="🔧")
 

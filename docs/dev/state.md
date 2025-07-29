@@ -20,7 +20,7 @@ class State:
     # Flow control  
     iteration: int = 0
     depth: int = DEFAULT_MAX_DEPTH
-    react_mode: str = "fast"
+    mode: str = "fast"
     stop_reason: Optional[str] = None
     
     # Tool execution
@@ -34,7 +34,7 @@ class State:
     current_approach: str = "initial"
     
     # SEMANTIC CONTEXT SUMMARIZATION - The canonical solution
-    situation_summary: Dict[str, str] = field(default_factory=lambda: {
+    summary: Dict[str, str] = field(default_factory=lambda: {
         "goal": "",           # What is the main objective?
         "progress": "",       # What has been accomplished so far?
         "current_approach": "",  # What strategy are we using?
@@ -70,10 +70,10 @@ action_entry = {
             "args": dict,
             "result": str,        # Truncated to ~1000 chars
             "outcome": str,       # ToolOutcome enum value
-            # NO per-tool compression fields - handled by situation_summary
+            # NO per-tool compression fields - handled by summary
         }
     ],
-    # NO iteration-level compression fields - handled by situation_summary
+    # NO iteration-level compression fields - handled by summary
 }
 ```
 
@@ -82,10 +82,10 @@ action_entry = {
 ### Primary: Semantic Context
 ```python
 def get_compressed_attempts(self, max_history: int = 3) -> List[str]:
-    """Use situation_summary for intelligent context vs primitive truncation."""
-    if any(v.strip() for v in self.situation_summary.values()):
+    """Use summary for intelligent context vs primitive truncation."""
+    if any(v.strip() for v in self.summary.values()):
         summary_parts = []
-        for key, value in self.situation_summary.items():
+        for key, value in self.summary.items():
             if value.strip():
                 summary_parts.append(f"{key}: {value}")
         return ["; ".join(summary_parts)] if summary_parts else []
@@ -135,8 +135,8 @@ def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:
 # In reason.py - merge LLM updates into persistent summary:
 if reasoning_response.summary_update:
     for key, value in reasoning_response.summary_update.items():
-        if key in state.situation_summary and value.strip():
-            state.situation_summary[key] = value
+        if key in state.summary and value.strip():
+            state.summary[key] = value
 ```
 
 ## Key Design Decisions
@@ -147,7 +147,7 @@ if reasoning_response.summary_update:
 - Natural language synthesis vs brittle heuristics
 
 **2. Single Source of Truth**
-- `situation_summary` handles all context compression
+- `summary` handles all context compression
 - No redundant per-tool or per-iteration fields
 - Clean separation: actions for debugging, summary for reasoning
 
@@ -170,7 +170,7 @@ if reasoning_response.summary_update:
 ## Obsolete Patterns - DO NOT USE
 
 ```python
-# OBSOLETE - handled by situation_summary
+# OBSOLETE - handled by summary
 "synthesis": "",
 "progress": "", 
 "hypothesis": {"belief": "", "test": ""},

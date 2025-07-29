@@ -3,38 +3,6 @@
 import asyncio
 from typing import AsyncIterator, Optional
 
-from cogency.state import State
-
-
-async def notify(state: State, event_type: str, message: str) -> None:
-    """Clean notification function - separate verbose and trace channels."""
-    notification_entry = {
-        "event_type": event_type,
-        "data": message,
-        "iteration": state.iteration,
-    }
-    state.notifications.append(notification_entry)
-
-    if not state.callback or not callable(state.callback):
-        return
-
-    # Canonical phase notifications (verbose=True)
-    phase_events = {"preprocess", "reason", "act", "respond"}
-
-    # Send phase notifications if notify enabled
-    if event_type in phase_events and state.notify:
-        if asyncio.iscoroutinefunction(state.callback):
-            await state.callback(f"{event_type}: {message}")
-        else:
-            state.callback(f"{event_type}: {message}")
-
-    # Send debug notifications if debug enabled
-    elif event_type == "trace" and state.debug:
-        if asyncio.iscoroutinefunction(state.callback):
-            await state.callback(f"TRACE: {message}")
-        else:
-            state.callback(f"TRACE: {message}")
-
 
 def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:
     """Format thinking content for display."""
@@ -51,25 +19,9 @@ def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:
 class Notifier:
     """Manages notifications for agent flows."""
 
-    def __init__(
-        self,
-        state: State,
-        llm,
-        tools,
-        memory,
-        system_prompt: str,
-        identity: str,
-        json_schema,
-        trace: bool = False,
-        verbose: bool = True,
-    ):
+    def __init__(self, state: State, phases: dict, trace: bool = False, verbose: bool = True):
         self.state = state
-        self.llm = llm
-        self.tools = tools
-        self.memory = memory
-        self.system_prompt = system_prompt
-        self.identity = identity
-        self.json_schema = json_schema
+        self.phases = phases
         self.trace = trace
         self.verbose = verbose
 
@@ -87,23 +39,15 @@ class Notifier:
 
         # Start execution in background
         from cogency.execution import run_agent
-        from cogency.phases.act import Act
-        from cogency.phases.preprocess import Preprocess
-        from cogency.phases.reason import Reason
-        from cogency.phases.respond import Respond
-
-        # Create phase instances with dependencies
-        preprocess_phase = Preprocess(
-            self.llm, self.tools, self.memory, self.system_prompt, self.identity
-        )
-        reason_phase = Reason(self.llm, self.tools, self.system_prompt, self.identity)
-        act_phase = Act(self.llm, self.tools, self.system_prompt, self.identity)
-        respond_phase = Respond(
-            self.llm, self.tools, self.system_prompt, self.identity, self.json_schema
-        )
 
         task = asyncio.create_task(
-            run_agent(self.state, preprocess_phase, reason_phase, act_phase, respond_phase)
+            run_agent(
+                self.state,
+                self.phases["preprocess"],
+                self.phases["reason"],
+                self.phases["act"],
+                self.phases["respond"],
+            )
         )
 
         # Notification messages as they arrive

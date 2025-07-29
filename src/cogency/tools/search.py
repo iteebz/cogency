@@ -6,27 +6,25 @@ from typing import Any, Dict, Optional
 from ddgs import DDGS
 from resilient_result import Result
 
-from cogency.resilience import ActionError
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class SearchParams:
+class SearchArgs:
     query: str
     max_results: int = 5
 
 
 @tool
-class Search(BaseTool):
+class Search(Tool):
     def __init__(self):
         super().__init__(
             name="search",
             description="Search the web using DuckDuckGo for current information and answers to questions.",
             emoji="🔍",
-            params=SearchParams,
+            params=SearchArgs,
             examples=[
                 "search(query='latest AI developments 2024')",
                 "search(query='Python async programming', max_results=3)",
@@ -59,11 +57,7 @@ class Search(BaseTool):
                 logger.warning(f"DDGS returned no results for query: {query}")
         except Exception as e:
             logger.error(f"DDGS search failed for query '{query}': {e}")
-            raise ActionError(
-                f"DuckDuckGo search failed: {str(e)}",
-                error_code="SEARCH_FAILED",
-                details={"query": query, "max_results": max_results},
-            ) from None
+            return Result.fail(f"DuckDuckGo search failed: {str(e)}")
         self._last_search_time = time.time()
         # Format results
         formatted_results = []

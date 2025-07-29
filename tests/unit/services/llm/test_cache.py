@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.services.llm.cache import LLMCache, cached_llm_call, configure_cache, get_cache
+from cogency.services import LLMCache, cached_llm_call, configure_cache, get_cache
 
 
 def test_creation():

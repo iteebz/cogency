@@ -1,14 +1,11 @@
 from typing import AsyncIterator, Dict, List
 
-try:
-    import openai
-except ImportError:
-    raise ImportError("OpenAI support not installed. Use `pip install cogency[openai]`") from None
+import openai
 
-from cogency.services.llm.base import BaseLLM
+from cogency.services import LLM
 
 
-class OpenAILLM(BaseLLM):
+class OpenAI(LLM):
     def __init__(self, **kwargs):
         super().__init__("openai", **kwargs)
 

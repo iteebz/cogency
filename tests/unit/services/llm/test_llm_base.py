@@ -1,14 +1,14 @@
-"""Test BaseLLM - essential functionality only."""
+"""Test LLM - essential functionality only."""
 
 import pytest
 
-from cogency.services.llm.base import BaseLLM
+from cogency.services.llm import LLM
 from tests.conftest import MockLLM
 
 
 def test_abstract():
     with pytest.raises(TypeError):
-        BaseLLM("test-key")
+        LLM("test-key")
 
 
 @pytest.mark.asyncio

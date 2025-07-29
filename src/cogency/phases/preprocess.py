@@ -4,28 +4,22 @@ from typing import List, Optional
 
 from resilient_result import unwrap
 
-from cogency.decorators import phase
-from cogency.memory.backends.base import MemoryBackend
-from cogency.memory.prepare import save_memory
-from cogency.phases.base import Phase
-from cogency.services.llm import BaseLLM
-from cogency.state import State
-from cogency.tools.base import BaseTool
-from cogency.tools.registry import build_registry
+from cogency.state import State, phase
+from cogency.memory import Store
+from cogency.phases import Phase
+from cogency.services import LLM
+from cogency.tools import Tool, build_registry
 from cogency.types.preprocessed import Preprocessed
-from cogency.utils.heuristics import is_simple_query
-from cogency.utils.notify import notify
-from cogency.utils.parsing import parse_json
+from cogency.utils import is_simple_query, parse_json
 
 
 class Preprocess(Phase):
-    def __init__(self, llm, tools, memory, system_prompt=None, identity=None):
+    def __init__(self, llm, tools, memory, identity=None):
         super().__init__(
             preprocess,
             llm=llm,
             tools=tools,
             memory=memory,
-            system_prompt=system_prompt,
             identity=identity,
         )
 
@@ -36,10 +30,9 @@ class Preprocess(Phase):
 @phase.preprocess()
 async def preprocess(
     state: State,
-    llm: BaseLLM,
-    tools: List[BaseTool],
-    memory: MemoryBackend,
-    system_prompt: str = None,
+    llm: LLM,
+    tools: List[Tool],
+    memory: Store,
     identity: Optional[str] = None,
 ) -> None:
     """Preprocess: routing decisions, memory extraction, tool selection."""
@@ -57,7 +50,7 @@ async def preprocess(
 
         # Debug for dev tracing
         if state.debug:
-            await notify(state, "trace", f"Built tool registry with {len(tools)} tools")
+            await state.notify("trace", f"Built tool registry with {len(tools)} tools")
 
         # Pragmatic heuristic: Simple queries likely don't need deep reasoning
         suggested_mode = "fast" if is_simple_query(query) else None
@@ -78,7 +71,7 @@ JSON Response Format:
   "memory": "extracted user fact relevant for persistence" | null,
   "tags": ["topical", "categories"] | null,
   "memory_type": "fact",
-  "react_mode": "fast" | "deep", 
+  "mode": "fast" | "deep", 
   "selected_tools": ["tool1", "tool2"] | [],
   "reasoning": "brief justification of complexity and tool choices"
 }}{hint_section}
@@ -104,7 +97,7 @@ Example:
   "memory": "User mentioned working on a monorepo project called Folio",
   "tags": ["coding", "architecture"], 
   "memory_type": "fact",
-  "react_mode": "deep",
+  "mode": "deep",
   "selected_tools": ["files", "search"],
   "reasoning": "Software architecture query requires multiple steps and file analysis"
 }}
@@ -131,14 +124,23 @@ Example:
                 output_content = memory_content
             await notify(state, "preprocess", f"Saved: {output_content}")
 
-            # Let @safe.preprocess() handle memory save errors
+            # Save memory directly - no ceremony
             if memory_content:
-                await save_memory(
+                from cogency.memory import MemoryType
+
+                # Convert string memory type to enum
+                try:
+                    memory_type_enum = MemoryType(result.memory_type)
+                except ValueError:
+                    memory_type_enum = MemoryType.FACT
+
+                final_tags = result.tags if result.tags else ["extracted"]
+
+                await memory.create(
                     memory_content,
-                    memory,
-                    user_id,
-                    tags=result.tags,
-                    memory_type=result.memory_type,
+                    memory_type=memory_type_enum,
+                    tags=final_tags,
+                    user_id=user_id,
                 )
 
         # Chain 2: Filter tools based on LLM selection and determine respond_directly
@@ -190,7 +192,7 @@ Example:
 
     # Update flow state - clean routing via respond_directly flag
     state.selected_tools = selected_tools
-    state.react_mode = result.react_mode if "result" in locals() else "fast"
+    state.mode = result.mode if "result" in locals() else "fast"
     state.iteration = 0
 
     # State mutated in place, no return needed

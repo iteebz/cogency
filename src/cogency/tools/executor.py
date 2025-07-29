@@ -4,12 +4,12 @@ from typing import Any, Dict, List, Tuple
 
 from resilient_result import Result
 
-from cogency.tools.base import BaseTool
-from cogency.utils.formatting import format_tool_error
+from cogency.tools import Tool
+from cogency.utils import format_tool_error
 
 
 async def execute_single_tool(
-    tool_name: str, tool_args: dict, tools: List[BaseTool]
+    tool_name: str, tool_args: dict, tools: List[Tool]
 ) -> Tuple[str, Dict, Any]:
     """Execute a tool with structured error handling."""
 
@@ -31,7 +31,7 @@ async def execute_single_tool(
 
 
 async def execute_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], state
+    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
@@ -161,8 +161,6 @@ async def execute_tools(
     return final_result
 
 
-async def run_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[BaseTool], state
-) -> Dict[str, Any]:
+async def run_tools(tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state) -> Dict[str, Any]:
     """Execute tools."""
     return await execute_tools(tool_calls, tools, state)

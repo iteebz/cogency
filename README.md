@@ -65,10 +65,10 @@ The **preprocess node** enables everything: tool selection, memory operations, a
 **Custom Tools**
 
 ```python
-from cogency.tools import BaseTool, tool
+from cogency.tools import Tool, tool
 
 @tool
-class MyTool(BaseTool):
+class MyTool(Tool):
     def __init__(self):
         super().__init__("my_tool", "Does something useful")
 

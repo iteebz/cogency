@@ -8,14 +8,13 @@ from typing import Any, Dict, Optional
 import httpx
 from resilient_result import Result
 
-from .base import BaseTool
-from .registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class HTTPParams:
+class HTTPArgs:
     url: str
     method: str = "get"
     headers: Optional[Dict[str, str]] = None
@@ -26,7 +25,7 @@ class HTTPParams:
 
 
 @tool
-class HTTP(BaseTool):
+class HTTP(Tool):
     """HTTP client for API calls, webhooks, and web requests with full verb support."""
 
     # Custom formatting for HTTP requests
@@ -39,7 +38,7 @@ class HTTP(BaseTool):
             name="http",
             description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with headers, auth, and body support",
             emoji="🌐",
-            params=HTTPParams,
+            params=HTTPArgs,
             examples=[
                 "http(url='https://api.example.com/data', method='get')",
                 "http(url='https://api.example.com/users', method='post', json_data={'name': 'John'})",

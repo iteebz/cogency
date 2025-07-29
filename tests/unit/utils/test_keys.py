@@ -1,9 +1,10 @@
-"""Test LLM key rotation and BaseLLM integration."""
+"""Test LLM key rotation and LLM integration."""
 
 from unittest.mock import patch
 
 import pytest
 
+from cogency.services.llm import LLM
 from cogency.utils.keys import KeyManager, KeyRotator
 from tests.conftest import MockLLM
 

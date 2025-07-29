@@ -113,7 +113,7 @@
           "docstring": "LangGraph wrapper for agent workflow.",
           "module": "cogency.flow",
           "methods": [],
-          "init_signature": "(self, llm, tools, memory: cogency.memory.core.MemoryBackend, routing_table: Optional[Dict] = None, identity: Optional[str] = None, json_schema: Optional[str] = None, system_prompt: Optional[str] = None)"
+          "init_signature": "(self, llm, tools, memory: cogency.memory.core.Store, routing_table: Optional[Dict] = None, identity: Optional[str] = None, output_schema: Optional[str] = None, system_prompt: Optional[str] = None)"
         },
         {
           "name": "Output",
@@ -383,7 +383,7 @@
       "docstring": "",
       "classes": [
         {
-          "name": "BaseTool",
+          "name": "Tool",
           "docstring": "Base class for all tools in the cogency framework.",
           "module": "cogency.tools.base",
           "methods": [
@@ -634,7 +634,7 @@
               "signature": "(self) -> str"
             }
           ],
-          "init_signature": "(self, memory: cogency.memory.core.MemoryBackend)"
+          "init_signature": "(self, memory: cogency.memory.core.Store)"
         },
         {
           "name": "SQL",
@@ -850,7 +850,7 @@
           "init_signature": "(self, content: str, memory_type: cogency.memory.core.MemoryType = <MemoryType.FACT: 'fact'>, tags: List[str] = <factory>, metadata: Dict[str, Any] = <factory>, id: uuid.UUID = <factory>, created_at: datetime.datetime = <factory>, relevance_score: float = 0.0, confidence_score: float = 1.0, access_count: int = 0, last_accessed: datetime.datetime = <factory>) -> None"
         },
         {
-          "name": "MemoryBackend",
+          "name": "Store",
           "docstring": "Abstract base class for memory backends.",
           "module": "cogency.memory.core",
           "methods": [

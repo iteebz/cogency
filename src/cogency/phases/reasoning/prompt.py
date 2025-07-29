@@ -8,10 +8,10 @@ def prompt_reasoning(
     context: str,
     iteration: int = 0,
     depth: int = 5,
-    current_approach: str = "initial",
+    summary: dict = None,
 ) -> str:
     """Generate unified prompt with mode-specific sections injected."""
-    from cogency.constants import MAX_TOOL_CALLS_PER_ITERATION
+    from cogency import MAX_TOOL_CALLS
 
     # Mode-specific reasoning instructions
     if mode == "deep":
@@ -38,6 +38,7 @@ switch_to: "fast", switch_why: "Query simplified to direct search"
 switch_to: "fast", switch_why: "Single tool execution sufficient"
 """
 
+        current_approach = summary.get("current_approach", "initial") if summary else "initial"
         mode_context = f"""
 CONTEXT:
 Iteration {iteration}/{depth} - Review completed actions to avoid repetition
@@ -104,9 +105,7 @@ JSON Response Format:
   }}
 }}
 
-IMPORTANT: All {
-        MAX_TOOL_CALLS_PER_ITERATION
-    } tool calls must be in ONE tool_calls array, not separate JSON objects.
+IMPORTANT: All {MAX_TOOL_CALLS} tool calls must be in ONE tool_calls array, not separate JSON objects.
 
 When done: {{"thinking": "explanation", "tool_calls": [], "switch_to": null, "switch_why": null, "summary_update": {{"goal": "updated goal", "progress": "final progress", "current_approach": "approach used", "key_findings": "what was learned", "next_focus": "none - complete"}}}}
 
@@ -119,7 +118,5 @@ TOOLS:
 
 - Empty tool_calls array ([ ]) if query fully answered or no progress possible
 - If original query has been fully resolved, say so explicitly and return tool_calls: []
-- LIMIT: Maximum {
-        MAX_TOOL_CALLS_PER_ITERATION
-    } tool calls per iteration to avoid JSON parsing issues
+- LIMIT: Maximum {MAX_TOOL_CALLS} tool calls per iteration to avoid JSON parsing issues
 """

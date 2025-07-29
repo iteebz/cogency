@@ -4,7 +4,7 @@
 import asyncio
 
 from cogency import Agent
-from cogency.utils.cli import trace_args
+from cogency.utils import trace_args
 
 
 async def main():

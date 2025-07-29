@@ -61,10 +61,10 @@ Available tools: Calculator, Weather, Web Search, File Manager, Shell, Code Exec
 Create tools with zero ceremony:
 
 ```python
-from cogency.tools import BaseTool, tool
+from cogency.tools import Tool, tool
 
 @tool
-class MyTool(BaseTool):
+class MyTool(Tool):
     def __init__(self):
         super().__init__("my_tool", "Does something useful", "🔧")
     

@@ -3,10 +3,10 @@
 import pytest
 from resilient_result import Result
 
-from cogency.services.embed.base import BaseEmbed
+from cogency.services.embed import Embed
 
 
-class MockEmbedder(BaseEmbed):
+class MockEmbedder(Embed):
     """Mock embedder for testing."""
 
     def __init__(self, dimension=384):
@@ -30,7 +30,7 @@ class MockEmbedder(BaseEmbed):
 
 def test_abstract():
     with pytest.raises(TypeError):
-        BaseEmbed()
+        Embed()
 
 
 def test_single():

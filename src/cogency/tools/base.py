@@ -3,10 +3,10 @@ from typing import Any, Dict, List, Optional, Type
 
 from resilient_result import Result
 
-from cogency.types.params import validate
+from cogency.types import validate
 
 
-class BaseTool(ABC):
+class Tool(ABC):
     """Base class for all tools in the cogency framework.
 
     Standardized tool interface requiring:
@@ -170,17 +170,15 @@ class BaseTool(ABC):
         if not params:
             return ""
 
+        from cogency.utils import truncate
+
         # Use hint if provided
         if self.param_key and self.param_key in params:
-            from cogency.utils.formatting import truncate
-
             return f"({truncate(str(params[self.param_key]), 30)})"
 
         # Auto-detect primary parameter (first non-None value)
         for _key, value in params.items():
             if value is not None:
-                from cogency.utils.formatting import truncate
-
                 return f"({truncate(str(value), 30)})"
 
         return ""

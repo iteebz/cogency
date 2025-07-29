@@ -31,7 +31,7 @@ The **preprocess node** is what makes everything work:
 
 ```python
 @tool
-class MyTool(BaseTool):
+class MyTool(Tool):
     def __init__(self):
         super().__init__("my_tool", "Does something useful")
     

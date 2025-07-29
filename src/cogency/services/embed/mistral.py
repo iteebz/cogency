@@ -1,20 +1,15 @@
 from typing import Union
 
 import numpy as np
+from mistralai import Mistral
 from resilient_result import Err, Ok, Result
 
-try:
-    from mistralai import Mistral
-except ImportError:
-    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
+from cogency.utils import KeyManager
 
-from cogency.resilience import ConfigError
-from cogency.utils.keys import KeyManager
-
-from .base import BaseEmbed
+from .base import Embed
 
 
-class MistralEmbed(BaseEmbed):
+class MistralEmbed(Embed):
     """Mistral embedding provider with key rotation."""
 
     def __init__(
@@ -34,10 +29,7 @@ class MistralEmbed(BaseEmbed):
         """Initialize Mistral client with current key."""
         current_key = self.keys.get_current()
         if not current_key:
-            raise ConfigError(
-                "API key must be provided either directly or via KeyRotator.",
-                error_code="NO_CURRENT_API_KEY",
-            )
+            raise ValueError("API key must be provided either directly or via KeyRotator")
         self._client = Mistral(api_key=current_key)
 
     def _get_client(self):

@@ -1,10 +1,10 @@
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from .base import BaseEmbed
+from .base import Embed
 
 
-class SentenceEmbed(BaseEmbed):
+class Sentence(Embed):
     """Sentence Transformers embedding provider - local, no API keys needed."""
 
     def __init__(self, model: str = "all-MiniLM-L6-v2", **kwargs):

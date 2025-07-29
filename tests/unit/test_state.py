@@ -26,7 +26,7 @@ def test_dot_notation_access():
     state = State(query="test query")
 
     assert state.iteration == 0
-    assert state.react_mode == "fast"
+    assert state.mode == "fast"
     assert state.tool_calls == []
 
     state.iteration = 5
@@ -41,14 +41,14 @@ def test_default_values():
     assert state.messages == []
     assert state.iteration == 0
     assert state.depth == 3
-    assert state.react_mode == "fast"
+    assert state.mode == "fast"
     assert state.stop_reason is None
     assert state.selected_tools == []
     assert state.tool_calls == []
     assert state.result is None
     assert state.actions == []
     assert state.attempts == []
-    assert state.situation_summary == {
+    assert state.summary == {
         "goal": "",
         "progress": "",
         "current_approach": "",
@@ -72,12 +72,12 @@ def test_kwargs_support():
 def test_state_update():
     """Test updating a state attribute."""
     state = State(query="test query")
-    assert state.situation_summary == {
+    assert state.summary == {
         "goal": "",
         "progress": "",
         "current_approach": "",
         "key_findings": "",
         "next_focus": "",
     }
-    state.situation_summary = {"summary": "The user wants to test the state."}
-    assert state.situation_summary == {"summary": "The user wants to test the state."}
+    state.summary = {"summary": "The user wants to test the state."}
+    assert state.summary == {"summary": "The user wants to test the state."}

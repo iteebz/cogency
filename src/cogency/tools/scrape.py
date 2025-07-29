@@ -8,8 +8,7 @@ import trafilatura
 from resilient_result import Result
 from trafilatura.settings import use_config
 
-from .base import BaseTool
-from .registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
@@ -20,13 +19,13 @@ config.set("DEFAULT", "MAX_FILE_SIZE", "512000")  # 500KB max file size
 
 
 @dataclass
-class ScrapeParams:
+class ScrapeArgs:
     url: str
     favor_precision: bool = True
 
 
 @tool
-class Scrape(BaseTool):
+class Scrape(Tool):
     """Extract clean text content from web pages using trafilatura."""
 
     def __init__(self):
@@ -34,7 +33,7 @@ class Scrape(BaseTool):
             name="scrape",
             description="Extract clean text content from web pages, removing ads, navigation, and formatting",
             emoji="📖",
-            params=ScrapeParams,
+            params=ScrapeArgs,
             examples=[
                 "scrape(url='https://example.com/article')",
                 "scrape(url='https://news.site.com/story', favor_precision=True)",
@@ -100,7 +99,7 @@ class Scrape(BaseTool):
         """Format scrape execution for display."""
         from urllib.parse import urlparse
 
-        from cogency.utils.formatting import truncate
+        from cogency.utils import truncate
 
         url = params.get("url", "")
         if url:

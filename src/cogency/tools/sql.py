@@ -10,14 +10,13 @@ from urllib.parse import urlparse
 
 from resilient_result import Result
 
-from .base import BaseTool
-from .registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class SQLParams:
+class SQLArgs:
     query: str
     connection: str
     timeout: int = 30
@@ -25,7 +24,7 @@ class SQLParams:
 
 
 @tool
-class SQL(BaseTool):
+class SQL(Tool):
     """Execute SQL queries across multiple database types with connection management."""
 
     def __init__(self):
@@ -33,7 +32,7 @@ class SQL(BaseTool):
             name="sql",
             description="Execute SQL queries on SQLite, PostgreSQL, MySQL databases with connection string support",
             emoji="🗄️",
-            params=SQLParams,
+            params=SQLArgs,
             examples=[
                 "sql(query='SELECT * FROM users', connection='sqlite:///database.db')",
                 "sql(query='CREATE TABLE logs (id INTEGER PRIMARY KEY, message TEXT)', connection='sqlite:///app.db')",
@@ -268,7 +267,7 @@ class SQL(BaseTool):
         self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format SQL execution for display."""
-        from cogency.utils.formatting import truncate
+        from cogency.utils import truncate
 
         query = params.get("query", "")
         connection = params.get("connection", "")

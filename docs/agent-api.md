@@ -70,7 +70,7 @@ Controls `@phase` decorator behavior with Bool|Config pattern:
 ## Configuration Objects
 
 ```python
-from cogency.config import Robust, Observe
+from cogency import Robust, Observe
 
 # Power user configs
 agent = Agent(

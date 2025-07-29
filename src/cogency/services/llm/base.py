@@ -4,15 +4,14 @@ from typing import AsyncIterator, Dict, List, Union
 
 from resilient_result import Result, Retry, resilient
 
-from cogency.constants import MAX_TOKENS
-from cogency.utils.keys import KeyManager
+from cogency.utils import KeyManager
 
 from .cache import cached_llm_call
 
 logger = logging.getLogger(__name__)
 
 
-class BaseLLM(ABC):
+class LLM(ABC):
     """
     Base class for all LLM implementations in the cogency framework.
 
@@ -31,7 +30,7 @@ class BaseLLM(ABC):
         model: str = None,
         timeout: float = 15.0,
         temperature: float = 0.7,
-        max_tokens: int = MAX_TOKENS,
+        max_tokens: int = 16384,
         max_retries: int = 3,
         enable_cache: bool = True,
         **kwargs,

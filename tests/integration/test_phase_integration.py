@@ -5,10 +5,10 @@ from unittest.mock import AsyncMock
 import pytest
 from resilient_result import Result
 
+from cogency.state import State
 from cogency.phases.act import act
 from cogency.phases.reason import reason
 from cogency.phases.respond import respond
-from cogency.state import State
 from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
 

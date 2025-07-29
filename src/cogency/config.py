@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
+# Runtime limits
+MAX_TOOL_CALLS = 3  # Limit to prevent JSON parsing issues
+
 
 @dataclass
 class Robust:
@@ -59,3 +62,16 @@ class Persist:
     enabled: bool = True
     backend: Optional[Any] = None  # This will hold the actual backend instance (e.g., FileBackend)
     # Add any other persistence-specific settings here
+
+
+def setup_config(config_type, param, backend=None):
+    """Setup config objects with auto-detection."""
+    if param is False:
+        return None
+    if isinstance(param, config_type):
+        return param
+    if param is True:
+        return config_type()
+    if backend:
+        return config_type(backend=backend)
+    return None

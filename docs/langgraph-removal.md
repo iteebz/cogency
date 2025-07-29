@@ -83,7 +83,7 @@ if error.loop_detected:
     return Result.ok(state, recovery_action="force_respond")
 
 if error.mode == "deep":
-    state["react_mode"] = "fast"
+    state["mode"] = "fast"
     return Result.ok(state, recovery_action="fallback_to_fast")
 ```
 
@@ -140,7 +140,7 @@ class Recovery:
             return Result.ok(state, recovery_action="force_respond")
         
         if error.mode == "deep":
-            state["react_mode"] = "fast"
+            state["mode"] = "fast"
             return Result.ok(state, recovery_action="fallback_to_fast")
 ```
 

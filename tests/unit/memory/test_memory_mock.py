@@ -6,11 +6,11 @@ from uuid import UUID
 import pytest
 from resilient_result import Result
 
-from cogency.memory.backends.base import BaseBackend
-from cogency.memory.core import Memory, MemoryType
+from cogency.memory import Store
+from cogency.memory.types import Memory, MemoryType
 
 
-class MockBackend(BaseBackend):
+class MockBackend(Store):
     """Minimal concrete backend for testing."""
 
     def __init__(self, embedder=None):
@@ -160,16 +160,16 @@ async def test_delete_all(mock_backend):
 
 
 def test_memory_backend_interface():
-    from cogency.memory.backends.base import MemoryBackend
+    from cogency.memory.backends.base import Store
 
     with pytest.raises(TypeError):
-        MemoryBackend()
+        Store()
 
 
 def test_abstract_methods():
-    from cogency.memory.backends.base import MemoryBackend
+    from cogency.memory.backends.base import Store
 
-    class IncompleteBackend(MemoryBackend):
+    class IncompleteBackend(Store):
         pass
 
     with pytest.raises(TypeError):

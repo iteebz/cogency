@@ -2,13 +2,13 @@
 
 import pytest
 
-from cogency.phases.preprocess import preprocess
 from cogency.state import State
-from cogency.tools.base import BaseTool
+from cogency.phases.preprocess import preprocess
+from cogency.tools.base import Tool
 from tests.conftest import MockLLM
 
 
-class MockSearchTool(BaseTool):
+class MockSearchTool(Tool):
     """Mock search tool for testing."""
 
     def __init__(self):
@@ -38,9 +38,7 @@ async def test_routing_fast_react():
     tools = [MockSearchTool()]
 
     query = "What is the weather today?"
-    llm.response = (
-        '{"react_mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
-    )
+    llm.response = '{"mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
 
     state = State(query=query)
 
@@ -56,7 +54,9 @@ async def test_routing_deep_react():
     tools = [MockSearchTool()]
 
     query = "Analyze the economic implications of AI development and compare different regulatory approaches across multiple countries, synthesizing policy recommendations."
-    llm.response = '{"react_mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
+    llm.response = (
+        '{"mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
+    )
 
     state = State(query=query)
 

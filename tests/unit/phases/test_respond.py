@@ -3,9 +3,9 @@
 import pytest
 from resilient_result import Result
 
-from cogency.phases.respond import prompt_response, respond
-from cogency.services.llm.cache import get_cache
 from cogency.state import State
+from cogency.phases.respond import prompt_response, respond
+from cogency.services import get_cache
 from tests.conftest import MockLLM, create_mock_llm
 
 
@@ -24,10 +24,6 @@ def test_prompt():
     result = prompt_response("test query", has_tool_results=True, tool_summary="search results")
     assert "TOOL RESULTS" in result
     assert "search results" in result
-
-    # With system prompt
-    result = prompt_response("test query", system_prompt="You are helpful.")
-    assert "You are helpful." in result
 
 
 @pytest.mark.asyncio

@@ -4,7 +4,7 @@ import numpy as np
 from resilient_result import Result, Retry, resilient
 
 
-class BaseEmbed(ABC):
+class Embed(ABC):
     """Base class for embedding providers"""
 
     def __init__(self, api_key: str = None, **kwargs):

@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from resilient_result import Result
 
-from cogency.phases.reason import reason
 from cogency.state import State
+from cogency.phases.reason import reason
 from tests.conftest import MockLLM
 
 
@@ -43,7 +43,7 @@ async def test_cognition_initialization():
     await reason(state, llm=mock_llm(), tools=mock_tools())
 
     assert isinstance(state, State)
-    assert hasattr(state, "situation_summary")
+    assert hasattr(state, "summary")
     assert isinstance(state.actions, list)
     assert hasattr(state, "attempts")
 

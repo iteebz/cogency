@@ -17,10 +17,10 @@ agent = Agent("assistant", memory_dir="./my_memory")
 ## Custom Memory Backend
 
 ```python
-from cogency.memory.core import MemoryBackend
+from cogency.memory import Store
 from cogency import Agent
 
-class MyMemory(MemoryBackend):
+class MyMemory(Store):
     async def save(self, content: str, metadata: dict = None):
         # Your storage logic (database, cloud, etc.)
         print(f"Saving: {content}")
@@ -59,7 +59,7 @@ await stream_print(agent.stream("What's my favorite color?"))
 You can include metadata when saving memories:
 
 ```python
-class TaggedMemory(MemoryBackend):
+class TaggedMemory(Store):
     async def save(self, content: str, metadata: dict = None):
         # Add custom metadata
         metadata = metadata or {}

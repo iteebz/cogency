@@ -5,11 +5,11 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from resilient_result import Result
 
-from cogency.tools.base import BaseTool
+from cogency.tools.base import Tool
 from cogency.tools.executor import run_tools
 
 
-class MockTool(BaseTool):
+class MockTool(Tool):
     def __init__(self, name: str = "test_tool", should_fail: bool = False):
         super().__init__(
             name=name,

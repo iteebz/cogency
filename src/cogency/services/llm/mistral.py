@@ -1,14 +1,11 @@
 from typing import AsyncIterator, Dict, List
 
-try:
-    from mistralai import Mistral
-except ImportError:
-    raise ImportError("Mistral support not installed. Use `pip install cogency[mistral]`") from None
+from mistralai import Mistral as MistralClient
 
-from cogency.services.llm.base import BaseLLM
+from cogency.services import LLM
 
 
-class MistralLLM(BaseLLM):
+class Mistral(LLM):
     def __init__(self, **kwargs):
         super().__init__("mistral", **kwargs)
 
@@ -17,7 +14,7 @@ class MistralLLM(BaseLLM):
         return "mistral-large-latest"
 
     def _get_client(self):
-        return Mistral(api_key=self.next_key())
+        return MistralClient(api_key=self.next_key())
 
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
         client = self._get_client()

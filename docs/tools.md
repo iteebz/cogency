@@ -34,10 +34,10 @@ await agent.run("Create a file called notes.txt") # Uses Files
 ### Basic Tool
 
 ```python
-from cogency.tools import BaseTool, tool
+from cogency.tools import Tool, tool
 
 @tool
-class MyTool(BaseTool):
+class MyTool(Tool):
     def __init__(self):
         super().__init__("my_tool", "Does something useful", "🔧")
 
@@ -61,7 +61,7 @@ Some tools need access to the agent's memory:
 
 ```python
 @tool
-class MemoryTool(BaseTool):
+class MemoryTool(Tool):
     def __init__(self, memory=None):
         super().__init__("memory_tool", "Uses memory", "🧠")
         self.memory = memory
@@ -79,7 +79,7 @@ Tools automatically handle errors gracefully:
 
 ```python
 @tool
-class RiskyTool(BaseTool):
+class RiskyTool(Tool):
     async def run(self, data: str) -> dict:
         # If this throws an exception, it's automatically caught
         # and returned as {"error": "description", "success": False}

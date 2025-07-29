@@ -123,4 +123,18 @@ def setup_mcp(agent, enabled: bool) -> Optional[MCPServer]:
     try:
         return MCPServer(agent)
     except ImportError:
-        raise ImportError("Install cogency[mcp] for MCP support")
+        raise ImportError("Install cogency[mcp] for MCP support") from None
+
+
+async def serve(
+    mcp_server: MCPServer, transport: str = "stdio", host: str = "localhost", port: int = 8765
+) -> None:
+    """Start MCP server with specified transport type"""
+    if not mcp_server:
+        raise ValueError("MCP server not enabled. Set mcp=True in Agent constructor")
+    if transport == "stdio":
+        await mcp_server.serve_stdio()
+    elif transport == "websocket":
+        await mcp_server.serve_websocket(host, port)
+    else:
+        raise ValueError(f"Unsupported transport: {transport}")

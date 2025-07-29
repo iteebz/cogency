@@ -9,16 +9,13 @@ import pytz
 from dateutil import parser as date_parser
 from resilient_result import Result
 
-from cogency.resilience import ActionError
-
-from .base import BaseTool
-from .registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class DateParams:
+class DateArgs:
     operation: str
     date_str: Optional[str] = None
     format: Optional[str] = None
@@ -29,7 +26,7 @@ class DateParams:
 
 
 @tool
-class Date(BaseTool):
+class Date(Tool):
     """Date operations: parsing, formatting, arithmetic, weekday calculations."""
 
     def __init__(self):
@@ -37,7 +34,7 @@ class Date(BaseTool):
             name="date",
             description="Date operations: parsing, formatting, arithmetic, weekday calculations",
             emoji="📅",
-            params=DateParams,
+            params=DateArgs,
             examples=[
                 "date(operation='parse', date_str='2024-01-15')",
                 "date(operation='add', date_str='2024-01-15', days=7)",
@@ -67,7 +64,7 @@ class Date(BaseTool):
             Operation result with date data
         """
         if operation not in self._operations:
-            raise ActionError(
+            return Result.fail(
                 f"Unknown operation: {operation}. Available: {list(self._operations.keys())}"
             )
         return await self._operations[operation](**kwargs)

@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 from cogency.types.tools import ToolCall
-from cogency.utils.parsing import normalize_reasoning
+from cogency.utils import normalize_reasoning
 
 
 @dataclass

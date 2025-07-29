@@ -3,7 +3,7 @@
 import os
 from unittest.mock import MagicMock, patch
 
-from cogency.tools.base import BaseTool
+from cogency.tools.base import Tool
 from cogency.tools.files import Files
 from cogency.tools.registry import build_registry
 
@@ -23,7 +23,7 @@ def test_discovery_contract():
     tools = get_tools()
 
     for tool in tools:
-        assert isinstance(tool, BaseTool)
+        assert isinstance(tool, Tool)
         assert hasattr(tool, "name") and tool.name
         assert hasattr(tool, "description") and tool.description
 

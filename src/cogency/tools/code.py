@@ -8,21 +8,20 @@ from typing import Any, Dict, List, Optional
 
 from resilient_result import Result
 
-from .base import BaseTool
-from .registry import tool
+from .base import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CodeParams:
+class CodeArgs:
     code: str
     language: str = "python"
     timeout: int = 30
 
 
 @tool
-class Code(BaseTool):
+class Code(Tool):
     """Execute Python and JavaScript code safely in isolated environment."""
 
     def __init__(self):
@@ -30,7 +29,7 @@ class Code(BaseTool):
             name="code",
             description="Execute Python and JavaScript code safely in isolated environment",
             emoji="🚀",
-            params=CodeParams,
+            params=CodeArgs,
             examples=[
                 "code(code='print(2 + 2)', language='python')",
                 "code(code='import pandas as pd; df.describe()', language='python')",
@@ -154,7 +153,7 @@ class Code(BaseTool):
         self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format code execution for display."""
-        from cogency.utils.formatting import truncate
+        from cogency.utils import truncate
 
         code = params.get("code", "")
         language = params.get("language", "python")

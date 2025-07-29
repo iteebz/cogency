@@ -2,25 +2,23 @@
 
 from typing import Dict, List, Optional
 
-from cogency.decorators import phase
+from cogency.state import State, phase
 
 # Removed LangGraph dependency
-from cogency.phases.base import Phase
-from cogency.services.llm import BaseLLM
-from cogency.state import State
-from cogency.tools.base import BaseTool
-from cogency.utils.notify import notify
+from cogency.phases import Phase
+from cogency.services import LLM
+from cogency.tools import Tool
+from cogency.utils import notify
 
 
 class Respond(Phase):
-    def __init__(self, llm, tools, system_prompt=None, identity=None, json_schema=None):
+    def __init__(self, llm, tools, identity=None, output_schema=None):
         super().__init__(
             respond,
             llm=llm,
             tools=tools,
-            system_prompt=system_prompt,
             identity=identity,
-            json_schema=json_schema,
+            output_schema=output_schema,
         )
 
     def next_phase(self, state: State) -> str:
@@ -47,7 +45,7 @@ JSON_PROMPT = """{identity}
 Your goal is to generate a final response formatted as a JSON object.
 
 JSON RESPONSE FORMAT (required):
-{json_schema}
+{output_schema}
 
 USER QUERY: "{query}"{tool_section}
 
@@ -88,11 +86,10 @@ RESPONSE STRATEGY:
 
 def prompt_response(
     query: str,
-    system_prompt: Optional[str] = None,
     has_tool_results: bool = False,
     tool_summary: Optional[str] = None,
     identity: Optional[str] = None,
-    json_schema: Optional[str] = None,
+    output_schema: Optional[str] = None,
     failures: Optional[Dict[str, str]] = None,
 ) -> str:
     """Clean routing to response templates."""
@@ -106,13 +103,13 @@ def prompt_response(
         prompt = FAILURE_PROMPT.format(
             identity=identity_line, query=query, failed_tools=failed_tools
         )
-    elif json_schema:
+    elif output_schema:
         tool_section = (
             f"\n\nTOOL RESULTS:\n{tool_summary}" if has_tool_results and tool_summary else ""
         )
         prompt = JSON_PROMPT.format(
             identity=identity_line,
-            json_schema=json_schema,
+            output_schema=output_schema,
             query=query,
             tool_section=tool_section,
         )
@@ -124,10 +121,10 @@ def prompt_response(
         prompt = KNOWLEDGE_PROMPT.format(identity=identity_line, query=query)
 
     # Add anti-JSON instruction when no JSON schema is expected
-    if not json_schema:
+    if not output_schema:
         prompt += "\n\nCRITICAL: Respond in natural language only. Do NOT output JSON, reasoning objects, or tool_calls. This is your final response to the user."
 
-    return f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+    return prompt
 
 
 def collect_failures(state: State) -> Optional[Dict[str, str]]:
@@ -176,11 +173,10 @@ def format_tool_results(state: State) -> Optional[str]:
 @phase.respond()
 async def respond(
     state: State,
-    llm: BaseLLM,
-    tools: List[BaseTool],
-    system_prompt: Optional[str] = None,
+    llm: LLM,
+    tools: List[Tool],
     identity: Optional[str] = None,
-    json_schema: Optional[str] = None,
+    output_schema: Optional[str] = None,
 ) -> None:
     """Respond: generate final formatted response with personality."""
     await notify(state, "respond", "Generating response")
@@ -192,12 +188,11 @@ async def respond(
     # Single decision point for prompt routing
     prompt = prompt_response(
         state.query,
-        system_prompt=system_prompt,
         failures=failures,
         has_tool_results=bool(tool_results),
         tool_summary=tool_results,
         identity=identity,
-        json_schema=json_schema,
+        output_schema=output_schema,
     )
 
     # Single LLM call with unified error handling

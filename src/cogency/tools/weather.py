@@ -6,19 +6,18 @@ from dataclasses import dataclass
 import httpx
 from resilient_result import Result
 
-from .base import BaseTool
-from .registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class WeatherParams:
+class WeatherArgs:
     city: str
 
 
 @tool
-class Weather(BaseTool):
+class Weather(Tool):
     """Get current weather for any city using Open-Meteo (no API key required)."""
 
     # Clean weather formatting
@@ -31,7 +30,7 @@ class Weather(BaseTool):
             name="weather",
             description="Get current weather conditions for any city worldwide",
             emoji="🌤️",
-            params=WeatherParams,
+            params=WeatherArgs,
             examples=[
                 "weather(city='New York')",
                 "weather(city='London')",

@@ -4,30 +4,31 @@ import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
-from cogency.memory.backends.base import MemoryBackend
-from cogency.tools.base import BaseTool, Result
-from cogency.tools.registry import tool
+from resilient_result import Result
+
+from cogency.memory import Store
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class RecallParams:
+class RecallArgs:
     query: str
     limit: Optional[int] = 5
     tags: Optional[List[str]] = None
 
 
 @tool
-class Recall(BaseTool):
+class Recall(Tool):
     """Tool for retrieving content from agent memory."""
 
-    def __init__(self, memory: MemoryBackend):
+    def __init__(self, memory: Store):
         super().__init__(
             name="recall",
             description="Search memory for relevant information when user asks about themselves, their preferences, past interactions, or references things they've mentioned before. Use when current conversation lacks context the user expects you to know.",
             emoji="🧠",
-            params=RecallParams,
+            params=RecallArgs,
             examples=[
                 "recall(query='user favorite color')",
                 "recall(query='previous project discussion', limit=5)",
@@ -82,7 +83,7 @@ class Recall(BaseTool):
         self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format recall execution for display."""
-        from cogency.utils.formatting import truncate
+        from cogency.utils import truncate
 
         query = params.get("query", "")
         param_str = f"({truncate(query, 30)})" if query else ""

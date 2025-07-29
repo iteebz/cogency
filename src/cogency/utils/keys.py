@@ -5,8 +5,6 @@ import os
 import random
 from typing import List, Optional, Union
 
-from cogency.resilience import ConfigError
-
 
 class KeyRotator:
     """Simple key rotator for API rate limit avoidance."""
@@ -54,9 +52,8 @@ class KeyManager:
         if api_keys is None:
             detected_keys = cls._detect_keys_from_env(provider)
             if not detected_keys:
-                raise ConfigError(
-                    f"No API keys found for {provider}. Set {provider.upper()}_API_KEY",
-                    error_code="NO_API_KEYS",
+                raise ValueError(
+                    f"No API keys found for {provider}. Set {provider.upper()}_API_KEY"
                 )
             api_keys = detected_keys
 

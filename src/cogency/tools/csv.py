@@ -9,21 +9,20 @@ from typing import Any, Dict, List, Optional
 
 from resilient_result import Result
 
-from .base import BaseTool
-from .registry import tool
+from cogency.tools import Tool, tool
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
-class CSVParams:
+class CSVArgs:
     operation: str
     file_path: str
     data: Optional[List[Dict]] = None
 
 
 @tool
-class CSV(BaseTool):
+class CSV(Tool):
     """Simple CSV operations - smart agent, dumb tool."""
 
     def __init__(self):
@@ -31,7 +30,7 @@ class CSV(BaseTool):
             name="csv",
             description="Read, write, and append CSV files",
             emoji="📊",
-            params=CSVParams,
+            params=CSVArgs,
             examples=[
                 "csv(operation='read', file_path='data.csv')",
                 "csv(operation='write', file_path='output.csv', data=[{'name': 'John', 'age': 30}])",

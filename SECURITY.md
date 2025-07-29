@@ -37,7 +37,7 @@ Given Cogency's cognitive architecture, we're particularly concerned with vulner
 
 #### High Priority
 - **Prompt Injection Attacks:** Malicious inputs that manipulate agent reasoning or tool selection
-- **Code Execution Vulnerabilities:** Unsafe operations in BaseTool implementations
+- **Code Execution Vulnerabilities:** Unsafe operations in Tool implementations
 - **Input Validation Bypass:** Malformed parameters that circumvent tool safety checks
 - **Tool Chain Exploitation:** Abuse of multi-tool workflows for privilege escalation
 
@@ -97,7 +97,7 @@ When implementing Cogency in production:
 - **Input Validation:** Always validate and sanitize tool inputs
 - **Execution Isolation:** Run agents in sandboxed environments when possible
 - **Trace Sanitization:** Review execution traces for sensitive information before logging
-- **Tool Auditing:** Regularly audit custom BaseTool implementations
+- **Tool Auditing:** Regularly audit custom Tool implementations
 - **Dependency Management:** Keep dependencies updated and monitor for vulnerabilities
 
 ### Questions?
