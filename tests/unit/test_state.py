@@ -48,13 +48,11 @@ def test_defaults():
     assert state.result is None
     assert state.actions == []
     assert state.attempts == []
-    assert state.summary == {
-        "goal": "",
-        "progress": "",
-        "current_approach": "",
-        "key_findings": "",
-        "next_focus": "",
-    }
+    # Cognitive workspace fields
+    assert state.objective == ""
+    assert state.understanding == ""
+    assert state.approach == ""
+    assert state.discoveries == ""
     assert state.response is None
     assert state.respond_directly is False
     assert state.notify is True
@@ -70,14 +68,20 @@ def test_kwargs():
 
 
 def test_update():
-    """Test updating a state attribute."""
+    """Test updating cognitive workspace fields."""
     state = State(query="test query")
-    assert state.summary == {
-        "goal": "",
-        "progress": "",
-        "current_approach": "",
-        "key_findings": "",
-        "next_focus": "",
+
+    # Test workspace update method
+    workspace_update = {
+        "objective": "Test the cognitive workspace",
+        "understanding": "We know this is a test",
+        "approach": "Use update_workspace method",
+        "discoveries": "The workspace update works",
     }
-    state.summary = {"summary": "The user wants to test the state."}
-    assert state.summary == {"summary": "The user wants to test the state."}
+
+    state.update_workspace(workspace_update)
+
+    assert state.objective == "Test the cognitive workspace"
+    assert state.understanding == "We know this is a test"
+    assert state.approach == "Use update_workspace method"
+    assert state.discoveries == "The workspace update works"

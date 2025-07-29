@@ -26,16 +26,11 @@ class State:
     # Two-layer state architecture
     actions: List[Dict[str, Any]] = field(default_factory=list)
     attempts: List[Any] = field(default_factory=list)
-    # Phase 2B: Semantic context summarization
-    summary: Dict[str, str] = field(
-        default_factory=lambda: {
-            "goal": "",
-            "progress": "",
-            "current_approach": "",
-            "key_findings": "",
-            "next_focus": "",
-        }
-    )
+    # Cognitive workspace - persistent semantic memory
+    objective: str = ""
+    understanding: str = ""
+    approach: str = ""
+    discoveries: str = ""
     # Output
     response: Optional[str] = None
     respond_directly: bool = False
@@ -64,7 +59,7 @@ class State:
         """Add action to reasoning history with new schema."""
         from datetime import datetime
 
-        self.summary["current_approach"] = approach
+        self.approach = approach
 
         action_entry = {
             "iteration": self.iteration,
@@ -128,107 +123,62 @@ class State:
         """Beautiful property wrapper for latest tool results."""
         return [ToolResult(call) for call in self.get_latest_results()]
 
-    def get_compressed_attempts(self, max_history: int = 3) -> List[str]:
-        """Get compressed attempts using semantic context summarization."""
-        if len(self.actions) <= 1:
-            return []
+    def update_workspace(self, workspace_update: dict) -> None:
+        """Update cognitive workspace fields with minimal bounds checking."""
+        for field_name, value in workspace_update.items():
+            if (
+                field_name in ["objective", "understanding", "approach", "discoveries"]
+                and isinstance(value, str)
+                and len(value.strip()) <= 500
+            ):  # Reasonable bounds
+                setattr(self, field_name, value.strip())
 
-        # Phase 2B: Return situation_summary instead of compressed strings
-        if any(v.strip() for v in self.situation_summary.values()):
-            # Convert summary to readable format for reasoning context
-            summary_parts = []
-            for key, value in self.situation_summary.items():
-                if value.strip():
-                    summary_parts.append(f"{key}: {value}")
-            return ["; ".join(summary_parts)] if summary_parts else []
-
-        # Fallback to basic compression if summary empty
-        past_actions = self.actions[:-1][-max_history:]
-        return compress_actions(past_actions)
-
-    def format_actions_for_fast_mode(self, max_history: int = 3) -> str:
-        """Format actions as simple compressed string for fast mode."""
-        compressed = self.get_compressed_attempts(max_history)
-        return "; ".join(compressed) if compressed else "No previous attempts"
-
-    def format_actions_for_deep_mode(self, max_history: int = 3) -> str:
-        """Format structured actions with full context for deep mode reflection."""
-        if not self.actions:
-            return "No previous actions"
-
-        formatted = []
-        for action in self.actions[-max_history:]:
-            iter_num = action.get("iteration", "?")
-            mode = action.get("mode", "unknown")
-            thinking = action.get("thinking", "")
-            planning = action.get("planning", "")
-            reflection = action.get("reflection", "")
-
-            # Format action header
-            action_header = f"[Iteration {iter_num}] {mode.upper()} mode:"
-            parts = [action_header]
-
-            if thinking:
-                parts.append(f"  Thinking: {thinking[:200]}{'...' if len(thinking) > 200 else ''}")
-            if planning:
-                parts.append(f"  Planning: {planning[:200]}{'...' if len(planning) > 200 else ''}")
-            if reflection:
-                parts.append(
-                    f"  Reflection: {reflection[:200]}{'...' if len(reflection) > 200 else ''}"
-                )
-
-            # Format tool outcomes
-            tool_calls = action.get("tool_calls", [])
-            if tool_calls:
-                parts.append("  Tool Outcomes:")
-                for call in tool_calls:
-                    name = call.get("name", "unknown")
-                    outcome = call.get("outcome", "unknown")
-                    result_snippet = call.get("result", "")[:100] + (
-                        "..." if len(call.get("result", "")) > 100 else ""
-                    )
-                    parts.append(f"    {name}() → {outcome}: {result_snippet}")
-
-            formatted.append("\n".join(parts))
-
-        return "\n\n".join(formatted)
-
-    def format_latest_results_detailed(self) -> str:
-        """Format latest tool results with full detail for deep mode analysis."""
-        latest_results = self.get_latest_results()
-        if not latest_results:
-            return "No tool results from current iteration"
-
-        formatted = []
-        for call in latest_results:
-            name = call.get("name", "unknown")
-            args = call.get("args", {})
-            outcome = call.get("outcome", "unknown")
-            result = call.get("result", "")
-
-            # Show full result for current iteration analysis
-            formatted.append(f"{name}({args}) → {outcome}")
-            if result:
-                formatted.append(f"  Result: {result}")
-
-        return "\n".join(formatted)
+    def get_workspace_context(self) -> str:
+        """Build workspace context string for reasoning."""
+        parts = []
+        if self.objective:
+            parts.append(f"OBJECTIVE: {self.objective}")
+        if self.understanding:
+            parts.append(f"UNDERSTANDING: {self.understanding}")
+        if self.approach:
+            parts.append(f"APPROACH: {self.approach}")
+        if self.discoveries:
+            parts.append(f"DISCOVERIES: {self.discoveries}")
+        return "\n".join(parts) if parts else "No workspace context yet"
 
     def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:
-        """Phase 3: Clean context assembly for reasoning with semantic compression."""
-        if mode == "deep":
-            # Deep mode: situation_summary + latest action details
-            summary_context = self.format_actions_for_fast_mode(max_history)
-            latest_context = self.format_latest_results_detailed()
+        """Pure functional context generation using cognitive workspace."""
+        workspace = self.get_workspace_context()
 
-            if summary_context == "No previous attempts":
-                return latest_context if latest_context else "No context available"
-            elif latest_context == "No tool results from current iteration":
-                return summary_context
-            else:
-                return f"{summary_context}\n\nLATEST DETAILS:\n{latest_context}"
+        # Latest tool results for immediate context
+        latest_results = self.get_latest_results()
+        latest_context = ""
+        if latest_results:
+            latest_parts = []
+            for call in latest_results:
+                name = call.get("name", "unknown")
+                outcome = call.get("outcome", "unknown")
+                result = call.get("result", "")[:200]
+                latest_parts.append(f"{name}() → {outcome}: {result}")
+            latest_context = "\n".join(latest_parts)
+
+        if mode == "deep":
+            context_parts = []
+            if workspace != "No workspace context yet":
+                context_parts.append(f"WORKSPACE:\n{workspace}")
+            if latest_context:
+                context_parts.append(f"LATEST RESULTS:\n{latest_context}")
+            return "\n\n".join(context_parts) if context_parts else "No context available"
         else:
-            # Fast mode: just situation_summary
-            return self.format_actions_for_fast_mode(max_history)
+            # Fast mode: workspace + latest only
+            if workspace != "No workspace context yet" and latest_context:
+                return f"{workspace}\n\nLATEST: {latest_context}"
+            elif workspace != "No workspace context yet":
+                return workspace
+            elif latest_context:
+                return f"LATEST: {latest_context}"
+            else:
+                return "No context available"
 
 
 # Export clean State class

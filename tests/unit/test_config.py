@@ -2,12 +2,12 @@
 
 import pytest
 
-from cogency.config import Robust, Observe, Persist, setup_config
+from cogency.config import Observe, Persist, Robust, setup_config
 
 
 def test_robust_defaults():
     config = Robust()
-    
+
     assert config.retry is True
     assert config.circuit is True
     assert config.rate_limit is True
@@ -20,13 +20,8 @@ def test_robust_defaults():
 
 
 def test_robust_custom():
-    config = Robust(
-        retry=False,
-        attempts=5,
-        backoff="linear",
-        backoff_delay=0.5
-    )
-    
+    config = Robust(retry=False, attempts=5, backoff="linear", backoff_delay=0.5)
+
     assert config.retry is False
     assert config.attempts == 5
     assert config.backoff == "linear"
@@ -35,7 +30,7 @@ def test_robust_custom():
 
 def test_observe_defaults():
     config = Observe()
-    
+
     assert config.metrics is True
     assert config.timing is True
     assert config.counters is True
@@ -45,13 +40,8 @@ def test_observe_defaults():
 
 
 def test_observe_custom():
-    config = Observe(
-        metrics=False,
-        timing=False,
-        phases=["reason", "act"],
-        export_format="json"
-    )
-    
+    config = Observe(metrics=False, timing=False, phases=["reason", "act"], export_format="json")
+
     assert config.metrics is False
     assert config.timing is False
     assert config.phases == ["reason", "act"]
@@ -60,7 +50,7 @@ def test_observe_custom():
 
 def test_persist_defaults():
     config = Persist()
-    
+
     assert config.enabled is True
     assert config.store is None
 
@@ -68,7 +58,7 @@ def test_persist_defaults():
 def test_persist_custom():
     mock_store = "filesystem_store"
     config = Persist(enabled=False, store=mock_store)
-    
+
     assert config.enabled is False
     assert config.store == mock_store
 

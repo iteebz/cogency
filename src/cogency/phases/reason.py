@@ -60,7 +60,9 @@ def build_iterations(state, selected_tools, depth=3):
             context_parts.append(f"Latest: {call['name']}() → {result_snippet}")
 
     # Compressed history (past actions)
-    compressed = state.get_compressed_attempts(max_history=depth)
+    from cogency.state import compress_actions
+
+    compressed = compress_actions(state.actions[-depth:] if depth else state.actions)
     if compressed:
         context_parts.extend([f"Prior: {attempt}" for attempt in compressed])
 
@@ -139,7 +141,7 @@ async def reason(
         context=context,
         iteration=iteration,
         depth=state.depth,
-        summary=state.summary,
+        state=state,
     )
 
     # DEBUG: Show what LLM sees
@@ -186,7 +188,7 @@ async def reason(
     agent_mode = getattr(state, "agent_mode", "adapt")
     if agent_mode == "adapt":
         switch_to, switch_why = parse_switch(raw_response)
-        if should_switch(mode, switch_to, switch_why, iteration):
+        if should_switch(mode, switch_to, switch_why, iteration, state.depth):
             if state.debug and notify:
                 notify("trace", f"Mode switch: {mode} → {switch_to} ({switch_why})")
             state = switch_mode(state, switch_to, switch_why)
@@ -214,12 +216,10 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
             thinking=reasoning_response.thinking or "",
             planning=getattr(reasoning_response, "plan", "") or "",
             reflection=getattr(reasoning_response, "reflect", "") or "",
-            approach=state.summary.get("current_approach", ""),
+            approach=state.approach,
             tool_calls=tool_calls,
         )
 
-        # Semantic context summarization: merge summary_update into summary
-        if reasoning_response.summary_update:
-            for key, value in reasoning_response.summary_update.items():
-                if key in state.summary and value.strip():
-                    state.summary[key] = value
+        # Update cognitive workspace
+        if reasoning_response.workspace_update:
+            state.update_workspace(reasoning_response.workspace_update)

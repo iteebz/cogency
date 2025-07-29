@@ -44,7 +44,10 @@ async def test_init():
     await reason(state, notify=Mock(), llm=mock_llm(), tools=mock_tools())
 
     assert isinstance(state, State)
-    assert hasattr(state, "summary")
+    assert hasattr(state, "objective")
+    assert hasattr(state, "understanding")
+    assert hasattr(state, "approach")
+    assert hasattr(state, "discoveries")
     assert isinstance(state.actions, list)
     assert hasattr(state, "attempts")
 

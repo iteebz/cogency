@@ -7,6 +7,11 @@ from cogency.phases import prompt_reasoning
 
 def test_deep_prompt():
     """Test that deep mode prompt generates without f-string errors."""
+    from cogency.state import State
+
+    state = State(query="test query")
+    state.approach = "test approach"
+
     prompt = prompt_reasoning(
         mode="deep",
         tool_registry="test_tool: description",
@@ -14,7 +19,7 @@ def test_deep_prompt():
         context="",
         iteration=1,
         depth=5,
-        summary={"current_approach": "test approach"},
+        state=state,
     )
 
     # Should contain key components and not crash on generation

@@ -16,13 +16,18 @@ def test_fast_prompt():
 
 
 def test_deep_prompt():
+    from cogency.state import State
+
+    state = State(query="Complex question")
+    state.approach = "analytical"
+
     prompt = prompt_reasoning(
         mode="deep",
         tool_registry="search: query",
         query="Complex question",
         iteration=2,
         depth=5,
-        summary={"current_approach": "analytical"},
+        state=state,
         context="No previous attempts",
     )
     assert "Complex question" in prompt
@@ -40,12 +45,11 @@ def test_json_structure():
         "tool_calls": [{"name": "search", "args": {"query": "test"}}],
         "switch_to": null,
         "switch_why": null,
-        "summary_update": {
-            "goal": "",
-            "progress": "",
-            "current_approach": "",
-            "key_findings": "",
-            "next_focus": ""
+        "workspace_update": {
+            "objective": "",
+            "understanding": "",
+            "approach": "",
+            "discoveries": ""
         }
     }"""
 
@@ -64,12 +68,11 @@ def test_structured_thinking():
         "tool_calls": [],
         "switch_to": null,
         "switch_why": null,
-        "summary_update": {
-            "goal": "",
-            "progress": "",
-            "current_approach": "",
-            "key_findings": "",
-            "next_focus": ""
+        "workspace_update": {
+            "objective": "",
+            "understanding": "",
+            "approach": "",
+            "discoveries": ""
         }
     }"""
 
@@ -85,12 +88,11 @@ def test_switching():
         "tool_calls": [],
         "switch_to": "deep",
         "switch_why": "complex multi-step reasoning required",
-        "summary_update": {
-            "goal": "",
-            "progress": "",
-            "current_approach": "",
-            "key_findings": "",
-            "next_focus": ""
+        "workspace_update": {
+            "objective": "",
+            "understanding": "",
+            "approach": "",
+            "discoveries": ""
         }
     }"""
 

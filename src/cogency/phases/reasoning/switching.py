@@ -27,6 +27,7 @@ def should_switch(
     switch_to: Optional[str],
     switch_why: Optional[str],
     iteration: int = 0,
+    depth: int = 5,
 ) -> bool:
     """Determine if mode switch should occur based on request and iteration context"""
     if not switch_to or not switch_why:
@@ -44,8 +45,23 @@ def should_switch(
     if iteration < 1:
         return False
 
+    # DE-ESCALATION: Force switch from deep to fast if approaching depth limit
+    if current_mode == "deep" and switch_to == "fast" and iteration >= depth - 2:
+        logger.info(f"De-escalation: forcing deep→fast at iteration {iteration}/{depth}")
+        return True
+
+    # DE-ESCALATION: Switch to fast if deep mode isn't making progress
+    if (
+        current_mode == "deep"
+        and switch_to == "fast"
+        and iteration >= 2
+        and "no progress" in switch_why.lower()
+    ):
+        logger.info(f"De-escalation: deep mode stalled at iteration {iteration}")
+        return True
+
     # Prevent switching too late (close to max iterations)
-    return not iteration >= 4
+    return not iteration >= depth - 1
 
 
 def switch_mode(state: Dict[str, Any], new_mode: str, switch_why: str) -> Dict[str, Any]:

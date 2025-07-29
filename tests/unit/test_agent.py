@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
-from cogency.config import Robust, Observe, Persist
+from cogency.config import Observe, Persist, Robust
 from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
 
@@ -35,7 +35,7 @@ def test_no_memory():
         (False, ["calculator"]),
         (True, ["calculator", "recall"]),
     ],
-    ids=["no_memory", "with_memory"]
+    ids=["no_memory", "with_memory"],
 )
 def test_tools(memory_enabled, expected_tools):
     agent = Agent("test", llm=MockLLM(), tools=[Calculator()], memory=memory_enabled)
@@ -48,7 +48,7 @@ def test_tools(memory_enabled, expected_tools):
 
 def test_config_setup():
     agent = Agent("test", llm=MockLLM(), robust=True, observe=True, persist=True)
-    
+
     assert agent.config.robust is not None
     assert agent.config.observe is not None
     assert agent.config.persist is not None
@@ -58,15 +58,11 @@ def test_config_custom():
     robust_config = Robust(attempts=5)
     observe_config = Observe(metrics=False)
     persist_config = Persist(enabled=False)
-    
+
     agent = Agent(
-        "test", 
-        llm=MockLLM(), 
-        robust=robust_config,
-        observe=observe_config, 
-        persist=persist_config
+        "test", llm=MockLLM(), robust=robust_config, observe=observe_config, persist=persist_config
     )
-    
+
     assert agent.config.robust.attempts == 5
     assert agent.config.observe.metrics is False
     assert agent.config.persist.enabled is False
@@ -74,21 +70,21 @@ def test_config_custom():
 
 def test_mode_assignment():
     agent = Agent("test", llm=MockLLM(), mode="fast", depth=5)
-    
+
     assert agent.mode == "fast"
     assert agent.depth == 5
 
 
 def test_identity():
     agent = Agent("test", llm=MockLLM(), identity="helpful assistant")
-    
+
     assert agent.identity == "helpful assistant"
 
 
 def test_output_schema():
     schema = {"type": "object", "properties": {"answer": {"type": "string"}}}
     agent = Agent("test", llm=MockLLM(), output_schema=schema)
-    
+
     assert agent.output_schema == schema
 
 
@@ -138,8 +134,8 @@ def test_traces_empty():
 def test_notify_cb():
     agent = Agent("test", llm=MockLLM())
     from cogency.state import State
-    
+
     state = State("test query", user_id="test_user", depth=5)
     callback = agent._notify_cb(state)
-    
+
     assert callable(callback)

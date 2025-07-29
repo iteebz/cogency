@@ -123,7 +123,7 @@ def test_resume_valid(temp_checkpoint_dir):
         attempts=[{"test": "attempt"}],
         messages=[{"role": "user", "content": "original message"}],
     )
-    original_state.summary["current_approach"] = "test_approach"
+    original_state.approach = "test_approach"
 
     cp.save(original_state, "test_resume")
 
@@ -133,7 +133,7 @@ def test_resume_valid(temp_checkpoint_dir):
         iteration=3,  # Must match for fingerprint to be same
         mode="fast",  # This will get overwritten by resume
     )
-    new_state.summary["current_approach"] = "initial"  # This will get overwritten by resume
+    new_state.approach = "initial"  # This will get overwritten by resume
 
     with patch("cogency.robust.checkpoint.checkpointer", cp):
         result = resume(new_state)
@@ -141,7 +141,7 @@ def test_resume_valid(temp_checkpoint_dir):
         assert result is True
         assert new_state.iteration == 3
         assert new_state.mode == "detailed"
-        assert new_state.summary["current_approach"] == "test_approach"
+        assert new_state.approach == "test_approach"
         assert new_state.tool_calls == [{"name": "test_tool", "args": {}}]
         assert new_state.actions == [{"test": "action"}]
         assert new_state.attempts == [{"test": "attempt"}]

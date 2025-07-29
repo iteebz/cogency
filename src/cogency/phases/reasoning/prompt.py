@@ -8,7 +8,7 @@ def prompt_reasoning(
     context: str,
     iteration: int = 0,
     depth: int = 5,
-    summary: dict = None,
+    state=None,
 ) -> str:
     """Generate unified prompt with mode-specific sections injected."""
     from cogency.config import MAX_TOOL_CALLS
@@ -32,17 +32,23 @@ DOWNSHIFT to FAST if:
 - Simple datetime request using time tool
 - Direct search with obvious keywords
 - Single-step action with clear tool choice
+- Approaching depth limit ({depth} iterations) - prioritize direct execution
+- Complex analysis not yielding progress after 2+ iterations
 
 Examples:
 switch_to: "fast", switch_why: "Query simplified to direct search"
 switch_to: "fast", switch_why: "Single tool execution sufficient"
+switch_to: "fast", switch_why: "Approaching depth limit, need direct action"
 """
 
-        current_approach = summary.get("current_approach", "initial") if summary else "initial"
+        # Use beautiful dot notation for workspace fields
+        current_workspace = state.get_workspace_context() if state else "No workspace context yet"
         mode_context = f"""
 CONTEXT:
 Iteration {iteration}/{depth} - Review completed actions to avoid repetition
-Current approach: {current_approach}
+
+COGNITIVE WORKSPACE:
+{current_workspace}
 
 PREVIOUS ACTIONS:
 {context}
@@ -70,7 +76,12 @@ switch_to: "deep", switch_why: "Search results contradict, need analysis"
 switch_to: "deep", switch_why: "Multi-step calculation required"
 """
 
+        # Use beautiful dot notation for workspace fields
+        current_workspace = state.get_workspace_context() if state else "No workspace context yet"
         mode_context = f"""
+COGNITIVE WORKSPACE:
+{current_workspace}
+
 PREVIOUS CONTEXT:
 {context if context else "Initial execution - no prior actions"}
 """
@@ -96,18 +107,23 @@ JSON Response Format:
   ],
   "switch_to": null,
   "switch_why": null,
-  "summary_update": {{
-    "goal": "What is the main objective?",
-    "progress": "What has been accomplished so far?",
-    "current_approach": "What strategy are we using?",
-    "key_findings": "What important information have we discovered?",
-    "next_focus": "What should be the next priority?"
+  "workspace_update": {{
+    "objective": "Clear problem statement: What is the main goal?",
+    "understanding": "What we know: What information have we gathered?",
+    "approach": "Current strategy: What method are we using?",
+    "discoveries": "Key findings: What important insights have we found?"
   }}
 }}
 
 IMPORTANT: All {MAX_TOOL_CALLS} tool calls must be in ONE tool_calls array, not separate JSON objects.
 
-When done: {{"thinking": "explanation", "tool_calls": [], "switch_to": null, "switch_why": null, "summary_update": {{"goal": "updated goal", "progress": "final progress", "current_approach": "approach used", "key_findings": "what was learned", "next_focus": "none - complete"}}}}
+WORKSPACE UPDATE FIELDS:
+- objective: Clear problem statement - what are we trying to achieve?
+- understanding: Current knowledge - what facts/context do we have?
+- approach: Strategy being used - how are we solving this?
+- discoveries: Key insights - what important findings have emerged?
+
+When done: {{"thinking": "explanation", "tool_calls": [], "switch_to": null, "switch_why": null, "workspace_update": {{"objective": "updated objective", "understanding": "what we learned", "approach": "approach used", "discoveries": "key insights found"}}}}
 
 TOOLS:
 {tool_registry}
