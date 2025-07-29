@@ -17,7 +17,7 @@ async def main():
         identity="resilient assistant who handles errors gracefully",
         tools=[Calculator(), Code(), Weather()],
         memory=False,
-        max_iterations=6,
+        depth=6,
         trace=False,
     )
 

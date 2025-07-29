@@ -18,8 +18,9 @@ async def main():
         identity="expert mathematician who thinks quickly and verifies calculations",
         tools=[Calculator()],
         memory=False,
-        max_iterations=5,  # Keep it quick
-        trace=trace_args(),
+        depth=5,  # Keep it quick
+        mode="fast",
+        debug=trace_args(),
     )
 
     # Math problem that requires fast thinking and verification

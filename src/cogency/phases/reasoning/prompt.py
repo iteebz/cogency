@@ -7,7 +7,7 @@ def prompt_reasoning(
     query: str,
     context: str,
     iteration: int = 0,
-    max_iterations: int = 5,
+    depth: int = 5,
     current_approach: str = "initial",
 ) -> str:
     """Generate unified prompt with mode-specific sections injected."""
@@ -40,7 +40,7 @@ switch_to: "fast", switch_why: "Single tool execution sufficient"
 
         mode_context = f"""
 CONTEXT:
-Iteration {iteration}/{max_iterations} - Review completed actions to avoid repetition
+Iteration {iteration}/{depth} - Review completed actions to avoid repetition
 Current approach: {current_approach}
 
 PREVIOUS ACTIONS:

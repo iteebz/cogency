@@ -55,7 +55,7 @@ def test_deep_prompt_generation():
         query="complex query",
         context="previous attempts",
         iteration=1,
-        max_iterations=5,
+        depth=5,
         current_approach="analytical",
     )
 

@@ -59,7 +59,7 @@ async def test_recovery():
     mock_bash = MockBashTool()
 
     # Create agent with mocked dependencies
-    agent = Agent(llm=mock_llm, tools=[mock_bash], max_iterations=5)
+    agent = Agent(llm=mock_llm, tools=[mock_bash], depth=5)
 
     # Run agent with initial prompt
     result = await agent.run("List the contents of the current directory")
@@ -91,7 +91,7 @@ async def test_multiple_failures():
         async def run(self, messages, **kwargs):
             return Result.ok("Let me try another command: echo 'hello'")
 
-    agent = Agent(llm=PersistentLLM(), tools=[FailingBashTool()], max_iterations=3)
+    agent = Agent(llm=PersistentLLM(), tools=[FailingBashTool()], depth=3)
 
     result = await agent.run("Run a command")
 

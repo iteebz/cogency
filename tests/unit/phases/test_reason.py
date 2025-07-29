@@ -61,15 +61,15 @@ async def test_iteration_tracking():
 
 
 @pytest.mark.asyncio
-async def test_max_iterations():
+async def test_depth():
     state = basic_state()
     state.iteration = 5
-    state.max_iterations = 5
+    state.depth = 5
 
     await reason(state, llm=mock_llm(), tools=mock_tools())
 
     assert isinstance(state, State)
-    assert state.stop_reason == "max_iterations_reached"
+    assert state.stop_reason == "depth_reached"
 
 
 @pytest.mark.asyncio

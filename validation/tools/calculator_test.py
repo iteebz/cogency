@@ -17,7 +17,7 @@ async def main():
         identity="mathematical assistant focused on accurate calculations",
         tools=[Calculator()],
         memory=False,
-        max_iterations=3,
+        depth=3,
         trace=True,  # Show first iteration deep mode
     )
 

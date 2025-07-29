@@ -2,7 +2,7 @@
 
 from typing import Dict, List, Optional
 
-from cogency.decorators import observe, robust
+from cogency.decorators import phase
 
 # Removed LangGraph dependency
 from cogency.phases.base import Phase
@@ -169,8 +169,7 @@ def format_tool_results(state: State) -> Optional[str]:
     )
 
 
-@observe.respond()
-@robust.respond()
+@phase.respond()
 async def respond(
     state: State,
     llm: BaseLLM,

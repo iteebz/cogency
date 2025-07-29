@@ -19,7 +19,7 @@ class State:
     
     # Flow control  
     iteration: int = 0
-    max_iterations: int = DEFAULT_MAX_ITERATIONS
+    depth: int = DEFAULT_MAX_DEPTH
     react_mode: str = "fast"
     stop_reason: Optional[str] = None
     

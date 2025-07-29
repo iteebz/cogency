@@ -5,7 +5,7 @@ from unittest.mock import mock_open, patch
 
 import pytest
 
-from cogency.monitoring.metrics import (
+from cogency.observation.metrics import (
     MetricPoint,
     Metrics,
     MetricsReporter,

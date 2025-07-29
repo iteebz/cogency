@@ -28,7 +28,7 @@ async def main():
                 identity="file management assistant that handles file operations safely",
                 tools=[Files()],
                 memory=False,
-                max_iterations=5,
+                depth=5,
                 trace=False,  # Clean output
             )
 

@@ -103,7 +103,7 @@ class StateManager:
                 user_id=state_dict["user_id"],
                 messages=state_dict.get("messages", []),
                 iteration=state_dict.get("iteration", 0),
-                max_iterations=state_dict.get("max_iterations", 10),
+                depth=state_dict.get("depth", 10),
                 react_mode=state_dict.get("react_mode", "fast"),
                 stop_reason=state_dict.get("stop_reason"),
                 selected_tools=state_dict.get("selected_tools", []),
@@ -114,8 +114,8 @@ class StateManager:
                 current_approach=state_dict.get("current_approach", "initial"),
                 response=state_dict.get("response"),
                 respond_directly=state_dict.get("respond_directly", False),
-                verbose=state_dict.get("verbose", True),
-                trace=state_dict.get("trace", False),
+                notify=state_dict.get("notify", True),
+                debug=state_dict.get("debug", False),
                 callback=None,  # Don't persist callbacks
                 notifications=state_dict.get("notifications", []),
             )

@@ -12,7 +12,7 @@ from cogency.utils.notify import notify
 async def test_stream_functionality():
     """Test streaming functionality in State."""
     callback = AsyncMock()
-    state = State(query="test query", verbose=True, callback=callback)
+    state = State(query="test query", notify=True, callback=callback)
 
     await notify(state, "test_event", {"message": "test data"})
 
@@ -31,7 +31,7 @@ async def test_stream_functionality():
 async def test_stream_without_verbose():
     """Test that streaming doesn't call callback when verbose=False."""
     callback = AsyncMock()
-    state = State(query="test query", verbose=False, callback=callback)
+    state = State(query="test query", notify=False, callback=callback)
 
     await notify(state, "test_event", {"message": "test data"})
 
@@ -46,7 +46,7 @@ async def test_stream_without_verbose():
 async def test_reason_phase_streaming():
     """Test reason phase streaming."""
     callback = AsyncMock()
-    state = State(query="test query", verbose=True, callback=callback)
+    state = State(query="test query", notify=True, callback=callback)
 
     await notify(state, "reason", {"state": "reasoning", "mode": "fast"})
 
@@ -61,7 +61,7 @@ async def test_reason_phase_streaming():
 async def test_preprocess_phase_streaming():
     """Test preprocess phase streaming."""
     callback = AsyncMock()
-    state = State(query="test query", verbose=True, callback=callback)
+    state = State(query="test query", notify=True, callback=callback)
 
     await notify(state, "preprocess", {"content": "Setting up tools and memory"})
 
@@ -76,7 +76,7 @@ async def test_preprocess_phase_streaming():
 async def test_action_streaming():
     """Test action execution streaming."""
     callback = AsyncMock()
-    state = State(query="test query", verbose=True, callback=callback)
+    state = State(query="test query", notify=True, callback=callback)
 
     action_data = {"tool": "search", "args": {"query": "test"}}
     await notify(state, "action", action_data)
@@ -92,7 +92,7 @@ async def test_action_streaming():
 async def test_respond_phase_streaming():
     """Test respond phase streaming."""
     callback = AsyncMock()
-    state = State(query="test query", verbose=True, callback=callback)
+    state = State(query="test query", notify=True, callback=callback)
 
     await notify(state, "respond", {"text": "Here is my final response"})
 
@@ -107,7 +107,7 @@ async def test_respond_phase_streaming():
 async def test_trace_streaming():
     """Test trace streaming for debug information."""
     callback = AsyncMock()
-    state = State(query="test query", verbose=True, callback=callback)
+    state = State(query="test query", notify=True, callback=callback)
 
     await notify(state, "trace", {"message": "Debug info", "phase": "reason"})
 
@@ -121,7 +121,7 @@ async def test_trace_streaming():
 @pytest.mark.asyncio
 async def test_no_callback():
     """Test streaming when no callback is provided."""
-    state = State(query="test query", verbose=True)
+    state = State(query="test query", notify=True)
 
     # Should not raise error
     await notify(state, "test_event", {"message": "test data"})
@@ -138,7 +138,7 @@ async def test_callback_function_vs_coroutine():
     def sync_callback(x):
         pass
 
-    state = State(query="test query", verbose=True, callback=sync_callback)
+    state = State(query="test query", notify=True, callback=sync_callback)
 
     # Should not raise error
     await notify(state, "test_event", {"message": "test data"})

@@ -10,7 +10,7 @@ from tests.conftest import MockLLM
 
 
 def test_defaults():
-    agent = Agent("test_agent", llm=MockLLM())
+    agent = Agent(name="test_agent", llm=MockLLM())
 
     assert agent.llm is not None
     assert agent.memory is not None

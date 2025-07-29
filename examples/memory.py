@@ -12,7 +12,7 @@ async def main():
     print("=" * 20)
 
     # Create agent with memory
-    agent = Agent("assistant", memory=True, trace=trace_args())
+    agent = Agent("assistant", memory=True, debug=trace_args())
 
     # Teach the agent
     query_1 = "My name is Alex, I'm a Python developer working on a fintech app"

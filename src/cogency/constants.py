@@ -7,7 +7,7 @@ ADAPT_REACT = False  # Disable mode switching for debugging
 # Memory limits
 MAX_ITERATIONS_HISTORY = 5
 MAX_FAILURES_HISTORY = 5
-DEFAULT_MAX_ITERATIONS = 3  # Low limit for debugging recursion
+DEFAULT_MAX_DEPTH = 3  # Low limit for debugging recursion
 RECURSION_LIMIT = 3  # Hard limit for testing
 
 # Response context limits

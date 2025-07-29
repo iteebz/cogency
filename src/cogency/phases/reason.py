@@ -4,7 +4,7 @@ import asyncio
 from typing import List, Optional
 
 from cogency.constants import ADAPT_REACT
-from cogency.decorators import observe, robust
+from cogency.decorators import phase
 from cogency.phases.base import Phase
 from cogency.phases.reasoning import (
     parse_switch,
@@ -57,7 +57,7 @@ def format_tool_calls_readable(tool_calls):
     return " | ".join(parts)
 
 
-def build_iterations(state, selected_tools, max_iterations=3):
+def build_iterations(state, selected_tools, depth=3):
     """Build reasoning context using State methods (schema-compliant)."""
     context_parts = []
 
@@ -71,7 +71,7 @@ def build_iterations(state, selected_tools, max_iterations=3):
             context_parts.append(f"Latest: {call['name']}() → {result_snippet}")
 
     # Compressed history (past actions)
-    compressed = state.get_compressed_attempts(max_history=max_iterations)
+    compressed = state.get_compressed_attempts(max_history=depth)
     if compressed:
         context_parts.extend([f"Prior: {attempt}" for attempt in compressed])
 
@@ -106,10 +106,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
     return " | ".join(formatted_parts) if formatted_parts else ""
 
 
-@observe.reason()
-@robust.reason()
-@observe.reason()
-@robust.reason()
+@phase.reason()
 async def reason(
     state: State,
     llm: BaseLLM,
@@ -131,8 +128,8 @@ async def reason(
     await notify(state, "reason", f"Starting {react_mode} mode reasoning")
 
     # Check stop conditions - pure logic, no ceremony
-    if iteration >= state.max_iterations:
-        state.stop_reason = "max_iterations_reached"
+    if iteration >= state.depth:
+        state.stop_reason = "depth_reached"
         state.tool_calls = None
         return  # State mutated in place
 
@@ -152,12 +149,12 @@ async def reason(
         query=state.query,
         context=context,
         iteration=iteration,
-        max_iterations=state.max_iterations,
+        depth=state.depth,
         current_approach=state.situation_summary.get("current_approach", "initial"),
     )
 
     # DEBUG: Show what LLM sees
-    if state.trace:
+    if state.debug:
         if react_mode == "deep":
             await notify(
                 state, "trace", f"Iteration {iteration}: deep mode with structured actions"
@@ -189,7 +186,7 @@ async def reason(
     )
 
     # Display reasoning phases
-    if state.verbose:
+    if state.notify:
         if react_mode == "deep" and reasoning_response:
             if reasoning_response.thinking:
                 await notify(state, "reason", f"💭 {reasoning_response.thinking}\n")
@@ -204,7 +201,7 @@ async def reason(
     if ADAPT_REACT and adapt:
         switch_to, switch_why = parse_switch(raw_response)
         if should_switch(react_mode, switch_to, switch_why, iteration):
-            if state.trace:
+            if state.debug:
                 await notify(
                     state,
                     "trace",
@@ -212,7 +209,7 @@ async def reason(
                     node="reason",
                 )
             state = switch_mode(state, switch_to, switch_why)
-    elif state.trace:
+    elif state.debug:
         reason = "ADAPT_REACT=False" if not ADAPT_REACT else "adapt=False (agent flag)"
         await notify(state, "trace", f"Mode switching disabled ({reason})")
 

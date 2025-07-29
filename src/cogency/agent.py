@@ -1,10 +1,11 @@
-from typing import Any, AsyncIterator, Optional
+from typing import Any, AsyncIterator, Optional, Union, Literal
 
 from cogency import decorators
+from cogency.config import Robust, Observe, Persist
 from cogency.state import State
 from cogency.utils.auto import detect_llm
 from cogency.utils.notify import Notifier
-from cogency.utils.setup import agent_services
+from cogency.phases.act import Act, Preprocess, Reason, Respond
 
 MAX_QUERY_LENGTH = 10000
 
@@ -17,68 +18,98 @@ class Agent:
     def __init__(
         self,
         name: str = "cogency",
-        *,  # Force keyword-only args
+        *,  # Force keyword-only arguments
+        # Backend Systems (things with constructors)
         llm: Optional[Any] = None,
         tools: Optional[Any] = None,
-        memory: Any = True,
-        memory_dir: str = ".cogency/memory",
+        memory: Optional[Any] = None,
+        
+        # Agent Personality
+        prompt: Optional[str] = None,
         identity: Optional[str] = None,
-        system_prompt: Optional[str] = None,
-        max_iterations: int = 10,
-        trace: bool = False,
-        verbose: bool = True,
-        enable_mcp: bool = False,
-        json_schema: Optional[Any] = None,
-        robust: bool = True,
-        observe: bool = False,
-        persist: bool = False,
-        persist_backend: Optional[Any] = None,
-        deep: bool = False,
-        adapt: bool = True,
+        output_schema: Optional[Any] = None,
+        
+        # Execution Control
+        mode: Literal["fast", "deep", "adapt"] = "adapt",
+        depth: int = 10,
+        
+        # User Feedback
+        notify: bool = True,
+        debug: bool = False,
+        
+        # System Behaviors (@phase decorator control)
+        robust: Union[bool, Robust] = True,
+        observe: Union[bool, Observe] = False,
+        persist: Union[bool, Persist] = False,
+        
+        # Integrations
+        mcp: bool = False,
     ) -> None:
         self.name = name
-        self.trace = trace
-        self.verbose = verbose
-        self.max_iterations = max_iterations
-        self.deep = deep
-        self.adapt = adapt
+        self.debug = debug
+        self.notify = notify
+        self.depth = depth
+        
+        # Mode handling
+        self.deep = mode == "deep"
+        self.adapt = mode == "adapt"
 
-        # Set global robust and observe flags for decorators
-        decorators._robust_enabled = robust
-        decorators.set_observe_enabled(observe)
-
+        # Configure @phase decorator behavior
+        self.robust_config = robust if isinstance(robust, Robust) else Robust() if robust else None
+        self.observe_config = observe if isinstance(observe, Observe) else Observe() if observe else None
+        
         # Set up state persistence
         if persist:
-            from cogency.persistence import StateManager
-
-            self.persistence_manager = StateManager(backend=persist_backend, enabled=True)
-            decorators.set_persistence_manager(self.persistence_manager)
+            if isinstance(persist, Persist):
+                self.persistence = persist
+            else:
+                self.persistence = Persist()
         else:
-            self.persistence_manager = None
+            self.persistence = None
+            
+        # Configure decorators with actual config objects - no ceremony
+        decorators.configure_decorators(
+            robust_config=self.robust_config,
+            observe_config=self.observe_config,
+            persistence_manager=self.persistence
+        )
 
-        # Setup tools and memory services
-        agent_opts = {
-            "tools": tools,
-            "memory": memory,
-            "memory_dir": memory_dir,
-        }
-        tools, memory = agent_services(agent_opts)
-
-        # Store configuration directly
+        # Backend auto-detection and setup
         self.llm = llm or detect_llm()
-        self.tools = tools
-        self.memory = memory
-        self.system_prompt = system_prompt or DEFAULT_SYSTEM_PROMPT
+        
+        # Setup memory - default enabled
+        if memory is None:
+            from cogency.memory.backends.filesystem import FileBackend
+            self.memory = FileBackend(".cogency/memory")
+        elif memory is False:
+            self.memory = None
+        else:
+            self.memory = memory
+            
+        # Setup tools - auto-discover if not provided
+        if tools is None:
+            from cogency.tools.registry import ToolRegistry
+            self.tools = ToolRegistry.get_tools(memory=self.memory)
+        else:
+            self.tools = tools
+            
+        # Add recall tool if memory enabled
+        if self.memory:
+            from cogency.tools.recall import Recall
+            if not any(isinstance(tool, Recall) for tool in self.tools):
+                self.tools.append(Recall(self.memory))
+        
+        # Agent personality
+        self.system_prompt = prompt or DEFAULT_SYSTEM_PROMPT
         self.identity = identity or ""
-        self.json_schema = json_schema
+        self.json_schema = output_schema
+        
+        # State management
         self.user_states: dict[str, State] = {}
         self.last_state: Optional[dict] = None  # Store for traces()
 
         # Create phase instances with injected dependencies - zero ceremony
-        from cogency.phases.act import Act
-        from cogency.phases.preprocess import Preprocess
-        from cogency.phases.reason import Reason
-        from cogency.phases.respond import Respond
+
 
         self.preprocess_phase = Preprocess(
             llm=self.llm,
@@ -104,13 +135,12 @@ class Agent:
         )
 
         # MCP server setup if enabled
-        if enable_mcp:
+        if mcp:
             try:
                 from cogency.mcp.server import MCPServer
-
                 self.mcp_server: Optional[Any] = MCPServer(self)
             except ImportError as e:
-                raise ImportError("MCP package required for enable_mcp=True") from e
+                raise ImportError("MCP package required for mcp=True") from e
         else:
             self.mcp_server: Optional[Any] = None
 
@@ -131,9 +161,9 @@ class Agent:
         state = await get_state(
             user_id,
             query,
-            self.max_iterations,
+            self.depth,
             self.user_states,
-            self.persistence_manager,
+            self.persistence,
             self.llm,
         )
 
@@ -148,8 +178,8 @@ class Agent:
             system_prompt=self.system_prompt,
             identity=self.identity,
             json_schema=self.json_schema,
-            trace=self.trace,
-            verbose=self.verbose,
+            trace=self.debug,
+            verbose=self.notify,
         )
 
         async for chunk in notifier.notify():
@@ -167,13 +197,13 @@ class Agent:
             state = await get_state(
                 user_id,
                 query,
-                self.max_iterations,
+                self.depth,
                 self.user_states,
-                self.persistence_manager,
+                self.persistence,
                 self.llm,
             )
-            state.verbose = self.verbose
-            state.trace = self.trace
+            state.notify = self.notify
+            state.debug = self.debug
 
             # Apply deep mode and adapt overrides
             if self.deep:
@@ -181,7 +211,7 @@ class Agent:
             # Note: adapt flag will be used in reason phase to disable mode switching
 
             # Set up trace callback for non-streaming mode
-            if self.trace:
+            if self.debug:
                 state.callback = print
 
             # Use simple execution loop with zero ceremony
@@ -216,7 +246,7 @@ class Agent:
     ) -> None:
         """Start MCP server with specified transport type"""
         if not self.mcp_server:
-            raise ValueError("MCP server not enabled. Set enable_mcp=True in Agent constructor")
+            raise ValueError("MCP server not enabled. Set mcp=True in Agent constructor")
         if transport == "stdio":
             async with self.mcp_server.serve_stdio():
                 pass

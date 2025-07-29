@@ -18,17 +18,21 @@ async def test_persistence_setup_in_agent():
         backend = FileBackend(base_dir=temp_dir)
 
         # Test persistence enabled
-        agent = Agent("test_agent", persist=True, persist_backend=backend)
+        agent = Agent(name="test_agent", persistence=backend)
 
-        assert agent.persistence_manager is not None
-        assert isinstance(agent.persistence_manager, StateManager)
-        assert agent.persistence_manager.backend is backend
-        assert agent.persistence_manager.enabled is True
+        from cogency.decorators import get_config
+        config = get_config()
+        assert config["persistence"] is not None
+        assert isinstance(config["persistence"], StateManager)
+        assert config["persistence"].backend is backend
+        assert config["persistence"].enabled is True
 
         # Test persistence disabled
-        agent_disabled = Agent("test_agent", persist=False)
+        agent_disabled = Agent(name="test_agent", persistence=None)
 
-        assert agent_disabled.persistence_manager is None
+        from cogency.decorators import get_config
+        config = get_config()
+        assert config["persistence"] is None
 
 
 @pytest.mark.asyncio
@@ -43,7 +47,7 @@ async def test_get_state_utility():
     state = await get_state(
         user_id="test_user",
         query="test query",
-        max_iterations=10,
+        depth=10,
         user_states=user_states,
         persistence_manager=None,
         llm=None,
@@ -58,7 +62,7 @@ async def test_get_state_utility():
     state2 = await get_state(
         user_id="test_user",
         query="new query",
-        max_iterations=10,
+        depth=10,
         user_states=user_states,
         persistence_manager=None,
         llm=None,
@@ -68,24 +72,7 @@ async def test_get_state_utility():
     assert state2.query == "new query"  # Query updated
 
 
-@pytest.mark.asyncio
-async def test_decorator_persistence_integration():
-    """Test that decorators properly integrate with persistence manager."""
 
-    from cogency.decorators import get_persistence_manager, set_persistence_manager
-    from cogency.persistence import FileBackend, StateManager
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        backend = FileBackend(base_dir=temp_dir)
-        manager = StateManager(backend=backend)
-
-        # Test setting persistence manager
-        set_persistence_manager(manager)
-        assert get_persistence_manager() is manager
-
-        # Test setting None
-        set_persistence_manager(None)
-        assert get_persistence_manager() is None
 
 
 @pytest.mark.asyncio

@@ -17,7 +17,7 @@ async def main():
         identity="helpful assistant with visible internal reasoning",
         tools=[Calculator(), Weather()],
         memory=False,
-        max_iterations=5,
+        depth=5,
         trace=True,  # 🔍 TRACING ON - see the magic happen
         verbose=True,
     )

@@ -12,7 +12,7 @@ async def run_agent(state: State, preprocess_phase, reason_phase, act_phase, res
     # Two execution paths: direct response OR ReAct loop
     if not state.respond_directly:
         # ReAct loop: reason until ready to respond
-        while state.iteration < state.max_iterations:
+        while state.iteration < state.depth:
             # Reason about what to do
             await reason_phase(state)
 

@@ -99,7 +99,7 @@ async def test_multi_step(base_agent):
     mock_bash = MockBashTool()
 
     # Create agent
-    agent = base_agent(llm=mock_llm, tools=[mock_bash], max_iterations=8)
+    agent = base_agent(llm=mock_llm, tools=[mock_bash], depth=8)
 
     # Run complex analysis task
     result = await agent.run(
@@ -150,7 +150,7 @@ async def test_with_failures(base_agent):
             else:
                 return Result.ok("Analysis complete using alternative methods.")
 
-    agent = base_agent(llm=RecoveryLLM(), tools=[SometimesFailingBash()], max_iterations=6)
+    agent = base_agent(llm=RecoveryLLM(), tools=[SometimesFailingBash()], depth=6)
 
     result = await agent.run("Analyze system configuration files")
 

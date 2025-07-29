@@ -111,16 +111,16 @@ def base_agent():
     class BaseAgent:
         """Minimal agent for smoke test validation."""
 
-        def __init__(self, llm=None, tools=None, max_iterations=10):
+        def __init__(self, llm=None, tools=None, depth=10):
             self.llm = llm
             self.tools = tools or []
-            self.max_iterations = max_iterations
+            self.depth = depth
             self.messages = []
 
         async def run(self, prompt: str) -> Result:
             """Run agent with basic tool calling logic."""
             self.messages = [{"role": "user", "content": prompt}]
-            for _iteration in range(self.max_iterations):
+            for _iteration in range(self.depth):
                 llm_result = await self.llm.run(self.messages)
                 if not llm_result.success:
                     return Result.fail(f"LLM failed: {llm_result.error}")

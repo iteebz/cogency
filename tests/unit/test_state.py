@@ -40,7 +40,7 @@ def test_default_values():
     assert state.user_id == "default"
     assert state.messages == []
     assert state.iteration == 0
-    assert state.max_iterations == 3
+    assert state.depth == 3
     assert state.react_mode == "fast"
     assert state.stop_reason is None
     assert state.selected_tools == []
@@ -57,16 +57,16 @@ def test_default_values():
     }
     assert state.response is None
     assert state.respond_directly is False
-    assert state.verbose is True
-    assert state.trace is False
+    assert state.notify is True
+    assert state.debug is False
     assert state.callback is None
     assert state.notifications == []
 
 
 def test_kwargs_support():
     """Test that additional kwargs are properly handled."""
-    state = State(query="test query", verbose=True)
-    assert state.verbose is True
+    state = State(query="test query", notify=True)
+    assert state.notify is True
 
 
 def test_state_update():

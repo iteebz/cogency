@@ -21,7 +21,7 @@ def test_deep_prompt_generation():
         tool_registry="search: query",
         query="Complex question",
         iteration=2,
-        max_iterations=5,
+        depth=5,
         current_approach="analytical",
         context="No previous attempts",
     )

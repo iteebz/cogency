@@ -41,7 +41,7 @@ class MockTool(BaseTool):
 
 @pytest.fixture
 def state():
-    return State(query="test query", trace=True)
+    return State(query="test query", debug=True)
 
 
 @pytest.fixture

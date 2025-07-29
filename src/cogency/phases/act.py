@@ -5,7 +5,7 @@ import time
 from typing import List
 
 # Tool retry logic now handled by @safe.act() decorator
-from cogency.decorators import observe, robust
+from cogency.decorators import phase
 from cogency.phases.base import Phase
 from cogency.state import State
 from cogency.tools.base import BaseTool
@@ -20,22 +20,21 @@ class Act(Phase):
 
     def next_phase(self, state: State) -> str:
         current_iter = state.iteration
-        max_iter = state.max_iterations
+        max_iter = state.depth
         stop_reason = state.stop_reason
 
         # Check stop conditions first
-        if stop_reason in ["max_iterations_reached", "reasoning_loop_detected"]:
+        if stop_reason in ["depth_reached", "reasoning_loop_detected"]:
             return "respond"
         elif current_iter >= max_iter:
-            state.stop_reason = "max_iterations_reached"
+            state.stop_reason = "depth_reached"
             return "respond"
         else:
             # Continue reasoning loop
             return "reason"
 
 
-@observe.act()
-@robust.act()
+@phase.act()
 async def act(state: State, tools: List[BaseTool]) -> None:
     """Act: execute tools based on reasoning decision."""
     time.time()

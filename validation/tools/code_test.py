@@ -17,7 +17,7 @@ async def main():
         identity="programming assistant that executes code safely",
         tools=[Code()],
         memory=False,
-        max_iterations=3,
+        depth=3,
         trace=False,  # Clean output
     )
 

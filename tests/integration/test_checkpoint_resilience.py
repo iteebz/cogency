@@ -46,10 +46,10 @@ class MockCheckpointLLM:
 class MockCheckpointAgent:
     """Agent with checkpoint/resume capabilities."""
 
-    def __init__(self, llm=None, tools=None, max_iterations=10, checkpoint_file=None, **kwargs):
+    def __init__(self, llm=None, tools=None, depth=10, checkpoint_file=None, **kwargs):
         from cogency.agent import Agent
 
-        self.agent = Agent(llm=llm, tools=tools or [], max_iterations=max_iterations)
+        self.agent = Agent(llm=llm, tools=tools or [], depth=depth)
         self.checkpoint_file = checkpoint_file
         self.execution_state = {"step": 0, "completed_actions": [], "current_task": None}
 
@@ -148,7 +148,7 @@ async def test_resume():
         # Create agent with checkpoint support
         mock_llm = MockCheckpointLLM()
         agent = MockCheckpointAgent(
-            llm=mock_llm, tools=[], checkpoint_file=checkpoint_file, max_iterations=3
+            llm=mock_llm, tools=[], checkpoint_file=checkpoint_file, depth=3
         )
 
         # Run initial task (will create checkpoint)
@@ -160,7 +160,7 @@ async def test_resume():
 
         # Create new agent instance to simulate restart
         new_agent = MockCheckpointAgent(
-            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, max_iterations=3
+            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, depth=3
         )
 
         # Resume from checkpoint
@@ -191,7 +191,7 @@ async def test_failure_recovery():
         llm=MockCheckpointLLM(),
         tools=[],
         checkpoint_file="/invalid/path/checkpoint.json",
-        max_iterations=2,
+        depth=2,
     )
 
     # Should handle checkpoint save failure gracefully
@@ -216,7 +216,7 @@ async def test_data_integrity():
 
     try:
         agent = MockCheckpointAgent(
-            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, max_iterations=2
+            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, depth=2
         )
 
         # Set up complex execution state
@@ -233,7 +233,7 @@ async def test_data_integrity():
 
         # Create new agent and load
         new_agent = MockCheckpointAgent(
-            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, max_iterations=2
+            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, depth=2
         )
 
         load_result = await new_agent.load_checkpoint()

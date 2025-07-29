@@ -17,7 +17,7 @@ async def main():
         identity="helpful weather assistant providing current conditions",
         tools=[Weather()],
         memory=False,
-        max_iterations=3,
+        depth=3,
         trace=False,  # Clean output
     )
 

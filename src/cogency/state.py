@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from cogency.constants import DEFAULT_MAX_ITERATIONS, MAX_ITERATIONS_HISTORY
+from cogency.constants import DEFAULT_MAX_DEPTH, MAX_ITERATIONS_HISTORY
 from cogency.types.tools import ToolCall, ToolOutcome, ToolResult
 
 
@@ -17,7 +17,7 @@ class State:
     messages: List[Dict[str, str]] = field(default_factory=list)
     # Flow control
     iteration: int = 0
-    max_iterations: int = DEFAULT_MAX_ITERATIONS
+    depth: int = DEFAULT_MAX_DEPTH
     react_mode: str = "fast"
     stop_reason: Optional[str] = None
     current_approach: str = ""
@@ -41,8 +41,8 @@ class State:
     # Output
     response: Optional[str] = None
     respond_directly: bool = False
-    verbose: bool = True
-    trace: bool = False
+    notify: bool = True
+    debug: bool = False
     callback: Any = None
     notifications: List[Dict[str, Any]] = field(default_factory=list)
 

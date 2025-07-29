@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from resilient_result import unwrap
 
-from cogency.decorators import observe, robust
+from cogency.decorators import phase
 from cogency.memory.backends.base import MemoryBackend
 from cogency.memory.prepare import save_memory
 from cogency.phases.base import Phase
@@ -33,8 +33,7 @@ class Preprocess(Phase):
         return "reason" if state.selected_tools else "respond"
 
 
-@observe.preprocess()
-@robust.preprocess()
+@phase.preprocess()
 async def preprocess(
     state: State,
     llm: BaseLLM,
@@ -56,8 +55,8 @@ async def preprocess(
 
         # Skip preprocessing state - no ceremony
 
-        # Trace for dev debugging
-        if state.trace:
+        # Debug for dev tracing
+        if state.debug:
             await notify(state, "trace", f"Built tool registry with {len(tools)} tools")
 
         # Pragmatic heuristic: Simple queries likely don't need deep reasoning
@@ -163,7 +162,7 @@ Example:
         if filtered_tools:
             if len(filtered_tools) < len(tools):
                 # Show smart filtering in traces
-                if state.trace:
+                if state.debug:
                     await notify(
                         state,
                         "trace",

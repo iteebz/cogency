@@ -25,7 +25,7 @@ async def main():
                 identity="data analyst who processes files, runs code, and calculates results",
                 tools=[Files(), Code(), Calculator()],
                 memory=False,
-                max_iterations=10,  # Complex workflow needs iterations
+                depth=10,  # Complex workflow needs iterations
                 trace=False,
             )
 

@@ -210,7 +210,7 @@ class TestStateManager:
         """Test complete state reconstruction."""
         # Add more complex state data
         sample_state.iteration = 5
-        sample_state.stop_reason = "max_iterations"
+        sample_state.stop_reason = "depth"
         sample_state.response = "Final response"
         sample_state.add_action(
             mode="fast",
@@ -227,7 +227,7 @@ class TestStateManager:
 
         # Verify all fields reconstructed correctly
         assert loaded_state.iteration == 5
-        assert loaded_state.stop_reason == "max_iterations"
+        assert loaded_state.stop_reason == "depth"
         assert loaded_state.response == "Final response"
         assert len(loaded_state.actions) == 1
         assert loaded_state.actions[0]["thinking"] == "Test thinking"

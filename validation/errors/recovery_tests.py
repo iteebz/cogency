@@ -17,7 +17,7 @@ async def main():
         identity="persistent assistant who tries alternatives when tools fail",
         tools=[Calculator(), Code()],
         memory=False,
-        max_iterations=8,  # Allow for recovery attempts
+        depth=8,  # Allow for recovery attempts
         trace=False,
     )
 

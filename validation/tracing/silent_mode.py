@@ -17,7 +17,7 @@ async def main():
         identity="helpful assistant with clean, direct responses",
         tools=[Calculator(), Weather()],
         memory=False,
-        max_iterations=5,
+        depth=5,
         trace=False,  # 🤫 NO TRACING - clean output only
         verbose=False,
     )

@@ -8,7 +8,7 @@ from cogency.state import State
 async def get_state(
     user_id: str,
     query: str,
-    max_iterations: int,
+    depth: int,
     user_states: Dict[str, State],
     persistence_manager=None,
     llm=None,
@@ -37,6 +37,6 @@ async def get_state(
             return state
 
     # Create new state if restore failed or persistence disabled
-    state = State(query=query, user_id=user_id, max_iterations=max_iterations)
+    state = State(query=query, user_id=user_id, depth=depth)
     user_states[user_id] = state
     return state

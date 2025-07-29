@@ -13,7 +13,7 @@ def test_deep_mode_prompt_generation():
         query="test query",
         context="",
         iteration=1,
-        max_iterations=5,
+        depth=5,
         current_approach="test approach",
     )
 

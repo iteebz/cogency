@@ -17,7 +17,7 @@ async def main():
         identity="research assistant who finds information then implements solutions",
         tools=[Search(), Code()],
         memory=False,
-        max_iterations=8,
+        depth=8,
         trace=True,
         # deep=True,  # Force deep mode
         # adapt=False,  # Disable adaptive switching

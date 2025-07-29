@@ -69,12 +69,12 @@ async def test_error_handling(state):
 @pytest.mark.asyncio
 async def test_stop_reason(state):
     llm = create_mock_llm("Fallback response")
-    state.stop_reason = "max_iterations_reached"
+    state.stop_reason = "depth_reached"
 
     await respond(state, llm=llm, tools=[])
 
     assert state.response == "Fallback response"
-    assert state.stop_reason == "max_iterations_reached"
+    assert state.stop_reason == "depth_reached"
 
 
 @pytest.mark.asyncio

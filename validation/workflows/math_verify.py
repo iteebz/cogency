@@ -17,7 +17,7 @@ async def main():
         identity="mathematical assistant who calculates quickly then verifies with code",
         tools=[Calculator(), Code()],
         memory=False,
-        max_iterations=8,  # Allow for multi-step workflow
+        depth=8,  # Allow for multi-step workflow
         trace=True,
     )
 

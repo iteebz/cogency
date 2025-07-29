@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
-from cogency.monitoring.profiling import (
+from cogency.observation.profiling import (
     ProfileMetrics,
     Profiler,
     get_profiler,

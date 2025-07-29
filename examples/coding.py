@@ -19,7 +19,7 @@ async def main():
         identity="You are Dr. Elena Rodriguez, a senior ML engineer at DeepMind with expertise in neural architecture design and training optimization. You've built production ML systems at scale and are known for creating elegant, efficient training pipelines. You approach problems with both theoretical rigor and practical engineering excellence, always focusing on reproducible results and clean code architecture.",
         tools=[Code(), Files(), Shell()],
         memory=False,
-        max_iterations=25,  # ML projects may need more iterations
+        depth=25,  # ML projects may need more iterations
         trace=trace_args(),
     )
 

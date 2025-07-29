@@ -31,7 +31,7 @@ compiled = graph.compile()
 
 **Our simpler approach:**
 ```python
-while state.iteration < state.max_iterations:
+while state.iteration < state.depth:
     state = await reason(state, ...)
     if not state.tool_calls: break
     state = await act(state, ...)
@@ -98,7 +98,7 @@ async def run_agent(state: State, **kwargs) -> State:
     state = await preprocess(state, **extract_kwargs(kwargs, preprocess))
     
     # Reasoning loop with iteration limits
-    while state.iteration < state.max_iterations:
+    while state.iteration < state.depth:
         state = await reason(state, **extract_kwargs(kwargs, reason))
         if not state.tool_calls:
             break
