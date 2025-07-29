@@ -41,7 +41,7 @@ def basic_state():
 @pytest.mark.asyncio
 async def test_init():
     state = basic_state()
-    await reason(state, notify=Mock(), llm=mock_llm(), tools=mock_tools())
+    await reason(state, Mock(), llm=mock_llm(), tools=mock_tools())
 
     assert isinstance(state, State)
     assert hasattr(state, "objective")
@@ -57,7 +57,7 @@ async def test_tracking():
     state = basic_state()
     state.iteration = 2
 
-    await reason(state, notify=Mock(), llm=mock_llm(), tools=mock_tools())
+    await reason(state, Mock(), llm=mock_llm(), tools=mock_tools())
 
     assert isinstance(state, State)
     assert state.iteration == 3
@@ -69,7 +69,7 @@ async def test_depth():
     state.iteration = 5
     state.depth = 5
 
-    await reason(state, notify=Mock(), llm=mock_llm(), tools=mock_tools())
+    await reason(state, Mock(), llm=mock_llm(), tools=mock_tools())
 
     assert isinstance(state, State)
     assert state.stop_reason == "depth_reached"
@@ -83,7 +83,7 @@ async def test_error():
 
     with patch("asyncio.sleep", new_callable=AsyncMock):
         with pytest.raises(Exception, match="LLM error"):
-            await reason(state, notify=Mock(), llm=llm, tools=mock_tools())
+            await reason(state, Mock(), llm=llm, tools=mock_tools())
 
 
 class MockTool(Tool):

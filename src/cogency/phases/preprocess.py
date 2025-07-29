@@ -31,7 +31,7 @@ class Preprocess(Phase):
 @phase.preprocess()
 async def preprocess(
     state: State,
-    notify,
+    notifier,
     llm: LLM,
     tools: List[Tool],
     memory: Store,
@@ -50,12 +50,10 @@ async def preprocess(
 
         # Skip preprocessing state - no ceremony
 
-        # Debug for dev tracing
-        if state.debug and notify:
-            notify("trace", f"Built tool registry with {len(tools)} tools")
-
         # Pragmatic heuristic: Simple queries likely don't need deep reasoning
-        suggested_mode = "fast" if is_simple_query(query) else None
+        # Safety check: ensure query is string
+        query_str = query if isinstance(query, str) else str(query)
+        suggested_mode = "fast" if is_simple_query(query_str) else None
 
         # Single LLM call: routing + memory + tool selection + complexity analysis
         hint_section = (
@@ -124,8 +122,7 @@ Example:
                 output_content = f"{memory_content[:break_point]}..."
             else:
                 output_content = memory_content
-            if notify:
-                notify("preprocess", f"Saved: {output_content}")
+            notifier.preprocess(f"Saved memory: {output_content}")
 
             # Save memory directly - no ceremony
             if memory_content:
@@ -163,17 +160,24 @@ Example:
             # If LLM didn't specify selected_tools, assume tools are needed, so respond_directly is False
             state.respond_directly = False
 
-        # Stream tool selection as trace for debugging
+        # Trace execution path decisions
         if filtered_tools:
             if len(filtered_tools) < len(tools):
-                # Show smart filtering in traces
-                if state.debug and notify:
-                    notify(
-                        "trace", f"Selected tools: {', '.join([t.name for t in filtered_tools])}"
-                    )
-            elif len(filtered_tools) > 1 and state.trace and notify:
-                # Show tools being prepared for ReAct in traces
-                notify("trace", f"Preparing tools: {', '.join([t.name for t in filtered_tools])}")
+                # Tool filtering decision affects behavior
+                notifier.trace(
+                    "Tool filtering applied",
+                    {
+                        "selected": len(filtered_tools),
+                        "total": len(tools),
+                        "execution_path": "filtered",
+                    },
+                )
+            elif len(filtered_tools) == 1:
+                # Single tool triggers direct execution
+                notifier.trace("Direct execution path", {"reason": "single_tool"})
+            else:
+                # Multi-tool triggers ReAct loop
+                notifier.trace("ReAct execution path", {"tool_count": len(filtered_tools)})
     else:
         # Simple case: no tools available, respond directly
         filtered_tools = []  # No tools to filter if initial 'tools' list is empty

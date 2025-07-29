@@ -10,7 +10,9 @@ from cogency.phases import setup_phases
 from cogency.services import LLM, Embed, setup_embed, setup_llm
 from cogency.state import State
 from cogency.tools import Tool, setup_tools
-from cogency.utils import Notifier, validate_query
+from cogency.utils import validate_query
+from cogency.utils.notify import Notifier  # v1 - backward compatibility 
+from cogency.notify import CLIFormatter, EmojiFormatter, JSONFormatter, Formatter  # v2
 
 
 class Agent:
@@ -93,23 +95,9 @@ class Agent:
         # Setup MCP server
         self.mcp_server = setup_mcp(self, mcp)
 
-    def _notify_cb(self, state: State):
-        """Create notification callback for phases."""
-
-        def notify(event_type: str, message: str):
-            asyncio.create_task(self._handle_notification(event_type, message, state))
-
-        return notify
-
-    async def _handle_notification(self, event_type: str, message: str, state: State) -> None:
-        """Handle notification with proper separation of concerns."""
-        if state.callback and state.notify:
-            await state.callback(message)
-
-        # Store notification for debugging
-        state.notifications.append(
-            {"event_type": event_type, "message": message, "iteration": state.iteration}
-        )
+    def _setup_notifier(self, callback=None) -> Notifier:
+        """Setup clean phase-based notification system."""
+        return Notifier(callback=callback, trace=self.debug, verbose=self.notify)
 
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution"""
@@ -130,19 +118,43 @@ class Agent:
 
         state.add_message("user", query)
 
-        # Stream execution using Notifier
-        notifier = Notifier(
-            state=state,
-            phases=self.phases,
-            trace=self.debug,
-            verbose=self.notify,
+        # Create streaming callback and notification system
+        queue: asyncio.Queue[str] = asyncio.Queue()
+
+        async def stream_callback(phase: str, message: str, metadata: dict) -> None:
+            await queue.put(message)
+
+        notifier = self._setup_notifier(callback=stream_callback)
+
+        # Start execution
+        from cogency.execution import run_agent
+
+        task = asyncio.create_task(
+            run_agent(
+                state,
+                self.phases["preprocess"],
+                self.phases["reason"],
+                self.phases["act"],
+                self.phases["respond"],
+                notifier,
+            )
         )
 
-        async for chunk in notifier.notify():
-            yield chunk
+        # Stream notifications
+        try:
+            while not task.done():
+                try:
+                    message = await asyncio.wait_for(queue.get(), timeout=0.1)
+                    yield message
+                except asyncio.TimeoutError:
+                    continue
 
-        # Store state for traces()
-        self.last_state = notifier.get_notifications()
+            # Drain remaining
+            while not queue.empty():
+                yield queue.get_nowait()
+
+        finally:
+            self.last_state = await task
 
     async def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return complete response as string (async)"""
@@ -170,8 +182,8 @@ class Agent:
             # Use simple execution loop with zero ceremony
             from cogency.execution import run_agent
 
-            # Create notify callback
-            notify = self._notify_cb(state)
+            # Setup notifier
+            notifier = self._setup_notifier()
 
             # Phase instances already have dependencies injected
             await run_agent(
@@ -180,7 +192,7 @@ class Agent:
                 self.phases["reason"],
                 self.phases["act"],
                 self.phases["respond"],
-                notify,
+                notifier,
             )
             self.last_state = state
 
@@ -194,7 +206,7 @@ class Agent:
 
             error_msg = f"Flow execution failed: {e}\n{traceback.format_exc()}"
             print(error_msg)
-            return f"ERROR: {e}"
+            raise e
 
     def traces(self) -> list[dict[str, Any]]:
         """Get traces from last execution for debugging"""

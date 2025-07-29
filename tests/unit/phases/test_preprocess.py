@@ -45,7 +45,7 @@ async def test_fast():
 
     state = State(query=query)
 
-    await preprocess_module.preprocess(state, notify=Mock(), llm=llm, tools=tools, memory=None)
+    await preprocess_module.preprocess(state, Mock(), llm=llm, tools=tools, memory=None)
 
     assert state.respond_directly is False
 
@@ -63,7 +63,7 @@ async def test_deep():
 
     state = State(query=query)
 
-    await preprocess_module.preprocess(state, notify=Mock(), llm=llm, tools=tools, memory=None)
+    await preprocess_module.preprocess(state, Mock(), llm=llm, tools=tools, memory=None)
 
     assert state.respond_directly is False
 
@@ -79,6 +79,6 @@ async def test_response():
 
     state = State(query=query)
 
-    await preprocess_module.preprocess(state, notify=Mock(), llm=llm, tools=tools, memory=None)
+    await preprocess_module.preprocess(state, Mock(), llm=llm, tools=tools, memory=None)
 
     assert state.respond_directly is True

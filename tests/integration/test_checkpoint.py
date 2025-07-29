@@ -33,6 +33,11 @@ class MockCheckpointLLM(LLM):
         self.call_count += 1
         last_msg = messages[-1]["content"].lower()
 
+        # Check if this is a preprocessing request (looking for JSON format in prompt)
+        if "json response format" in messages[-1]["content"].lower():
+            # Return valid JSON for preprocessing
+            return """{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": [], "reasoning": "Simple analysis task, no tools needed"}"""
+
         if "checkpoint" in last_msg and "resume" in last_msg:
             # Resuming from checkpoint
             return "Resuming from checkpoint. I was analyzing data and had completed steps 1-3. Now continuing with step 4: final analysis."

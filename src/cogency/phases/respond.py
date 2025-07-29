@@ -173,15 +173,14 @@ def format_tool_results(state: State) -> Optional[str]:
 @phase.respond()
 async def respond(
     state: State,
-    notify,
+    notifier,
     llm: LLM,
     tools: List[Tool],
     identity: Optional[str] = None,
     output_schema: Optional[str] = None,
 ) -> None:
     """Respond: generate final formatted response with personality."""
-    if notify:
-        notify("respond", "Generating response")
+    notifier.respond("Generating response")
 
     # Collect all context upfront - no branching ceremony
     failures = collect_failures(state)
@@ -211,8 +210,7 @@ async def respond(
             else "I'm here to help. How can I assist you?"
         )
 
-    if notify:
-        notify("respond", f"🤖: {response_text}")
+    notifier.respond(response_text)
 
     # Update state
     state.add_message("assistant", response_text)

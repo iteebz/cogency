@@ -8,6 +8,7 @@ from resilient_result import Result
 
 from cogency import Agent
 from cogency.services.llm.base import LLM
+from cogency.tools import Shell
 
 
 class MockLLM(LLM):
@@ -30,6 +31,11 @@ class MockLLM(LLM):
     async def _run_impl(self, messages, **kwargs) -> str:
         self.call_count += 1
         last_msg = messages[-1]["content"].lower()
+
+        # Check if this is a preprocessing request (looking for JSON format in prompt)
+        if "json response format" in messages[-1]["content"].lower():
+            # Return valid JSON for preprocessing
+            return '{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": ["bash"], "reasoning": "Need to execute bash commands"}'
 
         if self.call_count == 1:
             # Initial response - try risky command
@@ -58,6 +64,10 @@ class MockBashTool:
 
     def __init__(self):
         self.call_count = 0
+        self.name = "bash"
+        self.emoji = "🔧"
+        self.description = "Execute bash commands"
+        self.rules = []
 
     async def call(self, command):
         self.call_count += 1
@@ -78,21 +88,23 @@ async def test_recovery():
     mock_llm = MockLLM()
     mock_bash = MockBashTool()
 
-    # Create agent with mocked dependencies
-    agent = Agent(llm=mock_llm, tools=[mock_bash], depth=5)
+    # Create agent with real shell tool but mocked execution
+    shell_tool = Shell()
+    with patch.object(shell_tool, "run", side_effect=mock_bash.call):
+        agent = Agent(llm=mock_llm, tools=[shell_tool], depth=5)
 
-    # Run agent with initial prompt
-    result = await agent.run("List the contents of the current directory")
+        # Run agent with initial prompt
+        result = await agent.run("List the contents of the current directory")
 
-    # Verify recovery happened - agent.run() returns string, not Result
-    assert isinstance(result, str), "Agent should return string response"
-    assert result.strip(), "Agent should return non-empty response"
+        # Verify recovery happened - agent.run() returns string, not Result
+        assert isinstance(result, str), "Agent should return string response"
+        assert result.strip(), "Agent should return non-empty response"
 
-    # Tool might not be called if agent fails early, but that's ok for this test
-    # The main point is that agent.run() completes and returns a response
+        # Tool might not be called if agent fails early, but that's ok for this test
+        # The main point is that agent.run() completes and returns a response
 
-    # Verify final result indicates some kind of completion or response
-    assert len(result) > 5, f"Agent should return meaningful response, got: {result}"
+        # Verify final result indicates some kind of completion or response
+        assert len(result) > 5, f"Agent should return meaningful response, got: {result}"
 
 
 @pytest.mark.asyncio
@@ -102,6 +114,10 @@ async def test_multiple_failures():
     class FailingBashTool:
         def __init__(self):
             self.call_count = 0
+            self.name = "bash"
+            self.emoji = "🔧"
+            self.description = "Execute bash commands"
+            self.rules = []
 
         async def call(self, command):
             self.call_count += 1
@@ -122,6 +138,10 @@ async def test_multiple_failures():
             return None
 
         async def _run_impl(self, messages, **kwargs) -> str:
+            # Check if this is a preprocessing request (looking for JSON format in prompt)
+            if "json response format" in messages[-1]["content"].lower():
+                # Return valid JSON for preprocessing
+                return '{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": ["bash"], "reasoning": "Need to execute bash commands"}'
             return "Let me try another command: echo 'hello'"
 
         async def run(self, messages, **kwargs):
@@ -132,14 +152,17 @@ async def test_multiple_failures():
             response = await self._run_impl(messages, **kwargs)
             yield response
 
-    agent = Agent(llm=PersistentLLM(), tools=[FailingBashTool()], depth=3)
+    failing_tool = FailingBashTool()
+    shell_tool = Shell()
+    with patch.object(shell_tool, "run", side_effect=failing_tool.call):
+        agent = Agent(llm=PersistentLLM(), tools=[shell_tool], depth=3)
 
-    result = await agent.run("Run a command")
+        result = await agent.run("Run a command")
 
-    # Agent should eventually give up gracefully - agent.run() returns string
-    assert isinstance(result, str), "Agent should return string response"
-    # Agent should either succeed with some response or indicate it tried multiple approaches
-    assert result.strip(), "Agent should return non-empty response"
+        # Agent should eventually give up gracefully - agent.run() returns string
+        assert isinstance(result, str), "Agent should return string response"
+        # Agent should either succeed with some response or indicate it tried multiple approaches
+        assert result.strip(), "Agent should return non-empty response"
 
 
 if __name__ == "__main__":

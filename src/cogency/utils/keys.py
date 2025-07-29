@@ -3,7 +3,20 @@
 import itertools
 import os
 import random
+from pathlib import Path
 from typing import List, Optional, Union
+
+# Auto-load .env file for seamless key detection
+try:
+    from dotenv import load_dotenv
+
+    # Look for .env file in project root (where cogency is installed)
+    env_path = Path(__file__).parent.parent.parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    # python-dotenv not installed, skip auto-loading
+    pass
 
 
 class KeyRotator:

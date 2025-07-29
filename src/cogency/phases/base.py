@@ -14,9 +14,10 @@ class Phase:
     def __init__(self, func: Any, **kwargs):
         self.func = partial(func, **kwargs)
 
-    async def __call__(self, state: State) -> None:
+    async def __call__(self, state: State, notifier=None) -> None:
         """Execute phase function - mutates state in place."""
-        result = await self.func(state)
+        # All phase functions now require notifier parameter
+        result = await self.func(state, notifier)
 
         # Handle Result objects from @robust decorators
         if hasattr(result, "success"):

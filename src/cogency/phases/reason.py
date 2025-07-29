@@ -100,7 +100,7 @@ def format_actions(execution_results, prev_tool_calls, selected_tools):
 @phase.reason()
 async def reason(
     state: State,
-    notify,
+    notifier,
     llm: LLM,
     tools: List[Tool],
     identity: Optional[str] = None,
@@ -115,13 +115,13 @@ async def reason(
     if state.mode != mode:
         state.mode = mode
 
-    if notify:
-        notify("reason", f"Starting {mode} mode reasoning")
+    notifier.reason("Processing query")
 
     # Check stop conditions - pure logic, no ceremony
     if iteration >= state.depth:
         state.stop_reason = "depth_reached"
         state.tool_calls = None
+        notifier.trace("ReAct terminated", {"reason": "depth_reached", "iterations": iteration})
         return  # State mutated in place
 
     # Build messages
@@ -144,13 +144,9 @@ async def reason(
         state=state,
     )
 
-    # DEBUG: Show what LLM sees
-    if state.debug and notify:
-        if mode == "deep":
-            notify("trace", f"Iteration {iteration}: deep mode with structured actions")
-        else:
-            context = state.build_reasoning_context(mode)
-            notify("trace", f"Iteration {iteration}: context = '{context}'")
+    # Trace reasoning context for debugging
+    if iteration == 0:
+        notifier.trace("ReAct loop initiated", {"mode": mode, "depth_limit": state.depth})
 
     # Add optional identity prompt
     if identity:
@@ -172,28 +168,34 @@ async def reason(
         Reasoning.from_dict(parse_result.data) if parse_result.success else Reasoning()
     )
 
+    # Trace parsing failures for debugging
+    if not parse_result.success:
+        notifier.trace(
+            "LLM response parse failed",
+            {"mode": mode, "iteration": iteration, "error": "invalid_reasoning_format"},
+        )
+
     # Display reasoning phases
-    if state.notify and notify:
-        if mode == "deep" and reasoning_response:
-            if reasoning_response.thinking:
-                notify("reason", f"💭 {reasoning_response.thinking}\n")
-            if reasoning_response.reflect:
-                notify("reason", f"🤔 {reasoning_response.reflect}\n")
-            if reasoning_response.plan:
-                notify("reason", f"📋 {reasoning_response.plan}\n")
-        elif reasoning_response.thinking:
-            notify("reason", f"💭 {reasoning_response.thinking}\n")
+    if mode == "deep" and reasoning_response:
+        if reasoning_response.thinking:
+            notifier.reason(reasoning_response.thinking)
+        if reasoning_response.reflect:
+            notifier.reason(reasoning_response.reflect)
+        if reasoning_response.plan:
+            notifier.reason(reasoning_response.plan)
+    elif reasoning_response.thinking:
+        notifier.reason(reasoning_response.thinking)
 
     # Handle mode switching - only if agent mode is "adapt"
     agent_mode = getattr(state, "agent_mode", "adapt")
     if agent_mode == "adapt":
         switch_to, switch_why = parse_switch(raw_response)
         if should_switch(mode, switch_to, switch_why, iteration, state.depth):
-            if state.debug and notify:
-                notify("trace", f"Mode switch: {mode} → {switch_to} ({switch_why})")
+            notifier.trace(
+                "Mode switch executed",
+                {"from": mode, "to": switch_to, "reason": switch_why, "iteration": iteration},
+            )
             state = switch_mode(state, switch_to, switch_why)
-    elif state.debug and notify:
-        notify("trace", f"Mode switching disabled (agent mode: {agent_mode})")
 
     # Update reasoning state
     tool_calls = reasoning_response.tool_calls

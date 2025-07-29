@@ -29,21 +29,21 @@ async def main():
     query = "I need to calculate the area of a circle with radius 5, then find what percentage that is of a square with side length 12"
 
     print(f"🎯 Query: {query}\n")
-    
+
     try:
         result = await agent.run(query)
         print(f"\n✅ Final Result: {result}")
         print("\n🎵 Cognitive workspace test complete!")
-        
+
         # Test state access patterns
-        if hasattr(agent, '_last_state') and agent._last_state:
+        if hasattr(agent, "_last_state") and agent._last_state:
             state = agent._last_state
-            print(f"\n🧠 Final Workspace State:")
+            print("\n🧠 Final Workspace State:")
             print(f"   objective: {state.objective}")
-            print(f"   understanding: {state.understanding}")  
+            print(f"   understanding: {state.understanding}")
             print(f"   approach: {state.approach}")
             print(f"   discoveries: {state.discoveries}")
-        
+
     except Exception as e:
         print(f"❌ Test failed: {e}")
         raise

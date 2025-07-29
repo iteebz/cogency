@@ -1,78 +1,121 @@
-"""Notification orchestration utilities."""
+"""Canonical notification system - Phase-based cognitive observability."""
 
 import asyncio
-from typing import TYPE_CHECKING, AsyncIterator, Optional
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Callable, Dict, Optional
 
-if TYPE_CHECKING:
-    from cogency.state import State
+
+class Phase(Enum):
+    """Canonical execution phases mapped to notification types."""
+
+    PREPROCESS = "preprocess"
+    REASON = "reason"
+    ACTION = "action"
+    RESPOND = "respond"
+    TRACE = "trace"
 
 
-def format_thinking(thinking: Optional[str], mode: str = "fast") -> str:
-    """Format thinking content for display."""
-    if not thinking:
-        return "Processing request..."
+@dataclass
+class Notification:
+    """Canonical notification structure."""
 
-    # Add mode-specific emoji prefixes for visual distinction
-    if mode == "deep":
-        return f"🧠 {thinking}"
-    else:
-        return f"💭 {thinking}"
+    phase: str
+    message: str
+    metadata: Dict[str, Any]
 
 
 class Notifier:
-    """Manages notifications for agent flows."""
+    """Phase-based notification orchestrator - Clean callback decoupling."""
 
-    def __init__(self, state: "State", phases: dict, trace: bool = False, verbose: bool = True):
-        self.state = state
-        self.phases = phases
-        self.trace = trace
+    def __init__(
+        self, callback: Optional[Callable] = None, trace: bool = False, verbose: bool = True
+    ):
+        self.callback = callback
+        self.trace_enabled = trace
         self.verbose = verbose
+        self.notifications: list[Notification] = []
 
-    async def notify(self) -> AsyncIterator[str]:
-        """Notify user of reasoning progress."""
-        queue: asyncio.Queue[str] = asyncio.Queue()
+    def notify(self, phase: Phase, message: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Send canonical notification."""
+        if phase == Phase.TRACE and not self.trace_enabled:
+            return
+        if phase != Phase.TRACE and not self.verbose:
+            return
 
-        async def cb(message: str) -> None:
-            await queue.put(message)
+        notification = Notification(phase=phase.value, message=message, metadata=metadata or {})
 
-        # Set callback for notifications
-        self.state.callback = cb
-        self.state.notify = self.verbose
-        self.state.debug = self.trace
+        # Store notification
+        self.notifications.append(notification)
 
-        # Start execution in background
-        from cogency.execution import run_agent
+        # Stream via callback if provided
+        if self.callback:
+            asyncio.create_task(self.callback(phase.value, message, metadata or {}))
 
-        task = asyncio.create_task(
-            run_agent(
-                self.state,
-                self.phases["preprocess"],
-                self.phases["reason"],
-                self.phases["act"],
-                self.phases["respond"],
-            )
-        )
+    def preprocess(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Preprocessing phase notification."""
+        self.notify(Phase.PREPROCESS, message, metadata)
 
-        # Notification messages as they arrive
-        try:
-            while not task.done():
-                try:
-                    message = await asyncio.wait_for(queue.get(), timeout=0.1)
-                    yield message
-                except asyncio.TimeoutError:
-                    continue
+    def reason(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Reasoning phase notification."""
+        self.notify(Phase.REASON, message, metadata)
 
-            # Get any remaining messages
-            while not queue.empty():
-                yield queue.get_nowait()
+    def action(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Action/tool execution phase notification."""
+        self.notify(Phase.ACTION, message, metadata)
 
-        finally:
-            result = await task
-            self._last_state = result  # Store final state for notification access
+    def respond(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Response generation phase notification."""
+        self.notify(Phase.RESPOND, message, metadata)
 
-    def get_notifications(self) -> list:
-        """Get the notification entries for debugging."""
-        last_state = getattr(self, "_last_state", {})
-        if isinstance(last_state, dict):
-            return last_state.get("notifications", [])
-        return []
+    def trace(self, message: str, metadata: Optional[Dict[str, Any]] = None) -> None:
+        """Debug/trace notification."""
+        self.notify(Phase.TRACE, message, metadata)
+
+
+class NotificationFormatter:
+    """Emoji formatting layer - Separated from data layer."""
+
+    PHASE_EMOJIS = {
+        Phase.PREPROCESS: "⚙️",
+        Phase.REASON: "💭",
+        Phase.ACTION: "⚡",
+        Phase.RESPOND: "🤖",
+        Phase.TRACE: "🔍",
+    }
+
+    @classmethod
+    def format(cls, notification: Notification, include_emoji: bool = True) -> str:
+        """Format notification with optional emoji."""
+        if not include_emoji:
+            return notification.message
+
+        phase_enum = Phase(notification.phase)
+        emoji = cls.PHASE_EMOJIS.get(phase_enum, "")
+        return f"{emoji} {notification.message}" if emoji else notification.message
+
+    @classmethod
+    def format_thinking(cls, thinking: Optional[str], mode: str = "fast") -> str:
+        """Format thinking content with mode-specific indicators."""
+        if not thinking:
+            return "Processing request..."
+
+        emoji = "🧠" if mode == "deep" else "💭"
+        return f"{emoji} {thinking}"
+
+
+class NotificationStream:
+    """Clean streaming interface for notifications."""
+
+    def __init__(self, notifier: Notifier, formatter: NotificationFormatter = None):
+        self.notifier = notifier
+        self.formatter = formatter or NotificationFormatter()
+
+    async def stream(self, include_emoji: bool = True):
+        """Stream formatted notifications as they arrive."""
+        for notification in self.notifier.notifications:
+            yield self.formatter.format(notification, include_emoji)
+
+    def get_by_phase(self, phase: Phase) -> list[Notification]:
+        """Get all notifications for a specific phase."""
+        return [n for n in self.notifier.notifications if n.phase == phase.value]

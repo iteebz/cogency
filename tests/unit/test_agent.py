@@ -105,8 +105,11 @@ async def test_run_error():
     agent = Agent("test", llm=MockLLM())
 
     with patch("cogency.execution.run_agent", side_effect=Exception("Test error")):
-        result = await agent.run("test query")
-        assert "ERROR: Test error" in result
+        try:
+            await agent.run("test query")
+            raise AssertionError("Should have raised exception")
+        except Exception as e:
+            assert "Test error" in str(e)
 
 
 @pytest.mark.asyncio
@@ -131,11 +134,10 @@ def test_traces_empty():
     assert agent.traces() == []
 
 
-def test_notify_cb():
+def test_setup_notifier():
     agent = Agent("test", llm=MockLLM())
-    from cogency.state import State
 
-    state = State("test query", user_id="test_user", depth=5)
-    callback = agent._notify_cb(state)
-
-    assert callable(callback)
+    notifier = agent._setup_notifier()
+    assert notifier is not None
+    assert hasattr(notifier, "preprocess")
+    assert hasattr(notifier, "reason")

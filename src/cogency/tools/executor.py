@@ -31,11 +31,10 @@ async def execute_single_tool(
 
 
 async def execute_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notify=None
+    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notifier=None
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
-        print("execute_tools: No tool calls, returning empty result.")
         return Result.ok(
             {
                 "results": [],
@@ -47,8 +46,7 @@ async def execute_tools(
     successes = []
     failures = []
 
-    # Get tool emojis for progress display
-    tool_emoji_map = {tool.name: getattr(tool, "emoji", "⚡") for tool in tools}
+    # Progress display handled by notifier
 
     for tool_name, tool_args in tool_calls:
         # Find the tool instance for formatting
@@ -56,8 +54,6 @@ async def execute_tools(
 
         # Show tool execution start if state is available
         if state:
-            tool_emoji = tool_emoji_map.get(tool_name, "💡")
-
             # Use tool's format method for params, otherwise fallback
             if tool_instance:
                 param_str, _ = tool_instance.format_human(tool_args)
@@ -71,8 +67,8 @@ async def execute_tools(
                     )
                     tool_input = f"({first_val})"
 
-            if notify:
-                notify("action", f"{tool_emoji} {tool_name}{tool_input}")
+            if notifier:
+                notifier.action(f"Executing {tool_name}{tool_input}")
 
         try:
             result = await execute_single_tool(tool_name, tool_args, tools)
@@ -82,8 +78,8 @@ async def execute_tools(
                 # Use user-friendly error message
                 raw_error = tool_output.error or "Unknown error"
                 user_friendly_error = format_tool_error(actual_tool_name, Exception(raw_error))
-                if notify:
-                    notify("action", f"✗ {user_friendly_error}\n")
+                if notifier:
+                    notifier.action(f"Failed: {user_friendly_error}")
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -109,8 +105,8 @@ async def execute_tools(
                             )
 
                     # Add success indicator to result
-                    if notify:
-                        notify("action", f"✓ {readable_result}\n")
+                    if notifier:
+                        notifier.action(f"Completed: {readable_result}")
 
                 success_result = {
                     "tool_name": actual_tool_name,
@@ -122,8 +118,8 @@ async def execute_tools(
         except Exception as e:
             # Use user-friendly error message
             user_friendly_error = format_tool_error(tool_name, e)
-            if notify:
-                notify("action", f"✗ {user_friendly_error}")
+            if notifier:
+                notifier.action(f"Error: {user_friendly_error}")
             failure_result = {
                 "tool_name": tool_name,
                 "args": tool_args,
@@ -151,12 +147,11 @@ async def execute_tools(
             "failed_count": len(failures),
         }
     )
-    print(f"execute_tools: Returning final_result: {final_result}")
     return final_result
 
 
 async def run_tools(
-    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notify=None
+    tool_calls: List[Tuple[str, Dict]], tools: List[Tool], state, notifier=None
 ) -> Dict[str, Any]:
     """Execute tools."""
-    return await execute_tools(tool_calls, tools, state, notify)
+    return await execute_tools(tool_calls, tools, state, notifier)
