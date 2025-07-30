@@ -168,13 +168,14 @@ class Metrics:
 
 
 class TimerContext:
-    """Timer context manager."""
+    """Timer context manager with live duration access."""
 
     def __init__(self, collector: Metrics, name: str, tags: Dict[str, str]):
         self.collector = collector
         self.name = name
         self.tags = tags
         self.start_time = None
+        self.elapsed = 0.0
 
     def __enter__(self):
         self.start_time = time.time()
@@ -182,8 +183,15 @@ class TimerContext:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.start_time:
-            duration = time.time() - self.start_time
-            self.collector.histogram(self.name, duration, self.tags)
+            self.elapsed = time.time() - self.start_time
+            self.collector.histogram(self.name, self.elapsed, self.tags)
+
+    @property
+    def current_elapsed(self) -> float:
+        """Get current elapsed time (live during execution)."""
+        if self.start_time:
+            return time.time() - self.start_time
+        return 0.0
 
 
 class MetricsReporter:

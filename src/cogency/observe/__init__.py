@@ -1,5 +1,6 @@
-"""Observability exports - metrics collection and performance monitoring."""
+"""Observability exports - metrics collection, performance monitoring, and telemetry export."""
 
+from .exporters import OpenTelemetry, Prometheus
 from .metrics import (
     MetricPoint,
     Metrics,
@@ -30,4 +31,6 @@ __all__ = [
     "Profiler",
     "profile_async",
     "profile_sync",
+    "Prometheus",
+    "OpenTelemetry",
 ]

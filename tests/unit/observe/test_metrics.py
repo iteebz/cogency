@@ -71,6 +71,18 @@ def test_timer():
     assert metrics_collector.points[key][0].value == 0.5
 
 
+def test_timer_elapsed():
+    metrics_collector = Metrics()
+
+    with patch("time.time", side_effect=[1.0, 1.2, 1.5]):
+        with metrics_collector.timer("operation") as timer_ctx:
+            # Test live elapsed
+            assert abs(timer_ctx.current_elapsed - 0.2) < 0.001
+
+        # Test final elapsed
+        assert abs(timer_ctx.elapsed - 0.5) < 0.001
+
+
 def test_summary(metrics):
     values = [10, 20, 30, 40, 50]
     for v in values:

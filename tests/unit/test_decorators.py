@@ -40,7 +40,7 @@ async def test_phase_with_observe():
     configure(robust=None, observe=observe_config, persistence=None)
 
     @phase.reason()
-    async def test_func():
+    async def test_func(**kwargs):
         return "success"
 
     result = await test_func()

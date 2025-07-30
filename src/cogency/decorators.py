@@ -84,17 +84,16 @@ def _auto_save(phase_name: str):
 
 
 def _observe_metrics(phase_name: str):
-    """Observability wrapper - metrics collection and timing for phase operations."""
+    """Unified observability wrapper - single timing measurement shared across metrics and notifications."""
 
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Check if observability is enabled
             if not _config.observe:
-                # Pass-through decorator - no observability overhead
                 return await func(*args, **kwargs)
 
-            # Extract state for context tags (prioritize kwargs, fallback to args[0])
+            # Extract state for context tags
             state = kwargs.get("state") or (args[0] if args else None)
             tags = {
                 "phase": phase_name,
@@ -105,9 +104,12 @@ def _observe_metrics(phase_name: str):
             # Count phase executions
             counter(f"{phase_name}.executions", 1.0, tags)
 
-            # Time the phase execution
-            with timer(f"{phase_name}.duration", tags):
+            # Start unified timing - metrics collection handles the measurement
+            with timer(f"{phase_name}.duration", tags) as phase_timer:
                 try:
+                    # Inject timing context into kwargs for phase functions to use
+                    kwargs["_phase_timer"] = phase_timer
+
                     result = await func(*args, **kwargs)
 
                     # Success metrics
@@ -219,8 +221,15 @@ def get_config():
     return replace(_config)
 
 
+def elapsed(**kwargs) -> float:
+    """Get current phase duration from injected timer context."""
+    timer_context = kwargs.get("_phase_timer")
+    return timer_context.current_elapsed if timer_context else 0.0
+
+
 __all__ = [
     "phase",
     "configure",
     "get_config",
+    "elapsed",
 ]
