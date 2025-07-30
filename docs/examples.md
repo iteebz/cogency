@@ -1,51 +1,28 @@
 # Examples
 
-Detailed code examples and walkthroughs for common Cogency use cases.
+## Basics
 
-## Basic Examples
-
-### Simple Query
 ```python
 from cogency import Agent
 
 agent = Agent("assistant")
-result = await agent.run("What's 2 + 2?")
-print(result)  # "4"
-```
+result = await agent.run("What's 2+2?")  # → "4"
 
-### Streaming Execution
-```python
-async for chunk in agent.stream("What's the weather in London?"):
+# Streaming
+async for chunk in agent.stream("Weather in London?"):
     print(chunk, end="", flush=True)
-
-# Output:
-# 🌤️ weather(location='London') → sunny, 18°C
-# The weather in London is currently sunny with a temperature of 18°C.
+# → 🌤️ weather(location=London) → sunny, 18°C
 ```
 
-## Tool Usage Examples
+## Multi-tool Usage
 
-### Calculator
 ```python
-await agent.run("What's 15% of $1,250?")
-await agent.run("Calculate compound interest: $1000 at 5% for 3 years")
-```
+# Uses multiple tools automatically
+await agent.run("Weather in Tokyo + calculate 15% tip on $45")
+# → weather(location=Tokyo) + calculator(expression="45 * 0.15")
 
-### Web Search
-```python
-await agent.run("What are the latest developments in quantum computing?")
-await agent.run("Find Python tutorials for beginners")
-```
-
-### File Operations
-```python
-await agent.run("Create a file called todo.txt with my daily tasks")
-await agent.run("Read data.csv and summarize key findings")
-```
-
-### Multi-tool Queries
-```python
-await agent.run("Weather in Tokyo and calculate flight cost: $450 + $120 tax")
+await agent.run("Read data.csv and create summary report")
+# → csv(file=data.csv) + files(action=create)
 ```
 
 ## Real-World Applications

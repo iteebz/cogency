@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "cogency"
-version = "1.0.0"
+version = "0.9.0"
 description = "Smart AI agents that think as hard as they need to."
 authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
@@ -13,7 +13,7 @@ homepage = "https://github.com/iteebz/cogency"
 repository = "https://github.com/iteebz/cogency"
 keywords = ["ai", "agents", "reasoning", "react", "memory", "tools", "tracing", "cognition", "streaming"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",

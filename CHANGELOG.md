@@ -2,208 +2,242 @@
 
 All notable changes to this project will be documented in this file.
 
-## v0.5.1 - Rearchitect + Coding Agent
-*July 20, 2025*
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-**Decomposed nodes, zero ceremony, working coding agent.** Complete architectural overhaul with node decomposition, simplified execution, and expanded tool ecosystem.
+## [0.9.0] - 2025-07-30
 
-### ✨ New Features
-- **Coding Agent** - Production-ready coding assistant with file editing capabilities
-- **Emoji Messaging** - Beautiful emoji-based communication system for enhanced UX
-- **Extended Tool Suite** - Shell, code execution, HTTP requests, datetime, CSV, SQL tools
-- **Expression Calculator** - Smart mathematical expression evaluation
-- **Identity Prompting** - Enhanced personality and identity management
+### Added
+- Canonical ReAct cognitive architecture implementation
+- Comprehensive validation suite with 290+ tests
+- Resilience module: retry/timeout, circuit breaks and rate-limiting
+- Robust module: includes resilience, checkpoints and recovery
+- Observe module: monitoring and metrics
+- Filesystem-based state persistence
+- Dispatch notifier: event-driven, decoupled notifier logic
+- Auto-detection for LLM and embedding providers
+- Explicit tool schema validation without reflection
 
-### 🔧 Developer Experience
-- **Zero Ceremony** - Eliminated unnecessary abstractions and complexity
-- **Simplified Testing** - Complete test suite rewrite with focused, maintainable tests
-- **Graceful Error Handling** - Improved resilience and error recovery
-- **Clean Tool Execution** - Streamlined tool discovery and execution pipeline
+### Changed
+- Migrated from LangGraph to custom ReAct implementation
+- Standardized singleton patterns across providers
+- Unified reasoning prompts and flags
+- Moved LLM cache to improve performance
+- Simplified response flow and eliminated ceremony
 
-### 🏗️ Architecture
-- **Node Decomposition** - Split monolithic ReAct into focused nodes (preprocess, reason, act, respond)
-- **Eliminated Antipatterns** - Removed over-engineered abstractions and ceremonial code
-- **Codebase Reorganization** - Flattened module structure with logical separation
-- **Simplified Memory** - Streamlined CRUD operations with standardized backends
-- **Removed Complexity Analysis** - Eliminated adaptive reasoning heuristics for LLM preprocessing
+### Fixed
+- Formatting corruption and test failures
+- Auto provider key detection issues
+- Checkpointing restoration
+- Deep reasoning mode functionality
 
-### 🗑️ Removed
-- **Adaptive Reasoning** - Replaced complex heuristics with LLM-based preprocessing
-- **Monitoring Overhead** - Removed unnecessary alerts, collectors, and monitoring ceremony
-- **Over-Engineering** - Eliminated abstract base classes and complex inheritance hierarchies
-- **Legacy Tests** - Nuked 9,500+ lines of overcomplicated test code
+### Removed
+- LangGraph dependency and related abstractions
+- Action fingerprinting complexity
+- Tool formatting ceremony
 
----
+## [0.5.1] - 2025-07-20
 
-## v0.5.0 - Memory & Personality
-*July 18, 2025*
+### Added
+- Coding agent with file editing capabilities
+- Emoji-based messaging system
+- Extended tool suite: shell, code execution, HTTP requests, datetime, CSV, SQL
+- Mathematical expression calculator
+- Identity and personality prompting system
 
-**Extensible memory + beautiful tracing.** Advanced memory backends, personality system, and clean phase tracing.
+### Changed
+- **BREAKING**: Complete architectural overhaul with node decomposition
+- **BREAKING**: Split monolithic ReAct into focused phases (preprocess, reason, act, respond)
+- **BREAKING**: Eliminated adaptive reasoning heuristics in favor of LLM preprocessing
+- **BREAKING**: Flattened module structure and reorganized codebase
+- **BREAKING**: Replaced complex inheritance hierarchies with simpler patterns
+- Standardized CRUD memory backend operations
+- Simplified testing framework (removed 9,500+ lines of test code)
+- Enhanced error handling and resilience patterns
 
-### ✨ New Features
-- **Memory Backends** - Pinecone, ChromaDB, and PGVector support with semantic search
-- **Personality Prompting** - Magical personality, tone, and style injection system
-- **Clean Phase Tracing** - Beautiful `👤 HUMAN:` and `🤖 AGENT:` formatted output
-- **Pre-ReAct Prepare Node** - Enhanced tooling and memory phases
-- **Multi-Tenancy** - User-isolated conversations and memory management
+### Removed
+- **BREAKING**: Adaptive reasoning complexity analysis
+- **BREAKING**: Monitoring overhead and ceremony
+- **BREAKING**: Abstract base classes and over-engineered patterns
+- Legacy test suite (complete rewrite)
 
-### 🔧 Developer Experience
-- **Auto-Tag Memories** - Intelligent memory categorization and retrieval
-- **Import Extras** - Streamlined optional dependency management
-- **MCP Server** - Model Context Protocol integration
-- **Comprehensive Testing** - Enhanced test coverage and reliability
+### Migration Guide
+- Update import paths due to module reorganization
+- Replace adaptive reasoning calls with LLM preprocessing
+- Migrate from old node structure to new phase-based architecture
+- Update tool registration to use new simplified API
 
-### 🏗️ Architecture
+## [0.5.0] - 2025-07-18
+
+### Added
+- Memory backends: Pinecone, ChromaDB, PGVector with semantic search
+- Personality prompting system for tone and style injection
+- Clean phase tracing with formatted output (`👤 HUMAN:` / `🤖 AGENT:`)
+- Pre-ReAct prepare phase for enhanced tooling
+- Multi-tenancy with user-isolated conversations
+- Auto-tagging for intelligent memory categorization
+- MCP (Model Context Protocol) server integration
+
+### Changed
+- **BREAKING**: Decomposed ReAct loop with pluggable memory systems
 - DRY memory backend implementations with consistent interfaces
-- Response shaping and conversation history management
-- Decomposed ReAct loop with pluggable memory systems
-- Optional dependency handling and graceful degradation
+- Enhanced conversation history management
+- Improved optional dependency handling
 
----
+### Fixed
+- Memory unit test failures and reliability issues
+- Optional dependency import errors
 
-## v0.4.1 - Streaming DX
-*July 16, 2025*
+## [0.4.1] - 2025-07-16
 
-**Developer experience polish.** Minor improvements to streaming experience and documentation.
+### Changed
+- Updated marketing messaging and positioning
+- Improved repository organization and cleanup
 
-### 🔧 Developer Experience
-- **Enhanced Marketing** - Updated messaging and positioning
-- **Repository Cleanup** - Removed legacy files and improved organization
-- **Documentation Polish** - Minor fixes and improvements
+### Fixed
+- Minor documentation issues and examples
 
----
+## [0.4.0] - 2025-07-16
 
-## v0.4.0 - ReAct & Production Ready
-*July 16, 2025*
+### Added
+- **BREAKING**: Migration from PRARR to ReAct architecture (Reason → Act → Observe)
+- Production hardening with metrics and reliability features
+- Sequential tool execution with comprehensive error handling
+- Memory relevance scoring and intelligent management
+- Infinite loop detection and prevention
+- Golden trace validation for testing and debugging
+- Adaptive reasoning depth based on query complexity
 
-**Architecture revolution.** Complete transition from PRARR to ReAct with enterprise-grade production features.
-
-### ✨ New Features
-- **ReAct Architecture** - Migrated from PRARR to industry-standard ReAct loop (Reason → Act → Observe)
-- **Production Hardening** - Metrics, resilience, and enterprise-grade reliability
-- **Sequential Tool Execution** - Robust tool execution with comprehensive error handling
-- **Smart Memory** - Relevance scoring and intelligent memory management
-- **Infinite Loop Detection** - Built-in protection against reasoning cycles
-
-### 🔧 Developer Experience
-- **Golden Trace Validation** - Reference traces for testing and debugging
-- **Adaptive Reasoning Depth** - Dynamic reasoning complexity based on query
-- **Enhanced Tracing** - Improved visibility into reasoning steps
-- **Tool Filtering** - Intelligent tool selection and result processing
-
-### 🏗️ Architecture
-- Complete ReAct loop implementation with streaming support
+### Changed
+- **BREAKING**: Complete architecture change from PRARR to ReAct
+- **BREAKING**: Tool execution model changed to sequential processing
+- Enhanced tracing and visibility into reasoning steps
+- Improved tool filtering and result processing
 - Concurrency-safe state coordination
-- Pluggable cognitive nodes architecture
-- Memory primitives and embedding providers
-- Comprehensive production testing suite
 
----
+### Migration Guide
+- Replace PRARR-based agent calls with ReAct equivalents
+- Update tool execution logic for sequential processing
+- Migrate custom nodes to ReAct-compatible phases
 
-## v0.3.0 - Streaming Revolution
-*July 12, 2025*
+## [0.3.0] - 2025-07-12
 
-**Stream-first architecture.** Complete overhaul to real-time streaming execution with universal LLM support.
+### Added
+- **BREAKING**: Stream-first execution architecture using async generators
+- Real-time streaming support for all cognitive phases
+- Universal LLM provider support: OpenAI, Anthropic, Gemini, Grok, Mistral
+- `Agent.stream()` method for real-time execution transparency
+- Built-in conversation history management
+- Nomic embeddings provider integration
+- Graceful cancellation support with `@cancellation` decorator
 
-### ✨ New Features
-- **Stream-First Execution** - All nodes redesigned as async generators for real-time visibility
-- **Universal LLM Support** - OpenAI, Anthropic, Gemini, Grok, Mistral with native streaming
-- **Agent.stream()** - New streaming method for real-time execution transparency
-- **Conversation History** - Built-in conversation state management
-- **Nomic Embeddings** - Advanced embedding provider integration
-
-### 🔧 Developer Experience
-- **Async by Default** - Full async/await architecture throughout
-- **Cancellation Support** - Graceful interruption with @cancellation decorator
-- **Comprehensive Testing** - 47+ streaming tests and robust coverage
-- **Security Policy** - Formal security guidelines and practices
-
-### 🏗️ Architecture
-- Native LLM streaming for all providers
+### Changed
+- **BREAKING**: All nodes redesigned as async generators
+- **BREAKING**: Full async/await architecture throughout codebase
+- **BREAKING**: Native streaming for all LLM providers
 - Standardized configuration and error handling
-- Stream-first node architecture (plan_streaming, reason_streaming, etc.)
 - Enhanced context management and state coordination
 
----
+### Fixed
+- Streaming compatibility across all LLM providers
+- State coordination in concurrent environments
 
-## v0.2.3 - DDGS Compatibility
-*July 12, 2025*
+### Migration Guide
+- Convert synchronous agent calls to async/await pattern
+- Replace blocking operations with streaming equivalents
+- Update error handling for new async patterns
 
-**Compatibility fix.** Updated DuckDuckGo Search integration for latest API changes.
+## [0.2.3] - 2025-07-12
 
-### 🔧 Fixed
-- **DDGS Integration** - Updated web search tool for latest DuckDuckGo API
-- **Documentation** - Updated examples and usage patterns
-- **Dependencies** - Cleaned up dependency versions and compatibility
+### Fixed
+- DuckDuckGo Search (DDGS) integration for latest API changes
+- Web search reliability and error handling
 
-### 🏗️ Architecture
-- Improved web search reliability and error handling
-- Enhanced test coverage for search functionality
+### Changed
+- Updated examples and usage patterns
+- Cleaned up dependency versions and compatibility
 
----
+## [0.2.2] - 2025-07-12
 
-## v0.2.2 - Live Traces
-*July 12, 2025*
+### Added
+- Live trace streaming for real-time execution visibility
+- Implicit LLM key rotation and automatic failover
+- Infinite recursion detection and protection
 
-**Real-time visibility.** Live trace streaming, implicit key rotation, and comprehensive stability improvements.
-
-### ✨ New Features
-- **Live Trace Streaming** - Real-time execution visibility as agents think
-- **Implicit Key Rotation** - Automatic LLM key management and failover
-- **Stability Improvements** - Enhanced error handling and parsing robustness
-
-### 🔧 Developer Experience
-- **Enhanced Examples** - Updated documentation and usage patterns
-- **Infinite Recursion Detection** - Built-in protection against runaway loops
-- **Parsing Robustness** - Better handling of malformed LLM responses
-
-### 🏗️ Architecture
+### Changed
+- Enhanced error handling and parsing robustness
 - Improved context management and state handling
-- Enhanced trace formatting and output processing
-- Comprehensive test coverage for edge cases
+- Better trace formatting and output processing
 
----
+### Fixed
+- Malformed LLM response parsing
+- Edge cases in trace extraction
 
-## v0.2.1 - Developer Experience
-*July 12, 2025*
+## [0.2.1] - 2025-07-12
 
-**Polish and power.** Enhanced tooling, better LLM architecture, and improved developer experience.
+### Added
+- File manager tool with read/write capabilities and validation
+- Modular LLM architecture with separated provider modules
+- Optional trace printing with configurable output
 
-### ✨ New Features
-- **File Manager Tool** - Read, write, and manage files with built-in validation
-- **Modular LLM Architecture** - Split LLM providers into separate modules
-- **Trace Control** - Optional trace printing with configurable output
-
-### 🔧 Developer Experience  
-- **Stabilized Prompts** - More consistent and reliable prompt engineering
-- **Enhanced Examples** - Custom tool examples with file management
-- **Better Error Handling** - Improved trace extraction and formatting
-
-### 🏗️ Architecture
+### Changed
+- Stabilized prompt engineering for consistency
+- Enhanced examples with file management demonstrations
+- Improved trace extraction and error formatting
 - Separated LLM providers (Gemini, key rotation) for better extensibility
-- Cleaner tool registration and discovery
-- Improved test coverage and organization
 
----
+### Fixed
+- Tool registration and discovery issues
+- Error handling in trace extraction
 
-## v0.2.0 - Core Framework
-*July 12, 2025*
+## [0.2.0] - 2025-07-12
 
-**The foundation.** First production-ready release with custom PRARR architecture and comprehensive tool ecosystem.
-
-### ✨ New Features
-- **PRARR Architecture** - Plan → Reason → Act → Reflect → Respond cognitive loop
-- **Tool System** - Web search, calculator with auto-discovery and validation  
-- **Execution Tracing** - Full transparency into agent reasoning steps
-- **LLM Orchestration** - OpenAI integration with key rotation and caching
-- **CLI Interface** - Basic command-line agent interaction
-
-### 🔧 Developer Experience
-- **115 Unit Tests** - Comprehensive test coverage across all components
-- **Clean API** - Simple Agent class with context management
-- **JSON Routing** - Structured tool calls and response parsing
-
-### 🏗️ Architecture
+### Added
+- PRARR cognitive architecture (Plan → Reason → Act → Reflect → Respond)
+- Tool system with web search and calculator
+- Full execution tracing with reasoning step visibility
+- LLM orchestration with OpenAI integration
+- Key rotation and response caching
+- Basic CLI interface for agent interaction
+- JSON-based tool routing and response parsing
 - Central tool registry with automatic discovery
+- 115 comprehensive unit tests
+
+### Changed
 - Multiline prompt engineering with clean formatting
 - Robust error handling and output validation
+
+## [0.1.0] - Initial Development
+
+### Added
+- Initial project setup and basic agent framework
+- Core LLM instantiation and context management
+- Basic tool usage and multistep reasoning capabilities
+- JSON parsing and execution tracing foundation
+
+---
+
+## Versioning Policy
+
+Starting with v1.0.0, this project follows [Semantic Versioning](https://semver.org/):
+- **MAJOR** version for incompatible API changes
+- **MINOR** version for backwards-compatible functionality additions
+- **PATCH** version for backwards-compatible bug fixes
+
+## Breaking Changes Notice
+
+Major architectural changes are marked with **BREAKING** labels and include migration guides.
+Always review the migration sections before upgrading across major versions.
+
+[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/tysonchen/cogency/compare/v0.5.1...v0.9.0
+[0.5.1]: https://github.com/tysonchen/cogency/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/tysonchen/cogency/compare/v0.4.1...v0.5.0
+[0.4.1]: https://github.com/tysonchen/cogency/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/tysonchen/cogency/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/tysonchen/cogency/compare/v0.2.3...v0.3.0
+[0.2.3]: https://github.com/tysonchen/cogency/compare/v0.2.2...v0.2.3
+[0.2.2]: https://github.com/tysonchen/cogency/compare/v0.2.1...v0.2.2
+[0.2.1]: https://github.com/tysonchen/cogency/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/tysonchen/cogency/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/tysonchen/cogency/releases/tag/v0.1.0

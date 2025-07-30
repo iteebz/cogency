@@ -26,8 +26,9 @@ from cogency import Agent
 # Uses .cogency/memory/ directory by default
 agent = Agent("assistant")
 
-# Custom memory directory
-agent = Agent("assistant", memory_dir="./custom_memory")
+# Custom memory backend
+from cogency.memory import Chroma
+agent = Agent("assistant", memory=Chroma())
 ```
 
 ## Memory Operations

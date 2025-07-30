@@ -6,6 +6,8 @@
 
 **Smart AI agents that think as hard as they need to.**
 
+> 🚧 **Production Beta (v0.9.0)** - Architecturally complete, actively gathering feedback from early adopters. Ready for serious evaluation and beta deployments.
+
 ```python
 from cogency import Agent
 agent = Agent("assistant")
@@ -105,7 +107,7 @@ Agents automatically discover and use relevant tools:
 🌤️ **Weather** - Current conditions and forecasts  
 📁 **Files** - Create, read, edit, list, delete files  
 💻 **Shell** - Execute system commands safely  
-🐍 **Code** - Python code execution in sandbox  
+🐍 **Code** - Python code execution in sandboxed environment  
 📊 **CSV** - Data processing and analysis  
 🗄️ **SQL** - Database querying and management  
 🌐 **HTTP** - Make HTTP requests with JSON parsing  
@@ -118,6 +120,8 @@ Agents automatically discover and use relevant tools:
 ```bash
 pip install cogency
 ```
+
+**Beta Note**: Cross-provider testing is ongoing. OpenAI and Anthropic are well-tested; other providers may have edge cases.
 
 Set any LLM API key:
 
@@ -141,6 +145,14 @@ export GEMINI_API_KEY=...        # etc
 ## 📄 License
 
 Apache 2.0 - Build whatever you want.
+
+## Beta Feedback
+
+We're actively gathering feedback from early adopters:
+
+- **Issues**: [GitHub Issues](https://github.com/iteebz/cogency/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/iteebz/cogency/discussions)
+- **Known limitations**: Cross-provider behavior, memory backend edge cases
 
 ---
 

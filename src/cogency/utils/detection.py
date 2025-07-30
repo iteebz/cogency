@@ -32,5 +32,7 @@ def detect_provider(providers: Dict[str, str], fallback: Optional[str] = None) -
     available = ", ".join(providers.keys())
     required_keys = [f"{prefix}_API_KEY" for prefix in providers.values()]
     raise ValueError(
-        f"No API keys found. Available providers: {available}. Set one of: {', '.join(required_keys)}"
+        f"No API keys found. Available providers: {available}. "
+        f"Set one of: {', '.join(required_keys)}. "
+        f"See https://github.com/iteebz/cogency#installation for setup instructions."
     )

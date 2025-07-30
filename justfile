@@ -140,7 +140,7 @@ commits:
 ci: format lint
 	@echo "Running tests for CI..."
 	@poetry run pytest tests/
-	build
+	@just build
 	@echo "CI checks completed successfully!"
     
 # Fix test issues (format, lint, and run tests)

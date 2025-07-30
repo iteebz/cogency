@@ -6,7 +6,7 @@ Cogency comes with a comprehensive suite of built-in tools, plus dead-simple cus
 
 **🧮 Calculator** - Mathematical expressions with support for +, -, *, /, √, parentheses  
 **🔍 Search** - DuckDuckGo web search for current information  
-**📁 Files** - Create, read, edit, list, delete files safely within sandbox  
+**📁 Files** - Create, read, edit, list, delete files safely within .cogency/sandbox  
 **🌤️ Weather** - Current conditions and forecasts for any location  
 **🕒 Time** - Timezone-aware time operations and conversions  
 **🌐 HTTP** - Make HTTP requests with automatic JSON parsing  

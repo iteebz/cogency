@@ -2,6 +2,8 @@
 
 Get up and running with Cogency in 5 minutes.
 
+> 🚧 **Beta Notice**: This is production beta software (v0.9.0). Core functionality is stable, but edge cases in cross-provider behavior and memory backends are still being addressed.
+
 ## Installation
 
 ```bash
