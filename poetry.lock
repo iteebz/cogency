@@ -4478,14 +4478,14 @@ rsa = ["oauthlib[signedtoken] (>=3.0.0)"]
 
 [[package]]
 name = "resilient-result"
-version = "0.3.0"
+version = "0.3.1"
 description = "Resilient decorators that return Result types instead of throwing exceptions"
 optional = false
 python-versions = "<4.0,>=3.8"
 groups = ["main"]
 files = [
-    {file = "resilient_result-0.3.0-py3-none-any.whl", hash = "sha256:c464a3d8669c56885cd99487abf3e5c540ab7cd97e632b94b93aa2f9706d632b"},
-    {file = "resilient_result-0.3.0.tar.gz", hash = "sha256:46bb35fb0875e328925497f20e788b0abf657195be1b0cf3672126a93489b5ca"},
+    {file = "resilient_result-0.3.1-py3-none-any.whl", hash = "sha256:9205adbf3e7f0d09c80dc3d671e24015e7ba01969f973d9b28c809fe92e8009f"},
+    {file = "resilient_result-0.3.1.tar.gz", hash = "sha256:287bc2640bd628366cfc68a81ddd05a7146cd3dcf94eaf5dc0dd10ddd3230c9b"},
 ]
 
 [[package]]
@@ -5956,4 +5956,4 @@ sentence-transformers = ["sentence-transformers"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "cb3ce7aa8860b48dc39755de714799c0235b2a1700e00276e429ee519e5f7a95"
+content-hash = "519f03948ca91d2d7f8f93b2dc73bf176e566120f9d76de49d65c7a22bde2fdb"
