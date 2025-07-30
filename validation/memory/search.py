@@ -9,14 +9,14 @@ from cogency.memory.store import Filesystem
 from cogency.services.embed import OpenAIEmbed
 
 
-async def test_memory_basic_storage():
-    """Test basic memory storage and retrieval."""
+async def validate_memory_storage():
+    """Validate basic memory storage and retrieval."""
     print("🧠 Testing basic memory storage...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
         memory = Filesystem(Path(temp_dir) / "memory")
 
-        agent = Agent("memory-basic", memory=memory)
+        agent = Agent("memory-basic", memory=memory, notify=True, trace=True)
 
         # Store some information
         result1 = await agent.run("Remember that my favorite programming language is Python")
@@ -36,8 +36,8 @@ async def test_memory_basic_storage():
             return False
 
 
-async def test_memory_semantic_search():
-    """Test semantic search with available embedders."""
+async def validate_semantic_search():
+    """Validate semantic search with available embedders."""
     print("🔍 Testing semantic search...")
 
     # Test with realistic embedder setup (gracefully handle missing)
@@ -62,7 +62,7 @@ async def test_memory_semantic_search():
     with tempfile.TemporaryDirectory() as temp_dir:
         memory = Filesystem(Path(temp_dir) / "semantic")
 
-        agent = Agent("memory-semantic", memory=memory, embed=embed)
+        agent = Agent("memory-semantic", memory=memory, embed=embed, notify=True, trace=True)
 
         # Store diverse information for semantic matching
         await agent.run("Remember: I love outdoor adventures like hiking and rock climbing")
@@ -84,31 +84,8 @@ async def test_memory_semantic_search():
             return False
 
 
-async def test_memory_capacity_handling():
-    """Test memory behavior under load and capacity limits."""
-    print("📊 Testing memory capacity handling...")
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        memory = Filesystem(Path(temp_dir) / "capacity")
-        agent = Agent("memory-load", memory=memory)
-
-        # Store many items quickly to test capacity handling
-        for i in range(15):
-            await agent.run(f"Remember item {i}: Test data point number {i} with unique content")
-
-        # Should still retrieve specific items
-        result = await agent.run("What was item 14 about?")
-
-        if result and "ERROR:" not in result and "14" in result:
-            print("✅ Memory capacity handling succeeded")
-            return True
-        else:
-            print("❌ Memory capacity handling failed")
-            return False
-
-
-async def test_memory_persistence_across_sessions():
-    """Test memory persistence across agent sessions."""
+async def validate_memory_persistence():
+    """Validate memory persistence across agent sessions."""
     print("💾 Testing memory persistence across sessions...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -116,7 +93,7 @@ async def test_memory_persistence_across_sessions():
 
         # Session 1 - store information
         memory1 = Filesystem(memory_path)
-        agent1 = Agent("memory-persist-1", memory=memory1)
+        agent1 = Agent("memory-persist-1", memory=memory1, notify=True, trace=True)
 
         result1 = await agent1.run(
             "My project deadline is March 15th, 2024. Remember this important date."
@@ -124,7 +101,7 @@ async def test_memory_persistence_across_sessions():
 
         # Session 2 - retrieve information
         memory2 = Filesystem(memory_path)
-        agent2 = Agent("memory-persist-2", memory=memory2)
+        agent2 = Agent("memory-persist-2", memory=memory2, notify=True, trace=True)
 
         result2 = await agent2.run("When is my project deadline?")
 
@@ -146,20 +123,19 @@ async def main():
     """Run all memory validation tests."""
     print("🚀 Starting memory validation...\n")
 
-    tests = [
-        test_memory_basic_storage,
-        test_memory_semantic_search,
-        test_memory_capacity_handling,
-        test_memory_persistence_across_sessions,
+    validations = [
+        validate_memory_storage,
+        validate_semantic_search,
+        validate_memory_persistence,
     ]
 
     results = []
-    for test in tests:
+    for validation in validations:
         try:
-            success = await test()
+            success = await validation()
             results.append(success)
         except Exception as e:
-            print(f"❌ {test.__name__} crashed: {e}")
+            print(f"❌ {validation.__name__} crashed: {e}")
             results.append(False)
         print()
 

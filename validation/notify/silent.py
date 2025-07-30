@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""V2 silent mode verification - clean output without notifications."""
+"""Silent mode validation."""
 
 import asyncio
 

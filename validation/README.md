@@ -1,64 +1,62 @@
-# Cogency Validation Suite 🎵
+# Cogency Validation
 
-Comprehensive validation of Cogency's architecture and feature matrix.
+Comprehensive validation of Cogency's core functionality using real Agent runtime with standardized notify/trace output.
 
 ## Structure
 
-### `basic/` - Single Tool Verification
-- Individual tool execution tests
-- Tool isolation and correctness
-- Fast feedback on core functionality
+**`framework.py`** - Common validation abstractions
+- `BaseValidator` - Standard test execution with Agent runtime
+- `ToolValidator` - Specialized for tool testing  
+- `WorkflowValidator` - Multi-step workflow validation
 
-### `workflows/` - Multi-Tool Scenarios  
-- Complex multi-step workflows
-- Phase transitions and state propagation
+**`human.py`** - Execute complete validation suite (human only)
+
+## Categories
+
+**`tools/`** - Core tool functionality
+- Individual tool execution and correctness
+- Fast feedback on basic operations
+
+**`workflows/`** - Multi-step scenarios  
+- Complex agent workflows
+- Phase transitions and state flow
 - Real-world usage patterns
 
-### `decorators/` - @robust & @observe Features
-- Resilience, checkpointing, persistence validation
-- Observability metrics collection
-- Error recovery scenarios
+**`memory/`** - Memory and persistence
+- Semantic search validation
+- State persistence across sessions
+- Backend compatibility
 
-### `backends/` - Memory & Persistence Systems
-- Filesystem, Postgres, Chroma, Pinecone validation
-- State persistence and checkpointing
-- Backend switching and compatibility
-
-### `modes/` - Fast vs Deep Mode
-- Semantic summarization validation
-- Mode switching behavior
-- Context compression accuracy
-
-### `tracing/` - Debug Output
+**`notifications/`** - Output and tracing
 - Trace output validation
-- Silent vs verbose execution
-- Performance impact measurement
+- Silent vs verbose modes
+- Notification system testing
 
-### `errors/` - Error Handling & Recovery
+**`errors/`** - Error handling
 - Tool failure scenarios  
 - Graceful degradation
 - Recovery mechanisms
 
-## Running Validation
+## Usage
 
 ```bash
-# Run all validation tests
-python validation/run_all.py
+# Run complete validation suite
+poetry run python validation/run_all.py
 
-# Single tool test
-python validation/basic/calculator_test.py
+# Individual test
+poetry run python validation/tools/calculator.py
 
-# Complex workflow
-python validation/workflows/math_verify.py
+# Framework-based test
+poetry run python validation/workflows/math.py
 ```
 
-## Expected Results
+## Standards
 
-Each example should demonstrate:
-- ✅ Clean phase execution (preprocess → reason → act → respond)
-- ✅ Proper tool integration and results
-- ✅ State propagation through pipeline
-- ✅ Beautiful, readable output
-- ✅ Error handling when appropriate
+All validation tests use:
+- Real Cogency Agent runtime
+- Standardized notify/trace output (EmojiFormatter)
+- Consistent timeout and error handling
+- Pattern validation for results
+- Clean, minimal output (✓/✗ for results)
 
-If all examples run successfully, **Cogency is singing her beautiful song** 🎵
+Framework ensures efficient, standardized validation across all test categories.

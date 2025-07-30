@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate v2 notification system with trace - demonstrates clean phase transitions and UX."""
+"""Trace output validation."""
 
 import asyncio
 

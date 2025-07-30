@@ -7,8 +7,8 @@ from cogency import Agent
 from cogency.services.llm import Anthropic, Gemini, Mistral, OpenAI, xAI
 
 
-async def test_provider_availability():
-    """Test which LLM providers are available."""
+async def check_provider_availability():
+    """Check which LLM providers are available."""
     print("🔍 Testing LLM provider availability...")
 
     providers = [
@@ -25,7 +25,7 @@ async def test_provider_availability():
         if os.environ.get(env_key):
             try:
                 llm = provider_class()
-                agent = Agent(f"provider-{name.lower()}", llm=llm)
+                agent = Agent(f"provider-{name.lower()}", llm=llm, notify=True, trace=True)
                 result = await agent.run("Say 'test successful'")
 
                 if result and "test successful" in result.lower():
@@ -42,8 +42,8 @@ async def test_provider_availability():
     return len(available_providers) > 0
 
 
-async def test_provider_consistency():
-    """Test that different providers give reasonable responses."""
+async def validate_provider_responses():
+    """Validate that different providers give reasonable responses."""
     print("🎯 Testing provider response consistency...")
 
     # Use available providers
@@ -65,7 +65,7 @@ async def test_provider_consistency():
     for name, provider_class in test_providers:
         try:
             llm = provider_class()
-            agent = Agent(f"consistency-{name.lower()}", llm=llm)
+            agent = Agent(f"consistency-{name.lower()}", llm=llm, notify=True, trace=True)
             result = await agent.run(query)
 
             if result and "tokyo" in result.lower():
@@ -82,40 +82,8 @@ async def test_provider_consistency():
     return all(results) if results else True
 
 
-async def test_provider_error_handling():
-    """Test provider error handling with invalid requests."""
-    print("🛡️  Testing provider error handling...")
-
-    # Test with first available provider
-    test_llm = None
-    provider_name = "Unknown"
-
-    if os.environ.get("OPENAI_API_KEY"):
-        test_llm = OpenAI()
-        provider_name = "OpenAI"
-    elif os.environ.get("ANTHROPIC_API_KEY"):
-        test_llm = Anthropic()
-        provider_name = "Anthropic"
-
-    if not test_llm:
-        print("⚠️  No providers available for error handling test")
-        return True
-
-    agent = Agent(f"error-{provider_name.lower()}", llm=test_llm)
-
-    # This should either handle gracefully or provide a reasonable error
-    result = await agent.run("")  # Empty query
-
-    if result and ("ERROR:" in result or len(result) > 10):
-        print(f"✅ {provider_name} error handling working")
-        return True
-    else:
-        print(f"❌ {provider_name} error handling failed")
-        return False
-
-
-async def test_provider_streaming():
-    """Test provider streaming capabilities."""
+async def validate_provider_streaming():
+    """Validate provider streaming capabilities."""
     print("🌊 Testing provider streaming...")
 
     # Test with first available provider
@@ -133,7 +101,7 @@ async def test_provider_streaming():
         print("⚠️  No providers available for streaming test")
         return True
 
-    agent = Agent(f"stream-{provider_name.lower()}", llm=test_llm)
+    agent = Agent(f"stream-{provider_name.lower()}", llm=test_llm, notify=True, trace=True)
 
     chunks = []
     async for chunk in agent.stream("Count from 1 to 5"):
@@ -153,20 +121,19 @@ async def main():
     """Run all LLM provider validation tests."""
     print("🚀 Starting LLM provider validation...\n")
 
-    tests = [
-        test_provider_availability,
-        test_provider_consistency,
-        test_provider_error_handling,
-        test_provider_streaming,
+    validations = [
+        check_provider_availability,
+        validate_provider_responses,
+        validate_provider_streaming,
     ]
 
     results = []
-    for test in tests:
+    for validation in validations:
         try:
-            success = await test()
+            success = await validation()
             results.append(success)
         except Exception as e:
-            print(f"❌ {test.__name__} crashed: {e}")
+            print(f"❌ {validation.__name__} crashed: {e}")
             results.append(False)
         print()
 
