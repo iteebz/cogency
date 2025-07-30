@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from cogency.config import Observe, Persist, Robust
+from cogency.config import ObserveConfig, PersistConfig, RobustConfig
 from cogency.decorators import configure, get_config, phase
 
 
@@ -22,7 +22,7 @@ async def test_phase_no_config():
 
 @pytest.mark.asyncio
 async def test_phase_with_robust():
-    robust_config = Robust()
+    robust_config = RobustConfig()
     configure(robust=robust_config, observe=None, persistence=None)
 
     @phase.reason()
@@ -36,7 +36,7 @@ async def test_phase_with_robust():
 
 @pytest.mark.asyncio
 async def test_phase_with_observe():
-    observe_config = Observe()
+    observe_config = ObserveConfig()
     configure(robust=None, observe=observe_config, persistence=None)
 
     @phase.reason()
@@ -48,9 +48,9 @@ async def test_phase_with_observe():
 
 
 def test_configure():
-    robust_config = Robust()
-    observe_config = Observe()
-    persist_config = Persist()
+    robust_config = RobustConfig()
+    observe_config = ObserveConfig()
+    persist_config = PersistConfig()
 
     configure(robust=robust_config, observe=observe_config, persistence=persist_config)
 

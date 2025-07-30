@@ -2,14 +2,14 @@
 
 import pytest
 
-from cogency.config import Observe
+from cogency.config import ObserveConfig
 from cogency.decorators import configure, elapsed, phase
 
 
 @pytest.mark.asyncio
 async def test_phase_timer_injection():
     """Test that decorator injects timer context."""
-    configure(observe=Observe())
+    configure(observe=ObserveConfig())
 
     @phase.generic()
     async def test_phase(**kwargs):

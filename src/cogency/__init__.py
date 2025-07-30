@@ -2,6 +2,6 @@
 
 # Clean public API - agent + config
 from .agent import Agent
-from .config import Observe, Persist, Robust
+from .config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig
 
-__all__ = ["Agent", "Observe", "Persist", "Robust"]
+__all__ = ["Agent", "MemoryConfig", "ObserveConfig", "PersistConfig", "RobustConfig"]

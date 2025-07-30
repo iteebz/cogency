@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 
 from cogency import Agent
-from cogency.config import Persist
+from cogency.config import PersistConfig
 from cogency.persist import Filesystem, StatePersistence
 from cogency.state import State
 
@@ -26,7 +26,7 @@ async def test_agent_setup():
 
         config = get_config()
         assert config.persist is not None
-        assert isinstance(config.persist, Persist)
+        assert isinstance(config.persist, PersistConfig)
         assert config.persist.store is store
         assert config.persist.enabled is True
 

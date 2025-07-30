@@ -4,7 +4,7 @@ import asyncio
 from typing import Any, AsyncIterator, Dict, List, Literal, Optional, Union
 
 from cogency import decorators
-from cogency.config import Observe, Persist, Robust, setup_config
+from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig, setup_config
 from cogency.mcp import setup_mcp
 from cogency.memory import Memory
 from cogency.notify import Formatter, setup_formatter
@@ -28,7 +28,7 @@ class Agent:
         llm: Optional[LLM] = None,
         embed: Optional[Embed] = None,
         tools: Optional[List[Tool]] = None,
-        memory: bool = False,
+        memory: Union[bool, MemoryConfig] = False,
         # Agent Personality
         identity: Optional[str] = None,
         output_schema: Optional[Dict[str, Any]] = None,
@@ -41,9 +41,9 @@ class Agent:
         formatter: Optional[Formatter] = None,
         on_notify: Optional[callable] = None,
         # System Behaviors (@phase decorator control)
-        robust: Union[bool, Robust] = True,
-        observe: Union[bool, Observe] = False,
-        persist: Union[bool, Persist] = False,
+        robust: Union[bool, RobustConfig] = True,
+        observe: Union[bool, ObserveConfig] = False,
+        persist: Union[bool, PersistConfig] = False,
         # Integrations
         mcp: bool = False,
     ) -> None:
@@ -65,23 +65,32 @@ class Agent:
         # Setup services with auto-detection
         self.llm = setup_llm(llm)
         self.embed = setup_embed(embed)
-        self.memory = Memory(self.llm) if memory else None
         self.tools = setup_tools(tools, None)
 
         # Config setup with auto-detection
         from cogency.persist import setup_persistence
 
-        persist_config = setup_config(Persist, persist, store=persist)
+        persist_config = setup_config(PersistConfig, persist, store=persist)
+        memory_config = setup_config(MemoryConfig, memory)
 
         self.config = type(
             "Config",
             (),
             {
-                "robust": setup_config(Robust, robust),
-                "observe": setup_config(Observe, observe),
+                "robust": setup_config(RobustConfig, robust),
+                "observe": setup_config(ObserveConfig, observe),
                 "persist": persist_config,
+                "memory": memory_config,
             },
         )()
+
+        # Setup memory with config
+        if memory_config:
+            store = memory_config.store or (persist_config.store if persist_config else None)
+            self.memory = Memory(self.llm, store=store, user_id=memory_config.user_id)
+            self.memory.synthesis_threshold = memory_config.synthesis_threshold
+        else:
+            self.memory = None
 
         # Setup persistence instance for agent use
         self.persistence = setup_persistence(persist_config)

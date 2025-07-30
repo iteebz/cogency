@@ -9,8 +9,10 @@ Zero external dependencies. Zero ceremony. Maximum elegance.
 class Memory:
     """LLM-native memory system - user impression through reasoning."""
 
-    def __init__(self, llm):
+    def __init__(self, llm, store=None, user_id="default"):
         self.llm = llm
+        self.store = store
+        self.user_id = user_id
         self.recent = ""  # Raw recent interactions
         self.impression = ""  # Synthesized user impression
         self.synthesis_threshold = 16000
@@ -55,5 +57,48 @@ Create a cohesive user impression that:
 
 Refined Impression:"""
 
-        self.impression = await self.llm.complete(prompt)
+        result = await self.llm.run([{"role": "user", "content": prompt}])
+        if result.success:
+            self.impression = result.data
+        else:
+            # Fallback - keep existing impression if synthesis fails
+            pass
         self.recent = ""
+
+        # Auto-save after synthesis
+        await self.save()
+
+    async def save(self) -> bool:
+        """Save memory to persistent store."""
+        if not self.store:
+            return False
+
+        memory_key = f"memory:{self.user_id}"
+
+        # Create a minimal state-like object for the Store interface
+        from dataclasses import dataclass
+
+        @dataclass
+        class MemoryState:
+            recent: str
+            impression: str
+
+        memory_state = MemoryState(recent=self.recent, impression=self.impression)
+
+        return await self.store.save(memory_key, memory_state)
+
+    async def load(self) -> bool:
+        """Load memory from persistent store."""
+        if not self.store:
+            return False
+
+        memory_key = f"memory:{self.user_id}"
+        data = await self.store.load(memory_key)
+
+        if data and "state" in data:
+            state_data = data["state"]
+            self.recent = state_data.get("recent", "")
+            self.impression = state_data.get("impression", "")
+            return True
+
+        return False

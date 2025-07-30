@@ -291,7 +291,16 @@ This enables orientation rather than retrieval - agents understand not just what
 - [x] Memory persists across conversation turns
 - [x] Natural contradiction resolution
 
-### Phase 2-3: Research Impact
+### Phase 2: Production Refinements (Post-v1.0.0)
+- [x] Cross-session persistence via Store integration
+- [x] Memory configuration system with runtime parameters
+- [ ] Recall phase control (preprocess/respond context injection)
+- [ ] Impression pruning with configurable limits
+- [ ] Synthesis debouncing to prevent rapid re-synthesis cycles
+- [ ] Error surfacing for persistence failures
+- [ ] Synthesis quality improvements based on usage patterns
+
+### Phase 3: Research Impact
 - [ ] Academic formalization of paradigm shift
 - [ ] Industry adoption of systematic approach
 - [ ] OSS frameworks implementing Situated Memory

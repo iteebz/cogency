@@ -10,8 +10,8 @@ from cogency.memory import Memory
 @pytest.fixture
 def mock_llm():
     """Mock LLM for testing."""
-    llm = Mock()
-    llm.complete = AsyncMock(return_value="Synthesized impression")
+    llm = AsyncMock()
+    llm.run.return_value = AsyncMock(success=True, data="Synthesized impression")
     return llm
 
 
@@ -87,7 +87,7 @@ async def test_synthesis_triggers(memory, mock_llm):
     long_content = "x" * 60
     await memory.remember(long_content, human=True)
 
-    mock_llm.complete.assert_called_once()
+    mock_llm.run.assert_called_once()
     assert memory.impression == "Synthesized impression"
     assert memory.recent == ""
 
@@ -101,7 +101,7 @@ async def test_synthesis_builds_on_existing(memory, mock_llm):
     long_content = "x" * 60
     await memory.remember(long_content, human=True)
 
-    call_args = mock_llm.complete.call_args[0][0]
+    call_args = mock_llm.run.call_args[0][0][0]["content"]
     assert "Current Impression: Existing impression" in call_args
     assert f"Recent Interactions: \n[HUMAN] {long_content}" in call_args
 
@@ -123,7 +123,7 @@ async def test_synthesis_prompt_format(memory, mock_llm):
     memory.synthesis_threshold = 10
     await memory.remember("test", human=True)
 
-    call_args = mock_llm.complete.call_args[0][0]
+    call_args = mock_llm.run.call_args[0][0][0]["content"]
     assert "Form a refined impression" in call_args
     assert "Captures essential preferences" in call_args
     assert "Prioritizes human statements" in call_args

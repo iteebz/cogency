@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
-from cogency.config import Observe, Persist, Robust
+from cogency.config import ObserveConfig, PersistConfig, RobustConfig
 from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
 
@@ -54,9 +54,9 @@ def test_config_setup():
 
 
 def test_config_custom():
-    robust_config = Robust(attempts=5)
-    observe_config = Observe(metrics=False)
-    persist_config = Persist(enabled=False)
+    robust_config = RobustConfig(attempts=5)
+    observe_config = ObserveConfig(metrics=False)
+    persist_config = PersistConfig(enabled=False)
 
     agent = Agent(
         "test", llm=MockLLM(), robust=robust_config, observe=observe_config, persist=persist_config

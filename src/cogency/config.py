@@ -8,7 +8,7 @@ MAX_TOOL_CALLS = 3  # Limit to prevent JSON parsing issues
 
 
 @dataclass
-class Robust:
+class RobustConfig:
     """Comprehensive robustness configuration (retry, checkpointing, circuit breaker, rate limiting)."""
 
     # Core toggles
@@ -41,7 +41,7 @@ class Robust:
 
 
 @dataclass
-class Observe:
+class ObserveConfig:
     """Observability/telemetry configuration for metrics collection."""
 
     # Metrics collection
@@ -58,7 +58,31 @@ class Observe:
 
 
 @dataclass
-class Persist:
+class MemoryConfig:
+    """LLM-native memory configuration - persistence, thresholds, context injection."""
+
+    # Core toggles
+    enabled: bool = True
+    persist: bool = True
+
+    # Synthesis thresholds
+    synthesis_threshold: int = 16000  # Character limit for recent interactions
+    max_impressions: int = 50  # Prune oldest impressions past this limit
+
+    # Context injection policy
+    recall_phases: List[str] = None  # ["reason", "respond", "both"] or None for reason-only
+
+    # Store configuration
+    store: Optional[Any] = None
+    user_id: str = "default"
+
+    def __post_init__(self):
+        if self.recall_phases is None:
+            self.recall_phases = ["reason"]  # Default: reason-only
+
+
+@dataclass
+class PersistConfig:
     """Configuration for state persistence."""
 
     enabled: bool = True
