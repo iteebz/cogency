@@ -13,12 +13,12 @@ async def main():
 
     # Agent with calculator and code execution for verification
     agent = Agent(
-        "math_verifier",
-        identity="mathematical assistant who calculates quickly then verifies with code",
-        tools=[Calculator(), Code()],
-        memory=False,
+        "math_verifier"
+        identity="mathematical assistant who calculates quickly then verifies with code"
+        tools=[Calculator(), Code()]
+        memory=False
         depth=8,  # Allow for multi-step workflow
-        trace=True,
+        trace=True
     )
 
     # Complex calculation that benefits from verification

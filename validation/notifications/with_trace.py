@@ -15,11 +15,11 @@ async def main():
 
     # Agent with v2 notification system - emoji formatter with trace visibility
     agent = Agent(
-        "notification_demo",
-        identity="helpful assistant with visible v2 reasoning",
-        tools=[Calculator(), Weather()],
-        memory=False,
-        depth=3,
+        "notification_demo"
+        identity="helpful assistant with visible v2 reasoning"
+        tools=[Calculator(), Weather()]
+        memory=False
+        depth=3
         formatter=EmojiFormatter(),  # v2 notification system
     )
 
@@ -30,8 +30,8 @@ async def main():
 
     # Test queries that should trigger different phases
     queries = [
-        "Calculate 25 * 4.2 and show me the work",
-        "What's the weather in Paris and convert 20°C to Fahrenheit?",
+        "Calculate 25 * 4.2 and show me the work"
+        "What's the weather in Paris and convert 20°C to Fahrenheit?"
     ]
 
     for i, query in enumerate(queries, 1):

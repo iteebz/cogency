@@ -5,7 +5,7 @@ import tempfile
 from pathlib import Path
 
 from cogency import Agent
-from cogency.memory.store import FilesystemStore
+from cogency.memory.store import Filesystem
 from cogency.services.embed import OpenAIEmbed
 
 
@@ -14,9 +14,9 @@ async def test_memory_basic_storage():
     print("🧠 Testing basic memory storage...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        memory = FilesystemStore(Path(temp_dir) / "memory")
+        memory = Filesystem(Path(temp_dir) / "memory")
 
-        agent = Agent("memory-basic", memory=memory, debug=True)
+        agent = Agent("memory-basic", memory=memory)
 
         # Store some information
         result1 = await agent.run("Remember that my favorite programming language is Python")
@@ -60,9 +60,9 @@ async def test_memory_semantic_search():
             return True
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        memory = FilesystemStore(Path(temp_dir) / "semantic")
+        memory = Filesystem(Path(temp_dir) / "semantic")
 
-        agent = Agent("memory-semantic", memory=memory, embed=embed, debug=True)
+        agent = Agent("memory-semantic", memory=memory, embed=embed)
 
         # Store diverse information for semantic matching
         await agent.run("Remember: I love outdoor adventures like hiking and rock climbing")
@@ -89,8 +89,8 @@ async def test_memory_capacity_handling():
     print("📊 Testing memory capacity handling...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        memory = FilesystemStore(Path(temp_dir) / "capacity")
-        agent = Agent("memory-load", memory=memory, debug=False)
+        memory = Filesystem(Path(temp_dir) / "capacity")
+        agent = Agent("memory-load", memory=memory)
 
         # Store many items quickly to test capacity handling
         for i in range(15):
@@ -115,16 +115,16 @@ async def test_memory_persistence_across_sessions():
         memory_path = Path(temp_dir) / "persistent_memory"
 
         # Session 1 - store information
-        memory1 = FilesystemStore(memory_path)
-        agent1 = Agent("memory-persist-1", memory=memory1, debug=True)
+        memory1 = Filesystem(memory_path)
+        agent1 = Agent("memory-persist-1", memory=memory1)
 
         result1 = await agent1.run(
             "My project deadline is March 15th, 2024. Remember this important date."
         )
 
         # Session 2 - retrieve information
-        memory2 = FilesystemStore(memory_path)
-        agent2 = Agent("memory-persist-2", memory=memory2, debug=True)
+        memory2 = Filesystem(memory_path)
+        agent2 = Agent("memory-persist-2", memory=memory2)
 
         result2 = await agent2.run("When is my project deadline?")
 
@@ -147,10 +147,10 @@ async def main():
     print("🚀 Starting memory validation...\n")
 
     tests = [
-        test_memory_basic_storage,
-        test_memory_semantic_search,
-        test_memory_capacity_handling,
-        test_memory_persistence_across_sessions,
+        test_memory_basic_storage
+        test_memory_semantic_search
+        test_memory_capacity_handling
+        test_memory_persistence_across_sessions
     ]
 
     results = []

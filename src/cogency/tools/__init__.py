@@ -1,3 +1,5 @@
+"""Tool registry - auto-discovery and initialization of all available tools."""
+
 from .base import Tool
 from .calculator import Calculator
 from .code import Code

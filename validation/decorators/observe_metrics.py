@@ -12,7 +12,7 @@ async def test_observe_basic_metrics():
 
     observe_config = Observe(metrics=True, timing=True, counters=True, export_format="json")
 
-    agent = Agent("observe-basic", observe=observe_config, debug=True)
+    agent = Agent("observe-basic", observe=observe_config)
 
     result = await agent.run("Calculate the fibonacci sequence up to the 10th number")
 
@@ -38,14 +38,14 @@ async def test_observe_phase_specific():
     print("🎯 Testing @observe phase-specific metrics...")
 
     observe_config = Observe(
-        metrics=True,
-        timing=True,
+        metrics=True
+        timing=True
         phases=["reason", "act"],  # Only observe specific phases
-        export_format="json",
+        export_format="json"
     )
 
     agent = Agent(
-        "observe-phases", observe=observe_config, debug=True, tools=["calculator", "search"]
+        "observe-phases", observe=observe_config, , tools=["calculator", "search"]
     )
 
     result = await agent.run(
@@ -77,11 +77,11 @@ async def test_observe_with_robust():
     robust_config = Robust(retry=True, attempts=2, timeout=6.0, backoff="exponential")
 
     agent = Agent(
-        "observe-robust",
-        observe=observe_config,
-        robust=robust_config,
-        debug=True,
-        tools=["weather", "calculator"],
+        "observe-robust"
+        observe=observe_config
+        robust=robust_config
+        
+        tools=["weather", "calculator"]
     )
 
     # Task that might trigger retries
@@ -117,14 +117,14 @@ async def test_observe_performance_impact():
 
     # Run without observe
     start_time = time.time()
-    agent_no_observe = Agent("perf-test-no-observe", debug=False)
+    agent_no_observe = Agent("perf-test-no-observe")
     result1 = await agent_no_observe.run("What is 42 * 137?")
     no_observe_time = time.time() - start_time
 
     # Run with observe
     start_time = time.time()
     observe_config = Observe(metrics=True, timing=True, counters=True)
-    agent_with_observe = Agent("perf-test-observe", observe=observe_config, debug=False)
+    agent_with_observe = Agent("perf-test-observe", observe=observe_config)
     result2 = await agent_with_observe.run("What is 42 * 137?")
     observe_time = time.time() - start_time
 
@@ -150,10 +150,10 @@ async def main():
     print("🚀 Starting @observe decorator validation...\n")
 
     tests = [
-        test_observe_basic_metrics,
-        test_observe_phase_specific,
-        test_observe_with_robust,
-        test_observe_performance_impact,
+        test_observe_basic_metrics
+        test_observe_phase_specific
+        test_observe_with_robust
+        test_observe_performance_impact
     ]
 
     results = []

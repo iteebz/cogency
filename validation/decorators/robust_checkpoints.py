@@ -18,19 +18,19 @@ async def test_checkpoint_basic_persistence():
         persist_config = Persist(enabled=True, store=persist_store)
 
         # First run - create checkpoint
-        agent1 = Agent("checkpoint-basic", persist=persist_config, depth=5, debug=True)
+        agent1 = Agent("checkpoint-basic", persist=persist_config, depth=5)
 
         result1 = await agent1.run(
-            "Start analyzing the evolution of programming languages. Focus on the 1990s era first.",
-            "checkpoint_user",
+            "Start analyzing the evolution of programming languages. Focus on the 1990s era first."
+            "checkpoint_user"
         )
 
         # Second run - should recover from checkpoint
-        agent2 = Agent("checkpoint-basic", persist=persist_config, depth=5, debug=True)
+        agent2 = Agent("checkpoint-basic", persist=persist_config, depth=5)
 
         result2 = await agent2.run(
-            "Continue the programming language analysis from the 1990s, now move to the 2000s.",
-            "checkpoint_user",
+            "Continue the programming language analysis from the 1990s, now move to the 2000s."
+            "checkpoint_user"
         )
 
         if (
@@ -58,13 +58,13 @@ async def test_checkpoint_with_robust():
         robust_config = Robust(retry=True, attempts=2, checkpoint=True, timeout=8.0)
 
         agent = Agent(
-            "checkpoint-robust", persist=persist_config, robust=robust_config, depth=3, debug=True
+            "checkpoint-robust", persist=persist_config, robust=robust_config, depth=3, 
         )
 
         # Complex multi-step task that might need checkpointing
         result = await agent.run(
-            "Research and summarize the key differences between functional and object-oriented programming paradigms. Include specific examples.",
-            "robust_checkpoint_user",
+            "Research and summarize the key differences between functional and object-oriented programming paradigms. Include specific examples."
+            "robust_checkpoint_user"
         )
 
         if result and "ERROR:" not in result and len(result) > 100:
@@ -85,30 +85,30 @@ async def test_checkpoint_state_continuity():
 
         # Session 1 - start a complex task
         agent1 = Agent(
-            "continuity-test",
-            persist=persist_config,
-            depth=4,
-            debug=True,
-            tools=["calculator", "search"],
+            "continuity-test"
+            persist=persist_config
+            depth=4
+            
+            tools=["calculator", "search"]
         )
 
         result1 = await agent1.run(
-            "I'm building a financial model. Start by calculating compound interest for $10,000 at 7% over 5 years.",
-            "continuity_user",
+            "I'm building a financial model. Start by calculating compound interest for $10,000 at 7% over 5 years."
+            "continuity_user"
         )
 
         # Session 2 - continue the financial model
         agent2 = Agent(
-            "continuity-test",
-            persist=persist_config,
-            depth=4,
-            debug=True,
-            tools=["calculator", "search"],
+            "continuity-test"
+            persist=persist_config
+            depth=4
+            
+            tools=["calculator", "search"]
         )
 
         result2 = await agent2.run(
-            "Now add inflation considerations to our financial model. Use 3% annual inflation.",
-            "continuity_user",
+            "Now add inflation considerations to our financial model. Use 3% annual inflation."
+            "continuity_user"
         )
 
         # Check that both results are coherent and reference the model
@@ -132,9 +132,9 @@ async def main():
     print("🚀 Starting checkpoint persistence validation...\n")
 
     tests = [
-        test_checkpoint_basic_persistence,
-        test_checkpoint_with_robust,
-        test_checkpoint_state_continuity,
+        test_checkpoint_basic_persistence
+        test_checkpoint_with_robust
+        test_checkpoint_state_continuity
     ]
 
     results = []

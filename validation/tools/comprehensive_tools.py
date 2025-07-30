@@ -11,7 +11,7 @@ async def test_calculator_tool():
     """Test calculator tool functionality."""
     print("🧮 Testing calculator tool...")
 
-    agent = Agent("tools-calculator", tools=["calculator"], debug=True)
+    agent = Agent("tools-calculator", tools=["calculator"])
 
     result = await agent.run("Calculate 15 * 23 + 47")
 
@@ -36,7 +36,7 @@ async def test_files_tool():
         test_file = Path(temp_dir) / "test.txt"
         test_file.write_text("Hello from cogency validation!")
 
-        agent = Agent("tools-files", tools=["files"], debug=True)
+        agent = Agent("tools-files", tools=["files"])
 
         result = await agent.run(f"Read the contents of the file at {test_file}")
 
@@ -52,7 +52,7 @@ async def test_date_time_tools():
     """Test date and time tools."""
     print("⏰ Testing date and time tools...")
 
-    agent = Agent("tools-datetime", tools=["date", "time"], debug=True)
+    agent = Agent("tools-datetime", tools=["date", "time"])
 
     result = await agent.run("What is today's date and current time?")
 
@@ -73,7 +73,7 @@ async def test_search_tool():
     """Test search tool functionality."""
     print("🔍 Testing search tool...")
 
-    agent = Agent("tools-search", tools=["search"], debug=True)
+    agent = Agent("tools-search", tools=["search"])
 
     result = await agent.run("Search for information about Python programming language")
 
@@ -89,7 +89,7 @@ async def test_weather_tool():
     """Test weather tool functionality."""
     print("🌤️  Testing weather tool...")
 
-    agent = Agent("tools-weather", tools=["weather"], debug=True)
+    agent = Agent("tools-weather", tools=["weather"])
 
     result = await agent.run("What's the weather like in New York?")
 
@@ -109,7 +109,7 @@ async def test_code_tool():
     """Test code execution tool."""
     print("💻 Testing code tool...")
 
-    agent = Agent("tools-code", tools=["code"], debug=True)
+    agent = Agent("tools-code", tools=["code"])
 
     result = await agent.run("Execute this Python code: print('Hello from code tool!')")
 
@@ -125,7 +125,7 @@ async def test_http_tool():
     """Test HTTP requests tool."""
     print("🌐 Testing HTTP tool...")
 
-    agent = Agent("tools-http", tools=["http"], debug=True)
+    agent = Agent("tools-http", tools=["http"])
 
     result = await agent.run("Make a GET request to httpbin.org/json")
 
@@ -145,7 +145,7 @@ async def test_multiple_tools_integration():
     """Test multiple tools working together."""
     print("🔧 Testing multiple tools integration...")
 
-    agent = Agent("tools-integration", tools=["calculator", "date", "files"], debug=True)
+    agent = Agent("tools-integration", tools=["calculator", "date", "files"])
 
     with tempfile.TemporaryDirectory() as temp_dir:
         result = await agent.run(
@@ -166,7 +166,7 @@ async def test_recall_tool():
     """Test recall (memory) tool functionality."""
     print("🧠 Testing recall tool...")
 
-    agent = Agent("tools-recall", tools=["recall"], debug=True)
+    agent = Agent("tools-recall", tools=["recall"])
 
     # First, store some information
     result1 = await agent.run("Remember that my favorite programming language is Rust")
@@ -193,15 +193,15 @@ async def main():
     print("🚀 Starting comprehensive tools validation...\n")
 
     tests = [
-        test_calculator_tool,
-        test_files_tool,
-        test_date_time_tools,
-        test_search_tool,
-        test_weather_tool,
-        test_code_tool,
-        test_http_tool,
-        test_recall_tool,
-        test_multiple_tools_integration,
+        test_calculator_tool
+        test_files_tool
+        test_date_time_tools
+        test_search_tool
+        test_weather_tool
+        test_code_tool
+        test_http_tool
+        test_recall_tool
+        test_multiple_tools_integration
     ]
 
     results = []

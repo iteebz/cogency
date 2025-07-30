@@ -13,36 +13,36 @@ async def main():
 
     # Agent with tools that might fail
     agent = Agent(
-        "error_handler",
-        identity="resilient assistant who handles errors gracefully",
-        tools=[Calculator(), Code(), Weather()],
-        memory=False,
-        depth=6,
-        trace=False,
+        "error_handler"
+        identity="resilient assistant who handles errors gracefully"
+        tools=[Calculator(), Code(), Weather()]
+        memory=False
+        depth=6
+        trace=False
     )
 
     # Test cases that should trigger different types of errors
     error_scenarios = [
         {
-            "name": "Division by Zero",
-            "query": "Calculate 10 divided by 0",
-            "expected": "Should handle division by zero gracefully",
-        },
+            "name": "Division by Zero"
+            "query": "Calculate 10 divided by 0"
+            "expected": "Should handle division by zero gracefully"
+        }
         {
-            "name": "Invalid Code Syntax",
-            "query": "Run this Python code: print('hello' +",
-            "expected": "Should report syntax error clearly",
-        },
+            "name": "Invalid Code Syntax"
+            "query": "Run this Python code: print('hello' +"
+            "expected": "Should report syntax error clearly"
+        }
         {
-            "name": "Invalid City Name",
-            "query": "What's the weather in XYZ123NOTACITY?",
-            "expected": "Should handle city not found error",
-        },
+            "name": "Invalid City Name"
+            "query": "What's the weather in XYZ123NOTACITY?"
+            "expected": "Should handle city not found error"
+        }
         {
-            "name": "Complex Invalid Expression",
-            "query": "Calculate: eval('import os; os.system(\"echo hack\")')",
-            "expected": "Should reject unsafe expressions",
-        },
+            "name": "Complex Invalid Expression"
+            "query": "Calculate: eval('import os; os.system(\"echo hack\")')"
+            "expected": "Should reject unsafe expressions"
+        }
     ]
 
     for i, scenario in enumerate(error_scenarios, 1):

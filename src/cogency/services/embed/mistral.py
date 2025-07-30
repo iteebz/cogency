@@ -1,3 +1,5 @@
+"""Mistral embedding provider - text vectorization with key rotation."""
+
 from typing import Union
 
 import numpy as np

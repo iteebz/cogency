@@ -1,3 +1,5 @@
+"""Sentence Transformers embedding provider - local text vectorization."""
+
 import numpy as np
 from resilient_result import Err, Ok, Result
 

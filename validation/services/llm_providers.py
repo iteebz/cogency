@@ -4,7 +4,7 @@ import asyncio
 import os
 
 from cogency import Agent
-from cogency.services.llm import AnthropicLLM, GeminiLLM, MistralLLM, OpenAILLM, XaiLLM
+from cogency.services.llm import Anthropic, Gemini, Mistral, OpenAI, xAI
 
 
 async def test_provider_availability():
@@ -12,11 +12,11 @@ async def test_provider_availability():
     print("🔍 Testing LLM provider availability...")
 
     providers = [
-        ("OpenAI", OpenAILLM, "OPENAI_API_KEY"),
-        ("Anthropic", AnthropicLLM, "ANTHROPIC_API_KEY"),
-        ("Gemini", GeminiLLM, "GEMINI_API_KEY"),
-        ("Mistral", MistralLLM, "MISTRAL_API_KEY"),
-        ("XAI", XaiLLM, "XAI_API_KEY"),
+        ("OpenAI", OpenAI, "OPENAI_API_KEY")
+        ("Anthropic", Anthropic, "ANTHROPIC_API_KEY")
+        ("Gemini", Gemini, "GEMINI_API_KEY")
+        ("Mistral", Mistral, "MISTRAL_API_KEY")
+        ("XAI", xAI, "XAI_API_KEY")
     ]
 
     available_providers = []
@@ -25,7 +25,7 @@ async def test_provider_availability():
         if os.environ.get(env_key):
             try:
                 llm = provider_class()
-                agent = Agent(f"provider-{name.lower()}", llm=llm, debug=False)
+                agent = Agent(f"provider-{name.lower()}", llm=llm)
                 result = await agent.run("Say 'test successful'")
 
                 if result and "test successful" in result.lower():
@@ -65,7 +65,7 @@ async def test_provider_consistency():
     for name, provider_class in test_providers:
         try:
             llm = provider_class()
-            agent = Agent(f"consistency-{name.lower()}", llm=llm, debug=False)
+            agent = Agent(f"consistency-{name.lower()}", llm=llm)
             result = await agent.run(query)
 
             if result and "tokyo" in result.lower():
@@ -101,7 +101,7 @@ async def test_provider_error_handling():
         print("⚠️  No providers available for error handling test")
         return True
 
-    agent = Agent(f"error-{provider_name.lower()}", llm=test_llm, debug=True)
+    agent = Agent(f"error-{provider_name.lower()}", llm=test_llm)
 
     # This should either handle gracefully or provide a reasonable error
     result = await agent.run("")  # Empty query
@@ -133,7 +133,7 @@ async def test_provider_streaming():
         print("⚠️  No providers available for streaming test")
         return True
 
-    agent = Agent(f"stream-{provider_name.lower()}", llm=test_llm, debug=False)
+    agent = Agent(f"stream-{provider_name.lower()}", llm=test_llm)
 
     chunks = []
     async for chunk in agent.stream("Count from 1 to 5"):
@@ -154,10 +154,10 @@ async def main():
     print("🚀 Starting LLM provider validation...\n")
 
     tests = [
-        test_provider_availability,
-        test_provider_consistency,
-        test_provider_error_handling,
-        test_provider_streaming,
+        test_provider_availability
+        test_provider_consistency
+        test_provider_error_handling
+        test_provider_streaming
     ]
 
     results = []

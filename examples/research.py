@@ -5,7 +5,6 @@ import asyncio
 
 from cogency import Agent
 from cogency.tools import Scrape, Search
-from cogency.utils import trace_args
 
 
 async def main():
@@ -21,7 +20,6 @@ async def main():
         memory=False,
         depth=15,  # Allow deeper research for complex AI safety topics
         mode="deep",
-        debug=trace_args(),
     )
 
     # Mesa-optimization and inner alignment research query

@@ -4,7 +4,6 @@
 import asyncio
 
 from cogency import Agent
-from cogency.utils import trace_args
 
 
 async def main():
@@ -12,7 +11,7 @@ async def main():
     print("=" * 20)
 
     # Create agent with memory
-    agent = Agent("assistant", memory=True, debug=trace_args())
+    agent = Agent("assistant", memory=True)
 
     # Teach the agent
     query_1 = "My name is Alex, I'm a Python developer working on a fintech app"

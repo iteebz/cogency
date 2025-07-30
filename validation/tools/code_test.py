@@ -13,19 +13,19 @@ async def main():
 
     # Simple agent with code execution
     agent = Agent(
-        "code_tester",
-        identity="programming assistant that executes code safely",
-        tools=[Code()],
-        memory=False,
-        depth=3,
+        "code_tester"
+        identity="programming assistant that executes code safely"
+        tools=[Code()]
+        memory=False
+        depth=3
         trace=False,  # Clean output
     )
 
     # Test code execution
     queries = [
-        "Run this Python code: print('Hello, Cogency!')",
-        "Execute: result = [x**2 for x in range(5)]; print(result)",
-        "Calculate fibonacci: def fib(n): return n if n <= 1 else fib(n-1) + fib(n-2); print([fib(i) for i in range(8)])",
+        "Run this Python code: print('Hello, Cogency!')"
+        "Execute: result = [x**2 for x in range(5)]; print(result)"
+        "Calculate fibonacci: def fib(n): return n if n <= 1 else fib(n-1) + fib(n-2); print([fib(i) for i in range(8)])"
     ]
 
     for i, query in enumerate(queries, 1):

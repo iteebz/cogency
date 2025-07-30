@@ -1,3 +1,5 @@
+"""Configuration dataclasses - runtime limits, robustness, observability settings."""
+
 from dataclasses import dataclass
 from typing import Any, List, Optional
 

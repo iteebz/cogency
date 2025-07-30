@@ -11,7 +11,7 @@ async def test_identity_basic():
 
     identity = "You are a helpful math tutor who explains concepts step by step."
 
-    agent = Agent("identity-basic", identity=identity, debug=True)
+    agent = Agent("identity-basic", identity=identity)
 
     result = await agent.run("How do you solve 2x + 5 = 15?")
 
@@ -34,7 +34,7 @@ async def test_identity_consistency():
 
     identity = "You are a pirate captain who speaks in nautical terms and always mentions treasure."
 
-    agent = Agent("identity-consistency", identity=identity, debug=True)
+    agent = Agent("identity-consistency", identity=identity)
 
     result1 = await agent.run("What's the weather like?")
     result2 = await agent.run("Tell me about mathematics.")
@@ -64,16 +64,16 @@ async def test_output_schema_basic():
     print("📋 Testing basic output schema...")
 
     schema = {
-        "type": "object",
+        "type": "object"
         "properties": {
-            "answer": {"type": "string"},
-            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
-            "reasoning": {"type": "string"},
-        },
-        "required": ["answer", "confidence"],
+            "answer": {"type": "string"}
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+            "reasoning": {"type": "string"}
+        }
+        "required": ["answer", "confidence"]
     }
 
-    agent = Agent("schema-basic", output_schema=schema, debug=True)
+    agent = Agent("schema-basic", output_schema=schema)
 
     result = await agent.run("What is the capital of Italy?")
 
@@ -97,15 +97,15 @@ async def test_identity_with_schema():
 
     identity = "You are a scientific researcher who provides precise, evidence-based answers."
     schema = {
-        "type": "object",
+        "type": "object"
         "properties": {
-            "hypothesis": {"type": "string"},
-            "evidence": {"type": "array", "items": {"type": "string"}},
-            "conclusion": {"type": "string"},
-        },
+            "hypothesis": {"type": "string"}
+            "evidence": {"type": "array", "items": {"type": "string"}}
+            "conclusion": {"type": "string"}
+        }
     }
 
-    agent = Agent("identity-schema", identity=identity, output_schema=schema, debug=True)
+    agent = Agent("identity-schema", identity=identity, output_schema=schema)
 
     result = await agent.run("Why do leaves change color in fall?")
 
@@ -129,10 +129,10 @@ async def main():
     print("🚀 Starting personality validation...\n")
 
     tests = [
-        test_identity_basic,
-        test_identity_consistency,
-        test_output_schema_basic,
-        test_identity_with_schema,
+        test_identity_basic
+        test_identity_consistency
+        test_output_schema_basic
+        test_identity_with_schema
     ]
 
     results = []

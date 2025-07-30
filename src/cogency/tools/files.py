@@ -1,3 +1,5 @@
+"""File operations tool - read, write, list files with validation and error handling."""
+
 import logging
 from dataclasses import dataclass
 from pathlib import Path

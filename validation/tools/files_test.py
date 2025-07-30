@@ -24,20 +24,20 @@ async def main():
         try:
             # Simple agent with file operations
             agent = Agent(
-                "files_tester",
-                identity="file management assistant that handles file operations safely",
-                tools=[Files()],
-                memory=False,
-                depth=5,
+                "files_tester"
+                identity="file management assistant that handles file operations safely"
+                tools=[Files()]
+                memory=False
+                depth=5
                 trace=False,  # Clean output
             )
 
             # Test file operations
             queries = [
-                "Create a file called 'test.txt' with content 'Hello Cogency!'",
-                "Read the contents of test.txt",
-                "List all files in the current directory",
-                "Create a directory called 'subdir' and put a file 'nested.txt' inside it",
+                "Create a file called 'test.txt' with content 'Hello Cogency!'"
+                "Read the contents of test.txt"
+                "List all files in the current directory"
+                "Create a directory called 'subdir' and put a file 'nested.txt' inside it"
             ]
 
             for i, query in enumerate(queries, 1):

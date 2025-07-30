@@ -17,11 +17,11 @@ async def main():
 
     # Agent with v2 notification system - emoji formatter by default
     agent = Agent(
-        "formatting_demo_agent",
-        identity="helpful assistant demonstrating clean v2 notification UX",
-        tools=[Calculator(), Weather()],
-        memory=False,
-        depth=3,
+        "formatting_demo_agent"
+        identity="helpful assistant demonstrating clean v2 notification UX"
+        tools=[Calculator(), Weather()]
+        memory=False
+        depth=3
         formatter=EmojiFormatter(),  # v2 notification system
     )
 
@@ -31,8 +31,8 @@ async def main():
 
     # Test queries that exercise different phases and tools
     queries = [
-        "Calculate 15 * 8.5 and tell me the result",
-        "What's 32°F in Celsius? Use the calculator if needed",
+        "Calculate 15 * 8.5 and tell me the result"
+        "What's 32°F in Celsius? Use the calculator if needed"
     ]
 
     for i, query in enumerate(queries, 1):

@@ -1,3 +1,5 @@
+"""Nomic embedding provider - text vectorization with key rotation."""
+
 import logging
 from typing import Optional, Union
 

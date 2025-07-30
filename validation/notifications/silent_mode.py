@@ -14,17 +14,17 @@ async def main():
 
     # Agent with v2 silent formatter - clean, production-ready output
     agent = Agent(
-        "silent_agent",
-        identity="helpful assistant with clean, direct responses",
-        tools=[Calculator(), Weather()],
-        memory=False,
-        depth=5,
+        "silent_agent"
+        identity="helpful assistant with clean, direct responses"
+        tools=[Calculator(), Weather()]
+        memory=False
+        depth=5
         formatter=Formatter(),  # 🤫 Silent formatter - no notification output
     )
 
     queries = [
-        "Calculate the cost: 12 apples at $1.25 each plus 8 oranges at $0.85 each",
-        "What's the weather like in New York and what's 72°F in Celsius?",
+        "Calculate the cost: 12 apples at $1.25 each plus 8 oranges at $0.85 each"
+        "What's the weather like in New York and what's 72°F in Celsius?"
     ]
 
     for i, query in enumerate(queries, 1):

@@ -1,3 +1,5 @@
+"""Type definitions - core data structures for agent execution and communication."""
+
 from .params import validate
 from .preprocessed import Preprocessed
 from .reasoning import Reasoning

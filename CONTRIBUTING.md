@@ -12,23 +12,24 @@ Thank you for your interest in contributing to Cogency! This guide will help you
 
 2. **Install dependencies**
    ```bash
-   pip install -e ".[all]"
+   poetry install --all-extras
    ```
 
 3. **Run tests**
    ```bash
-   pytest
+   poetry run pytest
    ```
 
 ## Architecture Overview
 
-Cogency follows a layered architecture:
+Cogency follows a phase-based cognitive architecture:
 
-- **Skills**: Cognitive operations (analyze, extract, synthesize)
-- **Tools**: Smart wrappers around services with behavior
-- **Services**: Raw capabilities (LLM, embedding, etc.)
+- **Phases**: ReAct cognitive stages (Preprocess → Reason → Act → Respond)
+- **Tools**: Extensible capabilities with automatic discovery
+- **Services**: Provider backends (LLM, embedding, memory)
+- **Memory**: Persistent conversation context
 
-See `docs/architecture.md` for detailed architecture documentation.
+See `NAVIGATION.md` for detailed architecture documentation.
 
 ## Contributing Guidelines
 
@@ -46,31 +47,27 @@ See `docs/architecture.md` for detailed architecture documentation.
 - Use pytest for testing framework
 - Mock external services in tests
 
-### Skills Development
+### Phase Development
 
-When adding new skills:
+When extending phases:
 
-1. **Follow the cognitive verb pattern**
+1. **Follow the @phase decorator pattern**
    ```python
-   @skill(
-       name="your_skill",
-       description="Clear description of cognitive operation",
-       category="cognitive",
-       author="your_name"
-   )
-   async def your_skill(context: SkillContext, **params) -> SkillResult:
-       # Implementation
+   @phase(name="custom_phase")
+   async def custom_phase(state: State, **kwargs):
+       # Implementation with automatic robustness, observability
+       return result
    ```
 
-2. **Use tool orchestration**
-   - Skills should orchestrate tools, not implement logic
-   - Add graceful degradation with fallbacks
-   - Return structured SkillResult objects
+2. **Use dependency injection**
+   - Phases receive dependencies (LLM, tools, memory) automatically
+   - Focus on cognitive logic, not service orchestration
+   - State flows through phases immutably
 
 3. **Add comprehensive tests**
-   - Unit tests for skill logic
+   - Unit tests for phase logic
    - Integration tests with mocked services
-   - Error handling scenarios
+   - Error handling and recovery scenarios
 
 ### Pull Request Process
 
@@ -86,9 +83,9 @@ When adding new skills:
 
 3. **Run the test suite**
    ```bash
-   pytest
-   mypy cogency
-   ruff check cogency
+   poetry run pytest
+   poetry run mypy src/cogency
+   poetry run ruff check src/cogency
    ```
 
 4. **Submit pull request**
@@ -98,10 +95,10 @@ When adding new skills:
 
 ## Types of Contributions
 
-### Core Skills
-Submit new cognitive operations that follow the skill pattern:
-- Must be atomic (single responsibility)
-- Should have clear cognitive purpose
+### Core Phases
+Submit new cognitive phases that follow the @phase pattern:
+- Must be atomic (single cognitive step)
+- Should integrate with ReAct architecture
 - Need comprehensive tests
 
 ### Tools
@@ -149,11 +146,11 @@ When reporting issues:
 
 Cogency prioritizes:
 
-1. **Cognitive Clarity**: Code should map directly to mental processes
-2. **Composability**: Skills should work together seamlessly
-3. **Reliability**: Graceful degradation under failure
-4. **Extensibility**: Easy to add new capabilities
-5. **Maintainability**: Clean abstractions and clear boundaries
+1. **Zero Ceremony**: Magical defaults with opt-in complexity
+2. **Beautiful Abstractions**: Complex functionality with simple interfaces  
+3. **Reliability**: @robust decorator handles failures gracefully
+4. **Extensibility**: Provider pattern for infinite backends
+5. **Maintainability**: Clean code doctrine, no bullshit patterns
 
 ## Release Process
 

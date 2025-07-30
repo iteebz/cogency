@@ -15,10 +15,10 @@ async def run_example(script_path: Path, name: str) -> bool:
     try:
         # Use poetry run to ensure proper environment
         result = subprocess.run(
-            ["poetry", "run", "python", str(script_path)],
+            ["poetry", "run", "python", str(script_path)]
             cwd=script_path.parent.parent.parent,  # Back to cogency root
-            capture_output=True,
-            text=True,
+            capture_output=True
+            text=True
             timeout=120,  # 2 minute timeout per test
         )
 
@@ -52,20 +52,20 @@ async def main():
     # Define test suite in order of complexity
     test_suite = [
         # Basic tool tests (quick wins)
-        (verification_dir / "basic" / "calculator_test.py", "Calculator Tool"),
-        (verification_dir / "basic" / "code_test.py", "Code Execution Tool"),
-        (verification_dir / "basic" / "files_test.py", "File Operations Tool"),
+        (verification_dir / "basic" / "calculator_test.py", "Calculator Tool")
+        (verification_dir / "basic" / "code_test.py", "Code Execution Tool")
+        (verification_dir / "basic" / "files_test.py", "File Operations Tool")
         # (verification_dir / "basic" / "weather_test.py", "Weather Tool"),  # Commented out - API dependent
         # Tracing comparison
-        (verification_dir / "tracing" / "silent_mode.py", "Silent Mode"),
-        (verification_dir / "tracing" / "with_trace.py", "Tracing Mode"),
+        (verification_dir / "tracing" / "silent_mode.py", "Silent Mode")
+        (verification_dir / "tracing" / "with_trace.py", "Tracing Mode")
         # Complex workflows
-        (verification_dir / "workflows" / "math_verify.py", "Math Verification Workflow"),
-        (verification_dir / "workflows" / "data_flow.py", "Data Processing Workflow"),
+        (verification_dir / "workflows" / "math_verify.py", "Math Verification Workflow")
+        (verification_dir / "workflows" / "data_flow.py", "Data Processing Workflow")
         # (verification_dir / "workflows" / "research_code.py", "Research + Code Workflow"),  # Search dependent
         # Error handling
-        (verification_dir / "errors" / "tool_failures.py", "Error Handling"),
-        (verification_dir / "errors" / "recovery_tests.py", "Error Recovery"),
+        (verification_dir / "errors" / "tool_failures.py", "Error Handling")
+        (verification_dir / "errors" / "recovery_tests.py", "Error Recovery")
     ]
 
     results = []

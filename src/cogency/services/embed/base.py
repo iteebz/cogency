@@ -1,3 +1,5 @@
+"""Base embedding interface - text vectorization with key rotation and resilience."""
+
 from abc import ABC, abstractmethod
 
 import numpy as np

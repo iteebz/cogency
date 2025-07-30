@@ -9,7 +9,7 @@ async def test_fast_mode():
     """Test fast mode execution - minimal depth, quick responses."""
     print("🏃 Testing fast mode execution...")
 
-    agent = Agent("fast-mode-test", mode="fast", debug=True)
+    agent = Agent("fast-mode-test", mode="fast")
 
     result = await agent.run("What is 2+2 and explain it simply?")
 
@@ -28,7 +28,7 @@ async def test_deep_mode():
     """Test deep mode execution - thorough analysis and reasoning."""
     print("🔬 Testing deep mode execution...")
 
-    agent = Agent("deep-mode-test", mode="deep", depth=15, debug=True)
+    agent = Agent("deep-mode-test", mode="deep", depth=15)
 
     result = await agent.run("Analyze the pros and cons of renewable energy")
 
@@ -51,7 +51,7 @@ async def test_adapt_mode():
     """Test adaptive mode - adjusts based on query complexity."""
     print("🎯 Testing adaptive mode execution...")
 
-    agent = Agent("adapt-mode-test", mode="adapt", debug=True)
+    agent = Agent("adapt-mode-test", mode="adapt")
 
     # Simple query - should be handled quickly
     result1 = await agent.run("What's the capital of France?")
@@ -81,10 +81,10 @@ async def test_depth_limits():
     print("📏 Testing depth limits...")
 
     # Very shallow depth
-    agent_shallow = Agent("depth-shallow", depth=2, debug=True)
+    agent_shallow = Agent("depth-shallow", depth=2)
 
     # Normal depth
-    agent_normal = Agent("depth-normal", depth=10, debug=True)
+    agent_normal = Agent("depth-normal", depth=10)
 
     query = "Explain quantum computing and its applications"
 

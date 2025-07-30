@@ -1,3 +1,5 @@
+"""Reasoning type definitions - structured thought processes and decision making."""
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 

@@ -13,19 +13,19 @@ async def main():
 
     # Simple agent with weather tool
     agent = Agent(
-        "weather_tester",
-        identity="helpful weather assistant providing current conditions",
-        tools=[Weather()],
-        memory=False,
-        depth=3,
+        "weather_tester"
+        identity="helpful weather assistant providing current conditions"
+        tools=[Weather()]
+        memory=False
+        depth=3
         trace=False,  # Clean output
     )
 
     # Test weather queries
     queries = [
-        "What's the weather in San Francisco?",
-        "Tell me the current weather in London",
-        "How's the weather in Tokyo right now?",
+        "What's the weather in San Francisco?"
+        "Tell me the current weather in London"
+        "How's the weather in Tokyo right now?"
     ]
 
     for i, query in enumerate(queries, 1):

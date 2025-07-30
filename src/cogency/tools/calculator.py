@@ -1,3 +1,5 @@
+"""Calculator tool - safe mathematical expression evaluation with validation."""
+
 import logging
 import re
 from dataclasses import dataclass

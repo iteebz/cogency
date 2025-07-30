@@ -1,3 +1,5 @@
+"""Main Agent class - cognitive orchestration with streaming, memory, and tool integration."""
+
 import asyncio
 from typing import Any, AsyncIterator, Dict, List, Literal, Optional, Union
 
@@ -33,7 +35,9 @@ class Agent:
         # Execution Control
         mode: Literal["fast", "deep", "adapt"] = "adapt",
         depth: int = 10,
-        # User Feedback (v2 notification system)
+        # User Feedback (simple flags + advanced v2 system)
+        notify: bool = True,
+        debug: bool = False,
         formatter: Optional[Formatter] = None,
         on_notify: Optional[callable] = None,
         # System Behaviors (@phase decorator control)
@@ -46,9 +50,14 @@ class Agent:
         self.name = name
         self.depth = depth
 
-        # v2 notification system
+        # User feedback flags (simple interface)
+        self.notify = notify
+        self.debug = debug
+        
+        # v2 notification system (advanced interface) 
         self.on_notify = on_notify
-        self.formatter = formatter or setup_formatter()
+        self.formatter = formatter or setup_formatter(notify, debug)
+        self.notifier = Notifier(self.formatter, self.on_notify)
 
         # Mode - direct assignment, no ceremony
         self.mode = mode
@@ -211,10 +220,19 @@ class Agent:
             raise e
 
     def traces(self) -> list[dict[str, Any]]:
-        """Get traces from last execution for debugging"""
-        if self.last_state:
-            return self.last_state
-        return []
+        """Get detailed execution traces from last run (debug mode only)"""
+        if not self.debug:
+            return []
+        
+        # Return notifications from last execution
+        return [
+            {
+                "type": n.type,
+                "timestamp": n.timestamp,
+                **n.data
+            }
+            for n in self.notifier.notifications
+        ]
 
 
 __all__ = ["Agent", "State"]

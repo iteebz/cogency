@@ -5,7 +5,6 @@ import asyncio
 
 from cogency import Agent
 from cogency.tools import Code, Files, Shell
-from cogency.utils import trace_args
 
 
 async def main():
@@ -20,7 +19,6 @@ async def main():
         tools=[Code(), Files(), Shell()],
         memory=False,
         depth=25,  # ML projects may need more iterations
-        trace=trace_args(),
     )
 
     # Challenge the agent with a comprehensive ML pipeline

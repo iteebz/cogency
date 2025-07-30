@@ -15,7 +15,7 @@ async def test_rate_limit_basic_throttling():
         rate_limit=True, rate_limit_rps=2.0, retry=True, attempts=2  # 2 requests per second
     )
 
-    agent = Agent("rate-limit-basic", robust=robust_config, debug=True)
+    agent = Agent("rate-limit-basic", robust=robust_config)
 
     # Fire 3 rapid requests
     start_time = time.time()
@@ -40,14 +40,14 @@ async def test_rate_limit_burst_handling():
     print("💥 Testing rate limit burst handling...")
 
     robust_config = Robust(
-        rate_limit=True,
+        rate_limit=True
         rate_limit_rps=1.0,  # 1 request per second
         rate_limit_burst=3,  # But allow 3 request burst
-        retry=True,
-        attempts=2,
+        retry=True
+        attempts=2
     )
 
-    agent = Agent("rate-limit-burst", robust=robust_config, debug=True)
+    agent = Agent("rate-limit-burst", robust=robust_config)
 
     # Fire burst of requests within burst limit
     start_time = time.time()
@@ -76,16 +76,16 @@ async def test_rate_limit_with_retries():
     print("🔄 Testing rate limit with retry integration...")
 
     robust_config = Robust(
-        rate_limit=True,
-        rate_limit_rps=1.5,
-        retry=True,
-        attempts=3,
-        backoff="linear",
-        backoff_delay=0.2,
-        timeout=10.0,
+        rate_limit=True
+        rate_limit_rps=1.5
+        retry=True
+        attempts=3
+        backoff="linear"
+        backoff_delay=0.2
+        timeout=10.0
     )
 
-    agent = Agent("rate-limit-retry", robust=robust_config, debug=True)
+    agent = Agent("rate-limit-retry", robust=robust_config)
 
     # Send requests that might hit rate limits and need retries
     tasks = [agent.run(f"Simple math: what is {i} squared?") for i in range(2)]
@@ -106,14 +106,14 @@ async def test_rate_limit_aggressive_scenario():
     print("🔥 Testing aggressive rate limiting scenario...")
 
     robust_config = Robust(
-        rate_limit=True,
+        rate_limit=True
         rate_limit_rps=0.5,  # Very aggressive - 1 request per 2 seconds
-        retry=True,
-        attempts=2,
-        timeout=8.0,
+        retry=True
+        attempts=2
+        timeout=8.0
     )
 
-    agent = Agent("rate-limit-aggressive", robust=robust_config, debug=True)
+    agent = Agent("rate-limit-aggressive", robust=robust_config)
 
     # Single request should work despite aggressive limiting
     start_time = time.time()
@@ -133,10 +133,10 @@ async def main():
     print("🚀 Starting rate limiting validation...\n")
 
     tests = [
-        test_rate_limit_basic_throttling,
-        test_rate_limit_burst_handling,
-        test_rate_limit_with_retries,
-        test_rate_limit_aggressive_scenario,
+        test_rate_limit_basic_throttling
+        test_rate_limit_burst_handling
+        test_rate_limit_with_retries
+        test_rate_limit_aggressive_scenario
     ]
 
     results = []

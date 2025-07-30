@@ -5,7 +5,6 @@ import asyncio
 
 from cogency import Agent
 from cogency.tools import Calculator
-from cogency.utils import trace_args
 
 
 async def main():
@@ -20,7 +19,6 @@ async def main():
         memory=False,
         depth=5,  # Keep it quick
         mode="fast",
-        debug=trace_args(),
     )
 
     # Math problem that requires fast thinking and verification

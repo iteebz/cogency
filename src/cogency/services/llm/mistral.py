@@ -1,3 +1,5 @@
+"""Mistral AI provider - streaming chat with tool calling and key rotation."""
+
 from typing import AsyncIterator, Dict, List
 
 from mistralai import Mistral as MistralClient

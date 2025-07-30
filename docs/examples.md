@@ -27,41 +27,25 @@ async for chunk in agent.stream("What's the weather in London?"):
 
 ### Calculator
 ```python
-# Simple calculation
 await agent.run("What's 15% of $1,250?")
-
-# Complex expression
-await agent.run("Calculate the compound interest: $1000 at 5% for 3 years")
+await agent.run("Calculate compound interest: $1000 at 5% for 3 years")
 ```
 
 ### Web Search
 ```python
-# Current information
 await agent.run("What are the latest developments in quantum computing?")
-
-# Specific search
 await agent.run("Find Python tutorials for beginners")
 ```
 
 ### File Operations
 ```python
-# Create a file
 await agent.run("Create a file called todo.txt with my daily tasks")
-
-# Read and analyze
-await agent.run("Read the contents of data.csv and summarize the key findings")
-
-# Edit existing file
-await agent.run("Add a new task to todo.txt: 'Review documentation'")
+await agent.run("Read data.csv and summarize key findings")
 ```
 
 ### Multi-tool Queries
 ```python
-# Weather + calculation
 await agent.run("Weather in Tokyo and calculate flight cost: $450 + $120 tax")
-
-# Search + file creation
-await agent.run("Search for Python best practices and save the summary to notes.txt")
 ```
 
 ## Real-World Applications
@@ -149,19 +133,13 @@ class DatabaseMemory(Store):
         self.db = db_connection
     
     async def save(self, content: str, metadata: dict = None):
-        await self.db.execute(
-            "INSERT INTO memories (content, metadata) VALUES (?, ?)",
-            (content, json.dumps(metadata))
-        )
+        # Save to database
+        pass
     
     async def search(self, query: str, limit: int = 5) -> list:
-        results = await self.db.fetch(
-            "SELECT content, metadata FROM memories WHERE content LIKE ? LIMIT ?",
-            (f"%{query}%", limit)
-        )
-        return [{"content": r[0], "metadata": json.loads(r[1])} for r in results]
+        # Search database
+        return []
 
-# Use custom memory
 agent = Agent("assistant", memory=DatabaseMemory(db_connection))
 ```
 
@@ -170,7 +148,6 @@ agent = Agent("assistant", memory=DatabaseMemory(db_connection))
 ### API Integration Tool
 ```python
 from cogency.tools import Tool, tool
-import aiohttp
 
 @tool
 class WeatherAPI(Tool):
@@ -178,22 +155,13 @@ class WeatherAPI(Tool):
         super().__init__("weather_api", "Get weather from custom API")
     
     async def run(self, city: str, country: str = "US") -> dict:
-        async with aiohttp.ClientSession() as session:
-            url = f"https://api.weather.com/v1/current?city={city}&country={country}"
-            async with session.get(url) as response:
-                data = await response.json()
-                return {
-                    "temperature": data["temp"],
-                    "condition": data["condition"],
-                    "humidity": data["humidity"],
-                    "location": f"{city}, {country}"
-                }
+        # Make API call
+        return {"temperature": 25, "condition": "sunny"}
     
     def get_schema(self) -> str:
         return "weather_api(city='string', country='US')"
 
 agent = Agent("assistant", tools=[WeatherAPI()])
-await agent.run("Get weather for Paris, France using the weather API")
 ```
 
 ### Database Tool
@@ -205,64 +173,22 @@ class DatabaseQuery(Tool):
         self.db = db_connection
     
     async def run(self, query: str, limit: int = 100) -> dict:
-        try:
-            results = await self.db.fetch(query, limit=limit)
-            return {
-                "results": results,
-                "count": len(results),
-                "success": True
-            }
-        except Exception as e:
-            return {
-                "error": str(e),
-                "success": False
-            }
-    
-    def get_schema(self) -> str:
-        return "database(query='SQL string', limit=100)"
+        # Execute database query
+        return {"results": [], "success": True}
 
 agent = Agent("assistant", tools=[DatabaseQuery(db_connection)])
-await agent.run("Show me all users who signed up this month")
-```
-
-### File Processing Tool
-```python
-@tool
-class ImageProcessor(Tool):
-    def __init__(self):
-        super().__init__("image_processor", "Process and analyze images")
-    
-    async def run(self, image_path: str, operation: str = "analyze") -> dict:
-        if operation == "analyze":
-            # Image analysis logic
-            return {
-                "dimensions": "1920x1080",
-                "format": "JPEG",
-                "size": "2.3MB",
-                "colors": ["blue", "green", "white"]
-            }
-        elif operation == "resize":
-            # Image resizing logic
-            return {"message": f"Resized {image_path} successfully"}
-    
-    def get_schema(self) -> str:
-        return "image_processor(image_path='string', operation='analyze|resize')"
-
-agent = Agent("assistant", tools=[ImageProcessor()])
-await agent.run("Analyze the image at photos/vacation.jpg")
 ```
 
 ## Configuration Examples
 
 ### Development Configuration
 ```python
-# Fast iteration, detailed debugging
 agent = Agent(
     "dev-agent",
-    debug=True,          # Detailed tracing
-    notify=True,         # Show progress
-    mode="fast",         # Quick responses
-    depth=5              # Limit iterations
+    debug=True,
+    notify=True,
+    mode="fast",
+    depth=5
 )
 ```
 
@@ -270,36 +196,22 @@ agent = Agent(
 ```python
 from cogency import Robust, Observe
 
-# Production-ready with monitoring
 agent = Agent(
     "production-agent",
-    robust=Robust(
-        attempts=5,
-        timeout=120.0,
-        rate_limit_rps=2.0
-    ),
-    observe=Observe(
-        metrics=True,
-        export_format="prometheus"
-    ),
-    persist=True,        # State persistence
-    notify=False,        # Clean logs
-    debug=False          # No debug overhead
+    robust=Robust(attempts=5, timeout=120.0),
+    observe=Observe(metrics=True),
+    persist=True,
+    notify=False
 )
 ```
 
 ### Specialized Agent
 ```python
-# Research agent with deep thinking
 agent = Agent(
     "researcher",
-    mode="deep",         # Always use deep reasoning
-    depth=20,            # Allow long reasoning chains
-    identity="""You are a thorough researcher who:
-    - Always cites sources
-    - Provides comprehensive analysis
-    - Considers multiple perspectives
-    - Summarizes key findings clearly"""
+    mode="deep",
+    depth=20,
+    identity="You are a thorough researcher who cites sources."
 )
 ```
 
@@ -357,14 +269,6 @@ agent = Agent("api-assistant")
 async def chat(query: str):
     result = await agent.run(query)
     return {"response": result}
-
-@app.post("/stream")
-async def stream_chat(query: str):
-    async def generate():
-        async for chunk in agent.stream(query):
-            yield f"data: {chunk}\n\n"
-    
-    return StreamingResponse(generate(), media_type="text/plain")
 ```
 
 ### Discord Bot Integration
@@ -376,33 +280,12 @@ agent = Agent("discord-bot")
 
 class CogencyBot(discord.Client):
     async def on_message(self, message):
-        if message.author == self.user:
-            return
-        
         if message.content.startswith('!ask'):
-            query = message.content[5:]  # Remove '!ask '
+            query = message.content[5:]
             response = await agent.run(query)
             await message.channel.send(response)
 
 bot = CogencyBot()
-bot.run('YOUR_BOT_TOKEN')
-```
-
-### Jupyter Notebook Integration
-```python
-# In a Jupyter notebook cell
-from cogency import Agent
-import asyncio
-
-agent = Agent("notebook-assistant")
-
-# Helper function for notebook use
-def ask(query):
-    return asyncio.run(agent.run(query))
-
-# Usage
-result = ask("Analyze this dataset and create visualizations")
-print(result)
 ```
 
 ## Performance Examples
@@ -415,30 +298,10 @@ agent = Agent("batch-processor")
 
 async def process_batch(queries):
     tasks = [agent.run(query) for query in queries]
-    results = await asyncio.gather(*tasks)
-    return results
+    return await asyncio.gather(*tasks)
 
-queries = [
-    "Analyze sales data for Q1",
-    "Generate marketing report",
-    "Calculate customer metrics"
-]
-
+queries = ["Analyze sales data", "Generate report"]
 results = await process_batch(queries)
-```
-
-### Streaming with Progress
-```python
-async def stream_with_progress(agent, query):
-    chunks = []
-    async for chunk in agent.stream(query):
-        chunks.append(chunk)
-        print(f"\rProgress: {len(chunks)} chunks", end="", flush=True)
-    
-    print(f"\nComplete! Total chunks: {len(chunks)}")
-    return "".join(chunks)
-
-result = await stream_with_progress(agent, "Complex research query")
 ```
 
 ---

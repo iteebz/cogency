@@ -6,7 +6,7 @@ from pathlib import Path
 
 from cogency import Agent
 from cogency.config import Persist
-from cogency.persist import FilesystemPersist
+from cogency.persist.store import Filesystem
 
 
 async def test_state_multitenancy():
@@ -14,10 +14,10 @@ async def test_state_multitenancy():
     print("👥 Testing state multitenancy...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        persist_store = FilesystemPersist(Path(temp_dir) / "multitenancy")
+        persist_store = Filesystem(Path(temp_dir) / "multitenancy")
         persist_config = Persist(enabled=True, store=persist_store)
 
-        agent = Agent("multitenancy-test", persist=persist_config, debug=True)
+        agent = Agent("multitenancy-test", persist=persist_config)
 
         # User 1 stores information
         result1 = await agent.run(
@@ -52,14 +52,13 @@ async def test_state_memory_cleanup():
     print("🧹 Testing state memory cleanup...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        persist_store = FilesystemPersist(Path(temp_dir) / "cleanup")
+        persist_store = Filesystem(Path(temp_dir) / "cleanup")
         persist_config = Persist(enabled=True, store=persist_store)
 
         agent = Agent(
-            "cleanup-test",
-            persist=persist_config,
+            "cleanup-test"
+            persist=persist_config
             depth=3,  # Limited depth for cleanup testing
-            debug=False,
         )
 
         # Generate multiple conversations
@@ -85,22 +84,22 @@ async def test_state_persistence_recovery():
     print("🔄 Testing state persistence recovery...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        persist_store = FilesystemPersist(Path(temp_dir) / "recovery")
+        persist_store = Filesystem(Path(temp_dir) / "recovery")
         persist_config = Persist(enabled=True, store=persist_store)
 
         # Agent 1 - store conversation state
-        agent1 = Agent("recovery-test", persist=persist_config, debug=True)
+        agent1 = Agent("recovery-test", persist=persist_config)
 
         result1 = await agent1.run(
             "I'm planning a trip to Japan. I want to visit Tokyo first.", user_id="traveler"
         )
 
         # Agent 2 - simulate restart, should recover state
-        agent2 = Agent("recovery-test", persist=persist_config, debug=True)
+        agent2 = Agent("recovery-test", persist=persist_config)
 
         result2 = await agent2.run(
-            "What was my travel destination and which city did I want to visit first?",
-            user_id="traveler",
+            "What was my travel destination and which city did I want to visit first?"
+            user_id="traveler"
         )
 
         if (
@@ -122,10 +121,10 @@ async def test_state_concurrent_users():
     print("⚡ Testing concurrent state handling...")
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        persist_store = FilesystemPersist(Path(temp_dir) / "concurrent")
+        persist_store = Filesystem(Path(temp_dir) / "concurrent")
         persist_config = Persist(enabled=True, store=persist_store)
 
-        agent = Agent("concurrent-test", persist=persist_config, debug=False)
+        agent = Agent("concurrent-test", persist=persist_config)
 
         # Concurrent requests from different users
         tasks = [
@@ -150,10 +149,10 @@ async def main():
     print("🚀 Starting state persistence validation...\n")
 
     tests = [
-        test_state_multitenancy,
-        test_state_memory_cleanup,
-        test_state_persistence_recovery,
-        test_state_concurrent_users,
+        test_state_multitenancy
+        test_state_memory_cleanup
+        test_state_persistence_recovery
+        test_state_concurrent_users
     ]
 
     results = []

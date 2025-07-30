@@ -1,3 +1,5 @@
+"""Preprocessed data types - cleaned queries with context and memory integration."""
+
 from dataclasses import dataclass, field
 from typing import List, Optional
 

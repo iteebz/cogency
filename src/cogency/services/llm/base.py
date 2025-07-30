@@ -1,3 +1,5 @@
+"""Base LLM interface - streaming, caching, key rotation, resilience."""
+
 import logging
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, List, Union

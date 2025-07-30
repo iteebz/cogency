@@ -1,3 +1,5 @@
+"""Web search tool - DuckDuckGo integration with rate limiting and result formatting."""
+
 import logging
 import time
 from dataclasses import dataclass

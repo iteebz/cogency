@@ -13,19 +13,19 @@ async def main():
 
     # Simple agent with just calculator
     agent = Agent(
-        "calculator_tester",
-        identity="mathematical assistant focused on accurate calculations",
-        tools=[Calculator()],
-        memory=False,
-        depth=3,
+        "calculator_tester"
+        identity="mathematical assistant focused on accurate calculations"
+        tools=[Calculator()]
+        memory=False
+        depth=3
         trace=True,  # Show first iteration deep mode
     )
 
     # Test basic arithmetic
     queries = [
-        "What is 1250 + 850?",
-        "Calculate (12 * 1.25) + (8 * 0.85)",
-        "What's the square root of 64?",
+        "What is 1250 + 850?"
+        "Calculate (12 * 1.25) + (8 * 0.85)"
+        "What's the square root of 64?"
     ]
 
     for i, query in enumerate(queries, 1):

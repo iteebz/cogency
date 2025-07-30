@@ -1,3 +1,5 @@
+"""Observability exports - metrics collection and performance monitoring."""
+
 from .metrics import (
     MetricPoint,
     Metrics,

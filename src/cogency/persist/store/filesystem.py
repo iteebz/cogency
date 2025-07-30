@@ -1,3 +1,5 @@
+"""Filesystem persistence store - local state management with file locking."""
+
 import json
 import os
 import uuid

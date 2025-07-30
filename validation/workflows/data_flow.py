@@ -21,12 +21,12 @@ async def main():
         try:
             # Agent with file ops, code execution, and calculator
             agent = Agent(
-                "data_processor",
-                identity="data analyst who processes files, runs code, and calculates results",
-                tools=[Files(), Code(), Calculator()],
-                memory=False,
+                "data_processor"
+                identity="data analyst who processes files, runs code, and calculates results"
+                tools=[Files(), Code(), Calculator()]
+                memory=False
                 depth=10,  # Complex workflow needs iterations
-                trace=False,
+                trace=False
             )
 
             # Complex data processing workflow
