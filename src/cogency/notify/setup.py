@@ -10,11 +10,11 @@ def setup_formatter(notify: bool = True, debug: bool = False, style: str = None)
         # Explicit style override
         return {
             "cli": CLIFormatter(),
-            "emoji": EmojiFormatter(), 
+            "emoji": EmojiFormatter(),
             "json": JSONFormatter(),
             "silent": Formatter(),  # Base class is silent
         }.get(style, EmojiFormatter())
-    
+
     # Smart defaults based on flags
     if not notify:
         return Formatter()  # Silent

@@ -10,6 +10,15 @@ from cogency.memory.types import Memory, SearchType
 
 logger = logging.getLogger(__name__)
 
+# Scoring weights
+EXACT_MATCH = 1.0
+WORD_FREQ = 0.1
+TAG_MATCH = 0.5
+STRONG_PREF = 0.7
+MILD_PREF = 0.3
+LENGTH_NORM = 0.02
+SEMANTIC_SCALE = 5.0
+
 
 def cos_sim(a: List[float], b: List[float]) -> float:
     """Calculate cosine similarity between two vectors."""
@@ -41,16 +50,16 @@ def text_score(content: str, query: str, tags: List[str]) -> float:
 
     # Exact phrase match
     if query.lower() in content_lower:
-        score += 1.0  # TEXT_SCORE_EXACT_PHRASE_BOOST
+        score += EXACT_MATCH
 
     # Word frequency
     for word in query_words:
-        score += content_lower.count(word) * 0.1  # TEXT_SCORE_WORD_FREQUENCY_BOOST
+        score += content_lower.count(word) * WORD_FREQ
 
     # Tag matching
     for tag in tags:
         if any(word in tag.lower() for word in query_words):
-            score += 0.5  # TEXT_SCORE_TAG_MATCHING_BOOST
+            score += TAG_MATCH
 
     # Preference indicators boost relevance
     strong_preference_words = ["favorite", "best", "prefer"]
@@ -58,15 +67,15 @@ def text_score(content: str, query: str, tags: List[str]) -> float:
 
     for word in strong_preference_words:
         if word in content_lower:
-            score += 0.7  # TEXT_SCORE_STRONG_PREFERENCE_BOOST
+            score += STRONG_PREF
     for word in mild_preference_words:
         if word in content_lower:
-            score += 0.3  # TEXT_SCORE_MILD_PREFERENCE_BOOST
+            score += MILD_PREF
 
     # Normalize by length - penalize longer content for same matches
     content_length = len(content.split())
     if content_length > 0:
-        score = score / (1.0 + content_length * 0.02)  # TEXT_SCORE_NORMALIZATION_FACTOR
+        score = score / (1.0 + content_length * LENGTH_NORM)
 
     return score
 
@@ -100,7 +109,7 @@ async def search(
             artifact_embedding = await embed(artifact.id)
             if artifact_embedding:
                 semantic_score = cos_sim(query_embedding, artifact_embedding)
-                score += semantic_score * 5.0  # Scale semantic score
+                score += semantic_score * SEMANTIC_SCALE
 
         artifact.relevance_score = score
 

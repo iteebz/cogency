@@ -53,8 +53,8 @@ class Agent:
         # User feedback flags (simple interface)
         self.notify = notify
         self.debug = debug
-        
-        # v2 notification system (advanced interface) 
+
+        # v2 notification system (advanced interface)
         self.on_notify = on_notify
         self.formatter = formatter or setup_formatter(notify, debug)
         self.notifier = Notifier(self.formatter, self.on_notify)
@@ -223,14 +223,10 @@ class Agent:
         """Get detailed execution traces from last run (debug mode only)"""
         if not self.debug:
             return []
-        
+
         # Return notifications from last execution
         return [
-            {
-                "type": n.type,
-                "timestamp": n.timestamp,
-                **n.data
-            }
+            {"type": n.type, "timestamp": n.timestamp, **n.data}
             for n in self.notifier.notifications
         ]
 

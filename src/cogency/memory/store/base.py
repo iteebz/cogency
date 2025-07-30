@@ -22,7 +22,7 @@ class Store:
     async def create(
         self,
         content: str,
-        memory_type: MemoryType = MemoryType.FACT,
+        type: MemoryType = MemoryType.FACT,
         tags: Optional[List[str]] = None,
         metadata: Optional[Dict[str, Any]] = None,
         **kwargs,
@@ -32,7 +32,7 @@ class Store:
 
         artifact = Memory(
             content=content,
-            memory_type=memory_type,
+            type=type,
             tags=tags or [],
             metadata=metadata or {},
         )
@@ -45,59 +45,68 @@ class Store:
     async def read(
         self,
         query: str = None,
-        artifact_id: UUID = None,
+        id: UUID = None,
         search_type: SearchType = SearchType.AUTO,
         limit: int = 10,
         threshold: float = 0.7,
         tags: Optional[List[str]] = None,
-        memory_type: Optional[MemoryType] = None,
+        type: Optional[MemoryType] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Result:
-        """READ - Unified retrieval with storage delegation."""
+        """READ - Unified retrieval with assertive parameter validation."""
         await self._ready()
 
-        # Read by specific artifact_id
-        if artifact_id:
-            results = await self._read_by_id(artifact_id)
-            return Result.ok(results)
-
-        # No query - return filtered artifacts
-        if not query:
-            results = await self._read(
-                memory_type=memory_type, tags=tags, filters=filters, **kwargs
-            )
-            return Result.ok(results)
-
-        # Query-based search with storage-specific optimizations
-        if self._has_search(search_type):
-            results = await self._search(
-                query,
-                search_type,
-                limit,
-                threshold,
-                tags,
-                memory_type,
-                filters,
-                **kwargs,
-            )
-            return Result.ok(results)
-
-        # Fallback to search module
-        artifacts = await self._read(memory_type=memory_type, tags=tags, filters=filters, **kwargs)
-
-        if not artifacts:
-            return Result.ok([])
-
-        results = await search(
-            query,
-            artifacts,
-            search_type,
-            threshold,
-            self.embedder,
-            self._embed,
+        # Count specified parameters for validation
+        specified_params = sum(
+            [query is not None, id is not None, bool(tags), bool(filters), type is not None]
         )
-        return Result.ok(results[:limit])
+
+        # Handle ID lookup
+        if id:
+            if specified_params > 1:
+                raise ValueError("Cannot combine id lookup with other search criteria")
+            results = await self._read(id=id, **kwargs)
+            return Result.ok(results)
+
+        # Handle query search
+        if query:
+            # Query-based search with storage-specific optimizations
+            if self._has_search(search_type):
+                results = await self._search(
+                    query,
+                    search_type,
+                    limit,
+                    threshold,
+                    tags,
+                    type,
+                    filters,
+                    **kwargs,
+                )
+                return Result.ok(results)
+
+            # Fallback to search module
+            artifacts = await self._read(type=type, tags=tags, filters=filters, **kwargs)
+
+            if not artifacts:
+                return Result.ok([])
+
+            results = await search(
+                query,
+                artifacts,
+                search_type,
+                threshold,
+                self.embedder,
+                self._embed,
+            )
+            return Result.ok(results[:limit])
+
+        # Handle filtering (no query, no id)
+        if specified_params == 0:
+            raise ValueError("Must specify search criteria: query, id, tags, type, or filters")
+
+        results = await self._read(type=type, tags=tags, filters=filters, **kwargs)
+        return Result.ok(results)
 
     @resilient(retry=Retry.api())
     async def update(self, artifact_id: UUID, updates: Dict[str, Any]) -> Result:
@@ -118,20 +127,25 @@ class Store:
         artifact_id: UUID = None,
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
-        delete_all: bool = False,
+        all: bool = False,
+        **kwargs,
     ) -> Result:
-        """DELETE - Unified deletion with storage delegation."""
+        """DELETE - Unified deletion with assertive parameter validation."""
         await self._ready()
 
-        if delete_all:
-            success = await self._delete_all()
-        elif artifact_id:
-            success = await self._delete_by_id(artifact_id)
-        elif tags or filters:
-            success = await self._delete_by_filters(tags, filters)
-        else:
-            success = False
+        # Count specified parameters for validation
+        specified_params = sum([artifact_id is not None, bool(tags), bool(filters), all])
 
+        # Assertive validation - exactly one deletion criteria must be specified
+        if specified_params == 0:
+            raise ValueError(
+                "Must specify deletion criteria: artifact_id, tags, filters, or all=True"
+            )
+
+        if specified_params > 1:
+            raise ValueError("Cannot specify multiple deletion criteria simultaneously")
+
+        success = await self._delete(id=artifact_id, tags=tags, filters=filters, all=all, **kwargs)
         return Result.ok(success)
 
     # Storage primitives - implement these in subclasses
@@ -144,36 +158,30 @@ class Store:
         """Store artifact with embedding."""
         raise NotImplementedError
 
-    async def _read_by_id(self, artifact_id: UUID) -> List[Memory]:
-        """Read single artifact by ID."""
-        raise NotImplementedError
-
     async def _read(
         self,
-        memory_type: Optional[MemoryType] = None,
+        id: UUID = None,
+        type: Optional[MemoryType] = None,
         tags: Optional[List[str]] = None,
         filters: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> List[Memory]:
-        """Read filtered artifacts."""
+        """Read artifacts - handles both ID lookup and filtering."""
         raise NotImplementedError
 
     async def _update(self, artifact_id: UUID, updates: Dict[str, Any]) -> bool:
         """Update artifact with clean updates."""
         raise NotImplementedError
 
-    async def _delete_all(self) -> bool:
-        """Delete all artifacts."""
-        raise NotImplementedError
-
-    async def _delete_by_id(self, artifact_id: UUID) -> bool:
-        """Delete single artifact by ID."""
-        raise NotImplementedError
-
-    async def _delete_by_filters(
-        self, tags: Optional[List[str]], filters: Optional[Dict[str, Any]]
+    async def _delete(
+        self,
+        id: UUID = None,
+        tags: Optional[List[str]] = None,
+        filters: Optional[Dict[str, Any]] = None,
+        all: bool = False,
+        **kwargs,
     ) -> bool:
-        """Delete artifacts by filters."""
+        """Delete artifacts - handles all deletion scenarios."""
         raise NotImplementedError
 
     # Optional overrides for storage-specific optimizations
@@ -189,7 +197,7 @@ class Store:
         limit: int,
         threshold: float,
         tags: Optional[List[str]],
-        memory_type: Optional[MemoryType],
+        type: Optional[MemoryType],
         filters: Optional[Dict[str, Any]],
         **kwargs,
     ) -> List[Memory]:

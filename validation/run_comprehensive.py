@@ -33,22 +33,17 @@ async def run_validation_suite():
 
     validation_suites = [
         # Production hardening (critical for v1.0.0)
-        ("🛡️  @robust Recovery", robust_main)
-        ("💾 @robust Checkpoints", checkpoint_main)
-        ("📊 @observe Metrics", observe_main)
-        ("⚡ Rate Limiting", rate_limiting_main)
-        ("🔌 Circuit Breaker", circuit_breaker_main)
+        ("🛡️  @robust Recovery", robust_main)("💾 @robust Checkpoints", checkpoint_main)(
+            "📊 @observe Metrics", observe_main
+        )("⚡ Rate Limiting", rate_limiting_main)("🔌 Circuit Breaker", circuit_breaker_main)
         # Core cognitive features
-        ("🧠 Memory & Embeddings", memory_main)
-        ("👥 State Persistence", state_main)
-        ("🎯 Execution Modes", modes_main)
-        ("🤖 LLM Providers", llm_main)
-        ("🎭 Personality & Schema", personality_main)
+        ("🧠 Memory & Embeddings", memory_main)("👥 State Persistence", state_main)(
+            "🎯 Execution Modes", modes_main
+        )("🤖 LLM Providers", llm_main)("🎭 Personality & Schema", personality_main)
         # Tools and integrations
-        ("🔧 Comprehensive Tools", tools_main)
-        ("📈 Workflow Processing", workflow_main)
-        ("🔍 Tracing System", tracing_main)
-        ("⚠️  Error Recovery", errors_main)
+        ("🔧 Comprehensive Tools", tools_main)("📈 Workflow Processing", workflow_main)(
+            "🔍 Tracing System", tracing_main
+        )("⚠️  Error Recovery", errors_main)
     ]
 
     results = {}
