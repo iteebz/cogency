@@ -12,11 +12,12 @@ from cogency.tools import Tool
 
 
 class Respond(Phase):
-    def __init__(self, llm, tools, identity=None, output_schema=None):
+    def __init__(self, llm, tools, memory=None, identity=None, output_schema=None):
         super().__init__(
             respond,
             llm=llm,
             tools=tools,
+            memory=memory,
             identity=identity,
             output_schema=output_schema,
         )
@@ -176,6 +177,7 @@ async def respond(
     notifier,
     llm: LLM,
     tools: List[Tool],
+    memory=None,  # Impression instance or None
     identity: Optional[str] = None,
     output_schema: Optional[str] = None,
 ) -> None:

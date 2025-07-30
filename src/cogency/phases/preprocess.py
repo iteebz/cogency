@@ -5,7 +5,6 @@ from typing import List, Optional
 from resilient_result import unwrap
 
 from cogency.decorators import phase
-from cogency.memory import Store
 from cogency.phases import Phase
 from cogency.services import LLM
 from cogency.state import State
@@ -34,7 +33,7 @@ async def preprocess(
     notifier,
     llm: LLM,
     tools: List[Tool],
-    memory: Store,
+    memory,  # Impression instance or None
     identity: Optional[str] = None,
 ) -> None:
     """Preprocess: routing decisions, memory extraction, tool selection."""
@@ -124,24 +123,9 @@ Example:
                 output_content = memory_content
             await notifier("preprocess", state="memory_saved", content_preview=output_content)
 
-            # Save memory directly - no ceremony
-            if memory_content:
-                from cogency.memory import MemoryType
-
-                # Convert string memory type to enum
-                try:
-                    memory_type_enum = MemoryType(result.memory_type)
-                except ValueError:
-                    memory_type_enum = MemoryType.FACT
-
-                final_tags = result.tags if result.tags else ["extracted"]
-
-                await memory.create(
-                    memory_content,
-                    memory_type=memory_type_enum,
-                    tags=final_tags,
-                    user_id=user_id,
-                )
+            # Learn from extracted memory content (LLM-native Memory)
+            if memory_content and memory:
+                await memory.remember(memory_content, human=True)
 
         # Chain 2: Filter tools based on LLM selection and determine respond_directly
         selected_tools = result.selected_tools

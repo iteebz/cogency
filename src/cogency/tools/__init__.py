@@ -8,7 +8,6 @@ from .date import Date
 from .executor import run_tools
 from .files import Files
 from .http import HTTP
-from .recall import Recall
 from .registry import build_registry, get_tools, setup_tools, tool
 from .scrape import Scrape
 from .search import Search
@@ -25,7 +24,6 @@ __all__ = [
     "Date",
     "Files",
     "HTTP",
-    "Recall",
     "Scrape",
     "Search",
     "Shell",

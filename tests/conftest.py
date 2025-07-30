@@ -6,7 +6,7 @@ from typing import AsyncIterator
 import pytest
 from resilient_result import Result
 
-from cogency.memory import Filesystem
+# Old memory system removed - using LLM-native Knowledge now
 from cogency.services.llm import LLM
 from cogency.state import State
 from cogency.tools.base import Tool
@@ -66,10 +66,7 @@ def temp_dir():
         yield tmpdir
 
 
-@pytest.fixture
-def memory_service(temp_dir):
-    """Filesystem memory backend."""
-    return Filesystem(memory_dir=temp_dir)
+# Old memory fixture removed - Knowledge system uses LLM directly
 
 
 @pytest.fixture

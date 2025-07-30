@@ -9,6 +9,7 @@ def prompt_reasoning(
     iteration: int = 0,
     depth: int = 5,
     state=None,
+    memory_context: str = "",
 ) -> str:
     """Generate unified prompt with mode-specific sections injected."""
     from cogency.config import MAX_TOOL_CALLS
@@ -47,7 +48,7 @@ switch_to: "fast", switch_why: "Approaching depth limit, need direct action"
 CONTEXT:
 Iteration {iteration}/{depth} - Review completed actions to avoid repetition
 
-COGNITIVE WORKSPACE:
+{memory_context}COGNITIVE WORKSPACE:
 {current_workspace}
 
 PREVIOUS ACTIONS:
@@ -79,7 +80,7 @@ switch_to: "deep", switch_why: "Multi-step calculation required"
         # Use beautiful dot notation for workspace fields
         current_workspace = state.get_workspace_context() if state else "No workspace context yet"
         mode_context = f"""
-COGNITIVE WORKSPACE:
+{memory_context}COGNITIVE WORKSPACE:
 {current_workspace}
 
 PREVIOUS CONTEXT:

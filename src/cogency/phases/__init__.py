@@ -25,11 +25,12 @@ def setup_phases(llm, tools, memory, identity, output_schema):
     """Zero ceremony phase creation."""
     return {
         "preprocess": Preprocess(llm=llm, tools=tools, memory=memory, identity=identity),
-        "reason": Reason(llm=llm, tools=tools, identity=identity),
+        "reason": Reason(llm=llm, tools=tools, memory=memory, identity=identity),
         "act": Act(tools=tools),
         "respond": Respond(
             llm=llm,
             tools=tools,
+            memory=memory,
             identity=identity,
             output_schema=output_schema,
         ),

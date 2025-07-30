@@ -14,8 +14,8 @@ from cogency.utils.parsing import parse_json_with_correction
 
 
 class Reason(Phase):
-    def __init__(self, llm, tools, identity=None):
-        super().__init__(reason, llm=llm, tools=tools, identity=identity)
+    def __init__(self, llm, tools, memory=None, identity=None):
+        super().__init__(reason, llm=llm, tools=tools, memory=memory, identity=identity)
 
     def next_phase(self, state: State) -> str:
         return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
@@ -103,6 +103,7 @@ async def reason(
     notifier,
     llm: LLM,
     tools: List[Tool],
+    memory=None,
     identity: Optional[str] = None,
 ) -> None:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
@@ -136,6 +137,13 @@ async def reason(
     # Phase 2B/3: Use clean context assembly
     context = state.build_reasoning_context(mode, max_history=3)
 
+    # Get impression context if available
+    memory_context = ""
+    if memory:
+        impression_data = await memory.recall()
+        if impression_data:
+            memory_context = f"{impression_data}\n"
+
     reasoning_prompt = prompt_reasoning(
         mode=mode,
         tool_registry=tool_registry,
@@ -144,6 +152,7 @@ async def reason(
         iteration=iteration,
         depth=state.depth,
         state=state,
+        memory_context=memory_context,
     )
 
     # Trace reasoning context for debugging

@@ -9,17 +9,10 @@ logger = logging.getLogger(__name__)
 
 
 def setup_tools(tools, memory):
-    """Setup tools with auto-discovery and recall integration."""
+    """Setup tools with auto-discovery."""
     if tools is None:
         # Auto-discover tools
-        tools = ToolRegistry.get_tools(memory=memory)
-
-    # Add recall tool if memory enabled
-    if memory:
-        from cogency.tools import Recall
-
-        if not any(isinstance(tool, Recall) for tool in tools):
-            tools.append(Recall(memory))
+        tools = ToolRegistry.get_tools()
 
     return tools
 

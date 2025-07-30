@@ -14,10 +14,9 @@ def test_defaults():
     agent = Agent(name="test_agent", llm=MockLLM())
 
     assert agent.llm is not None
-    assert agent.memory is not None
+    assert agent.memory is None  # Memory disabled by default
 
     tool_names = [tool.name for tool in agent.tools]
-    assert "recall" in tool_names
     assert "calculator" in tool_names
 
 
@@ -26,14 +25,14 @@ def test_no_memory():
 
     assert agent.memory is None
     tool_names = [tool.name for tool in agent.tools]
-    assert "recall" not in tool_names
+    assert "calculator" in tool_names
 
 
 @pytest.mark.parametrize(
     "memory_enabled,expected_tools",
     [
         (False, ["calculator"]),
-        (True, ["calculator", "recall"]),
+        (True, ["calculator"]),  # Memory doesn't add tools anymore
     ],
     ids=["no_memory", "with_memory"],
 )

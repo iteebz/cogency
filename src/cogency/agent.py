@@ -6,7 +6,7 @@ from typing import Any, AsyncIterator, Dict, List, Literal, Optional, Union
 from cogency import decorators
 from cogency.config import Observe, Persist, Robust, setup_config
 from cogency.mcp import setup_mcp
-from cogency.memory.store import Store, setup_memory
+from cogency.memory import Memory
 from cogency.notify import Formatter, setup_formatter
 from cogency.notify.notifier import Notifier
 from cogency.persist.utils import get_state
@@ -28,7 +28,7 @@ class Agent:
         llm: Optional[LLM] = None,
         embed: Optional[Embed] = None,
         tools: Optional[List[Tool]] = None,
-        memory: Optional[Store] = None,
+        memory: bool = False,
         # Agent Personality
         identity: Optional[str] = None,
         output_schema: Optional[Dict[str, Any]] = None,
@@ -65,8 +65,8 @@ class Agent:
         # Setup services with auto-detection
         self.llm = setup_llm(llm)
         self.embed = setup_embed(embed)
-        self.memory = setup_memory(memory)
-        self.tools = setup_tools(tools, self.memory)
+        self.memory = Memory(self.llm) if memory else None
+        self.tools = setup_tools(tools, None)
 
         # Config setup with auto-detection
         from cogency.persist import setup_persistence
@@ -136,6 +136,10 @@ class Agent:
 
         state.add_message("user", query)
 
+        # Learn from user input
+        if self.memory:
+            await self.memory.remember(query, human=True)
+
         # Create streaming callback and notification system
         queue: asyncio.Queue[str] = asyncio.Queue()
 
@@ -175,7 +179,12 @@ class Agent:
                 yield queue.get_nowait()
 
         finally:
-            self.last_state = await task
+            result = await task
+            self.last_state = result
+
+            # Learn from agent response
+            if self.memory and result and hasattr(result, "response"):
+                await self.memory.remember(result.response, human=False)
 
     async def run(self, query: str, user_id: str = "default") -> str:
         """Run agent and return complete response as string (async)"""
@@ -188,7 +197,12 @@ class Agent:
                 self.user_states,
                 self.config.persist,
             )
-            # v2: notification system handled via notifier, no state assignment needed
+
+            state.add_message("user", query)
+
+            # Learn from user input
+            if self.memory:
+                await self.memory.remember(query, human=True)
 
             # Set agent mode - direct, no ceremony
             state.agent_mode = self.mode
@@ -216,6 +230,11 @@ class Agent:
 
             # Extract response from state
             response = getattr(state, "response", None)
+
+            # Learn from agent response
+            if self.memory and response:
+                await self.memory.remember(response, human=False)
+
             return response or "No response generated"
 
         except Exception as e:
