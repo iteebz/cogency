@@ -139,5 +139,7 @@ def test_setup_notifier():
 
     notifier = agent._setup_notifier()
     assert notifier is not None
-    assert hasattr(notifier, "preprocess")
-    assert hasattr(notifier, "reason")
+    # Test ultimate callable form
+    assert hasattr(notifier, "__call__")  # Callable notifier
+    assert hasattr(notifier, "emit")  # Legacy method for backward compatibility
+    assert hasattr(notifier, "notifications")  # Storage for notifications

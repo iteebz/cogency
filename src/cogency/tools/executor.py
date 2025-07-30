@@ -68,7 +68,7 @@ async def execute_tools(
                     tool_input = f"({first_val})"
 
             if notifier:
-                notifier.action(f"Executing {tool_name}{tool_input}")
+                await notifier("action", state="executing", tool=tool_name, input=tool_input)
 
         try:
             result = await execute_single_tool(tool_name, tool_args, tools)
@@ -79,7 +79,9 @@ async def execute_tools(
                 raw_error = tool_output.error or "Unknown error"
                 user_friendly_error = format_tool_error(actual_tool_name, Exception(raw_error))
                 if notifier:
-                    notifier.action(f"Failed: {user_friendly_error}")
+                    await notifier(
+                        "tool", name=actual_tool_name, ok=False, error=user_friendly_error
+                    )
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -106,7 +108,9 @@ async def execute_tools(
 
                     # Add success indicator to result
                     if notifier:
-                        notifier.action(f"Completed: {readable_result}")
+                        await notifier(
+                            "tool", name=actual_tool_name, ok=True, result=readable_result
+                        )
 
                 success_result = {
                     "tool_name": actual_tool_name,
@@ -119,7 +123,7 @@ async def execute_tools(
             # Use user-friendly error message
             user_friendly_error = format_tool_error(tool_name, e)
             if notifier:
-                notifier.action(f"Error: {user_friendly_error}")
+                await notifier("tool", name=tool_name, ok=False, error=user_friendly_error)
             failure_result = {
                 "tool_name": tool_name,
                 "args": tool_args,

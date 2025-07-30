@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
-"""Silent mode verification - clean output without tracing."""
+"""V2 silent mode verification - clean output without notifications."""
 
 import asyncio
 
 from cogency import Agent
+from cogency.notify import Formatter
 from cogency.tools import Calculator, Weather
 
 
 async def main():
-    print("🤫 SILENT MODE VERIFICATION")
+    print("🤫 V2 SILENT MODE VERIFICATION")
     print("=" * 30 + "\n")
 
-    # Agent with notifications disabled - clean, production-ready output
+    # Agent with v2 silent formatter - clean, production-ready output
     agent = Agent(
         "silent_agent",
         identity="helpful assistant with clean, direct responses",
         tools=[Calculator(), Weather()],
         memory=False,
         depth=5,
-        notify=False,  # 🤫 NO NOTIFICATIONS - clean output only
-        debug=False,
+        formatter=Formatter(),  # 🤫 Silent formatter - no notification output
     )
 
     queries = [
@@ -38,12 +38,14 @@ async def main():
 
         await asyncio.sleep(1)
 
-    print("✅ Silent mode verification complete!")
-    print("\nNotice the difference:")
+    print("✅ V2 silent mode verification complete!")
+    print("\nNotice the v2 silent mode benefits:")
     print("  • No internal phase logging")
     print("  • No tool execution details")
     print("  • Clean, user-focused output")
-    print("  • Same powerful functionality underneath")
+    print("  • Zero notification overhead in production")
+    print("  • Same powerful v2 functionality underneath")
+    print("  • Async emission still works (just returns None)")
 
 
 if __name__ == "__main__":

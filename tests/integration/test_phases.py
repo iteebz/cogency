@@ -106,7 +106,7 @@ async def test_respond_output():
 
     state = State(query="weather?", messages=[], user_id="test")
 
-    await respond(state, Mock(), llm=mock_llm, tools=[])
+    await respond(state, AsyncMock(), llm=mock_llm, tools=[])
 
     assert isinstance(state.response, str)
     assert not state.response.startswith("{")
@@ -135,14 +135,14 @@ async def test_routing():
         tool_calls=tool_calls,
     )
 
-    await act(state, Mock(), tools=[tool])
+    await act(state, AsyncMock(), tools=[tool])
     latest_results = state.latest_tool_results
     assert len(latest_results) > 0
     assert latest_results[0].success
 
     # Test no tool calls
     state.tool_calls = []
-    await act(state, Mock(), tools=[])
+    await act(state, AsyncMock(), tools=[])
     # Should not change existing results
     assert len(state.latest_tool_results) > 0  # Still has previous results
 
@@ -164,7 +164,7 @@ async def test_reason_direct(state):
         return_value=Result.ok('{"reasoning": "I can answer this directly: 2 + 2 = 4"}')
     )
 
-    await reason(state, Mock(), llm=llm, tools=[])
+    await reason(state, AsyncMock(), llm=llm, tools=[])
 
     # Should have no tool calls for direct answer
     assert not state.tool_calls
@@ -182,7 +182,7 @@ async def test_reason_tools(state):
         )
     )
 
-    await reason(state, Mock(), llm=llm, tools=[Calculator()])
+    await reason(state, AsyncMock(), llm=llm, tools=[Calculator()])
 
     # Should have tool calls
     assert state.tool_calls
@@ -205,7 +205,7 @@ async def test_act_execution(state):
     )
 
     tools = [Calculator()]
-    await act(state, Mock(), tools=tools)
+    await act(state, AsyncMock(), tools=tools)
 
     # Should have results (tool calls with outcome key)
     results = state.get_latest_results()
@@ -219,7 +219,7 @@ async def test_respond_formats(state):
     """Test respond phase creates final response."""
     llm = MockLLM()
 
-    await respond(state, Mock(), llm=llm, tools=[])
+    await respond(state, AsyncMock(), llm=llm, tools=[])
 
     # Should have a response
     assert state.response is not None
@@ -237,12 +237,12 @@ async def test_full_cycle(state):
             '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "calculator", "args": {"expression": "2 + 2"}}]}'
         )
     )
-    await reason(state, Mock(), llm=llm, tools=tools)
+    await reason(state, AsyncMock(), llm=llm, tools=tools)
     assert state.tool_calls
     assert len(state.actions) > 0  # reason() should have added an action
 
     # 2. Act (execute tools)
-    await act(state, Mock(), tools=tools)
+    await act(state, AsyncMock(), tools=tools)
     results = state.get_latest_results()
     assert len(results) > 0
 
@@ -252,10 +252,10 @@ async def test_full_cycle(state):
             '{"reasoning": "The calculator shows 2 + 2 = 4. I can now respond."}'
         )
     )
-    await reason(state, Mock(), llm=llm, tools=tools)
+    await reason(state, AsyncMock(), llm=llm, tools=tools)
 
     # 4. Respond (final answer)
-    await respond(state, Mock(), llm=llm, tools=[])
+    await respond(state, AsyncMock(), llm=llm, tools=[])
     assert state.response
 
 
@@ -269,9 +269,9 @@ async def test_no_tools_flow(state):
     )
 
     # 1. Reason (no tools needed)
-    await reason(state, Mock(), llm=llm, tools=[])
+    await reason(state, AsyncMock(), llm=llm, tools=[])
     assert not state.tool_calls
 
     # 2. Respond directly
-    await respond(state, Mock(), llm=llm, tools=[])
+    await respond(state, AsyncMock(), llm=llm, tools=[])
     assert state.response

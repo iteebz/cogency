@@ -5,14 +5,14 @@ from cogency import decorators
 from cogency.config import Observe, Persist, Robust, setup_config
 from cogency.mcp import setup_mcp
 from cogency.memory.store import Store, setup_memory
+from cogency.notify import Formatter, setup_formatter
+from cogency.notify.notifier import Notifier
 from cogency.persist.utils import get_state
 from cogency.phases import setup_phases
 from cogency.services import LLM, Embed, setup_embed, setup_llm
 from cogency.state import State
 from cogency.tools import Tool, setup_tools
 from cogency.utils import validate_query
-from cogency.utils.notify import Notifier  # v1 - backward compatibility 
-from cogency.notify import CLIFormatter, EmojiFormatter, JSONFormatter, Formatter  # v2
 
 
 class Agent:
@@ -33,9 +33,9 @@ class Agent:
         # Execution Control
         mode: Literal["fast", "deep", "adapt"] = "adapt",
         depth: int = 10,
-        # User Feedback
-        notify: bool = True,
-        debug: bool = False,
+        # User Feedback (v2 notification system)
+        formatter: Optional[Formatter] = None,
+        on_notify: Optional[callable] = None,
         # System Behaviors (@phase decorator control)
         robust: Union[bool, Robust] = True,
         observe: Union[bool, Observe] = False,
@@ -44,9 +44,11 @@ class Agent:
         mcp: bool = False,
     ) -> None:
         self.name = name
-        self.debug = debug
-        self.notify = notify
         self.depth = depth
+
+        # v2 notification system
+        self.on_notify = on_notify
+        self.formatter = formatter or setup_formatter()
 
         # Mode - direct assignment, no ceremony
         self.mode = mode
@@ -95,9 +97,9 @@ class Agent:
         # Setup MCP server
         self.mcp_server = setup_mcp(self, mcp)
 
-    def _setup_notifier(self, callback=None) -> Notifier:
-        """Setup clean phase-based notification system."""
-        return Notifier(callback=callback, trace=self.debug, verbose=self.notify)
+    def _setup_notifier(self, callback=None):
+        """Setup v2 notification system."""
+        return Notifier(formatter=self.formatter, on_notify=callback or self.on_notify)
 
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution"""
@@ -121,8 +123,11 @@ class Agent:
         # Create streaming callback and notification system
         queue: asyncio.Queue[str] = asyncio.Queue()
 
-        async def stream_callback(phase: str, message: str, metadata: dict) -> None:
-            await queue.put(message)
+        async def stream_callback(notification) -> None:
+            # Format notification and put in queue
+            formatted = self.formatter.format(notification)
+            if formatted:
+                await queue.put(formatted)
 
         notifier = self._setup_notifier(callback=stream_callback)
 
@@ -167,17 +172,14 @@ class Agent:
                 self.user_states,
                 self.config.persist,
             )
-            state.notify = self.notify
-            state.debug = self.debug
+            # v2: notification system handled via notifier, no state assignment needed
 
             # Set agent mode - direct, no ceremony
             state.agent_mode = self.mode
             if self.mode != "adapt":
                 state.mode = self.mode
 
-            # Set up trace callback for non-streaming mode
-            if self.debug:
-                state.callback = print
+            # v2: debug/trace handled via notification system, no callback needed
 
             # Use simple execution loop with zero ceremony
             from cogency.execution import run_agent

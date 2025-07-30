@@ -180,7 +180,7 @@ async def respond(
     output_schema: Optional[str] = None,
 ) -> None:
     """Respond: generate final formatted response with personality."""
-    notifier.respond("Generating response")
+    await notifier("respond", state="generating")
 
     # Collect all context upfront - no branching ceremony
     failures = collect_failures(state)
@@ -210,7 +210,7 @@ async def respond(
             else "I'm here to help. How can I assist you?"
         )
 
-    notifier.respond(response_text)
+    await notifier("respond", state="complete", content=response_text[:100])
 
     # Update state
     state.add_message("assistant", response_text)

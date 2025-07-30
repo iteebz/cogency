@@ -1,42 +1,33 @@
 #!/usr/bin/env python3
-"""Validate notification UX formatting with real LLM - demonstrates clean, structured output."""
+"""Validate v2 notification formatting with real Agent - demonstrates clean, structured output."""
 
 import asyncio
 
 from cogency import Agent
+from cogency.notify import EmojiFormatter
 from cogency.tools import Calculator, Weather
-from cogency.utils.notify import NotificationFormatter
 
-
-async def console_notification_callback(phase: str, message: str, metadata: dict):
-    """Print notifications to console with clean formatting."""
-    formatter = NotificationFormatter()
-    from cogency.utils.notify import Notification
-
-    notification = Notification(phase=phase, message=message, metadata=metadata)
-    formatted = formatter.format(notification, include_emoji=True)
-    print(f"  {formatted}")
+# No need for callback - v2 Agent handles formatting internally via stream
 
 
 async def main():
-    print("🎨 NOTIFICATION FORMATTING VALIDATION")
+    print("🎨 V2 NOTIFICATION FORMATTING VALIDATION")
     print("=" * 60)
-    print("Testing UX-friendly notification output with real LLM execution\n")
+    print("Testing UX-friendly v2 notification output with real Agent execution\n")
 
-    # Agent with notifications enabled - we'll capture them via stream
+    # Agent with v2 notification system - emoji formatter by default
     agent = Agent(
         "formatting_demo_agent",
-        identity="helpful assistant demonstrating clean notification UX",
+        identity="helpful assistant demonstrating clean v2 notification UX",
         tools=[Calculator(), Weather()],
         memory=False,
         depth=3,
-        notify=True,  # Enable notifications (captured via stream)
-        debug=True,  # Enable trace notifications for full visibility
+        formatter=EmojiFormatter(),  # v2 notification system
     )
 
-    print("🔍 LIVE NOTIFICATION STREAM (with emoji formatting):")
+    print("🔍 LIVE V2 NOTIFICATION STREAM (with emoji formatting):")
     print("-" * 50)
-    print("Watch for phase transitions and clean UX indicators...\n")
+    print("Watch for v2 phase transitions and clean UX indicators...\n")
 
     # Test queries that exercise different phases and tools
     queries = [
@@ -49,9 +40,18 @@ async def main():
         print("=" * 45)
 
         try:
-            result = await agent.run(query)
+            # Use streaming to see v2 notifications in real-time
+            result_parts = []
+            async for chunk in agent.stream(query):
+                chunk = chunk.strip()
+                if chunk:
+                    print(chunk)
+                    # Collect response parts (non-notification chunks)
+                    if not any(emoji in chunk for emoji in ["⚙️", "💭", "⚡", "🤖", "🔍"]):
+                        result_parts.append(chunk)
+
             print("=" * 45)
-            print(f"🎯 Result: {result}\n")
+            print(f"🎯 Final Result: {' '.join(result_parts).strip()}\n")
 
             if i < len(queries):
                 print("⏳ Next query in 1 second...\n")
@@ -60,15 +60,17 @@ async def main():
         except Exception as e:
             print(f"❌ Error: {e}\n")
 
-    print("📊 NOTIFICATION UX VALIDATION COMPLETE!")
+    print("📊 V2 NOTIFICATION UX VALIDATION COMPLETE!")
     print("=" * 50)
-    print("✅ Key UX Features Demonstrated:")
+    print("✅ Key V2 Features Demonstrated:")
     print("  • ⚙️  Preprocess phase with clean indicators")
     print("  • 💭 Reasoning phase with thinking indicators")
-    print("  • ⚡ Action phase with tool execution feedback")
+    print("  • ⚡ Tool execution with real-time feedback")
     print("  • 🤖 Response phase with completion indicators")
-    print("  • 🔍 Trace messages for debugging (when debug=True)")
-    print("\n✅ Clean, structured notification flow for optimal DX/UX")
+    print("  • 🔍 Trace messages for debugging")
+    print("  • 📡 Async notification emission")
+    print("  • 🎨 Type-safe formatter system")
+    print("\n✅ Clean, structured v2 notification flow for optimal DX/UX")
     print("=" * 50)
 
 

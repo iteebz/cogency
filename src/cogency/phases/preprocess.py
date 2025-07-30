@@ -122,7 +122,7 @@ Example:
                 output_content = f"{memory_content[:break_point]}..."
             else:
                 output_content = memory_content
-            notifier.preprocess(f"Saved memory: {output_content}")
+            await notifier("preprocess", state="memory_saved", content_preview=output_content)
 
             # Save memory directly - no ceremony
             if memory_content:
@@ -164,20 +164,18 @@ Example:
         if filtered_tools:
             if len(filtered_tools) < len(tools):
                 # Tool filtering decision affects behavior
-                notifier.trace(
-                    "Tool filtering applied",
-                    {
-                        "selected": len(filtered_tools),
-                        "total": len(tools),
-                        "execution_path": "filtered",
-                    },
+                await notifier(
+                    "preprocess",
+                    state="filtered",
+                    selected_tools=len(filtered_tools),
+                    total_tools=len(tools),
                 )
             elif len(filtered_tools) == 1:
                 # Single tool triggers direct execution
-                notifier.trace("Direct execution path", {"reason": "single_tool"})
+                await notifier("preprocess", state="direct", tool_count=1)
             else:
                 # Multi-tool triggers ReAct loop
-                notifier.trace("ReAct execution path", {"tool_count": len(filtered_tools)})
+                await notifier("preprocess", state="react", tool_count=len(filtered_tools))
     else:
         # Simple case: no tools available, respond directly
         filtered_tools = []  # No tools to filter if initial 'tools' list is empty

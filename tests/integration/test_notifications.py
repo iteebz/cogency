@@ -4,16 +4,24 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from cogency.notify import (
+    CLIFormatter,
+    EmojiFormatter,
+    Formatter,
+    JSONFormatter,
+    Notifier,
+    setup_formatter,
+)
 from cogency.phases.preprocess import preprocess
 from cogency.phases.respond import respond
 from cogency.state import State
-from cogency.utils.notify import NotificationFormatter, Notifier
 
 
 @pytest.mark.asyncio
 async def test_phase_notifications_direct():
     """Test notifications work directly with phase functions."""
-    notifier = Notifier(verbose=True, trace=True)
+    formatter = EmojiFormatter()
+    notifier = Notifier(formatter=formatter)
 
     # Mock dependencies
     mock_llm = AsyncMock()
@@ -29,51 +37,52 @@ async def test_phase_notifications_direct():
     # Verify notifications were generated
     assert len(notifier.notifications) >= 1
 
-    # Check for respond phase notifications
-    respond_notifications = [n for n in notifier.notifications if n.phase == "respond"]
+    # Check for respond phase notifications (ultimate form uses direct event types)
+    respond_notifications = [n for n in notifier.notifications if n.type == "respond"]
     assert len(respond_notifications) >= 1
-    assert "response" in respond_notifications[0].message.lower()
 
 
-def test_notification_formatter_integration():
+@pytest.mark.asyncio
+async def test_notification_formatter_integration():
     """Test notification formatter with real notifications."""
-    notifier = Notifier(verbose=True)
+    formatter = EmojiFormatter()
+    notifier = Notifier(formatter=formatter)
 
-    # Generate some notifications
-    notifier.preprocess("Analyzing query structure")
-    notifier.reason("Considering available options")
-    notifier.action("Executing search tool")
-    notifier.respond("Generating final response")
+    # Generate some notifications using ultimate callable API
+    await notifier("preprocess", state="analyzing")
+    await notifier("reason", state="thinking")
+    await notifier("tool", name="search", ok=True, result="Found results")
+    await notifier("respond", state="generating")
 
     # Test formatting
-    formatter = NotificationFormatter()
-
     formatted_messages = []
     for notification in notifier.notifications:
-        formatted = formatter.format(notification, include_emoji=True)
-        formatted_messages.append(formatted)
+        formatted = formatter.format(notification)
+        if formatted:  # Skip None results from silent formatters
+            formatted_messages.append(formatted)
 
     # Verify emoji formatting
-    assert "⚙️ Analyzing query structure" in formatted_messages
-    assert "💭 Considering available options" in formatted_messages
-    assert "⚡ Executing search tool" in formatted_messages
-    assert "🤖 Generating final response" in formatted_messages
+    assert any("⚙️" in msg and "preprocess" in msg.lower() for msg in formatted_messages)
+    assert any("💭" in msg and "reason" in msg.lower() for msg in formatted_messages)
+    assert any("🔍" in msg and "search" in msg.lower() for msg in formatted_messages)
+    assert any("🤖" in msg and "respond" in msg.lower() for msg in formatted_messages)
 
 
 @pytest.mark.asyncio
 async def test_callback_integration():
     """Test callback mechanism works with phase notifications."""
-    callback_messages = []
+    callback_notifications = []
 
-    async def test_callback(phase, message, metadata):
-        callback_messages.append((phase, message, metadata))
+    async def test_callback(notification):
+        callback_notifications.append(notification)
 
-    notifier = Notifier(callback=test_callback, verbose=True)
+    formatter = CLIFormatter()
+    notifier = Notifier(formatter=formatter, on_notify=test_callback)
 
-    # Send notifications
-    notifier.preprocess("Starting preprocessing")
-    notifier.reason("Analyzing query", {"mode": "fast"})
-    notifier.action("Tool execution")
+    # Send notifications using ultimate callable API
+    await notifier("preprocess", state="starting")
+    await notifier("reason", state="fast")
+    await notifier("tool", name="search", ok=True)
 
     # Allow async callbacks to complete
     import asyncio
@@ -81,30 +90,38 @@ async def test_callback_integration():
     await asyncio.sleep(0.01)
 
     # Verify callbacks were triggered
-    assert len(callback_messages) == 3
-    assert callback_messages[0] == ("preprocess", "Starting preprocessing", {})
-    assert callback_messages[1] == ("reason", "Analyzing query", {"mode": "fast"})
-    assert callback_messages[2] == ("action", "Tool execution", {})
+    assert len(callback_notifications) == 3
+    assert callback_notifications[0].type == "preprocess"
+    assert callback_notifications[0].data["state"] == "starting"
+    assert callback_notifications[1].type == "reason"
+    assert callback_notifications[1].data["state"] == "fast"
+    assert callback_notifications[2].type == "tool"
 
 
-def test_trace_filtering_integration():
-    """Test trace filtering works as expected."""
-    # Notifier with trace disabled
-    notifier_no_trace = Notifier(trace=False, verbose=True)
-    notifier_no_trace.reason("Normal message")
-    notifier_no_trace.trace("Debug message")
+@pytest.mark.asyncio
+async def test_silent_mode_integration():
+    """Test silent mode works as expected."""
+    # Silent formatter returns None for all notifications
+    silent_formatter = setup_formatter("silent")
+    notifier_silent = Notifier(formatter=silent_formatter)
 
-    # Should only have reason notification
-    assert len(notifier_no_trace.notifications) == 1
-    assert notifier_no_trace.notifications[0].phase == "reason"
+    await notifier_silent("reason", state="thinking")
+    await notifier_silent("trace", message="Debug message")
 
-    # Notifier with trace enabled
-    notifier_with_trace = Notifier(trace=True, verbose=True)
-    notifier_with_trace.reason("Normal message")
-    notifier_with_trace.trace("Debug message")
+    # Notifications are stored but formatting returns None
+    assert len(notifier_silent.notifications) == 2
+    for notification in notifier_silent.notifications:
+        formatted = silent_formatter.format(notification)
+        assert formatted is None  # Silent mode returns None
 
-    # Should have both notifications
-    assert len(notifier_with_trace.notifications) == 2
-    phases = [n.phase for n in notifier_with_trace.notifications]
-    assert "reason" in phases
-    assert "trace" in phases
+    # Regular formatter should format both
+    regular_formatter = EmojiFormatter()
+    notifier_regular = Notifier(formatter=regular_formatter)
+
+    await notifier_regular("reason", state="thinking")
+    await notifier_regular("trace", message="Debug message")
+
+    assert len(notifier_regular.notifications) == 2
+    for notification in notifier_regular.notifications:
+        formatted = regular_formatter.format(notification)
+        assert formatted is not None  # Regular mode formats messages
