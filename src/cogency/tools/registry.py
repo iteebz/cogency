@@ -1,6 +1,5 @@
 """Tool registry for auto-discovery."""
 
-import inspect
 import logging
 from typing import List, Type
 
@@ -39,33 +38,17 @@ class ToolRegistry:
 
     @classmethod
     def get_tools(cls, **kwargs) -> List[Tool]:
-        """Get all registered tool instances."""
+        """Get all registered tool instances - zero ceremony instantiation."""
         tools = []
         for tool_class in cls._tools:
             try:
-                # Check if 'memory' is a required parameter for the tool's __init__
-                sig = inspect.signature(tool_class.__init__)
-                if (
-                    "memory" in sig.parameters
-                    and sig.parameters["memory"].kind == inspect.Parameter.POSITIONAL_OR_KEYWORD
-                    and sig.parameters["memory"].default is inspect.Parameter.empty
-                ):
-                    # If 'memory' is a required parameter, try to instantiate with kwargs
-                    if "memory" in kwargs:
-                        tools.append(tool_class(**kwargs))
-                    else:
-                        # Skip if memory is required but not provided in kwargs
-                        continue
-                else:
-                    # Otherwise, try to instantiate without kwargs first
-                    try:
-                        tools.append(tool_class())
-                    except TypeError:
-                        # Fallback to instantiating with kwargs if it fails without
-                        tools.append(tool_class(**kwargs))
+                # Try with kwargs first, fallback to no-args
+                try:
+                    tools.append(tool_class(**kwargs))
+                except TypeError:
+                    tools.append(tool_class())
             except Exception as e:
-                logger.error(f"Failed to instantiate tool {tool_class.__name__}: {e}")
-                # Skip tools that can't be instantiated for any other reason
+                logger.debug(f"Skipped {tool_class.__name__}: {e}")
                 continue
         return tools
 

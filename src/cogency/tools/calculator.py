@@ -29,6 +29,7 @@ class Calculator(Tool):
         super().__init__(
             name="calculator",
             description="Evaluate mathematical expressions with support for +, -, *, /, √, parentheses",
+            schema="calculator(expression: str)",
             emoji="🧮",
             params=CalculatorArgs,
             examples=[

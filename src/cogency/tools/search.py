@@ -26,6 +26,7 @@ class Search(Tool):
         super().__init__(
             name="search",
             description="Search the web using DuckDuckGo for current information and answers to questions.",
+            schema="search(query: str, max_results: int = 5)",
             emoji="🔍",
             params=SearchArgs,
             examples=[

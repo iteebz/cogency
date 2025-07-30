@@ -32,6 +32,7 @@ class Shell(Tool):
         super().__init__(
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
+            schema="shell(command: str, timeout: int = 30, working_dir: str = None, env: dict = None)",
             emoji="💻",
             params=ShellArgs,
             examples=[

@@ -22,6 +22,7 @@ class Tool(ABC):
         self,
         name: str,
         description: str,
+        schema: str,
         emoji: str = "🛠️",
         params: Optional[Type] = None,
         examples: Optional[List[str]] = None,
@@ -32,73 +33,21 @@ class Tool(ABC):
         Args:
             name: The name of the tool (used for tool calls)
             description: Human-readable description of what the tool does
+            schema: Explicit schema string for LLM (e.g. "calculator(expression='2+2')")
             emoji: Visual emoji for this tool type (defaults to generic 🛠️)
-            params: Dataclass for parameter validation
+            params: Optional dataclass for parameter validation
             examples: List of example tool calls for LLM guidance
             rules: List of usage rules and completion guidance
         """
         self.name = name
         self.description = description
+        self.schema = schema
         self.emoji = emoji
         self.params = params
         self.examples = examples or []
         self.rules = rules or []
 
-    @property
-    def schema(self) -> str:
-        """Backward compatibility property that generates schema from dataclass."""
-        if not self.params:
-            return f"{self.name}() - No parameters required"
-
-        # Generate schema string from dataclass fields
-        from dataclasses import fields, is_dataclass
-
-        if not is_dataclass(self.params):
-            return f"{self.name}() - Parameters not defined as dataclass"
-
-        param_strs = []
-        required = []
-        optional = []
-
-        from dataclasses import MISSING
-
-        for field in fields(self.params):
-            field_type = field.type
-            has_default = field.default is not MISSING or field.default_factory is not MISSING
-
-            # Check if Optional type (Union with None)
-            import typing
-
-            is_optional = (
-                hasattr(field_type, "__origin__")
-                and field_type.__origin__ is typing.Union
-                and type(None) in field_type.__args__
-            )
-
-            if has_default or is_optional:
-                optional.append(field.name)
-            else:
-                required.append(field.name)
-
-            # Add to param strings
-            if field.default is not MISSING:
-                param_strs.append(f"{field.name}={repr(field.default)}")
-            else:
-                param_strs.append(f"{field.name}='...'")
-
-        param_str = ", ".join(param_strs)
-        req_str = "Required: " + ", ".join(required) if required else ""
-        opt_str = "Optional: " + ", ".join(optional) if optional else ""
-
-        parts = [f"{self.name}({param_str})"]
-        if req_str and opt_str:
-            parts.append(f"{req_str} | {opt_str}")
-        elif req_str:
-            parts.append(req_str)
-        elif opt_str:
-            parts.append(opt_str)
-
-        return "\n".join(parts)
+    # Schema is now explicit - no ceremony, just clean strings
 
     async def execute(self, **kwargs: Any) -> Result:
         """Execute tool with automatic validation and error handling - USE THIS, NOT run() directly."""

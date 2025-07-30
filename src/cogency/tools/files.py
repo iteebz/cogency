@@ -34,6 +34,7 @@ class Files(Tool):
         super().__init__(
             name="files",
             description="Create, read, edit and manage complete code files with full implementations.",
+            schema="files(action: str, filename: str = '', content: str = None, line: int = None, start: int = None, end: int = None)",
             emoji="📁",
             params=FilesArgs,
             examples=[

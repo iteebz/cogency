@@ -28,6 +28,7 @@ class Recall(Tool):
         super().__init__(
             name="recall",
             description="Search memory for relevant information when user asks about themselves, their preferences, past interactions, or references things they've mentioned before. Use when current conversation lacks context the user expects you to know.",
+            schema="recall(query: str, limit: int = 5, tags: list = None)",
             emoji="🧠",
             params=RecallArgs,
             examples=[

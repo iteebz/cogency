@@ -33,6 +33,7 @@ class Scrape(Tool):
         super().__init__(
             name="scrape",
             description="Extract clean text content from web pages, removing ads, navigation, and formatting",
+            schema="scrape(url: str, favor_precision: bool = True)",
             emoji="📖",
             params=ScrapeArgs,
             examples=[
