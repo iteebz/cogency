@@ -241,5 +241,5 @@ def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int
         )
 
         # Update cognitive workspace
-        if reasoning_response.workspace_update:
-            state.update_workspace(reasoning_response.workspace_update)
+        if reasoning_response.updates:
+            state.update_workspace(reasoning_response.updates)

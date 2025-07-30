@@ -16,7 +16,7 @@ class Reasoning:
     reflect: Optional[str] = None
     plan: Optional[str] = None
     # Cognitive workspace updates - the canonical solution
-    workspace_update: Optional[Dict[str, str]] = None
+    updates: Optional[Dict[str, str]] = None
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Reasoning":
@@ -39,5 +39,5 @@ class Reasoning:
             reflect=data.get("reflect"),
             plan=data.get("plan"),
             # Cognitive workspace updates
-            workspace_update=data.get("workspace_update"),
+            updates=data.get("updates"),
         )

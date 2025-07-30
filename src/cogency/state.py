@@ -28,9 +28,9 @@ class State:
     attempts: List[Any] = field(default_factory=list)
     # Cognitive workspace - persistent semantic memory
     objective: str = ""
-    understanding: str = ""
+    assessment: str = ""
     approach: str = ""
-    discoveries: str = ""
+    observations: str = ""
     # Output
     response: Optional[str] = None
     respond_directly: bool = False
@@ -127,7 +127,7 @@ class State:
         """Update cognitive workspace fields with minimal bounds checking."""
         for field_name, value in workspace_update.items():
             if (
-                field_name in ["objective", "understanding", "approach", "discoveries"]
+                field_name in ["objective", "assessment", "approach", "observations"]
                 and isinstance(value, str)
                 and len(value.strip()) <= 500
             ):  # Reasonable bounds
@@ -138,12 +138,12 @@ class State:
         parts = []
         if self.objective:
             parts.append(f"OBJECTIVE: {self.objective}")
-        if self.understanding:
-            parts.append(f"UNDERSTANDING: {self.understanding}")
+        if self.assessment:
+            parts.append(f"ASSESSMENT: {self.assessment}")
         if self.approach:
             parts.append(f"APPROACH: {self.approach}")
-        if self.discoveries:
-            parts.append(f"DISCOVERIES: {self.discoveries}")
+        if self.observations:
+            parts.append(f"OBSERVATIONS: {self.observations}")
         return "\n".join(parts) if parts else "No workspace context yet"
 
     def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:

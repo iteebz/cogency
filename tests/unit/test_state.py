@@ -50,9 +50,9 @@ def test_defaults():
     assert state.attempts == []
     # Cognitive workspace fields
     assert state.objective == ""
-    assert state.understanding == ""
+    assert state.assessment == ""
     assert state.approach == ""
-    assert state.discoveries == ""
+    assert state.observations == ""
     assert state.response is None
     assert state.respond_directly is False
     assert state.notify is True
@@ -74,14 +74,14 @@ def test_update():
     # Test workspace update method
     workspace_update = {
         "objective": "Test the cognitive workspace",
-        "understanding": "We know this is a test",
+        "assessment": "We know this is a test",
         "approach": "Use update_workspace method",
-        "discoveries": "The workspace update works",
+        "observations": "The workspace update works",
     }
 
     state.update_workspace(workspace_update)
 
     assert state.objective == "Test the cognitive workspace"
-    assert state.understanding == "We know this is a test"
+    assert state.assessment == "We know this is a test"
     assert state.approach == "Use update_workspace method"
-    assert state.discoveries == "The workspace update works"
+    assert state.observations == "The workspace update works"

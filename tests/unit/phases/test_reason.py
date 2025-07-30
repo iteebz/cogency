@@ -45,9 +45,9 @@ async def test_init():
 
     assert isinstance(state, State)
     assert hasattr(state, "objective")
-    assert hasattr(state, "understanding")
+    assert hasattr(state, "assessment")
     assert hasattr(state, "approach")
-    assert hasattr(state, "discoveries")
+    assert hasattr(state, "observations")
     assert isinstance(state.actions, list)
     assert hasattr(state, "attempts")
 
