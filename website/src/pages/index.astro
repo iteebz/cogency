@@ -4,9 +4,10 @@ import Hero from "../components/Hero.astro";
 import QuickStart from "../components/QuickStart.astro";
 import PainPoints from "../components/PainPoints.astro";
 import Features from "../components/Features.astro";
+import { meta } from "../content";
 
-const title = "Cogency - Conversational AI That Actually Works";
-const description = "True multi-step reasoning with intelligent tool orchestration. Zero ceremony setup, built-in resilience, production-ready from day one.";
+const title = meta.defaultTitle;
+const description = meta.defaultDescription;
 ---
 
 <Layout 

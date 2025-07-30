@@ -76,7 +76,7 @@ def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
         return {}
 
     # Get version from Poetry
-    version = "0.5.1"  # Hardcode the current version for now
+    version = "0.9.0"  # Hardcode the current version for now
 
     # Alternative: Get version from pyproject.toml with simple text parsing
     try:
@@ -99,19 +99,39 @@ def generate_api_docs(cogency_python_path: str) -> Dict[str, Any]:
         "modules": {},
     }
 
-    # Core modules to document
-    module_names = [
+    # Auto-discover all available modules via reflection
+    module_names = []
+
+    # Get all attributes that look like modules
+    for attr_name in dir(cogency):
+        if not attr_name.startswith("_"):
+            attr = getattr(cogency, attr_name)
+            # Check if it's a module by looking for __file__ or __path__
+            if hasattr(attr, "__file__") or hasattr(attr, "__path__"):
+                module_names.append(attr_name)
+
+    # Fallback: try importing common submodules if direct attrs don't work
+    potential_modules = [
         "agent",
-        "llm",
+        "config",
         "tools",
         "memory",
-        "context",
-        "embed",
+        "services",
         "utils",
-        "nodes",
+        "types",
+        "phases",
     ]
+    for potential in potential_modules:
+        if potential not in module_names:
+            try:
+                importlib.import_module(f"cogency.{potential}")
+                module_names.append(potential)
+            except ImportError:
+                pass
 
-    for module_name in module_names:
+    print(f"Auto-discovered modules: {sorted(set(module_names))}")
+
+    for module_name in sorted(set(module_names)):
         try:
             module = getattr(cogency, module_name, None)
             if module is None:
@@ -149,7 +169,7 @@ def main():
     """Process command line args and generate documentation"""
     # Default to cogency src directory (restructured)
     cogency_path = "../.."
-    output_dir = "src/data/api"
+    output_dir = "src"
 
     if len(sys.argv) > 1:
         cogency_path = sys.argv[1]

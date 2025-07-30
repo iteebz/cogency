@@ -3,6 +3,7 @@ import Layout from "../../components/Layout.astro";
 import FeatureHero from "../../components/FeatureHero.astro";
 import CodeBlock from "../../components/CodeBlock.astro";
 import FeatureGrid from "../../components/FeatureGrid.astro";
+import { features } from "../../feature-content";
 
 const title = "Multi-step Reasoning AI Agents - Cogency";
 const description =
@@ -43,15 +44,15 @@ const relatedFeatures = [
 	canonicalUrl={canonicalUrl}
 >
 	<FeatureHero
-		badge="🧠 Multi-step Reasoning"
-		badgeColor="border-orange-500/20 bg-orange-500/10 text-orange-400"
-		title="Agents that"
-		titleGradient="from-white via-orange-100 to-orange-200"
-		subtitle="think step-by-step"
-		description="Built-in plan → reason → act → reflect → respond cognitive loop. Create AI agents that break down complex problems systematically."
-		ctaText="See the Loop"
+		badge={features['multi-step-reasoning'].badge}
+		badgeColor={features['multi-step-reasoning'].badgeColor}
+		title={features['multi-step-reasoning'].title}
+		titleGradient={features['multi-step-reasoning'].titleGradient}
+		subtitle={features['multi-step-reasoning'].subtitle}
+		description={features['multi-step-reasoning'].description}
+		ctaText={features['multi-step-reasoning'].ctaText}
 		ctaLink="#reasoning-loop"
-		ctaColor="bg-orange-600 hover:bg-orange-500 focus:ring-orange-500/50"
+		ctaColor={features['multi-step-reasoning'].ctaColor}
 	/>
 
 	<!-- Reasoning Loop Explanation -->

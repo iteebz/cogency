@@ -76,7 +76,7 @@ function formatSignature(signature: string, name: string): string {
 export async function getStaticPaths() {
   try {
     // Read the API docs JSON
-    const docsPath = path.join(process.cwd(), 'src/data/api/docs.json');
+    const docsPath = path.join(process.cwd(), 'src/docs.json');
     
     if (!fs.existsSync(docsPath)) {
       console.warn('API docs not found at:', docsPath);

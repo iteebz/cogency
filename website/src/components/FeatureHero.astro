@@ -43,8 +43,9 @@ const {
 					{title}
 				</span>
 				<br />
-				<span class={`${ctaColor.split(" ")[0]}`}>
-					{subtitle}
+				<span class="relative inline-block">
+					<span class="relative z-10 text-white">{subtitle}</span>  
+					<div class={`absolute -inset-x-4 -inset-y-2 rounded-lg bg-gradient-to-r blur-[2px] -z-10 ${badgeColor.includes('cyan') ? 'from-cyan-400/50 to-blue-400/40' : badgeColor.includes('orange') ? 'from-orange-400/50 to-red-400/40' : badgeColor.includes('blue') ? 'from-blue-400/50 to-blue-600/40' : badgeColor.includes('green') ? 'from-green-400/50 to-emerald-400/40' : badgeColor.includes('purple') ? 'from-purple-400/50 to-pink-400/40' : 'from-orange-400/50 to-red-400/40'}`}></div>
 				</span>
 			</h1>
 			<p class="mx-auto mb-8 max-w-2xl text-xl text-gray-300">

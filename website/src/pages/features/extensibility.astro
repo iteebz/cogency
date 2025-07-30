@@ -3,6 +3,7 @@ import Layout from "../../components/Layout.astro";
 import FeatureHero from "../../components/FeatureHero.astro";
 import CodeBlock from "../../components/CodeBlock.astro";
 import FeatureGrid from "../../components/FeatureGrid.astro";
+import { features } from "../../feature-content";
 
 const title = "Highly Extensible AI Framework - Cogency";
 const description =
@@ -43,15 +44,15 @@ const relatedFeatures = [
 	canonicalUrl={canonicalUrl}
 >
 	<FeatureHero
-		badge="🔧 Highly Extensible"
-		badgeColor="border-cyan-500/20 bg-cyan-500/10 text-cyan-400"
-		title="Unlimited"
-		titleGradient="from-white via-cyan-100 to-cyan-200"
-		subtitle="customization"
-		description="Extend every aspect of Cogency. Build custom tools, override reasoning steps, create specialized agents—all with the same zero-config simplicity."
-		ctaText="See Extensions"
+		badge={features.extensibility.badge}
+		badgeColor={features.extensibility.badgeColor}
+		title={features.extensibility.title}
+		titleGradient={features.extensibility.titleGradient}
+		subtitle={features.extensibility.subtitle}
+		description={features.extensibility.description}
+		ctaText={features.extensibility.ctaText}
 		ctaLink="#custom-tools"
-		ctaColor="bg-cyan-600 hover:bg-cyan-500 focus:ring-cyan-500/50"
+		ctaColor={features.extensibility.ctaColor}
 	/>
 
 	<!-- Custom Tools Section -->

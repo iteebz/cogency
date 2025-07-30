@@ -1,3 +1,13 @@
+---
+import { hero, type CTAVariant } from "../content";
+
+// Map variant to CSS classes
+const ctaStyles: Record<CTAVariant, string> = {
+	primary: "bg-blue-600 text-white hover:bg-blue-500 focus:ring-blue-500/50",
+	secondary: "border border-gray-600 bg-gray-800/50 text-white hover:bg-gray-700 focus:ring-gray-500/50"
+};
+---
+
 <!-- Hero Section -->
 <main class="relative flex min-h-screen items-center overflow-hidden">
 	<!-- Background gradient -->
@@ -14,7 +24,7 @@
 				<span
 					class="inline-flex items-center rounded-full border border-green-500/20 bg-green-500/10 px-4 py-2 text-sm font-medium text-green-400"
 				>
-					⚡ Production-ready from day one
+					{hero.badge.emoji} {hero.badge.text}
 				</span>
 			</div>
 
@@ -25,47 +35,31 @@
 				<span
 					class="bg-gradient-to-r from-white via-blue-100 to-blue-200 bg-clip-text text-transparent"
 				>
-					Conversational AI agents
+					{hero.headline.primary}
 				</span>
 				<br />
-				<span class="text-blue-400"> that actually work </span>
+				<span class="text-blue-400">{hero.headline.secondary}</span>
 			</h1>
 
 			<!-- Subheadline -->
 			<p class="mx-auto mb-10 max-w-2xl text-xl text-gray-300 sm:text-2xl">
-				True multi-step reasoning with intelligent tool orchestration.
-				<span class="font-medium text-white">Zero ceremony setup.</span> Built-in resilience.
-				<span class="font-medium text-white">Agent("name").run("query")</span> — that's it.
+				{hero.subheader[0]}
+				<span class="font-medium text-white">{hero.subheader[1]}</span> {hero.subheader[2]}
+				<span class="font-medium text-white">{hero.subheader[3]}</span>
 			</p>
 
 			<!-- CTA Buttons -->
 			<div
 				class="flex flex-col gap-4 sm:flex-row sm:justify-center sm:gap-6"
 			>
-				<a
-					href="#quickstart"
-					class="inline-flex items-center justify-center rounded-lg bg-blue-600 px-6 py-3 text-base font-semibold text-white transition-all hover:bg-blue-500 focus:ring-4 focus:ring-blue-500/50"
-				>
-					Get Started
-				</a>
-				<a
-					href="https://github.com/iteebz/cogency"
-					class="inline-flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800/50 px-6 py-3 text-base font-semibold text-white transition-all hover:bg-gray-700 focus:ring-4 focus:ring-gray-500/50"
-				>
-					⭐ GitHub
-				</a>
-				<a
-					href="https://pypi.org/project/cogency/"
-					class="inline-flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800/50 px-6 py-3 text-base font-semibold text-white transition-all hover:bg-gray-700 focus:ring-4 focus:ring-gray-500/50"
-				>
-					📦 PyPI
-				</a>
-				<a
-					href="/docs"
-					class="inline-flex items-center justify-center rounded-lg border border-gray-600 bg-gray-800/50 px-6 py-3 text-base font-semibold text-white transition-all hover:bg-gray-700 focus:ring-4 focus:ring-gray-500/50"
-				>
-					📚 Docs
-				</a>
+				{hero.ctas.map((cta) => (
+					<a
+						href={cta.href}
+						class={`inline-flex items-center justify-center rounded-lg px-6 py-3 text-base font-semibold transition-all focus:ring-4 ${ctaStyles[cta.variant]}`}
+					>
+						{cta.text}
+					</a>
+				))}
 			</div>
 		</div>
 	</div>
