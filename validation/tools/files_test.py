@@ -24,11 +24,11 @@ async def main():
         try:
             # Simple agent with file operations
             agent = Agent(
-                "files_tester"
-                identity="file management assistant that handles file operations safely"
-                tools=[Files()]
-                memory=False
-                depth=5
+                "files_tester",
+                identity="file management assistant that handles file operations safely",
+                tools=[Files()],
+                memory=False,
+                depth=5,
                 trace=False,  # Clean output
             )
 

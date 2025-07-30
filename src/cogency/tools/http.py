@@ -38,6 +38,7 @@ class HTTP(Tool):
         super().__init__(
             name="http",
             description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with headers, auth, and body support",
+            schema="http(url=str, method='get'|'post'|'put'|'delete'|'patch', headers=dict, body=str, json_data=dict)",
             emoji="🌐",
             params=HTTPArgs,
             examples=[

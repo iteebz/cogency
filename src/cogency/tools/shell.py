@@ -28,7 +28,7 @@ class ShellArgs:
 class Shell(Tool):
     """Execute system commands safely with timeout and basic sandboxing."""
 
-    def __init__(self, default_working_dir: str = "sandbox"):
+    def __init__(self, default_working_dir: str = ".cogency/sandbox"):
         super().__init__(
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",

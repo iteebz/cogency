@@ -24,6 +24,11 @@ class MockTool(Tool):
             description=f"Mock tool: {name}",
             examples=[f'{{"name": "{name}", "args": {{"test": "value"}}}}'],
             rules=[],
+            schema={
+                "type": "object",
+                "properties": {"test": {"type": "string"}},
+                "required": ["test"],
+            },
         )
         self.should_fail = should_fail
 

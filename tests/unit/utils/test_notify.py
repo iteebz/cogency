@@ -54,7 +54,7 @@ async def test_notifier_ultimate_callable():
 @pytest.mark.asyncio
 async def test_notifier_silent_mode():
     """Test silent mode returns None for all formatting."""
-    silent_formatter = setup_formatter("silent")
+    silent_formatter = setup_formatter(notify=False, debug=False, style="silent")
     notifier = Notifier(formatter=silent_formatter)
 
     await notifier("reason", state="thinking")
@@ -155,20 +155,20 @@ async def test_core_emit_function():
 
 def test_setup_formatter_factory():
     """Test setup_formatter factory function."""
-    cli_formatter = setup_formatter("cli")
+    cli_formatter = setup_formatter(notify=True, debug=False, style="cli")
     assert isinstance(cli_formatter, CLIFormatter)
 
-    emoji_formatter = setup_formatter("emoji")
+    emoji_formatter = setup_formatter(notify=True, debug=False, style="emoji")
     assert isinstance(emoji_formatter, EmojiFormatter)
 
-    json_formatter = setup_formatter("json")
+    json_formatter = setup_formatter(notify=True, debug=False, style="json")
     assert isinstance(json_formatter, JSONFormatter)
 
-    silent_formatter = setup_formatter("silent")
+    silent_formatter = setup_formatter(notify=False, debug=False, style="silent")
     assert isinstance(silent_formatter, Formatter)
 
     # Default case
-    default_formatter = setup_formatter("unknown")
+    default_formatter = setup_formatter(style="unknown")
     assert isinstance(default_formatter, EmojiFormatter)
 
 

@@ -60,7 +60,18 @@ def _auto_save(phase_name: str):
                 try:
                     state = args[0] if args else kwargs.get("state")
                     if state:
-                        await _config.persist.save(state)
+                        # Handle both Persist config and StatePersistence instance
+                        persist_obj = _config.persist
+                        if hasattr(persist_obj, "save"):
+                            # It's a StatePersistence instance
+                            await persist_obj.save(state)
+                        elif hasattr(persist_obj, "store") and persist_obj.enabled:
+                            # It's a Persist config, need to get the StatePersistence instance
+                            from cogency.persist.store.base import setup_persistence
+
+                            persistence = setup_persistence(persist_obj)
+                            if persistence:
+                                await persistence.save(state)
                 except Exception:
                     # Don't fail the phase due to persistence issues
                     pass

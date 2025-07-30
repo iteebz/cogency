@@ -16,10 +16,10 @@ def main():
 
     # Test workspace update
     workspace_update = {
-        "objective": "Test the cognitive workspace architecture"
-        "understanding": "We need to validate dot notation access"
-        "approach": "Use state.field instead of state.summary['field']"
-        "discoveries": "The canonical architecture eliminates ceremony"
+        "objective": "Test the cognitive workspace architecture",
+        "understanding": "We need to validate dot notation access",
+        "approach": "Use state.field instead of state.summary['field']",
+        "discoveries": "The canonical architecture eliminates ceremony",
     }
 
     print("🔄 Updating workspace...")

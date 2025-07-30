@@ -102,7 +102,7 @@ async def test_callback_integration():
 async def test_silent_mode_integration():
     """Test silent mode works as expected."""
     # Silent formatter returns None for all notifications
-    silent_formatter = setup_formatter("silent")
+    silent_formatter = setup_formatter(notify=False, debug=False, style="silent")
     notifier_silent = Notifier(formatter=silent_formatter)
 
     await notifier_silent("reason", state="thinking")

@@ -147,10 +147,10 @@ async def main():
     print("🚀 Starting memory validation...\n")
 
     tests = [
-        test_memory_basic_storage
-        test_memory_semantic_search
-        test_memory_capacity_handling
-        test_memory_persistence_across_sessions
+        test_memory_basic_storage,
+        test_memory_semantic_search,
+        test_memory_capacity_handling,
+        test_memory_persistence_across_sessions,
     ]
 
     results = []

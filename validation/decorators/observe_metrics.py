@@ -38,15 +38,13 @@ async def test_observe_phase_specific():
     print("🎯 Testing @observe phase-specific metrics...")
 
     observe_config = Observe(
-        metrics=True
-        timing=True
+        metrics=True,
+        timing=True,
         phases=["reason", "act"],  # Only observe specific phases
-        export_format="json"
+        export_format="json",
     )
 
-    agent = Agent(
-        "observe-phases", observe=observe_config, , tools=["calculator", "search"]
-    )
+    agent = Agent("observe-phases", observe=observe_config, tools=["calculator", "search"])
 
     result = await agent.run(
         "Search for the current weather and calculate what 25 degrees Celsius is in Fahrenheit"
@@ -77,11 +75,10 @@ async def test_observe_with_robust():
     robust_config = Robust(retry=True, attempts=2, timeout=6.0, backoff="exponential")
 
     agent = Agent(
-        "observe-robust"
-        observe=observe_config
-        robust=robust_config
-        
-        tools=["weather", "calculator"]
+        "observe-robust",
+        observe=observe_config,
+        robust=robust_config,
+        tools=["weather", "calculator"],
     )
 
     # Task that might trigger retries
@@ -150,10 +147,10 @@ async def main():
     print("🚀 Starting @observe decorator validation...\n")
 
     tests = [
-        test_observe_basic_metrics
-        test_observe_phase_specific
-        test_observe_with_robust
-        test_observe_performance_impact
+        test_observe_basic_metrics,
+        test_observe_phase_specific,
+        test_observe_with_robust,
+        test_observe_performance_impact,
     ]
 
     results = []

@@ -13,11 +13,11 @@ async def main():
 
     # Create agent - auto-detects available LLM from .env
     agent = Agent(
-        name="workspace_tester"
-        identity="cognitive assistant testing workspace fields"
-        tools=[Calculator()]
-        memory=False
-        depth=5
+        name="workspace_tester",
+        identity="cognitive assistant testing workspace fields",
+        tools=[Calculator()],
+        memory=False,
+        depth=5,
     )
 
     print("Testing cognitive workspace integration...")

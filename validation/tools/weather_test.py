@@ -13,11 +13,11 @@ async def main():
 
     # Simple agent with weather tool
     agent = Agent(
-        "weather_tester"
-        identity="helpful weather assistant providing current conditions"
-        tools=[Weather()]
-        memory=False
-        depth=3
+        "weather_tester",
+        identity="helpful weather assistant providing current conditions",
+        tools=[Weather()],
+        memory=False,
+        depth=3,
         trace=False,  # Clean output
     )
 

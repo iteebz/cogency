@@ -64,13 +64,13 @@ async def test_output_schema_basic():
     print("📋 Testing basic output schema...")
 
     schema = {
-        "type": "object"
+        "type": "object",
         "properties": {
-            "answer": {"type": "string"}
-            "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-            "reasoning": {"type": "string"}
-        }
-        "required": ["answer", "confidence"]
+            "answer": {"type": "string"},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+            "reasoning": {"type": "string"},
+        },
+        "required": ["answer", "confidence"],
     }
 
     agent = Agent("schema-basic", output_schema=schema)
@@ -97,12 +97,12 @@ async def test_identity_with_schema():
 
     identity = "You are a scientific researcher who provides precise, evidence-based answers."
     schema = {
-        "type": "object"
+        "type": "object",
         "properties": {
-            "hypothesis": {"type": "string"}
-            "evidence": {"type": "array", "items": {"type": "string"}}
-            "conclusion": {"type": "string"}
-        }
+            "hypothesis": {"type": "string"},
+            "evidence": {"type": "array", "items": {"type": "string"}},
+            "conclusion": {"type": "string"},
+        },
     }
 
     agent = Agent("identity-schema", identity=identity, output_schema=schema)
@@ -129,10 +129,10 @@ async def main():
     print("🚀 Starting personality validation...\n")
 
     tests = [
-        test_identity_basic
-        test_identity_consistency
-        test_output_schema_basic
-        test_identity_with_schema
+        test_identity_basic,
+        test_identity_consistency,
+        test_output_schema_basic,
+        test_identity_with_schema,
     ]
 
     results = []

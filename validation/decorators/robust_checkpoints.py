@@ -57,9 +57,7 @@ async def test_checkpoint_with_robust():
         persist_config = Persist(enabled=True, store=persist_store)
         robust_config = Robust(retry=True, attempts=2, checkpoint=True, timeout=8.0)
 
-        agent = Agent(
-            "checkpoint-robust", persist=persist_config, robust=robust_config, depth=3, 
-        )
+        agent = Agent("checkpoint-robust", persist=persist_config, robust=robust_config, depth=3)
 
         # Complex multi-step task that might need checkpointing
         result = await agent.run(
@@ -85,11 +83,7 @@ async def test_checkpoint_state_continuity():
 
         # Session 1 - start a complex task
         agent1 = Agent(
-            "continuity-test"
-            persist=persist_config
-            depth=4
-            
-            tools=["calculator", "search"]
+            "continuity-test", persist=persist_config, depth=4, tools=["calculator", "search"]
         )
 
         result1 = await agent1.run(
@@ -99,11 +93,7 @@ async def test_checkpoint_state_continuity():
 
         # Session 2 - continue the financial model
         agent2 = Agent(
-            "continuity-test"
-            persist=persist_config
-            depth=4
-            
-            tools=["calculator", "search"]
+            "continuity-test", persist=persist_config, depth=4, tools=["calculator", "search"]
         )
 
         result2 = await agent2.run(
@@ -132,9 +122,9 @@ async def main():
     print("🚀 Starting checkpoint persistence validation...\n")
 
     tests = [
-        test_checkpoint_basic_persistence
-        test_checkpoint_with_robust
-        test_checkpoint_state_continuity
+        test_checkpoint_basic_persistence,
+        test_checkpoint_with_robust,
+        test_checkpoint_state_continuity,
     ]
 
     results = []

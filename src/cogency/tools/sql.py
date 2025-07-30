@@ -32,6 +32,7 @@ class SQL(Tool):
         super().__init__(
             name="sql",
             description="Execute SQL queries on SQLite, PostgreSQL, MySQL databases with connection string support",
+            schema="sql(query=str, connection=str, timeout=int, params=list)",
             emoji="🗄️",
             params=SQLArgs,
             examples=[

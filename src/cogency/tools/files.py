@@ -30,7 +30,7 @@ class Files(Tool):
     # Template-based formatting - shows action and filename
     param_key = "filename"
 
-    def __init__(self, base_dir: str = "sandbox"):
+    def __init__(self, base_dir: str = ".cogency/sandbox"):
         super().__init__(
             name="files",
             description="Create, read, edit and manage complete code files with full implementations.",

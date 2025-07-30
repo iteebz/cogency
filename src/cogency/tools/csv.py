@@ -30,6 +30,7 @@ class CSV(Tool):
         super().__init__(
             name="csv",
             description="Read, write, and append CSV files",
+            schema="csv(operation='read'|'write'|'append', file_path=str, data=list)",
             emoji="📊",
             params=CSVArgs,
             examples=[

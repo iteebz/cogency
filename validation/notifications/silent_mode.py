@@ -14,11 +14,11 @@ async def main():
 
     # Agent with v2 silent formatter - clean, production-ready output
     agent = Agent(
-        "silent_agent"
-        identity="helpful assistant with clean, direct responses"
-        tools=[Calculator(), Weather()]
-        memory=False
-        depth=5
+        "silent_agent",
+        identity="helpful assistant with clean, direct responses",
+        tools=[Calculator(), Weather()],
+        memory=False,
+        depth=5,
         formatter=Formatter(),  # 🤫 Silent formatter - no notification output
     )
 

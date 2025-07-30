@@ -56,8 +56,8 @@ async def test_state_memory_cleanup():
         persist_config = Persist(enabled=True, store=persist_store)
 
         agent = Agent(
-            "cleanup-test"
-            persist=persist_config
+            "cleanup-test",
+            persist=persist_config,
             depth=3,  # Limited depth for cleanup testing
         )
 
@@ -98,8 +98,8 @@ async def test_state_persistence_recovery():
         agent2 = Agent("recovery-test", persist=persist_config)
 
         result2 = await agent2.run(
-            "What was my travel destination and which city did I want to visit first?"
-            user_id="traveler"
+            "What was my travel destination and which city did I want to visit first?",
+            user_id="traveler",
         )
 
         if (
@@ -149,10 +149,10 @@ async def main():
     print("🚀 Starting state persistence validation...\n")
 
     tests = [
-        test_state_multitenancy
-        test_state_memory_cleanup
-        test_state_persistence_recovery
-        test_state_concurrent_users
+        test_state_multitenancy,
+        test_state_memory_cleanup,
+        test_state_persistence_recovery,
+        test_state_concurrent_users,
     ]
 
     results = []

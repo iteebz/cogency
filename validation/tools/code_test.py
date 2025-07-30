@@ -13,11 +13,11 @@ async def main():
 
     # Simple agent with code execution
     agent = Agent(
-        "code_tester"
-        identity="programming assistant that executes code safely"
-        tools=[Code()]
-        memory=False
-        depth=3
+        "code_tester",
+        identity="programming assistant that executes code safely",
+        tools=[Code()],
+        memory=False,
+        depth=3,
         trace=False,  # Clean output
     )
 

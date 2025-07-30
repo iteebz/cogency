@@ -100,6 +100,9 @@ line_length = 88
 [tool.ruff]
 line-length = 100
 target-version = "py39"
+exclude = [
+    "evonotes",
+]
 
 [tool.ruff.lint]
 select = [
@@ -124,6 +127,7 @@ ignore = [
 ]
 
 # Allow specific patterns that are common in this codebase
+
 [tool.ruff.lint.per-file-ignores]
 "**/llm/__init__.py" = ["F401"]  # Allow conditional imports for optional dependencies
 "**/embed/__init__.py" = ["F401"]  # Allow conditional imports for optional dependencies

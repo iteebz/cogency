@@ -69,21 +69,28 @@ class Agent:
         self.tools = setup_tools(tools, self.memory)
 
         # Config setup with auto-detection
+        from cogency.persist import setup_persistence
+
+        persist_config = setup_config(Persist, persist, store=persist)
+
         self.config = type(
             "Config",
             (),
             {
                 "robust": setup_config(Robust, robust),
                 "observe": setup_config(Observe, observe),
-                "persist": setup_config(Persist, persist, store=persist),
+                "persist": persist_config,
             },
         )()
 
-        # Configure decorators
+        # Setup persistence instance for agent use
+        self.persistence = setup_persistence(persist_config)
+
+        # Configure decorators with proper persistence config
         decorators.configure(
             robust=self.config.robust,
             observe=self.config.observe,
-            persistence=self.config.persist,
+            persistence=persist_config,
         )
 
         # Agent personality

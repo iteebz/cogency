@@ -17,11 +17,11 @@ async def main():
 
     # Agent with v2 notification system - emoji formatter by default
     agent = Agent(
-        "formatting_demo_agent"
-        identity="helpful assistant demonstrating clean v2 notification UX"
-        tools=[Calculator(), Weather()]
-        memory=False
-        depth=3
+        "formatting_demo_agent",
+        identity="helpful assistant demonstrating clean v2 notification UX",
+        tools=[Calculator(), Weather()],
+        memory=False,
+        depth=3,
         formatter=EmojiFormatter(),  # v2 notification system
     )
 

@@ -12,13 +12,13 @@ async def test_robust_retry_backoff():
     print("🔥 Testing @robust retry with exponential backoff...")
 
     robust_config = Robust(
-        retry=True
-        attempts=3
-        timeout=10.0
-        backoff="exponential"
-        backoff_delay=0.5
-        backoff_factor=2.0
-        backoff_max=5.0
+        retry=True,
+        attempts=3,
+        timeout=10.0,
+        backoff="exponential",
+        backoff_delay=0.5,
+        backoff_factor=2.0,
+        backoff_max=5.0,
     )
 
     agent = Agent("robust-retry", robust=robust_config)
@@ -39,11 +39,11 @@ async def test_robust_timeout_handling():
     print("⏱️  Testing @robust timeout handling...")
 
     robust_config = Robust(
-        retry=True
-        attempts=2
+        retry=True,
+        attempts=2,
         timeout=3.0,  # Very short timeout
-        backoff="fixed"
-        backoff_delay=0.1
+        backoff="fixed",
+        backoff_delay=0.1,
     )
 
     agent = Agent("robust-timeout", robust=robust_config)
@@ -99,9 +99,9 @@ async def main():
     print("🚀 Starting @robust decorator validation...\n")
 
     tests = [
-        test_robust_retry_backoff
-        test_robust_timeout_handling
-        test_robust_invalid_key_recovery
+        test_robust_retry_backoff,
+        test_robust_timeout_handling,
+        test_robust_invalid_key_recovery,
     ]
 
     results = []

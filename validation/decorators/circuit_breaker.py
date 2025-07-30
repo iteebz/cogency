@@ -12,10 +12,10 @@ async def test_circuit_breaker_basic():
     print("🔌 Testing basic circuit breaker...")
 
     robust_config = Robust(
-        circuit=True
+        circuit=True,
         circuit_failures=2,  # Trip after 2 failures
         circuit_window=60,  # 1 minute window
-        retry=True
+        retry=True,
         attempts=1,  # Fail fast to trigger circuit
     )
 
@@ -56,11 +56,11 @@ async def test_circuit_breaker_recovery():
     print("🔄 Testing circuit breaker recovery...")
 
     robust_config = Robust(
-        circuit=True
+        circuit=True,
         circuit_failures=1,  # Trip after 1 failure
         circuit_window=2,  # Short window for testing
-        retry=True
-        attempts=1
+        retry=True,
+        attempts=1,
     )
 
     # Start with invalid key
@@ -107,11 +107,11 @@ async def test_circuit_breaker_window():
     print("⏰ Testing circuit breaker window behavior...")
 
     robust_config = Robust(
-        circuit=True
+        circuit=True,
         circuit_failures=3,  # Need 3 failures to trip
         circuit_window=5,  # 5 second window
-        retry=True
-        attempts=1
+        retry=True,
+        attempts=1,
     )
 
     # Invalid key for failures
@@ -159,8 +159,8 @@ async def test_circuit_breaker_with_tools():
     )
 
     agent = Agent(
-        "circuit-tools"
-        robust=robust_config
+        "circuit-tools",
+        robust=robust_config,
         tools=["calculator", "weather"],  # Tools that might fail
     )
 
@@ -189,10 +189,10 @@ async def main():
     print("🚀 Starting circuit breaker validation...\n")
 
     tests = [
-        test_circuit_breaker_basic
-        test_circuit_breaker_recovery
-        test_circuit_breaker_window
-        test_circuit_breaker_with_tools
+        test_circuit_breaker_basic,
+        test_circuit_breaker_recovery,
+        test_circuit_breaker_window,
+        test_circuit_breaker_with_tools,
     ]
 
     results = []

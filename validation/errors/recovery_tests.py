@@ -13,28 +13,28 @@ async def main():
 
     # Agent designed to test recovery patterns
     agent = Agent(
-        "recovery_tester"
-        identity="persistent assistant who tries alternatives when tools fail"
-        tools=[Calculator(), Code()]
-        memory=False
+        "recovery_tester",
+        identity="persistent assistant who tries alternatives when tools fail",
+        tools=[Calculator(), Code()],
+        memory=False,
         depth=8,  # Allow for recovery attempts
-        trace=False
+        trace=False,
     )
 
     # Scenarios where agent should recover and try alternatives
     recovery_scenarios = [
         {
-            "name": "Fallback to Code Execution"
-            "query": "I need to calculate something complex that basic calculator can't handle: What's the factorial of 15? If calculator fails, use code execution."
-        }
+            "name": "Fallback to Code Execution",
+            "query": "I need to calculate something complex that basic calculator can't handle: What's the factorial of 15? If calculator fails, use code execution.",
+        },
         {
-            "name": "Alternative Calculation Method"
-            "query": "Calculate 2^100. If one method fails, try another approach."
-        }
+            "name": "Alternative Calculation Method",
+            "query": "Calculate 2^100. If one method fails, try another approach.",
+        },
         {
-            "name": "Multi-step Recovery"
-            "query": "I need to calculate the sum of squares from 1 to 50. Try calculator first, if that's too complex, write and run code."
-        }
+            "name": "Multi-step Recovery",
+            "query": "I need to calculate the sum of squares from 1 to 50. Try calculator first, if that's too complex, write and run code.",
+        },
     ]
 
     for i, scenario in enumerate(recovery_scenarios, 1):

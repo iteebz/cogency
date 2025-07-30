@@ -17,7 +17,9 @@ async def test_interface():
 
     schema = weather_tool.schema
     examples = weather_tool.examples
-    assert isinstance(schema, str) and len(schema) > 0
+    assert isinstance(schema, dict)
+    assert schema["type"] == "object"
+    assert "city" in schema["properties"]
     assert isinstance(examples, list) and len(examples) > 0
 
 

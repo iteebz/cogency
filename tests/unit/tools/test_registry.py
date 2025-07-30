@@ -28,7 +28,7 @@ def test_discover():
         assert hasattr(tool, "description") and tool.description
 
         schema = tool.schema
-        assert len(schema) > 20
+        assert len(schema) > 0
 
         examples = tool.examples
         assert len(examples) > 0

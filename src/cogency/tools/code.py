@@ -29,6 +29,7 @@ class Code(Tool):
         super().__init__(
             name="code",
             description="Execute Python and JavaScript code safely in isolated environment",
+            schema="code(code=str, language='python'|'javascript', timeout=int)",
             emoji="🚀",
             params=CodeArgs,
             examples=[

@@ -12,11 +12,11 @@ async def test_provider_availability():
     print("🔍 Testing LLM provider availability...")
 
     providers = [
-        ("OpenAI", OpenAI, "OPENAI_API_KEY")
-        ("Anthropic", Anthropic, "ANTHROPIC_API_KEY")
-        ("Gemini", Gemini, "GEMINI_API_KEY")
-        ("Mistral", Mistral, "MISTRAL_API_KEY")
-        ("XAI", xAI, "XAI_API_KEY")
+        ("OpenAI", OpenAI, "OPENAI_API_KEY"),
+        ("Anthropic", Anthropic, "ANTHROPIC_API_KEY"),
+        ("Gemini", Gemini, "GEMINI_API_KEY"),
+        ("Mistral", Mistral, "MISTRAL_API_KEY"),
+        ("XAI", xAI, "XAI_API_KEY"),
     ]
 
     available_providers = []
@@ -50,10 +50,10 @@ async def test_provider_consistency():
     test_providers = []
 
     if os.environ.get("OPENAI_API_KEY"):
-        test_providers.append(("OpenAI", OpenAILLM))
+        test_providers.append(("OpenAI", OpenAI))
 
     if os.environ.get("ANTHROPIC_API_KEY"):
-        test_providers.append(("Anthropic", AnthropicLLM))
+        test_providers.append(("Anthropic", Anthropic))
 
     if len(test_providers) == 0:
         print("⚠️  No providers configured for consistency testing")
@@ -91,10 +91,10 @@ async def test_provider_error_handling():
     provider_name = "Unknown"
 
     if os.environ.get("OPENAI_API_KEY"):
-        test_llm = OpenAILLM()
+        test_llm = OpenAI()
         provider_name = "OpenAI"
     elif os.environ.get("ANTHROPIC_API_KEY"):
-        test_llm = AnthropicLLM()
+        test_llm = Anthropic()
         provider_name = "Anthropic"
 
     if not test_llm:
@@ -123,10 +123,10 @@ async def test_provider_streaming():
     provider_name = "Unknown"
 
     if os.environ.get("OPENAI_API_KEY"):
-        test_llm = OpenAILLM()
+        test_llm = OpenAI()
         provider_name = "OpenAI"
     elif os.environ.get("ANTHROPIC_API_KEY"):
-        test_llm = AnthropicLLM()
+        test_llm = Anthropic()
         provider_name = "Anthropic"
 
     if not test_llm:
@@ -154,10 +154,10 @@ async def main():
     print("🚀 Starting LLM provider validation...\n")
 
     tests = [
-        test_provider_availability
-        test_provider_consistency
-        test_provider_error_handling
-        test_provider_streaming
+        test_provider_availability,
+        test_provider_consistency,
+        test_provider_error_handling,
+        test_provider_streaming,
     ]
 
     results = []

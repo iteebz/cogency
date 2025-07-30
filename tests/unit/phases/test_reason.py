@@ -88,7 +88,7 @@ async def test_error():
 
 class MockTool(Tool):
     def __init__(self, name: str):
-        super().__init__(name=name, description="test tool", emoji="🔧")
+        super().__init__(name=name, description="test tool", emoji="🔧", schema={})
 
     async def run(self, **kwargs):
         return {"test": "result"}

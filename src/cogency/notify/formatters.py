@@ -15,7 +15,11 @@ class Formatter:
 
     def _unknown(self, notification: Notification) -> str:
         """Handle unknown notification types."""
-        return f"Unknown notification: {notification.type}"
+        return ""  # Return empty string for silent formatter
+
+    def _unknown(self, notification: Notification) -> str:
+        """Handle unknown notification types."""
+        return ""  # Return empty string for silent formatter
 
     def _format_result(self, result: Any) -> str:
         """Format result data for display."""
@@ -32,6 +36,10 @@ class CLIFormatter(Formatter):
     def format(self, notification: Notification) -> Optional[str]:
         """Format notification for CLI display."""
         return getattr(self, f"_{notification.type}", self._unknown)(notification)
+
+    def _unknown(self, notification: Notification) -> str:
+        """Handle unknown notification types for CLIFormatter."""
+        return f"Unknown notification: {notification.type}"
 
     def _preprocess(self, notification: Notification) -> str:
         state = notification.data.get("state", "")

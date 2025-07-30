@@ -37,15 +37,18 @@ def setup_persistence(persist):
     """Setup persistence backend with auto-detection."""
     if not persist:
         return None
+
+    # Import StatePersistence here to avoid circular imports
+    from cogency.persist.persistence import StatePersistence
+
     if hasattr(persist, "store"):  # It's a Persist config object
-        return persist
+        return StatePersistence(store=persist.store, enabled=persist.enabled)
 
-    # Auto-detect default singleton with Persist wrapper
-    from cogency import Persist
-
+    # Auto-detect default singleton with StatePersistence wrapper
     global _persist_instance
     if _persist_instance is None:
         from cogency.persist import Filesystem
 
         _persist_instance = Filesystem()
-    return Persist(store=_persist_instance)
+
+    return StatePersistence(store=_persist_instance)

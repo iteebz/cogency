@@ -34,6 +34,7 @@ class Date(Tool):
         super().__init__(
             name="date",
             description="Date operations: parsing, formatting, arithmetic, weekday calculations",
+            schema="date(operation=str, date_str=str, format=str, days=int, weeks=int, start_date=str, end_date=str)",
             emoji="📅",
             params=DateArgs,
             examples=[

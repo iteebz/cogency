@@ -13,11 +13,11 @@ async def main():
 
     # Agent with search and code execution
     agent = Agent(
-        "research_coder"
-        identity="research assistant who finds information then implements solutions"
-        tools=[Search(), Code()]
-        memory=False
-        depth=8
+        "research_coder",
+        identity="research assistant who finds information then implements solutions",
+        tools=[Search(), Code()],
+        memory=False,
+        depth=8,
         trace=True
         # deep=True,  # Force deep mode
         # adapt=False,  # Disable adaptive switching

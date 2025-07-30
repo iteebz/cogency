@@ -193,15 +193,15 @@ async def main():
     print("🚀 Starting comprehensive tools validation...\n")
 
     tests = [
-        test_calculator_tool
-        test_files_tool
-        test_date_time_tools
-        test_search_tool
-        test_weather_tool
-        test_code_tool
-        test_http_tool
-        test_recall_tool
-        test_multiple_tools_integration
+        test_calculator_tool,
+        test_files_tool,
+        test_date_time_tools,
+        test_search_tool,
+        test_weather_tool,
+        test_code_tool,
+        test_http_tool,
+        test_recall_tool,
+        test_multiple_tools_integration,
     ]
 
     results = []

@@ -10,14 +10,14 @@ from cogency.memory.types import MemoryType, SearchType
 async def test_create_read(memory_service):
     create_result = await memory_service.create(
         "I work as a software engineer at Google",
-        memory_type=MemoryType.FACT,
+        type=MemoryType.FACT,
         tags=["work", "personal"],
     )
     assert create_result.success
     artifact = create_result.data
 
     assert artifact.content == "I work as a software engineer at Google"
-    assert artifact.memory_type == MemoryType.FACT
+    assert artifact.type == MemoryType.FACT
     assert "work" in artifact.tags
 
     read_result = await memory_service.read(query="software engineer")
@@ -55,7 +55,7 @@ async def test_memory_crud(memory_service):
     artifact = create_result.data
     assert artifact.content == "Test content"
 
-    read_result = await memory_service.read(artifact_id=artifact.id)
+    read_result = await memory_service.read(id=artifact.id)
     assert read_result.success
     results = read_result.data
     assert len(results) == 1
@@ -66,7 +66,7 @@ async def test_memory_crud(memory_service):
     success = delete_result.data
     assert success is True
 
-    read_result2 = await memory_service.read(artifact_id=artifact.id)
+    read_result2 = await memory_service.read(id=artifact.id)
     assert read_result2.success
     results2 = read_result2.data
     assert len(results2) == 0

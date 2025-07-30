@@ -7,17 +7,17 @@ from cogency.memory.types import Memory, MemoryType
 
 
 def test_create():
-    memory = Memory(content="test memory", memory_type=MemoryType.FACT, tags=["test"])
+    memory = Memory(content="test memory", type=MemoryType.FACT, tags=["test"])
 
     assert memory.content == "test memory"
-    assert memory.memory_type == MemoryType.FACT
+    assert memory.type == MemoryType.FACT
     assert "test" in memory.tags
     assert memory.id is not None
     assert isinstance(memory.created_at, datetime)
 
 
 def test_decay():
-    memory = Memory(content="test", confidence_score=1.0)
+    memory = Memory(content="test", confidence=1.0)
 
     score = memory.decay()
     assert 0.8 < score <= 1.0
@@ -42,10 +42,10 @@ def test_enum():
     assert MemoryType.EPISODIC
     assert MemoryType.EXPERIENCE
 
-    fact = Memory(content="fact", memory_type=MemoryType.FACT)
-    episodic = Memory(content="episodic", memory_type=MemoryType.EPISODIC)
-    experience = Memory(content="experience", memory_type=MemoryType.EXPERIENCE)
+    fact = Memory(content="fact", type=MemoryType.FACT)
+    episodic = Memory(content="episodic", type=MemoryType.EPISODIC)
+    experience = Memory(content="experience", type=MemoryType.EXPERIENCE)
 
-    assert fact.memory_type == MemoryType.FACT
-    assert episodic.memory_type == MemoryType.EPISODIC
-    assert experience.memory_type == MemoryType.EXPERIENCE
+    assert fact.type == MemoryType.FACT
+    assert episodic.type == MemoryType.EPISODIC
+    assert experience.type == MemoryType.EXPERIENCE

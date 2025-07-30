@@ -137,8 +137,11 @@ commits:
     @git --no-pager log --pretty=format:"%ar %s"
 
 # Run CI checks locally
-ci: format lint test build
-    @echo "CI checks completed successfully!"
+ci: format lint
+	@echo "Running tests for CI..."
+	@poetry run pytest tests/
+	build
+	@echo "CI checks completed successfully!"
     
 # Fix test issues (format, lint, and run tests)
 fix-tests: format fix test

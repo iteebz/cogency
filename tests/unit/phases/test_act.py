@@ -21,6 +21,7 @@ class MockTool(Tool):
             description=f"Mock {name}",
             emoji="🧪",
             examples=[f'{{"name": "{name}", "args": {{}}}}'],
+            schema={"type": "object", "properties": {"x": {"type": "number"}}, "required": ["x"]},
         )
         self.should_succeed = should_succeed
         self.result = result or Result.ok("mock result")

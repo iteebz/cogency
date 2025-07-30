@@ -17,7 +17,7 @@ from errors.recovery_tests import main as errors_main  # noqa: E402
 from memory.semantic_search import main as memory_main  # noqa: E402
 from modes.execution_modes import main as modes_main  # noqa: E402
 from personality.identity_schema import main as personality_main  # noqa: E402
-from services.llm_providers import main as llm_main  # noqa: E402
+from services.llms import main as llm_main  # noqa: E402
 from state.persistence import main as state_main  # noqa: E402
 from tools.comprehensive_tools import main as tools_main  # noqa: E402
 from tracing.with_trace import main as tracing_main  # noqa: E402

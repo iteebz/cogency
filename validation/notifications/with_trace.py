@@ -15,11 +15,11 @@ async def main():
 
     # Agent with v2 notification system - emoji formatter with trace visibility
     agent = Agent(
-        "notification_demo"
-        identity="helpful assistant with visible v2 reasoning"
-        tools=[Calculator(), Weather()]
-        memory=False
-        depth=3
+        "notification_demo",
+        identity="helpful assistant with visible v2 reasoning",
+        tools=[Calculator(), Weather()],
+        memory=False,
+        depth=3,
         formatter=EmojiFormatter(),  # v2 notification system
     )
 

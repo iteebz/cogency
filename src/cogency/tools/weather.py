@@ -30,6 +30,11 @@ class Weather(Tool):
         super().__init__(
             name="weather",
             description="Get current weather conditions for any city worldwide",
+            schema={
+                "type": "object",
+                "properties": {"city": {"type": "string", "description": "The name of the city"}},
+                "required": ["city"],
+            },
             emoji="🌤️",
             params=WeatherArgs,
             examples=[

@@ -32,6 +32,7 @@ class Time(Tool):
         super().__init__(
             name="time",
             description="Time operations: current time, timezone conversion, relative time",
+            schema="time(operation=str, timezone=str, datetime_str=str, from_tz=str, to_tz=str)",
             emoji="⏰",
             params=TimeParams,
             examples=[
