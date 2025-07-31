@@ -61,6 +61,25 @@ test-file file="":
     @poetry run pytest -v tests/{{file}}
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+# 🧪 EVALUATIONS
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+# Run a specific evaluation
+eval name="":
+    @echo "Running eval: {{name}}..."
+    @poetry run python -m cogency.evals {{name}}
+
+# Run all evaluations
+eval-all:
+    @echo "Running all evaluations..."
+    @poetry run python -m cogency.evals all
+
+# List available evaluations
+eval-list:
+    @echo "Available evaluations:"
+    @poetry run python -m cogency.evals list
+
+# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🔍 CODE QUALITY
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
