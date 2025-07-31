@@ -84,6 +84,11 @@ eval suite="quick":
     @echo "Running {{suite}} eval suite..."
     @cd evals && poetry run python run_suite.py {{suite}}
 
+# Run benchmarked eval suite
+eval-bench suite="quick":
+    @echo "Benchmarking {{suite}} eval suite..."
+    @cd evals && poetry run python run_suite_bench.py {{suite}}
+
 # Run all evaluations
 eval-all:
     @echo "Running all evaluations..."

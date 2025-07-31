@@ -84,7 +84,7 @@ When extending phases:
 3. **Run the test suite**
    ```bash
    poetry run pytest
-   poetry run mypy src/cogency
+   poetry run ruff check src/
    poetry run ruff check src/cogency
    ```
 

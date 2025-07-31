@@ -8,13 +8,15 @@ from typing import Dict, List, Optional
 
 from ..config import PathsConfig
 from .base import Eval, EvalResult
+from .benchmarks import benchmark_eval
 
 
 class EvalReport:
     """Generate beautiful eval reports."""
 
-    def __init__(self, results: List[EvalResult]):
+    def __init__(self, results: List[EvalResult], benchmarks: Optional[List[Dict]] = None):
         self.results = results
+        self.benchmarks = benchmarks or []
         self.passed = sum(1 for r in results if r.passed)
         self.total = len(results)
         self.score = sum(r.score for r in results) / self.total if self.total > 0 else 0.0
@@ -30,6 +32,7 @@ class EvalReport:
                 "duration": round(self.duration, 3),
             },
             "results": [r.model_dump() for r in self.results],
+            "benchmarks": self.benchmarks,
         }
 
     def console(self) -> str:
@@ -120,6 +123,37 @@ async def run_suite(
         output_dir = Path(paths.evals)
 
     await _save_report(report, output_dir, "suite")
+
+    return report
+
+
+async def run_suite_benchmarked(
+    eval_classes: List[type[Eval]], output_dir: Optional[Path] = None
+) -> EvalReport:
+    """Run multiple evaluations with detailed benchmarking."""
+    if not eval_classes:
+        return EvalReport([])
+
+    # Run all evals with benchmarking
+    tasks = [benchmark_eval(eval_class()) for eval_class in eval_classes]
+    benchmark_results = await asyncio.gather(*tasks)
+
+    # Extract eval results and benchmark data
+    eval_results = []
+    benchmarks = []
+
+    for benchmark_result in benchmark_results:
+        if benchmark_result["eval_result"]:
+            eval_results.append(benchmark_result["eval_result"])
+        benchmarks.append(benchmark_result["benchmark_report"])
+
+    report = EvalReport(eval_results, benchmarks)
+
+    if output_dir is None:
+        paths = PathsConfig()
+        output_dir = Path(paths.evals)
+
+    await _save_report(report, output_dir, "suite_benchmarked")
 
     return report
 
