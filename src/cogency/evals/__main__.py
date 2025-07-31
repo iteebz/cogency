@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 from typing import Dict, Type
 
+from ..config import PathsConfig
 from .base import Eval
 from .runner import run_eval, run_suite
 
@@ -45,7 +46,8 @@ async def main():
 
     command = sys.argv[1]
     evals = discover_evals()
-    output_dir = Path.cwd() / "evals" / "reports"
+    paths = PathsConfig()
+    output_dir = Path.cwd() / paths.reports
 
     if command == "list":
         if not evals:

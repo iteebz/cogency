@@ -59,7 +59,9 @@ class Checkpoint:
     """Manages checkpoint storage and retrieval."""
 
     def __init__(self, checkpoint_dir: Optional[Path] = None, session_id: Optional[str] = None):
-        self.checkpoint_dir = checkpoint_dir or Path.home() / ".cogency" / "checkpoints"
+        from ..config import PathsConfig
+        paths = PathsConfig()
+        self.checkpoint_dir = checkpoint_dir or Path.home() / paths.checkpoints
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.max_age_hours = 1  # Expire checkpoints after 1 hour
         self.session_id = session_id or str(os.getpid())  # Process ID for session isolation

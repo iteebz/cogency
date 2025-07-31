@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from ..config import PathsConfig
 from .base import Eval, EvalResult
 
 
@@ -74,8 +75,12 @@ async def run_eval(eval_class: type[Eval], output_dir: Optional[Path] = None) ->
 
     report = EvalReport(results)
 
-    if output_dir:
-        await _save_report(report, output_dir, eval_instance.name)
+    if output_dir is None:
+        # Use cogency's path pattern for evals
+        paths = PathsConfig()
+        output_dir = Path(paths.evals)
+
+    await _save_report(report, output_dir, eval_instance.name)
 
     return report
 
@@ -109,8 +114,12 @@ async def run_suite(
 
     report = EvalReport(eval_results)
 
-    if output_dir:
-        await _save_report(report, output_dir, "suite")
+    if output_dir is None:
+        # Use cogency's path pattern for evals
+        paths = PathsConfig()
+        output_dir = Path(paths.evals)
+
+    await _save_report(report, output_dir, "suite")
 
     return report
 

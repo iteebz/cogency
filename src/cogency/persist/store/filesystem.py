@@ -16,7 +16,10 @@ from .base import Store
 class Filesystem(Store):
     """File-based state persistence with atomic operations and process isolation."""
 
-    def __init__(self, base_dir: str = ".cogency/state"):
+    def __init__(self, base_dir: str = None):
+        from ...config import PathsConfig
+        if base_dir is None:
+            base_dir = PathsConfig().state
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
         self.process_id = str(uuid.uuid4())[:8]  # Short process ID

@@ -82,6 +82,31 @@ class MemoryConfig:
 
 
 @dataclass
+class PathsConfig:
+    """Centralized path configuration with smart .cogency/* defaults."""
+    
+    base_dir: str = ".cogency"
+    checkpoints: Optional[str] = None
+    sandbox: Optional[str] = None  
+    state: Optional[str] = None
+    memory: Optional[str] = None
+    reports: Optional[str] = None
+    
+    def __post_init__(self):
+        """Smart defaults under .cogency/"""
+        if self.checkpoints is None:
+            self.checkpoints = f"{self.base_dir}/checkpoints"
+        if self.sandbox is None:
+            self.sandbox = f"{self.base_dir}/sandbox"
+        if self.state is None:
+            self.state = f"{self.base_dir}/state"
+        if self.memory is None:
+            self.memory = f"{self.base_dir}/memory"
+        if self.reports is None:
+            self.reports = f"{self.base_dir}/reports"
+
+
+@dataclass
 class PersistConfig:
     """Configuration for state persistence."""
 

@@ -64,6 +64,21 @@ test-file file="":
 # 🧪 EVALUATIONS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+# Run quick evals (basic functionality)
+eval-quick:
+    @echo "Running quick eval suite..."
+    @cd evals && poetry run python run_suite.py quick
+
+# Run full eval suite
+eval-full:
+    @echo "Running full eval suite..."
+    @cd evals && poetry run python run_suite.py full
+
+# Run provider comparison (requires multiple API keys)
+eval-providers:
+    @echo "Running provider eval suite..."
+    @cd evals && poetry run python run_suite.py provider
+
 # Run a specific evaluation
 eval name="":
     @echo "Running eval: {{name}}..."
