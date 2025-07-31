@@ -203,6 +203,13 @@ async def respond(
         response_text = "I'm here to help. How can I assist you?"
     else:
         messages = state.get_conversation()
+        
+        # Add memory context if available
+        if memory:
+            memory_context = await memory.recall()
+            if memory_context:
+                prompt = f"{memory_context}\n{prompt}"
+        
         messages.insert(0, {"role": "system", "content": prompt})
 
         llm_result = await llm.run(messages)

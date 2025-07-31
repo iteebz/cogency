@@ -16,7 +16,7 @@ class Anthropic(LLM):
 
     @property
     def default_model(self) -> str:
-        return "claude-3-5-sonnet-20241022"
+        return "claude-3-5-haiku-20241022"  # Fast, cost-aware default
 
     def _get_client(self):
         return anthropic.AsyncAnthropic(

@@ -35,7 +35,7 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 - **🔥 Adaptive reasoning** - Thinks fast or deep as needed, switches seamlessly during execution
 - **🌊 Streaming first** - Watch agents think in real-time with full transparency
 - **🛠️ Automatic tool discovery** - Drop tools in, they auto-register and route intelligently
-- **⚡️ Zero configuration** - Auto-detects LLMs, tools, memory from environment
+- **⚡️ Zero configuration** - Auto-detects LLMs, tools, memory from environment (fast models by default)
 - **🧠 Built-in memory** - Persistent memory with extensible backends (Pinecone, ChromaDB, PGVector)
 - **✨ Clean tracing** - Every reasoning step traced and streamed with clear phase indicators
 - **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Grok, Mistral out of the box

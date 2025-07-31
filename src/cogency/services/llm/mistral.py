@@ -13,7 +13,7 @@ class Mistral(LLM):
 
     @property
     def default_model(self) -> str:
-        return "mistral-large-latest"
+        return "mistral-small-latest"  # Fast, cost-aware default
 
     def _get_client(self):
         return MistralClient(api_key=self.next_key())

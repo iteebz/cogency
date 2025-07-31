@@ -30,11 +30,13 @@ class Memory:
         if not self.impression and not self.recent:
             return ""
 
-        context = ""
+        context = "MEMORY CONTEXT:\n"
         if self.impression:
             context += f"USER IMPRESSION:\n{self.impression}\n\n"
         if self.recent:
-            context += f"RECENT INTERACTIONS:\n{self.recent}\n\n"
+            context += f"PREVIOUS CONVERSATION HISTORY:\n{self.recent}\n"
+        
+        context += "Use this memory context to provide consistent responses and remember previous information.\n\n"
 
         return context
 

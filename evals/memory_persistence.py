@@ -11,8 +11,9 @@ class MemoryPersistenceEval(Eval):
     description = "Test agent's ability to remember information across interactions"
 
     async def run(self) -> EvalResult:
-        # Create agent with memory enabled
-        agent = Agent("memory_tester", mode="fast", memory=True)
+        # Create agent with memory enabled and Gemini LLM
+        from cogency.services.llm import Gemini
+        agent = Agent("memory_tester", mode="fast", memory=True, llm=Gemini())
 
         # First interaction - store information
         first_query = "Remember that my favorite color is blue and my lucky number is 7."

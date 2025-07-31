@@ -7,8 +7,7 @@ from cogency import decorators
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig, setup_config
 from cogency.mcp import setup_mcp
 from cogency.memory import Memory
-from cogency.notify import Formatter, setup_formatter
-from cogency.notify.notifier import Notifier
+from cogency.notify import Notifier, Formatter, setup_formatter
 from cogency.persist.utils import get_state
 from cogency.phases import setup_phases
 from cogency.services import LLM, Embed, setup_embed, setup_llm
@@ -145,8 +144,9 @@ class Agent:
 
         state.add_message("user", query)
 
-        # Learn from user input
+        # Load and learn from user input
         if self.memory:
+            await self.memory.load()
             await self.memory.remember(query, human=True)
 
         # Create streaming callback and notification system
@@ -209,8 +209,9 @@ class Agent:
 
             state.add_message("user", query)
 
-            # Learn from user input
+            # Load and learn from user input
             if self.memory:
+                await self.memory.load()
                 await self.memory.remember(query, human=True)
 
             # Set agent mode - direct, no ceremony

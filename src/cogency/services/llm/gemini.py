@@ -13,7 +13,7 @@ class Gemini(LLM):
 
     @property
     def default_model(self) -> str:
-        return "gemini-2.5-flash"
+        return "gemini-2.5-flash"  # Fast, cost-aware default
 
     def _get_client(self):
         return genai.Client(api_key=self.next_key())

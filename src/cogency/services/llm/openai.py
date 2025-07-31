@@ -13,7 +13,7 @@ class OpenAI(LLM):
 
     @property
     def default_model(self) -> str:
-        return "gpt-4o"
+        return "gpt-4o-mini"  # Fast, cost-aware default
 
     def _get_client(self):
         return openai.AsyncOpenAI(
