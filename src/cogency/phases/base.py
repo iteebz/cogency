@@ -24,9 +24,8 @@ class Phase:
             try:
                 result = unwrap(result)
             except Exception as e:
-                # Simple error propagation - add error to state
-                state.error = str(e)
-                return None
+                # Fail fast with structured error context
+                raise RuntimeError(f"Phase {self.func.func.__name__} failed: {str(e)}") from e
 
         # Return the result if it's a string (early response)
         if isinstance(result, str):

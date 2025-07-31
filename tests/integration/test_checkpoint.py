@@ -69,14 +69,17 @@ class MockCheckpointAgent:
 
     def __init__(self, llm=None, tools=None, depth=10, checkpoint_file=None, **kwargs):
         from cogency import Agent
-        from cogency.registry import ServiceRegistry
 
         # Create agent with mock LLM
-        registry = ServiceRegistry()
-        registry.llm = llm or MockCheckpointLLM()
-        registry.tools = tools or []
+        from cogency.builder import AgentBuilder
+        from cogency.registry import ServiceRegistry
 
-        self.agent = Agent(name="checkpoint_test", registry=registry)
+        builder = AgentBuilder("checkpoint_test")
+        builder = builder.with_llm(llm or MockCheckpointLLM())
+        if tools:
+            builder = builder.with_tools(tools)
+
+        self.agent = builder.build()
         self.checkpoint_file = checkpoint_file
         self.execution_state = {"step": 0, "completed_actions": [], "current_task": None}
 

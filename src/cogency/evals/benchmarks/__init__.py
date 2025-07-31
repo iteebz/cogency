@@ -4,7 +4,7 @@ from .core import BenchmarkNotifier, EvalBenchmark, PhaseBenchmark, benchmark_ev
 from .providers import (
     CrossProviderResults,
     ProviderBenchmark,
-    benchmark_across_providers,
+    benchmark_providers,
     format_provider_comparison,
     get_available_providers,
 )
@@ -16,7 +16,7 @@ __all__ = [
     "benchmark_eval",
     "ProviderBenchmark",
     "CrossProviderResults",
-    "benchmark_across_providers",
+    "benchmark_providers",
     "format_provider_comparison",
     "get_available_providers",
 ]

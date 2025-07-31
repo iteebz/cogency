@@ -10,7 +10,6 @@ from cogency.utils.parsing import (
     _extract_json_stream,
     _extract_with_patterns,
     parse_json,
-    parse_json_with_correction,
     parse_tool_calls,
 )
 
@@ -140,22 +139,4 @@ def test_patterns():
     assert extracted is None
 
 
-@pytest.mark.asyncio
-async def test_correction():
-    # Mock LLM function that fixes JSON on second attempt
-    async def mock_llm_fix(messages):
-        return '{"thinking": "corrected", "tool_calls": []}'
-
-    # Mock LLM that fails correction
-    async def mock_llm_fail(messages):
-        return "still broken json"
-
-    # Test successful correction
-    malformed = '{"thinking": "broken", "tool_calls": ['
-    result = await parse_json_with_correction(malformed, llm_fn=mock_llm_fix)
-    assert result.success
-    assert result.data["thinking"] == "corrected"
-
-    # Test failed correction (should return original error)
-    result = await parse_json_with_correction(malformed, llm_fn=mock_llm_fail)
-    assert not result.success
+# Note: parse_json_with_correction was removed in favor of simpler fallback patterns

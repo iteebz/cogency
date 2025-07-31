@@ -29,7 +29,7 @@ async def test_agent_setup():
         assert executor.config.persist.store is store
         assert executor.config.persist.enabled is True
 
-        # Test persistence disabled  
+        # Test persistence disabled
         agent = Builder("test_agent").build()
         executor = await agent._get_executor()
 

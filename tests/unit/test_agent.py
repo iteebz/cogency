@@ -45,7 +45,7 @@ async def test_tools(memory_enabled, expected_tools):
         agent = Builder("test").with_llm(MockLLM()).with_tools([Calculator()]).with_memory().build()
     else:
         agent = Builder("test").with_llm(MockLLM()).with_tools([Calculator()]).build()
-    
+
     executor = await agent._get_executor()
     tool_names = [tool.name for tool in executor.tools]
     for tool in expected_tools:

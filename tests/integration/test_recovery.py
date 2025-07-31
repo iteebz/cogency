@@ -32,8 +32,8 @@ class MockLLM(LLM):
         self.call_count += 1
         last_msg = messages[-1]["content"].lower()
 
-        # Check if this is a preprocessing request (looking for JSON format in prompt)
-        if "json response format" in messages[-1]["content"].lower():
+        # Check if this is a preprocessing request (looking for JSON Response in prompt)
+        if "json response" in last_msg:
             # Return valid JSON for preprocessing
             return '{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": ["bash"], "reasoning": "Need to execute bash commands"}'
 
@@ -91,7 +91,11 @@ async def test_recovery():
     # Create agent with real shell tool but mocked execution
     shell_tool = Shell()
     with patch.object(shell_tool, "run", side_effect=mock_bash.call):
-        agent = Agent(llm=mock_llm, tools=[shell_tool], depth=5)
+        from cogency.builder import AgentBuilder
+
+        agent = (
+            AgentBuilder("test").with_llm(mock_llm).with_tools([shell_tool]).with_depth(5).build()
+        )
 
         # Run agent with initial prompt
         result = await agent.run("List the contents of the current directory")
@@ -138,8 +142,9 @@ async def test_multiple_failures():
             return None
 
         async def _run_impl(self, messages, **kwargs) -> str:
-            # Check if this is a preprocessing request (looking for JSON format in prompt)
-            if "json response format" in messages[-1]["content"].lower():
+            # Check if this is a preprocessing request (looking for JSON Response in prompt)
+            content = messages[-1]["content"].lower()
+            if "json response" in content:
                 # Return valid JSON for preprocessing
                 return '{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": ["bash"], "reasoning": "Need to execute bash commands"}'
             return "Let me try another command: echo 'hello'"
@@ -155,7 +160,15 @@ async def test_multiple_failures():
     failing_tool = FailingBashTool()
     shell_tool = Shell()
     with patch.object(shell_tool, "run", side_effect=failing_tool.call):
-        agent = Agent(llm=PersistentLLM(), tools=[shell_tool], depth=3)
+        from cogency.builder import AgentBuilder
+
+        agent = (
+            AgentBuilder("test")
+            .with_llm(PersistentLLM())
+            .with_tools([shell_tool])
+            .with_depth(3)
+            .build()
+        )
 
         result = await agent.run("Run a command")
 

@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from ..config import PathsConfig
 from .base import Eval, EvalResult
-from .benchmarks import benchmark_across_providers, benchmark_eval, format_provider_comparison
+from .benchmarks import benchmark_eval, benchmark_providers, format_provider_comparison
 
 
 class EvalReport:
@@ -170,7 +170,7 @@ async def run_suite_cross_provider(
     for eval_class in eval_classes:
         eval_instance = eval_class()
         try:
-            provider_results = await benchmark_across_providers(eval_instance)
+            provider_results = await benchmark_providers(eval_instance)
             cross_provider_results.append(provider_results)
         except Exception as e:
             print(f"Cross-provider benchmark failed for {eval_instance.name}: {e}")

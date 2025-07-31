@@ -12,10 +12,10 @@ from tests.conftest import MockLLM
 @pytest.mark.asyncio
 async def test_agent_defaults():
     agent = Agent(name="test_agent")
-    
+
     # Trigger executor creation
     executor = agent._executor or await agent._get_executor()
-    
+
     assert executor.llm is not None
     assert executor.memory is None  # Memory disabled by default
 
@@ -26,7 +26,7 @@ async def test_agent_defaults():
 @pytest.mark.asyncio
 async def test_memory_disabled():
     agent = Agent(name="test")
-    
+
     # Trigger executor creation
     executor = agent._executor or await agent._get_executor()
 
@@ -51,7 +51,7 @@ async def test_custom_tools(memory_enabled, expected_tools):
     if memory_enabled:
         builder = builder.with_memory()
     agent = builder.build()
-    
+
     # Get executor to access tools
     executor = await agent._get_executor()
 

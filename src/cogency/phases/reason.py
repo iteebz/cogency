@@ -10,7 +10,7 @@ from cogency.services import LLM
 from cogency.state import State
 from cogency.tools import Tool, build_registry
 from cogency.types.reasoning import Reasoning
-from cogency.utils.parsing import parse_json_with_correction
+from cogency.utils.parsing import parse_json
 
 
 class Reason(Phase):
@@ -169,12 +169,11 @@ async def reason(
 
     raw_response = unwrap(llm_result)
 
-    # Parse with correction
-    parse_result = await parse_json_with_correction(raw_response, llm_fn=llm.run, max_attempts=2)
+    # Parse JSON response - fail fast with Result pattern
+    parse_result = parse_json(raw_response)
 
-    reasoning_response = (
-        Reasoning.from_dict(parse_result.data) if parse_result.success else Reasoning()
-    )
+    # Let Result pattern propagate naturally - no silent fallback
+    reasoning_response = Reasoning.from_dict(parse_result.data) if parse_result.success else None
 
     # Trace parsing failures for debugging
     if not parse_result.success:
@@ -194,7 +193,7 @@ async def reason(
             await notifier("reason", state="reflect", content=reasoning_response.reflect)
         if reasoning_response.plan:
             await notifier("reason", state="plan", content=reasoning_response.plan)
-    elif reasoning_response.thinking:
+    elif reasoning_response and reasoning_response.thinking:
         await notifier("reason", state="thinking", content=reasoning_response.thinking)
 
     # Handle mode switching - only if agent mode is "adapt"
@@ -213,7 +212,7 @@ async def reason(
             state = switch_mode(state, switch_to, switch_why)
 
     # Update reasoning state
-    tool_calls = reasoning_response.tool_calls
+    tool_calls = reasoning_response.tool_calls if reasoning_response else None
     update_reasoning_state(state, tool_calls, reasoning_response, iteration)
 
     # Update state for next iteration

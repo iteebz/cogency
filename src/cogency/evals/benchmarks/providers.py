@@ -76,7 +76,7 @@ def get_available_providers() -> List[Tuple[str, type, str]]:
     return providers
 
 
-async def benchmark_across_providers(eval_instance, min_providers: int = 1) -> CrossProviderResults:
+async def benchmark_providers(eval_instance, min_providers: int = 1) -> CrossProviderResults:
     """Benchmark a single evaluation across all available providers."""
     providers = get_available_providers()
 

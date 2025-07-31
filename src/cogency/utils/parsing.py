@@ -224,66 +224,6 @@ def recover_json(response: str) -> Result:
     return parse_json(response)
 
 
-async def parse_json_with_correction(
-    response: str,
-    llm_fn: Optional[Callable] = None,
-    trace_fn: Optional[Callable[[str], None]] = None,
-    max_attempts: int = 2,
-) -> Result:
-    """Parse JSON with self-correction loop for malformed responses."""
-
-    # Try normal parsing first
-    result = parse_json(response, trace_fn)
-    if result.success or not llm_fn:
-        return result
-
-    # Attempt self-correction
-    for attempt in range(max_attempts):
-        if trace_fn:
-            trace_fn(f"JSON self-correction attempt {attempt + 1}/{max_attempts}")
-
-        correction_prompt = self_correct_json(response, result.error)
-
-        try:
-            corrected_response = await llm_fn([{"role": "user", "content": correction_prompt}])
-            corrected_result = parse_json(corrected_response, trace_fn)
-
-            if corrected_result.success:
-                if trace_fn:
-                    trace_fn(f"JSON self-correction succeeded on attempt {attempt + 1}")
-                return corrected_result
-            else:
-                response = corrected_response  # Try again with corrected response
-
-        except Exception as e:
-            if trace_fn:
-                trace_fn(f"JSON self-correction failed: {str(e)}")
-            break
-
-    # Self-correction failed, return original error
-    if trace_fn:
-        trace_fn("JSON self-correction exhausted all attempts, falling back to error")
-    return result
-
-
-def self_correct_json(malformed_response: str, error_msg: str) -> str:
-    """Generate self-correction prompt for malformed JSON responses."""
-    return f"""The previous response contained malformed JSON. Please fix it and return only valid JSON.
-
-Error: {error_msg}
-
-Malformed response:
-{malformed_response}
-
-CRITICAL: Return ONLY a single valid JSON object with this exact structure:
-{{
-  "thinking": "your reasoning here",
-  "tool_calls": [array of tool calls or empty array],
-  "switch_to": null,
-  "switch_why": null
-}}"""
-
-
 def fallback_prompt(reason: str, system: str = None, schema: str = None) -> str:
     """Build fallback prompt when reasoning fails."""
     if schema:

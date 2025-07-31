@@ -5,7 +5,7 @@ from .detection import detect_provider
 from .formatting import format_tool_error, format_tool_params, summarize_result, truncate
 from .heuristics import is_simple_query
 from .keys import KeyManager, KeyRotator
-from .parsing import normalize_reasoning, parse_json, parse_json_with_correction, parse_tool_calls
+from .parsing import normalize_reasoning, parse_json, parse_tool_calls
 from .providers import Provider
 from .time import timer
 from .validation import validate_query
@@ -20,7 +20,6 @@ __all__ = [
     "trace_args",
     "validate_query",
     "is_simple_query",
-    "parse_json_with_correction",
     "parse_tool_calls",
     "normalize_reasoning",
     "KeyManager",
