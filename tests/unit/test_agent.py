@@ -1,30 +1,33 @@
-"""Agent tests."""
+"""Agent tests - beautiful architecture edition."""
 
 from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from cogency import Agent
-from cogency.config import ObserveConfig, PersistConfig, RobustConfig
+from cogency import Agent, Builder
 from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
 
 
-def test_defaults():
-    agent = Agent(name="test_agent", llm=MockLLM())
+@pytest.mark.asyncio
+async def test_defaults():
+    agent = Builder("test_agent").with_llm(MockLLM()).build()
+    executor = await agent._get_executor()
 
-    assert agent.llm is not None
-    assert agent.memory is None  # Memory disabled by default
+    assert executor.llm is not None
+    assert executor.memory is None
 
-    tool_names = [tool.name for tool in agent.tools]
+    tool_names = [tool.name for tool in executor.tools]
     assert "calculator" in tool_names
 
 
-def test_no_memory():
-    agent = Agent("test", llm=MockLLM(), memory=False)
+@pytest.mark.asyncio
+async def test_no_memory():
+    agent = Builder("test").with_llm(MockLLM()).build()
+    executor = await agent._get_executor()
 
-    assert agent.memory is None
-    tool_names = [tool.name for tool in agent.tools]
+    assert executor.memory is None
+    tool_names = [tool.name for tool in executor.tools]
     assert "calculator" in tool_names
 
 
@@ -32,64 +35,80 @@ def test_no_memory():
     "memory_enabled,expected_tools",
     [
         (False, ["calculator"]),
-        (True, ["calculator"]),  # Memory doesn't add tools anymore
+        (True, ["calculator"]),
     ],
     ids=["no_memory", "with_memory"],
 )
-def test_tools(memory_enabled, expected_tools):
-    agent = Agent("test", llm=MockLLM(), tools=[Calculator()], memory=memory_enabled)
-
-    tool_names = [tool.name for tool in agent.tools]
+@pytest.mark.asyncio
+async def test_tools(memory_enabled, expected_tools):
+    if memory_enabled:
+        agent = Builder("test").with_llm(MockLLM()).with_tools([Calculator()]).with_memory().build()
+    else:
+        agent = Builder("test").with_llm(MockLLM()).with_tools([Calculator()]).build()
+    
+    executor = await agent._get_executor()
+    tool_names = [tool.name for tool in executor.tools]
     for tool in expected_tools:
         assert tool in tool_names
     assert len(tool_names) == len(expected_tools)
 
 
-def test_config_setup():
-    agent = Agent("test", llm=MockLLM(), robust=True, observe=True, persist=True)
+@pytest.mark.asyncio
+async def test_config_setup():
+    agent = Builder("test").with_llm(MockLLM()).robust().observe().persist().build()
+    executor = await agent._get_executor()
 
-    assert agent.config.robust is not None
-    assert agent.config.observe is not None
-    assert agent.config.persist is not None
+    assert executor.config.robust is not None
+    assert executor.config.observe is not None
+    assert executor.config.persist is not None
 
 
-def test_config_custom():
-    robust_config = RobustConfig(attempts=5)
-    observe_config = ObserveConfig(metrics=False)
-    persist_config = PersistConfig(enabled=False)
-
-    agent = Agent(
-        "test", llm=MockLLM(), robust=robust_config, observe=observe_config, persist=persist_config
+@pytest.mark.asyncio
+async def test_config_custom():
+    agent = (
+        Builder("test")
+        .with_llm(MockLLM())
+        .robust(attempts=5)
+        .observe(metrics=False)
+        .persist()
+        .build()
     )
+    executor = await agent._get_executor()
 
-    assert agent.config.robust.attempts == 5
-    assert agent.config.observe.metrics is False
-    assert agent.config.persist.enabled is False
-
-
-def test_mode_assignment():
-    agent = Agent("test", llm=MockLLM(), mode="fast", depth=5)
-
-    assert agent.mode == "fast"
-    assert agent.depth == 5
+    assert executor.config.robust.attempts == 5
+    assert executor.config.observe.metrics is False
+    assert executor.config.persist.enabled is True
 
 
-def test_identity():
-    agent = Agent("test", llm=MockLLM(), identity="helpful assistant")
+@pytest.mark.asyncio
+async def test_mode_assignment():
+    agent = Builder("test").with_llm(MockLLM()).fast_mode().with_depth(5).build()
+    executor = await agent._get_executor()
 
-    assert agent.identity == "helpful assistant"
+    assert executor.mode == "fast"
+    assert executor.depth == 5
 
 
-def test_output_schema():
+@pytest.mark.asyncio
+async def test_identity():
+    agent = Builder("test").with_llm(MockLLM()).with_identity("helpful assistant").build()
+    executor = await agent._get_executor()
+
+    assert executor.identity == "helpful assistant"
+
+
+@pytest.mark.asyncio
+async def test_output_schema():
     schema = {"type": "object", "properties": {"answer": {"type": "string"}}}
-    agent = Agent("test", llm=MockLLM(), output_schema=schema)
+    agent = Builder("test").with_llm(MockLLM()).with_schema(schema).build()
+    executor = await agent._get_executor()
 
-    assert agent.output_schema == schema
+    assert executor.output_schema == schema
 
 
 @pytest.mark.asyncio
 async def test_run():
-    agent = Agent("test", llm=MockLLM())
+    agent = Builder("test").with_llm(MockLLM()).build()
 
     with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         mock_run_agent.return_value = "Final Answer"
@@ -101,7 +120,7 @@ async def test_run():
 
 @pytest.mark.asyncio
 async def test_run_error():
-    agent = Agent("test", llm=MockLLM())
+    agent = Builder("test").with_llm(MockLLM()).build()
 
     with patch("cogency.execution.run_agent", side_effect=Exception("Test error")):
         try:
@@ -113,7 +132,7 @@ async def test_run_error():
 
 @pytest.mark.asyncio
 async def test_stream():
-    agent = Agent("test", llm=MockLLM())
+    agent = Builder("test").with_llm(MockLLM()).build()
 
     with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         # Empty query
@@ -129,16 +148,17 @@ async def test_stream():
 
 
 def test_traces_empty():
-    agent = Agent("test", llm=MockLLM())
+    agent = Builder("test").with_llm(MockLLM()).build()
     assert agent.traces() == []
 
 
-def test_setup_notifier():
-    agent = Agent("test", llm=MockLLM())
+@pytest.mark.asyncio
+async def test_setup_notifier():
+    agent = Builder("test").with_llm(MockLLM()).build()
+    executor = await agent._get_executor()
 
-    notifier = agent._setup_notifier()
+    notifier = executor._setup_notifier()
     assert notifier is not None
-    # Test ultimate callable form
-    assert callable(notifier)  # Callable notifier
-    assert hasattr(notifier, "emit")  # Legacy method for backward compatibility
-    assert hasattr(notifier, "notifications")  # Storage for notifications
+    assert callable(notifier)
+    assert hasattr(notifier, "emit")
+    assert hasattr(notifier, "notifications")

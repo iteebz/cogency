@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from cogency.config import ObserveConfig, PersistConfig, RobustConfig
-from cogency.decorators import configure, get_config, phase
+from cogency.decorators import PhaseConfig, configure, create_phase_decorators, phase
 
 
 @pytest.mark.asyncio
 async def test_phase_no_config():
-    configure(robust=None, observe=None, persistence=None)
+    """Test phase decorators with no config."""
 
     @phase.reason()
     async def test_func():
@@ -22,10 +22,12 @@ async def test_phase_no_config():
 
 @pytest.mark.asyncio
 async def test_phase_with_robust():
+    """Test phase decorators with robust config."""
     robust_config = RobustConfig()
-    configure(robust=robust_config, observe=None, persistence=None)
+    config = PhaseConfig(robust=robust_config)
+    phase_with_config = create_phase_decorators(config)
 
-    @phase.reason()
+    @phase_with_config.reason()
     async def test_func():
         return "success"
 
@@ -36,10 +38,12 @@ async def test_phase_with_robust():
 
 @pytest.mark.asyncio
 async def test_phase_with_observe():
+    """Test phase decorators with observe config."""
     observe_config = ObserveConfig()
-    configure(robust=None, observe=observe_config, persistence=None)
+    config = PhaseConfig(observe=observe_config)
+    phase_with_config = create_phase_decorators(config)
 
-    @phase.reason()
+    @phase_with_config.reason()
     async def test_func(**kwargs):
         return "success"
 
@@ -48,23 +52,31 @@ async def test_phase_with_observe():
 
 
 def test_configure():
+    """Test deprecated configure function raises warning."""
     robust_config = RobustConfig()
     observe_config = ObserveConfig()
     persist_config = PersistConfig()
 
-    configure(robust=robust_config, observe=observe_config, persistence=persist_config)
+    with pytest.raises(DeprecationWarning):
+        configure(robust=robust_config, observe=observe_config, persistence=persist_config)
 
-    config = get_config()
+
+def test_phase_config():
+    """Test PhaseConfig and create_phase_decorators."""
+    robust_config = RobustConfig()
+    observe_config = ObserveConfig()
+    persist_config = PersistConfig()
+
+    config = PhaseConfig(robust=robust_config, observe=observe_config, persist=persist_config)
     assert config.robust == robust_config
     assert config.observe == observe_config
     assert config.persist == persist_config
 
-
-def test_get_config():
-    config = get_config()
-    assert hasattr(config, "robust")
-    assert hasattr(config, "observe")
-    assert hasattr(config, "persist")
+    # Test creating decorators with config
+    phase_decorators = create_phase_decorators(config)
+    assert hasattr(phase_decorators, "reason")
+    assert hasattr(phase_decorators, "act")
+    assert callable(phase_decorators.reason)
 
 
 def test_phase_decorators_exist():

@@ -31,10 +31,11 @@ class MockCheckpointLLM(LLM):
 
     async def _run_impl(self, messages, **kwargs) -> str:
         self.call_count += 1
-        last_msg = messages[-1]["content"].lower()
+        content = messages[-1]["content"]
+        last_msg = content.lower()
 
         # Check if this is a preprocessing request (looking for JSON format in prompt)
-        if "json response format" in messages[-1]["content"].lower():
+        if "json" in last_msg and ("format" in last_msg or "response" in last_msg):
             # Return valid JSON for preprocessing
             return """{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": [], "reasoning": "Simple analysis task, no tools needed"}"""
 
@@ -50,6 +51,10 @@ class MockCheckpointLLM(LLM):
             # Second step after checkpoint
             return "Step 2: Data processing complete. Step 3: Intermediate analysis done. Ready for step 4."
 
+        else:
+            # Fallback for any other case
+            return "Analysis complete."
+
     async def run(self, messages, **kwargs):
         response = await self._run_impl(messages, **kwargs)
         return Result.ok(response)
@@ -64,8 +69,14 @@ class MockCheckpointAgent:
 
     def __init__(self, llm=None, tools=None, depth=10, checkpoint_file=None, **kwargs):
         from cogency import Agent
+        from cogency.registry import ServiceRegistry
 
-        self.agent = Agent(llm=llm, tools=tools or [], depth=depth)
+        # Create agent with mock LLM
+        registry = ServiceRegistry()
+        registry.llm = llm or MockCheckpointLLM()
+        registry.tools = tools or []
+
+        self.agent = Agent(name="checkpoint_test", registry=registry)
         self.checkpoint_file = checkpoint_file
         self.execution_state = {"step": 0, "completed_actions": [], "current_task": None}
 
@@ -121,7 +132,7 @@ class MockCheckpointAgent:
 
                 return (
                     Result.ok(result_string)
-                    if result_string.strip()
+                    if result_string and result_string.strip()
                     else Result.fail("Empty response")
                 )
 
@@ -141,7 +152,9 @@ class MockCheckpointAgent:
         from resilient_result import Result
 
         result = (
-            Result.ok(result_string) if result_string.strip() else Result.fail("Empty response")
+            Result.ok(result_string)
+            if result_string and result_string.strip()
+            else Result.fail("Empty response")
         )
 
         # Update execution state on completion

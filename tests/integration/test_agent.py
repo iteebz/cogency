@@ -9,21 +9,29 @@ from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
 
 
-def test_agent_defaults():
-    agent = Agent(name="test_agent", llm=MockLLM())
+@pytest.mark.asyncio
+async def test_agent_defaults():
+    agent = Agent(name="test_agent")
+    
+    # Trigger executor creation
+    executor = agent._executor or await agent._get_executor()
+    
+    assert executor.llm is not None
+    assert executor.memory is None  # Memory disabled by default
 
-    assert agent.llm is not None
-    assert agent.memory is None  # Memory disabled by default
-
-    tool_names = [tool.name for tool in agent.tools]
+    tool_names = [tool.name for tool in executor.tools]
     assert "calculator" in tool_names
 
 
-def test_memory_disabled():
-    agent = Agent(name="test", llm=MockLLM(), memory=False)
+@pytest.mark.asyncio
+async def test_memory_disabled():
+    agent = Agent(name="test")
+    
+    # Trigger executor creation
+    executor = agent._executor or await agent._get_executor()
 
-    assert agent.memory is None
-    tool_names = [tool.name for tool in agent.tools]
+    assert executor.memory is None
+    tool_names = [tool.name for tool in executor.tools]
     assert "calculator" in tool_names
 
 
@@ -35,10 +43,19 @@ def test_memory_disabled():
     ],
     ids=["no_memory", "with_memory"],
 )
-def test_custom_tools(memory_enabled, expected_tools):
-    agent = Agent(name="test", llm=MockLLM(), tools=[Calculator()], memory=memory_enabled)
+@pytest.mark.asyncio
+async def test_custom_tools(memory_enabled, expected_tools):
+    from cogency import Builder
 
-    tool_names = [tool.name for tool in agent.tools]
+    builder = Builder("test").with_tools([Calculator()])
+    if memory_enabled:
+        builder = builder.with_memory()
+    agent = builder.build()
+    
+    # Get executor to access tools
+    executor = await agent._get_executor()
+
+    tool_names = [tool.name for tool in executor.tools]
     for tool in expected_tools:
         assert tool in tool_names
     assert len(tool_names) == len(expected_tools)
@@ -46,7 +63,7 @@ def test_custom_tools(memory_enabled, expected_tools):
 
 @pytest.mark.asyncio
 async def test_run():
-    agent = Agent(name="test", llm=MockLLM())
+    agent = Agent(name="test")
 
     with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         mock_run_agent.return_value = "Final Answer"
@@ -59,7 +76,7 @@ async def test_run():
 
 @pytest.mark.asyncio
 async def test_stream_validation():
-    agent = Agent(name="test", llm=MockLLM())
+    agent = Agent(name="test")
 
     with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         # Empty query

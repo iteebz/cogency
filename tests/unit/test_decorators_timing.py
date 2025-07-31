@@ -3,15 +3,16 @@
 import pytest
 
 from cogency.config import ObserveConfig
-from cogency.decorators import configure, elapsed, phase
+from cogency.decorators import PhaseConfig, create_phase_decorators, elapsed
 
 
 @pytest.mark.asyncio
 async def test_phase_timer_injection():
     """Test that decorator injects timer context."""
-    configure(observe=ObserveConfig())
+    config = PhaseConfig(observe=ObserveConfig())
+    phase_decorators = create_phase_decorators(config)
 
-    @phase.generic()
+    @phase_decorators.generic()
     async def test_phase(**kwargs):
         # Should have timer context injected
         duration = elapsed(**kwargs)
@@ -25,9 +26,10 @@ async def test_phase_timer_injection():
 @pytest.mark.asyncio
 async def test_no_observe_passthrough():
     """Test that without observe config, no timer injection occurs."""
-    configure(observe=None)
+    config = PhaseConfig(observe=None)
+    phase_decorators = create_phase_decorators(config)
 
-    @phase.generic()
+    @phase_decorators.generic()
     async def test_phase(**kwargs):
         # Should not have timer context
         duration = elapsed(**kwargs)

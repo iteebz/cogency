@@ -1,6 +1,6 @@
 """Agent @phase decorator - Unified composition of resilience + checkpointing + observability."""
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Optional
 
@@ -20,8 +20,7 @@ class PhaseConfig:
     persist: Optional[Any] = None
 
 
-# Phase decorator configuration - injected by Agent
-_config = PhaseConfig()
+# REMOVED: Global state eliminated - use registry injection
 
 
 def _checkpoint(name: str, interruptible: bool = True):
@@ -46,7 +45,7 @@ def _checkpoint(name: str, interruptible: bool = True):
     return decorator
 
 
-def _auto_save(phase_name: str):
+def _auto_save(phase_name: str, config: Optional[PhaseConfig] = None):
     """Auto-save state after successful phase completion."""
 
     def decorator(func):
@@ -56,12 +55,12 @@ def _auto_save(phase_name: str):
             result = await func(*args, **kwargs)
 
             # Auto-save only if persistence is configured and phase succeeded
-            if _config.persist and result:
+            if config and config.persist and result:
                 try:
                     state = args[0] if args else kwargs.get("state")
                     if state:
                         # Handle both Persist config and StatePersistence instance
-                        persist_obj = _config.persist
+                        persist_obj = config.persist
                         if hasattr(persist_obj, "save"):
                             # It's a StatePersistence instance
                             await persist_obj.save(state)
@@ -83,14 +82,14 @@ def _auto_save(phase_name: str):
     return decorator
 
 
-def _observe_metrics(phase_name: str):
+def _observe_metrics(phase_name: str, config: Optional[PhaseConfig] = None):
     """Unified observability wrapper - single timing measurement shared across metrics and notifications."""
 
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             # Check if observability is enabled
-            if not _config.observe:
+            if not config or not config.observe:
                 return await func(*args, **kwargs)
 
             # Extract state for context tags
@@ -132,14 +131,19 @@ def _observe_metrics(phase_name: str):
     return decorator
 
 
-def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None):
+def _policy(
+    checkpoint_name: str,
+    interruptible: bool = True,
+    default_retry=None,
+    config: Optional[PhaseConfig] = None,
+):
     """Universal agent policy factory - composes resilience + checkpointing + persistence."""
 
     def policy(retry=None, **kwargs):
         retry = retry or default_retry or Retry.api()
 
         def decorator(func):
-            if not _config.robust:
+            if not config or not config.robust:
                 return func
 
             # 1. Apply resilience
@@ -147,7 +151,7 @@ def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None
             # 2. Apply context-driven checkpointing
             checkpointed_func = _checkpoint(checkpoint_name, interruptible)(resilient_func)
             # 3. Apply auto-save after successful completion
-            persisted_func = _auto_save(checkpoint_name)(checkpointed_func)
+            persisted_func = _auto_save(checkpoint_name, config)(checkpointed_func)
             return persisted_func
 
         return decorator
@@ -155,20 +159,22 @@ def _policy(checkpoint_name: str, interruptible: bool = True, default_retry=None
     return policy
 
 
-def _observe_policy(phase_name: str):
+def _observe_policy(phase_name: str, config: Optional[PhaseConfig] = None):
     """Observability policy factory - metrics and telemetry collection."""
 
     def policy(**kwargs):
         def decorator(func):
             # Apply observability instrumentation
-            return _observe_metrics(phase_name)(func)
+            return _observe_metrics(phase_name, config)(func)
 
         return decorator
 
     return policy
 
 
-def _phase_factory(phase_name: str, interruptible: bool, default_retry):
+def _phase_factory(
+    phase_name: str, interruptible: bool, default_retry, config: Optional[PhaseConfig] = None
+):
     """Phase decorator factory that combines robust + observe based on config."""
 
     def phase_decorator(**kwargs):
@@ -177,13 +183,13 @@ def _phase_factory(phase_name: str, interruptible: bool, default_retry):
             result_func = func
 
             # Apply robust behavior if enabled
-            if _config.robust:
-                robust_policy = _policy(phase_name, interruptible, default_retry)
+            if config and config.robust:
+                robust_policy = _policy(phase_name, interruptible, default_retry, config)
                 result_func = robust_policy(**kwargs)(result_func)
 
             # Apply observability if enabled
-            if _config.observe:
-                observe_policy = _observe_policy(phase_name)
+            if config and config.observe:
+                observe_policy = _observe_policy(phase_name, config)
                 result_func = observe_policy(**kwargs)(result_func)
 
             return result_func
@@ -193,32 +199,35 @@ def _phase_factory(phase_name: str, interruptible: bool, default_retry):
     return phase_decorator
 
 
-class _PhaseDecorators:
-    """Unified @phase decorator with beautiful IDE autocomplete."""
+def create_phase_decorators(config: Optional[PhaseConfig] = None):
+    """Create phase decorators with injected config - no global state."""
 
-    reason = staticmethod(_phase_factory("reasoning", True, Retry.api()))
-    act = staticmethod(_phase_factory("tool_execution", True, Retry.db()))
-    preprocess = staticmethod(
-        _phase_factory("preprocessing", False, Retry(attempts=2, timeout=10.0))
-    )
-    respond = staticmethod(_phase_factory("response", False, Retry(attempts=2, timeout=15.0)))
-    generic = staticmethod(_phase_factory("generic", True, None))
+    class _PhaseDecorators:
+        """Unified @phase decorator with beautiful IDE autocomplete."""
+
+        reason = staticmethod(_phase_factory("reasoning", True, Retry.api(), config))
+        act = staticmethod(_phase_factory("tool_execution", True, Retry.db(), config))
+        preprocess = staticmethod(
+            _phase_factory("preprocessing", False, Retry(attempts=2, timeout=10.0), config)
+        )
+        respond = staticmethod(
+            _phase_factory("response", False, Retry(attempts=2, timeout=15.0), config)
+        )
+        generic = staticmethod(_phase_factory("generic", True, None, config))
+
+    return _PhaseDecorators()
 
 
-# Export unified @phase constructor
-phase = _PhaseDecorators()
+# Backward compatibility - phase decorators with no config
+phase = create_phase_decorators()
 
 
+# DEPRECATED: Remove in v1.0.0 - use create_phase_decorators() with config injection
 def configure(robust=None, observe=None, persistence=None):
-    """Configure @phase decorator behavior - called by Agent constructor."""
-    _config.robust = robust
-    _config.observe = observe
-    _config.persist = persistence
-
-
-def get_config():
-    """Get current decorator configuration."""
-    return replace(_config)
+    """DEPRECATED: Global configuration removed. Use create_phase_decorators(config) instead."""
+    raise DeprecationWarning(
+        "Global decorators.configure() removed. Use create_phase_decorators(PhaseConfig(...)) instead."
+    )
 
 
 def elapsed(**kwargs) -> float:
@@ -229,7 +238,8 @@ def elapsed(**kwargs) -> float:
 
 __all__ = [
     "phase",
-    "configure",
-    "get_config",
+    "create_phase_decorators",
+    "PhaseConfig",
+    "configure",  # DEPRECATED
     "elapsed",
 ]

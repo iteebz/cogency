@@ -14,27 +14,27 @@ from cogency.state import State
 @pytest.mark.asyncio
 async def test_agent_setup():
     """Test that Agent properly sets up persistence components."""
+    from cogency import Builder
 
     with tempfile.TemporaryDirectory() as temp_dir:
         store = Filesystem(base_dir=temp_dir)
 
         # Test persistence enabled
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-            Agent(name="test_agent", persist=store)
+            agent = Builder("test_agent").persist(store=store).build()
+            executor = await agent._get_executor()
 
-        from cogency.decorators import get_config
+        assert executor.config.persist is not None
+        assert isinstance(executor.config.persist, PersistConfig)
+        assert executor.config.persist.store is store
+        assert executor.config.persist.enabled is True
 
-        config = get_config()
-        assert config.persist is not None
-        assert isinstance(config.persist, PersistConfig)
-        assert config.persist.store is store
-        assert config.persist.enabled is True
+        # Test persistence disabled  
+        agent = Builder("test_agent").build()
+        executor = await agent._get_executor()
 
-        # Test persistence disabled
-        Agent(name="test_agent", persist=None)
-
-        config = get_config()
-        assert config.persist is None
+        # Default persistence config should be None when disabled
+        assert executor.config.persist is None or executor.config.persist.enabled is False
 
 
 @pytest.mark.asyncio
