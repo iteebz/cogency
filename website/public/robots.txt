@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://cogency.dev/sitemap-0.xml
