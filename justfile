@@ -79,15 +79,15 @@ eval-providers:
     @echo "Running provider eval suite..."
     @cd evals && poetry run python run_suite.py provider
 
-# Run a specific evaluation
-eval name="":
-    @echo "Running eval: {{name}}..."
-    @poetry run python -m cogency.evals {{name}}
+# Run eval suite (quick by default)
+eval suite="quick":
+    @echo "Running {{suite}} eval suite..."
+    @cd evals && poetry run python run_suite.py {{suite}}
 
 # Run all evaluations
 eval-all:
     @echo "Running all evaluations..."
-    @poetry run python -m cogency.evals all
+    @cd evals && poetry run python run_suite.py full
 
 # List available evaluations
 eval-list:

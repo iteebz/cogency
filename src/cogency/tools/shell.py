@@ -30,6 +30,7 @@ class Shell(Tool):
 
     def __init__(self, default_working_dir: str = None):
         from ..config import PathsConfig
+
         if default_working_dir is None:
             default_working_dir = PathsConfig().sandbox
         super().__init__(

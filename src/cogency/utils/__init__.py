@@ -7,6 +7,7 @@ from .heuristics import is_simple_query
 from .keys import KeyManager, KeyRotator
 from .parsing import normalize_reasoning, parse_json, parse_json_with_correction, parse_tool_calls
 from .providers import Provider
+from .time import timer
 from .validation import validate_query
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "main",
     "parse_json",
     "summarize_result",
+    "timer",
     "trace_args",
     "validate_query",
     "is_simple_query",

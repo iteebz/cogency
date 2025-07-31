@@ -47,4 +47,4 @@ class ReasoningEval(Eval):
             },
         }
 
-        return self.check(actual, 143, metadata)
+        return self.check(actual, 143, metadata, duration=t2-t0)

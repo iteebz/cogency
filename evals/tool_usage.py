@@ -1,5 +1,7 @@
 """Tool usage evaluation - test agent's ability to use tools effectively."""
 
+from time import perf_counter
+
 from cogency import Agent
 from cogency.evals import Eval, EvalResult
 from cogency.tools.calculator import Calculator
@@ -12,11 +14,13 @@ class ToolUsageEval(Eval):
     description = "Test agent's ability to use calculator tool for complex math"
 
     async def run(self) -> EvalResult:
+        t0 = perf_counter()
         agent = Agent("tool_tester", mode="fast", memory=False, tools=[Calculator()])
 
         # Complex calculation that requires multiple steps
         query = "Calculate the compound interest on $1000 at 5% annual rate for 3 years using A = P(1 + r)^t. Show your work."
         result = await agent.run(query)
+        duration = perf_counter() - t0
 
         # Expected: A = 1000(1 + 0.05)^3 = 1000(1.05)^3 = 1000(1.157625) = 1157.625
         expected_final = 1157.625
@@ -61,7 +65,7 @@ class ToolUsageEval(Eval):
             name=self.name,
             passed=passed,
             score=score,
-            duration=0.0,
+            duration=duration,
             expected="Correct compound interest calculation using tools",
             actual=f"Correct result: {found_correct}, Tool used: {tool_used}",
             metadata=metadata,

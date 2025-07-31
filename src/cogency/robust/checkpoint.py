@@ -60,6 +60,7 @@ class Checkpoint:
 
     def __init__(self, checkpoint_dir: Optional[Path] = None, session_id: Optional[str] = None):
         from ..config import PathsConfig
+
         paths = PathsConfig()
         self.checkpoint_dir = checkpoint_dir or Path.home() / paths.checkpoints
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)

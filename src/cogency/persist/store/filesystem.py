@@ -18,6 +18,7 @@ class Filesystem(Store):
 
     def __init__(self, base_dir: str = None):
         from ...config import PathsConfig
+
         if base_dir is None:
             base_dir = PathsConfig().state
         self.base_dir = Path(base_dir)
