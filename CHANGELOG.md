@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.2] - 2025-07-31
+
+### Added
+- Cross-provider benchmarking framework for systematic model comparison
+- Timing benchmarks to measure agent performance across workloads
+- Timer utility functions for built-in performance measurement
+- Comprehensive eval framework with provider comparison tools
+
+### Changed
+- Optimized execution pipeline with early response pattern for reduced latency
+- Cost-efficient model defaults for common tasks
+- Better separation of concerns in phase management
+- Refactored benchmarking system with modular architecture
+
+### Fixed
+- Phase ordering issues that caused unnecessary delays
+- Minor execution flow inefficiencies
+
 ## [0.9.1] - 2025-07-31
 
 ### Added
@@ -246,7 +264,8 @@ Starting with v1.0.0, this project follows [Semantic Versioning](https://semver.
 Major architectural changes are marked with **BREAKING** labels and include migration guides.
 Always review the migration sections before upgrading across major versions.
 
-[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.1...HEAD
+[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.2...HEAD
+[0.9.2]: https://github.com/tysonchen/cogency/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/tysonchen/cogency/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/tysonchen/cogency/compare/v0.5.1...v0.9.0
 [0.5.1]: https://github.com/tysonchen/cogency/compare/v0.5.0...v0.5.1
