@@ -38,7 +38,7 @@ class Code(Tool):
             ],
             rules=[
                 "Use for data analysis, algorithms, complex math, variables, loops",
-                "For simple arithmetic, use calculator tool instead",
+                "For simple arithmetic, use code tool instead",
             ],
         )
         # Beautiful dispatch pattern - extensible and clean
@@ -62,6 +62,13 @@ class Code(Tool):
             Execution results including output, errors, and exit code
         """
         # Schema validation handles required params
+
+        # SAFETY: Warn about potentially dangerous code patterns
+        dangerous_patterns = ["os.system", "subprocess", "exec(", "eval(", "__import__", "open("]
+        if any(pattern in code for pattern in dangerous_patterns):
+            logger.warning(f"Potentially dangerous code pattern detected in: {code[:100]}...")
+            # In production, this should trigger human confirmation
+            # For now, just log the warning
 
         language = language.lower()
         if language not in self._languages:

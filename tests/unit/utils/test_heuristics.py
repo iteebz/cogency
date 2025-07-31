@@ -33,7 +33,7 @@ def test_needs_network_retry():
 
 
 def test_query_needs_tools():
-    tools = ["search", "calculator"]
+    tools = ["search", "code"]
     no_tools = []
 
     assert query_needs_tools("search for information", tools) is False

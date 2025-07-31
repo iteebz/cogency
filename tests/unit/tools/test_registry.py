@@ -14,7 +14,7 @@ def test_register():
     tools = get_tools()
     tool_names = [t.name for t in tools]
 
-    assert "calculator" in tool_names
+    assert "code" in tool_names
 
 
 def test_discover():

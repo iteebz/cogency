@@ -33,7 +33,7 @@ class Tool(ABC):
         Args:
             name: The name of the tool (used for tool calls)
             description: Human-readable description of what the tool does
-            schema: Explicit schema string for LLM (e.g. "calculator(expression='2+2')")
+            schema: Explicit schema string for LLM (e.g. "code(expression='2+2')")
             emoji: Visual emoji for this tool type (defaults to generic 🛠️)
             params: Optional dataclass for parameter validation
             examples: List of example tool calls for LLM guidance

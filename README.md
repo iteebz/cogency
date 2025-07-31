@@ -50,10 +50,10 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 ```
 👤 Plan a Tokyo trip with $2000 budget
 
-🔧 Tools: weather, calculator, search
+🔧 Tools: code, search
 🧠 Task complexity → escalating to Deep React
 🌤️ weather(Tokyo) → 25°C sunny, rain Thu-Fri
-🧮 calculator($2000 ÷ 5 days) → $400/day
+🧮 code(print(2000 / 5)) → 400.0
 🔍 search(Tokyo indoor activities) → Museums, temples
 💭 Reflection: Need indoor backup plans for rainy days
 📋 Planning: 5-day itinerary with weather contingencies
@@ -102,7 +102,7 @@ await agent.run("Analyze sales trends in quarterly_data.csv")
 
 Agents automatically discover and use relevant tools:
 
-🧮 **Calculator** - Mathematical expressions and calculations  
+💻 **Code** - Execute Python code  
 🔍 **Search** - Web search for current information  
 🌤️ **Weather** - Current conditions and forecasts  
 📁 **Files** - Create, read, edit, list, delete files  

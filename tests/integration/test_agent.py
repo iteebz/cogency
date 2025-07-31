@@ -5,7 +5,6 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
-from cogency.tools.calculator import Calculator
 from tests.conftest import MockLLM
 
 
@@ -20,7 +19,7 @@ async def test_agent_defaults():
     assert executor.memory is None  # Memory disabled by default
 
     tool_names = [tool.name for tool in executor.tools]
-    assert "calculator" in tool_names
+    assert "code" in tool_names
 
 
 @pytest.mark.asyncio
@@ -32,22 +31,23 @@ async def test_memory_disabled():
 
     assert executor.memory is None
     tool_names = [tool.name for tool in executor.tools]
-    assert "calculator" in tool_names
+    assert "code" in tool_names
 
 
 @pytest.mark.parametrize(
     "memory_enabled,expected_tools",
     [
-        (False, ["calculator"]),
-        (True, ["calculator"]),  # Memory doesn't add tools anymore
+        (False, ["code"]),
+        (True, ["code"]),
     ],
     ids=["no_memory", "with_memory"],
 )
 @pytest.mark.asyncio
 async def test_custom_tools(memory_enabled, expected_tools):
     from cogency import Builder
+    from cogency.tools.code import Code
 
-    builder = Builder("test").with_tools([Calculator()])
+    builder = Builder("test").with_tools([Code()])
     if memory_enabled:
         builder = builder.with_memory()
     agent = builder.build()

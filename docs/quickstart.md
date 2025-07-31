@@ -69,7 +69,7 @@ The weather in London is currently sunny with a temperature of 18°C.
 Agents automatically use relevant tools:
 
 ```python
-# Uses calculator
+# Uses code tool
 await agent.run("What's 15% of $1,250?")
 
 # Uses weather tool  
@@ -79,7 +79,7 @@ await agent.run("Weather in Tokyo?")
 await agent.run("Weather in Paris and calculate 450 EUR to USD")
 ```
 
-Available tools: Calculator, Weather, Web Search, Files, Shell, Code Execution, CSV/SQL, HTTP, Time operations.
+Available tools: Code, Web Search, Files, HTTP, Ask.
 
 ## Custom Tools
 

@@ -102,9 +102,10 @@ agent = Agent(depth=5, mode="fast", debug=True)
 
 **Tool selection:**
 ```python
-from cogency.tools import get_tools, Calculator
-print([tool.name for tool in get_tools()])
-agent = Agent(tools=[Calculator()])  # Explicit tools
+from cogency.tools import get_tools, Code
+
+
+agent = Agent(tools=[Code()])  # Explicit tools
 ```
 
 **Context loss:**

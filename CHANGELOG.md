@@ -77,7 +77,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Coding agent with file editing capabilities
 - Emoji-based messaging system
 - Extended tool suite: shell, code execution, HTTP requests, datetime, CSV, SQL
-- Mathematical expression calculator
+- Code execution
 - Identity and personality prompting system
 
 ### Changed
@@ -229,7 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - PRARR cognitive architecture (Plan → Reason → Act → Reflect → Respond)
-- Tool system with web search and calculator
+- Tool system with web search and code execution
 - Full execution tracing with reasoning step visibility
 - LLM orchestration with OpenAI integration
 - Key rotation and response caching

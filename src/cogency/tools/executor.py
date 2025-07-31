@@ -74,6 +74,10 @@ async def execute_tools(
             result = await execute_single_tool(tool_name, tool_args, tools)
             actual_tool_name, actual_args, tool_output = result
 
+            print(f"DEBUG: tool_output: {tool_output}")
+            if tool_output.success:
+                print(f"DEBUG: tool_output.data: {tool_output.data}")
+
             if not tool_output.success:
                 # Use user-friendly error message
                 raw_error = tool_output.error or "Unknown error"

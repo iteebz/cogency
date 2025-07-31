@@ -8,7 +8,6 @@ from resilient_result import Result
 
 from cogency import Agent
 from cogency.services.llm.base import LLM
-from cogency.tools import Shell
 
 
 class MockLLM(LLM):
@@ -59,25 +58,31 @@ class MockLLM(LLM):
         yield response
 
 
-class MockBashTool:
-    """Mock bash tool that fails predictably."""
+class MockCodeTool:
+    """Mock code tool that fails predictably."""
 
     def __init__(self):
         self.call_count = 0
-        self.name = "bash"
-        self.emoji = "🔧"
-        self.description = "Execute bash commands"
+        self.name = "code"
+        self.emoji = "🚀"
+        self.description = "Execute code"
         self.rules = []
 
-    async def call(self, command):
+    async def run(self, code, language="python", timeout=30):
         self.call_count += 1
 
-        if "nonexistent" in command:
+        if "nonexistent" in code:
             # First call fails
-            return Result.fail("cat: /nonexistent/file.txt: No such file or directory")
+            return Result.fail("Error: No such file or directory")
         else:
             # Recovery call succeeds
-            return Result.ok("total 48\ndrwxr-xr-x  12 user  staff   384 Jul 25 10:30 .")
+            return Result.ok(
+                {
+                    "output": "total 48\ndrwxr-xr-x  12 user  staff   384 Jul 25 10:30 .",
+                    "success": True,
+                    "exit_code": 0,
+                }
+            )
 
 
 @pytest.mark.asyncio
@@ -86,15 +91,17 @@ async def test_recovery():
 
     # Setup mocks
     mock_llm = MockLLM()
-    mock_bash = MockBashTool()
+    mock_code = MockCodeTool()
 
-    # Create agent with real shell tool but mocked execution
-    shell_tool = Shell()
-    with patch.object(shell_tool, "run", side_effect=mock_bash.call):
+    # Create agent with real code tool but mocked execution
+    from cogency.tools.code import Code
+
+    code_tool = Code()
+    with patch.object(code_tool, "run", side_effect=mock_code.run):
         from cogency.builder import AgentBuilder
 
         agent = (
-            AgentBuilder("test").with_llm(mock_llm).with_tools([shell_tool]).with_depth(5).build()
+            AgentBuilder("test").with_llm(mock_llm).with_tools([code_tool]).with_depth(5).build()
         )
 
         # Run agent with initial prompt
@@ -115,17 +122,24 @@ async def test_recovery():
 async def test_multiple_failures():
     """Test agent handles multiple consecutive tool failures."""
 
-    class FailingBashTool:
+    class FailingCodeTool:
         def __init__(self):
             self.call_count = 0
-            self.name = "bash"
-            self.emoji = "🔧"
-            self.description = "Execute bash commands"
+            self.name = "code"
+            self.emoji = "🚀"
+            self.description = "Execute code"
             self.rules = []
 
-        async def call(self, command):
+        async def run(self, code, language="python", timeout=30):
             self.call_count += 1
-            return Result.fail(f"Command failed (attempt {self.call_count})")
+            return Result.fail(
+                {
+                    "output": "",
+                    "error_output": f"Command failed (attempt {self.call_count})",
+                    "success": False,
+                    "exit_code": 1,
+                }
+            )
 
     class PersistentLLM(LLM):
         def __init__(self):
@@ -157,15 +171,17 @@ async def test_multiple_failures():
             response = await self._run_impl(messages, **kwargs)
             yield response
 
-    failing_tool = FailingBashTool()
-    shell_tool = Shell()
-    with patch.object(shell_tool, "run", side_effect=failing_tool.call):
+    failing_tool = FailingCodeTool()
+    from cogency.tools.code import Code
+
+    code_tool = Code()
+    with patch.object(code_tool, "run", side_effect=failing_tool.run):
         from cogency.builder import AgentBuilder
 
         agent = (
             AgentBuilder("test")
             .with_llm(PersistentLLM())
-            .with_tools([shell_tool])
+            .with_tools([code_tool])
             .with_depth(3)
             .build()
         )

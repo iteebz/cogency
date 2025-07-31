@@ -27,7 +27,7 @@ result = await agent.run("What's 2+2?")
 - Auto-detection for LLMs, tools, memory backends
 
 **Built-in Tool Ecosystem**
-- 14 production-ready tools (Calculator, Weather, Search, Files, etc.)
+- 6 production-ready tools (Code, Weather, Search, Files, etc.)
 - Automatic tool discovery and intelligent routing
 - Simple decorator-based custom tool creation
 

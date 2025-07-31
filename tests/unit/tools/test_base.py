@@ -2,45 +2,23 @@
 
 import pytest
 
-from cogency.tools.calculator import Calculator
+from cogency.tools.code import Code
 
 
 @pytest.mark.asyncio
 async def test_interface():
-    calc = Calculator()
+    code_tool = Code()
 
-    assert hasattr(calc, "name")
-    assert hasattr(calc, "description")
-    assert calc.name == "calculator"
+    assert hasattr(code_tool, "name")
+    assert hasattr(code_tool, "description")
+    assert code_tool.name == "code"
 
-    assert hasattr(calc, "run")
-    assert hasattr(calc, "schema")
-    assert hasattr(calc, "examples")
+    assert hasattr(code_tool, "run")
+    assert hasattr(code_tool, "schema")
+    assert hasattr(code_tool, "examples")
 
-    schema = calc.schema
-    examples = calc.examples
+    schema = code_tool.schema
+    examples = code_tool.examples
 
     assert isinstance(schema, str) and len(schema) > 0
     assert isinstance(examples, list) and len(examples) > 0
-
-
-@pytest.mark.asyncio
-async def test_error():
-    calc = Calculator()
-
-    result = await calc.run(expression="invalid expression $")
-    assert not result.success
-    assert result.error is not None
-
-    result = await calc.execute()
-    assert not result.success
-    assert result.error is not None
-
-
-@pytest.mark.asyncio
-async def test_wrapper():
-    calc = Calculator()
-
-    result = await calc.execute(operation=None, x1="not_a_number")
-    assert not result.success
-    assert result.error is not None

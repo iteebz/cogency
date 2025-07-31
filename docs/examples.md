@@ -19,7 +19,7 @@ async for chunk in agent.stream("Weather in London?"):
 ```python
 # Uses multiple tools automatically
 await agent.run("Weather in Tokyo + calculate 15% tip on $45")
-# → weather(location=Tokyo) + calculator(expression="45 * 0.15")
+# → weather(location=Tokyo) + code(expression="45 * 0.15")
 
 await agent.run("Read data.csv and create summary report")
 # → csv(file=data.csv) + files(action=create)

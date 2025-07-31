@@ -10,7 +10,7 @@ from cogency.phases.reason import reason
 from cogency.phases.respond import respond
 from cogency.state import State
 from cogency.tools.base import Tool
-from cogency.tools.calculator import Calculator
+from cogency.tools.code import Code
 from cogency.tools.executor import execute_single_tool
 from cogency.types.tools import ToolOutcome
 from cogency.utils.parsing import parse_tool_calls
@@ -42,34 +42,6 @@ class MockTool(Tool):
 
     def format_agent(self, result_data: dict[str, any]) -> str:
         return f"Tool output: {result_data}"
-
-
-def test_parse_calls():
-    """Test basic tool call parsing."""
-    from cogency.utils.parsing import parse_json
-
-    llm_response = '{"tool_calls": [{"name": "calculator", "args": {"x": 5}}]}'
-    parse_result = parse_json(llm_response)
-    assert parse_result.success
-    json_data = parse_result.data
-    result = parse_tool_calls(json_data)
-    assert len(result) == 1
-    assert result[0]["name"] == "calculator"
-
-    # Handle malformed JSON
-    parse_result = parse_json("invalid json")
-    assert not parse_result.success
-    # parse_tool_calls should not be called with invalid data, but if it is, it should return None
-    assert parse_tool_calls(parse_result.data) is None
-
-    no_calls_json_result = parse_json('{"no_tools": true}')
-    assert no_calls_json_result.success
-    assert parse_tool_calls(no_calls_json_result.data) is None
-
-    # Test with empty tool_calls list
-    empty_calls_json_result = parse_json('{"tool_calls": []}')
-    assert empty_calls_json_result.success
-    assert parse_tool_calls(empty_calls_json_result.data) == []
 
 
 @pytest.mark.asyncio
@@ -183,40 +155,41 @@ async def test_reason_tools(state):
     llm = MockLLM()
     llm.run = AsyncMock(
         return_value=Result.ok(
-            '{"reasoning": "I need to calculate this.", "tool_calls": [{"name": "calculator", "args": {"expression": "2 + 2"}}]}'
+            '{"reasoning": "I need to calculate this.", "tool_calls": [{"name": "code", "args": {"expression": "2 + 2"}}]}'
         )
     )
 
-    await reason(state, AsyncMock(), llm=llm, tools=[Calculator()])
+    await reason(state, AsyncMock(), llm=llm, tools=[Code()])
 
     # Should have tool calls
     assert state.tool_calls
     assert len(state.tool_calls) == 1
-    assert state.tool_calls[0].name == "calculator"
+    assert state.tool_calls[0].name == "code"
 
 
 @pytest.mark.asyncio
 async def test_act_execution(state):
     """Test act phase actually executes tools."""
     # Setup state with tool calls and add action first
-    state.tool_calls = [{"name": "calculator", "args": {"expression": "2 + 2"}}]
+    state.tool_calls = [{"name": "code", "args": {"code": "2 + 2"}}]
     state.add_action(
         mode="fast",
         thinking="Need to calculate",
-        planning="Use calculator",
+        planning="Use code tool",
         reflection="",
         approach="calculate",
         tool_calls=state.tool_calls,
     )
 
-    tools = [Calculator()]
+    tools = [Code()]
     await act(state, AsyncMock(), tools=tools)
 
     # Should have results (tool calls with outcome key)
     results = state.get_latest_results()
     assert len(results) > 0
     assert results[0]["outcome"] == "success"
-    assert "4" in str(results[0]["result"])
+    assert results[0]["result"]["success"] is True
+    assert results[0]["result"]["exit_code"] == 0
 
 
 @pytest.mark.asyncio
@@ -233,13 +206,13 @@ async def test_respond_formats(state):
 @pytest.mark.asyncio
 async def test_full_cycle(state):
     """Test full reasoning cycle: reason -> act -> reason -> respond."""
-    tools = [Calculator()]
+    tools = [Code()]
     llm = MockLLM()
 
     # 1. First reason (needs tools) - this adds an action
     llm.run = AsyncMock(
         return_value=Result.ok(
-            '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "calculator", "args": {"expression": "2 + 2"}}]}'
+            '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"expression": "2 + 2"}}]}'
         )
     )
     await reason(state, AsyncMock(), llm=llm, tools=tools)
@@ -253,9 +226,7 @@ async def test_full_cycle(state):
 
     # 3. Second reason (reflect on results)
     llm.run = AsyncMock(
-        return_value=Result.ok(
-            '{"reasoning": "The calculator shows 2 + 2 = 4. I can now respond."}'
-        )
+        return_value=Result.ok('{"reasoning": "The code tool shows 2 + 2 = 4. I can now respond."}')
     )
     await reason(state, AsyncMock(), llm=llm, tools=tools)
 

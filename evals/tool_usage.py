@@ -4,18 +4,18 @@ from time import perf_counter
 
 from cogency import Agent
 from cogency.evals import Eval, EvalResult
-from cogency.tools.calculator import Calculator
+from cogency.tools.code import Code
 
 
 class ToolUsageEval(Eval):
     """Test agent's ability to use tools for complex calculations."""
 
     name = "tool_usage"
-    description = "Test agent's ability to use calculator tool for complex math"
+    description = "Test agent's ability to use code tool for complex math"
 
     async def run(self) -> EvalResult:
         t0 = perf_counter()
-        agent = Agent("tool_tester", mode="fast", memory=False, tools=[Calculator()])
+        agent = Agent("tool_tester", mode="fast", memory=False, tools=[Code()])
 
         # Complex calculation that requires multiple steps
         query = "Calculate the compound interest on $1000 at 5% annual rate for 3 years using A = P(1 + r)^t. Show your work."

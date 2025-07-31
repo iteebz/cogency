@@ -48,7 +48,7 @@ def state():
 @pytest.fixture
 def mock_tools():
     return [
-        MockTool("calculator", True, Result.ok({"result": 42})),
+        MockTool("code", True, Result.ok({"result": 42})),
         MockTool("search", True, Result.ok({"results": ["data"]})),
     ]
 
@@ -80,7 +80,7 @@ async def test_invalid(state, mock_tools):
 @pytest.mark.asyncio
 async def test_success(state, mock_tools):
     """Test successful tool execution."""
-    state.tool_calls = [{"name": "calculator", "args": {"x": 5}}]
+    state.tool_calls = [{"name": "code", "args": {"x": 5}}]
     state.add_action(
         mode="fast",
         thinking="test",
@@ -94,9 +94,9 @@ async def test_success(state, mock_tools):
 
     assert len(state.latest_tool_results) == 1
     result = state.latest_tool_results[0]
-    assert result.name == "calculator"
+    assert result.name == "code"
     assert result.success
-    assert "42" in result.result
+    assert result.result["result"] == 42
 
 
 @pytest.mark.asyncio

@@ -4,12 +4,12 @@ Built-in tools auto-register and route intelligently. Create custom tools with z
 
 ## Built-in Tools
 
-**Calculator**, **Search**, **Weather**, **Files**, **Shell**, **Code**, **CSV**, **SQL**, **HTTP**, **Time**, **Date**, **Scrape**, **Recall** (with memory)
+**Code**, **Search**, **Files**, **HTTP**, **Ask** (with memory)
 
 ```python
 # Uses relevant tools automatically
 await agent.run("Weather in Tokyo and calculate 15% of $1,250")
-# → weather(location="Tokyo") + calculator(expression="1250 * 0.15")
+# → code(expression="1250 * 0.15")
 ```
 
 ## Custom Tools

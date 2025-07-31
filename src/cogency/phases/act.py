@@ -64,7 +64,7 @@ async def act(state: State, notifier, tools: List[Tool]) -> Optional[str]:
             state.add_tool_result(
                 name=success["tool_name"],
                 args=success["args"],
-                result=str(success["result"]),
+                result=success["result"],
                 outcome=ToolOutcome.SUCCESS,
             )
 

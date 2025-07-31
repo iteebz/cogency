@@ -86,7 +86,7 @@ class EmojiFormatter(Formatter):
     PHASE_EMOJIS = {"preprocess": "⚙️", "reason": "💭", "action": "⚡", "respond": "🤖", "trace": "🔍"}
 
     TOOL_EMOJIS = {
-        "calculator": "🧮",
+        "code": "💻",
         "weather": "🌤️",
         "search": "🔍",
         "files": "📁",

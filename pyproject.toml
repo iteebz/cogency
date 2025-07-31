@@ -34,52 +34,52 @@ pydantic = ">=2.0"
 typing-extensions = ">=4.0"
 python-dotenv = ">=1.0.0"
 resilient-result = "0.3.1"
-
-# AI/ML frameworks
 google-genai = ">=1.26.0,<2.0.0"
-nomic = ">=3.5.3,<4.0.0"
 
-# Networking & HTTP
-aiohttp = ">=3.12.14,<4.0.0"
-mcp = ">=1.0.0"
-
-# Data processing
-numpy = ">=1.24.0"
-trafilatura = ">=2.0.0,<3.0.0"
-ddgs = "*"
-
-# System utilities
-psutil = ">=5.9.0"
-python-dateutil = ">=2.8.0"
-pytz = ">=2023.0"
-
-
-# LLM providers - included by default
-openai = "*"
-anthropic = "*"
-mistralai = "*"
-tiktoken = "*"
-
-# Optional embedding providers
-sentence-transformers = { version = "*", optional = true }
-
-# Vector databases - pinecone included by default
-pinecone = "*"
-
-# Optional vector databases (heavy dependencies)
-chromadb = { version = "*", optional = true }
-pgvector = { version = "*", optional = true }
-asyncpg = { version = "*", optional = true }
-psycopg2-binary = { version = "*", optional = true }
+# Optional dependencies
+aiohttp = { version = ">=3.12.14,<4.0.0", optional = true }
+mcp = { version = ">=1.0.0", optional = true }
+ddgs = { version = ">=3.9.20,<4.0.0", optional = true }
+trafilatura = { version = ">=1.12.0,<2.0.0", optional = true }
+psutil = { version = ">=5.9.0", optional = true }
+python-dateutil = { version = ">=2.8.0", optional = true }
+openai = { version = ">=1.59.0,<2.0.0", optional = true }
+anthropic = { version = ">=0.42.0,<1.0.0", optional = true }
+mistralai = { version = ">=1.3.0,<2.0.0", optional = true }
+tiktoken = { version = ">=0.8.0,<1.0.0", optional = true }
+nomic = { version = ">=3.5.3,<4.0.0", optional = true }
+sentence-transformers = { version = ">=3.0.0,<4.0.0", optional = true }
 
 [tool.poetry.extras]
+# LLM providers
+openai = ["openai", "tiktoken"]
+anthropic = ["anthropic"]
+mistral = ["mistralai"]
+all-llm = ["openai", "tiktoken", "anthropic", "mistralai"]
+
+# Embedding providers
+nomic = ["nomic"]
 sentence-transformers = ["sentence-transformers"]
-chromadb = ["chromadb"]
-pgvector = ["pgvector", "asyncpg", "psycopg2-binary"]
+all-embed = ["nomic", "sentence-transformers"]
+
+# Tools
+search = ["ddgs"]
+scrape = ["trafilatura"]
+time = ["python-dateutil"]
+monitoring = ["psutil"]
+all-tools = ["ddgs", "trafilatura", "python-dateutil", "psutil"]
+
+# Infrastructure
+mcp-server = ["mcp"]
+http = ["aiohttp"]
+all-infra = ["mcp", "aiohttp"]
+
+# Convenience bundles
+all = ["openai", "tiktoken", "anthropic", "mistralai", "nomic", "sentence-transformers", "ddgs", "trafilatura", "python-dateutil", "psutil", "mcp", "aiohttp"]
+dev = ["openai", "tiktoken", "anthropic", "mistralai", "nomic", "ddgs", "trafilatura", "python-dateutil", "psutil", "mcp", "aiohttp"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^23.0.0"
-isort = "^5.12.0"
 pytest = "^8.4.1"
 pytest-asyncio = "^0.21.0"
 pytest-timeout = "^2.4.0"

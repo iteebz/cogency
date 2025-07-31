@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from cogency.types import ToolCall, ToolOutcome, ToolResult
+
 
 
 @dataclass
@@ -53,7 +53,7 @@ class State:
         planning: str,
         reflection: str,
         approach: str,
-        tool_calls: List[ToolCall],
+        tool_calls: List[Dict[str, Any]],
     ) -> None:
         """Add action to reasoning history with new schema."""
         from datetime import datetime
@@ -83,7 +83,7 @@ class State:
         self,
         name: str,
         args: dict,
-        result: str,
+        result: Any,
         outcome: ToolOutcome,
         iteration: Optional[int] = None,
     ) -> None:
@@ -95,7 +95,7 @@ class State:
         tool_call = {
             "name": name,
             "args": args,
-            "result": result[:1000],  # Truncate per schema
+            "result": result,  # Store raw result
             "outcome": outcome.value,
             # NO compression fields - handled by situation_summary
         }
@@ -118,9 +118,9 @@ class State:
         ]
 
     @property
-    def latest_tool_results(self) -> List[ToolResult]:
+    def latest_tool_results(self) -> List[Dict[str, Any]]:
         """Beautiful property wrapper for latest tool results."""
-        return [ToolResult(call) for call in self.get_latest_results()]
+        return self.get_latest_results()
 
     def update_workspace(self, workspace_update: dict) -> None:
         """Update cognitive workspace fields with minimal bounds checking."""
