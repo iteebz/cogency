@@ -58,6 +58,7 @@ pytz = ">=2023.0"
 openai = "*"
 anthropic = "*"
 mistralai = "*"
+tiktoken = "*"
 
 # Optional embedding providers
 sentence-transformers = { version = "*", optional = true }

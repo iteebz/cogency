@@ -6,7 +6,10 @@ from typing import AsyncIterator, Dict, List, Union
 
 from resilient_result import Result, Retry, resilient
 
+from cogency.notify.core import Notification, emit
+from cogency.observe.metrics import counter
 from cogency.utils import KeyManager
+from cogency.utils.tokens import cost, count
 
 from .cache import LLMCache
 
@@ -81,14 +84,41 @@ class LLM(ABC):
         Returns:
             Result containing string response from the LLM or error
         """
+        # Count input tokens
+        tin = count(messages, self.model)
+
         # Check cache first if enabled
         if self._cache:
             cached_response = await self._cache.get(messages, **kwargs)
             if cached_response:
+                # Still track cache hits
+                counter("llm.tokens.in", tin, {"provider": self.provider_name, "cache": "hit"})
                 return Result.ok(cached_response)
 
         # Call implementation
         response = await self._run_impl(messages, **kwargs)
+
+        # Count output tokens and track
+        tout = count([{"content": response}], self.model)
+        total_cost = cost(tin, tout, self.model)
+
+        counter("llm.tokens.in", tin, {"provider": self.provider_name, "model": self.model})
+        counter("llm.tokens.out", tout, {"provider": self.provider_name, "model": self.model})
+        counter("llm.cost", total_cost, {"provider": self.provider_name, "model": self.model})
+
+        # Emit beautiful notification
+        await emit(
+            Notification(
+                "tokens",
+                {
+                    "tin": tin,
+                    "tout": tout,
+                    "cost": f"${total_cost:.4f}",
+                    "provider": self.provider_name,
+                    "model": self.model,
+                },
+            )
+        )
 
         # Cache response if enabled
         if self._cache:
