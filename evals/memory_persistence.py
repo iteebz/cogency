@@ -13,6 +13,7 @@ class MemoryPersistenceEval(Eval):
     async def run(self) -> EvalResult:
         # Create agent with memory enabled and Gemini LLM
         from cogency.services.llm import Gemini
+
         agent = Agent("memory_tester", mode="fast", memory=True, llm=Gemini())
 
         # First interaction - store information

@@ -52,7 +52,7 @@ async def test_recall_recent_only(memory):
     await memory.remember("I like Python", human=True)
 
     result = await memory.recall()
-    assert "RECENT INTERACTIONS:" in result
+    assert "PREVIOUS CONVERSATION HISTORY:" in result
     assert "[HUMAN] I like Python" in result
 
 
@@ -74,7 +74,7 @@ async def test_recall_both(memory):
 
     result = await memory.recall()
     assert "USER IMPRESSION:" in result
-    assert "RECENT INTERACTIONS:" in result
+    assert "PREVIOUS CONVERSATION HISTORY:" in result
     assert "User likes TypeScript" in result
     assert "[HUMAN] Working on React project" in result
 

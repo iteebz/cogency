@@ -47,7 +47,7 @@ async def test_fast():
 
     await preprocess_module.preprocess(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
-    assert state.respond_directly is False
+    assert state.selected_tools is not None
 
 
 @pytest.mark.asyncio
@@ -65,7 +65,7 @@ async def test_deep():
 
     await preprocess_module.preprocess(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
-    assert state.respond_directly is False
+    assert state.selected_tools is not None
 
 
 @pytest.mark.asyncio
@@ -81,4 +81,4 @@ async def test_response():
 
     await preprocess_module.preprocess(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
-    assert state.respond_directly is True
+    assert state.selected_tools == []

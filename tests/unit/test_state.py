@@ -54,7 +54,6 @@ def test_defaults():
     assert state.approach == ""
     assert state.observations == ""
     assert state.response is None
-    assert state.respond_directly is False
     assert state.notify is True
     assert state.debug is False
     assert state.callback is None

@@ -60,7 +60,6 @@ class StatePersistence:
                 actions=state_dict.get("actions", []),
                 attempts=state_dict.get("attempts", []),
                 response=state_dict.get("response"),
-                respond_directly=state_dict.get("respond_directly", False),
                 notify=state_dict.get("notify", True),
                 debug=state_dict.get("debug", False),
                 callback=None,  # Don't persist callbacks

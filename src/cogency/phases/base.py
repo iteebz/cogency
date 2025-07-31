@@ -1,7 +1,7 @@
 """Base phase class for self-routing cognitive phases."""
 
 from functools import partial
-from typing import Any
+from typing import Any, Optional
 
 from resilient_result import unwrap
 
@@ -14,21 +14,22 @@ class Phase:
     def __init__(self, func: Any, **kwargs):
         self.func = partial(func, **kwargs)
 
-    async def __call__(self, state: State, notifier=None) -> None:
-        """Execute phase function - mutates state in place."""
+    async def __call__(self, state: State, notifier=None) -> Optional[str]:
+        """Execute phase function - may return early response or None."""
         # All phase functions now require notifier parameter
         result = await self.func(state, notifier)
 
         # Handle Result objects from @robust decorators
         if hasattr(result, "success"):
             try:
-                unwrap(result)  # Just unwrap, don't return - state already mutated
+                result = unwrap(result)
             except Exception as e:
                 # Simple error propagation - add error to state
                 state.error = str(e)
+                return None
 
-        # State was mutated in place by the function, no return needed
+        # Return the result if it's a string (early response)
+        if isinstance(result, str):
+            return result
 
-    def next_phase(self, state: State) -> str:
-        """Default: end flow."""
-        return "respond"
+        return None

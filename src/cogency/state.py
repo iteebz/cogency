@@ -33,7 +33,6 @@ class State:
     observations: str = ""
     # Output
     response: Optional[str] = None
-    respond_directly: bool = False
     notify: bool = True
     debug: bool = False
     callback: Any = None

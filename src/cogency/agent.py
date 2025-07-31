@@ -7,7 +7,7 @@ from cogency import decorators
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig, setup_config
 from cogency.mcp import setup_mcp
 from cogency.memory import Memory
-from cogency.notify import Notifier, Formatter, setup_formatter
+from cogency.notify import Formatter, Notifier, setup_formatter
 from cogency.persist.utils import get_state
 from cogency.phases import setup_phases
 from cogency.services import LLM, Embed, setup_embed, setup_llm

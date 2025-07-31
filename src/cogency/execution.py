@@ -6,31 +6,38 @@ from cogency.state import State
 async def run_agent(
     state: State, preprocess_phase, reason_phase, act_phase, respond_phase, notifier=None
 ) -> None:
-    """Simple execution loop using phase instances with injected dependencies."""
+    """Pure early-return execution - phases decide when to end."""
 
-    # Preprocessing step - dependencies already injected
-    await preprocess_phase(state, notifier)
+    # Preprocess - may return early
+    response = await preprocess_phase(state, notifier)
+    if response:
+        state.response = response
+        return
 
-    # Two execution paths: direct response OR ReAct loop
-    if not state.respond_directly:
-        # ReAct loop: reason until ready to respond
-        while state.iteration < state.depth:
-            # Reason about what to do
-            await reason_phase(state, notifier)
+    # ReAct loop - reason and act until early return
+    while state.iteration < state.depth:
+        # Reason phase
+        response = await reason_phase(state, notifier)
+        if response:
+            state.response = response
+            return
 
-            # If ready to respond, break to response
-            if not state.tool_calls:
-                break
+        # If no tool calls, exit ReAct loop
+        if not state.tool_calls:
+            break
 
-            # Act on the tools (execute them)
-            await act_phase(state, notifier)
+        # Act phase
+        response = await act_phase(state, notifier)
+        if response:
+            state.response = response
+            return
 
-            # Increment iteration after complete ReAct cycle
-            state.iteration += 1
+        state.iteration += 1
 
-            # Check stop conditions
-            if state.stop_reason:
-                break
+        if state.stop_reason:
+            break
 
-    # Generate final response (both paths converge here)
+    # Respond phase - fallback
     await respond_phase(state, notifier)
+    if not state.response:
+        state.response = "I'm here to help. How can I assist you?"

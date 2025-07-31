@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import List
+from typing import List, Optional
 
 from cogency.decorators import phase
 from cogency.phases.base import Phase
@@ -18,30 +18,15 @@ class Act(Phase):
     def __init__(self, tools):
         super().__init__(act, tools=tools)
 
-    def next_phase(self, state: State) -> str:
-        current_iter = state.iteration
-        max_iter = state.depth
-        stop_reason = state.stop_reason
-
-        # Check stop conditions first
-        if stop_reason in ["depth_reached", "reasoning_loop_detected"]:
-            return "respond"
-        elif current_iter >= max_iter:
-            state.stop_reason = "depth_reached"
-            return "respond"
-        else:
-            # Continue reasoning loop
-            return "reason"
-
 
 @phase.act()
-async def act(state: State, notifier, tools: List[Tool]) -> None:
+async def act(state: State, notifier, tools: List[Tool]) -> Optional[str]:
     """Act: execute tools based on reasoning decision."""
     time.time()
 
     tool_call_str = state.tool_calls
     if not tool_call_str:
-        return  # State mutated in place
+        return None
 
     # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools
@@ -49,7 +34,7 @@ async def act(state: State, notifier, tools: List[Tool]) -> None:
     # Tool calls come from reason node as parsed list
     tool_calls = state.tool_calls
     if not tool_calls or not isinstance(tool_calls, list):
-        return  # State mutated in place
+        return None
 
     # Start acting state
     # Acting is implicit - tool execution shows progress
@@ -94,4 +79,4 @@ async def act(state: State, notifier, tools: List[Tool]) -> None:
                 outcome=ToolOutcome.FAILURE,
             )
 
-    # State mutated in place, no return needed
+    return None

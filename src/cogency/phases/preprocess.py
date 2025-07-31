@@ -2,8 +2,6 @@
 
 from typing import List, Optional
 
-from resilient_result import unwrap
-
 from cogency.decorators import phase
 from cogency.phases import Phase
 from cogency.services import LLM
@@ -11,6 +9,7 @@ from cogency.state import State
 from cogency.tools import Tool, build_registry
 from cogency.types.preprocessed import Preprocessed
 from cogency.utils import is_simple_query, parse_json
+from cogency.utils.response import format_response
 
 
 class Preprocess(Phase):
@@ -23,9 +22,6 @@ class Preprocess(Phase):
             identity=identity,
         )
 
-    def next_phase(self, state: State) -> str:
-        return "reason" if state.selected_tools else "respond"
-
 
 @phase.preprocess()
 async def preprocess(
@@ -35,7 +31,7 @@ async def preprocess(
     tools: List[Tool],
     memory,  # Impression instance or None
     identity: Optional[str] = None,
-) -> None:
+) -> Optional[str]:
     """Preprocess: routing decisions, memory extraction, tool selection."""
     query = state.query
     # Direct access to state properties - no context wrapper needed
@@ -104,6 +100,8 @@ Example:
 
         # @safe.preprocess() auto-unwraps Results - clean boundary discipline
         llm_result = await llm.run([{"role": "user", "content": prompt_preprocess}])
+        from resilient_result import unwrap
+
         llm_response = unwrap(llm_result)  # Unwrap LLM Result first
         parsed_data = unwrap(parse_json(llm_response))
         result = Preprocessed(**parsed_data)
@@ -127,22 +125,25 @@ Example:
             if memory_content and memory:
                 await memory.remember(memory_content, human=True)
 
-        # Chain 2: Filter tools based on LLM selection and determine respond_directly
+        # Chain 2: Filter tools based on LLM selection and check for early response
         selected_tools = result.selected_tools
         if selected_tools is not None:  # LLM explicitly provided selected_tools
             if not selected_tools:  # LLM explicitly selected no tools
                 filtered_tools = []
-                # If LLM explicitly selected no tools, force respond_directly to True
-                state.respond_directly = True
+                # If LLM explicitly selected no tools, we might have a direct answer
+                # For simple queries, return the query as the response to bypass further processing
+                query_str = query if isinstance(query, str) else str(query)
+                if is_simple_query(query_str):
+                    # Let the LLM provide a direct response to simple queries
+                    simple_prompt = f"Answer this simple question directly: {query}"
+                    simple_result = await llm.run([{"role": "user", "content": simple_prompt}])
+                    direct_answer = unwrap(simple_result)
+                    return format_response(direct_answer.strip(), identity=identity)
             else:
                 selected_names = set(selected_tools)
                 filtered_tools = [tool for tool in tools if tool.name in selected_names]
-                # If tools are selected, respond_directly should be False
-                state.respond_directly = False
-        else:  # LLM did not provide selected_tools, fallback to all tools and default respond_directly
+        else:  # LLM did not provide selected_tools, fallback to all tools
             filtered_tools = tools
-            # If LLM didn't specify selected_tools, assume tools are needed, so respond_directly is False
-            state.respond_directly = False
 
         # Trace execution path decisions
         if filtered_tools:
@@ -161,9 +162,16 @@ Example:
                 # Multi-tool triggers ReAct loop
                 await notifier("preprocess", state="react", tool_count=len(filtered_tools))
     else:
-        # Simple case: no tools available, respond directly
+        # Simple case: no tools available, provide direct response
         filtered_tools = []  # No tools to filter if initial 'tools' list is empty
-        state.respond_directly = True  # Force respond directly if no tools are available
+
+        # For simple queries with no tools, provide direct response
+        query_str = query if isinstance(query, str) else str(query)
+        if is_simple_query(query_str):
+            simple_prompt = f"Answer this simple question directly: {query}"
+            simple_result = await llm.run([{"role": "user", "content": simple_prompt}])
+            direct_answer = unwrap(simple_result)
+            return format_response(direct_answer.strip(), identity=identity)
 
         # Tool selection is now silent - no ceremony
 
@@ -173,9 +181,10 @@ Example:
         prepared_tools if prepared_tools else []
     )  # Use empty list if no tools selected/prepared
 
-    # Update flow state - clean routing via respond_directly flag
+    # Update flow state - clean routing via early returns
     state.selected_tools = selected_tools
     state.mode = result.mode if "result" in locals() else "fast"
     state.iteration = 0
 
-    # State mutated in place, no return needed
+    # No early return, continue to reason phase
+    return None

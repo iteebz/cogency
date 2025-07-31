@@ -17,9 +17,6 @@ class Reason(Phase):
     def __init__(self, llm, tools, memory=None, identity=None):
         super().__init__(reason, llm=llm, tools=tools, memory=memory, identity=identity)
 
-    def next_phase(self, state: State) -> str:
-        return "act" if state.tool_calls and len(state.tool_calls) > 0 else "respond"
-
 
 def format_tool_calls_readable(tool_calls):
     """Format tool calls as readable action summary."""
@@ -105,7 +102,7 @@ async def reason(
     tools: List[Tool],
     memory=None,
     identity: Optional[str] = None,
-) -> None:
+) -> Optional[str]:
     """Pure reasoning orchestration - let decorators handle all ceremony."""
     # Direct access to state properties - no context wrapper needed
     selected_tools = state.selected_tools or tools or []
@@ -125,7 +122,7 @@ async def reason(
         await notifier(
             "trace", message="ReAct terminated", reason="depth_reached", iterations=iteration
         )
-        return  # State mutated in place
+        return None
 
     # Build messages
     messages = state.get_conversation()
@@ -221,9 +218,8 @@ async def reason(
 
     # Update state for next iteration
     state.tool_calls = tool_calls
-    state.iteration = state.iteration + 1
 
-    # State mutated in place, no return needed
+    return None
 
 
 def update_reasoning_state(state, tool_calls, reasoning_response, iteration: int) -> None:

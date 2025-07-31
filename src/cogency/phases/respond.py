@@ -22,9 +22,6 @@ class Respond(Phase):
             output_schema=output_schema,
         )
 
-    def next_phase(self, state: State) -> str:
-        return "END"  # End token, no longer using LangGraph
-
 
 # Response prompt templates - clean and scannable
 FAILURE_PROMPT = """{identity}
@@ -203,19 +200,19 @@ async def respond(
         response_text = "I'm here to help. How can I assist you?"
     else:
         messages = state.get_conversation()
-        
+
         # Add memory context if available
         if memory:
             memory_context = await memory.recall()
             if memory_context:
                 prompt = f"{memory_context}\n{prompt}"
-        
+
         messages.insert(0, {"role": "system", "content": prompt})
 
         llm_result = await llm.run(messages)
         response_text = (
             llm_result.data.strip()
-            if llm_result.success
+            if llm_result.success and llm_result.data
             else "I'm here to help. How can I assist you?"
         )
 

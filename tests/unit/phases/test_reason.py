@@ -60,7 +60,7 @@ async def test_tracking():
     await reason(state, AsyncMock(), llm=mock_llm(), tools=mock_tools())
 
     assert isinstance(state, State)
-    assert state.iteration == 3
+    assert state.iteration == 2  # Iteration increment moved to execution loop
 
 
 @pytest.mark.asyncio
