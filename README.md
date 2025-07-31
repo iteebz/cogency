@@ -6,7 +6,7 @@
 
 **Smart AI agents that think as hard as they need to.**
 
-> 🚧 **Production Beta (v0.9.0)** - Architecturally complete, actively gathering feedback from early adopters. Ready for serious evaluation and beta deployments.
+> 🚧 **Production Beta (v0.9.1)** - Architecturally complete, actively gathering feedback from early adopters. Ready for serious evaluation and beta deployments.
 
 ```python
 from cogency import Agent

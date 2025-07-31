@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2025-07-31
+
+### Added
+- Situated memory architecture with direct context injection
+- Cross-session memory persistence via store integration  
+- LLM-native state schema validation
+- Prometheus and OpenTelemetry exporters for observability
+- Memory session management and restoration
+
+### Changed
+- Streamlined documentation structure
+- Updated website copy and positioning
+
+### Fixed
+- Memory persistence edge cases
+- Documentation inconsistencies
+
 ## [0.9.0] - 2025-07-30
 
 ### Added
@@ -229,7 +246,8 @@ Starting with v1.0.0, this project follows [Semantic Versioning](https://semver.
 Major architectural changes are marked with **BREAKING** labels and include migration guides.
 Always review the migration sections before upgrading across major versions.
 
-[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.0...HEAD
+[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/tysonchen/cogency/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/tysonchen/cogency/compare/v0.5.1...v0.9.0
 [0.5.1]: https://github.com/tysonchen/cogency/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/tysonchen/cogency/compare/v0.4.1...v0.5.0
