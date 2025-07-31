@@ -89,6 +89,11 @@ eval-bench suite="quick":
     @echo "Benchmarking {{suite}} eval suite..."
     @cd evals && poetry run python run_suite_bench.py {{suite}}
 
+# Run cross-provider benchmarking
+eval-cross suite="quick":
+    @echo "Cross-provider benchmarking {{suite}} eval suite..."
+    @cd evals && poetry run python run_cross_provider.py {{suite}}
+
 # Run all evaluations
 eval-all:
     @echo "Running all evaluations..."

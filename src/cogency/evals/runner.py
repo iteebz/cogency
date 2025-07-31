@@ -8,7 +8,7 @@ from typing import Dict, List, Optional
 
 from ..config import PathsConfig
 from .base import Eval, EvalResult
-from .benchmarks import benchmark_eval
+from .benchmarks import benchmark_across_providers, benchmark_eval, format_provider_comparison
 
 
 class EvalReport:
@@ -156,6 +156,36 @@ async def run_suite_benchmarked(
     await _save_report(report, output_dir, "suite_benchmarked")
 
     return report
+
+
+async def run_suite_cross_provider(
+    eval_classes: List[type[Eval]], output_dir: Optional[Path] = None
+) -> EvalReport:
+    """Run evaluations across all available providers for comparative benchmarking."""
+    if not eval_classes:
+        return EvalReport([])
+
+    # Run cross-provider benchmarks for each eval
+    cross_provider_results = []
+    for eval_class in eval_classes:
+        eval_instance = eval_class()
+        try:
+            provider_results = await benchmark_across_providers(eval_instance)
+            cross_provider_results.append(provider_results)
+        except Exception as e:
+            print(f"Cross-provider benchmark failed for {eval_instance.name}: {e}")
+
+    # Generate beautiful console output
+    if cross_provider_results:
+        print("\n" + "=" * 60)
+        print("🔥 CROSS-PROVIDER BENCHMARK RESULTS")
+        print("=" * 60)
+        for results in cross_provider_results:
+            print(format_provider_comparison(results))
+
+    # For now, return empty report as this is analysis-focused
+    # Could be enhanced to aggregate cross-provider metrics
+    return EvalReport([])
 
 
 async def _save_report(report: EvalReport, output_dir: Path, name: str) -> None:

@@ -4,68 +4,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from ..observe.profiling import get_profiler
-
-SCHEMA_VERSION = "1.0"
-
-
-def _extract_peak_memory(profiler_summary: Dict) -> float:
-    """Extract peak memory usage from profiler summary."""
-    if not profiler_summary or "operations" not in profiler_summary:
-        return 0.0
-
-    peak = 0.0
-    for op_data in profiler_summary["operations"].values():
-        if "peak_memory" in op_data:
-            peak = max(peak, op_data["peak_memory"])
-
-    return peak
-
-
-def _extract_avg_cpu(profiler_summary: Dict) -> float:
-    """Extract average CPU usage from profiler summary."""
-    if not profiler_summary or "operations" not in profiler_summary:
-        return 0.0
-
-    total_cpu = 0.0
-    count = 0
-    for op_data in profiler_summary["operations"].values():
-        if "avg_cpu_percent" in op_data:
-            total_cpu += op_data["avg_cpu_percent"]
-            count += 1
-
-    return total_cpu / count if count > 0 else 0.0
-
-
-def normalize_benchmark_report(
-    eval_name: str, benchmark_data: Dict, profiler_summary: Dict, timestamp: float = None
-) -> Dict:
-    """Normalize benchmark data into stable schema."""
-    return {
-        "schema_version": SCHEMA_VERSION,
-        "eval_name": eval_name,
-        "total_duration": benchmark_data.get("total_duration", 0.0),
-        "phase_timings": benchmark_data.get("phase_timings", {}),
-        "timestamp": timestamp or time.perf_counter(),
-        "memory_peak": _extract_peak_memory(profiler_summary),
-        "cpu_percent": _extract_avg_cpu(profiler_summary),
-        "system_metrics": profiler_summary,
-    }
-
-
-def validate_schema(report: Dict) -> bool:
-    """Validate benchmark report schema."""
-    required_fields = {
-        "schema_version",
-        "eval_name",
-        "total_duration",
-        "phase_timings",
-        "timestamp",
-        "memory_peak",
-        "cpu_percent",
-    }
-
-    return all(field in report for field in required_fields)
+from ...observe.profiling import get_profiler
 
 
 @dataclass
@@ -156,31 +95,31 @@ class BenchmarkNotifier:
             self.wrapped(notification)
 
     def get_report(self) -> Optional[Dict]:
-        """Get normalized benchmark report for current eval."""
+        """Get benchmark report for current eval."""
         if not self.current_benchmark:
             return None
 
         # Ensure benchmark is complete
         self.current_benchmark.complete()
 
-        # Normalize phase timings into consistent structure
-        phase_timings = {}
-        for phase in self.current_benchmark.phases:
-            phase_timings[phase.phase] = phase.duration or 0.0
-
-        return {
-            "schema_version": SCHEMA_VERSION,
+        report = {
             "eval_name": self.current_benchmark.eval_name,
-            "total_duration": self.current_benchmark.total_duration or 0.0,
-            "phase_timings": phase_timings,
-            "timestamp": self.current_benchmark.start_time,
+            "total_duration": self.current_benchmark.total_duration,
+            "phases": [],
         }
+
+        for phase in self.current_benchmark.phases:
+            report["phases"].append(
+                {"phase": phase.phase, "duration": phase.duration, "metadata": phase.metadata}
+            )
+
+        return report
 
 
 async def benchmark_eval(eval_instance, original_notifier=None) -> Dict:
     """Benchmark a single evaluation with phase-level timing."""
-    bench_notifier = BenchmarkNotifier(original_notifier)
-    bench_notifier.start_eval(eval_instance.name)
+    benchmark_notifier = BenchmarkNotifier(original_notifier)
+    benchmark_notifier.start_eval(eval_instance.name)
 
     # Monkey patch the eval to use benchmarking
     original_run = eval_instance.run
@@ -194,7 +133,7 @@ async def benchmark_eval(eval_instance, original_notifier=None) -> Dict:
 
         def patched_init(self, *args, **kwargs):
             # Inject our benchmark notifier
-            kwargs["on_notify"] = bench_notifier
+            kwargs["on_notify"] = benchmark_notifier
             return original_agent_init(self, *args, **kwargs)
 
         cogency.Agent.__init__ = patched_init
@@ -216,21 +155,11 @@ async def benchmark_eval(eval_instance, original_notifier=None) -> Dict:
         eval_instance.run = original_run  # Restore
 
     # Get both benchmark and profiler data
-    benchmark_report = bench_notifier.get_report()
+    benchmark_report = benchmark_notifier.get_report()
     profiler_summary = profiler.summary()
 
-    # Normalize into stable schema
-    if benchmark_report:
-        normalized_report = normalize_benchmark_report(
-            benchmark_report["eval_name"],
-            benchmark_report,
-            profiler_summary,
-            benchmark_report["timestamp"],
-        )
-    else:
-        normalized_report = normalize_benchmark_report(eval_instance.name, {}, profiler_summary)
-
     return {
-        "benchmark_report": normalized_report,
+        "phase_timing": benchmark_report,
+        "system_metrics": profiler_summary,
         "eval_result": result.unwrap() if result.is_ok() else None,
     }
