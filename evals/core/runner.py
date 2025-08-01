@@ -6,7 +6,8 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from ..config import PathsConfig
+from cogency.config import PathsConfig
+
 from .base import Eval, EvalResult
 from .benchmarks import benchmark_eval, benchmark_providers, format_provider_comparison
 

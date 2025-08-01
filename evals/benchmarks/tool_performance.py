@@ -8,12 +8,11 @@ from pathlib import Path
 from time import perf_counter
 from typing import List
 
-from cogency import Agent
 from cogency.tools.files import Files
-from cogency.tools.shell import Shell
-from cogency.tools.search import Search
-from cogency.tools.scrape import Scrape
 from cogency.tools.http import HTTP
+from cogency.tools.scrape import Scrape
+from cogency.tools.search import Search
+from cogency.tools.shell import Shell
 from evals.core.base import Eval, EvalResult
 
 
@@ -30,15 +29,19 @@ class ToolPerformance(Eval):
 
     async def run(self) -> EvalResult:
         """Run performance tests on canonical 5-tool architecture."""
-        
+
         # Start memory tracking
         tracemalloc.start()
-        
+
         test_cases = [
             {
                 "name": "files_create_read",
                 "tool": Files(),
-                "args": {"action": "create", "filename": "bench_{iteration}.txt", "content": "test"},
+                "args": {
+                    "action": "create",
+                    "filename": "bench_{iteration}.txt",
+                    "content": "test",
+                },
                 "iterations": 50,
             },
             {
@@ -69,10 +72,10 @@ class ToolPerformance(Eval):
 
         results = []
         validation_failures = 0
-        
+
         for i, test_case in enumerate(test_cases, 1):
             print(f"{i}/{len(test_cases)} ToolPerformance: {test_case['name']}...")
-            
+
             # Memory snapshot before test
             mem_before = tracemalloc.get_traced_memory()[0]
 
@@ -83,9 +86,11 @@ class ToolPerformance(Eval):
             # Calculate metrics
             direct_mean = statistics.mean(direct_times) if direct_times else float("inf")
             direct_p95 = (
-                statistics.quantiles(direct_times, n=20)[18] if len(direct_times) >= 5 else direct_mean
+                statistics.quantiles(direct_times, n=20)[18]
+                if len(direct_times) >= 5
+                else direct_mean
             )
-            
+
             # Memory snapshot after test
             mem_after = tracemalloc.get_traced_memory()[0]
             mem_delta = (mem_after - mem_before) / 1024 / 1024  # MB
@@ -97,7 +102,8 @@ class ToolPerformance(Eval):
                 "direct_times": [t * 1000 for t in direct_times],
                 "validation_errors": validation_errors,
                 "memory_delta_mb": mem_delta,
-                "passed": direct_mean * 1000 < 100 and validation_errors == 0,  # <100ms, 0 validation errors
+                "passed": direct_mean * 1000 < 100
+                and validation_errors == 0,  # <100ms, 0 validation errors
             }
 
             results.append(test_result)
@@ -106,17 +112,17 @@ class ToolPerformance(Eval):
         # Stop memory tracking and get final stats
         tracemalloc.stop()
         total_memory_delta = sum(r["memory_delta_mb"] for r in results)
-        
+
         # Aggregate results
         avg_latency = statistics.mean([r["direct_mean_ms"] for r in results])
         total_validation_errors = sum(r["validation_errors"] for r in results)
         total_operations = sum(test_case["iterations"] for test_case in test_cases)
         validation_accuracy = 1.0 - (total_validation_errors / total_operations)
         passed_tests = sum(1 for r in results if r["passed"])
-        
+
         # Success criteria from spec:
         # - <100ms tool invocation overhead
-        # - >99.5% parameter validation accuracy  
+        # - >99.5% parameter validation accuracy
         # - Zero memory leaks over 1000 iterations
         meets_latency = avg_latency < 100
         meets_validation = validation_accuracy > 0.995
@@ -126,7 +132,18 @@ class ToolPerformance(Eval):
         final_result = EvalResult(
             name=self.name,
             passed=overall_pass,
-            score=max(0.0, min(1.0, (validation_accuracy + (1.0 - avg_latency/1000) + (1.0 if meets_memory else 0.0)) / 3)),
+            score=max(
+                0.0,
+                min(
+                    1.0,
+                    (
+                        validation_accuracy
+                        + (1.0 - avg_latency / 1000)
+                        + (1.0 if meets_memory else 0.0)
+                    )
+                    / 3,
+                ),
+            ),
             duration=0.0,
             expected="<100ms latency, >99.5% validation accuracy, <10MB memory growth",
             actual=f"Latency: {avg_latency:.1f}ms, Validation: {validation_accuracy:.3%}, Memory: {total_memory_delta:.1f}MB",
@@ -164,19 +181,19 @@ class ToolPerformance(Eval):
                         runtime_args[key] = value.format(iteration=iteration)
                     else:
                         runtime_args[key] = value
-                
+
                 # Parameter validation test
                 if not self._validate_parameters(tool, runtime_args):
                     validation_errors += 1
-                
+
                 start = perf_counter()
                 result = await tool.run(**runtime_args)
                 end = perf_counter()
-                
+
                 # Check result validity - ensure we get a proper Result object
-                if not hasattr(result, 'success') or not hasattr(result, 'data'):
+                if not hasattr(result, "success") or not hasattr(result, "data"):
                     validation_errors += 1
-                    
+
                 times.append(end - start)
 
                 # Rate limit external calls
@@ -196,7 +213,7 @@ class ToolPerformance(Eval):
         """Validate tool parameters against params class."""
         try:
             # Check if tool has params class (dataclass)
-            if hasattr(tool, 'params') and tool.params:
+            if hasattr(tool, "params") and tool.params:
                 # Try to create the params object - this validates structure
                 tool.params(**args)
                 return True

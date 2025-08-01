@@ -1,0 +1,19 @@
+--- algorithms.py
++++ algorithms.py
+@@ -1,9 +1,11 @@
+ def find_duplicates(items):
+-    """Find duplicate values in a list. O(n²) implementation."""
++    """Find duplicate values in a list. O(n) implementation."""
+     duplicates = []
++    seen = set()
+     
+-    for i in range(len(items)):
+-        for j in range(i + 1, len(items)):
+-            if items[i] == items[j] and items[i] not in duplicates:
+-                duplicates.append(items[i])
++    for item in items:
++        if item in seen and item not in duplicates:
++            duplicates.append(item)
++        seen.add(item)
+     
+     return duplicates

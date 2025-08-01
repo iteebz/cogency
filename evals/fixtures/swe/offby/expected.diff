@@ -1,0 +1,10 @@
+--- utils.py
++++ utils.py
+@@ -3,5 +3,5 @@
+     if n <= 0 or not items:
+         return []
+     
+-    # Bug: should be -n, not -(n-1)
+-    return items[-(n-1):]
++    # Fixed: return exactly n items from the end
++    return items[-n:]

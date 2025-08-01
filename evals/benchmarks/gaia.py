@@ -1,6 +1,8 @@
 """GAIA benchmark - General assistant task completion."""
 
+import asyncio
 import json
+import sys
 from pathlib import Path
 
 from cogency import Agent
@@ -59,7 +61,7 @@ class GAIA(Eval):
         results = []
 
         for i, task in enumerate(tasks, 1):
-            print(f"{i}/5 GAIA tests...")
+            print(f"🔄 [{i}/5] Running: {task['id']}")
 
             try:
                 response = await agent.run(task["prompt"])
@@ -106,7 +108,12 @@ class GAIA(Eval):
                 results.append(task_result)
                 self._log_task_result(task_result)
 
+                # Show immediate result
+                status = "✅ PASS" if passed else "❌ FAIL"
+                print(f"   {status} - Score: {score:.1%}")
+
             except Exception as e:
+                print(f"   ❌ ERROR: {e}")
                 task_result = {
                     "task_id": task["id"],
                     "passed": False,
@@ -153,3 +160,26 @@ class GAIA(Eval):
 
         with open(log_file, "w") as f:
             json.dump(result.model_dump(), f, indent=2)
+
+
+async def main():
+    """Run GAIA benchmark directly."""
+    print("🧠 Running GAIA Benchmark")
+    print("=" * 50)
+
+    gaia = GAIA()
+    result = await gaia.run()
+
+    print("\n" + "=" * 50)
+    print("📊 Final Results:")
+    print(f"✅ Passed: {result.passed}")
+    print(f"📈 Score: {result.score:.2%}")
+    print(f"🎯 Expected: {result.expected}")
+    print(f"📋 Actual: {result.actual}")
+
+    return result.passed
+
+
+if __name__ == "__main__":
+    success = asyncio.run(main())
+    sys.exit(0 if success else 1)

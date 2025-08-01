@@ -34,7 +34,7 @@ class EvalBenchmark:
     phases: List[PhaseBenchmark] = field(default_factory=list)
     total_duration: Optional[float] = None
 
-    def add_phase(self, phase: str, metadata: Optional[Dict] = None) -> PhaseBenchmark:
+    def add_step(self, phase: str, metadata: Optional[Dict] = None) -> PhaseBenchmark:
         """Start timing a new phase."""
         benchmark = PhaseBenchmark(
             phase=phase, start_time=time.perf_counter(), metadata=metadata or {}
@@ -59,7 +59,7 @@ class BenchmarkNotifier:
     def __init__(self, wrapped_notifier=None):
         self.wrapped = wrapped_notifier
         self.current_benchmark: Optional[EvalBenchmark] = None
-        self.current_phase: Optional[PhaseBenchmark] = None
+        self.current_step: Optional[PhaseBenchmark] = None
 
     def start_eval(self, eval_name: str) -> EvalBenchmark:
         """Start benchmarking an evaluation."""
@@ -77,18 +77,18 @@ class BenchmarkNotifier:
 
             if state == "generating" or state == "starting":
                 # Complete previous phase if exists
-                if self.current_phase and self.current_phase.duration is None:
-                    self.current_phase.complete()
+                if self.current_step and self.current_step.duration is None:
+                    self.current_step.complete()
 
                 # Start new phase
                 if self.current_benchmark:
-                    self.current_phase = self.current_benchmark.add_phase(
+                    self.current_step = self.current_benchmark.add_step(
                         event_type, {"state": state, **payload}
                     )
 
-            elif state == "complete" and self.current_phase:
+            elif state == "complete" and self.current_step:
                 # Complete current phase
-                self.current_phase.complete(payload)
+                self.current_step.complete(payload)
 
         # Forward to wrapped notifier
         if self.wrapped:

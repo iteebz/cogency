@@ -1,0 +1,19 @@
+--- email_parser.py
++++ email_parser.py
+@@ -1,7 +1,12 @@
+ def parse_email(email):
+     """Parse email into user and domain parts."""
+-    # No validation - will crash on malformed input
+-    user, domain = email.split('@')
++    # Add validation for email format
++    if not email or '@' not in email:
++        return None
++    
++    parts = email.split('@')
++    if len(parts) != 2 or not parts[0] or not parts[1]:
++        return None
++    
++    user, domain = parts
+     return {
+         "user": user,
+         "domain": domain

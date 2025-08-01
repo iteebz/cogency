@@ -39,21 +39,21 @@ async def main():
     # Quick benchmark summary
     if report.benchmarks:
         print("\n📊 Performance Summary:")
-        total_phases = sum(
+        total_steps = sum(
             len(b["phase_timing"]["phases"]) for b in report.benchmarks if b["phase_timing"]
         )
-        print(f"   Total phases executed: {total_phases}")
+        print(f"   Total phases executed: {total_steps}")
 
         # Show slowest phases
-        all_phases = []
+        all_steps = []
         for benchmark in report.benchmarks:
             if benchmark["phase_timing"] and benchmark["phase_timing"]["phases"]:
                 for phase in benchmark["phase_timing"]["phases"]:
-                    all_phases.append((phase["phase"], phase["duration"]))
+                    all_steps.append((phase["phase"], phase["duration"]))
 
-        if all_phases:
-            all_phases.sort(key=lambda x: x[1], reverse=True)
-            print(f"   Slowest phase: {all_phases[0][0]} ({all_phases[0][1]:.2f}s)")
+        if all_steps:
+            all_steps.sort(key=lambda x: x[1], reverse=True)
+            print(f"   Slowest phase: {all_steps[0][0]} ({all_steps[0][1]:.2f}s)")
 
 
 if __name__ == "__main__":

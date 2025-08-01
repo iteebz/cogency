@@ -1,0 +1,11 @@
+--- stats.py
++++ stats.py
+@@ -1,5 +1,7 @@
+ def calculate_average(numbers):
+     """Calculate the average of a list of numbers."""
++    if not numbers:
++        return None
++    
+     total = sum(numbers)
+-    # Bug: doesn't handle empty list case
+     return total / len(numbers)
