@@ -24,7 +24,7 @@ Thank you for your interest in contributing to Cogency! This guide will help you
 
 Cogency follows a phase-based cognitive architecture:
 
-- **Phases**: ReAct cognitive stages (Preprocess → Reason → Act → Respond)
+- **Phases**: ReAct cognitive stages (Prepare → Reason → Act → Respond)
 - **Tools**: Extensible capabilities with automatic discovery
 - **Services**: Provider backends (LLM, embedding, memory)
 - **Memory**: Persistent conversation context

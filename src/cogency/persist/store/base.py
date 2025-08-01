@@ -39,7 +39,7 @@ def setup_persistence(persist):
         return None
 
     # Import StatePersistence here to avoid circular imports
-    from cogency.persist.persistence import StatePersistence
+    from ..state import StatePersistence
 
     if hasattr(persist, "store"):  # It's a Persist config object
         return StatePersistence(store=persist.store, enabled=persist.enabled)

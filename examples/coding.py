@@ -28,7 +28,7 @@ async def main():
     - Generate synthetic dataset with interesting patterns
     - Design and implement a neural network architecture (PyTorch or TensorFlow)
     - Create a proper training loop with metrics logging
-    - Implement data preprocessing and validation splits
+    - Implement data preparing and validation splits
     - Add model evaluation and visualization of results
     - Include proper project structure with requirements.txt
     - Write tests to verify the pipeline works

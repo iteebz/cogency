@@ -162,7 +162,7 @@ class Code(Tool):
         self, params: Dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format code execution for display."""
-        from cogency.utils import truncate
+        from cogency.notify.format import truncate
 
         code = params.get("code", "")
         language = params.get("language", "python")

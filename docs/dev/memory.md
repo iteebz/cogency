@@ -102,7 +102,7 @@ class Agent:
 
 ### Phase Integration
 
-**Preprocessing**: Extract user facts from queries
+**Preparing**: Extract user facts from queries
 ```python
 if memory and extracted_facts:
     await memory.remember(extracted_facts, human=True)
@@ -294,7 +294,7 @@ This enables orientation rather than retrieval - agents understand not just what
 ### Phase 2: Production Refinements (Post-v1.0.0)
 - [x] Cross-session persistence via Store integration
 - [x] Memory configuration system with runtime parameters
-- [ ] Recall phase control (preprocess/respond context injection)
+- [ ] Recall phase control (prepare/respond context injection)
 - [ ] Impression pruning with configurable limits
 - [ ] Synthesis debouncing to prevent rapid re-synthesis cycles
 - [ ] Error surfacing for persistence failures

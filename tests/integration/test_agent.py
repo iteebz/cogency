@@ -44,10 +44,10 @@ async def test_memory_disabled():
 )
 @pytest.mark.asyncio
 async def test_custom_tools(memory_enabled, expected_tools):
-    from cogency import Builder
+    from cogency import AgentBuilder
     from cogency.tools.code import Code
 
-    builder = Builder("test").with_tools([Code()])
+    builder = AgentBuilder("test").with_tools([Code()])
     if memory_enabled:
         builder = builder.with_memory()
     agent = builder.build()
@@ -65,7 +65,7 @@ async def test_custom_tools(memory_enabled, expected_tools):
 async def test_run():
     agent = Agent(name="test")
 
-    with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
+    with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         mock_run_agent.return_value = "Final Answer"
 
         result = await agent.run("test query")
@@ -78,7 +78,7 @@ async def test_run():
 async def test_stream_validation():
     agent = Agent(name="test")
 
-    with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
+    with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         # Empty query
         chunks = [chunk async for chunk in agent.stream("")]
         assert "Empty query not allowed" in chunks[0]

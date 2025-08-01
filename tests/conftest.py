@@ -7,7 +7,7 @@ import pytest
 from resilient_result import Result
 
 # Old memory system removed - using LLM-native Knowledge now
-from cogency.services.llm import LLM
+from cogency.providers.llm import LLM
 from cogency.state import State
 from cogency.tools.base import Tool
 
@@ -22,10 +22,12 @@ class MockLLM(LLM):
         api_keys: str = "mock_key",
         enable_cache: bool = False,
         model: str = "mock-model",
+        custom_impl=None,
         **kwargs,
     ):
         self.response = response
         self.should_fail = should_fail
+        self.custom_impl = custom_impl
         self._model = model
         super().__init__(
             provider_name="mock",
@@ -47,6 +49,8 @@ class MockLLM(LLM):
     async def _run_impl(self, messages, **kwargs) -> str:
         if self.should_fail:
             raise Exception("Mock LLM failure")
+        if self.custom_impl:
+            return self.custom_impl(messages, **kwargs)
         return self.response
 
     async def stream(self, messages, **kwargs) -> AsyncIterator[str]:
@@ -54,7 +58,7 @@ class MockLLM(LLM):
             yield char
 
 
-def create_mock_llm(response: str, **kwargs):
+def mock_llm(response: str, **kwargs):
     """Create a mock LLM with specified response."""
     return MockLLM(response=response, **kwargs)
 
@@ -90,6 +94,7 @@ def tools():
             super().__init__(
                 name="mock_tool",
                 description="Mock tool for testing",
+                schema="mock_tool(arg='value')",
                 emoji="🔧",
                 examples=["mock_tool(arg='test')"],
                 rules=["Mock tool for testing"],
@@ -97,6 +102,9 @@ def tools():
 
         async def run(self, **kwargs):
             return Result.ok(f"Mock tool called with {kwargs}")
+
+        async def execute(self, **kwargs):
+            return await self.run(**kwargs)
 
     return [MockTool()]
 
@@ -168,6 +176,7 @@ def mock_tool():
             super().__init__(
                 name="mock_tool",
                 description="Mock tool for testing",
+                schema="mock_tool(arg='value')",
                 emoji="🔧",
                 examples=["mock_tool(arg='test')"],
                 rules=["Mock tool for testing"],
@@ -175,5 +184,8 @@ def mock_tool():
 
         async def run(self, **kwargs):
             return Result.ok(f"Mock tool called with {kwargs}")
+
+        async def execute(self, **kwargs):
+            return await self.run(**kwargs)
 
     return MockTool()

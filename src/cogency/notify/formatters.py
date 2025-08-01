@@ -41,9 +41,9 @@ class CLIFormatter(Formatter):
         """Handle unknown notification types for CLIFormatter."""
         return f"Unknown notification: {notification.type}"
 
-    def _preprocess(self, notification: Notification) -> str:
+    def _prepare(self, notification: Notification) -> str:
         state = notification.data.get("state", "")
-        return f"Preprocess {state}".strip()
+        return f"Prepare {state}".strip()
 
     def _reason(self, notification: Notification) -> str:
         state = notification.data.get("state", "")
@@ -83,7 +83,7 @@ class EmojiFormatter(Formatter):
         """Format notification with emojis."""
         return getattr(self, f"_{notification.type}", self._unknown)(notification)
 
-    PHASE_EMOJIS = {"preprocess": "⚙️", "reason": "💭", "action": "⚡", "respond": "🤖", "trace": "🔍"}
+    PHASE_EMOJIS = {"prepare": "⚙️", "reason": "💭", "action": "⚡", "respond": "🤖", "trace": "🔍"}
 
     TOOL_EMOJIS = {
         "code": "💻",
@@ -99,9 +99,9 @@ class EmojiFormatter(Formatter):
         """Handle unknown notification types."""
         return f"🔄 Unknown notification: {notification.type}"
 
-    def _preprocess(self, notification: Notification) -> str:
+    def _prepare(self, notification: Notification) -> str:
         state = notification.data.get("state", "")
-        return f"⚙️ Preprocess {state}".strip()
+        return f"⚙️ Prepare {state}".strip()
 
     def _reason(self, notification: Notification) -> str:
         state = notification.data.get("state", "")

@@ -24,8 +24,6 @@ export ANTHROPIC_API_KEY=sk-ant-...
 # Google Gemini
 export GEMINI_API_KEY=your-key-here
 
-# xAI Grok
-export GROK_API_KEY=xai-...
 
 # Mistral
 export MISTRAL_API_KEY=your-key-here

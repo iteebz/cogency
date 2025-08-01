@@ -4,14 +4,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from cogency import Agent, Builder
+from cogency import Agent, AgentBuilder
 from cogency.tools.code import Code
 from tests.conftest import MockLLM
 
 
 @pytest.mark.asyncio
 async def test_defaults():
-    agent = Builder("test_agent").with_llm(MockLLM()).build()
+    agent = AgentBuilder("test_agent").with_llm(MockLLM()).build()
     executor = await agent._get_executor()
 
     assert executor.llm is not None
@@ -23,7 +23,7 @@ async def test_defaults():
 
 @pytest.mark.asyncio
 async def test_no_memory():
-    agent = Builder("test").with_llm(MockLLM()).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).build()
     executor = await agent._get_executor()
 
     assert executor.memory is None
@@ -42,9 +42,9 @@ async def test_no_memory():
 @pytest.mark.asyncio
 async def test_tools(memory_enabled, expected_tools):
     if memory_enabled:
-        agent = Builder("test").with_llm(MockLLM()).with_tools([Code()]).with_memory().build()
+        agent = AgentBuilder("test").with_llm(MockLLM()).with_tools([Code()]).with_memory().build()
     else:
-        agent = Builder("test").with_llm(MockLLM()).with_tools([Code()]).build()
+        agent = AgentBuilder("test").with_llm(MockLLM()).with_tools([Code()]).build()
 
     executor = await agent._get_executor()
     tool_names = [tool.name for tool in executor.tools]
@@ -55,7 +55,7 @@ async def test_tools(memory_enabled, expected_tools):
 
 @pytest.mark.asyncio
 async def test_config_setup():
-    agent = Builder("test").with_llm(MockLLM()).robust().observe().persist().build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).robust().observe().persist().build()
     executor = await agent._get_executor()
 
     assert executor.config.robust is not None
@@ -66,7 +66,7 @@ async def test_config_setup():
 @pytest.mark.asyncio
 async def test_config_custom():
     agent = (
-        Builder("test")
+        AgentBuilder("test")
         .with_llm(MockLLM())
         .robust(attempts=5)
         .observe(metrics=False)
@@ -82,7 +82,7 @@ async def test_config_custom():
 
 @pytest.mark.asyncio
 async def test_mode_assignment():
-    agent = Builder("test").with_llm(MockLLM()).fast_mode().with_depth(5).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).fast_mode().with_depth(5).build()
     executor = await agent._get_executor()
 
     assert executor.mode == "fast"
@@ -91,7 +91,7 @@ async def test_mode_assignment():
 
 @pytest.mark.asyncio
 async def test_identity():
-    agent = Builder("test").with_llm(MockLLM()).with_identity("helpful assistant").build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).with_identity("helpful assistant").build()
     executor = await agent._get_executor()
 
     assert executor.identity == "helpful assistant"
@@ -100,7 +100,7 @@ async def test_identity():
 @pytest.mark.asyncio
 async def test_output_schema():
     schema = {"type": "object", "properties": {"answer": {"type": "string"}}}
-    agent = Builder("test").with_llm(MockLLM()).with_schema(schema).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).with_schema(schema).build()
     executor = await agent._get_executor()
 
     assert executor.output_schema == schema
@@ -108,9 +108,9 @@ async def test_output_schema():
 
 @pytest.mark.asyncio
 async def test_run():
-    agent = Builder("test").with_llm(MockLLM()).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).build()
 
-    with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
+    with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         mock_run_agent.return_value = "Final Answer"
         result = await agent.run("test query")
 
@@ -120,9 +120,9 @@ async def test_run():
 
 @pytest.mark.asyncio
 async def test_run_error():
-    agent = Builder("test").with_llm(MockLLM()).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).build()
 
-    with patch("cogency.execution.run_agent", side_effect=Exception("Test error")):
+    with patch("cogency.steps.execution.run_agent", side_effect=Exception("Test error")):
         try:
             await agent.run("test query")
             raise AssertionError("Should have raised exception")
@@ -132,9 +132,9 @@ async def test_run_error():
 
 @pytest.mark.asyncio
 async def test_stream():
-    agent = Builder("test").with_llm(MockLLM()).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).build()
 
-    with patch("cogency.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
+    with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         # Empty query
         chunks = [chunk async for chunk in agent.stream("")]
         assert "Empty query not allowed" in chunks[0]
@@ -148,13 +148,13 @@ async def test_stream():
 
 
 def test_traces_empty():
-    agent = Builder("test").with_llm(MockLLM()).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).build()
     assert agent.traces() == []
 
 
 @pytest.mark.asyncio
 async def test_setup_notifier():
-    agent = Builder("test").with_llm(MockLLM()).build()
+    agent = AgentBuilder("test").with_llm(MockLLM()).build()
     executor = await agent._get_executor()
 
     notifier = executor._setup_notifier()

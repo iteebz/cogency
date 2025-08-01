@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Type
 
 from resilient_result import Result
 
-from cogency.types import validate
+from cogency.utils.validation import validate
 
 
 class Tool(ABC):
@@ -121,7 +121,7 @@ class Tool(ABC):
         if not params:
             return ""
 
-        from cogency.utils import truncate
+        from cogency.notify.format import truncate
 
         # Use hint if provided
         if self.param_key and self.param_key in params:

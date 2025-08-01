@@ -76,7 +76,7 @@ agent = Agent(
 
 ```python
 # Custom LLM provider
-from cogency.services import LLM
+from cogency.providers import LLM
 
 class CustomLLM(LLM):
     async def _run_impl(self, messages, **kwargs) -> str:

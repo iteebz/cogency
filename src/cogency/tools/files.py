@@ -75,24 +75,6 @@ class Files(Tool):
 
         return path
 
-    def _suggest_similar_files(self, target: str) -> list[str]:
-        """Find similar files for typo correction."""
-        import difflib
-
-        # Get all files in base directory recursively
-        all_files = []
-        try:
-            for path in self.base_dir.rglob("*"):
-                if path.is_file():
-                    rel_path = path.relative_to(self.base_dir)
-                    all_files.append(str(rel_path))
-        except Exception:
-            return []
-
-        # Find close matches (similarity > 0.6)
-        matches = difflib.get_close_matches(target, all_files, n=3, cutoff=0.6)
-        return matches
-
     async def run(
         self,
         action: str,
@@ -117,14 +99,7 @@ class Files(Tool):
             elif action == "read":
                 path = self._safe_path(filename)
                 if not path.exists():
-                    # Try fuzzy matching for common mistakes
-                    suggestions = self._suggest_similar_files(filename)
-                    if suggestions:
-                        return Result.fail(
-                            f"File not found: {filename}. Did you mean: {', '.join(suggestions)}?"
-                        )
-                    else:
-                        return Result.fail(f"File not found: {filename}")
+                    return Result.fail(f"File not found: {filename}")
 
                 content = path.read_text(encoding="utf-8")
                 return Result.ok(
@@ -138,13 +113,7 @@ class Files(Tool):
             elif action == "edit":
                 path = self._safe_path(filename)
                 if not path.exists():
-                    suggestions = self._suggest_similar_files(filename)
-                    if suggestions:
-                        return Result.fail(
-                            f"File not found: {filename}. Did you mean: {', '.join(suggestions)}?"
-                        )
-                    else:
-                        return Result.fail(f"File not found: {filename}")
+                    return Result.fail(f"File not found: {filename}")
 
                 lines = path.read_text(encoding="utf-8").splitlines()
 

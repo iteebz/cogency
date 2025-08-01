@@ -82,8 +82,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **BREAKING**: Complete architectural overhaul with node decomposition
-- **BREAKING**: Split monolithic ReAct into focused phases (preprocess, reason, act, respond)
-- **BREAKING**: Eliminated adaptive reasoning heuristics in favor of LLM preprocessing
+- **BREAKING**: Split monolithic ReAct into focused phases (prepare, reason, act, respond)
+- **BREAKING**: Eliminated adaptive reasoning heuristics in favor of LLM preparing
 - **BREAKING**: Flattened module structure and reorganized codebase
 - **BREAKING**: Replaced complex inheritance hierarchies with simpler patterns
 - Standardized CRUD memory backend operations
@@ -98,7 +98,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Migration Guide
 - Update import paths due to module reorganization
-- Replace adaptive reasoning calls with LLM preprocessing
+- Replace adaptive reasoning calls with LLM preparing
 - Migrate from old node structure to new phase-based architecture
 - Update tool registration to use new simplified API
 

@@ -12,7 +12,7 @@ Cogency v0.9.0 represents a complete architectural foundation for building intel
 **Adaptive Reasoning Engine**
 - Automatic fast/deep mode switching based on task complexity
 - Semantic state summarization replaces mechanical control flow
-- Clean 4-phase execution: preprocess → reason → act → respond
+- Clean 4-phase execution: prepare → reason → act → respond
 
 **Zero Ceremony API**
 ```python

@@ -207,8 +207,8 @@ def create_phase_decorators(config: Optional[PhaseConfig] = None):
 
         reason = staticmethod(_phase_factory("reasoning", True, Retry.api(), config))
         act = staticmethod(_phase_factory("tool_execution", True, Retry.db(), config))
-        preprocess = staticmethod(
-            _phase_factory("preprocessing", False, Retry(attempts=2, timeout=10.0), config)
+        prepare = staticmethod(
+            _phase_factory("preparing", False, Retry(attempts=2, timeout=10.0), config)
         )
         respond = staticmethod(
             _phase_factory("response", False, Retry(attempts=2, timeout=15.0), config)

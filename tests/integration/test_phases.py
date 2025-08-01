@@ -5,14 +5,13 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 from resilient_result import Result
 
-from cogency.phases.act import act
-from cogency.phases.reason import reason
-from cogency.phases.respond import respond
 from cogency.state import State
+from cogency.steps.act import act
+from cogency.steps.act.executor import execute_single_tool
+from cogency.steps.reason import reason
+from cogency.steps.respond import respond
 from cogency.tools.base import Tool
 from cogency.tools.code import Code
-from cogency.tools.executor import execute_single_tool
-from cogency.types.tools import ToolOutcome
 from cogency.utils.parsing import parse_tool_calls
 from tests.conftest import MockLLM
 
@@ -93,13 +92,11 @@ async def test_respond_output():
 @pytest.mark.asyncio
 async def test_routing():
     """Test act phase routing behavior."""
-    from cogency.types.tools import ToolCall
-
     tool = MockTool("test_tool")
     state = State(query="test", messages=[], user_id="test")
 
     # Create proper ToolCall objects
-    tool_calls = [ToolCall(name="test_tool", args={})]
+    tool_calls = [{"name": "test_tool", "args": {}}]
     state.tool_calls = tool_calls
 
     # Add action first (required by act phase)
@@ -115,7 +112,7 @@ async def test_routing():
     await act(state, AsyncMock(), tools=[tool])
     latest_results = state.latest_tool_results
     assert len(latest_results) > 0
-    assert latest_results[0].success
+    assert latest_results[0]["outcome"] == "success"
 
     # Test no tool calls
     state.tool_calls = []
@@ -141,12 +138,12 @@ async def test_reason_direct(state):
         return_value=Result.ok('{"reasoning": "I can answer this directly: 2 + 2 = 4"}')
     )
 
-    await reason(state, AsyncMock(), llm=llm, tools=[])
+    await reason(state, AsyncMock(), llm=llm, tools=[], memory=None)
 
     # Should have no tool calls for direct answer
     assert not state.tool_calls
-    # No action added for direct answers (correct behavior)
-    assert len(state.actions) == 0
+    # Action is always added when reasoning produces a response
+    assert len(state.actions) == 1
 
 
 @pytest.mark.asyncio
@@ -159,12 +156,12 @@ async def test_reason_tools(state):
         )
     )
 
-    await reason(state, AsyncMock(), llm=llm, tools=[Code()])
+    await reason(state, AsyncMock(), llm=llm, tools=[Code()], memory=None)
 
     # Should have tool calls
     assert state.tool_calls
     assert len(state.tool_calls) == 1
-    assert state.tool_calls[0].name == "code"
+    assert state.tool_calls[0]["name"] == "code"
 
 
 @pytest.mark.asyncio
@@ -185,7 +182,7 @@ async def test_act_execution(state):
     await act(state, AsyncMock(), tools=tools)
 
     # Should have results (tool calls with outcome key)
-    results = state.get_latest_results()
+    results = state.latest_results()
     assert len(results) > 0
     assert results[0]["outcome"] == "success"
     assert results[0]["result"]["success"] is True
@@ -212,23 +209,23 @@ async def test_full_cycle(state):
     # 1. First reason (needs tools) - this adds an action
     llm.run = AsyncMock(
         return_value=Result.ok(
-            '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"expression": "2 + 2"}}]}'
+            '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}]}'
         )
     )
-    await reason(state, AsyncMock(), llm=llm, tools=tools)
+    await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
     assert state.tool_calls
     assert len(state.actions) > 0  # reason() should have added an action
 
     # 2. Act (execute tools)
     await act(state, AsyncMock(), tools=tools)
-    results = state.get_latest_results()
+    results = state.latest_results()
     assert len(results) > 0
 
     # 3. Second reason (reflect on results)
     llm.run = AsyncMock(
         return_value=Result.ok('{"reasoning": "The code tool shows 2 + 2 = 4. I can now respond."}')
     )
-    await reason(state, AsyncMock(), llm=llm, tools=tools)
+    await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
     # 4. Respond (final answer)
     await respond(state, AsyncMock(), llm=llm, tools=[])
@@ -245,7 +242,7 @@ async def test_no_tools_flow(state):
     )
 
     # 1. Reason (no tools needed)
-    await reason(state, AsyncMock(), llm=llm, tools=[])
+    await reason(state, AsyncMock(), llm=llm, tools=[], memory=None)
     assert not state.tool_calls
 
     # 2. Respond directly

@@ -3,7 +3,6 @@
 from .ask import Ask
 from .base import Tool
 from .code import Code
-from .executor import run_tools
 from .files import Files
 from .http import HTTP
 from .registry import build_registry, get_tools, setup_tools, tool
@@ -20,5 +19,4 @@ __all__ = [
     "build_registry",
     "tool",
     "setup_tools",
-    "run_tools",
 ]

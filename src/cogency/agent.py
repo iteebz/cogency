@@ -2,7 +2,7 @@
 
 from typing import Any, AsyncIterator
 
-from cogency.executor import AgentExecutor
+from cogency.runtime import AgentExecutor
 from cogency.state import State
 
 

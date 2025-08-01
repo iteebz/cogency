@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.services import LLMCache
+from cogency.providers import LLMCache
 from tests.conftest import MockLLM
 
 

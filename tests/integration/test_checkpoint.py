@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 from resilient_result import Result
 
-from cogency.services import LLM
+from cogency.providers import LLM
 
 
 class MockCheckpointLLM(LLM):
@@ -34,9 +34,9 @@ class MockCheckpointLLM(LLM):
         content = messages[-1]["content"]
         last_msg = content.lower()
 
-        # Check if this is a preprocessing request (looking for JSON format in prompt)
+        # Check if this is a preparing request (looking for JSON format in prompt)
         if "json" in last_msg and ("format" in last_msg or "response" in last_msg):
-            # Return valid JSON for preprocessing
+            # Return valid JSON for preparing
             return """{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": [], "reasoning": "Simple analysis task, no tools needed"}"""
 
         if "checkpoint" in last_msg and "resume" in last_msg:
@@ -68,11 +68,10 @@ class MockCheckpointAgent:
     """Agent with checkpoint/resume capabilities."""
 
     def __init__(self, llm=None, tools=None, depth=10, checkpoint_file=None, **kwargs):
-        from cogency import Agent
-
         # Create agent with mock LLM
-        from cogency.builder import AgentBuilder
-        from cogency.registry import ServiceRegistry
+        from cogency import Agent, AgentBuilder
+
+        # ServiceRegistry not needed for public API
 
         builder = AgentBuilder("checkpoint_test")
         builder = builder.with_llm(llm or MockCheckpointLLM())
@@ -149,16 +148,24 @@ class MockCheckpointAgent:
             return checkpoint_result
 
         # Run the actual task
-        result_string = await self.agent.run(prompt)
+        try:
+            result_string = await self.agent.run(prompt)
+            from resilient_result import Result
 
-        # Wrap string result in Result object for test compatibility
-        from resilient_result import Result
+            if result_string is None:
+                result = Result.fail("Agent returned None")
+            elif not isinstance(result_string, str):
+                result = Result.fail(f"Agent returned non-string: {type(result_string)}")
+            elif not result_string.strip():
+                result = Result.fail("Agent returned empty string")
+            else:
+                result = Result.ok(result_string)
+        except Exception as e:
+            import traceback
 
-        result = (
-            Result.ok(result_string)
-            if result_string and result_string.strip()
-            else Result.fail("Empty response")
-        )
+            from resilient_result import Result
+
+            result = Result.fail(f"Agent execution failed: {str(e)}\n{traceback.format_exc()}")
 
         # Update execution state on completion
         if result.success:

@@ -82,12 +82,12 @@ def test_phase_config():
 def test_phase_decorators_exist():
     assert hasattr(phase, "reason")
     assert hasattr(phase, "act")
-    assert hasattr(phase, "preprocess")
+    assert hasattr(phase, "prepare")
     assert hasattr(phase, "respond")
     assert hasattr(phase, "generic")
 
     assert callable(phase.reason)
     assert callable(phase.act)
-    assert callable(phase.preprocess)
+    assert callable(phase.prepare)
     assert callable(phase.respond)
     assert callable(phase.generic)

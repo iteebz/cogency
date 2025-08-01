@@ -8,13 +8,13 @@ from cogency.state import State
 
 
 @pytest.mark.asyncio
-async def test_preprocess_memory_fail():
+async def test_prepare_memory_fail():
     """Memory failure disables memory."""
     state = State("test query")
     state.memory_enabled = True
     error = Result.fail({"memory_failed": True})
 
-    result = await Recovery.recover(error, state, "preprocess")
+    result = await Recovery.recover(error, state, "prepare")
 
     assert result.success
     assert not state.memory_enabled
@@ -93,7 +93,7 @@ async def test_string_error_normalization():
     state = State("test query")
     error = Result.fail("simple error message")
 
-    result = await Recovery.recover(error, state, "preprocess")
+    result = await Recovery.recover(error, state, "prepare")
 
     assert result.success
     assert result.data["recovery"] == "skip_enrichment"

@@ -36,7 +36,8 @@ class KeyRotator:
         self.current_key = next(self.cycle)
         return self.current_key
 
-    def get_current_key(self) -> str:
+    @property
+    def current(self) -> str:
         """Get current key without advancing."""
         return self.current_key
 
@@ -101,10 +102,11 @@ class KeyManager:
 
         return keys
 
-    def get_current(self) -> str:
+    @property
+    def current(self) -> str:
         """Get the current active key."""
         if self.key_rotator:
-            return self.key_rotator.get_current_key()
+            return self.key_rotator.current
         return self.api_key
 
     def get_next(self) -> str:

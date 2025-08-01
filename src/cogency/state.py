@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
+from resilient_result import Result
 
 
 @dataclass
@@ -42,7 +42,7 @@ class State:
         """Add message to conversation history."""
         self.messages.append({"role": role, "content": content})
 
-    def get_conversation(self) -> List[Dict[str, str]]:
+    def conversation(self) -> List[Dict[str, str]]:
         """Get clean conversation for LLM."""
         return [{"role": msg["role"], "content": msg["content"]} for msg in self.messages]
 
@@ -68,9 +68,7 @@ class State:
             "planning": planning,
             "reflection": reflection,
             "approach": approach,
-            "tool_calls": [
-                call.to_dict() if hasattr(call, "to_dict") else call for call in tool_calls
-            ],
+            "tool_calls": tool_calls,
             # NO compression fields - handled by situation_summary
         }
         self.actions.append(action_entry)
@@ -83,8 +81,7 @@ class State:
         self,
         name: str,
         args: dict,
-        result: Any,
-        outcome: ToolOutcome,
+        result: Result,
         iteration: Optional[int] = None,
     ) -> None:
         """Add tool execution result to current action (schema-compliant)."""
@@ -92,11 +89,19 @@ class State:
             raise ValueError("Cannot add tool result without an active action")
 
         current_action = self.actions[-1]
+        # Debug notification removed - use structured logging if needed
+        if result.success and isinstance(result.data, dict) and "result" in result.data:
+            stored_result = result.data["result"]
+        elif result.success:
+            stored_result = result.data
+        else:
+            stored_result = result.error
+
         tool_call = {
             "name": name,
             "args": args,
-            "result": result,  # Store raw result
-            "outcome": outcome.value,
+            "result": stored_result,
+            "outcome": "success" if result.success else "failure",
             # NO compression fields - handled by situation_summary
         }
 
@@ -106,7 +111,7 @@ class State:
 
         current_action["tool_calls"].append(tool_call)
 
-    def get_latest_results(self) -> List[Dict[str, Any]]:
+    def latest_results(self) -> List[Dict[str, Any]]:
         """Get tool results from most recent action as dicts."""
         if not self.actions:
             return []
@@ -120,7 +125,7 @@ class State:
     @property
     def latest_tool_results(self) -> List[Dict[str, Any]]:
         """Beautiful property wrapper for latest tool results."""
-        return self.get_latest_results()
+        return self.latest_results()
 
     def update_workspace(self, workspace_update: dict) -> None:
         """Update cognitive workspace fields with minimal bounds checking."""
@@ -132,7 +137,7 @@ class State:
             ):  # Reasonable bounds
                 setattr(self, field_name, value.strip())
 
-    def get_workspace_context(self) -> str:
+    def workspace_context(self) -> str:
         """Build workspace context string for reasoning."""
         parts = []
         if self.objective:
@@ -145,20 +150,25 @@ class State:
             parts.append(f"OBSERVATIONS: {self.observations}")
         return "\n".join(parts) if parts else "No workspace context yet"
 
-    def build_reasoning_context(self, mode: str, max_history: int = 3) -> str:
+    def reasoning_context(self, mode: str, max_history: int = 3) -> str:
         """Pure functional context generation using cognitive workspace."""
-        workspace = self.get_workspace_context()
+        workspace = self.workspace_context()
 
         # Latest tool results for immediate context
-        latest_results = self.get_latest_results()
+        latest_results = self.latest_results()
         latest_context = ""
         if latest_results:
             latest_parts = []
             for call in latest_results:
                 name = call.get("name", "unknown")
                 outcome = call.get("outcome", "unknown")
-                result = call.get("result", "")[:200]
-                latest_parts.append(f"{name}() → {outcome}: {result}")
+                result_data = call.get("result", "")
+                # Handle result being a dict or string
+                if isinstance(result_data, dict) and "output" in result_data:
+                    result_snippet = result_data["output"][:200]
+                else:
+                    result_snippet = str(result_data)[:200]
+                latest_parts.append(f"{name}() → {outcome}: {result_snippet}")
             latest_context = "\n".join(latest_parts)
 
         if mode == "deep":
@@ -192,11 +202,16 @@ def compress_actions(actions: List[Dict[str, Any]]) -> List[str]:
             name = call.get("name", "unknown")
             args = call.get("args", {})
             outcome = call.get("outcome", "unknown")
-            result = call.get("result", "")
+            result_data = call.get("result", "")
+
+            # Handle result being a dict or string
+            if isinstance(result_data, dict) and "output" in result_data:
+                result_snippet = result_data["output"][:50]
+            else:
+                result_snippet = str(result_data)[:50]
 
             # Format: tool(args) → outcome: result_snippet
             args_summary = str(args)[:20] + "..." if len(str(args)) > 20 else str(args)
-            result_snippet = result[:50] + "..." if len(result) > 50 else result
 
             if result_snippet:
                 compressed.append(f"{name}({args_summary}) → {outcome}: {result_snippet}")

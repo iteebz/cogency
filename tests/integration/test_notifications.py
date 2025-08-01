@@ -12,9 +12,9 @@ from cogency.notify import (
     Notifier,
     setup_formatter,
 )
-from cogency.phases.preprocess import preprocess
-from cogency.phases.respond import respond
 from cogency.state import State
+from cogency.steps.prepare import prepare
+from cogency.steps.respond import respond
 
 
 @pytest.mark.asyncio
@@ -49,7 +49,7 @@ async def test_notification_formatter_integration():
     notifier = Notifier(formatter=formatter)
 
     # Generate some notifications using ultimate callable API
-    await notifier("preprocess", state="analyzing")
+    await notifier("prepare", state="analyzing")
     await notifier("reason", state="thinking")
     await notifier("tool", name="search", ok=True, result="Found results")
     await notifier("respond", state="generating")
@@ -62,7 +62,7 @@ async def test_notification_formatter_integration():
             formatted_messages.append(formatted)
 
     # Verify emoji formatting
-    assert any("⚙️" in msg and "preprocess" in msg.lower() for msg in formatted_messages)
+    assert any("⚙️" in msg and "prepare" in msg.lower() for msg in formatted_messages)
     assert any("💭" in msg and "reason" in msg.lower() for msg in formatted_messages)
     assert any("🔍" in msg and "search" in msg.lower() for msg in formatted_messages)
     assert any("🤖" in msg and "respond" in msg.lower() for msg in formatted_messages)
@@ -80,7 +80,7 @@ async def test_callback_integration():
     notifier = Notifier(formatter=formatter, on_notify=test_callback)
 
     # Send notifications using ultimate callable API
-    await notifier("preprocess", state="starting")
+    await notifier("prepare", state="starting")
     await notifier("reason", state="fast")
     await notifier("tool", name="search", ok=True)
 
@@ -91,7 +91,7 @@ async def test_callback_integration():
 
     # Verify callbacks were triggered
     assert len(callback_notifications) == 3
-    assert callback_notifications[0].type == "preprocess"
+    assert callback_notifications[0].type == "prepare"
     assert callback_notifications[0].data["state"] == "starting"
     assert callback_notifications[1].type == "reason"
     assert callback_notifications[1].data["state"] == "fast"

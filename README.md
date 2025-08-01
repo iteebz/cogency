@@ -45,7 +45,7 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 
 ## How It Works
 
-**Preprocess → Reason → Act → Respond**
+**Prepare → Reason → Act → Respond**
 
 ```
 👤 Plan a Tokyo trip with $2000 budget
@@ -60,7 +60,7 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 🤖 Here's your optimized Tokyo itinerary...
 ```
 
-The preprocessing phase handles tool selection, memory operations, and intelligent routing between reasoning modes.
+The preparing phase handles tool selection, memory operations, and intelligent routing between reasoning modes.
 
 ## Quick Examples
 

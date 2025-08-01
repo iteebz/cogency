@@ -17,7 +17,7 @@ class Recovery:
         Args:
             result: The failed Result from a phase
             state: Current workflow state
-            phase: Phase name (preprocess, reasoning, action, response)
+            phase: Phase name (prepare, reasoning, action, response)
 
         Returns:
             Result with recovery actions applied to state
@@ -40,8 +40,8 @@ class Recovery:
         return await Recovery._fallback(error_data, state, phase)
 
     @staticmethod
-    async def _preprocess(error: Dict, state: "State") -> Result:
-        """Preprocessing recovery - continue without memory if needed."""
+    async def _prepare(error: Dict, state: "State") -> Result:
+        """Preparing recovery - continue without memory if needed."""
         if error.get("memory_failed"):
             state.memory_enabled = False
             return Result.ok({"state": state, "recovery": "disable_memory"})

@@ -36,14 +36,14 @@ async def test_notifier_ultimate_callable():
     formatter = EmojiFormatter()
     notifier = Notifier(formatter=formatter)
 
-    await notifier("preprocess", state="analyzing")
+    await notifier("prepare", state="analyzing")
     await notifier("reason", state="thinking")
     await notifier("tool", name="search", ok=True, result="Found data")
     await notifier("respond", state="generating")
     await notifier("trace", message="Debug info", step="parsing")
 
     assert len(notifier.notifications) == 5
-    assert notifier.notifications[0].type == "preprocess"
+    assert notifier.notifications[0].type == "prepare"
     assert notifier.notifications[0].data["state"] == "analyzing"
     assert notifier.notifications[1].data["state"] == "thinking"
     assert notifier.notifications[2].type == "tool"

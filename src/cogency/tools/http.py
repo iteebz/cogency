@@ -57,14 +57,8 @@ class HTTP(Tool):
             ],
         )
 
-        # Beautiful dispatch pattern - extensible and clean
-        self._methods = {
-            "get": self._get,
-            "post": self._post,
-            "put": self._put,
-            "delete": self._delete,
-            "patch": self._patch,
-        }
+        # Supported HTTP methods
+        self._methods = {"get", "post", "put", "delete", "patch"}
 
     async def run(
         self,
@@ -91,11 +85,14 @@ class HTTP(Tool):
         """
         method = method.lower()
         if method not in self._methods:
-            available = ", ".join(self._methods.keys())
+            available = ", ".join(self._methods)
             return Result.fail(f"Invalid HTTP method. Use: {available}")
-        # Dispatch to appropriate method
-        method_func = self._methods[method]
-        return await method_func(url, headers, body, json_data, auth, timeout)
+
+        # GET requests cannot have body
+        if method == "get" and (body or json_data):
+            return Result.fail("GET requests cannot have a body")
+
+        return await self._execute_request(method, url, headers, body, json_data, auth, timeout)
 
     async def _execute_request(
         self,
@@ -172,65 +169,3 @@ class HTTP(Tool):
         except Exception as e:
             logger.error(f"HTTP request failed: {e}")
             return Result.fail(f"HTTP request failed: {str(e)}")
-
-    async def _get(
-        self,
-        url: str,
-        headers: Optional[Dict],
-        body: Optional[str],
-        json_data: Optional[Dict],
-        auth: Optional[Dict],
-        timeout: int,
-    ) -> Dict[str, Any]:
-        """GET request."""
-        if body or json_data:
-            return Result.fail("GET requests cannot have a body")
-        return await self._execute_request("get", url, headers, None, None, auth, timeout)
-
-    async def _post(
-        self,
-        url: str,
-        headers: Optional[Dict],
-        body: Optional[str],
-        json_data: Optional[Dict],
-        auth: Optional[Dict],
-        timeout: int,
-    ) -> Dict[str, Any]:
-        """POST request."""
-        return await self._execute_request("post", url, headers, body, json_data, auth, timeout)
-
-    async def _put(
-        self,
-        url: str,
-        headers: Optional[Dict],
-        body: Optional[str],
-        json_data: Optional[Dict],
-        auth: Optional[Dict],
-        timeout: int,
-    ) -> Dict[str, Any]:
-        """PUT request."""
-        return await self._execute_request("put", url, headers, body, json_data, auth, timeout)
-
-    async def _delete(
-        self,
-        url: str,
-        headers: Optional[Dict],
-        body: Optional[str],
-        json_data: Optional[Dict],
-        auth: Optional[Dict],
-        timeout: int,
-    ) -> Dict[str, Any]:
-        """DELETE request."""
-        return await self._execute_request("delete", url, headers, body, json_data, auth, timeout)
-
-    async def _patch(
-        self,
-        url: str,
-        headers: Optional[Dict],
-        body: Optional[str],
-        json_data: Optional[Dict],
-        auth: Optional[Dict],
-        timeout: int,
-    ) -> Dict[str, Any]:
-        """PATCH request."""
-        return await self._execute_request("patch", url, headers, body, json_data, auth, timeout)

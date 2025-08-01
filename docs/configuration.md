@@ -112,7 +112,7 @@ agent = Agent(memory=CustomMemory())
 
 ### Custom LLM Backend
 ```python
-from cogency.services import LLM
+from cogency.providers import LLM
 
 class CustomLLM(LLM):
     async def complete(self, messages: list, **kwargs) -> str:
