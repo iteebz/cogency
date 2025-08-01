@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.3] - 2025-08-01
+
+### Added
+- New `ask` tool for human-in-the-loop interactions
+- Enhanced agent constructor with builder pattern
+- Decomposed preprocessing pipeline with modular components
+
+### Changed
+- **BREAKING**: Complete module reorganization for better separation of concerns
+- **BREAKING**: `services/` renamed to `providers/` for LLM and embedding providers
+- **BREAKING**: `phases/` restructured as `steps/` with cleaner cognitive workflow
+- **BREAKING**: Configuration system redesigned with dedicated `config/` module
+- **BREAKING**: Execution engine refactored (`executor.py` → `runtime.py`)
+- **BREAKING**: Streamlined tool suite - removed 8 specialized tools in favor of core functionality
+- Evaluation framework moved to project root with improved structure
+- Memory system flattened for simpler architecture
+- Enhanced steps architecture: `prepare/`, `reason/`, `act/`, `respond/`
+- Improved error handling and execution flow
+- Streamlined codebase with 2,171 net lines removed across all commits
+
+### Removed
+- **BREAKING**: MCP (Model Context Protocol) server functionality
+- **BREAKING**: XAI provider support 
+- **BREAKING**: Specialized tools: `calculator`, `csv`, `date`, `scrape`, `shell`, `sql`, `time`, `weather`
+- Complex reasoning switching logic in favor of simpler patterns
+- Redundant utility modules and abstractions
+- Over-engineered configuration patterns
+- Deprecated parsing utilities
+
+### Migration Guide
+- Update imports: `cogency.services.*` → `cogency.providers.*`
+- Update imports: `cogency.phases.*` → `cogency.steps.*`
+- Replace `cogency.executor` imports with `cogency.runtime`
+- Update configuration usage for new `config/` module structure
+- Remove MCP server usage (no longer supported)
+- Replace removed tools (`calculator`, `csv`, `date`, `scrape`, `shell`, `sql`, `time`, `weather`) with equivalent functionality or external libraries
+
 ## [0.9.2] - 2025-07-31
 
 ### Added
@@ -264,7 +301,8 @@ Starting with v1.0.0, this project follows [Semantic Versioning](https://semver.
 Major architectural changes are marked with **BREAKING** labels and include migration guides.
 Always review the migration sections before upgrading across major versions.
 
-[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.2...HEAD
+[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.3...HEAD
+[0.9.3]: https://github.com/tysonchen/cogency/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/tysonchen/cogency/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/tysonchen/cogency/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/tysonchen/cogency/compare/v0.5.1...v0.9.0
