@@ -60,13 +60,13 @@ async def test_recovery():
     mock_code = MockCodeTool()
 
     # Create agent with real code tool but mocked execution
-    from cogency.tools.code import Code
+    from cogency.tools.shell import Shell
 
-    code_tool = Code()
-    with patch.object(code_tool, "run", side_effect=mock_code.run):
+    shell_tool = Shell()
+    with patch.object(shell_tool, "run", side_effect=mock_code.run):
         from cogency import AgentBuilder
 
-        agent = AgentBuilder("test").with_llm(llm).with_tools([code_tool]).with_depth(5).build()
+        agent = AgentBuilder("test").with_llm(llm).with_tools([shell_tool]).with_depth(5).build()
 
         # Run agent with initial prompt
         result = await agent.run("List the contents of the current directory")
@@ -108,16 +108,16 @@ async def test_multiple_failures():
         return "Let me try another command: echo 'hello'"
 
     failing_tool = FailingCodeTool()
-    from cogency.tools.code import Code
+    from cogency.tools.shell import Shell
 
-    code_tool = Code()
-    with patch.object(code_tool, "run", side_effect=failing_tool.run):
+    shell_tool = Shell()
+    with patch.object(shell_tool, "run", side_effect=failing_tool.run):
         from cogency import AgentBuilder
 
         agent = (
             AgentBuilder("test")
             .with_llm(MockLLM(custom_impl=persistent_response))
-            .with_tools([code_tool])
+            .with_tools([shell_tool])
             .with_depth(3)
             .build()
         )

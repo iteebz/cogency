@@ -1,4 +1,4 @@
-"""File tool business logic tests."""
+"""File tool tests."""
 
 import tempfile
 
@@ -8,64 +8,95 @@ from cogency.tools.files import Files
 
 
 @pytest.mark.asyncio
-async def test_files_create_read():
-    """Test file creation and reading."""
+async def test_create_read():
     with tempfile.TemporaryDirectory() as temp_dir:
-        files_tool = Files(base_dir=temp_dir)
+        tool = Files(base_dir=temp_dir)
 
-        # Create and read file
-        result = await files_tool.run(action="create", filename="test.txt", content="hello world")
+        result = await tool.run(action="create", filename="test.txt", content="hello")
         assert result.success
         assert "Created file" in result.data["result"]
 
-        result = await files_tool.run(action="read", filename="test.txt")
+        result = await tool.run(action="read", filename="test.txt")
         assert result.success
-        assert result.data["content"] == "hello world"
+        assert result.data["content"] == "hello"
 
 
 @pytest.mark.asyncio
-async def test_files_list():
-    """Test file listing."""
+async def test_list():
     with tempfile.TemporaryDirectory() as temp_dir:
-        files_tool = Files(base_dir=temp_dir)
+        tool = Files(base_dir=temp_dir)
+        await tool.run(action="create", filename="test.txt", content="test")
 
-        await files_tool.run(action="create", filename="test.txt", content="test")
-
-        result = await files_tool.run(action="list")
+        result = await tool.run(action="list")
         assert result.success
-        data = result.data
-        assert "items" in data
-        assert any(item["name"] == "test.txt" for item in data["items"])
+        assert any(item["name"] == "test.txt" for item in result.data["items"])
 
 
 @pytest.mark.asyncio
-async def test_files_edit():
-    """Test file editing operations."""
+async def test_edit_single():
     with tempfile.TemporaryDirectory() as temp_dir:
-        files_tool = Files(base_dir=temp_dir)
+        tool = Files(base_dir=temp_dir)
+        await tool.run(action="create", filename="test.txt", content="line1\nline2\nline3")
 
-        # Create file with multiple lines
-        content = "line 1\nline 2\nline 3"
-        await files_tool.run(action="create", filename="test.txt", content=content)
+        result = await tool.run(action="edit", filename="test.txt", line=2, content="EDITED")
+        assert result.success
 
-        # Edit single line
-        result = await files_tool.run(
-            action="edit", filename="test.txt", line=2, content="EDITED LINE 2"
+        result = await tool.run(action="read", filename="test.txt")
+        assert "EDITED" in result.data["content"]
+
+
+@pytest.mark.asyncio
+async def test_edit_range():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tool = Files(base_dir=temp_dir)
+        await tool.run(action="create", filename="test.txt", content="line1\nline2\nline3\nline4")
+
+        result = await tool.run(
+            action="edit", filename="test.txt", start=2, end=3, content="NEW\nLINES"
         )
         assert result.success
-        assert "Edited line 2" in result.data["result"]
 
-        result = await files_tool.run(action="read", filename="test.txt")
-        assert result.success
-        assert "EDITED LINE 2" in result.data["content"]
+        result = await tool.run(action="read", filename="test.txt")
+        content = result.data["content"]
+        assert "line1" in content
+        assert "NEW" in content
+        assert "LINES" in content
+        assert "line4" in content
 
 
 @pytest.mark.asyncio
-async def test_secure():
-    """Test security protections."""
-    files_tool = Files()
+async def test_edit_full():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tool = Files(base_dir=temp_dir)
+        await tool.run(action="create", filename="test.txt", content="old")
 
-    # Path traversal protection
-    result = await files_tool.run(action="read", filename="../../../etc/passwd")
-    assert not result.success
-    assert "Unsafe path access" in result.error
+        result = await tool.run(action="edit", filename="test.txt", content="new content")
+        assert result.success
+
+        result = await tool.run(action="read", filename="test.txt")
+        assert result.data["content"] == "new content"
+
+
+@pytest.mark.asyncio
+async def test_errors():
+    with tempfile.TemporaryDirectory() as temp_dir:
+        tool = Files(base_dir=temp_dir)
+
+        # File not found
+        result = await tool.run(action="read", filename="missing.txt")
+        assert not result.success
+
+        # Unsafe path
+        result = await tool.run(action="read", filename="../etc/passwd")
+        assert not result.success
+        assert "Unsafe path" in result.error
+
+        # File exists
+        await tool.run(action="create", filename="exists.txt", content="test")
+        result = await tool.run(action="create", filename="exists.txt", content="test")
+        assert not result.success
+
+        # Invalid line range
+        await tool.run(action="create", filename="lines.txt", content="a\nb\nc")
+        result = await tool.run(action="edit", filename="lines.txt", line=99, content="x")
+        assert not result.success

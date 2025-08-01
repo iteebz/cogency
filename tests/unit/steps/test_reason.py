@@ -49,7 +49,7 @@ async def test_reason_with_identity(state, tools, mock_llm):
     """Test reasoning with identity context."""
     notifier = AsyncMock()
 
-    result = await reason(state, notifier, mock_llm, tools, memory=None, identity="test assistant")
+    result = await reason(state, notifier, mock_llm, tools, memory=None)
 
     # Should complete with identity
     assert notifier.called

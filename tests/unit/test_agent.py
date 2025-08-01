@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent, AgentBuilder
-from cogency.tools.code import Code
+from cogency.tools.shell import Shell
 from tests.conftest import MockLLM
 
 
@@ -18,7 +18,7 @@ async def test_defaults():
     assert executor.memory is None
 
     tool_names = [tool.name for tool in executor.tools]
-    assert "code" in tool_names
+    assert "shell" in tool_names
 
 
 @pytest.mark.asyncio
@@ -28,23 +28,23 @@ async def test_no_memory():
 
     assert executor.memory is None
     tool_names = [tool.name for tool in executor.tools]
-    assert "code" in tool_names
+    assert "shell" in tool_names
 
 
 @pytest.mark.parametrize(
     "memory_enabled,expected_tools",
     [
-        (False, ["code"]),
-        (True, ["code"]),
+        (False, ["shell"]),
+        (True, ["shell"]),
     ],
     ids=["no_memory", "with_memory"],
 )
 @pytest.mark.asyncio
 async def test_tools(memory_enabled, expected_tools):
     if memory_enabled:
-        agent = AgentBuilder("test").with_llm(MockLLM()).with_tools([Code()]).with_memory().build()
+        agent = AgentBuilder("test").with_llm(MockLLM()).with_tools([Shell()]).with_memory().build()
     else:
-        agent = AgentBuilder("test").with_llm(MockLLM()).with_tools([Code()]).build()
+        agent = AgentBuilder("test").with_llm(MockLLM()).with_tools([Shell()]).build()
 
     executor = await agent._get_executor()
     tool_names = [tool.name for tool in executor.tools]

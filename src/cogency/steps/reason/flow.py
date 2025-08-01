@@ -89,7 +89,7 @@ class Flow:
             print(f"Tool calls: {reasoning_response.tool_calls}")
 
         # If parsing failed, this might be a direct response (not JSON reasoning)
-        if reasoning_response is None and raw_response and not raw_response.strip().startswith('{'):
+        if reasoning_response is None and raw_response and not raw_response.strip().startswith("{"):
             # Direct response - return it immediately
             state.response = raw_response.strip()
             await notifier("reason", state="direct_response", content=raw_response[:100])

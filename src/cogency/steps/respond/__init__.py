@@ -163,26 +163,17 @@ async def respond(
     """Respond: generate final formatted response with personality."""
     await notifier("respond", state="generating")
 
-    # Collect all context upfront - no branching ceremony
-    failures = collect_failures(state)
+    # Collect tool results for conditional identity prompting
     tool_results = format_tool_results(state)
 
-    # Single decision point for prompt routing
-    prompt = prompt_response(
-        state.query,
-        failures=failures,
-        has_tool_results=bool(tool_results),
-        tool_summary=tool_results,
-        identity=identity,
-        output_schema=output_schema,
-    )
-
     # Conditional identity application
-    if (hasattr(state, 'response') and state.response and 
-        hasattr(state, 'response_source') and 
-        state.response_source in ["prepare", "reason"] and 
-        identity):
-        
+    if (
+        hasattr(state, "response")
+        and state.response
+        and hasattr(state, "response_source")
+        and state.response_source in ["prepare", "reason"]
+        and identity
+    ):
         # Apply identity via LLM call for early returns
         identity_prompt = prompt_response(
             state.query,
@@ -191,19 +182,25 @@ async def respond(
             identity=identity,
             output_schema=output_schema,
         )
-        
+
         messages = [
             {"role": "system", "content": identity_prompt},
             {"role": "user", "content": state.query},
-            {"role": "assistant", "content": state.response}
+            {"role": "assistant", "content": state.response},
         ]
-        
+
         from resilient_result import unwrap
+
         llm_result = await llm.run(messages)
         response_text = unwrap(llm_result)
-    elif hasattr(state, 'response') and state.response:
+    elif hasattr(state, "response") and state.response:
         # Use existing response without identity
-        response_text = state.response
+        from resilient_result import unwrap
+
+        if hasattr(state.response, "success"):  # It's a Result object
+            response_text = unwrap(state.response)
+        else:
+            response_text = state.response
     else:
         # Fallback
         response_text = "I'm here to help. How can I assist you?"

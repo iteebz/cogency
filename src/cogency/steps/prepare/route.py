@@ -5,7 +5,6 @@ from typing import List, Optional
 from resilient_result import unwrap
 
 from cogency.providers import LLM
-from cogency.steps.respond.utils import format_response
 from cogency.tools import Tool
 from cogency.utils import is_simple_query
 
@@ -16,9 +15,7 @@ class Route:
     def __init__(self, llm: LLM):
         self.llm = llm
 
-    async def check_early_return(
-        self, query: str, selected_tools: List[Tool]
-    ) -> Optional[str]:
+    async def check_early_return(self, query: str, selected_tools: List[Tool]) -> Optional[str]:
         """Check if query can be answered directly without ReAct."""
         query_str = query if isinstance(query, str) else str(query)
 

@@ -59,9 +59,7 @@ def setup_steps(llm, tools, memory, identity, output_schema, config=None):
         return bound_func
 
     return {
-        "prepare": _compose_step(
-            prepare, "prepare", llm=llm, tools=tools, memory=memory
-        ),
+        "prepare": _compose_step(prepare, "prepare", llm=llm, tools=tools, memory=memory),
         "reason": _compose_step(
             reason,
             "reason",

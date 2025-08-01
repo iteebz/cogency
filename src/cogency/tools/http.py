@@ -19,9 +19,7 @@ class HTTPArgs:
     url: str
     method: str = "get"
     headers: Optional[Dict[str, str]] = None
-    body: Optional[str] = None
     json_data: Optional[Dict[str, Any]] = None
-    auth: Optional[Dict[str, str]] = None
     timeout: int = 30
 
 
@@ -29,22 +27,17 @@ class HTTPArgs:
 class HTTP(Tool):
     """HTTP client for API calls, webhooks, and web requests with full verb support."""
 
-    # Custom formatting for HTTP requests
-    human_template = "Status: {status_code}"
-    agent_template = "{method} {url} → {status_code}"
-    param_key = "url"
-
     def __init__(self):
         super().__init__(
             name="http",
-            description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with headers, auth, and body support",
-            schema="http(url=str, method='get'|'post'|'put'|'delete'|'patch', headers=dict, body=str, json_data=dict)",
+            description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with JSON data support",
+            schema="http(url=str, method='get'|'post'|'put'|'delete'|'patch', headers=dict, json_data=dict)",
             emoji="🌐",
             params=HTTPArgs,
             examples=[
                 "http(url='https://api.example.com/data', method='get')",
                 "http(url='https://api.example.com/users', method='post', json_data={'name': 'John'})",
-                "http(url='https://api.example.com/user/123', method='put', auth={'type': 'bearer', 'token': 'xyz'})",
+                "http(url='https://api.example.com/user/123', method='put', json_data={'status': 'active'})",
             ],
             rules=[
                 "Use GET for retrieving data.",
@@ -52,10 +45,13 @@ class HTTP(Tool):
                 "Use PUT for updating entire resources.",
                 "Use PATCH for partial updates.",
                 "Use DELETE for removing resources.",
-                "GET requests must not include 'body' or 'json_data'.",
-                "Provide either 'body' (string) or 'json_data' (dict), but not both.",
+                "GET requests must not include json_data.",
             ],
         )
+        # Use base class formatting with templates
+        self.param_key = "url"
+        self.human_template = "Status: {status_code}"
+        self.agent_template = "{method} {url} → {status_code}"
 
         # Supported HTTP methods
         self._methods = {"get", "post", "put", "delete", "patch"}
@@ -65,9 +61,7 @@ class HTTP(Tool):
         url: str,
         method: str = "get",
         headers: Optional[Dict] = None,
-        body: Optional[str] = None,
         json_data: Optional[Dict] = None,
-        auth: Optional[Dict] = None,
         timeout: int = 30,
         **kwargs,
     ) -> Dict[str, Any]:
@@ -76,9 +70,7 @@ class HTTP(Tool):
             url: Target URL for the request
             method: HTTP method (get, post, put, delete, patch)
             headers: Optional HTTP headers dict
-            body: Optional request body as string
             json_data: Optional JSON data (automatically sets content-type)
-            auth: Optional auth dict with 'type' and credentials
             timeout: Request timeout in seconds (default: 30)
         Returns:
             Response data including status, headers, and body
@@ -88,20 +80,18 @@ class HTTP(Tool):
             available = ", ".join(self._methods)
             return Result.fail(f"Invalid HTTP method. Use: {available}")
 
-        # GET requests cannot have body
-        if method == "get" and (body or json_data):
-            return Result.fail("GET requests cannot have a body")
+        # GET requests cannot have json_data
+        if method == "get" and json_data:
+            return Result.fail("GET requests cannot have json_data")
 
-        return await self._execute_request(method, url, headers, body, json_data, auth, timeout)
+        return await self._execute_request(method, url, headers, json_data, timeout)
 
     async def _execute_request(
         self,
         method: str,
         url: str,
         headers: Optional[Dict],
-        body: Optional[str],
         json_data: Optional[Dict],
-        auth: Optional[Dict],
         timeout: int,
     ) -> Dict[str, Any]:
         """Execute HTTP request with unified error handling."""
@@ -111,31 +101,9 @@ class HTTP(Tool):
             # Handle headers
             if headers:
                 request_kwargs["headers"] = headers
-            # Handle body vs json_data
+            # Handle json_data
             if json_data:
                 request_kwargs["json"] = json_data
-            elif body:
-                request_kwargs["content"] = body
-            # Handle authentication
-            if auth:
-                auth_type = auth.get("type", "").lower()
-                if auth_type == "bearer":
-                    token = auth.get("token")
-                    if not token:
-                        return Result.fail("Bearer token required for bearer auth")
-                    request_kwargs.setdefault("headers", {})["Authorization"] = f"Bearer {token}"
-                elif auth_type == "basic":
-                    username = auth.get("username")
-                    password = auth.get("password")
-                    if not username or not password:
-                        return Result.fail("Username and password required for basic auth")
-                    request_kwargs["auth"] = (username, password)
-                elif auth_type == "api_key":
-                    key = auth.get("key")
-                    header = auth.get("header", "X-API-Key")
-                    if not key:
-                        return Result.fail("API key required for api_key auth")
-                    request_kwargs.setdefault("headers", {})[header] = key
             # Execute request
             async with httpx.AsyncClient() as client:
                 response = await client.request(method.upper(), url, **request_kwargs)
@@ -157,6 +125,7 @@ class HTTP(Tool):
                         "headers": dict(response.headers),
                         "body": response_body,
                         "url": str(response.url),
+                        "method": method.upper(),
                         "elapsed_ms": int(response.elapsed.total_seconds() * 1000),
                     }
                 )

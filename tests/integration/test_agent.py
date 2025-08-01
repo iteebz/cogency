@@ -19,7 +19,7 @@ async def test_agent_defaults():
     assert executor.memory is None  # Memory disabled by default
 
     tool_names = [tool.name for tool in executor.tools]
-    assert "code" in tool_names
+    assert "shell" in tool_names
 
 
 @pytest.mark.asyncio
@@ -31,23 +31,23 @@ async def test_memory_disabled():
 
     assert executor.memory is None
     tool_names = [tool.name for tool in executor.tools]
-    assert "code" in tool_names
+    assert "shell" in tool_names
 
 
 @pytest.mark.parametrize(
     "memory_enabled,expected_tools",
     [
-        (False, ["code"]),
-        (True, ["code"]),
+        (False, ["shell"]),
+        (True, ["shell"]),
     ],
     ids=["no_memory", "with_memory"],
 )
 @pytest.mark.asyncio
 async def test_custom_tools(memory_enabled, expected_tools):
     from cogency import AgentBuilder
-    from cogency.tools.code import Code
+    from cogency.tools.shell import Shell
 
-    builder = AgentBuilder("test").with_tools([Code()])
+    builder = AgentBuilder("test").with_tools([Shell()])
     if memory_enabled:
         builder = builder.with_memory()
     agent = builder.build()

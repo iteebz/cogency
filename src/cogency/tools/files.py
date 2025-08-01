@@ -27,9 +27,6 @@ class FilesArgs:
 class Files(Tool):
     """File operations within a safe base directory."""
 
-    # Template-based formatting - shows action and filename
-    param_key = "filename"
-
     def __init__(self, base_dir: str = None):
         from ..config import PathsConfig
 
@@ -60,6 +57,11 @@ class Files(Tool):
                 "File paths are relative to the tool's working directory (e.g., 'app.py', 'src/module.py', 'models/user.py').",
             ],
         )
+        # Use base class formatting with templates
+        self.param_key = "filename"
+        self.human_template = "{result}"
+        self.agent_template = "{action} {filename}"
+
         self.base_dir = Path(base_dir).resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)
 
@@ -167,11 +169,6 @@ class Files(Tool):
                         }
                     )
                 return Result.ok({"result": f"Listed {len(items)} items", "items": items})
-
-            elif action == "delete":
-                path = self._safe_path(filename)
-                path.unlink()
-                return Result.ok({"result": f"Deleted file: {filename}"})
 
             else:
                 return Result.fail(f"Unknown action: {action}")

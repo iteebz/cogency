@@ -11,7 +11,7 @@ from cogency.steps.act.executor import execute_single_tool
 from cogency.steps.reason import reason
 from cogency.steps.respond import respond
 from cogency.tools.base import Tool
-from cogency.tools.code import Code
+from cogency.tools.shell import Shell
 from cogency.utils.parsing import parse_tool_calls
 from tests.conftest import MockLLM
 
@@ -156,7 +156,7 @@ async def test_reason_tools(state):
         )
     )
 
-    await reason(state, AsyncMock(), llm=llm, tools=[Code()], memory=None)
+    await reason(state, AsyncMock(), llm=llm, tools=[Shell()], memory=None)
 
     # Should have tool calls
     assert state.tool_calls
@@ -168,17 +168,17 @@ async def test_reason_tools(state):
 async def test_act_execution(state):
     """Test act phase actually executes tools."""
     # Setup state with tool calls and add action first
-    state.tool_calls = [{"name": "code", "args": {"code": "2 + 2"}}]
+    state.tool_calls = [{"name": "shell", "args": {"command": "echo '4'"}}]
     state.add_action(
         mode="fast",
         thinking="Need to calculate",
-        planning="Use code tool",
+        planning="Use shell tool",
         reflection="",
         approach="calculate",
         tool_calls=state.tool_calls,
     )
 
-    tools = [Code()]
+    tools = [Shell()]
     await act(state, AsyncMock(), tools=tools)
 
     # Should have results (tool calls with outcome key)
@@ -203,7 +203,7 @@ async def test_respond_formats(state):
 @pytest.mark.asyncio
 async def test_full_cycle(state):
     """Test full reasoning cycle: reason -> act -> reason -> respond."""
-    tools = [Code()]
+    tools = [Shell()]
     llm = MockLLM()
 
     # 1. First reason (needs tools) - this adds an action
