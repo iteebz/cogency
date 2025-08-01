@@ -60,7 +60,7 @@ def setup_steps(llm, tools, memory, identity, output_schema, config=None):
 
     return {
         "prepare": _compose_step(
-            prepare, "prepare", llm=llm, tools=tools, memory=memory, identity=identity
+            prepare, "prepare", llm=llm, tools=tools, memory=memory
         ),
         "reason": _compose_step(
             reason,
@@ -70,7 +70,6 @@ def setup_steps(llm, tools, memory, identity, output_schema, config=None):
             llm=llm,
             tools=tools,
             memory=memory,
-            identity=identity,
         ),
         "act": _compose_step(
             act, "act", checkpoint_name="tool_execution", needs_resilience=True, tools=tools

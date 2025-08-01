@@ -150,7 +150,7 @@ class AgentExecutor:
         """Setup notification system."""
         return Notifier(formatter=self.formatter, on_notify=callback or self.on_notify)
 
-    async def run(self, query: str, user_id: str = "default") -> str:
+    async def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
         """Execute agent and return complete response."""
         try:
             # Input validation
@@ -179,6 +179,14 @@ class AgentExecutor:
             if self.mode != "adapt":
                 state.mode = self.mode
 
+            # Setup phases with runtime identity (if provided)
+            if identity:
+                phases = setup_steps(
+                    self.llm, self.tools, self.memory, identity, self.output_schema, self.config
+                )
+            else:
+                phases = self.phases
+
             # Execute phases
             from cogency.steps.execution import run_agent
 
@@ -186,10 +194,10 @@ class AgentExecutor:
 
             await run_agent(
                 state,
-                self.phases["prepare"],
-                self.phases["reason"],
-                self.phases["act"],
-                self.phases["respond"],
+                phases["prepare"],
+                phases["reason"],
+                phases["act"],
+                phases["respond"],
                 notifier,
             )
             self.last_state = state

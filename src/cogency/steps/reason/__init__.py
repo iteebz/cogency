@@ -15,8 +15,7 @@ async def reason(
     llm: LLM,
     tools: List[Tool],
     memory,  # Impression instance or None
-    identity: Optional[str] = None,
 ) -> Optional[str]:
     """Reason: focused reasoning and decision making."""
-    pipeline = Flow(llm, tools, memory, identity)
+    pipeline = Flow(llm, tools, memory)
     return await pipeline.process(state, notifier)

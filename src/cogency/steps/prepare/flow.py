@@ -15,11 +15,10 @@ from .select import Select
 class Flow:
     """Orchestrates prepare components in clean pipeline."""
 
-    def __init__(self, llm: LLM, tools: List[Tool], memory=None, identity: Optional[str] = None):
+    def __init__(self, llm: LLM, tools: List[Tool], memory=None):
         self.llm = llm
         self.tools = tools
         self.memory = memory
-        self.identity = identity
 
         # Initialize components
         self.context = Context(llm)
@@ -33,7 +32,7 @@ class Flow:
 
         # Skip if no tools available - handle direct response
         if not self.tools:
-            return await self.route.check_early_return(query, [], self.identity)
+            return await self.route.check_early_return(query, [])
 
         # Step 1: Extract memory (async, non-blocking)
         memory_result = await self.extract.extract(query)
@@ -45,7 +44,7 @@ class Flow:
         filtered_tools = self.select.filter_tools(self.tools, selection_result.selected_tools)
 
         # Step 3: Check for early return
-        early_response = await self.route.check_early_return(query, filtered_tools, self.identity)
+        early_response = await self.route.check_early_return(query, filtered_tools)
         if early_response:
             return early_response
 

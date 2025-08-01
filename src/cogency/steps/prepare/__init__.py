@@ -15,8 +15,7 @@ async def prepare(
     llm: LLM,
     tools: List[Tool],
     memory,  # Impression instance or None
-    identity: Optional[str] = None,
 ) -> Optional[str]:
     """Prepare: routing decisions, memory extraction, tool selection."""
-    pipeline = Flow(llm, tools, memory, identity)
+    pipeline = Flow(llm, tools, memory)
     return await pipeline.process(state, notifier)

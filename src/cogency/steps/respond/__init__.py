@@ -177,31 +177,41 @@ async def respond(
         output_schema=output_schema,
     )
 
-    # Single LLM call with unified error handling
-    if llm is None:
-        response_text = "I'm here to help. How can I assist you?"
-    else:
-        messages = state.conversation()
-
-        # Add memory context if available
-        if memory:
-            memory_context = await memory.recall()
-            if memory_context:
-                prompt = f"{memory_context}\n{prompt}"
-
-        messages.insert(0, {"role": "system", "content": prompt})
-
-        llm_result = await llm.run(messages)
-        response_text = (
-            llm_result.data.strip()
-            if llm_result.success and llm_result.data
-            else "I'm here to help. How can I assist you?"
+    # Conditional identity application
+    if (hasattr(state, 'response') and state.response and 
+        hasattr(state, 'response_source') and 
+        state.response_source in ["prepare", "reason"] and 
+        identity):
+        
+        # Apply identity via LLM call for early returns
+        identity_prompt = prompt_response(
+            state.query,
+            has_tool_results=bool(tool_results),
+            tool_summary=tool_results,
+            identity=identity,
+            output_schema=output_schema,
         )
+        
+        messages = [
+            {"role": "system", "content": identity_prompt},
+            {"role": "user", "content": state.query},
+            {"role": "assistant", "content": state.response}
+        ]
+        
+        from resilient_result import unwrap
+        llm_result = await llm.run(messages)
+        response_text = unwrap(llm_result)
+    elif hasattr(state, 'response') and state.response:
+        # Use existing response without identity
+        response_text = state.response
+    else:
+        # Fallback
+        response_text = "I'm here to help. How can I assist you?"
 
     await notifier("respond", state="complete", content=response_text[:100])
 
     # Update state
     state.add_message("assistant", response_text)
-    if not state.response:
-        state.response = response_text
+    # Always update response with final processed text (may include identity)
+    state.response = response_text
     return state

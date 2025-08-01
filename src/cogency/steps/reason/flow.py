@@ -15,11 +15,10 @@ from .prompt import Prompt
 class Flow:
     """Orchestrates reasoning components in clean pipeline."""
 
-    def __init__(self, llm: LLM, tools: List[Tool], memory=None, identity: Optional[str] = None):
+    def __init__(self, llm: LLM, tools: List[Tool], memory=None):
         self.llm = llm
         self.tools = tools
         self.memory = memory
-        self.identity = identity
 
         # Initialize components
         self.context = Context()
@@ -60,7 +59,6 @@ class Flow:
             iteration=iteration,
             depth=state.depth,
             state=state,
-            identity=self.identity,
         )
 
         # Trace reasoning context for debugging
@@ -82,9 +80,20 @@ class Flow:
         from resilient_result import unwrap
 
         raw_response = unwrap(llm_result)
+        print(f"Raw response: {repr(raw_response)}")
 
-        # Step 4: Parse response
+        # Step 4: Parse response - try JSON first, fallback to direct response
         reasoning_response = await self.parse.reasoning(raw_response, notifier, mode, iteration)
+        print(f"Parsed reasoning: {reasoning_response}")
+        if reasoning_response:
+            print(f"Tool calls: {reasoning_response.tool_calls}")
+
+        # If parsing failed, this might be a direct response (not JSON reasoning)
+        if reasoning_response is None and raw_response and not raw_response.strip().startswith('{'):
+            # Direct response - return it immediately
+            state.response = raw_response.strip()
+            await notifier("reason", state="direct_response", content=raw_response[:100])
+            return raw_response.strip()
 
         # Step 5: Display reasoning phases
         await self._display_reasoning(reasoning_response, notifier, mode)

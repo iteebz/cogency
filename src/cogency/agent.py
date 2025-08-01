@@ -29,9 +29,9 @@ class Agent:
         executor = await self._get_executor()
         return getattr(executor, "memory", None)
 
-    async def run(self, query: str, user_id: str = "default") -> str:
+    async def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
         executor = await self._get_executor()
-        return await executor.run(query, user_id)
+        return await executor.run(query, user_id, identity)
 
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         executor = await self._get_executor()

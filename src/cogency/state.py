@@ -33,6 +33,7 @@ class State:
     observations: str = ""
     # Output
     response: Optional[str] = None
+    response_source: Optional[str] = None  # Track which phase generated response
     notify: bool = True
     debug: bool = False
     callback: Any = None

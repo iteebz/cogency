@@ -12,6 +12,9 @@ async def run_agent(
     response = await prepare_phase(state, notifier)
     if response:
         state.response = response
+        state.response_source = "prepare"
+        # Always call respond for identity application
+        await respond_phase(state, notifier)
         return
 
     # ReAct loop - reason and act until early return
@@ -20,6 +23,9 @@ async def run_agent(
         response = await reason_phase(state, notifier)
         if response:
             state.response = response
+            state.response_source = "reason"
+            # Always call respond for identity application
+            await respond_phase(state, notifier)
             return
 
         # If no tool calls, exit ReAct loop
@@ -30,6 +36,7 @@ async def run_agent(
         response = await act_phase(state, notifier)
         if response:
             state.response = response
+            state.response_source = "act"
             return
 
         state.iteration += 1
