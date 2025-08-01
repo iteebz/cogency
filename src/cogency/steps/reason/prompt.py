@@ -29,12 +29,12 @@ class Prompt:
 
         # Build mode-specific context
         if mode == "deep":
-            reasoning_phases = self._build_deep_phases(depth)
+            reasoning_steps = self._build_deep_steps(depth)
             mode_context = self._build_deep_context(
                 iteration, depth, memory_context, workspace_context, reasoning_context
             )
         else:  # fast mode
-            reasoning_phases = self._build_fast_phases()
+            reasoning_steps = self._build_fast_steps()
             mode_context = self._build_fast_context(
                 memory_context, workspace_context, reasoning_context
             )
@@ -57,6 +57,7 @@ JSON Response Format:
     {{"name": "tool_b", "args": {{"param": "value"}}}},
     {{"name": "tool_c", "args": {{"param": "value"}}}}
   ],
+  "response": "Only populate this when ready to respond to the user directly",
   "switch_to": null,
   "switch_why": null,
   "workspace_update": {{
@@ -75,17 +76,17 @@ WORKSPACE UPDATE FIELDS:
 - approach: Strategy being used - how are we solving this?
 - observations: Key insights - what important findings have emerged?
 
-When done: {{"thinking": "explanation", "tool_calls": [], "switch_to": null, "switch_why": null, "workspace_update": {{"objective": "updated objective", "assessment": "what we learned", "approach": "approach used", "observations": "key insights found"}}}}
+When ready to respond: {{"thinking": "explanation", "tool_calls": [], "response": "your response to the user", "switch_to": null, "switch_why": null, "workspace_update": {{"objective": "updated objective", "assessment": "what we learned", "approach": "approach used", "observations": "key insights found"}}}}
 
 TOOLS:
 {tool_registry}
 
 {mode_context}
 
-{reasoning_phases}
+{reasoning_steps}
 
-- Empty tool_calls array ([ ]) if query fully answered or no progress possible
-- If original query has been fully resolved, say so explicitly and return tool_calls: []
+- Populate "response" field when ready to respond directly to the user
+- If original query has been fully resolved, populate "response" with your answer
 - LIMIT: Maximum {MAX_TOOL_CALLS} tool calls per iteration to avoid JSON parsing issues
 """
 
@@ -95,7 +96,7 @@ TOOLS:
 
         return prompt
 
-    def _build_deep_phases(self, depth: int) -> str:
+    def _build_deep_steps(self, depth: int) -> str:
         """Build deep reasoning phase instructions."""
         return f"""
 REASONING PHASES:
@@ -123,14 +124,14 @@ switch_to: "fast", switch_why: "Single tool execution sufficient"
 switch_to: "fast", switch_why: "Approaching depth limit, need direct action"
 """
 
-    def _build_fast_phases(self) -> str:
+    def _build_fast_steps(self) -> str:
         """Build fast reasoning phase instructions."""
         return """
 CRITICAL STOP CONDITIONS:
-- If you see previous attempts that ALREADY answered the query → tool_calls: []
-- If query is fully satisfied by previous results → tool_calls: []  
-- If no tool can help with this query → tool_calls: []
-- If repeating same failed action → tool_calls: []
+- If you see previous attempts that ALREADY answered the query → populate "response"
+- If query is fully satisfied by previous results → populate "response"  
+- If no tool can help with this query → populate "response"
+- If repeating same failed action → populate "response"
 
 GUIDANCE:
 - FIRST: Review previous attempts to avoid repeating actions

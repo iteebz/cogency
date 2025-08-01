@@ -18,7 +18,7 @@ from cogency.steps.respond import respond
 
 
 @pytest.mark.asyncio
-async def test_phase_notifications_direct():
+async def test_step_notifications_direct():
     """Test notifications work directly with phase functions."""
     formatter = EmojiFormatter()
     notifier = Notifier(formatter=formatter)

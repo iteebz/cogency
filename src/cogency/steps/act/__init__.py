@@ -28,9 +28,6 @@ async def act(state: State, notifier, tools: List[Tool]) -> Optional[str]:
     if not tool_calls or not isinstance(tool_calls, list):
         return None
 
-    # Start acting state
-    # Acting is implicit - tool execution shows progress
-
     tool_tuples = [
         (call["name"], call["args"]) if isinstance(call, dict) else (call.name, call.args)
         for call in tool_calls
@@ -39,15 +36,11 @@ async def act(state: State, notifier, tools: List[Tool]) -> Optional[str]:
     # Let @safe.act() handle all tool execution errors, retries, and recovery
     tool_result = await execute_tools(tool_tuples, selected_tools, state, notifier)
 
-    # Tool result received - debug info available via state if needed
-
     # Store results using State methods (schema-compliant)
     if tool_result.success and tool_result.data:
         results_data = tool_result.data
         successes = results_data.get("results", [])
         failures = results_data.get("errors", [])
-
-        # Processing tool results silently
 
         # Add successful tool results
         for success in successes:

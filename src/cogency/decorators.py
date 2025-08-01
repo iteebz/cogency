@@ -11,9 +11,15 @@ from cogency.observe import counter, histogram, timer
 from cogency.robust import checkpoint
 
 
+def _retry_progress_handler(error: Exception) -> None:
+    """Progress handler for retry visibility during development."""
+    print(f"🔄 Retry: {type(error).__name__}: {error}")
+    return None  # Continue retrying
+
+
 @dataclass
-class PhaseConfig:
-    """Configuration state for phase decorators - injected by Agent at runtime."""
+class StepConfig:
+    """Configuration state for step decorators - injected by Agent at runtime."""
 
     robust: Optional[Any] = None
     observe: Optional[Any] = None
@@ -45,7 +51,7 @@ def _checkpoint(name: str, interruptible: bool = True):
     return decorator
 
 
-def _auto_save(phase_name: str, config: Optional[PhaseConfig] = None):
+def _auto_save(phase_name: str, config: Optional[StepConfig] = None):
     """Auto-save state after successful phase completion."""
 
     def decorator(func):
@@ -82,7 +88,7 @@ def _auto_save(phase_name: str, config: Optional[PhaseConfig] = None):
     return decorator
 
 
-def _observe_metrics(phase_name: str, config: Optional[PhaseConfig] = None):
+def _observe_metrics(phase_name: str, config: Optional[StepConfig] = None):
     """Unified observability wrapper - single timing measurement shared across metrics and notifications."""
 
     def decorator(func):
@@ -135,7 +141,7 @@ def _policy(
     checkpoint_name: str,
     interruptible: bool = True,
     default_retry=None,
-    config: Optional[PhaseConfig] = None,
+    config: Optional[StepConfig] = None,
 ):
     """Universal agent policy factory - composes resilience + checkpointing + persistence."""
 
@@ -146,8 +152,8 @@ def _policy(
             if not config or not config.robust:
                 return func
 
-            # 1. Apply resilience
-            resilient_func = resilient_decorator(retry=retry)(func)
+            # 1. Apply resilience with progress visibility
+            resilient_func = resilient_decorator(retry=retry, handler=_retry_progress_handler)(func)
             # 2. Apply context-driven checkpointing
             checkpointed_func = _checkpoint(checkpoint_name, interruptible)(resilient_func)
             # 3. Apply auto-save after successful completion
@@ -159,7 +165,7 @@ def _policy(
     return policy
 
 
-def _observe_policy(phase_name: str, config: Optional[PhaseConfig] = None):
+def _observe_policy(phase_name: str, config: Optional[StepConfig] = None):
     """Observability policy factory - metrics and telemetry collection."""
 
     def policy(**kwargs):
@@ -173,7 +179,7 @@ def _observe_policy(phase_name: str, config: Optional[PhaseConfig] = None):
 
 
 def _phase_factory(
-    phase_name: str, interruptible: bool, default_retry, config: Optional[PhaseConfig] = None
+    phase_name: str, interruptible: bool, default_retry, config: Optional[StepConfig] = None
 ):
     """Phase decorator factory that combines robust + observe based on config."""
 
@@ -199,14 +205,16 @@ def _phase_factory(
     return phase_decorator
 
 
-def create_phase_decorators(config: Optional[PhaseConfig] = None):
+def step_decorators(config: Optional[StepConfig] = None):
     """Create phase decorators with injected config - no global state."""
 
     class _PhaseDecorators:
         """Unified @phase decorator with beautiful IDE autocomplete."""
 
         reason = staticmethod(_phase_factory("reasoning", True, Retry.api(), config))
-        act = staticmethod(_phase_factory("tool_execution", True, Retry.db(), config))
+        act = staticmethod(
+            _phase_factory("tool_execution", True, Retry(attempts=2, timeout=15.0), config)
+        )
         prepare = staticmethod(
             _phase_factory("preparing", False, Retry(attempts=2, timeout=10.0), config)
         )
@@ -218,28 +226,19 @@ def create_phase_decorators(config: Optional[PhaseConfig] = None):
     return _PhaseDecorators()
 
 
-# Backward compatibility - phase decorators with no config
-phase = create_phase_decorators()
-
-
-# DEPRECATED: Remove in v1.0.0 - use create_phase_decorators() with config injection
-def configure(robust=None, observe=None, persistence=None):
-    """DEPRECATED: Global configuration removed. Use create_phase_decorators(config) instead."""
-    raise DeprecationWarning(
-        "Global decorators.configure() removed. Use create_phase_decorators(PhaseConfig(...)) instead."
-    )
-
-
 def elapsed(**kwargs) -> float:
     """Get current phase duration from injected timer context."""
     timer_context = kwargs.get("_phase_timer")
     return timer_context.current_elapsed if timer_context else 0.0
 
 
+# Main decorator instance
+phase = step_decorators()
+
+
 __all__ = [
     "phase",
-    "create_phase_decorators",
-    "PhaseConfig",
-    "configure",  # DEPRECATED
+    "step_decorators",
+    "StepConfig",
     "elapsed",
 ]

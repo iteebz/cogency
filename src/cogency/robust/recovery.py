@@ -52,7 +52,7 @@ class Recovery:
     async def _reasoning(error: Dict, state: "State") -> Result:
         """Reasoning recovery - mode fallback and loop breaking."""
         if error.get("loop_detected"):
-            state.next_phase = "respond"
+            state.next_step = "respond"
             state.stop_reason = "loop_recovery"
             return Result.ok({"state": state, "recovery": "force_respond"})
 
@@ -61,7 +61,7 @@ class Recovery:
             return Result.ok({"state": state, "recovery": "fallback_to_fast"})
 
         # Default: skip to response
-        state.next_phase = "respond"
+        state.next_step = "respond"
         state.stop_reason = "reasoning_error"
         return Result.ok({"state": state, "recovery": "skip_to_response"})
 
@@ -74,7 +74,7 @@ class Recovery:
     async def _action(error: Dict, state: "State") -> Result:
         """Action recovery - retry reasoning or force respond."""
         if not error.get("recoverable", True):
-            state.next_phase = "respond"
+            state.next_step = "respond"
             state.stop_reason = "non_recoverable_action_error"
             return Result.ok({"state": state, "recovery": "force_respond"})
 
@@ -84,7 +84,7 @@ class Recovery:
             "failed_tools": error.get("failed_tools", []),
             "error_msg": error.get("message", "Unknown action error"),
         }
-        state.next_phase = "reason"
+        state.next_step = "reason"
         return Result.ok({"state": state, "recovery": "retry_reasoning"})
 
     @staticmethod
@@ -101,7 +101,7 @@ class Recovery:
     @staticmethod
     async def _fallback(error: Dict, state: "State", phase: str) -> Result:
         """Universal fallback - graceful degradation for unknown phases."""
-        state.next_phase = "respond"
+        state.next_step = "respond"
         state.stop_reason = f"{phase}_error_fallback"
         return Result.ok({"state": state, "recovery": f"fallback_{phase}"})
 

@@ -4,44 +4,18 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogency import Agent, AgentBuilder, MemoryConfig
+from cogency import Agent, MemoryConfig
 from cogency.persist.store.filesystem import Filesystem
 from tests.conftest import MockLLM
 
 
 def create_memory_agent(name="test", **kwargs):
     """Helper to create Agent with memory config."""
-    builder = AgentBuilder(name)
+    # Extract tools, defaulting to empty list
+    tools = kwargs.pop("tools", [])
 
-    # Extract and apply LLM
-    if "llm" in kwargs:
-        builder = builder.with_llm(kwargs.pop("llm"))
-
-    # Extract and apply tools
-    if "tools" in kwargs:
-        builder = builder.with_tools(kwargs.pop("tools"))
-
-    # Handle memory config
-    if "memory" in kwargs:
-        memory_config = kwargs.pop("memory")
-        if memory_config is True:
-            builder = builder.with_memory()
-        elif memory_config:
-            builder = builder.with_memory(
-                store=getattr(memory_config, "store", None),
-                user_id=getattr(memory_config, "user_id", None),
-                synthesis_threshold=getattr(memory_config, "synthesis_threshold", 10),
-            )
-
-    # Create agent
-    agent = builder.build()
-
-    # Set remaining attributes directly
-    for key, value in kwargs.items():
-        if hasattr(agent, key):
-            setattr(agent, key, value)
-
-    return agent
+    # Create agent directly with new constructor
+    return Agent(name, tools=tools, **kwargs)
 
 
 @pytest.mark.asyncio

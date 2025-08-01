@@ -10,6 +10,7 @@ from cogency.utils import normalize_reasoning
 class Reasoning:
     thinking: Optional[str] = None
     tool_calls: List[Dict[str, Any]] = field(default_factory=list)
+    response: Optional[str] = None
     switch_to: Optional[str] = None
     reasoning: List[str] = field(default_factory=list)
     reflect: Optional[str] = None
@@ -28,6 +29,7 @@ class Reasoning:
         return cls(
             thinking=data.get("thinking"),
             tool_calls=tool_calls,
+            response=data.get("response"),
             switch_to=data.get("switch_to"),
             reasoning=normalized_reasoning,
             reflect=data.get("reflect"),

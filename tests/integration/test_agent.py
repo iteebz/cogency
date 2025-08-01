@@ -10,7 +10,7 @@ from tests.conftest import MockLLM
 
 @pytest.mark.asyncio
 async def test_agent_defaults():
-    agent = Agent(name="test_agent")
+    agent = Agent(name="test_agent", tools="all")
 
     # Trigger executor creation
     executor = agent._executor or await agent._get_executor()
@@ -24,7 +24,7 @@ async def test_agent_defaults():
 
 @pytest.mark.asyncio
 async def test_memory_disabled():
-    agent = Agent(name="test")
+    agent = Agent(name="test", tools="all")
 
     # Trigger executor creation
     executor = agent._executor or await agent._get_executor()
@@ -44,13 +44,12 @@ async def test_memory_disabled():
 )
 @pytest.mark.asyncio
 async def test_custom_tools(memory_enabled, expected_tools):
-    from cogency import AgentBuilder
     from cogency.tools.shell import Shell
 
-    builder = AgentBuilder("test").with_tools([Shell()])
     if memory_enabled:
-        builder = builder.with_memory()
-    agent = builder.build()
+        agent = Agent("test", tools=[Shell()], memory=True)
+    else:
+        agent = Agent("test", tools=[Shell()])
 
     # Get executor to access tools
     executor = await agent._get_executor()
@@ -63,7 +62,7 @@ async def test_custom_tools(memory_enabled, expected_tools):
 
 @pytest.mark.asyncio
 async def test_run():
-    agent = Agent(name="test")
+    agent = Agent(name="test", tools="all")
 
     with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         mock_run_agent.return_value = "Final Answer"
@@ -76,7 +75,7 @@ async def test_run():
 
 @pytest.mark.asyncio
 async def test_stream_validation():
-    agent = Agent(name="test")
+    agent = Agent(name="test", tools="all")
 
     with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
         # Empty query

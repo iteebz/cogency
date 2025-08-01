@@ -42,7 +42,7 @@ class Flow:
         # Check stop conditions
         if iteration >= state.depth:
             state.stop_reason = "depth_reached"
-            state.tool_calls = None
+            state.tool_calls = []
             await notifier(
                 "trace", message="ReAct terminated", reason="depth_reached", iterations=iteration
             )
@@ -80,13 +80,9 @@ class Flow:
         from resilient_result import unwrap
 
         raw_response = unwrap(llm_result)
-        print(f"Raw response: {repr(raw_response)}")
 
         # Step 4: Parse response - try JSON first, fallback to direct response
         reasoning_response = await self.parse.reasoning(raw_response, notifier, mode, iteration)
-        print(f"Parsed reasoning: {reasoning_response}")
-        if reasoning_response:
-            print(f"Tool calls: {reasoning_response.tool_calls}")
 
         # If parsing failed, this might be a direct response (not JSON reasoning)
         if reasoning_response is None and raw_response and not raw_response.strip().startswith("{"):
@@ -118,6 +114,14 @@ class Flow:
 
             # Set tool calls for action phase
             state.tool_calls = reasoning_response.tool_calls
+
+            # Check for direct response - elegant routing
+            if reasoning_response.response:
+                state.response = reasoning_response.response
+                await notifier(
+                    "reason", state="direct_response", content=reasoning_response.response[:100]
+                )
+                return reasoning_response.response
 
         return None
 

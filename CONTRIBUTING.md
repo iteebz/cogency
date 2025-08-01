@@ -53,8 +53,8 @@ When extending phases:
 
 1. **Follow the @phase decorator pattern**
    ```python
-   @phase(name="custom_phase")
-   async def custom_phase(state: State, **kwargs):
+   @phase(name="custom_step")
+   async def custom_step(state: State, **kwargs):
        # Implementation with automatic robustness, observability
        return result
    ```

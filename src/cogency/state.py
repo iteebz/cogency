@@ -90,13 +90,10 @@ class State:
             raise ValueError("Cannot add tool result without an active action")
 
         current_action = self.actions[-1]
-        # Debug notification removed - use structured logging if needed
-        if result.success and isinstance(result.data, dict) and "result" in result.data:
-            stored_result = result.data["result"]
-        elif result.success:
-            stored_result = result.data
-        else:
-            stored_result = result.error
+        # Use unwrap to properly extract result data
+        from resilient_result import unwrap
+
+        stored_result = unwrap(result) if result.success else result.error
 
         tool_call = {
             "name": name,
@@ -162,14 +159,17 @@ class State:
             latest_parts = []
             for call in latest_results:
                 name = call.get("name", "unknown")
-                outcome = call.get("outcome", "unknown")
+                args = call.get("args", {})
                 result_data = call.get("result", "")
                 # Handle result being a dict or string
-                if isinstance(result_data, dict) and "output" in result_data:
+                if isinstance(result_data, dict) and "content" in result_data:
+                    # Files tool result format
+                    result_snippet = result_data["content"][:200]
+                elif isinstance(result_data, dict) and "output" in result_data:
                     result_snippet = result_data["output"][:200]
                 else:
                     result_snippet = str(result_data)[:200]
-                latest_parts.append(f"{name}() → {outcome}: {result_snippet}")
+                latest_parts.append(f"✓ {name}({args}) executed: {result_snippet}")
             latest_context = "\n".join(latest_parts)
 
         if mode == "deep":

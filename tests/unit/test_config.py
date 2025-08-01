@@ -8,7 +8,7 @@ from cogency.config import ObserveConfig, PersistConfig, RobustConfig, setup_con
 def test_robust_defaults():
     config = RobustConfig()
 
-    assert config.retry is True
+    assert config.retry is False
     assert config.circuit is True
     assert config.rate_limit is True
     assert config.checkpoint is True
@@ -73,7 +73,7 @@ def test_setup_config_false():
 def test_setup_config_true():
     result = setup_config(RobustConfig, True)
     assert isinstance(result, RobustConfig)
-    assert result.retry is True
+    assert result.retry is False
 
 
 def test_setup_config_instance():

@@ -121,7 +121,7 @@ async def test_routing():
     assert len(state.latest_tool_results) > 0  # Still has previous results
 
 
-# Integration tests from test_phase_integration.py
+# Integration tests from test_step_integration.py
 
 
 @pytest.fixture

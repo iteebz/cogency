@@ -99,6 +99,11 @@ eval-all:
     @echo "Running all evaluations..."
     @cd evals && poetry run python run_suite.py full
 
+# Run SWE benchmark
+eval-swe:
+    @echo "Running SWE benchmark..."
+    @poetry run python -m evals.benchmarks.swe
+
 # List available evaluations
 eval-list:
     @echo "Available evaluations:"
@@ -181,7 +186,7 @@ commits:
     @git --no-pager log --pretty=format:"%ar %s"
 
 # Run CI checks locally
-ci: format lint
+ci: format fix
 	@echo "Running tests for CI..."
 	@poetry run pytest tests/
 	@just build

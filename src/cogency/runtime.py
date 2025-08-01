@@ -4,7 +4,7 @@ import asyncio
 from typing import Any, AsyncIterator, Optional
 
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig, setup_config
-from cogency.config.builder import AgentConfig
+from cogency.config.dataclasses import AgentConfig
 from cogency.memory import Memory
 from cogency.notify import Notifier, setup_formatter
 from cogency.persist import get_state
@@ -70,13 +70,13 @@ class AgentExecutor:
         # Setup services
         registry.llm = setup_llm(None)
         registry.embed = setup_embed(None)
-        registry.tools = setup_tools(None, None)
+        registry.tools = setup_tools([], None)
         registry.formatter = setup_formatter(True, False)
         registry.notifier = Notifier(registry.formatter, None)
 
         # Setup config
         registry.config = AgentConfig()
-        registry.config.robust = setup_config(RobustConfig, True)
+        registry.config.robust = setup_config(RobustConfig, False)
         registry.config.observe = setup_config(ObserveConfig, False)
         registry.config.persist = setup_config(PersistConfig, False)
         registry.config.memory = setup_config(MemoryConfig, False)
@@ -95,7 +95,7 @@ class AgentExecutor:
         registry = _ServiceRegistry()
         registry.llm = setup_llm(config.llm)
         registry.embed = setup_embed(config.embed)
-        registry.tools = setup_tools(config.tools, None)
+        registry.tools = setup_tools(config.tools or [], None)
         registry.formatter = config.formatter or setup_formatter(config.notify, config.debug)
         registry.notifier = Notifier(registry.formatter, config.on_notify)
 

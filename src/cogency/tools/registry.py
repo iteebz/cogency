@@ -9,10 +9,16 @@ logger = logging.getLogger(__name__)
 
 
 def setup_tools(tools, memory):
-    """Setup tools with auto-discovery."""
+    """Setup tools with explicit configuration."""
     if tools is None:
-        # Auto-discover tools
+        raise ValueError(
+            "tools must be explicitly specified; use [] for no tools or 'all' for full access"
+        )
+
+    if tools == "all":
         tools = ToolRegistry.get_tools()
+    elif isinstance(tools, str):
+        raise ValueError(f"Invalid tools value '{tools}'; use 'all' or a list of tools")
 
     return tools
 

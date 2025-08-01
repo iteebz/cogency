@@ -205,7 +205,7 @@ async def respond(
         # Fallback
         response_text = "I'm here to help. How can I assist you?"
 
-    await notifier("respond", state="complete", content=response_text[:100])
+    await notifier("respond", state="complete", content=(response_text or "")[:100])
 
     # Update state
     state.add_message("assistant", response_text)

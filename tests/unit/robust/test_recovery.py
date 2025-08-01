@@ -30,7 +30,7 @@ async def test_reasoning_loop_recovery():
     result = await Recovery.recover(error, state, "reasoning")
 
     assert result.success
-    assert state.next_phase == "respond"
+    assert state.next_step == "respond"
     assert state.stop_reason == "loop_recovery"
 
 
@@ -57,7 +57,7 @@ async def test_action_nonrecoverable():
     result = await Recovery.recover(error, state, "action")
 
     assert result.success
-    assert state.next_phase == "respond"
+    assert state.next_step == "respond"
     assert state.stop_reason == "non_recoverable_action_error"
 
 
@@ -70,7 +70,7 @@ async def test_action_retry():
     result = await Recovery.recover(error, state, "action")
 
     assert result.success
-    assert state.next_phase == "reason"
+    assert state.next_step == "reason"
     assert state.execution_results["type"] == "error"
     assert "bash" in state.execution_results["failed_tools"]
 

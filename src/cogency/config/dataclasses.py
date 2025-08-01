@@ -12,7 +12,7 @@ class RobustConfig:
     """Comprehensive robustness configuration (retry, checkpointing, circuit breaker, rate limiting)."""
 
     # Core toggles
-    retry: bool = True
+    retry: bool = False
     circuit: bool = True
     rate_limit: bool = True
     checkpoint: bool = True
@@ -70,15 +70,15 @@ class MemoryConfig:
     max_impressions: int = 50  # Prune oldest impressions past this limit
 
     # Context injection policy
-    recall_phases: List[str] = None  # ["reason", "respond", "both"] or None for reason-only
+    recall_steps: List[str] = None  # ["reason", "respond", "both"] or None for reason-only
 
     # Store configuration
     store: Optional[Any] = None
     user_id: str = "default"
 
     def __post_init__(self):
-        if self.recall_phases is None:
-            self.recall_phases = ["reason"]  # Default: reason-only
+        if self.recall_steps is None:
+            self.recall_steps = ["reason"]  # Default: reason-only
 
 
 @dataclass
@@ -116,6 +116,28 @@ class PersistConfig:
     enabled: bool = True
     store: Optional[Any] = None  # This will hold the actual store instance (e.g., Filesystem)
     # Add any other persistence-specific settings here
+
+
+@dataclass
+class AgentConfig:
+    """Agent configuration container."""
+
+    name: str = "cogency"
+    identity: Optional[str] = None
+    output_schema: Optional[Any] = None
+    llm: Optional[Any] = None
+    embed: Optional[Any] = None
+    tools: Optional[Any] = None
+    memory: Optional[Any] = None
+    mode: str = "adapt"
+    depth: int = 10
+    notify: bool = True
+    debug: bool = False
+    formatter: Optional[Any] = None
+    on_notify: Optional[Any] = None
+    robust: Optional[Any] = None
+    observe: Optional[Any] = None
+    persist: Optional[Any] = None
 
 
 def setup_config(config_type, param, store=None):

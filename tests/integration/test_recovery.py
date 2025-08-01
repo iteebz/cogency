@@ -64,9 +64,9 @@ async def test_recovery():
 
     shell_tool = Shell()
     with patch.object(shell_tool, "run", side_effect=mock_code.run):
-        from cogency import AgentBuilder
+        from cogency import Agent
 
-        agent = AgentBuilder("test").with_llm(llm).with_tools([shell_tool]).with_depth(5).build()
+        agent = Agent("test", llm=llm, tools=[shell_tool], depth=5)
 
         # Run agent with initial prompt
         result = await agent.run("List the contents of the current directory")
@@ -112,14 +112,10 @@ async def test_multiple_failures():
 
     shell_tool = Shell()
     with patch.object(shell_tool, "run", side_effect=failing_tool.run):
-        from cogency import AgentBuilder
+        from cogency import Agent
 
-        agent = (
-            AgentBuilder("test")
-            .with_llm(MockLLM(custom_impl=persistent_response))
-            .with_tools([shell_tool])
-            .with_depth(3)
-            .build()
+        agent = Agent(
+            "test", llm=MockLLM(custom_impl=persistent_response), tools=[shell_tool], depth=3
         )
 
         result = await agent.run("Run a command")
