@@ -129,9 +129,7 @@ class EmojiFormatter(Formatter):
     def _memory(self, notification: Notification) -> str:
         content = notification.data.get("content", "")[:50]
         tags = notification.data.get("tags", [])
-        return (
-            f"🧠 Memory: ✅ {content}{'...' if len(content) == 50 else ''} (tags: {', '.join(tags)})"
-        )
+        return f"🧠 Memory: ✅ {content}{'...' if len(content) == 50 else ''} (tags: {', '.join(tags)})"
 
     def _trace(self, notification: Notification) -> str:
         message = notification.data.get("message", "Debug trace")

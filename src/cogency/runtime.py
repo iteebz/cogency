@@ -96,9 +96,9 @@ class AgentExecutor:
         persist_config = setup_config(
             PersistConfig,
             config.persist,
-            store=getattr(config.persist, "store", None)
-            if hasattr(config.persist, "store")
-            else None,
+            store=(
+                getattr(config.persist, "store", None) if hasattr(config.persist, "store") else None
+            ),
         )
         memory_config = setup_config(MemoryConfig, config.memory)
         robust_config = setup_config(RobustConfig, config.robust)

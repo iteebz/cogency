@@ -181,9 +181,7 @@ def summarize_result(result: Any) -> str:
             return (
                 f"{len(result)} items"
                 if len(result) > 1
-                else "empty"
-                if len(result) == 0
-                else str(result[0])
+                else "empty" if len(result) == 0 else str(result[0])
             )
 
         elif isinstance(result, bool):

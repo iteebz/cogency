@@ -149,11 +149,11 @@ class ToolsetInspector:
             details = (
                 f"items: {len(result.data.get('items', []))}"
                 if test_name == "list" and result.success
-                else f"size: {result.data.get('size', 0)}"
-                if result.success and "size" in result.data
-                else result.error
-                if not result.success
-                else "success"
+                else (
+                    f"size: {result.data.get('size', 0)}"
+                    if result.success and "size" in result.data
+                    else result.error if not result.success else "success"
+                )
             )
             print(f"   {status} {test_name}: {details}")
 

@@ -24,7 +24,7 @@ class Sentence(Embed):
         except ImportError:
             raise ImportError(
                 "Sentence Transformers support not installed. "
-                "Use `pip install cogency[sentence-transformers]`"
+                "Use `pip install cogency[sentence]`"
             ) from None
 
     def embed(self, text: str | list[str], **kwargs) -> Result:

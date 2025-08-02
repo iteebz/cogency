@@ -97,7 +97,7 @@ def test_invalid_schema_rejection(validation_schemas):
     # Missing required field
     invalid_data = {
         "tokens": 10,
-        "model": "test"
+        "model": "test",
         # Missing "content"
     }
 

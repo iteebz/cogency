@@ -25,9 +25,9 @@ class MockStore(Store):
         if data:
             # Convert State object back to dict format expected by persistence
             return {
-                "state": data["state"].__dict__
-                if hasattr(data["state"], "__dict__")
-                else data["state"],
+                "state": (
+                    data["state"].__dict__ if hasattr(data["state"], "__dict__") else data["state"]
+                ),
                 "schema_version": data["schema_version"],
             }
         return None

@@ -34,53 +34,43 @@ pydantic = ">=2.0"
 typing-extensions = ">=4.0"
 python-dotenv = ">=1.0.0"
 resilient-result = "0.3.1"
-google-genai = ">=1.26.0,<2.0.0"
+trafilatura = ">=2.0.0,<3.0.0"
+aiohttp = ">=3.12.15,<4.0.0"
+ddgs = ">=3.8.0"
+psutil = ">=5.9.0"
 
-# Optional dependencies
-aiohttp = { version = ">=3.12.14,<4.0.0", optional = true }
-mcp = { version = ">=1.0.0", optional = true }
-ddgs = { version = ">=3.8.0", optional = true }
-trafilatura = { version = ">=1.12.0,<2.0.0", optional = true }
-psutil = { version = ">=5.9.0", optional = true }
-python-dateutil = { version = ">=2.8.0", optional = true }
+tiktoken = ">=0.8.0,<1.0.0"
+
+# Optional providers only
+
+# LLM providers
+google-genai = { version = ">=1.26.0,<2.0.0", optional = true }
 openai = { version = ">=1.59.0,<2.0.0", optional = true }
 anthropic = { version = ">=0.42.0,<1.0.0", optional = true }
 mistralai = { version = ">=1.3.0,<2.0.0", optional = true }
-tiktoken = { version = ">=0.8.0,<1.0.0", optional = true }
+
+# Embedding providers
 nomic = { version = ">=3.5.3,<4.0.0", optional = true }
-sentence-transformers = { version = ">=3.0.0,<4.0.0", optional = true }
+sentence-transformers = { version = ">=5.0.0,<6.0.0", optional = true }
 
 
 [tool.poetry.extras]
 # LLM providers
-openai = ["openai", "tiktoken"]
+gemini = ["google-genai"]
+openai = ["openai"]
 anthropic = ["anthropic"]
 mistral = ["mistralai"]
-all-llm = ["openai", "tiktoken", "anthropic", "mistralai"]
+ollama = ["openai"]
 
 # Embedding providers
 nomic = ["nomic"]
-sentence-transformers = ["sentence-transformers"]
-all-embed = ["nomic", "sentence-transformers"]
+sentence = ["sentence-transformers"]
 
-# Tools
-search = ["ddgs"]
-scrape = ["trafilatura"]
-time = ["python-dateutil"]
-monitoring = ["psutil"]
-all-tools = ["ddgs", "trafilatura", "python-dateutil", "psutil"]
-
-# Infrastructure
-mcp-server = ["mcp"]
-http = ["aiohttp"]
-all-infra = ["mcp", "aiohttp"]
-
-# Convenience bundles
-all = ["openai", "tiktoken", "anthropic", "mistralai", "nomic", "sentence-transformers", "ddgs", "trafilatura", "python-dateutil", "psutil", "mcp", "aiohttp"]
-dev = ["openai", "tiktoken", "anthropic", "mistralai", "nomic", "ddgs", "trafilatura", "python-dateutil", "psutil", "mcp", "aiohttp"]
+# Everything
+all = ["google-genai", "openai", "anthropic", "mistralai", "nomic", "sentence-transformers"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.0.0"
+black = "^25.1.0"
 pytest = "^8.4.1"
 pytest-asyncio = "^0.21.0"
 pytest-timeout = "^2.4.0"

@@ -22,6 +22,10 @@ def __getattr__(name):
         from .openai import OpenAI
 
         return OpenAI
+    elif name == "Ollama":
+        from .ollama import Ollama
+
+        return Ollama
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
@@ -31,5 +35,6 @@ __all__ = [
     "Gemini",
     "Mistral",
     "OpenAI",
+    "Ollama",
     "LLMCache",
 ]

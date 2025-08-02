@@ -1,6 +1,5 @@
 """Setup utilities for notification system."""
 
-
 from .formatters import CLIFormatter, EmojiFormatter, Formatter, JSONFormatter
 
 
