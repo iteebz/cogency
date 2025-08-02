@@ -16,6 +16,7 @@ from .metrics import (
     timer,
 )
 from .profiling import Profiler, profile_async, profile_sync
+from .tokens import cost, count
 
 __all__ = [
     "MetricPoint",
@@ -35,4 +36,6 @@ __all__ = [
     "profile_sync",
     "Prometheus",
     "OpenTelemetry",
+    "cost",
+    "count",
 ]

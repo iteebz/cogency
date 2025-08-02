@@ -8,8 +8,8 @@ from resilient_result import Result
 
 from cogency.notify.core import Notification, emit
 from cogency.observe.metrics import counter
+from cogency.observe.tokens import cost, count
 from cogency.utils import KeyManager
-from cogency.utils.tokens import cost, count
 
 from .cache import LLMCache
 
