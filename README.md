@@ -6,7 +6,7 @@
 
 **Smart AI agents that think as hard as they need to.**
 
-> 🚧 **Production Beta (v0.9.1)** - Architecturally complete, actively gathering feedback from early adopters. Ready for serious evaluation and beta deployments.
+> 🎆 **v1.0.0 Release** - Production ready with canonical 5-tool architecture. Clean, minimal, complete.
 
 ```python
 from cogency import Agent
@@ -48,16 +48,17 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 **Prepare → Reason → Act → Respond**
 
 ```
-👤 Plan a Tokyo trip with $2000 budget
+👤 Build a REST API for my blog
 
-🔧 Tools: code, search
+🔧 Tools: files, shell, search
 🧠 Task complexity → escalating to Deep React
-🌤️ weather(Tokyo) → 25°C sunny, rain Thu-Fri
-🧮 code(print(2000 / 5)) → 400.0
-🔍 search(Tokyo indoor activities) → Museums, temples
-💭 Reflection: Need indoor backup plans for rainy days
-📋 Planning: 5-day itinerary with weather contingencies
-🤖 Here's your optimized Tokyo itinerary...
+🔍 search(query='FastAPI best practices') → 5 results
+📖 scrape(url='fastapi.tiangolo.com/tutorial') → FastAPI Tutorial
+📁 files(action='create', path='main.py') → API structure created
+💻 shell(command='pip install fastapi uvicorn') → Dependencies installed
+💭 Reflection: Need database integration and error handling
+📋 Planning: Add SQLite, validation, and tests
+🤖 Here's your complete FastAPI blog API...
 ```
 
 The preparing phase handles tool selection, memory operations, and intelligent routing between reasoning modes.
@@ -86,34 +87,29 @@ await agent.run("Use my_tool with hello")
 
 ```python
 # Research Agent
-agent = Agent("researcher")
+agent = Agent("researcher", tools=["search", "scrape"])
 await agent.run("Latest quantum computing developments?")
 
 # Coding Assistant
-agent = Agent("coder")
-await agent.run("Fix the auth bug in this Flask app")
+agent = Agent("coder", tools=["files", "shell"])
+await agent.run("Build a FastAPI service with database integration")
 
 # Data Analyst
-agent = Agent("analyst")
-await agent.run("Analyze sales trends in quarterly_data.csv")
+agent = Agent("analyst", tools=["files", "shell", "http"])
+await agent.run("Process this CSV and POST results to analytics API")
 ```
 
-## Built-in Tools
+## Canonical 5 Tools
 
 Agents automatically discover and use relevant tools:
 
-💻 **Code** - Execute Python code  
-🔍 **Search** - Web search for current information  
-🌤️ **Weather** - Current conditions and forecasts  
-📁 **Files** - Create, read, edit, list, delete files  
-💻 **Shell** - Execute system commands safely  
-🐍 **Code** - Python code execution in sandboxed environment  
-📊 **CSV** - Data processing and analysis  
-🗄️ **SQL** - Database querying and management  
-🌐 **HTTP** - Make HTTP requests with JSON parsing  
-🕒 **Time** - Date/time operations and timezone conversions  
-🔗 **Scrape** - Web scraping with content extraction  
-🧠 **Recall** - Memory search and retrieval
+📁 **Files** - Create, read, edit, list files and directories  
+💻 **Shell** - Execute system commands safely with timeout protection  
+🌐 **HTTP** - Universal network primitive for API calls and web requests  
+📖 **Scrape** - Intelligent web content extraction with clean text output  
+🔍 **Search** - Web search for current information via DuckDuckGo  
+
+**Complete primitive coverage** - These 5 tools compose to handle any reasonable AI agent task. HTTP serves as the universal fallback when specialized abstractions don't exist.
 
 ## Installation
 

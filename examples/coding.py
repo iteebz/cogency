@@ -4,7 +4,6 @@
 import asyncio
 
 from cogency import Agent
-from cogency.tools import Code, Files, Shell
 
 
 async def main():
@@ -16,7 +15,7 @@ async def main():
     agent = Agent(
         "ml_engineer",
         identity="You are Dr. Elena Rodriguez, a senior ML engineer at DeepMind with expertise in neural architecture design and training optimization. You've built production ML systems at scale and are known for creating elegant, efficient training pipelines. You approach problems with both theoretical rigor and practical engineering excellence, always focusing on reproducible results and clean code architecture.",
-        tools=[Code(), Files(), Shell()],
+        tools=["shell", "files"],
         memory=False,
         depth=25,  # ML projects may need more iterations
     )

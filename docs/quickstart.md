@@ -52,14 +52,15 @@ print(result)  # "4"
 Watch your agent think in real-time:
 
 ```python
-async for chunk in agent.stream("What's the weather in London?"):
+async for chunk in agent.stream("Find and summarize the latest AI research"):
     print(chunk, end="", flush=True)
 ```
 
 Output:
 ```
-🌤️ weather(location='London') → sunny, 18°C
-The weather in London is currently sunny with a temperature of 18°C.
+🔍 search(query='latest AI research 2024') → 5 results
+📖 scrape(url='https://arxiv.org/recent') → Recent AI Papers
+Based on recent research, key developments include improved transformer architectures and multimodal AI advances.
 ```
 
 ## Built-in Tools
@@ -67,17 +68,23 @@ The weather in London is currently sunny with a temperature of 18°C.
 Agents automatically use relevant tools:
 
 ```python
-# Uses code tool
-await agent.run("What's 15% of $1,250?")
+# Uses shell tool for computation
+await agent.run("Calculate 15% of $1,250")
 
-# Uses weather tool  
-await agent.run("Weather in Tokyo?")
+# Uses search tool for current information
+await agent.run("Latest Python 3.12 features")
 
-# Uses multiple tools
-await agent.run("Weather in Paris and calculate 450 EUR to USD")
+# Uses scrape tool for content extraction
+await agent.run("Summarize this article: https://example.com/post")
+
+# Uses files tool for data persistence
+await agent.run("Save this data to results.json")
+
+# Uses http tool for API calls
+await agent.run("Get my GitHub profile via API")
 ```
 
-Available tools: Code, Web Search, Files, HTTP, Ask.
+Tools automatically selected based on task requirements.
 
 ## Custom Tools
 
@@ -149,20 +156,20 @@ agent = Agent(
 
 ### Research Agent
 ```python
-agent = Agent("researcher")
-result = await agent.run("What are the latest developments in quantum computing?")
+agent = Agent("researcher", tools=["search", "scrape"])
+result = await agent.run("Find and analyze the latest quantum computing research papers")
 ```
 
 ### Coding Assistant
 ```python
-agent = Agent("coder")
-result = await agent.run("Write a Python function to calculate Fibonacci numbers")
+agent = Agent("coder", tools=["files", "shell"])
+result = await agent.run("Create a FastAPI app with database models and run tests")
 ```
 
 ### Data Analysis
 ```python
-agent = Agent("analyst")  
-result = await agent.run("Analyze the sales data in data.csv and find trends")
+agent = Agent("analyst", tools=["files", "shell", "http"])  
+result = await agent.run("Process sales.csv, calculate trends, and POST to dashboard API")
 ```
 
 ---
