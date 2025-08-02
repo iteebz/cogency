@@ -95,12 +95,13 @@ class Agent:
     async def _get_executor(self) -> AgentExecutor:
         """Get or create executor."""
         if not self._executor:
-            self._executor = await AgentExecutor.from_config(self._config)
+            self._executor = await AgentExecutor.configure(self._config)
         return self._executor
 
-    @property
-    async def memory(self):
-        """Access memory component (for tests/advanced usage)."""
+    async def _debug_memory(self):
+        """Access memory component (debug mode only)."""
+        if not self._config.debug:
+            raise RuntimeError("Memory access requires debug=True")
         executor = await self._get_executor()
         return getattr(executor, "memory", None)
 
@@ -108,9 +109,10 @@ class Agent:
         executor = await self._get_executor()
         return await executor.run(query, user_id, identity)
 
-    @property
-    async def tools(self):
-        """Access tools (for debugging)."""
+    async def _debug_tools(self):
+        """Access tools (debug mode only)."""
+        if not self._config.debug:
+            raise RuntimeError("Tools access requires debug=True")
         executor = await self._get_executor()
         return getattr(executor, "tools", None)
 

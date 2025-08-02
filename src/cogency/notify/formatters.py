@@ -1,4 +1,4 @@
-"""v2 Notification formatters - CLI, Emoji, JSON, Silent."""
+"""Notification formatters - CLI, Emoji, JSON, Silent."""
 
 import json
 from typing import Any, Optional

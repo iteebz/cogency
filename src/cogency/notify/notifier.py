@@ -1,4 +1,4 @@
-"""v2 Notifier - Clean async notification orchestrator."""
+"""Notifier - Clean async notification orchestrator."""
 
 from typing import Any, Callable, Dict, Optional
 
@@ -7,7 +7,7 @@ from .formatters import Formatter
 
 
 class Notifier:
-    """v2 async notification orchestrator."""
+    """Async notification orchestrator."""
 
     def __init__(self, formatter: Formatter, on_notify: Optional[Callable] = None):
         self.formatter = formatter
@@ -30,4 +30,4 @@ class Notifier:
         """Legacy emit method - kept for backward compatibility."""
         await self(notification_type, **data)
 
-    # Old v2 methods removed - use ultimate callable form: await notifier("event_type", **data)
+    # Use callable form: await notifier("event_type", **data)

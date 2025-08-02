@@ -3,7 +3,7 @@
 from cogency.state import State
 
 
-async def run_agent(
+async def execute_agent(
     state: State, prepare_step, reason_step, act_step, respond_step, notifier=None
 ) -> None:
     """Pure early-return execution - phases decide when to end."""
@@ -20,10 +20,16 @@ async def run_agent(
     while state.iteration < state.depth:
         # Reason phase
         response = await reason_step(state, notifier)
-        if response and (not hasattr(response, "success") or (response.success and response.data)):
-            state.response = response.data if hasattr(response, "data") else response
+        from resilient_result import Result
+        if isinstance(response, Result) and response.success and response.data:
+            state.response = response.data
             state.response_source = "reason"
             # Always call respond for identity application
+            await respond_step(state, notifier)
+            return
+        elif response and not isinstance(response, Result):
+            state.response = response
+            state.response_source = "reason"
             await respond_step(state, notifier)
             return
 
@@ -33,8 +39,12 @@ async def run_agent(
 
         # Act phase
         response = await act_step(state, notifier)
-        if response and (not hasattr(response, "success") or (response.success and response.data)):
-            state.response = response.data if hasattr(response, "data") else response
+        if isinstance(response, Result) and response.success and response.data:
+            state.response = response.data
+            state.response_source = "act"
+            return
+        elif response and not isinstance(response, Result):
+            state.response = response
             state.response_source = "act"
             return
 

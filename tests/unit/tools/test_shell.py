@@ -40,9 +40,20 @@ async def test_blocked():
 
 @pytest.mark.asyncio
 async def test_timeout():
+    import asyncio
+    from unittest.mock import AsyncMock, Mock, patch
+
     tool = Shell()
 
-    result = await tool.run(command="sleep 10", timeout=1)
+    # Mock subprocess that never completes
+    mock_process = Mock()
+    mock_process.communicate = AsyncMock(side_effect=asyncio.TimeoutError())
+    mock_process.kill = Mock()  # Synchronous kill
+    mock_process.wait = AsyncMock(return_value=None)
+
+    with patch("asyncio.create_subprocess_shell", return_value=mock_process):
+        result = await tool.run(command="sleep 10", timeout=0.1)
+
     assert not result.success
     assert "timed out" in result.error
 

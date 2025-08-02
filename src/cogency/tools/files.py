@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FilesArgs:
     action: str
-    filename: str = ""  # Default to empty for list action
+    path: str = ""  # Default to empty for list action
     content: Optional[str] = None
     line: Optional[int] = None
     start: Optional[int] = None
@@ -35,15 +35,15 @@ class Files(Tool):
         super().__init__(
             name="files",
             description="Create, read, edit and manage complete code files with full implementations.",
-            schema="files(action: str, filename: str = '', content: str = None, line: int = None, start: int = None, end: int = None)",
+            schema="files(action: str, path: str = '', content: str = None, line: int = None, start: int = None, end: int = None)",
             emoji="📁",
             params=FilesArgs,
             examples=[
-                "files(action='create', filename='app.py', content='from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\"/\")\\nasync def root():\\n    return {\"message\": \"Hello World\"}')",
-                "files(action='create', filename='models.py', content='from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None')",
-                "files(action='read', filename='app.py')",
-                "files(action='edit', filename='app.py', line=5, content='@app.get(\"/users\")')",
-                "files(action='list', filename='src')",
+                "files(action='create', path='app.py', content='from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\"/\")\\nasync def root():\\n    return {\"message\": \"Hello World\"}')",
+                "files(action='create', path='models.py', content='from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None')",
+                "files(action='read', path='app.py')",
+                "files(action='edit', path='app.py', line=5, content='@app.get(\"/users\")')",
+                "files(action='list', path='src')",
             ],
             rules=[
                 "CRITICAL: When creating files, provide complete, functional code implementations; never placeholder comments or stubs.",
@@ -52,15 +52,15 @@ class Files(Tool):
                 "For Python: Include proper type hints, docstrings, and follow PEP 8.",
                 "Generate working, executable code that solves the specified requirements.",
                 "For complex features, create smaller focused files and build incrementally.",
-                "For 'edit' action, specify 'filename' and either 'line' (for single line) or 'start' and 'end' (for range).",
-                "For 'list' action, 'filename' can be a directory path; defaults to current directory.",
+                "For 'edit' action, specify 'path' and either 'line' (for single line) or 'start' and 'end' (for range).",
+                "For 'list' action, 'path' can be a directory path; defaults to current directory.",
                 "File paths are relative to the tool's working directory (e.g., 'app.py', 'src/module.py', 'models/user.py').",
             ],
         )
         # Use base class formatting with templates
-        self.param_key = "filename"
+        self.param_key = "path"
         self.human_template = "{result}"
-        self.agent_template = "{action} {filename}"
+        self.agent_template = "{action} {path}"
 
         self.base_dir = Path(base_dir).resolve()
         self.base_dir.mkdir(parents=True, exist_ok=True)
@@ -80,7 +80,7 @@ class Files(Tool):
     async def run(
         self,
         action: str,
-        filename: str = "",
+        path: str = "",
         content: str = "",
         line: int = None,
         start: int = None,
@@ -89,33 +89,33 @@ class Files(Tool):
         """Execute file operations."""
         try:
             if action == "create":
-                path = self._safe_path(filename)
+                path = self._safe_path(path)
                 if path.exists():
                     return Result.fail(
-                        f"File already exists: {filename}. Read it first with files(action='read', filename='{filename}') before creating."
+                        f"File already exists: {path}. Read it first with files(action='read', path='{path}') before creating."
                     )
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
-                return Result.ok({"result": f"Created file: {filename}", "size": len(content)})
+                return Result.ok({"result": f"Created file: {path}", "size": len(content)})
 
             elif action == "read":
-                path = self._safe_path(filename)
+                path = self._safe_path(path)
                 if not path.exists():
-                    return Result.fail(f"File not found: {filename}")
+                    return Result.fail(f"File not found: {path}")
 
                 content = path.read_text(encoding="utf-8")
                 return Result.ok(
                     {
-                        "result": f"Read file: {filename}",
+                        "result": f"Read file: {path}",
                         "content": content,
                         "size": len(content),
                     }
                 )
 
             elif action == "edit":
-                path = self._safe_path(filename)
+                path = self._safe_path(path)
                 if not path.exists():
-                    return Result.fail(f"File not found: {filename}")
+                    return Result.fail(f"File not found: {path}")
 
                 lines = path.read_text(encoding="utf-8").splitlines()
 
@@ -152,13 +152,13 @@ class Files(Tool):
                 path.write_text(new_content, encoding="utf-8")
                 return Result.ok(
                     {
-                        "result": f"{result_msg} in {filename}",
+                        "result": f"{result_msg} in {path}",
                         "size": len(new_content),
                     }
                 )
 
             elif action == "list":
-                path = self._safe_path(filename if filename else ".")
+                path = self._safe_path(path if path else ".")
                 items = []
                 for item in sorted(path.iterdir()):
                     items.append(

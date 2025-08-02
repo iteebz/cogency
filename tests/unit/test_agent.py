@@ -111,11 +111,11 @@ async def test_output_schema():
 async def test_run():
     agent = Agent("test", llm=MockLLM(), tools=[])
 
-    with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
-        mock_run_agent.return_value = "Final Answer"
+    with patch("cogency.steps.execution.execute_agent", new_callable=AsyncMock) as mock_execute_agent:
+        mock_execute_agent.return_value = "Final Answer"
         result = await agent.run("test query")
 
-        mock_run_agent.assert_called_once()
+        mock_execute_agent.assert_called_once()
         assert result is not None
 
 
@@ -123,7 +123,7 @@ async def test_run():
 async def test_run_error():
     agent = Agent("test", llm=MockLLM(), tools=[])
 
-    with patch("cogency.steps.execution.run_agent", side_effect=Exception("Test error")):
+    with patch("cogency.steps.execution.execute_agent", side_effect=Exception("Test error")):
         try:
             await agent.run("test query")
             raise AssertionError("Should have raised exception")
@@ -135,17 +135,17 @@ async def test_run_error():
 async def test_stream():
     agent = Agent("test", llm=MockLLM(), tools=[])
 
-    with patch("cogency.steps.execution.run_agent", new_callable=AsyncMock) as mock_run_agent:
+    with patch("cogency.steps.execution.execute_agent", new_callable=AsyncMock) as mock_execute_agent:
         # Empty query
         chunks = [chunk async for chunk in agent.stream("")]
         assert "Empty query not allowed" in chunks[0]
-        mock_run_agent.assert_not_called()
+        mock_execute_agent.assert_not_called()
 
         # Too long query
         long_query = "a" * 10001
         chunks = [chunk async for chunk in agent.stream(long_query)]
         assert "Query too long" in chunks[0]
-        mock_run_agent.assert_not_called()
+        mock_execute_agent.assert_not_called()
 
 
 def test_traces_empty():

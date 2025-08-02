@@ -4,7 +4,7 @@ import logging
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, List, Union
 
-from resilient_result import Result, Retry, resilient
+from resilient_result import Result
 
 from cogency.notify.core import Notification, emit
 from cogency.observe.metrics import counter
@@ -36,21 +36,21 @@ class LLM(ABC):
         timeout: float = 15.0,
         temperature: float = 0.7,
         max_tokens: int = 16384,
-        max_retries: int = 3,
         enable_cache: bool = True,
+        notifier=None,
         **kwargs,
     ):
         # Automatic key management - handles single/multiple keys, rotation, env detection
         self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
         self.enable_cache = enable_cache
+        self.notifier = notifier
 
         # Common LLM configuration
         self.model = model or self.default_model
         self.timeout = timeout
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.max_retries = max_retries
 
         # Provider-specific kwargs
         self.extra_kwargs = kwargs
@@ -73,7 +73,6 @@ class LLM(ABC):
         """Get client instance with current API key."""
         pass
 
-    @resilient(retry=Retry.api())
     async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
         """Generate a response from the LLM given a list of messages.
 
@@ -84,6 +83,28 @@ class LLM(ABC):
         Returns:
             Result containing string response from the LLM or error
         """
+        if self.notifier:
+            await self.notifier(
+                "llm", state="starting", provider=self.provider_name, model=self.model
+            )
+
+        try:
+            result = await self._run_with_metrics(messages, **kwargs)
+
+            if self.notifier:
+                await self.notifier("llm", state="success", provider=self.provider_name)
+
+            return result
+
+        except Exception as e:
+            if self.notifier:
+                await self.notifier(
+                    "llm", state="failed", provider=self.provider_name, error=str(e)
+                )
+            raise
+
+    async def _run_with_metrics(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+        """Run implementation with metrics and caching"""
         # Count input tokens
         tin = count(messages, self.model)
 
@@ -135,8 +156,6 @@ class LLM(ABC):
         """Convert to provider format (standard role/content structure)."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]
 
-    @resilient(retry=Retry.api())
-    @abstractmethod
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate a streaming response from the LLM given a list of messages.
 
@@ -148,4 +167,12 @@ class LLM(ABC):
         Returns:
             AsyncIterator[str] for streaming response
         """
+        # Note: Streaming doesn't support retry currently due to complexity of async generator retry
+        # When robust=False, this behavior is maintained (no retries for streaming)
+        async for chunk in self._stream_impl(messages, **kwargs):
+            yield chunk
+
+    @abstractmethod
+    async def _stream_impl(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+        """Internal stream implementation - to be implemented by subclasses"""
         pass

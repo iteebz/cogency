@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
-from resilient_result import Result, Retry, resilient
+from resilient_result import Result
 
 
 class Embed(ABC):
@@ -12,10 +12,9 @@ class Embed(ABC):
     def __init__(self, api_key: str = None, **kwargs):
         self.api_key = api_key
 
-    @resilient(retry=Retry.api())
     @abstractmethod
     def embed(self, text: str | list[str], **kwargs) -> Result:
-        """Embed text(s) - handles both single strings and lists"""
+        """Embed text(s) - to be implemented by subclasses"""
         pass
 
     async def embed_text(self, text: str, **kwargs) -> Result:

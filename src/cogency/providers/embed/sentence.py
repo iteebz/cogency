@@ -29,6 +29,18 @@ class Sentence(Embed):
 
     def embed(self, text: str | list[str], **kwargs) -> Result:
         """Embed text(s) - handles both single strings and lists."""
+        if self._should_retry:
+            from resilient_result import Retry, resilient
+
+            @resilient(retry=Retry.api())
+            def _resilient_embed():
+                return self._embed_impl(text, **kwargs)
+
+            return _resilient_embed()
+        return self._embed_impl(text, **kwargs)
+
+    def _embed_impl(self, text: str | list[str], **kwargs) -> Result:
+        """Internal embed implementation."""
         try:
             embeddings = self._model_instance.encode(text, **kwargs)
             if isinstance(text, str):

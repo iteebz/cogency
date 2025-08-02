@@ -122,21 +122,21 @@ class ToolsetInspector:
     async def _test_files(self, tool: Files):
         """Test Files tool operations."""
         tests = [
-            ("list", {"action": "list", "filename": "."}),
+            ("list", {"action": "list", "path": "."}),
             (
                 "create",
                 {
                     "action": "create",
-                    "filename": "test_meta.py",
+                    "path": "test_meta.py",
                     "content": "# Meta-agent test file\nprint('Hello from meta-agent!')",
                 },
             ),
-            ("read", {"action": "read", "filename": "test_meta.py"}),
+            ("read", {"action": "read", "path": "test_meta.py"}),
             (
                 "edit",
                 {
                     "action": "edit",
-                    "filename": "test_meta.py",
+                    "path": "test_meta.py",
                     "line": 2,
                     "content": "print('Updated by meta-agent!')",
                 },
@@ -229,7 +229,7 @@ class ToolsetInspector:
         print("=" * 50)
 
         benchmarks = [
-            ("files_list", lambda: self.tools["files"].run(action="list", filename=".")),
+            ("files_list", lambda: self.tools["files"].run(action="list", path=".")),
             ("shell_echo", lambda: self.tools["shell"].run(command="echo benchmark")),
             ("http_get", lambda: self.tools["http"].run(url="https://httpbin.org/get")),
         ]

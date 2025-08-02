@@ -20,6 +20,12 @@ class Reasoning:
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Reasoning":
+        # Handle case where LLM returns array instead of object
+        if isinstance(data, list):
+            data = data[0] if data else {}
+        elif not isinstance(data, dict):
+            data = {}
+
         reasoning_val = data.get("reasoning")
         normalized_reasoning = normalize_reasoning(reasoning_val)
 

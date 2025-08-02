@@ -33,7 +33,7 @@ class OpenAI(LLM):
         )
         return res.choices[0].message.content
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def _stream_impl(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         try:
             stream = await client.chat.completions.create(

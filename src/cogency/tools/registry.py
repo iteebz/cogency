@@ -1,7 +1,7 @@
 """Tool registry for auto-discovery."""
 
 import logging
-from typing import List, Type
+from typing import List, Type, Union
 
 from cogency.tools.base import Tool
 
@@ -16,11 +16,60 @@ def setup_tools(tools, memory):
         )
 
     if tools == "all":
-        tools = ToolRegistry.get_tools()
+        return ToolRegistry.get_tools()
     elif isinstance(tools, str):
         raise ValueError(f"Invalid tools value '{tools}'; use 'all' or a list of tools")
+    elif isinstance(tools, list):
+        return _resolve_tool_list(tools)
 
     return tools
+
+
+def _resolve_tool_list(tools: List[Union[str, Tool]]) -> List[Tool]:
+    """Resolve a mixed list of tool strings and instances."""
+    resolved = []
+
+    for tool in tools:
+        if isinstance(tool, str):
+            tool_instance = _get_tool_by_name(tool)
+            if tool_instance:
+                resolved.append(tool_instance)
+            else:
+                logger.warning(f"Unknown tool name: {tool}")
+        elif isinstance(tool, Tool):
+            resolved.append(tool)
+        else:
+            logger.warning(f"Invalid tool type: {type(tool)}")
+
+    return resolved
+
+
+def _get_tool_by_name(name: str) -> Tool:
+    """Get tool instance by string name."""
+    # Import here to avoid circular imports
+    from cogency.tools.files import Files
+    from cogency.tools.http import HTTP
+    from cogency.tools.scrape import Scrape
+    from cogency.tools.search import Search
+    from cogency.tools.shell import Shell
+
+    tool_map = {
+        "files": Files,
+        "http": HTTP,
+        "scrape": Scrape,
+        "search": Search,
+        "shell": Shell,
+    }
+
+    tool_class = tool_map.get(name.lower())
+    if tool_class:
+        try:
+            return tool_class()
+        except Exception as e:
+            logger.debug(f"Failed to instantiate {name}: {e}")
+            return None
+
+    return None
 
 
 class ToolRegistry:

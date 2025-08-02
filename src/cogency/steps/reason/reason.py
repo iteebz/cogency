@@ -12,7 +12,7 @@ from .parser import Parse
 from .prompt import Prompt
 
 
-class Flow:
+class Reason:
     """Orchestrates reasoning components in clean pipeline."""
 
     def __init__(self, llm: LLM, tools: List[Tool], memory=None):

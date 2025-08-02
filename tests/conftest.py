@@ -53,7 +53,7 @@ class MockLLM(LLM):
             return self.custom_impl(messages, **kwargs)
         return self.response
 
-    async def stream(self, messages, **kwargs) -> AsyncIterator[str]:
+    async def _stream_impl(self, messages, **kwargs) -> AsyncIterator[str]:
         for char in self.response:
             yield char
 

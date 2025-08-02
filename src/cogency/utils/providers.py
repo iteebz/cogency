@@ -1,6 +1,6 @@
 """Provider - Unified service/store management with singleton pattern."""
 
-from typing import Callable, Dict, Optional, Type, TypeVar
+from typing import Callable, Dict, Optional, Type, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -10,14 +10,25 @@ class Provider:
 
     def __init__(
         self,
-        providers: Dict[str, Type[T]],
+        providers: Union[Dict[str, Type[T]], Callable[[], Dict[str, Type[T]]]],
         detect_fn: Optional[Callable[[], str]] = None,
         default: Optional[str] = None,
     ):
-        self.providers = providers
+        self._providers_source = providers
+        self._providers_cache = None
         self.detect_fn = detect_fn
         self.default = default
         self._instances: Dict[str, T] = {}
+
+    @property
+    def providers(self) -> Dict[str, Type[T]]:
+        """Get providers dict, loading lazily if needed."""
+        if self._providers_cache is None:
+            if callable(self._providers_source):
+                self._providers_cache = self._providers_source()
+            else:
+                self._providers_cache = self._providers_source
+        return self._providers_cache
 
     def get(self, provider: Optional[str] = None) -> Type[T]:
         """Get provider class (not instance)."""

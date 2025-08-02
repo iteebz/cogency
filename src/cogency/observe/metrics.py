@@ -8,6 +8,7 @@ import threading
 import time
 from collections import defaultdict, deque
 from dataclasses import dataclass, field
+from time import perf_counter
 from typing import Any, Dict, List, Optional
 
 DEFAULT_MAX_METRIC_POINTS = 10000
@@ -298,3 +299,15 @@ def measure(metric_name: str, tags: Optional[Dict[str, str]] = None):
             return sync_wrapper
 
     return decorator
+
+
+def simple_timer(label: str):
+    """Beautiful timing closure - no ceremony, self-documenting."""
+    start = perf_counter()
+
+    def stop():
+        duration = perf_counter() - start
+        # Timing info - could use notifier if timing events needed
+        return duration
+
+    return stop

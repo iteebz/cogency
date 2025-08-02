@@ -23,7 +23,6 @@ class _ServiceRegistry:
         self.embed = None
         self.tools = None
         self.memory = None
-        self.formatter = None
         self.notifier = None
         self.config = None
         self.persistence = None
@@ -52,7 +51,6 @@ class AgentExecutor:
         self.embed = registry.embed
         self.tools = registry.tools
         self.memory = registry.memory
-        self.formatter = registry.formatter
         self.notifier = registry.notifier
         self.config = registry.config
         self.persistence = registry.persistence
@@ -67,12 +65,12 @@ class AgentExecutor:
         """Create executor with default configuration."""
         registry = _ServiceRegistry()
 
-        # Setup services
-        registry.llm = setup_llm(None)
+        # Setup services (default: no notifications for basic create)
+        formatter = setup_formatter(notify=False)
+        registry.notifier = Notifier(formatter)
+        registry.llm = setup_llm(None, notifier=registry.notifier)
         registry.embed = setup_embed(None)
         registry.tools = setup_tools([], None)
-        registry.formatter = setup_formatter(True, False)
-        registry.notifier = Notifier(registry.formatter, None)
 
         # Setup config
         registry.config = AgentConfig()
@@ -87,19 +85,14 @@ class AgentExecutor:
         return cls(name, registry)
 
     @classmethod
-    async def from_config(cls, config) -> "AgentExecutor":
+    async def configure(cls, config) -> "AgentExecutor":
         """Create executor from builder config."""
         from cogency.persist import setup_persistence
 
         # Create registry with dependencies
         registry = _ServiceRegistry()
-        registry.llm = setup_llm(config.llm)
-        registry.embed = setup_embed(config.embed)
-        registry.tools = setup_tools(config.tools or [], None)
-        registry.formatter = config.formatter or setup_formatter(config.notify, config.debug)
-        registry.notifier = Notifier(registry.formatter, config.on_notify)
 
-        # Setup configs
+        # Setup configs first so they're available for provider setup
         persist_config = setup_config(
             PersistConfig,
             config.persist,
@@ -108,12 +101,36 @@ class AgentExecutor:
             else None,
         )
         memory_config = setup_config(MemoryConfig, config.memory)
+        robust_config = setup_config(RobustConfig, config.robust)
 
         registry.config = AgentConfig()
-        registry.config.robust = setup_config(RobustConfig, config.robust)
+        registry.config.robust = robust_config
         registry.config.observe = setup_config(ObserveConfig, config.observe)
         registry.config.persist = persist_config
         registry.config.memory = memory_config
+
+        # Unified notification system: auto-enable unless explicitly disabled
+        if config.notify is False:
+            # Silent mode
+            formatter = setup_formatter(notify=False)
+            registry.notifier = Notifier(formatter)
+        elif config.on_notify:
+            # Custom callback mode
+            formatter = setup_formatter(notify=True, debug=config.debug)
+            registry.notifier = Notifier(formatter, config.on_notify)
+        else:
+            # Default mode: beautiful notifications to stdout
+            formatter = setup_formatter(notify=True, debug=config.debug)
+
+            def default_callback(notification):
+                output = formatter.format(notification)
+                if output:
+                    print(output)
+
+            registry.notifier = Notifier(formatter, default_callback)
+        registry.llm = setup_llm(config.llm, notifier=registry.notifier)
+        registry.embed = setup_embed(config.embed)
+        registry.tools = setup_tools(config.tools or [], None)
 
         # Setup memory
         if memory_config:
@@ -133,6 +150,7 @@ class AgentExecutor:
         executor.debug = config.debug
         executor.identity = config.identity or ""
         executor.output_schema = config.output_schema
+        executor.on_notify = config.on_notify
 
         # Re-setup phases with updated config
         executor.phases = setup_steps(
@@ -148,7 +166,9 @@ class AgentExecutor:
 
     def _setup_notifier(self, callback=None):
         """Setup notification system."""
-        return Notifier(formatter=self.formatter, on_notify=callback or self.on_notify)
+        final_callback = callback or self.on_notify
+        formatter = setup_formatter(notify=bool(final_callback), debug=self.debug)
+        return Notifier(formatter, final_callback)
 
     async def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
         """Execute agent and return complete response."""
@@ -188,11 +208,13 @@ class AgentExecutor:
                 phases = self.phases
 
             # Execute phases
-            from cogency.steps.execution import run_agent
+            from cogency.steps.execution import execute_agent
 
             notifier = self._setup_notifier()
+            # Store notifier for traces() method
+            self.notifier = notifier
 
-            await run_agent(
+            await execute_agent(
                 state,
                 phases["prepare"],
                 phases["reason"],
@@ -206,11 +228,9 @@ class AgentExecutor:
             response = getattr(state, "response", None)
 
             # Unwrap Result objects at the boundary
-            if hasattr(response, "success"):  # It's a Result object
-                if response.success:
-                    response = response.data
-                else:
-                    response = None  # Let it fall through to default
+            from resilient_result import Result
+            if isinstance(response, Result):
+                response = response.data if response.success else None
 
             # Learn from response
             if self.memory and response:
@@ -253,18 +273,29 @@ class AgentExecutor:
         # Setup streaming
         queue: asyncio.Queue[str] = asyncio.Queue()
 
-        async def stream_callback(notification) -> None:
-            formatted = self.formatter.format(notification)
-            if formatted:
-                await queue.put(formatted)
+        async def stream_callback(event_type: str, **data) -> None:
+            state = data.get("state", "")
+            content = data.get("content", "")
+            message = data.get("message", "")
+
+            if content:
+                output = f"[{event_type}:{state}] {content[:60]}..."
+            elif message:
+                output = f"[{event_type}] {message}"
+            elif state:
+                output = f"[{event_type}:{state}]"
+            else:
+                output = f"[{event_type}]"
+
+            await queue.put(output)
 
         notifier = self._setup_notifier(callback=stream_callback)
 
         # Execute
-        from cogency.steps.execution import run_agent
+        from cogency.steps.execution import execute_agent
 
         task = asyncio.create_task(
-            run_agent(
+            execute_agent(
                 state,
                 self.phases["prepare"],
                 self.phases["reason"],
@@ -300,7 +331,4 @@ class AgentExecutor:
         if not self.debug:
             return []
 
-        return [
-            {"type": n.type, "timestamp": n.timestamp, **n.data}
-            for n in self.notifier.notifications
-        ]
+        return self.notifier.messages

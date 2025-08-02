@@ -55,6 +55,11 @@ class MockCheckpointLLM(LLM):
             # Fallback for any other case
             return "Analysis complete."
 
+    async def _stream_impl(self, messages, **kwargs):
+        response = await self._run_impl(messages, **kwargs)
+        for char in response:
+            yield char
+
     async def run(self, messages, **kwargs):
         response = await self._run_impl(messages, **kwargs)
         return Result.ok(response)

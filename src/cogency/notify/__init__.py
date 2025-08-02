@@ -1,4 +1,4 @@
-"""Cogency v2 Notification System - Clean, extensible agent observability."""
+"""Simple notification system for agent observability."""
 
 from .core import Notification, emit
 from .formatters import CLIFormatter, EmojiFormatter, Formatter, JSONFormatter
@@ -8,10 +8,10 @@ from .setup import setup_formatter
 __all__ = [
     "Notification",
     "emit",
-    "Notifier",
-    "Formatter",
     "CLIFormatter",
     "EmojiFormatter",
+    "Formatter",
     "JSONFormatter",
+    "Notifier",
     "setup_formatter",
 ]

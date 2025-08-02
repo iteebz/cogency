@@ -68,6 +68,20 @@ class Nomic(Embed):
 
     def embed(self, text: str | list[str], batch_size: Optional[int] = None, **kwargs) -> Result:
         """Embed text(s) - handles both single strings and lists."""
+        if self._should_retry:
+            from resilient_result import Retry, resilient
+
+            @resilient(retry=Retry.api())
+            def _resilient_embed():
+                return self._embed_impl(text, batch_size, **kwargs)
+
+            return _resilient_embed()
+        return self._embed_impl(text, batch_size, **kwargs)
+
+    def _embed_impl(
+        self, text: str | list[str], batch_size: Optional[int] = None, **kwargs
+    ) -> Result:
+        """Internal embed implementation."""
         self._rotate_client()
         self._ensure_initialized()
 

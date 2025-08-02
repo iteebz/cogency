@@ -33,7 +33,7 @@ class Gemini(LLM):
         )
         return response.text
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def _stream_impl(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         prompt = "".join([f"{msg['role']}: {msg['content']}" for msg in messages])
         client = self._get_client()
 

@@ -2,34 +2,37 @@
 
 import argparse
 import asyncio
+import logging
 import sys
+
+logger = logging.getLogger(__name__)
 
 
 async def interactive_mode(agent) -> None:
     """Interactive mode with magical DX."""
-    print("🤖 Cogency Agent")
-    print("Type 'exit' to quit")
-    print("-" * 30)
+    logger.info("🤖 Cogency Agent")
+    logger.info("Type 'exit' to quit")
+    logger.info("-" * 30)
 
     while True:
         try:
             message = input("\n> ").strip()
 
             if message.lower() in ["exit", "quit"]:
-                print("Goodbye!")
+                logger.info("Goodbye!")
                 break
 
             if not message:
                 continue
 
             response = await agent.run(message)
-            print(f"🤖 {response}")
+            logger.info(f"🤖 {response}")
 
         except KeyboardInterrupt:
-            print("\nGoodbye!")
+            logger.info("\nGoodbye!")
             break
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
 
 
 def trace_args() -> bool:
@@ -54,7 +57,7 @@ def main():
     try:
         agent = Agent("assistant", trace=args.trace)  # Auto-detects everything
     except Exception as e:
-        print(f"Error: {e}")
+        logger.error(f"Error: {e}")
         sys.exit(1)
 
     if args.interactive or not args.message:
@@ -62,9 +65,9 @@ def main():
     else:
         try:
             response = asyncio.run(agent.run(args.message))
-            print(response)
+            logger.info(response)
         except Exception as e:
-            print(f"Error: {e}")
+            logger.error(f"Error: {e}")
 
 
 if __name__ == "__main__":

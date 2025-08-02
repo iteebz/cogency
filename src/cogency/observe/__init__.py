@@ -12,6 +12,7 @@ from .metrics import (
     get_metrics,
     histogram,
     measure,
+    simple_timer,
     timer,
 )
 from .profiling import Profiler, profile_async, profile_sync
@@ -27,6 +28,7 @@ __all__ = [
     "get_metrics",
     "histogram",
     "measure",
+    "simple_timer",
     "timer",
     "Profiler",
     "profile_async",

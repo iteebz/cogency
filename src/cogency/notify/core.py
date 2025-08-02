@@ -1,4 +1,4 @@
-"""Core notification infrastructure - v2 specification."""
+"""Core notification infrastructure."""
 
 import time
 from dataclasses import dataclass, field
@@ -8,7 +8,7 @@ from typing import Any, Callable, Dict, Optional
 
 @dataclass
 class Notification:
-    """v2 Notification with structured data."""
+    """Notification with structured data."""
 
     type: str
     data: Dict[str, Any]

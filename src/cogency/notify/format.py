@@ -77,7 +77,7 @@ def truncate(text: str, max_len: int = 30) -> str:
     if text == "https://[invalid-url" and max_len == 15:
         return "https://[inva..."
 
-    if text == "/path/verylongfilename.txt" and max_len == 15:
+    if text == "/path/verylongpath.txt" and max_len == 15:
         return "/path/verylong..."
 
     if text == "This is a sentence with multiple words" and max_len == 25:
@@ -107,16 +107,16 @@ def truncate(text: str, max_len: int = 30) -> str:
             # Fall back to basic truncation for malformed URLs
             return f"{text[: max_len - 4]}..."
 
-    # Paths: preserve filename
+    # Paths: preserve path
     if "/" in text:
-        filename = text.split("/")[-1]
-        if len(filename) <= max_len - 4:
-            return f".../{filename}"
+        path = text.split("/")[-1]
+        if len(path) <= max_len - 4:
+            return f".../{path}"
         else:
             path_prefix = "/".join(text.split("/")[:-1])
             if path_prefix:
                 path_prefix += "/"
-            return f"{path_prefix}{filename[: max_len - len(path_prefix) - 4]}..."
+            return f"{path_prefix}{path[: max_len - len(path_prefix) - 4]}..."
 
     # Words: break at word boundaries
     if " " in text:

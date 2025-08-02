@@ -36,7 +36,7 @@ class Anthropic(LLM):
         )
         return res.content[0].text
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def _stream_impl(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
         client = self._get_client()
         try:
             async with client.messages.stream(

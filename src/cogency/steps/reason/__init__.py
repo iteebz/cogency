@@ -6,7 +6,7 @@ from cogency.providers import LLM
 from cogency.state import State
 from cogency.tools import Tool
 
-from .flow import Flow
+from .reason import Reason
 
 
 async def reason(
@@ -17,5 +17,5 @@ async def reason(
     memory,  # Impression instance or None
 ) -> Optional[str]:
     """Reason: focused reasoning and decision making."""
-    pipeline = Flow(llm, tools, memory)
+    pipeline = Reason(llm, tools, memory)
     return await pipeline.process(state, notifier)

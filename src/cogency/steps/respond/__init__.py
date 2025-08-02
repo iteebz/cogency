@@ -197,13 +197,39 @@ async def respond(
         # Use existing response without identity
         from resilient_result import unwrap
 
-        if hasattr(state.response, "success"):  # It's a Result object
+        from resilient_result import Result
+        if isinstance(state.response, Result):
             response_text = unwrap(state.response)
         else:
             response_text = state.response
     else:
-        # Fallback
-        response_text = "I'm here to help. How can I assist you?"
+        # Generate response from tool results if available
+        tool_results = format_tool_results(state)
+        failures = collect_failures(state)
+
+        if tool_results or failures:
+            # Generate response based on available context
+            response_prompt = prompt_response(
+                state.query,
+                has_tool_results=bool(tool_results),
+                tool_summary=tool_results,
+                identity=identity,
+                output_schema=output_schema,
+                failures=failures,
+            )
+
+            messages = [
+                {"role": "system", "content": response_prompt},
+                {"role": "user", "content": state.query},
+            ]
+
+            from resilient_result import unwrap
+
+            llm_result = await llm.run(messages)
+            response_text = unwrap(llm_result)
+        else:
+            # True fallback - no context available
+            response_text = "I'm here to help. How can I assist you?"
 
     await notifier("respond", state="complete", content=(response_text or "")[:100])
 
