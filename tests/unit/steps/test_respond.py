@@ -8,7 +8,7 @@ from resilient_result import Result
 from cogency.providers import LLMCache
 from cogency.state import State
 from cogency.steps.respond import prompt_response, respond
-from tests.conftest import MockLLM, mock_llm
+from tests.fixtures.llm import MockLLM, mock_llm
 
 
 @pytest.fixture

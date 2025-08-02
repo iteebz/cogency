@@ -3,7 +3,7 @@
 import pytest
 
 from cogency.providers.llm import LLM
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 def test_abstract():

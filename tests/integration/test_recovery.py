@@ -7,7 +7,7 @@ import pytest
 from resilient_result import Result
 
 from cogency import Agent
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 class MockCodeTool:

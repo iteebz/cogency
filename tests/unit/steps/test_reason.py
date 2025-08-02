@@ -6,7 +6,7 @@ import pytest
 
 from cogency.state import State
 from cogency.steps.reason import reason
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 @pytest.fixture

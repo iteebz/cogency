@@ -13,7 +13,7 @@ from cogency.steps.respond import respond
 from cogency.tools.base import Tool
 from cogency.tools.shell import Shell
 from cogency.utils.parsing import parse_tool_calls
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 class MockTool(Tool):

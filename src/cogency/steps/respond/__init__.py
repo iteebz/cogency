@@ -195,9 +195,8 @@ async def respond(
         response_text = unwrap(llm_result)
     elif hasattr(state, "response") and state.response:
         # Use existing response without identity
-        from resilient_result import unwrap
+        from resilient_result import Result, unwrap
 
-        from resilient_result import Result
         if isinstance(state.response, Result):
             response_text = unwrap(state.response)
         else:

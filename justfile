@@ -60,6 +60,31 @@ test-file file="":
     @echo "Running specific test: {{file}}..."
     @poetry run pytest -v tests/{{file}}
 
+# Run tests in parallel (fast unit tests)
+test-parallel:
+    @echo "Running unit tests in parallel..."
+    @poetry run pytest tests/unit -n auto -m "not slow"
+
+# Run integration tests (sequential, as they may need isolation)
+test-integration:
+    @echo "Running integration tests..."
+    @poetry run pytest tests/integration -v
+
+# Run contract validation tests
+test-contracts:
+    @echo "Running API contract tests..."
+    @poetry run pytest tests -k "contract" -v
+
+# Run schema validation tests  
+test-schema:
+    @echo "Running schema validation tests..."
+    @poetry run pytest tests -k "schema" -v
+
+# Fast test suite (parallel units + essential integration)
+test-fast:
+    @echo "Running fast test suite..."
+    @poetry run pytest tests/unit -n auto -m "not slow" && poetry run pytest tests/integration/test_api_contracts.py -v
+
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🧪 EVALUATIONS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

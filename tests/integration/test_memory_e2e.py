@@ -6,7 +6,7 @@ import pytest
 
 from cogency import Agent, MemoryConfig
 from cogency.persist.store.filesystem import Filesystem
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 def create_memory_agent(name="test", **kwargs):
@@ -35,7 +35,7 @@ async def test_memory_session_continuity():
     agent1 = create_memory_agent("test", llm=synthesis_llm, memory=memory_config)
 
     # User provides preferences
-    memory1 = await agent1.memory
+    memory1 = await agent1.memory()
     await memory1.remember("I prefer TypeScript over JavaScript", human=True)
     await memory1.remember("I'm working on a React project", human=True)
 
@@ -49,7 +49,7 @@ async def test_memory_session_continuity():
 
     # Session 2: New agent instance loads existing memory
     agent2 = create_memory_agent("test", llm=MockLLM(), memory=memory_config)
-    memory2 = await agent2.memory
+    memory2 = await agent2.memory()
 
     # Load should happen automatically in Agent.__init__ for configured memory
     success = await memory2.load()
@@ -65,7 +65,7 @@ async def test_memory_session_continuity():
 
     # Session 3: Verify accumulated memory
     agent3 = create_memory_agent("test", llm=MockLLM(), memory=memory_config)
-    memory3 = await agent3.memory
+    memory3 = await agent3.memory()
     await memory3.load()
 
     memory_context = await memory3.recall()
@@ -82,20 +82,20 @@ async def test_memory_multi_user_isolation():
     # User 1 memory
     memory_config_1 = MemoryConfig(user_id="user_1", store=store)
     agent1 = create_memory_agent("test", llm=MockLLM(), memory=memory_config_1)
-    memory1 = await agent1.memory
+    memory1 = await agent1.memory()
     await memory1.remember("User 1 prefers Python", human=True)
     await memory1.save()
 
     # User 2 memory
     memory_config_2 = MemoryConfig(user_id="user_2", store=store)
     agent2 = create_memory_agent("test", llm=MockLLM(), memory=memory_config_2)
-    memory2 = await agent2.memory
+    memory2 = await agent2.memory()
     await memory2.remember("User 2 prefers Go", human=True)
     await memory2.save()
 
     # Verify isolation - User 1 cannot see User 2's memory
     agent1_reload = create_memory_agent("test", llm=MockLLM(), memory=memory_config_1)
-    memory1_reload = await agent1_reload.memory
+    memory1_reload = await agent1_reload.memory()
     await memory1_reload.load()
     user1_context = await memory1_reload.recall()
 
@@ -104,7 +104,7 @@ async def test_memory_multi_user_isolation():
 
     # Verify isolation - User 2 cannot see User 1's memory
     agent2_reload = create_memory_agent("test", llm=MockLLM(), memory=memory_config_2)
-    memory2_reload = await agent2_reload.memory
+    memory2_reload = await agent2_reload.memory()
     await memory2_reload.load()
     user2_context = await memory2_reload.recall()
 
@@ -119,19 +119,19 @@ async def test_memory_config_integration():
 
     # Simple boolean (existing pattern)
     agent_simple = create_memory_agent("test", llm=MockLLM(), memory=True)
-    memory_simple = await agent_simple.memory
+    memory_simple = await agent_simple.memory()
     assert memory_simple is not None
     assert memory_simple.synthesis_threshold == 16000  # Default
 
     # Advanced config
     memory_config = MemoryConfig(synthesis_threshold=5000, user_id="config_test_user")
     agent_config = create_memory_agent("test", llm=MockLLM(), memory=memory_config)
-    memory_advanced = await agent_config.memory
+    memory_advanced = await agent_config.memory()
     assert memory_advanced is not None
     assert memory_advanced.synthesis_threshold == 5000  # Configured
     assert memory_advanced.user_id == "config_test_user"
 
     # Disabled memory
     agent_disabled = create_memory_agent("test", llm=MockLLM(), memory=False)
-    memory_disabled = await agent_disabled.memory
+    memory_disabled = await agent_disabled.memory()
     assert memory_disabled is None

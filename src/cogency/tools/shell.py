@@ -49,6 +49,7 @@ class Shell(Tool):
             ],
             rules=[
                 "Prefer 'python -m <module>' for executing Python modules (e.g., 'python -m pip', 'python -m pytest').",
+                "For file search: Use 'rg pattern' (ripgrep) over grep for faster, better formatted results.",
                 "Avoid using commands that modify system state or delete files (e.g., 'rm', 'sudo').",
                 "Blocked commands include: rm, rmdir, del, sudo, su, shutdown, reboot, kill, killall.",
                 "Use 'working_dir' for operations within specific directories (relative to project root).",

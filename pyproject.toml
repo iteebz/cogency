@@ -39,7 +39,7 @@ google-genai = ">=1.26.0,<2.0.0"
 # Optional dependencies
 aiohttp = { version = ">=3.12.14,<4.0.0", optional = true }
 mcp = { version = ">=1.0.0", optional = true }
-ddgs = { version = ">=3.9.20,<4.0.0", optional = true }
+ddgs = { version = ">=3.8.0", optional = true }
 trafilatura = { version = ">=1.12.0,<2.0.0", optional = true }
 psutil = { version = ">=5.9.0", optional = true }
 python-dateutil = { version = ">=2.8.0", optional = true }
@@ -84,6 +84,8 @@ black = "^23.0.0"
 pytest = "^8.4.1"
 pytest-asyncio = "^0.21.0"
 pytest-timeout = "^2.4.0"
+jsonschema = "^4.19.0"
+pytest-xdist = "^3.3.1"  # For parallel test execution
 
 
 [tool.black]
@@ -140,4 +142,19 @@ pythonpath = ["src"]
 filterwarnings = [
     "ignore::DeprecationWarning:starlette.*",
     "ignore::PendingDeprecationWarning:starlette.*"
+]
+# Performance optimizations
+addopts = [
+    "--strict-markers",
+    "--strict-config", 
+    "--disable-warnings",
+    "-ra"  # Show short test summary for all except passed
+]
+# Test markers for parallel execution
+markers = [
+    "unit: Unit tests (can run in parallel)",
+    "integration: Integration tests (may need isolation)", 
+    "contract: API contract validation tests",
+    "schema: Schema validation tests",
+    "slow: Slow tests that should run last"
 ]

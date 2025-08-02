@@ -229,6 +229,7 @@ class AgentExecutor:
 
             # Unwrap Result objects at the boundary
             from resilient_result import Result
+
             if isinstance(response, Result):
                 response = response.data if response.success else None
 

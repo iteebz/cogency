@@ -6,7 +6,7 @@ import pytest
 
 from cogency import Agent
 from cogency.tools.shell import Shell
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 @pytest.mark.asyncio
@@ -111,7 +111,9 @@ async def test_output_schema():
 async def test_run():
     agent = Agent("test", llm=MockLLM(), tools=[])
 
-    with patch("cogency.steps.execution.execute_agent", new_callable=AsyncMock) as mock_execute_agent:
+    with patch(
+        "cogency.steps.execution.execute_agent", new_callable=AsyncMock
+    ) as mock_execute_agent:
         mock_execute_agent.return_value = "Final Answer"
         result = await agent.run("test query")
 
@@ -135,7 +137,9 @@ async def test_run_error():
 async def test_stream():
     agent = Agent("test", llm=MockLLM(), tools=[])
 
-    with patch("cogency.steps.execution.execute_agent", new_callable=AsyncMock) as mock_execute_agent:
+    with patch(
+        "cogency.steps.execution.execute_agent", new_callable=AsyncMock
+    ) as mock_execute_agent:
         # Empty query
         chunks = [chunk async for chunk in agent.stream("")]
         assert "Empty query not allowed" in chunks[0]

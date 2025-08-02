@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 @pytest.mark.asyncio

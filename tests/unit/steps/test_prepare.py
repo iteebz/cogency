@@ -9,7 +9,7 @@ from cogency.state import State
 # Import the prepare function directly
 from cogency.steps.prepare import prepare
 from cogency.tools.base import Tool
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 class MockSearchTool(Tool):

@@ -98,6 +98,11 @@ class Agent:
             self._executor = await AgentExecutor.configure(self._config)
         return self._executor
 
+    async def memory(self):
+        """Access memory component."""
+        executor = await self._get_executor()
+        return getattr(executor, "memory", None)
+
     async def _debug_memory(self):
         """Access memory component (debug mode only)."""
         if not self._config.debug:

@@ -14,6 +14,7 @@ from cogency.robust import checkpoint
 def _retry_progress_handler(error: Exception) -> None:
     """Progress handler for retry visibility during development."""
     import logging
+
     logger = logging.getLogger(__name__)
     logger.debug(f"🔄 Retry: {type(error).__name__}: {error}")
     return None  # Continue retrying

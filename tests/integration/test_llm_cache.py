@@ -3,7 +3,7 @@
 import pytest
 
 from cogency.providers import LLMCache
-from tests.conftest import MockLLM
+from tests.fixtures.llm import MockLLM
 
 
 @pytest.mark.asyncio

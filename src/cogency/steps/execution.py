@@ -21,6 +21,7 @@ async def execute_agent(
         # Reason phase
         response = await reason_step(state, notifier)
         from resilient_result import Result
+
         if isinstance(response, Result) and response.success and response.data:
             state.response = response.data
             state.response_source = "reason"
