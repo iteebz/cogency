@@ -29,7 +29,8 @@ async def act(state: AgentState, notifier, tools: List[Tool]) -> Optional[str]:
         for call in tool_calls
     ]
 
-    # Let @safe.act() handle all tool execution errors, retries, and recovery
+    # Execute tools with error isolation - execute_tools handles all tool execution
+    # errors, retries, and recovery by wrapping results in Result objects
     tool_result = await execute_tools(tool_tuples, tools, state, notifier)
 
     # Store results using ExecutionState methods

@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from .execution import ExecutionState
+from .execution import AgentMode, ExecutionState
 from .reasoning import ReasoningContext
 from .user_profile import UserProfile
 
@@ -58,5 +58,8 @@ class AgentState:
         # Handle mode switching
         if "switch_mode" in reasoning_data and reasoning_data["switch_mode"]:
             new_mode = reasoning_data["switch_mode"]
-            if new_mode in ["fast", "deep", "adapt"]:
-                self.execution.mode = new_mode
+            import contextlib
+
+            with contextlib.suppress(ValueError):
+                # Convert string to enum value
+                self.execution.mode = AgentMode(new_mode)

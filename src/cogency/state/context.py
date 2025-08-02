@@ -5,9 +5,10 @@ from typing import Any, Dict, List
 from .agent import AgentState
 
 
-def build_reasoning_prompt(state: AgentState, tools: List[Any], mode: str = None) -> str:
+def build_reasoning_prompt(state: AgentState, tools: List[Any], mode=None) -> str:
     """Pure function: State → Reasoning Prompt."""
     mode = mode or state.execution.mode
+    mode_value = mode.value if hasattr(mode, "value") else str(mode)
 
     # Situated memory injection
     user_context = state.get_situated_context()
@@ -30,7 +31,7 @@ def build_reasoning_prompt(state: AgentState, tools: List[Any], mode: str = None
         results_context = "RECENT RESULTS:\n" + "\n".join(results_parts) + "\n\n"
 
     # Mode-specific instructions
-    if mode == "deep":
+    if mode_value == "deep":
         instructions = """DEEP MODE: Structured reasoning required
 - REFLECT: What have I learned? What worked/failed? What gaps remain?
 - ANALYZE: What are the core problems or strategic considerations?  

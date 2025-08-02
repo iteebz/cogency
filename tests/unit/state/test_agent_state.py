@@ -133,7 +133,7 @@ def test_update_from_reasoning_mode_switch():
     for mode in ["fast", "deep", "adapt"]:
         reasoning_data = {"switch_mode": mode}
         state.update_from_reasoning(reasoning_data)
-        assert state.execution.mode == mode
+        assert state.execution.mode.value == mode
 
     # Test invalid mode switch is ignored
     old_mode = state.execution.mode
@@ -181,7 +181,7 @@ def test_update_from_reasoning_comprehensive():
     assert state.reasoning.strategy == "comprehensive strategy"
     assert "key insight" in state.reasoning.insights
     assert state.execution.response == "Final response"
-    assert state.execution.mode == "deep"
+    assert state.execution.mode.value == "deep"
 
 
 def test_state_independence():

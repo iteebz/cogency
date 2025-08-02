@@ -2,7 +2,16 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict, List, Optional
+
+
+class AgentMode(Enum):
+    """Agent execution modes with clear semantics."""
+
+    FAST = "fast"
+    DEEP = "deep"
+    ADAPT = "adapt"
 
 
 @dataclass
@@ -16,7 +25,7 @@ class ExecutionState:
     # Loop Control
     iteration: int = 0
     max_iterations: int = 10
-    mode: str = "adapt"  # "fast" | "deep" | "adapt"
+    mode: AgentMode = AgentMode.ADAPT
     stop_reason: Optional[str] = None
 
     # Communication
