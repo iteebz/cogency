@@ -5,7 +5,7 @@ from unittest.mock import Mock
 import pytest
 from resilient_result import Err, Ok, Result, Retry, resilient, unwrap
 
-from cogency.state import State
+from cogency.state import AgentState
 
 
 def test_success():
@@ -64,15 +64,15 @@ async def test_with_state():
         parsed_data = unwrap(parse_result)
 
         # Update state with unwrapped data
-        state.tool_calls = parsed_data["tool_calls"]
+        state.execution.pending_calls = parsed_data["tool_calls"]
         return state
 
     # Create test state
-    state = State(query="test query")
+    state = AgentState(query="test query")
 
     result_state = await node_function(state)
     assert result_state.success
-    assert result_state.data.tool_calls == ["test_call"]
+    assert result_state.data.execution.pending_calls == ["test_call"]
 
 
 def test_utility():

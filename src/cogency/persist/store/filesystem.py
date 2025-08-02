@@ -8,7 +8,7 @@ from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from cogency.state import State
+from cogency.state import AgentState
 
 from .base import Store
 
@@ -31,16 +31,19 @@ class Filesystem(Store):
         safe_key = state_key.replace(":", "_").replace("/", "_")
         return self.base_dir / f"{safe_key}_{self.process_id}.json"
 
-    async def save(self, state_key: str, state: State) -> bool:
+    async def save(self, state_key: str, state: AgentState) -> bool:
         """Save state atomically with file locking."""
         try:
             state_path = self._get_state_path(state_key)
             temp_path = state_path.with_suffix(".tmp")
 
-            # Prepare serializable state data
+            # Prepare serializable state data for AgentState
             state_data = {
-                "state": asdict(state),
-                "schema_version": "1.0",
+                "state": {
+                    "execution": asdict(state.execution),
+                    "reasoning": asdict(state.reasoning),
+                    "user_profile": asdict(state.user_profile) if state.user_profile else None,
+                },
                 "process_id": self.process_id,
             }
 
@@ -73,11 +76,6 @@ class Filesystem(Store):
                 flock(f.fileno(), LOCK_EX)  # Shared lock for reading
                 data = json.load(f)
                 flock(f.fileno(), LOCK_UN)
-
-            # Validate schema version
-            if data.get("schema_version") != "1.0":
-                # Future: add migration logic here
-                return None
 
             return data
 

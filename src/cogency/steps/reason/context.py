@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List
 
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.tools import Tool, build_registry
 
 
@@ -10,7 +10,7 @@ class Context:
     """Builds unified context for reasoning prompts."""
 
     async def build(
-        self, state: State, selected_tools: List[Tool], memory, mode: str, iteration: int
+        self, state: AgentState, selected_tools: List[Tool], memory, mode: str, iteration: int
     ) -> Dict[str, Any]:
         """Build complete context data for reasoning."""
         # Build tool registry

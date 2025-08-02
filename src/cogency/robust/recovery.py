@@ -4,14 +4,14 @@ from typing import Dict, Union
 
 from resilient_result import Result
 
-from cogency.state import State
+from cogency.state import AgentState
 
 
 class Recovery:
     """Beautiful recovery strategies - auto-discovery, zero ceremony."""
 
     @staticmethod
-    async def recover(result: Result, state: "State", phase: str) -> Result:
+    async def recover(result: Result, state: AgentState, phase: str) -> Result:
         """Beautiful recovery - handles any phase failure gracefully.
 
         Args:
@@ -25,7 +25,7 @@ class Recovery:
         return result if result.success else await Recovery._route(result.error, state, phase)
 
     @staticmethod
-    async def _route(error_data: Union[str, Dict], state: "State", phase: str) -> Result:
+    async def _route(error_data: Union[str, Dict], state: AgentState, phase: str) -> Result:
         """Auto-discover recovery method by phase name."""
         # Normalize error to dict for consistent handling
         if isinstance(error_data, str):
@@ -40,7 +40,7 @@ class Recovery:
         return await Recovery._fallback(error_data, state, phase)
 
     @staticmethod
-    async def _prepare(error: Dict, state: "State") -> Result:
+    async def _prepare(error: Dict, state: AgentState) -> Result:
         """Preparing recovery - continue without memory if needed."""
         if error.get("memory_failed"):
             state.memory_enabled = False
@@ -49,33 +49,33 @@ class Recovery:
         return Result.ok({"state": state, "recovery": "skip_enrichment"})
 
     @staticmethod
-    async def _reasoning(error: Dict, state: "State") -> Result:
+    async def _reasoning(error: Dict, state: AgentState) -> Result:
         """Reasoning recovery - mode fallback and loop breaking."""
         if error.get("loop_detected"):
             state.next_step = "respond"
-            state.stop_reason = "loop_recovery"
+            state.execution.stop_reason = "loop_recovery"
             return Result.ok({"state": state, "recovery": "force_respond"})
 
         if error.get("mode") == "deep":
-            state.mode = "fast"
+            state.execution.mode = "fast"
             return Result.ok({"state": state, "recovery": "fallback_to_fast"})
 
         # Default: skip to response
         state.next_step = "respond"
-        state.stop_reason = "reasoning_error"
+        state.execution.stop_reason = "reasoning_error"
         return Result.ok({"state": state, "recovery": "skip_to_response"})
 
     @staticmethod
-    async def _parsing(error: Dict, state: "State") -> Result:
+    async def _parsing(error: Dict, state: AgentState) -> Result:
         """Parsing recovery - fallback to empty structure."""
         return Result.ok({"state": state, "recovery": "fallback_parsing"})
 
     @staticmethod
-    async def _action(error: Dict, state: "State") -> Result:
+    async def _action(error: Dict, state: AgentState) -> Result:
         """Action recovery - retry reasoning or force respond."""
         if not error.get("recoverable", True):
             state.next_step = "respond"
-            state.stop_reason = "non_recoverable_action_error"
+            state.execution.stop_reason = "non_recoverable_action_error"
             return Result.ok({"state": state, "recovery": "force_respond"})
 
         # Store error context for retry
@@ -88,21 +88,21 @@ class Recovery:
         return Result.ok({"state": state, "recovery": "retry_reasoning"})
 
     @staticmethod
-    async def _response(error: Dict, state: "State") -> Result:
+    async def _response(error: Dict, state: AgentState) -> Result:
         """Response recovery - use partial or fallback."""
         if error.get("has_partial_response"):
             return Result.ok({"state": state, "recovery": "use_partial"})
 
         # Fallback response
         message = error.get("message", "Unknown error")
-        state.response = f"I encountered an issue generating a response: {message}"
+        state.execution.response = f"I encountered an issue generating a response: {message}"
         return Result.ok({"state": state, "recovery": "fallback_response"})
 
     @staticmethod
-    async def _fallback(error: Dict, state: "State", phase: str) -> Result:
+    async def _fallback(error: Dict, state: AgentState, phase: str) -> Result:
         """Universal fallback - graceful degradation for unknown phases."""
         state.next_step = "respond"
-        state.stop_reason = f"{phase}_error_fallback"
+        state.execution.stop_reason = f"{phase}_error_fallback"
         return Result.ok({"state": state, "recovery": f"fallback_{phase}"})
 
 

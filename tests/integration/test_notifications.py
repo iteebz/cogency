@@ -12,7 +12,7 @@ from cogency.notify import (
     Notifier,
     setup_formatter,
 )
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.steps.prepare import prepare
 from cogency.steps.respond import respond
 
@@ -29,7 +29,7 @@ async def test_step_notifications_direct():
     mock_llm.run.return_value.data = "Mock response"
 
     # Create state
-    state = State(query="Test query")
+    state = AgentState(query="Test query")
 
     # Test respond phase (simplest)
     await respond(state, notifier, mock_llm, [], identity="Test Agent")

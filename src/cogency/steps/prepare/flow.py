@@ -3,7 +3,7 @@
 from typing import List, Optional
 
 from cogency.providers import LLM
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.tools import Tool
 
 from .prepare import Prepare
@@ -20,15 +20,16 @@ class Flow:
         # Single unified component
         self.prepare = Prepare(llm)
 
-    async def process(self, state: State, notifier) -> Optional[str]:
+    async def process(self, state: AgentState, notifier) -> Optional[str]:
         """Single LLM call for all preparation tasks."""
-        query = state.query
+        query = state.execution.query
 
         # Single unified preparation call
         result = await self.prepare.prepare(query, self.tools)
 
         # Handle direct response (early return)
         if result.direct_response:
+            state.execution.response = result.direct_response
             return result.direct_response
 
         # Handle memory extraction
@@ -39,9 +40,8 @@ class Flow:
         filtered_tools = self._filter_tools(result.selected_tools)
 
         # Update state for ReAct phase
-        state.selected_tools = filtered_tools
-        state.mode = result.mode
-        state.iteration = 0
+        state.execution.mode = result.mode
+        state.execution.iteration = 0
 
         # Notify about preparation results
         await self._notify_preparation(notifier, result, filtered_tools)

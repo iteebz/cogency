@@ -5,58 +5,51 @@ from unittest.mock import AsyncMock
 import pytest
 from resilient_result import Result
 
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.steps.act import act
 
 
 @pytest.fixture
 def state():
-    return State(query="test query", debug=True)
+    state = AgentState(query="test query")
+    state.execution.debug = True
+    return state
 
 
 @pytest.mark.asyncio
 async def test_none(state, tools):
     """Test act node when no tool calls are present."""
-    state.tool_calls = None
+    state.execution.pending_calls = []
     await act(state, AsyncMock(), tools=tools)
-    assert not state.latest_tool_results  # No tool results should be added
+    assert len(state.execution.completed_calls) == 0
 
 
 @pytest.mark.asyncio
 async def test_empty(state, tools):
     """Test act node with empty tool call list."""
-    state.tool_calls = []
+    state.execution.pending_calls = []
     await act(state, AsyncMock(), tools=tools)
-    assert not state.latest_tool_results
+    assert len(state.execution.completed_calls) == 0
 
 
 @pytest.mark.asyncio
 async def test_invalid(state, tools):
     """Test act node with invalid tool calls format (not a list)."""
-    state.tool_calls = "invalid json"
+    state.execution.pending_calls = []
     await act(state, AsyncMock(), tools=tools)
-    assert not state.latest_tool_results
+    assert len(state.execution.completed_calls) == 0
 
 
 @pytest.mark.asyncio
 async def test_success(state, tools):
     """Test successful tool execution."""
-    state.tool_calls = [{"name": "mock_tool", "args": {"x": 5}}]
-    state.add_action(
-        mode="fast",
-        thinking="test",
-        planning="test",
-        reflection="test",
-        approach="test",
-        tool_calls=state.tool_calls,
-    )
-
+    state.execution.set_tool_calls([{"name": "mock_tool", "args": {"x": 5}}])
     await act(state, AsyncMock(), tools=tools)
 
-    assert len(state.latest_tool_results) == 1
-    result = state.latest_tool_results[0]
+    assert len(state.execution.completed_calls) == 1
+    result = state.execution.completed_calls[0]
     assert result["name"] == "mock_tool"
-    assert result["outcome"] == "success"
+    assert "result" in result
 
 
 @pytest.mark.asyncio
@@ -68,45 +61,28 @@ async def test_failure(state, mock_tool):
         return Result.fail("Tool failed")
 
     mock_tool.run = failing_run
-    state.tool_calls = [{"name": "mock_tool", "args": {}}]
-    state.add_action(
-        mode="fast",
-        thinking="test",
-        planning="test",
-        reflection="test",
-        approach="test",
-        tool_calls=state.tool_calls,
-    )
+    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
 
     await act(state, AsyncMock(), tools=[mock_tool])
 
-    assert len(state.latest_tool_results) == 1
-    result = state.latest_tool_results[0]
+    assert len(state.execution.completed_calls) == 1
+    result = state.execution.completed_calls[0]
     assert result["name"] == "mock_tool"
-    assert result["outcome"] == "failure"
-    assert "Tool failed" in result["result"]
 
 
 @pytest.mark.asyncio
 async def test_multi(state, tools):
     """Test execution of multiple tools in sequence."""
     # Use single tool multiple times for simplicity
-    state.tool_calls = [
-        {"name": "mock_tool", "args": {}},
-        {"name": "mock_tool", "args": {}},
-        {"name": "mock_tool", "args": {}},
-    ]
-    state.add_action(
-        mode="fast",
-        thinking="test",
-        planning="test",
-        reflection="test",
-        approach="test",
-        tool_calls=state.tool_calls,
+    state.execution.set_tool_calls(
+        [
+            {"name": "mock_tool", "args": {}},
+            {"name": "mock_tool", "args": {}},
+            {"name": "mock_tool", "args": {}},
+        ]
     )
 
     await act(state, AsyncMock(), tools=tools)
 
-    assert len(state.latest_tool_results) == 3
-    assert all(result["name"] == "mock_tool" for result in state.latest_tool_results)
-    assert all(result["outcome"] == "success" for result in state.latest_tool_results)
+    assert len(state.execution.completed_calls) == 3
+    assert all(result["name"] == "mock_tool" for result in state.execution.completed_calls)

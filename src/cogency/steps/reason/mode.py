@@ -3,7 +3,7 @@
 import logging
 from typing import Optional, Tuple
 
-from cogency.state import State
+from cogency.state import AgentState
 
 logger = logging.getLogger(__name__)
 
@@ -68,17 +68,17 @@ class Mode:
         # Prevent switching too late (close to max iterations)
         return not iteration >= depth - 1
 
-    def switch(self, state: State, new_mode: str, switch_why: str) -> None:
+    def switch(self, state: AgentState, new_mode: str, switch_why: str) -> None:
         """Switch reasoning mode - only changes mode, keeps all context."""
         # Update react mode
-        state.mode = new_mode
+        state.execution.mode = new_mode
 
         # Track mode switch if state has the method
         if hasattr(state, "switch_mode"):
             state.switch_mode(new_mode, switch_why)
 
     async def handle_switch(
-        self, state: State, raw_response: str, mode: str, iteration: int, notifier
+        self, state: AgentState, raw_response: str, mode: str, iteration: int, notifier
     ) -> None:
         """Handle complete mode switching logic - preserves LLM-driven adaptation."""
         # Handle mode switching - only if agent mode is "adapt"

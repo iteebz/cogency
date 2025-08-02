@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from cogency.persist import Filesystem
-from cogency.state import State
+from cogency.state import AgentState
 
 
 @pytest.fixture
@@ -28,9 +28,9 @@ def backend(temp_dir):
 @pytest.fixture
 def sample_state():
     """Create sample state for testing."""
-    state = State(query="test query", user_id="test_user")
-    state.add_message("user", "Hello")
-    state.add_message("assistant", "Hi there")
+    state = AgentState(query="test query", user_id="test_user")
+    state.execution.add_message("user", "Hello")
+    state.execution.add_message("assistant", "Hi there")
     return state
 
 
@@ -57,10 +57,10 @@ async def test_save_load(backend, sample_state, sample_metadata):
     # Load state
     loaded_data = await backend.load(state_key)
     assert loaded_data is not None
-    # Metadata no longer saved
-    assert loaded_data["state"]["query"] == "test query"
-    assert loaded_data["state"]["user_id"] == "test_user"
-    assert len(loaded_data["state"]["messages"]) == 2
+    # Check nested structure matches new architecture
+    assert loaded_data["state"]["execution"]["query"] == "test query"
+    assert loaded_data["state"]["execution"]["user_id"] == "test_user"
+    assert len(loaded_data["state"]["execution"]["messages"]) == 2
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ async def test_isolation(temp_dir):
     assert backend1.process_id != backend2.process_id
 
     state_key = "test_user:session1"
-    sample_state = State(query="test", user_id="test_user")
+    sample_state = AgentState(query="test", user_id="test_user")
 
     # Save with backend1
     await backend1.save(state_key, sample_state)
@@ -113,29 +113,6 @@ async def test_isolation(temp_dir):
     # But backend1 can still load its own state
     loaded_data = await backend1.load(state_key)
     assert loaded_data is not None
-
-
-@pytest.mark.asyncio
-async def test_schema(backend, sample_state, sample_metadata):
-    """Test schema version validation."""
-    state_key = "test_user:session1"
-
-    # Save state normally
-    await backend.save(state_key, sample_state)
-
-    # Manually modify the saved file to have wrong schema version
-    state_path = backend._get_state_path(state_key)
-    with open(state_path) as f:
-        data = json.load(f)
-
-    data["schema_version"] = "999.0"  # Invalid version
-
-    with open(state_path, "w") as f:
-        json.dump(data, f)
-
-    # Loading should return None due to version mismatch
-    loaded_data = await backend.load(state_key)
-    assert loaded_data is None
 
 
 @pytest.mark.asyncio

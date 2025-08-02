@@ -5,7 +5,7 @@ from typing import Any, AsyncIterator, List, Union
 from cogency.config import MemoryConfig
 from cogency.config.validation import init_advanced_config, validate_union_patterns
 from cogency.runtime import AgentExecutor
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.tools import Tool
 
 
@@ -95,23 +95,9 @@ class Agent:
         executor = await self._get_executor()
         return getattr(executor, "memory", None)
 
-    async def _debug_memory(self):
-        """Access memory component (debug mode only)."""
-        if not self._config.debug:
-            raise RuntimeError("Memory access requires debug=True")
-        executor = await self._get_executor()
-        return getattr(executor, "memory", None)
-
     async def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
         executor = await self._get_executor()
         return await executor.run(query, user_id, identity)
-
-    async def _debug_tools(self):
-        """Access tools (debug mode only)."""
-        if not self._config.debug:
-            raise RuntimeError("Tools access requires debug=True")
-        executor = await self._get_executor()
-        return getattr(executor, "tools", None)
 
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         executor = await self._get_executor()
@@ -124,4 +110,4 @@ class Agent:
         return self._executor.traces()
 
 
-__all__ = ["Agent", "State"]
+__all__ = ["Agent", "AgentState"]

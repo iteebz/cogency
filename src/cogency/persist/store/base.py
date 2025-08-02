@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
-from cogency.state import State
+from cogency.state import AgentState
 
 # Singleton instance for default persistence store
 _persist_instance = None
@@ -13,7 +13,7 @@ class Store(ABC):
     """Interface for state persistence stores."""
 
     @abstractmethod
-    async def save(self, state_key: str, state: State) -> bool:
+    async def save(self, state_key: str, state: AgentState) -> bool:
         """Save state."""
         pass
 

@@ -4,7 +4,7 @@ import tempfile
 
 import pytest
 
-from cogency.state import State
+from cogency.state import AgentState
 
 # Import all fixtures from decomposed modules
 from .fixtures import (
@@ -28,4 +28,4 @@ def temp_dir():
 @pytest.fixture
 def agent_state():
     """Basic agent state."""
-    return State(query="test query")
+    return AgentState(query="test query")

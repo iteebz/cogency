@@ -171,19 +171,19 @@ async def test_state_persistence_schema():
         "required": ["query", "iteration", "messages"],
     }
 
-    from cogency.state import State
+    from cogency.state import AgentState
 
-    state = State("test query")
-    state.add_message("user", "test message")
+    state = AgentState("test query")
+    state.execution.add_message("user", "test message")
 
     # Convert state to dict for validation
     state_data = {
-        "query": state.query,
-        "iteration": state.iteration,
-        "messages": state.messages,
-        "tool_calls": state.tool_calls,
-        "response": getattr(state, "response", None),
-        "response_source": getattr(state, "response_source", None),
+        "query": state.execution.query,
+        "iteration": state.execution.iteration,
+        "messages": state.execution.messages,
+        "tool_calls": state.execution.pending_calls,
+        "response": getattr(state.execution, "response", None),
+        "response_source": getattr(state.execution, "response_source", None),
     }
 
     assert validate_schema(state_data, state_schema)

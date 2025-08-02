@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from cogency.state import State
+from cogency.state import AgentState
 
 
 class Prompt:
@@ -15,7 +15,7 @@ class Prompt:
         context_data: Dict[str, Any],
         iteration: int,
         depth: int,
-        state: State,
+        state: AgentState,
         identity: Optional[str] = None,
     ) -> str:
         """Build reasoning prompt with mode-specific sections."""

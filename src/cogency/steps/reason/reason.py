@@ -3,7 +3,7 @@
 from typing import List, Optional
 
 from cogency.providers import LLM
-from cogency.state import State
+from cogency.state import AgentState, build_reasoning_prompt
 from cogency.tools import Tool
 
 from .context import Context
@@ -26,102 +26,78 @@ class Reason:
         self.parse = Parse()
         self.mode = Mode()
 
-    async def process(self, state: State, notifier) -> Optional[str]:
-        """Execute reasoning pipeline with mode switching."""
-        # Get current iteration and mode
-        iteration = state.iteration
-        mode = state.mode
-        selected_tools = state.selected_tools or self.tools
-
-        # Set react mode if different from current
-        if state.mode != mode:
-            state.mode = mode
+    async def process(self, state: AgentState, notifier) -> Optional[str]:
+        """Execute reasoning pipeline with canonical architecture."""
+        # Get current state
+        iteration = state.execution.iteration
+        mode = state.execution.mode
 
         await notifier("reason", state=mode)
 
         # Check stop conditions
-        if iteration >= state.depth:
-            state.stop_reason = "depth_reached"
-            state.tool_calls = []
+        if iteration >= state.execution.max_iterations:
+            state.execution.stop_reason = "depth_reached"
             await notifier(
                 "trace", message="ReAct terminated", reason="depth_reached", iterations=iteration
             )
             return None
 
-        # Step 1: Build context
-        context_data = await self.context.build(state, selected_tools, self.memory, mode, iteration)
-
-        # Step 2: Build prompt
-        reasoning_prompt = self.prompt.build(
-            mode=mode,
-            query=state.query,
-            context_data=context_data,
-            iteration=iteration,
-            depth=state.depth,
-            state=state,
-        )
+        # Build reasoning prompt using pure function
+        reasoning_prompt = build_reasoning_prompt(state, self.tools, mode)
 
         # Trace reasoning context for debugging
         if iteration == 0:
             await notifier(
-                "trace", message="ReAct loop initiated", mode=mode, depth_limit=state.depth
+                "trace",
+                message="ReAct loop initiated",
+                mode=mode,
+                depth_limit=state.execution.max_iterations,
             )
 
-        # Step 3: Execute LLM reasoning
-        messages = state.conversation()
-        messages.append({"role": "user", "content": state.query})
-        messages.insert(0, {"role": "system", "content": reasoning_prompt})
+        # Execute LLM reasoning
+        messages = [{"role": "system", "content": reasoning_prompt}]
+        messages.extend(
+            [{"role": msg["role"], "content": msg["content"]} for msg in state.execution.messages]
+        )
 
         import asyncio
 
         await asyncio.sleep(0)  # Yield for UI
-        llm_result = await self.llm.run(messages)
 
+        llm_result = await self.llm.run(messages)
         from resilient_result import unwrap
 
         raw_response = unwrap(llm_result)
 
-        # Step 4: Parse response - try JSON first, fallback to direct response
-        reasoning_response = await self.parse.reasoning(raw_response, notifier, mode, iteration)
+        # Parse JSON response
+        from cogency.utils import parse_json
 
-        # If parsing failed, this might be a direct response (not JSON reasoning)
-        if reasoning_response is None and raw_response and not raw_response.strip().startswith("{"):
-            # Direct response - return it immediately
-            state.response = raw_response.strip()
-            await notifier("reason", state="direct_response", content=raw_response[:100])
-            return raw_response.strip()
+        parsed = parse_json(raw_response)
 
-        # Step 5: Display reasoning phases
-        await self._display_reasoning(reasoning_response, notifier, mode)
+        if not parsed.success:
+            # Fallback to direct response
+            if raw_response and not raw_response.strip().startswith("{"):
+                state.execution.response = raw_response.strip()
+                await notifier("reason", state="direct_response", content=raw_response[:100])
+                return raw_response.strip()
+            return None
 
-        # Step 6: Handle mode switching (preserve LLM-driven switching)
-        await self.mode.handle_switch(state, raw_response, mode, iteration, notifier)
+        reasoning_data = parsed.data
 
-        # Step 7: Record action in state
-        if reasoning_response:
-            state.add_action(
-                mode=state.mode,
-                thinking=reasoning_response.thinking or "",
-                planning=getattr(reasoning_response, "plan", "") or "",
-                reflection=getattr(reasoning_response, "reflect", "") or "",
-                approach=getattr(reasoning_response, "efficiency", "standard"),
-                tool_calls=reasoning_response.tool_calls or [],
+        # Update state from reasoning response
+        state.update_from_reasoning(reasoning_data)
+
+        # Display reasoning
+        thinking = reasoning_data.get("thinking", "")
+        if thinking:
+            await notifier("reason", state="thinking", content=thinking)
+
+        # Check for direct response
+        if state.execution.response:
+            await notifier(
+                "reason", state="direct_response", content=state.execution.response[:100]
             )
-
-            # Update workspace if provided
-            if hasattr(reasoning_response, "updates") and reasoning_response.updates:
-                state.update_workspace(reasoning_response.updates)
-
-            # Set tool calls for action phase
-            state.tool_calls = reasoning_response.tool_calls
-
-            # Check for direct response - elegant routing
-            if reasoning_response.response:
-                state.response = reasoning_response.response
-                await notifier(
-                    "reason", state="direct_response", content=reasoning_response.response[:100]
-                )
-                return reasoning_response.response
+            return state.execution.response
 
         return None
 

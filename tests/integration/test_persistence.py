@@ -8,7 +8,7 @@ import pytest
 from cogency import Agent
 from cogency.config import PersistConfig
 from cogency.persist import Filesystem, StatePersistence
-from cogency.state import State
+from cogency.state import AgentState
 
 
 @pytest.mark.asyncio
@@ -58,8 +58,8 @@ async def test_get_state():
     )
 
     assert state is not None
-    assert state.user_id == "test_user"
-    assert state.query == "test query"
+    assert state.execution.user_id == "test_user"
+    assert state.execution.query == "test query"
     assert "test_user" in user_states
 
     # Test getting existing state
@@ -72,22 +72,30 @@ async def test_get_state():
     )
 
     assert state2 is state  # Should be same object
-    assert state2.query == "new query"  # Query updated
+    assert state2.execution.query == "new query"  # Query updated
 
 
 @pytest.mark.asyncio
 async def test_end_to_end():
-    """Test complete state persistence flow without full agent execution."""
+    """Test complete state persistence flow with v1.0.0 structure."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
         store = Filesystem(base_dir=temp_dir)
         manager = StatePersistence(store=store)
 
-        # Create and save state
-        state = State(query="test query", user_id="test_user")
-        state.add_message("user", "Hello")
-        state.add_message("assistant", "Hi there")
-        state.iteration = 3
+        # Create and save state with v1.0.0 structure
+        from cogency.state.memory import UserProfile
+
+        profile = UserProfile(user_id="test_user")
+        profile.preferences = {"language": "Python"}
+        profile.communication_style = "concise"
+
+        state = AgentState(query="test query", user_id="test_user", user_profile=profile)
+        state.execution.add_message("user", "Hello")
+        state.execution.iteration = 2
+        state.reasoning.add_insight("Test insight")
+        state.execution.add_message("assistant", "Hi there")
+        state.execution.iteration = 3
 
         success = await manager.save(state)
         assert success is True
@@ -96,9 +104,16 @@ async def test_end_to_end():
         loaded_state = await manager.load("test_user")
 
         assert loaded_state is not None
-        assert loaded_state.user_id == "test_user"
-        assert loaded_state.query == "test query"
-        assert loaded_state.iteration == 3
-        assert len(loaded_state.messages) == 2
-        assert loaded_state.messages[0]["content"] == "Hello"
-        assert loaded_state.messages[1]["content"] == "Hi there"
+        assert loaded_state.execution.user_id == "test_user"
+        assert loaded_state.execution.query == "test query"
+        assert loaded_state.execution.iteration == 3
+        assert len(loaded_state.execution.messages) == 2
+        assert loaded_state.execution.messages[0]["content"] == "Hello"
+        assert loaded_state.execution.messages[1]["content"] == "Hi there"
+
+        # Test v1.0.0 specific features
+        assert loaded_state.user_profile is not None
+        assert loaded_state.user_profile.user_id == "test_user"
+        assert loaded_state.user_profile.preferences["language"] == "Python"
+        assert loaded_state.user_profile.communication_style == "concise"
+        assert "Test insight" in loaded_state.reasoning.insights

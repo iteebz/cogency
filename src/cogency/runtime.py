@@ -5,11 +5,10 @@ from typing import Any, AsyncIterator, Optional
 
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig, setup_config
 from cogency.config.dataclasses import AgentConfig
-from cogency.memory import Memory
 from cogency.notify import Notifier, setup_formatter
 from cogency.persist import get_state
 from cogency.providers import setup_embed, setup_llm
-from cogency.state import State
+from cogency.state import AgentState, ImpressionSynthesizer
 from cogency.steps import setup_steps
 from cogency.tools import setup_tools
 from cogency.utils import validate_query
@@ -34,7 +33,7 @@ class AgentExecutor:
     def __init__(self, name: str, registry: Any):
         self.name = name
         self._registry = registry
-        self.user_states: dict[str, State] = {}
+        self.user_states: dict[str, AgentState] = {}
         self.last_state: Optional[dict] = None
 
         # Extract config properties
@@ -135,7 +134,7 @@ class AgentExecutor:
         # Setup memory
         if memory_config:
             store = memory_config.store or (persist_config.store if persist_config else None)
-            registry.memory = Memory(registry.llm, store=store, user_id=memory_config.user_id)
+            registry.memory = ImpressionSynthesizer(registry.llm, store=store)
             registry.memory.synthesis_threshold = memory_config.synthesis_threshold
         else:
             registry.memory = None
@@ -187,7 +186,7 @@ class AgentExecutor:
                 self.config.persist,
             )
 
-            state.add_message("user", query)
+            state.execution.add_message("user", query)
 
             # Memory operations
             if self.memory:
@@ -195,9 +194,7 @@ class AgentExecutor:
                 await self.memory.remember(query, human=True)
 
             # Set agent mode
-            state.agent_mode = self.mode
-            if self.mode != "adapt":
-                state.mode = self.mode
+            state.execution.mode = self.mode
 
             # Setup phases with runtime identity (if provided)
             if identity:
@@ -225,7 +222,7 @@ class AgentExecutor:
             self.last_state = state
 
             # Extract response
-            response = getattr(state, "response", None)
+            response = state.execution.response
 
             # Unwrap Result objects at the boundary
             from resilient_result import Result
@@ -264,7 +261,7 @@ class AgentExecutor:
             self.config.persist,
         )
 
-        state.add_message("user", query)
+        state.execution.add_message("user", query)
 
         # Memory operations
         if self.memory:
@@ -324,8 +321,8 @@ class AgentExecutor:
             self.last_state = result
 
             # Learn from response
-            if self.memory and result and hasattr(result, "response"):
-                await self.memory.remember(result.response, human=False)
+            if self.memory and result and hasattr(result.execution, "response"):
+                await self.memory.remember(result.execution.response, human=False)
 
     def traces(self) -> list[dict[str, Any]]:
         """Get execution traces (debug mode only)."""

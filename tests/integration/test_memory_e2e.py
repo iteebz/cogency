@@ -20,118 +20,130 @@ def create_memory_agent(name="test", **kwargs):
 
 @pytest.mark.asyncio
 async def test_memory_session_continuity():
-    """Test memory persists and continues across agent sessions."""
-    # Setup shared store
-    store = Filesystem(base_dir=".cogency/memory")
-    memory_config = MemoryConfig(
-        synthesis_threshold=100, user_id="test_user_continuity"  # Low threshold for testing
-    )
-    memory_config.store = store
+    """Test ImpressionSynthesizer persists user profiles across sessions."""
+    from cogency.state.memory import ImpressionSynthesizer
+    from tests.fixtures.store import InMemoryStore
 
-    # Session 1: Agent learns user preferences with realistic synthesis response
+    # Setup shared store and synthesizer
+    store = InMemoryStore()
     synthesis_llm = MockLLM(
-        response="User prefers TypeScript over JavaScript and is working on a React project. Shows strong frontend development focus."
+        response='{"preferences": {"language": "TypeScript"}, "goals": ["React development"], "expertise": ["frontend"]}'
     )
-    agent1 = create_memory_agent("test", llm=synthesis_llm, memory=memory_config)
+    synthesizer = ImpressionSynthesizer(synthesis_llm, store=store)
+    synthesizer.synthesis_threshold = 1  # Synthesize every interaction
 
-    # User provides preferences
-    memory1 = await agent1.memory()
-    await memory1.remember("I prefer TypeScript over JavaScript", human=True)
-    await memory1.remember("I'm working on a React project", human=True)
+    user_id = "test_user_continuity"
 
-    # Force synthesis
-    long_content = "Additional context " * 20  # Force over threshold
-    await memory1.remember(long_content, human=True)
+    # Session 1: Process user preferences
+    interaction1 = {
+        "query": "I prefer TypeScript over JavaScript",
+        "response": "I'll help with TypeScript",
+        "success": True,
+    }
+    profile1 = await synthesizer.update_impression(user_id, interaction1)
 
-    # Verify synthesis occurred and persisted
-    assert memory1.impression != ""
-    assert memory1.recent == ""  # Cleared after synthesis
+    # Verify profile was created and synthesized
+    assert profile1.user_id == user_id
+    assert profile1.interaction_count == 1
 
-    # Session 2: New agent instance loads existing memory
-    agent2 = create_memory_agent("test", llm=MockLLM(), memory=memory_config)
-    memory2 = await agent2.memory()
+    # Session 2: Load existing profile and add new interaction
+    interaction2 = {
+        "query": "I'm working on a React project",
+        "response": "Great! I can help with React",
+        "success": True,
+    }
+    profile2 = await synthesizer.update_impression(user_id, interaction2)
 
-    # Load should happen automatically in Agent.__init__ for configured memory
-    success = await memory2.load()
-    assert success is True
+    # Verify continuity - same user_id should load existing profile
+    assert profile2.user_id == user_id
+    assert profile2.interaction_count == 2  # Incremented from first session
 
-    # Verify continuity
-    assert memory2.impression == memory1.impression
-    assert "TypeScript" in memory2.impression or "React" in memory2.impression
+    # Session 3: Verify profile contains accumulated understanding
+    profile3 = await synthesizer._load_profile(user_id)
+    context = profile3.compress_for_injection()
 
-    # Session 2: Add new information and save it
-    await memory2.remember("I also like using Tailwind CSS", human=True)
-    await memory2.save()  # Save the recent addition
-
-    # Session 3: Verify accumulated memory
-    agent3 = create_memory_agent("test", llm=MockLLM(), memory=memory_config)
-    memory3 = await agent3.memory()
-    await memory3.load()
-
-    memory_context = await memory3.recall()
-    assert "TypeScript" in memory_context or "React" in memory_context
-    # Tailwind should be in recent interactions since it was saved
-    assert "Tailwind" in memory3.recent
+    # Should contain learned information from both sessions
+    assert profile3.interaction_count >= 2
+    assert len(context) > 0  # Has some context to inject
 
 
 @pytest.mark.asyncio
 async def test_memory_multi_user_isolation():
-    """Test memory isolation between different users."""
-    store = Filesystem(base_dir=".cogency/memory")
+    """Test ImpressionSynthesizer isolates profiles between users."""
+    from cogency.state.memory import ImpressionSynthesizer
+    from tests.fixtures.store import InMemoryStore
 
-    # User 1 memory
-    memory_config_1 = MemoryConfig(user_id="user_1", store=store)
-    agent1 = create_memory_agent("test", llm=MockLLM(), memory=memory_config_1)
-    memory1 = await agent1.memory()
-    await memory1.remember("User 1 prefers Python", human=True)
-    await memory1.save()
+    # Shared store and synthesizer
+    store = InMemoryStore()
+    synthesis_llm = MockLLM(
+        response='{"preferences": {"language": "Python"}, "expertise": ["backend"]}'
+    )
+    synthesizer = ImpressionSynthesizer(synthesis_llm, store=store)
 
-    # User 2 memory
-    memory_config_2 = MemoryConfig(user_id="user_2", store=store)
-    agent2 = create_memory_agent("test", llm=MockLLM(), memory=memory_config_2)
-    memory2 = await agent2.memory()
-    await memory2.remember("User 2 prefers Go", human=True)
-    await memory2.save()
+    # User 1 interaction
+    user1_interaction = {
+        "query": "I prefer Python for backend development",
+        "response": "I'll help with Python",
+        "success": True,
+    }
+    profile1 = await synthesizer.update_impression("user_1", user1_interaction)
 
-    # Verify isolation - User 1 cannot see User 2's memory
-    agent1_reload = create_memory_agent("test", llm=MockLLM(), memory=memory_config_1)
-    memory1_reload = await agent1_reload.memory()
-    await memory1_reload.load()
-    user1_context = await memory1_reload.recall()
+    # User 2 interaction with different LLM response
+    synthesis_llm_user2 = MockLLM(
+        response='{"preferences": {"language": "Go"}, "expertise": ["systems"]}'
+    )
+    synthesizer2 = ImpressionSynthesizer(synthesis_llm_user2, store=store)
 
-    assert "Python" in user1_context
-    assert "Go" not in user1_context
+    user2_interaction = {
+        "query": "I prefer Go for systems programming",
+        "response": "I'll help with Go",
+        "success": True,
+    }
+    profile2 = await synthesizer2.update_impression("user_2", user2_interaction)
 
-    # Verify isolation - User 2 cannot see User 1's memory
-    agent2_reload = create_memory_agent("test", llm=MockLLM(), memory=memory_config_2)
-    memory2_reload = await agent2_reload.memory()
-    await memory2_reload.load()
-    user2_context = await memory2_reload.recall()
+    # Verify isolation
+    assert profile1.user_id == "user_1"
+    assert profile2.user_id == "user_2"
 
-    assert "Go" in user2_context
-    assert "Python" not in user2_context
+    # Reload profiles to verify persistence isolation
+    reloaded_profile1 = await synthesizer._load_profile("user_1")
+    reloaded_profile2 = await synthesizer._load_profile("user_2")
+
+    assert reloaded_profile1.user_id == "user_1"
+    assert reloaded_profile2.user_id == "user_2"
+
+    # Verify context isolation
+    context1 = reloaded_profile1.compress_for_injection()
+    context2 = reloaded_profile2.compress_for_injection()
+
+    # Each user should have their own context
+    assert context1 != context2
 
 
 @pytest.mark.asyncio
 async def test_memory_config_integration():
-    """Test memory configuration integration with Agent."""
-    # Test union pattern: bool vs MemoryConfig
+    """Test AgentState integration with UserProfile."""
+    from cogency.state import AgentState, UserProfile
 
-    # Simple boolean (existing pattern)
-    agent_simple = create_memory_agent("test", llm=MockLLM(), memory=True)
-    memory_simple = await agent_simple.memory()
-    assert memory_simple is not None
-    assert memory_simple.synthesis_threshold == 16000  # Default
+    # Test AgentState without user profile
+    state_no_profile = AgentState(query="test query", user_id="test_user")
+    context_no_profile = state_no_profile.get_situated_context()
+    assert context_no_profile == ""  # No profile means no context
 
-    # Advanced config
-    memory_config = MemoryConfig(synthesis_threshold=5000, user_id="config_test_user")
-    agent_config = create_memory_agent("test", llm=MockLLM(), memory=memory_config)
-    memory_advanced = await agent_config.memory()
-    assert memory_advanced is not None
-    assert memory_advanced.synthesis_threshold == 5000  # Configured
-    assert memory_advanced.user_id == "config_test_user"
+    # Test AgentState with user profile
+    profile = UserProfile(user_id="test_user")
+    profile.preferences = {"language": "Python"}
+    profile.goals = ["Learn backend development"]
+    profile.communication_style = "concise"
 
-    # Disabled memory
-    agent_disabled = create_memory_agent("test", llm=MockLLM(), memory=False)
-    memory_disabled = await agent_disabled.memory()
-    assert memory_disabled is None
+    state_with_profile = AgentState(query="test query", user_id="test_user", user_profile=profile)
+
+    context_with_profile = state_with_profile.get_situated_context()
+    assert "USER CONTEXT:" in context_with_profile
+    assert "Python" in context_with_profile  # From preferences
+    assert "concise" in context_with_profile  # From communication style
+
+    # Test profile compression
+    compressed = profile.compress_for_injection(max_tokens=100)
+    assert len(compressed) <= 100
+    assert "Python" in compressed

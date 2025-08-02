@@ -3,14 +3,14 @@
 from typing import List, Optional
 
 from cogency.providers import LLM
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.tools import Tool
 
 from .flow import Flow
 
 
 async def prepare(
-    state: State,
+    state: AgentState,
     notifier,
     llm: LLM,
     tools: List[Tool],

@@ -8,7 +8,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from cogency.state import State
+from cogency.state import AgentState
 
 """Checkpoint storage and state management for workflow recovery."""
 
@@ -22,7 +22,7 @@ def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = Fa
             # Extract state from function arguments
             state = args[0] if args else kwargs.get("state")
 
-            if not state or not isinstance(state, State):
+            if not state or not isinstance(state, AgentState):
                 # No state to checkpoint, just run the function
                 return await func(*args, **kwargs)
 
@@ -67,16 +67,14 @@ class Checkpoint:
         self.max_age_hours = 1  # Expire checkpoints after 1 hour
         self.session_id = session_id or str(os.getpid())  # Process ID for session isolation
 
-    def _generate_fingerprint(self, state: State) -> str:
+    def _generate_fingerprint(self, state: AgentState) -> str:
         """Generate deterministic fingerprint for state matching with session isolation."""
-        selected_tools = state.selected_tools or []
-        tool_names = [tool.name if hasattr(tool, "name") else str(tool) for tool in selected_tools]
-
+        # v1.0.0: Use stable properties for fingerprint, not dynamic tool state
         components = [
             self.session_id,  # Session isolation prevents state collisions
-            state.query,
-            str(sorted(tool_names)),
-            str(state.iteration),
+            state.execution.query,
+            state.execution.user_id,
+            str(state.execution.iteration),
         ]
         content = "|".join(components)
         return hashlib.sha256(content.encode()).hexdigest()[:16]
@@ -85,30 +83,32 @@ class Checkpoint:
         """Get filesystem path for checkpoint."""
         return self.checkpoint_dir / f"{fingerprint}.json"
 
-    def save(self, state: State, checkpoint_type: str = "tool_execution") -> str:
+    def save(self, state: AgentState, checkpoint_type: str = "tool_execution") -> str:
         """Save checkpoint with meaningful progress."""
         fingerprint = self._generate_fingerprint(state)
         checkpoint_path = self._get_checkpoint_path(fingerprint)
 
-        # Extract serializable state data
+        # Extract serializable state data - v1.0.0 spec compliant
         checkpoint_data = {
             "fingerprint": fingerprint,
             "timestamp": datetime.now().isoformat(),
             "checkpoint_type": checkpoint_type,
-            "query": state.query,
-            "user_id": state.user_id,
-            "iteration": state.iteration,
-            "mode": state.mode,
-            "selected_tools": [
-                tool.name if hasattr(tool, "name") else str(tool)
-                for tool in state.selected_tools or []
-            ],
-            "tool_calls": state.tool_calls,
-            "actions": state.actions,
-            "attempts": state.attempts,
-            "approach": state.approach,
-            "messages": state.messages,
-            "result": str(state.result) if state.result else None,
+            # ExecutionState data
+            "query": state.execution.query,
+            "user_id": state.execution.user_id,
+            "iteration": state.execution.iteration,
+            "mode": state.execution.mode,
+            "stop_reason": state.execution.stop_reason,
+            "messages": state.execution.messages,
+            "response": state.execution.response,
+            "pending_calls": state.execution.pending_calls,
+            "completed_calls": state.execution.completed_calls,
+            # ReasoningContext data
+            "reasoning_goal": state.reasoning.goal,
+            "reasoning_strategy": state.reasoning.strategy,
+            "reasoning_facts": state.reasoning.facts,
+            "reasoning_insights": state.reasoning.insights,
+            "reasoning_thoughts": state.reasoning.thoughts,
         }
 
         # Write checkpoint atomically to prevent corruption during interrupts
@@ -123,7 +123,7 @@ class Checkpoint:
 
         return fingerprint
 
-    def find(self, state: State) -> Optional[str]:
+    def find(self, state: AgentState) -> Optional[str]:
         """Find matching checkpoint for current state."""
         fingerprint = self._generate_fingerprint(state)
         checkpoint_path = self._get_checkpoint_path(fingerprint)
@@ -178,7 +178,7 @@ class Checkpoint:
                 checkpoint_file.unlink()
 
 
-def resume(state: State) -> bool:
+def resume(state: AgentState) -> bool:
     """Resume workflow from saved checkpoint if available."""
     checkpoint_id = checkpointer.find(state)
     if not checkpoint_id:
@@ -188,27 +188,35 @@ def resume(state: State) -> bool:
     if not checkpoint_data:
         return False
 
-    # Restore state fields from checkpoint
+    # Restore state fields from checkpoint - v1.0.0 spec compliant
     try:
-        # Core execution state
+        # ExecutionState restoration
         if "iteration" in checkpoint_data:
-            state.iteration = checkpoint_data["iteration"]
+            state.execution.iteration = checkpoint_data["iteration"]
         if "mode" in checkpoint_data:
-            state.mode = checkpoint_data["mode"]
-        if "approach" in checkpoint_data:
-            state.approach = checkpoint_data["approach"]
-
-        # Tool execution state
-        if "tool_calls" in checkpoint_data:
-            state.tool_calls = checkpoint_data["tool_calls"] or []
-        if "actions" in checkpoint_data:
-            state.actions = checkpoint_data["actions"]
-        if "attempts" in checkpoint_data:
-            state.attempts = checkpoint_data["attempts"]
-
-        # Message history
+            state.execution.mode = checkpoint_data["mode"]
+        if "stop_reason" in checkpoint_data:
+            state.execution.stop_reason = checkpoint_data["stop_reason"]
+        if "response" in checkpoint_data:
+            state.execution.response = checkpoint_data["response"]
         if "messages" in checkpoint_data:
-            state.messages = checkpoint_data["messages"]
+            state.execution.messages = checkpoint_data["messages"]
+        if "pending_calls" in checkpoint_data:
+            state.execution.pending_calls = checkpoint_data["pending_calls"] or []
+        if "completed_calls" in checkpoint_data:
+            state.execution.completed_calls = checkpoint_data["completed_calls"] or []
+
+        # ReasoningContext restoration
+        if "reasoning_goal" in checkpoint_data:
+            state.reasoning.goal = checkpoint_data["reasoning_goal"]
+        if "reasoning_strategy" in checkpoint_data:
+            state.reasoning.strategy = checkpoint_data["reasoning_strategy"]
+        if "reasoning_facts" in checkpoint_data:
+            state.reasoning.facts = checkpoint_data["reasoning_facts"] or {}
+        if "reasoning_insights" in checkpoint_data:
+            state.reasoning.insights = checkpoint_data["reasoning_insights"] or []
+        if "reasoning_thoughts" in checkpoint_data:
+            state.reasoning.thoughts = checkpoint_data["reasoning_thoughts"] or []
 
         # Add resume context message to LLM
         _add_resume_message(state, checkpoint_data)
@@ -220,7 +228,7 @@ def resume(state: State) -> bool:
         return False
 
 
-def _add_resume_message(state: State, checkpoint_data: Dict[str, Any]) -> None:
+def _add_resume_message(state: AgentState, checkpoint_data: Dict[str, Any]) -> None:
     """Add resume context to message history for LLM awareness."""
     checkpoint_type = checkpoint_data.get("checkpoint_type", "unknown")
     iteration = checkpoint_data.get("iteration", 0)
@@ -229,17 +237,17 @@ def _add_resume_message(state: State, checkpoint_data: Dict[str, Any]) -> None:
     recovery_msg = "RESUMING FROM CHECKPOINT: "
 
     if checkpoint_type == "tool_execution":
-        tool_calls = checkpoint_data.get("tool_calls", [])
-        if tool_calls:
+        completed_calls = checkpoint_data.get("completed_calls", [])
+        if completed_calls:
             tool_names = [
-                call.get("name", "unknown") for call in tool_calls if isinstance(call, dict)
+                call.get("name", "unknown") for call in completed_calls if isinstance(call, dict)
             ]
             recovery_msg += f"Previously completed tools: {', '.join(tool_names)}. "
 
     recovery_msg += f"Continue from iteration {iteration}. Previous session was interrupted."
 
     # Add to message history using the proper State method
-    state.add_message("system", recovery_msg)
+    state.execution.add_message("system", recovery_msg)
 
 
 # Global checkpoint manager instance

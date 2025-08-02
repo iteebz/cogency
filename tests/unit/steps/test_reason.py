@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.steps.reason import reason
 from tests.fixtures.llm import MockLLM
 
@@ -12,7 +12,9 @@ from tests.fixtures.llm import MockLLM
 @pytest.fixture
 def state():
     """Clean state for testing."""
-    return State(query="test query", debug=True)
+    state = AgentState(query="test query")
+    state.execution.debug = True
+    return state
 
 
 @pytest.mark.asyncio

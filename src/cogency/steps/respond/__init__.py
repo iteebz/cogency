@@ -3,7 +3,7 @@
 from typing import Dict, List, Optional
 
 from cogency.providers import LLM
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.tools import Tool
 
 # Response prompt templates - clean and scannable
@@ -108,36 +108,39 @@ def prompt_response(
     return prompt
 
 
-def collect_failures(state: State) -> Optional[Dict[str, str]]:
+def collect_failures(state: AgentState) -> Optional[Dict[str, str]]:
     """Collect all failure scenarios into unified dict."""
     failures = {}
 
     # Check for stop reason (reasoning failures)
-    if state.stop_reason:
+    if state.execution.stop_reason:
         user_error_message = getattr(
             state, "user_error_message", "I encountered an issue but will try to help."
         )
         failures["reasoning"] = user_error_message
         return failures
 
-    # Check for tool failures in latest results
-    for result in state.latest_tool_results:
-        if result["outcome"] in ["failure", "error", "timeout"]:
-            failures[result["name"]] = result["result"] or "Tool execution failed"
+    # Check for tool failures in completed calls
+    for result in state.execution.completed_calls:
+        if (
+            "result" in result
+            and result["result"]
+            and hasattr(result["result"], "success")
+            and not result["result"].success
+        ):
+            failures[result["name"]] = str(result["result"].error) or "Tool execution failed"
 
     return failures if failures else None
 
 
-def format_tool_results(state: State) -> Optional[str]:
+def format_tool_results(state: AgentState) -> Optional[str]:
     """Extract and format tool results for response context."""
-    if not state.latest_tool_results:
+    if not state.execution.completed_calls:
         return None
 
-    # Format successful tool results only
+    # Format completed tool results
     successful_results = [
-        result
-        for result in state.latest_tool_results[:5]
-        if result["outcome"] not in ["failure", "error", "timeout"]
+        result for result in state.execution.completed_calls[:5] if "result" in result
     ]
 
     if not successful_results:
@@ -152,7 +155,7 @@ def format_tool_results(state: State) -> Optional[str]:
 
 
 async def respond(
-    state: State,
+    state: AgentState,
     notifier,
     llm: LLM,
     tools: List[Tool],
@@ -168,15 +171,14 @@ async def respond(
 
     # Conditional identity application
     if (
-        hasattr(state, "response")
-        and state.response
-        and hasattr(state, "response_source")
-        and state.response_source in ["prepare", "reason"]
+        state.execution.response
+        and hasattr(state.execution, "response_source")
+        and state.execution.response_source in ["prepare", "reason"]
         and identity
     ):
         # Apply identity via LLM call for early returns
         identity_prompt = prompt_response(
-            state.query,
+            state.execution.query,
             has_tool_results=bool(tool_results),
             tool_summary=tool_results,
             identity=identity,
@@ -185,22 +187,22 @@ async def respond(
 
         messages = [
             {"role": "system", "content": identity_prompt},
-            {"role": "user", "content": state.query},
-            {"role": "assistant", "content": state.response},
+            {"role": "user", "content": state.execution.query},
+            {"role": "assistant", "content": state.execution.response},
         ]
 
         from resilient_result import unwrap
 
         llm_result = await llm.run(messages)
         response_text = unwrap(llm_result)
-    elif hasattr(state, "response") and state.response:
+    elif state.execution.response:
         # Use existing response without identity
         from resilient_result import Result, unwrap
 
-        if isinstance(state.response, Result):
-            response_text = unwrap(state.response)
+        if isinstance(state.execution.response, Result):
+            response_text = unwrap(state.execution.response)
         else:
-            response_text = state.response
+            response_text = state.execution.response
     else:
         # Generate response from tool results if available
         tool_results = format_tool_results(state)
@@ -209,7 +211,7 @@ async def respond(
         if tool_results or failures:
             # Generate response based on available context
             response_prompt = prompt_response(
-                state.query,
+                state.execution.query,
                 has_tool_results=bool(tool_results),
                 tool_summary=tool_results,
                 identity=identity,
@@ -219,7 +221,7 @@ async def respond(
 
             messages = [
                 {"role": "system", "content": response_prompt},
-                {"role": "user", "content": state.query},
+                {"role": "user", "content": state.execution.query},
             ]
 
             from resilient_result import unwrap
@@ -233,7 +235,7 @@ async def respond(
     await notifier("respond", state="complete", content=(response_text or "")[:100])
 
     # Update state
-    state.add_message("assistant", response_text)
+    state.execution.add_message("assistant", response_text)
     # Always update response with final processed text (may include identity)
-    state.response = response_text
+    state.execution.response = response_text
     return state

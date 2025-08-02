@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.state import State
+from cogency.state import AgentState
 
 # Import the prepare function directly
 from cogency.steps.prepare import prepare
@@ -44,7 +44,7 @@ async def test_fast():
     query = "What is the weather today?"
     llm.response = '{"mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
 
-    state = State(query=query)
+    state = AgentState(query=query)
 
     result = await prepare(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
@@ -63,7 +63,7 @@ async def test_deep():
         '{"mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
     )
 
-    state = State(query=query)
+    state = AgentState(query=query)
 
     result = await prepare(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
@@ -80,7 +80,7 @@ async def test_response():
     query = "Hello, how are you?"
     llm.response = '{"selected_tools": [], "reasoning": "Simple greeting"}'
 
-    state = State(query=query)
+    state = AgentState(query=query)
 
     result = await prepare(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 

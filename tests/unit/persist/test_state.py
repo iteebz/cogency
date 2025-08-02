@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from cogency.persist import StatePersistence, Store
-from cogency.state import State
+from cogency.state import AgentState
 
 
 class MockStore(Store):
@@ -16,8 +16,8 @@ class MockStore(Store):
         self.states = {}
         self.process_id = "mock_process"
 
-    async def save(self, state_key: str, state: State) -> bool:
-        self.states[state_key] = {"state": state, "schema_version": "1.0"}
+    async def save(self, state_key: str, state: AgentState) -> bool:
+        self.states[state_key] = {"state": state}
         return True
 
     async def load(self, state_key: str) -> dict:
@@ -28,7 +28,6 @@ class MockStore(Store):
                 "state": (
                     data["state"].__dict__ if hasattr(data["state"], "__dict__") else data["state"]
                 ),
-                "schema_version": data["schema_version"],
             }
         return None
 
@@ -54,9 +53,9 @@ def persistence(mock_store):
 
 @pytest.fixture
 def sample_state():
-    state = State(query="test query", user_id="test_user")
-    state.add_message("user", "Hello")
-    state.add_message("assistant", "Hi there")
+    state = AgentState(query="test query", user_id="test_user")
+    state.execution.add_message("user", "Hello")
+    state.execution.add_message("assistant", "Hi there")
     return state
 
 
@@ -72,14 +71,13 @@ async def test_save(persistence, sample_state):
     stored_data = await persistence.store.load(state_key)
 
     assert stored_data is not None
-    assert stored_data["schema_version"] == "1.0"
 
 
 @pytest.mark.asyncio
 async def test_disabled(mock_store):
     """Test persistence with persistence disabled."""
     persistence = StatePersistence(store=mock_store, enabled=False)
-    sample_state = State(query="test", user_id="test_user")
+    sample_state = AgentState(query="test", user_id="test_user")
 
     # Save should succeed silently
     success = await persistence.save(sample_state)
@@ -138,28 +136,49 @@ async def test_key_gen(persistence, sample_state):
 
 @pytest.mark.asyncio
 async def test_reconstruct(persistence, sample_state):
-    """Test complete state reconstruction."""
-    # Add more complex state data
-    sample_state.iteration = 5
-    sample_state.stop_reason = "depth"
-    sample_state.response = "Final response"
-    sample_state.add_action(
-        mode="fast",
-        thinking="Test thinking",
-        planning="Test planning",
-        reflection="Test reflection",
-        approach="direct",
-        tool_calls=[{"name": "test_tool", "args": {}}],
-    )
+    """Test complete state reconstruction with v1.0.0 structure."""
+    # Add complex v1.0.0 state data
+    from cogency.state.memory import UserProfile
+
+    # Set up user profile
+    profile = UserProfile(user_id="test_user")
+    profile.preferences = {"style": "detailed"}
+    profile.goals = ["Learn programming"]
+    sample_state.user_profile = profile
+
+    # Add complex execution state
+    sample_state.execution.iteration = 5
+    sample_state.execution.stop_reason = "depth"
+    sample_state.execution.response = "Final response"
+    sample_state.execution.pending_calls = [{"name": "test_tool", "args": {"param": "value"}}]
+    sample_state.execution.completed_calls = [{"name": "previous_tool", "result": "success"}]
+
+    # Record thinking in reasoning context
+    sample_state.reasoning.record_thinking("Test thinking", [{"name": "test_tool", "args": {}}])
+    sample_state.reasoning.add_insight("Important insight")
 
     # Save and load
     await persistence.save(sample_state)
     loaded_state = await persistence.load("test_user")
 
-    # Verify all fields reconstructed correctly
-    assert loaded_state.iteration == 5
-    assert loaded_state.stop_reason == "depth"
-    assert loaded_state.response == "Final response"
-    assert len(loaded_state.actions) == 1
-    assert loaded_state.actions[0]["thinking"] == "Test thinking"
-    assert loaded_state.callback is None  # Should not persist callbacks
+    # Verify all v1.0.0 fields reconstructed correctly
+    assert loaded_state.execution.iteration == 5
+    assert loaded_state.execution.stop_reason == "depth"
+    assert loaded_state.execution.response == "Final response"
+    assert loaded_state.execution.pending_calls == [
+        {"name": "test_tool", "args": {"param": "value"}}
+    ]
+    assert loaded_state.execution.completed_calls == [
+        {"name": "previous_tool", "result": "success"}
+    ]
+
+    # Verify reasoning state
+    # Thoughts are stored as dicts with metadata, not plain strings
+    thought_contents = [thought.get("thinking", "") for thought in loaded_state.reasoning.thoughts]
+    assert "Test thinking" in thought_contents
+    assert "Important insight" in loaded_state.reasoning.insights
+
+    # Verify user profile
+    assert loaded_state.user_profile is not None
+    assert loaded_state.user_profile.preferences["style"] == "detailed"
+    assert "Learn programming" in loaded_state.user_profile.goals

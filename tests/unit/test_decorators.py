@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from cogency.config import ObserveConfig, PersistConfig, RobustConfig
-from cogency.decorators import StepConfig, phase, step_decorators
+from cogency.decorators import StepConfig, elapsed, phase, step_decorators
 
 
 @pytest.mark.asyncio

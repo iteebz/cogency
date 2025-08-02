@@ -127,41 +127,53 @@ async def test_agent_executor_integration():
 
 @pytest.mark.asyncio
 async def test_memory_contract_compliance():
-    """Verify memory operations follow persistence contracts."""
-    from cogency.memory import Memory
+    """Verify ImpressionSynthesizer follows storage contracts."""
+    from cogency.state.memory import ImpressionSynthesizer
     from tests.fixtures.store import InMemoryStore
 
-    llm = MockLLM("Synthesis: Important memories")
+    synthesis_llm = MockLLM('{"preferences": {"style": "concise"}}')
     store = InMemoryStore()
-    memory = Memory(llm, store=store, user_id="test_user")
+    synthesizer = ImpressionSynthesizer(synthesis_llm, store=store)
 
-    # Test memory contract
-    await memory.remember("test memory", human=True)
-    await memory.load()
+    # Test profile creation and persistence
+    interaction = {
+        "query": "I prefer concise responses",
+        "response": "I'll be concise",
+        "success": True,
+    }
 
-    memories = await memory.recall()  # Await the coroutine
-    assert isinstance(memories, str)
+    profile = await synthesizer.update_impression("test_user", interaction)
+    assert profile.user_id == "test_user"
+    assert profile.interaction_count == 1
+
+    # Test profile loading
+    loaded_profile = await synthesizer._load_profile("test_user")
+    assert loaded_profile.user_id == "test_user"
+
+    # Test profile context generation
+    context = loaded_profile.compress_for_injection()
+    assert isinstance(context, str)
 
 
 @pytest.mark.asyncio
 async def test_state_management_contract():
     """Verify state persistence follows contracts."""
     from cogency.persist import get_state
-    from cogency.state import State
+    from cogency.state import AgentState
 
     # Test state creation contract
-    state = State("test query")
-    assert state.query == "test query"
-    assert state.iteration == 0
-    assert hasattr(state, "messages")
-    assert hasattr(state, "tool_calls")
+    state = AgentState("test query")
+    assert state.execution.query == "test query"
+    assert state.execution.iteration == 0
+    assert hasattr(state.execution, "messages")
+    assert hasattr(state.execution, "pending_calls")
 
     # Test state persistence contract (no persistence)
     user_states = {}
 
     state = await get_state("user1", "query1", 10, user_states, None)
     assert state is not None
-    assert state.query == "query1"
+    assert state.execution.query == "query1"
 
 
 @pytest.mark.asyncio

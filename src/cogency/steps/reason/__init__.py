@@ -3,14 +3,14 @@
 from typing import List, Optional
 
 from cogency.providers import LLM
-from cogency.state import State
+from cogency.state import AgentState
 from cogency.tools import Tool
 
 from .reason import Reason
 
 
 async def reason(
-    state: State,
+    state: AgentState,
     notifier,
     llm: LLM,
     tools: List[Tool],
