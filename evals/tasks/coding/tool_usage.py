@@ -3,7 +3,7 @@
 from cogency import Agent
 from cogency.tools.search import Search
 
-from ...core import Eval, EvalResult
+from ...core import Eval, EvalResult, get_eval_notification_callback
 
 
 class ToolUsage(Eval):
@@ -13,7 +13,14 @@ class ToolUsage(Eval):
     description = "Test tool integration and usage patterns"
 
     async def run(self) -> EvalResult:
-        agent = Agent("tool_tester", tools=[Search()], mode="fast", memory=False)
+        # Hook up notification capture to see what's happening inside cogency
+        agent = Agent(
+            "tool_tester",
+            tools=[Search()],
+            mode="fast",
+            memory=False,
+            on_notify=get_eval_notification_callback(),
+        )
 
         query = "Search for information about Python list comprehensions and summarize the key benefits."
         result = await agent.run(query)
@@ -44,12 +51,14 @@ class ToolUsage(Eval):
             "has_list_comp_content": has_list_comp_content,
         }
 
-        return EvalResult(
-            name=self.name,
-            passed=passed,
-            score=score,
-            duration=0.0,  # Will be set by base class
-            expected="Tool usage with relevant content",
-            actual=f"Score: {score:.1%}",
-            metadata=metadata,
-        )
+        # Use base class helpers for consistent timing and scoring
+        if has_search_indicators and has_list_comp_content:
+            result_obj = self.check("passed", "passed", metadata)
+            result_obj.score = score
+            result_obj.passed = passed
+            return result_obj
+        else:
+            return self.fail(
+                f"Insufficient tool usage - Search: {has_search_indicators}, Content: {has_list_comp_content}",
+                metadata,
+            )

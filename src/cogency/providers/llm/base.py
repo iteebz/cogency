@@ -84,23 +84,22 @@ class LLM(ABC):
             Result containing string response from the LLM or error
         """
         if self.notifier:
-            await self.notifier(
-                "llm", state="starting", provider=self.provider_name, model=self.model
-            )
+            await self.notifier("trace", message=f"LLM {self.provider_name}:{self.model} starting")
 
         try:
             result = await self._run_with_metrics(messages, **kwargs)
 
             if self.notifier:
-                await self.notifier("llm", state="success", provider=self.provider_name)
+                await self.notifier(
+                    "trace", message=f"LLM {self.provider_name} completed successfully"
+                )
 
             return result
 
         except Exception as e:
             if self.notifier:
-                await self.notifier(
-                    "llm", state="failed", provider=self.provider_name, error=str(e)
-                )
+                await self.notifier("trace", message=f"LLM {self.provider_name} failed: {str(e)}")
+            logger.debug(f"LLM {self.provider_name} failed: {e}")
             raise
 
     async def _run_with_metrics(self, messages: List[Dict[str, str]], **kwargs) -> Result:

@@ -2,7 +2,7 @@
 
 from cogency import Agent
 
-from ...core import Eval, EvalResult
+from ...core import Eval, EvalResult, get_eval_notification_callback
 
 
 class MathReasoning(Eval):
@@ -12,7 +12,9 @@ class MathReasoning(Eval):
     description = "Test agent's ability to solve simple math problems"
 
     async def run(self) -> EvalResult:
-        agent = Agent("math_tester", mode="fast", memory=False)
+        agent = Agent(
+            "math_tester", mode="fast", memory=False, on_notify=get_eval_notification_callback()
+        )
 
         query = "What is 15 * 8 + 23? Just give me the number."
         result = await agent.run(query)
