@@ -1,8 +1,9 @@
 """Cognitive agent with zero ceremony."""
 
-from typing import Any, AsyncIterator, Dict, List, Union
+from typing import Any, AsyncIterator, List, Union
 
 from cogency.config import MemoryConfig
+from cogency.config.validation import init_advanced_config, validate_union_patterns
 from cogency.runtime import AgentExecutor
 from cogency.state import State
 from cogency.tools import Tool
@@ -11,25 +12,43 @@ from cogency.tools import Tool
 class Agent:
     """Cognitive agent with zero ceremony.
 
-    Core affordances:
-        name: Agent identifier
-        tools: List of tools/tool names, or 'all' for full access (default [])
-        memory: Enable/configure memory (bool or MemoryConfig)
+    Args:
+        name (str): Agent identifier (default "cogency")
+        tools (list[str] | list[Tool] | str, optional): Tools to enable.
+            Defaults to [] (no tools).
+        memory (bool | MemoryConfig, optional): Enable memory.
+            Set to `True` for default settings or provide a `MemoryConfig`
+            object for advanced configuration. Defaults to `False`.
 
-    Advanced config options:
-        identity: Agent identity/persona
-        output_schema: JSON schema for structured output
-        llm: Language model provider
-        embed: Embedding provider
-        mode: Execution mode ("adapt", "fast", "thorough")
-        depth: Max reasoning depth (default 10)
-        notify: Enable notifications (default True)
-        debug: Debug mode (default False)
-        formatter: Custom notification formatter
-        on_notify: Custom notification callback
-        robust: Robustness config (bool or RobustConfig, default False)
-        observe: Observability config (bool or ObserveConfig, default False)
-        persist: Persistence config (bool or PersistConfig, default False)
+    Advanced configuration (via **config):
+        identity (str, optional): Agent identity/persona
+        mode (str): Reasoning mode - "adapt", "fast", or "deep" (default "adapt")
+        depth (int): Max reasoning iterations (default 10)
+        debug (bool): Enable debug mode (default False)
+        notify (bool): Enable progress notifications (default True)
+        robust (bool | RobustConfig, optional): Enable robustness features.
+            Set to `True` for defaults or provide `RobustConfig` for custom
+            retry/timeout/rate limiting settings. Defaults to `False`.
+        observe (bool | ObserveConfig, optional): Enable observability.
+            Set to `True` for default metrics or provide `ObserveConfig` for
+            custom monitoring configuration. Defaults to `False`.
+        persist (bool | PersistConfig, optional): Enable state persistence.
+            Set to `True` for defaults or provide `PersistConfig` for custom
+            storage backends. Defaults to `False`.
+
+    Examples:
+        Basic usage:
+            agent = Agent("assistant")
+
+        With memory and robustness:
+            agent = Agent("assistant", memory=True, robust=True)
+
+        Advanced configuration:
+            agent = Agent(
+                "assistant",
+                memory=MemoryConfig(threshold=8000, user_id="alice"),
+                robust=RobustConfig(attempts=5, timeout=120.0)
+            )
     """
 
     def __init__(
@@ -50,7 +69,7 @@ class Agent:
             tools = []
 
         # Initialize advanced config
-        advanced = self._init_advanced(**config)
+        advanced = init_advanced_config(**config)
 
         # Build config from parameters
         self._config = AgentConfig()
@@ -62,35 +81,8 @@ class Agent:
         for key, value in advanced.items():
             setattr(self._config, key, value)
 
-    def _init_advanced(self, **config) -> Dict[str, Any]:
-        """Initialize and validate advanced configuration options."""
-
-        # Known configuration keys with defaults
-        known_keys = {
-            "identity": None,
-            "output_schema": None,
-            "llm": None,
-            "embed": None,
-            "mode": "adapt",
-            "depth": 10,
-            "notify": True,
-            "debug": False,
-            "formatter": None,
-            "on_notify": None,
-            "robust": False,
-            "observe": False,
-            "persist": False,
-        }
-
-        # Validate all provided keys are known
-        unknown_keys = set(config.keys()) - set(known_keys.keys())
-        if unknown_keys:
-            raise ValueError(f"Unknown config keys: {', '.join(sorted(unknown_keys))}")
-
-        # Return config with defaults applied
-        result = known_keys.copy()
-        result.update(config)
-        return result
+        # Validate Union pattern usage (council ruling compliance)
+        validate_union_patterns(self._config)
 
     async def _get_executor(self) -> AgentExecutor:
         """Get or create executor."""

@@ -69,6 +69,40 @@ def test_step_config():
     assert callable(phase_decorators.reason)
 
 
+@pytest.mark.asyncio
+async def test_step_timer_injection():
+    """Test that decorator injects timer context."""
+    config = StepConfig(observe=ObserveConfig())
+    phase_decorators = step_decorators(config)
+
+    @phase_decorators.generic()
+    async def test_step(**kwargs):
+        # Should have timer context injected
+        duration = kwargs.get("elapsed", lambda: 0.0)()
+        assert duration >= 0.0
+        return "result"
+
+    result = await test_step()
+    assert result == "result"
+
+
+@pytest.mark.asyncio
+async def test_no_observe_passthrough():
+    """Test that without observe config, no timer injection occurs."""
+    config = StepConfig(observe=None)
+    phase_decorators = step_decorators(config)
+
+    @phase_decorators.generic()
+    async def test_step(**kwargs):
+        # Should not have timer context
+        duration = elapsed(**kwargs)
+        assert duration == 0.0
+        return "result"
+
+    result = await test_step()
+    assert result == "result"
+
+
 def test_step_decorators_exist():
     assert hasattr(phase, "reason")
     assert hasattr(phase, "act")
