@@ -128,7 +128,7 @@ async def test_agent_executor_integration():
 @pytest.mark.asyncio
 async def test_memory_contract_compliance():
     """Verify ImpressionSynthesizer follows storage contracts."""
-    from cogency.state.memory import ImpressionSynthesizer
+    from cogency.memory import ImpressionSynthesizer
     from tests.fixtures.store import InMemoryStore
 
     synthesis_llm = MockLLM('{"preferences": {"style": "concise"}}')
@@ -151,7 +151,9 @@ async def test_memory_contract_compliance():
     assert loaded_profile.user_id == "test_user"
 
     # Test profile context generation
-    context = loaded_profile.compress_for_injection()
+    from cogency.memory import compress_for_injection
+
+    context = compress_for_injection(loaded_profile)
     assert isinstance(context, str)
 
 

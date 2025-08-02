@@ -8,6 +8,7 @@ from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from cogency.persist.serialization import serialize_profile
 from cogency.state import AgentState
 
 from .base import Store
@@ -42,7 +43,9 @@ class Filesystem(Store):
                 "state": {
                     "execution": asdict(state.execution),
                     "reasoning": asdict(state.reasoning),
-                    "user_profile": asdict(state.user_profile) if state.user_profile else None,
+                    "user_profile": (
+                        serialize_profile(state.user_profile) if state.user_profile else None
+                    ),
                 },
                 "process_id": self.process_id,
             }

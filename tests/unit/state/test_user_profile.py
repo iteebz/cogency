@@ -2,7 +2,8 @@
 
 from datetime import datetime
 
-from cogency.state.memory import UserProfile
+from cogency.memory import compress_for_injection
+from cogency.state.user_profile import UserProfile
 
 
 def test_constructor():
@@ -29,7 +30,7 @@ def test_compress_for_injection_empty():
     """Test compression with empty profile."""
     profile = UserProfile(user_id="test_user")
 
-    result = profile.compress_for_injection()
+    result = compress_for_injection(profile)
     assert result == ""
 
 
@@ -43,7 +44,7 @@ def test_compress_for_injection_populated():
     profile.expertise_areas = ["python", "ml", "data"]
     profile.constraints = ["time", "budget"]
 
-    result = profile.compress_for_injection()
+    result = compress_for_injection(profile)
 
     assert "COMMUNICATION: concise" in result
     assert "CURRENT GOALS:" in result
@@ -62,7 +63,7 @@ def test_compress_for_injection_truncation():
     profile.communication_style = "very detailed and comprehensive style"
     profile.goals = ["very long goal description"] * 10
 
-    result = profile.compress_for_injection(max_tokens=50)
+    result = compress_for_injection(profile, max_tokens=50)
     assert len(result) <= 50
 
 
@@ -73,7 +74,7 @@ def test_compress_for_injection_recent_items():
     # Add many goals to test recent selection
     profile.goals = [f"goal_{i}" for i in range(10)]
 
-    result = profile.compress_for_injection()
+    result = compress_for_injection(profile)
 
     # Should show last 3 goals
     assert "goal_7" in result

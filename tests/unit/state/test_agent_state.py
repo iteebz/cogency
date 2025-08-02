@@ -1,7 +1,7 @@
 """AgentState tests - Complete agent state composition."""
 
 from cogency.state import AgentState
-from cogency.state.memory import UserProfile
+from cogency.state.user_profile import UserProfile
 
 
 def test_constructor():

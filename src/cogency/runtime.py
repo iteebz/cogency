@@ -5,10 +5,11 @@ from typing import Any, AsyncIterator, Optional
 
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig, setup_config
 from cogency.config.dataclasses import AgentConfig
+from cogency.memory import ImpressionSynthesizer
 from cogency.notify import Notifier, setup_formatter
 from cogency.persist import get_state
 from cogency.providers import setup_embed, setup_llm
-from cogency.state import AgentState, ImpressionSynthesizer
+from cogency.state import AgentState
 from cogency.steps import setup_steps
 from cogency.tools import setup_tools
 from cogency.utils import validate_query

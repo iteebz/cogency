@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.state.memory import ImpressionSynthesizer, UserProfile
+from cogency.memory import ImpressionSynthesizer
+from cogency.state.user_profile import UserProfile
 
 
 @pytest.fixture
@@ -104,7 +105,9 @@ async def test_extract_insights_success(synthesizer, mock_llm):
 
     interaction_data = {"query": "test query", "response": "test response", "success": True}
 
-    insights = await synthesizer._extract_insights(interaction_data)
+    from cogency.memory import extract_insights
+
+    insights = await extract_insights(mock_llm, interaction_data)
 
     assert insights["preferences"]["format"] == "json"
     assert "test goal" in insights["goals"]
@@ -124,7 +127,9 @@ async def test_extract_insights_failure(synthesizer, mock_llm):
 
     interaction_data = {"query": "test", "response": "test", "success": True}
 
-    insights = await synthesizer._extract_insights(interaction_data)
+    from cogency.memory import extract_insights
+
+    insights = await extract_insights(mock_llm, interaction_data)
 
     assert insights == {}
 

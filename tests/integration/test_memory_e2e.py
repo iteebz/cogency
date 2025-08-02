@@ -21,7 +21,7 @@ def create_memory_agent(name="test", **kwargs):
 @pytest.mark.asyncio
 async def test_memory_session_continuity():
     """Test ImpressionSynthesizer persists user profiles across sessions."""
-    from cogency.state.memory import ImpressionSynthesizer
+    from cogency.memory import ImpressionSynthesizer
     from tests.fixtures.store import InMemoryStore
 
     # Setup shared store and synthesizer
@@ -60,7 +60,9 @@ async def test_memory_session_continuity():
 
     # Session 3: Verify profile contains accumulated understanding
     profile3 = await synthesizer._load_profile(user_id)
-    context = profile3.compress_for_injection()
+    from cogency.memory import compress_for_injection
+
+    context = compress_for_injection(profile3)
 
     # Should contain learned information from both sessions
     assert profile3.interaction_count >= 2
@@ -70,7 +72,7 @@ async def test_memory_session_continuity():
 @pytest.mark.asyncio
 async def test_memory_multi_user_isolation():
     """Test ImpressionSynthesizer isolates profiles between users."""
-    from cogency.state.memory import ImpressionSynthesizer
+    from cogency.memory import ImpressionSynthesizer
     from tests.fixtures.store import InMemoryStore
 
     # Shared store and synthesizer
@@ -113,8 +115,10 @@ async def test_memory_multi_user_isolation():
     assert reloaded_profile2.user_id == "user_2"
 
     # Verify context isolation
-    context1 = reloaded_profile1.compress_for_injection()
-    context2 = reloaded_profile2.compress_for_injection()
+    from cogency.memory import compress_for_injection
+
+    context1 = compress_for_injection(reloaded_profile1)
+    context2 = compress_for_injection(reloaded_profile2)
 
     # Each user should have their own context
     assert context1 != context2
@@ -144,6 +148,8 @@ async def test_memory_config_integration():
     assert "concise" in context_with_profile  # From communication style
 
     # Test profile compression
-    compressed = profile.compress_for_injection(max_tokens=100)
+    from cogency.memory import compress_for_injection
+
+    compressed = compress_for_injection(profile, max_tokens=100)
     assert len(compressed) <= 100
     assert "Python" in compressed

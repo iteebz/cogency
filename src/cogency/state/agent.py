@@ -3,8 +3,8 @@
 from typing import Any, Dict, Optional
 
 from .execution import ExecutionState
-from .memory import UserProfile
 from .reasoning import ReasoningContext
+from .user_profile import UserProfile
 
 
 class AgentState:
@@ -22,7 +22,9 @@ class AgentState:
         if not self.user_profile:
             return ""
 
-        context = self.user_profile.compress_for_injection()
+        from cogency.memory import compress_for_injection
+
+        context = compress_for_injection(self.user_profile)
         return f"USER CONTEXT:\n{context}\n\n" if context else ""
 
     def update_from_reasoning(self, reasoning_data: Dict[str, Any]) -> None:

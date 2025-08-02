@@ -17,19 +17,21 @@ class MockStore(Store):
         self.process_id = "mock_process"
 
     async def save(self, state_key: str, state: AgentState) -> bool:
-        self.states[state_key] = {"state": state}
+        from dataclasses import asdict
+
+        from cogency.persist.serialization import serialize_profile
+
+        # Properly serialize like the real filesystem store
+        state_data = {
+            "execution": asdict(state.execution),
+            "reasoning": asdict(state.reasoning),
+            "user_profile": serialize_profile(state.user_profile) if state.user_profile else None,
+        }
+        self.states[state_key] = {"state": state_data}
         return True
 
     async def load(self, state_key: str) -> dict:
-        data = self.states.get(state_key)
-        if data:
-            # Convert State object back to dict format expected by persistence
-            return {
-                "state": (
-                    data["state"].__dict__ if hasattr(data["state"], "__dict__") else data["state"]
-                ),
-            }
-        return None
+        return self.states.get(state_key)
 
     async def delete(self, state_key: str) -> bool:
         if state_key in self.states:
@@ -138,7 +140,7 @@ async def test_key_gen(persistence, sample_state):
 async def test_reconstruct(persistence, sample_state):
     """Test complete state reconstruction with v1.0.0 structure."""
     # Add complex v1.0.0 state data
-    from cogency.state.memory import UserProfile
+    from cogency.state.user_profile import UserProfile
 
     # Set up user profile
     profile = UserProfile(user_id="test_user")

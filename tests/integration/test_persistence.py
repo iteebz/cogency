@@ -84,7 +84,7 @@ async def test_end_to_end():
         manager = StatePersistence(store=store)
 
         # Create and save state with v1.0.0 structure
-        from cogency.state.memory import UserProfile
+        from cogency.state.user_profile import UserProfile
 
         profile = UserProfile(user_id="test_user")
         profile.preferences = {"language": "Python"}

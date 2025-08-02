@@ -64,15 +64,10 @@ class StatePersistence:
             # Create new AgentState
             user_profile = None
             if state_dict.get("user_profile"):
-                from cogency.state.memory import UserProfile
+                from cogency.persist.serialization import deserialize_profile
 
                 profile_data = state_dict["user_profile"]
-                user_profile = UserProfile(user_id=profile_data["user_id"])
-                user_profile.preferences = profile_data.get("preferences", {})
-                user_profile.goals = profile_data.get("goals", [])
-                user_profile.expertise_areas = profile_data.get("expertise_areas", [])
-                user_profile.communication_style = profile_data.get("communication_style", "")
-                user_profile.interaction_count = profile_data.get("interaction_count", 0)
+                user_profile = deserialize_profile(profile_data)
 
             state = AgentState(query=query, user_id=user_id, user_profile=user_profile)
 

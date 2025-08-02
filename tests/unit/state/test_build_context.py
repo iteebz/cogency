@@ -1,8 +1,9 @@
 """Context building tests - Comprehensive context assembly."""
 
+from cogency.memory import compress_for_injection
 from cogency.state import AgentState
-from cogency.state.memory import UserProfile
 from cogency.state.reasoning import ReasoningContext
+from cogency.state.user_profile import UserProfile
 
 
 def test_reasoning_context_compression():
@@ -29,7 +30,7 @@ def test_user_profile_context_injection():
     profile.expertise_areas = ["python", "ml"]
     profile.projects = {"current": "test project"}
 
-    context = profile.compress_for_injection()
+    context = compress_for_injection(profile)
 
     assert "COMMUNICATION: technical" in context
     assert "CURRENT GOALS:" in context
