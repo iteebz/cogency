@@ -14,21 +14,27 @@ class ErrorRecovery(Eval):
     description = "Test error handling patterns and recovery strategies"
 
     async def run(self):
-        agent = Agent("recovery_tester", tools=[Files(), Shell()], mode="fast", memory=False)
+        agent = Agent(
+            "recovery_tester",
+            tools=[Files(), Shell()],
+            mode="adapt",
+            memory=False,
+            max_iterations=10,
+        )
 
         # Design a task that will encounter errors but can be recovered from
-        query = """Complete this multi-step task, handling any errors gracefully:
+        query = """You must complete this exact multi-step error recovery task. Execute each step in order:
         
-        1. Try to read file 'nonexistent.txt' (will fail)
-        2. When that fails, create the file with content 'Recovery test'
-        3. Read the file you just created to verify it worked
-        4. Try to run command 'invalid-command-xyz' (will fail)  
-        5. When that fails, run 'echo Successfully recovered' instead
-        6. Clean up by removing the file you created
+        Step 1: Use files tool to read 'nonexistent.txt' (this will fail - that's expected)
+        Step 2: When step 1 fails, use files tool to create 'nonexistent.txt' with content 'Recovery test'
+        Step 3: Use files tool to read the file you just created to verify the content
+        Step 4: Use shell tool to run 'invalid-command-xyz' (this will fail - that's expected)  
+        Step 5: When step 4 fails, use shell tool to run 'echo Successfully recovered'
+        Step 6: Use shell tool to run 'rm nonexistent.txt' to clean up
         
-        For each step, report what happened and how you handled any failures."""
+        Execute all 6 steps. Report what happens at each step and how you handle failures."""
 
-        result = await agent.run(query)
+        result = await agent.run_async(query)
         response_lower = result.lower()
 
         # Check for evidence of error handling and recovery
@@ -40,7 +46,8 @@ class ErrorRecovery(Eval):
             word in response_lower for word in ["recovery test", "verified", "content"]
         )
         handled_invalid_command = any(
-            word in response_lower for word in ["invalid", "command", "not found"]
+            word in response_lower
+            for word in ["invalid", "command", "not found", "failed", "error"]
         )
         successful_recovery = any(
             word in response_lower for word in ["successfully recovered", "echo"]

@@ -12,53 +12,59 @@ class ToolUsage(Eval):
     name = "tool_usage"
     description = "Test tool integration and usage patterns"
 
+    # Declarative test cases
+    test_cases = [
+        {
+            "name": "Search tool usage",
+            "query": "Search for information about Python list comprehensions.",
+            "expected": True,
+            "parser": "_parse_search",
+        },
+        {
+            "name": "Content quality: list comprehensions",
+            "query": "What are the key benefits of Python list comprehensions?",
+            "expected": True,
+            "parser": "_parse_content",
+        },
+        {
+            "name": "Tool integration: search + summarize",
+            "query": "Search for and summarize the performance benefits of list comprehensions.",
+            "expected": True,
+            "parser": "_parse_integration",
+        },
+    ]
+
     async def run(self) -> EvalResult:
-        # Hook up notification capture to see what's happening inside cogency
         agent = Agent(
             "tool_tester",
             tools=[Search()],
-            mode="fast",
+            mode="adapt",
             memory=False,
             on_notify=get_eval_notification_callback(),
+            max_iterations=5,
         )
 
-        query = "Search for information about Python list comprehensions and summarize the key benefits."
-        result = await agent.run(query)
+        await self.run_test_cases(agent, self.test_cases)
+        return self.finalize_result()
 
-        # Check if agent actually used search and provided meaningful response
+    def _parse_search(self, result: str) -> bool:
+        """Check if response indicates search tool usage."""
         response_lower = result.lower()
-        has_search_indicators = any(
-            word in response_lower for word in ["search", "found", "according", "based on"]
+        return any(word in response_lower for word in ["search", "found", "according", "based on"])
+
+    def _parse_content(self, result: str) -> bool:
+        """Check if response contains relevant content."""
+        response_lower = result.lower()
+        return any(
+            word in response_lower
+            for word in ["comprehension", "concise", "readable", "efficient", "syntax"]
         )
-        has_list_comp_content = any(
-            word in response_lower for word in ["comprehension", "syntax", "efficient", "readable"]
+
+    def _parse_integration(self, result: str) -> bool:
+        """Check if response integrates search with summarization."""
+        response_lower = result.lower()
+        has_search = any(word in response_lower for word in ["search", "found", "according"])
+        has_summary = any(
+            word in response_lower for word in ["performance", "faster", "memory", "benefit"]
         )
-
-        if has_search_indicators and has_list_comp_content:
-            score = 1.0
-            passed = True
-        elif has_list_comp_content:
-            score = 0.7
-            passed = False
-        else:
-            score = 0.0
-            passed = False
-
-        metadata = {
-            "query": query,
-            "response": result,
-            "has_search_indicators": has_search_indicators,
-            "has_list_comp_content": has_list_comp_content,
-        }
-
-        # Use base class helpers for consistent timing and scoring
-        if has_search_indicators and has_list_comp_content:
-            result_obj = self.check("passed", "passed", metadata)
-            result_obj.score = score
-            result_obj.passed = passed
-            return result_obj
-        else:
-            return self.fail(
-                f"Insufficient tool usage - Search: {has_search_indicators}, Content: {has_list_comp_content}",
-                metadata,
-            )
+        return has_search and has_summary

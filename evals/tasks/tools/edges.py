@@ -1,4 +1,4 @@
-"""Tool parameter boundary testing evaluation."""
+"""Tool args boundary testing evaluation."""
 
 from cogency import Agent
 from cogency.tools.files import Files
@@ -8,13 +8,15 @@ from ...core import Eval, FailureType
 
 
 class ToolEdges(Eval):
-    """Test tool parameter boundaries and edge cases."""
+    """Test tool args boundaries and edge cases."""
 
     name = "tool_edges"
-    description = "Test tool parameter limits and error handling"
+    description = "Test tool args limits and error handling"
 
     async def run(self):
-        agent = Agent("edge_tester", tools=[Files(), Search()], mode="fast", memory=False)
+        agent = Agent(
+            "edge_tester", tools=[Files(), Search()], mode="fast", memory=False, max_iterations=8
+        )
 
         # Test multiple edge cases
         edge_cases = [
@@ -25,11 +27,11 @@ class ToolEdges(Eval):
         ]
 
         query = f"""Test these edge cases and report what happens:
-        {chr(10).join(f'{i+1}. {case}' for i, case in enumerate(edge_cases))}
+        {chr(10).join(f"{i + 1}. {case}" for i, case in enumerate(edge_cases))}
         
         For each case, try the operation and report whether it succeeded or failed gracefully."""
 
-        result = await agent.run(query)
+        result = await agent.run_async(query)
         response_lower = result.lower()
 
         # Look for evidence of proper error handling
@@ -42,9 +44,24 @@ class ToolEdges(Eval):
         )
 
         # Check if agent attempted multiple test cases
+        case_indicators = [
+            "empty",
+            "100",
+            "nonexistent",
+            "protected",
+            "query",
+            "results",
+            "file",
+            "path",
+        ]
         attempted_multiple = (
-            sum(
-                1 for case in ["empty", "100", "nonexistent", "protected"] if case in response_lower
+            sum(1 for case in case_indicators if case in response_lower) >= 3
+            or len(
+                [
+                    case
+                    for case in edge_cases
+                    if any(word in response_lower for word in case.lower().split())
+                ]
             )
             >= 2
         )

@@ -1,7 +1,7 @@
 """Core evaluation data models."""
 
 from enum import Enum
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -13,6 +13,17 @@ class FailureType(str, Enum):
     RATE_LIMIT = "rate_limit"  # API quota/throttling
     TIMEOUT = "timeout"  # Network/processing timeout
     ERROR = "error"  # Unexpected exception
+
+
+class SubCaseResult(BaseModel):
+    """Result of a single test case within an evaluation."""
+
+    name: str
+    passed: bool
+    expected: Optional[Any] = None
+    actual: Optional[Any] = None
+    error: Optional[str] = None
+    failure_type: Optional[FailureType] = None
 
 
 class EvalResult(BaseModel):
@@ -28,3 +39,4 @@ class EvalResult(BaseModel):
     failure_type: Optional[FailureType] = None
     retries: int = 0
     metadata: Dict[str, Any] = {}
+    sub_cases: List[SubCaseResult] = []

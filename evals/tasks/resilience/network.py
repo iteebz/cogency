@@ -4,6 +4,7 @@ import asyncio
 
 from cogency import Agent
 from cogency.tools.http import HTTP
+from cogency.tools.scrape import Scrape
 from cogency.tools.search import Search
 
 from ...core import Eval, FailureType
@@ -16,25 +17,35 @@ class NetworkResilience(Eval):
     description = "Test handling of API failures, rate limits, and timeouts"
 
     async def run(self):
-        agent = Agent("resilience_tester", tools=[Search(), HTTP()], mode="fast", memory=False)
+        agent = Agent(
+            "resilience_tester",
+            tools=[Search(), HTTP(), Scrape()],
+            mode="adapt",
+            memory=False,
+            max_iterations=12,
+        )
 
         # Test network resilience scenarios
         query = """Test network resilience by:
         1. Making an HTTP request to httpbin.org/delay/10 (should timeout)
         2. Making an HTTP request to httpbin.org/status/429 (rate limited)
         3. Making an HTTP request to nonexistent-domain-12345.com (DNS failure)
-        4. Searching for 'network resilience testing' (should work)
+        4. Scraping content from httpbin.org/html (should work)
+        5. Searching for 'network resilience testing' (should work)
         
         For each test, report what happened and how the system handled failures."""
 
         start_time = asyncio.get_event_loop().time()
 
         try:
-            result = await asyncio.wait_for(agent.run(query), timeout=45.0)
+            result = await asyncio.wait_for(agent.run_async(query), timeout=60.0)
             execution_time = asyncio.get_event_loop().time() - start_time
         except asyncio.TimeoutError:
+            execution_time = asyncio.get_event_loop().time() - start_time
             return self.fail(
-                "Evaluation timed out - agent may not handle network issues gracefully"
+                f"Evaluation timed out after {execution_time:.1f}s - agent may not handle network issues gracefully",
+                {"execution_time": execution_time},
+                FailureType.TIMEOUT,
             )
         except Exception as e:
             failure_result = self.fail(f"Network resilience test failed: {str(e)}")
@@ -54,7 +65,7 @@ class NetworkResilience(Eval):
             word in response_lower for word in ["dns", "domain", "not found", "unreachable"]
         )
         successful_fallback = any(
-            word in response_lower for word in ["search", "found", "resilience"]
+            word in response_lower for word in ["search", "found", "resilience", "scraped", "html"]
         )
 
         # Check for graceful error reporting
@@ -81,7 +92,7 @@ class NetworkResilience(Eval):
             / 4.0
         )
 
-        reasonable_time = execution_time < 40.0  # Should handle failures quickly
+        reasonable_time = execution_time < 30.0  # Should handle failures quickly
 
         if resilience_score >= 0.5 and reasonable_time:
             passed = resilience_score >= 0.75

@@ -16,7 +16,11 @@ class ComplexWorkflows(Eval):
 
     async def run(self):
         agent = Agent(
-            "workflow_tester", tools=[Files(), Search(), Shell()], mode="fast", memory=False
+            "workflow_tester",
+            tools=[Files(), Search(), Shell()],
+            mode="fast",
+            memory=False,
+            max_iterations=15,
         )
 
         # Create a complex debugging scenario
@@ -28,9 +32,9 @@ class ComplexWorkflows(Eval):
                total = sum(numbers)
                return total / len(numbers)
            
-           data = [1, 2, 3, 0, 5]
+           data = []  # Empty list will cause division by zero
            result = calculate_average(data)
-           import logging; logging.info(f"Average: {result}")
+           print(f"Average: {result}")
            ```
         
         2. Run the script to see if there are any issues
@@ -42,7 +46,7 @@ class ComplexWorkflows(Eval):
         
         Document each step and explain your debugging process."""
 
-        result = await agent.run(query)
+        result = await agent.run_async(query)
         response_lower = result.lower()
 
         # Check workflow completion steps

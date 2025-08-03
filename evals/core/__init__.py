@@ -1,8 +1,10 @@
-"""Beautiful eval core - clean module exports."""
+"""Eval core."""
 
+from .eval import Eval
 from .models import EvalResult, FailureType
+from .notifications import callback as get_eval_notification_callback
 from .report import EvalReport, save_report
-from .runner import Eval, get_eval_notification_callback, run_suite
+from .suite import run_suite
 
 __all__ = [
     "EvalResult",

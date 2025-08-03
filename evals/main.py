@@ -1,4 +1,4 @@
-"""Beautiful eval runner - single entry point for all cogency evaluations."""
+"""Evaluation runner."""
 
 import asyncio
 import logging
@@ -14,11 +14,15 @@ from .tasks.reasoning.math import MathReasoning
 from .tasks.resilience.network import NetworkResilience
 from .tasks.resilience.recovery import ErrorRecovery
 from .tasks.scenarios.workflows import ComplexWorkflows
+from .tasks.security.context_overflow import ContextOverflow
+from .tasks.security.direct_injection import DirectPromptInjection
+from .tasks.security.indirect_injection import IndirectPromptInjection
+from .tasks.security.shell_injection import ShellCommandInjection
 from .tasks.tools.chains import ToolChains
 from .tasks.tools.edges import ToolEdges
 
-# Setup clean eval logging - suppress noise
-logging.basicConfig(level=logging.WARNING, format="%(message)s")
+# Setup clean eval logging - suppress noise, force immediate output
+logging.basicConfig(level=logging.WARNING, format="%(message)s", stream=sys.stdout, force=True)
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -27,74 +31,65 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
-# Beautiful eval suites
-QUICK_SUITE = [
-    MathReasoning,
-    ToolUsage,
+# v1.0 Fast Suite - AGI lab gold standard for rapid validation
+# Security-first + core capabilities. All evals use "fast" mode, complete <30s
+FAST_SUITE = [
+    # P0 Security gates (non-negotiable for deployment)
+    DirectPromptInjection,  # declarative: command injection resistance
+    ShellCommandInjection,  # declarative: tool args sanitization
+    # Core reasoning foundation
+    MathReasoning,  # declarative: multi-step mathematical reasoning
+    Comprehension,  # declarative: text analysis and logical inference
+    # Tool integration core capability
+    ToolUsage,  # declarative: discrete tool invocation patterns
+    ToolPerformance,  # declarative: local tool latency microbenchmarks
 ]
 
-REASONING_SUITE = [
-    MathReasoning,
-    Comprehension,
-]
-
+# v1.0 Production Suite - Complete 15-eval validation
+# NOTE: Some evals use declarative test_cases pattern (discrete inputs),
+# others remain procedural (complex integration scenarios)
 FULL_SUITE = [
+    # Core reasoning (2) - declarative
     MathReasoning,
     Comprehension,
-    ToolUsage,
-    MemoryPersistence,
-    ToolPerformance,
-]
-
-PERFORMANCE_SUITE = [
-    ToolPerformance,
-]
-
-# v1.0 Production Suite - Complete 11-eval validation
-V1_SUITE = [
-    # Core reasoning (2)
-    MathReasoning,
-    Comprehension,
-    # Tool integration (4)
-    ToolUsage,
-    ToolChains,
-    ToolEdges,
-    ToolPerformance,
-    # Agent orchestration (2)
-    AgentConcurrency,
-    MemoryPersistence,
-    # Production resilience (3)
-    NetworkResilience,
-    ErrorRecovery,
-    ComplexWorkflows,
+    # Tool integration (4) - mixed: declarative + procedural
+    ToolUsage,  # declarative: discrete tool tests
+    ToolChains,  # procedural: workflow sequences
+    ToolEdges,  # procedural: boundary conditions
+    ToolPerformance,  # declarative: performance benchmarks
+    # Agent orchestration (2) - mixed
+    AgentConcurrency,  # procedural: concurrency scenarios
+    MemoryPersistence,  # declarative: store/recall operations
+    # Production resilience (3) - procedural
+    NetworkResilience,  # procedural: failure handling
+    ErrorRecovery,  # procedural: recovery workflows
+    ComplexWorkflows,  # procedural: debugging scenarios
+    # Security validation (4) - P0 for production
+    DirectPromptInjection,  # declarative: command injection resistance
+    IndirectPromptInjection,  # procedural: malicious content handling
+    ShellCommandInjection,  # declarative: tool args sanitization
+    ContextOverflow,  # procedural: resource boundary testing
 ]
 
 
 async def main():
     """Run the specified eval suite."""
     if len(sys.argv) < 2:
-        logger.error(
-            "Usage: python -m evals.main [quick|reasoning|full|performance|v1] [--sequential]"
-        )
+        logger.error("Usage: python -m evals.main [fast|full] [--sequential] [--robust]")
         sys.exit(1)
 
     suite_name = sys.argv[1].lower()
     sequential = "--sequential" in sys.argv
+    robust = "--robust" in sys.argv
 
-    if suite_name == "quick":
-        suite = QUICK_SUITE
-    elif suite_name == "reasoning":
-        suite = REASONING_SUITE
+    if suite_name == "fast":
+        suite = FAST_SUITE
     elif suite_name == "full":
         suite = FULL_SUITE
-    elif suite_name == "performance":
-        suite = PERFORMANCE_SUITE
-    elif suite_name == "v1":
-        suite = V1_SUITE
     else:
         logger.error(f"Unknown suite: {suite_name}")
-        logger.error("Available suites: quick, reasoning, full, performance, v1")
-        logger.error("Use --sequential for rate-limited environments")
+        logger.error("Available suites: fast, full")
+        logger.error("Use --sequential for rate-limited environments, --robust for retry logic")
         sys.exit(1)
 
     mode = "sequential" if sequential else "parallel"
@@ -102,7 +97,7 @@ async def main():
     logger.info("")
 
     # Run the suite
-    report = await run_suite(suite, sequential=sequential)
+    report = await run_suite(suite, sequential=sequential, robust=robust)
 
     # Save bundled report with all artifacts
     run_dir = await save_report(report, suite_name)

@@ -1,7 +1,8 @@
-"""Beautiful evaluation reporting and storage."""
+"""Evaluation reporting and storage."""
 
 import json
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List
 
@@ -10,8 +11,19 @@ from cogency.config import PathsConfig
 from .models import EvalResult, FailureType
 
 
+class EvalJSONEncoder(json.JSONEncoder):
+    """Custom JSON encoder for eval objects."""
+
+    def default(self, obj):
+        if isinstance(obj, Enum):
+            return obj.value
+        if hasattr(obj, "__dict__"):
+            return obj.__dict__
+        return str(obj)
+
+
 class EvalReport:
-    """Generate beautiful eval reports."""
+    """Generate eval reports."""
 
     def __init__(self, results: List[EvalResult]):
         self.results = results
@@ -35,22 +47,21 @@ class EvalReport:
         }
 
     def console(self) -> str:
-        """Beautiful console output."""
+        """Console output."""
         if self.total == 0:
             return "✗ No evals found"
 
         status = "✓" if self.passed == self.total else "✗"
         lines = [
-            f"{status} Evals: {self.passed}/{self.total} passed",
-            f"  Score: {self.score:.1%}",
-            f"  Duration: {self.duration:.2f}s",
-            "",
+            f"Evals: {self.passed}/{self.total} passed",
+            f"Score: {self.score:.1%}",
+            f"Duration: {self.duration:.2f}s",
         ]
 
         for result in self.results:
             status = "✓" if result.passed else "✗"
-            failure_text = self._format_failure(result)
-            lines.append(f"{status} {result.name} ({result.duration:.2f}s){failure_text}")
+            score_pct = f"{result.score:.0%}"
+            lines.append(f"{status} {score_pct} • {result.name} • {result.duration:.2f}s")
             if result.error:
                 lines.append(f"   ERROR: {result.error}")
 
@@ -80,13 +91,13 @@ async def save_report(report: EvalReport, name: str) -> Path:
 
     # Create timestamped run folder
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_dir = Path(paths.evals) / "runs" / f"{name}_{timestamp}"
+    run_dir = Path(paths.evals) / f"{name}_{timestamp}"
     run_dir.mkdir(parents=True, exist_ok=True)
 
     # Save main report
     report_file = run_dir / "report.json"
     with open(report_file, "w") as f:
-        json.dump(report.json(), f, indent=2)
+        json.dump(report.json(), f, indent=2, cls=EvalJSONEncoder)
 
     # Save console output for later review
     console_file = run_dir / "console.txt"
@@ -96,7 +107,7 @@ async def save_report(report: EvalReport, name: str) -> Path:
     # Save captured notifications for debugging
     notifications_file = run_dir / "notifications.json"
     with open(notifications_file, "w") as f:
-        json.dump(report.notifications, f, indent=2)
+        json.dump(report.notifications, f, indent=2, cls=EvalJSONEncoder)
 
     # Save metadata about the run
     metadata_file = run_dir / "metadata.json"

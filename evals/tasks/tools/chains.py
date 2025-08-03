@@ -15,12 +15,18 @@ class ToolChains(Eval):
     description = "Test tool workflow sequences and data flow"
 
     async def run(self):
-        agent = Agent("chain_tester", tools=[Files(), Search(), Shell()], mode="fast", memory=False)
+        agent = Agent(
+            "chain_tester",
+            tools=[Files(), Search(), Shell()],
+            mode="adapt",
+            memory=False,
+            max_iterations=12,
+        )
 
         query = """Create a file called 'search_results.txt', search for 'Python async programming best practices', 
         write the top 3 results to the file, then use shell to count the lines in the file."""
 
-        result = await agent.run(query)
+        result = await agent.run_async(query)
 
         # Check if agent executed the chain properly
         response_lower = result.lower()
@@ -33,16 +39,32 @@ class ToolChains(Eval):
         # Check if file actually exists and has content
         try:
             import os
+            from pathlib import Path
 
-            file_exists = os.path.exists("search_results.txt")
-            if file_exists:
-                with open("search_results.txt") as f:
-                    content = f.read()
-                    has_content = len(content.strip()) > 0
-                # Clean up
-                os.remove("search_results.txt")
-            else:
-                has_content = False
+            # Multiple paths to check - evals may create files in different locations
+            possible_paths = [
+                Path("search_results.txt"),  # Current working directory
+                Path(".cogency/search_results.txt"),  # Eval run directory
+                Path("/tmp/search_results.txt"),  # Common temp directory
+                Path(os.path.expanduser("~/search_results.txt")),  # Home directory
+            ]
+
+            file_exists = False
+            has_content = False
+
+            for file_path in possible_paths:
+                if file_path.exists():
+                    file_exists = True
+                    try:
+                        with open(file_path) as f:
+                            content = f.read()
+                            has_content = len(content.strip()) > 0
+                        # Clean up
+                        file_path.unlink()
+                        break  # Found the file, stop searching
+                    except Exception:
+                        continue  # Try next path if read/cleanup fails
+
         except Exception:
             file_exists = False
             has_content = False
