@@ -80,12 +80,50 @@ def secure(identity: str) -> str:
 
 
 def validate_tool_params(tool_name: str, params: Dict[str, Any]) -> Dict[str, Any]:
-    """Validate tool parameters for safe execution.
+    """Validate tool parameters for safe execution."""
+    # SEC-002: Shell command injection prevention
+    if tool_name in ["shell", "bash", "terminal", "exec", "execute"]:
+        if "command" in params:
+            cmd = str(params["command"])
+            # Block dangerous shell commands
+            dangerous_patterns = [
+                r"rm\s+-rf",
+                r"dd\s+if=",
+                r":\(\)\{\s*:\|\:\&\s*\}\;:",  # Fork bomb
+                r"curl.*\|\s*sh",
+                r"wget.*\|\s*sh", 
+                r"nc\s+-[el]",  # Netcat listeners
+                r"python.*-c.*exec",
+                r"eval\s*\(",
+                r"exec\s*\(",
+                r"\$\(.*\)",  # Command substitution
+                r"`.*`",      # Backtick execution
+            ]
+            
+            for pattern in dangerous_patterns:
+                if re.search(pattern, cmd, re.IGNORECASE):
+                    raise ValueError(f"Potentially dangerous command blocked: {cmd[:50]}...")
     
-    SEC-002: Prevent malicious tool usage through parameter validation.
-    Future implementation for shell command sanitization.
-    """
-    # Placeholder for future tool security
+    # Block file operations on sensitive paths
+    if tool_name in ["read", "write", "delete", "move", "copy"]:
+        for param_name in ["path", "file", "filename", "source", "dest"]:
+            if param_name in params:
+                path = str(params[param_name])
+                sensitive_paths = [
+                    "/etc/",
+                    "/root/",
+                    "/home/*/.",  # Hidden files
+                    "~/.ssh/",
+                    "~/.aws/",
+                    "/var/log/",
+                    "/proc/",
+                    "/sys/",
+                ]
+                
+                for sensitive in sensitive_paths:
+                    if sensitive in path.lower():
+                        raise ValueError(f"Access to sensitive path blocked: {path}")
+    
     return params
 
 

@@ -11,17 +11,24 @@ async def execute_single_tool(
     tool_name: str, tool_args: dict, tools: List[Tool]
 ) -> Tuple[str, Dict, Any]:
     """Execute a tool with structured error handling."""
+    from cogency.security import validate_tool_params
+    
+    # SEC-002: Validate tool parameters before execution
+    try:
+        validated_args = validate_tool_params(tool_name, tool_args)
+    except Exception as e:
+        return tool_name, tool_args, Result.fail(f"Security validation failed: {str(e)}")
 
     async def _execute() -> Tuple[str, Dict, Any]:
         for tool in tools:
             if tool.name == tool_name:
                 try:
-                    result = await tool.execute(**tool_args)
-                    return tool_name, tool_args, result
+                    result = await tool.execute(**validated_args)
+                    return tool_name, validated_args, result
                 except Exception as e:
                     return (
                         tool_name,
-                        tool_args,
+                        validated_args,
                         Result.fail(f"Tool execution failed: {str(e)}"),
                     )
         raise ValueError(f"Tool '{tool_name}' not found.")
