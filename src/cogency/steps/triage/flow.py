@@ -6,7 +6,7 @@ from cogency.providers import LLM
 from cogency.state import AgentState
 from cogency.tools import Tool
 
-from .triage import Triage
+from . import Triage
 
 
 class Flow:

@@ -5,7 +5,7 @@ from typing import Dict, Optional
 from cogency.providers import LLM
 from cogency.state import AgentState
 
-from .prompts import prompt_response
+from .prompt import prompt_response
 
 
 async def shape_identity(
