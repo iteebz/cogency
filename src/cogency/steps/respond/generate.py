@@ -42,9 +42,12 @@ async def shape_identity(
     ]
 
     from resilient_result import unwrap
+    from cogency.security import sanitize_output
 
     llm_result = await llm.run(messages)
-    return unwrap(llm_result)
+    response = unwrap(llm_result)
+    # SEC-003: Sanitize output to prevent information leakage
+    return sanitize_output(response)
 
 
 async def generate_response_from_context(
@@ -82,9 +85,12 @@ async def generate_response_from_context(
     ]
 
     from resilient_result import unwrap
+    from cogency.security import sanitize_output
 
     llm_result = await llm.run(messages)
-    return unwrap(llm_result)
+    response = unwrap(llm_result)
+    # SEC-003: Sanitize output to prevent information leakage
+    return sanitize_output(response)
 
 
 def extract_existing_response(state: AgentState) -> str:

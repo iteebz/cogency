@@ -128,10 +128,42 @@ def validate_tool_params(tool_name: str, params: Dict[str, Any]) -> Dict[str, An
 
 
 def sanitize_output(text: str) -> str:
-    """Remove sensitive information from agent outputs.
+    """Remove sensitive information from agent outputs."""
+    # SEC-003: Information leakage prevention
+    sanitized = text
     
-    SEC-003: Prevent information leakage in agent responses.
-    Future implementation for trace sanitization.
-    """
-    # Placeholder for future output filtering
-    return text
+    # Remove API keys and tokens
+    patterns = [
+        # API keys
+        r"sk-[a-zA-Z0-9]{32,}",  # OpenAI style
+        r"pk_[a-zA-Z0-9]{32,}",  # Stripe style
+        r"AIza[a-zA-Z0-9]{35}",  # Google API
+        r"ya29\.[a-zA-Z0-9_-]{68,}",  # Google OAuth
+        
+        # AWS credentials
+        r"AKIA[a-zA-Z0-9]{16}",
+        r"[a-zA-Z0-9+/]{40}",  # AWS secret (base64)
+        
+        # Generic secrets
+        r"[a-zA-Z0-9]{32,}",  # Long alphanumeric (potential tokens)
+        
+        # File paths that might contain sensitive info
+        r"/home/[^/\s]+/\.[a-zA-Z]+",  # Hidden files
+        r"/Users/[^/\s]+/\.[a-zA-Z]+",  # macOS hidden files
+        
+        # System prompts leakage
+        r"SECURITY PROTOCOLS.*?boundaries",
+        r"You are a helpful AI assistant\.\n\nSECURITY PROTOCOLS",
+        
+        # Internal debugging info
+        r"Traceback.*?Error:",
+        r"File \".*?\", line \d+",
+    ]
+    
+    for pattern in patterns:
+        sanitized = re.sub(pattern, "[REDACTED]", sanitized, flags=re.DOTALL | re.IGNORECASE)
+    
+    # Remove excessive whitespace from redactions
+    sanitized = re.sub(r"\[REDACTED\]\s*\[REDACTED\]", "[REDACTED]", sanitized)
+    
+    return sanitized

@@ -32,6 +32,16 @@ Include description, reproduction steps, and impact assessment.
 - **Related Tests:** Shell command validation, file path security checks
 - **Severity:** High - System compromise via tool abuse
 
+#### SEC-003
+- **Date:** 2025-08-03
+- **Type:** Information Disclosure Vulnerability
+- **Vector:** Unfiltered agent outputs leak sensitive data (API keys, system prompts, file paths)
+- **Impact:** Exposure of credentials, internal system details, and debugging information
+- **Evidence:** Agent responses may contain raw API keys, tracebacks, and security protocol text
+- **Status:** ✅ Mitigated - Multi-pattern output sanitization with credential redaction
+- **Related Tests:** API key leakage, system prompt disclosure, file path exposure
+- **Severity:** Medium - Information leakage risk
+
 ### Questions?
 
 For general security questions or guidance on secure implementation practices, please email tyson.chan@proton.me with the subject `SECURITY: General Inquiry`
