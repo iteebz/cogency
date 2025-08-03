@@ -7,7 +7,7 @@ from resilient_result import Result
 
 from cogency.state import AgentState
 from cogency.steps.act import act
-from cogency.steps.act.executor import execute_single_tool
+from cogency.steps.act.core import execute_single_tool
 from cogency.steps.reason import reason
 from cogency.steps.respond import respond
 from cogency.tools.base import Tool

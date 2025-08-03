@@ -1,6 +1,5 @@
 """Triage prompt sections - clean and scannable."""
 
-
 CORE_INSTRUCTIONS = """Analyze this query and provide a comprehensive triage plan:
 
 Query: "{query}"

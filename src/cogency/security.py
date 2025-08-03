@@ -101,7 +101,7 @@ def _threat_patterns(text: str, context: Dict[str, Any]) -> SecurityResult:
         cmd_parts = shlex.split(text)
         if cmd_parts:
             base_cmd = cmd_parts[0].lower()
-            
+
             # Always dangerous regardless of arguments
             if base_cmd in {"sudo", "su", "shutdown", "reboot", "killall"}:
                 return SecurityResult(
@@ -109,17 +109,19 @@ def _threat_patterns(text: str, context: Dict[str, Any]) -> SecurityResult:
                     SecurityThreat.COMMAND_INJECTION,
                     "Command blocked for safety",
                 )
-            
+
             # Dangerous patterns for specific commands
-            if base_cmd == "rm" and len(cmd_parts) > 1:
-                # Block dangerous rm patterns but allow specific file removal
-                if any(flag in cmd_parts for flag in ["-r", "-rf", "-f", "--recursive", "--force"]):
-                    return SecurityResult(
-                        SecurityAction.BLOCK,
-                        SecurityThreat.COMMAND_INJECTION,
-                        "Command blocked for safety",
-                    )
-            
+            if (
+                base_cmd == "rm"
+                and len(cmd_parts) > 1
+                and any(flag in cmd_parts for flag in ["-r", "-rf", "-f", "--recursive", "--force"])
+            ):
+                return SecurityResult(
+                    SecurityAction.BLOCK,
+                    SecurityThreat.COMMAND_INJECTION,
+                    "Command blocked for safety",
+                )
+
             # Block kill without specific PID (dangerous mass kill)
             if base_cmd == "kill" and len(cmd_parts) == 1:
                 return SecurityResult(
@@ -127,7 +129,7 @@ def _threat_patterns(text: str, context: Dict[str, Any]) -> SecurityResult:
                     SecurityThreat.COMMAND_INJECTION,
                     "Command blocked for safety",
                 )
-                
+
     except ValueError:
         pass  # Invalid shell syntax, continue with other checks
 

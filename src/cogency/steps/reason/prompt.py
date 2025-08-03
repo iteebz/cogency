@@ -4,15 +4,24 @@ from typing import Any, Dict, Optional
 
 from cogency.state import AgentState
 
-
-CORE_REASONING_INSTRUCTIONS = """CRITICAL: Output ONE JSON object for THIS ITERATION ONLY. Do not anticipate future steps."""
+CORE_REASONING_INSTRUCTIONS = (
+    """CRITICAL: Output ONE JSON object for THIS ITERATION ONLY. Do not anticipate future steps."""
+)
 
 
 def _build_json_format_section(mode: str) -> str:
     """Build JSON response format with mode-specific fields."""
-    reflect_field = '"reflect": "What worked/failed in previous actions? What gaps remain?",' if mode == "deep" else ""
-    plan_field = '"plan": "What specific tools to use next and expected outcomes?",' if mode == "deep" else ""
-    
+    reflect_field = (
+        '"reflect": "What worked/failed in previous actions? What gaps remain?",'
+        if mode == "deep"
+        else ""
+    )
+    plan_field = (
+        '"plan": "What specific tools to use next and expected outcomes?",'
+        if mode == "deep"
+        else ""
+    )
+
     return f"""{{
   "thinking": "What am I trying to accomplish? What's my approach to this problem?",{reflect_field}{plan_field}
 

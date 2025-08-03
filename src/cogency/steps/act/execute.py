@@ -6,27 +6,12 @@ from resilient_result import Result
 
 from cogency.tools.base import Tool
 
-
-async def execute_single_tool(
-    tool_name: str, tool_args: dict, tools: List[Tool]
-) -> Tuple[str, Dict, Any]:
-    """Execute a tool with built-in capability restrictions."""
-
-    async def _execute() -> Tuple[str, Dict, Any]:
-        for tool in tools:
-            if tool.name == tool_name:
-                try:
-                    result = await tool.execute(**tool_args)
-                    return tool_name, tool_args, result
-                except Exception as e:
-                    return (
-                        tool_name,
-                        tool_args,
-                        Result.fail(f"Tool execution failed: {str(e)}"),
-                    )
-        raise ValueError(f"Tool '{tool_name}' not found.")
-
-    return await _execute()
+from .core import (
+    execute_single_tool,
+    format_tool_input,
+    format_tool_result,
+    generate_execution_summary,
+)
 
 
 async def execute_tools(
@@ -56,17 +41,7 @@ async def execute_tools(
 
         # Show tool execution start if state is available
         if state:
-            # Use tool's format method for args, otherwise fallback
-            if tool_instance:
-                arg_str, _ = tool_instance.format_human(tool_args)
-                tool_input = arg_str
-            else:
-                tool_input = ""
-                if tool_args:
-                    first_key = next(iter(tool_args))
-                    first_val = str(tool_args[first_key])
-                    tool_input = f"({first_val})"
-
+            tool_input = format_tool_input(tool_instance, tool_name, tool_args)
             if notifier:
                 await notifier("action", state="executing", tool=tool_name, input=tool_input)
 
@@ -95,19 +70,9 @@ async def execute_tools(
 
                 # Show result using tool's format method if available
                 if state:
-                    if tool_instance:
-                        _, result_str = tool_instance.format_human(actual_args, tool_output)
-                        readable_result = result_str
-                    else:
-                        # Fallback formatting
-                        if isinstance(tool_output.data, dict) and "summary" in tool_output.data:
-                            readable_result = tool_output.data.get("summary", "")
-                        else:
-                            readable_result = str(tool_output.data)[:100] + (
-                                "..." if len(str(tool_output.data)) > 100 else ""
-                            )
-
-                    # Add success indicator to result
+                    readable_result = format_tool_result(
+                        tool_instance, actual_tool_name, actual_args, tool_output
+                    )
                     if notifier:
                         await notifier(
                             "tool", name=actual_tool_name, ok=True, result=readable_result
@@ -135,13 +100,7 @@ async def execute_tools(
             failures.append(failure_result)
 
     # Generate summary
-    summary_parts = []
-    if successes:
-        summary_parts.append(f"{len(successes)} tools executed successfully")
-    if failures:
-        summary_parts.append(f"{len(failures)} tools failed")
-
-    summary = "; ".join(summary_parts) if summary_parts else "No tools executed"
+    summary = generate_execution_summary(successes, failures)
 
     final_result = Result.ok(
         {

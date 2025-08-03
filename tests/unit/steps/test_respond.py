@@ -8,7 +8,7 @@ from resilient_result import Result
 from cogency.providers import LLMCache
 from cogency.state import AgentState
 from cogency.steps.respond import respond
-from cogency.steps.respond.prompts import prompt_response
+from cogency.steps.respond.prompt import prompt_response
 from tests.fixtures.llm import MockLLM, mock_llm
 
 
