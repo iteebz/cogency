@@ -6,8 +6,8 @@ import pytest
 
 from cogency.state import AgentState
 
-# Import the prepare function directly
-from cogency.steps.prepare import prepare
+# Import the triage function directly
+from cogency.steps.triage import triage
 from cogency.tools.base import Tool
 from tests.fixtures.llm import MockLLM
 
@@ -46,9 +46,9 @@ async def test_fast():
 
     state = AgentState(query=query)
 
-    result = await prepare(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+    result = await triage(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
-    # The prepare function should complete successfully
+    # The triage function should complete successfully
     assert result is None or isinstance(result, str)
 
 
@@ -65,9 +65,9 @@ async def test_deep():
 
     state = AgentState(query=query)
 
-    result = await prepare(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+    result = await triage(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
-    # The prepare function should complete successfully
+    # The triage function should complete successfully
     assert result is None or isinstance(result, str)
 
 
@@ -82,7 +82,7 @@ async def test_response():
 
     state = AgentState(query=query)
 
-    result = await prepare(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+    result = await triage(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
     # Should return early response for greetings or have empty tools
     assert result is None or isinstance(result, str)

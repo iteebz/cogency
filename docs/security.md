@@ -27,7 +27,7 @@ await assess(query)  # No context = critical fallbacks only
 **Semantic Assessment**: LLM reasoning when available
 ```python
 await assess(text, {"security_assessment": assessment})
-# → Uses LLM analysis from prepare step
+# → Uses LLM analysis from triage step
 ```
 
 ## Security Philosophy

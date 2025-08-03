@@ -135,9 +135,9 @@ TOOLS:
         return prompt
 
     def _build_deep_steps(self, max_iterations: int) -> str:
-        """Build deep reasoning phase instructions."""
+        """Build deep reasoning step instructions."""
         return f"""
-REASONING PHASES:
+REASONING STEPS:
 🤔 REFLECT: Review completed actions and their DETAILED results - what information do you already have? What gaps remain?
 📋 PLAN: Choose NEW tools that address remaining gaps - avoid repeating successful actions
 🎯 EXECUTE: Run planned tools sequentially when they address different aspects
@@ -163,7 +163,7 @@ switch_to: "fast", switch_why: "Approaching max_iterations limit, need direct ac
 """
 
     def _build_fast_steps(self) -> str:
-        """Build fast reasoning phase instructions."""
+        """Build fast reasoning step instructions."""
         return """
 CRITICAL STOP CONDITIONS:
 - If you see previous attempts that ALREADY answered the query → populate "response"

@@ -8,13 +8,13 @@ from cogency.state import AgentState
 
 
 @pytest.mark.asyncio
-async def test_prepare_memory_fail():
+async def test_triage_memory_fail():
     """Memory failure disables memory."""
     state = AgentState("test query")
     state.memory_enabled = True
     error = Result.fail({"memory_failed": True})
 
-    result = await Recovery.recover(error, state, "prepare")
+    result = await Recovery.recover(error, state, "triage")
 
     assert result.success
     assert not state.memory_enabled
@@ -93,7 +93,7 @@ async def test_string_error_normalization():
     state = AgentState("test query")
     error = Result.fail("simple error message")
 
-    result = await Recovery.recover(error, state, "prepare")
+    result = await Recovery.recover(error, state, "triage")
 
     assert result.success
     assert result.data["recovery"] == "skip_enrichment"

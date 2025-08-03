@@ -1,4 +1,4 @@
-"""Unified prepare step - single LLM call for all preparation tasks."""
+"""Unified triage step - single LLM call for all triage tasks."""
 
 from dataclasses import dataclass
 from typing import List, Optional
@@ -13,8 +13,8 @@ from cogency.utils.parsing import _parse_json
 
 
 @dataclass
-class PrepareResult:
-    """Result of unified preparation step."""
+class TriageResult:
+    """Result of unified triage step."""
 
     # Early return
     direct_response: Optional[str] = None
@@ -42,21 +42,21 @@ class PrepareResult:
             self.selected_tools = []
 
 
-class Prepare:
-    """Single LLM call for all preparation tasks."""
+class Triage:
+    """Single LLM call for all triage tasks."""
 
     def __init__(self, llm: LLM):
         self.llm = llm
 
-    async def prepare(self, query: str, available_tools: List[Tool]) -> PrepareResult:
-        """Single LLM call to handle all preparation tasks."""
+    async def triage(self, query: str, available_tools: List[Tool]) -> TriageResult:
+        """Single LLM call to handle all triage tasks."""
 
         # Build tool registry for context
         registry_lite = (
             build_registry(available_tools, lite=True) if available_tools else "No tools available"
         )
 
-        prompt = f"""Analyze this query and provide a comprehensive preparation plan:
+        prompt = f"""Analyze this query and provide a comprehensive triage plan:
 
 Query: "{query}"
 
@@ -138,16 +138,16 @@ Query: "I'm learning machine learning and need help with neural networks"
         # Pass LLM security assessment to the single security function
         security_section = parsed.get("security_assessment", {}) or {}
         security_result = await assess(query, {"security_assessment": security_section})
-        
+
         if not security_result.safe:  # SEC-001: Prompt injection protection
-            return PrepareResult(
+            return TriageResult(
                 direct_response="Security violation: Request contains unsafe content"
             )
-        
+
         # Extract memory section safely
         memory_section = parsed.get("memory", {}) or {}
 
-        return PrepareResult(
+        return TriageResult(
             direct_response=parsed.get("direct_response"),
             memory_content=memory_section.get("content"),
             memory_tags=memory_section.get("tags", []),

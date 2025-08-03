@@ -1,4 +1,4 @@
-"""Phase recovery."""
+"""Step recovery."""
 
 from typing import Dict, Union
 
@@ -11,37 +11,37 @@ class Recovery:
     """Beautiful recovery strategies - auto-discovery, zero ceremony."""
 
     @staticmethod
-    async def recover(result: Result, state: AgentState, phase: str) -> Result:
-        """Beautiful recovery - handles any phase failure gracefully.
+    async def recover(result: Result, state: AgentState, step: str) -> Result:
+        """Beautiful recovery - handles any step failure gracefully.
 
         Args:
-            result: The failed Result from a phase
+            result: The failed Result from a step
             state: Current workflow state
-            phase: Phase name (prepare, reasoning, action, response)
+            step: Step name (triage, reasoning, action, response)
 
         Returns:
             Result with recovery actions applied to state
         """
-        return result if result.success else await Recovery._route(result.error, state, phase)
+        return result if result.success else await Recovery._route(result.error, state, step)
 
     @staticmethod
-    async def _route(error_data: Union[str, Dict], state: AgentState, phase: str) -> Result:
-        """Auto-discover recovery method by phase name."""
+    async def _route(error_data: Union[str, Dict], state: AgentState, step: str) -> Result:
+        """Auto-discover recovery method by step name."""
         # Normalize error to dict for consistent handling
         if isinstance(error_data, str):
             error_data = {"message": error_data}
 
         # Auto-discover recovery method
-        method_name = f"_{phase}"
+        method_name = f"_{step}"
         if hasattr(Recovery, method_name):
             method = getattr(Recovery, method_name)
             return await method(error_data, state)
 
-        return await Recovery._fallback(error_data, state, phase)
+        return await Recovery._fallback(error_data, state, step)
 
     @staticmethod
-    async def _prepare(error: Dict, state: AgentState) -> Result:
-        """Preparing recovery - continue without memory if needed."""
+    async def _triage(error: Dict, state: AgentState) -> Result:
+        """Triage recovery - continue without memory if needed."""
         if error.get("memory_failed"):
             state.memory_enabled = False
             return Result.ok({"state": state, "recovery": "disable_memory"})
@@ -103,11 +103,11 @@ class Recovery:
         return Result.ok({"state": state, "recovery": "fallback_response"})
 
     @staticmethod
-    async def _fallback(error: Dict, state: AgentState, phase: str) -> Result:
+    async def _fallback(error: Dict, state: AgentState, step: str) -> Result:
         """Universal fallback - graceful degradation for unknown steps."""
         state.next_step = "respond"
-        state.execution.stop_reason = f"{phase}_error_fallback"
-        return Result.ok({"state": state, "recovery": f"fallback_{phase}"})
+        state.execution.stop_reason = f"{step}_error_fallback"
+        return Result.ok({"state": state, "recovery": f"fallback_{step}"})
 
 
 # Beautiful singleton - zero ceremony

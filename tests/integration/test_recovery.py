@@ -45,7 +45,7 @@ async def test_recovery():
     def recovery_response(messages, **kwargs):
         last_msg = messages[-1]["content"].lower()
 
-        # Check if this is a preparing request (looking for JSON Response in prompt)
+        # Check if this is a triage request (looking for JSON Response in prompt)
         if "json response" in last_msg:
             return '{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": ["bash"], "reasoning": "Need to execute bash commands"}'
 
@@ -101,7 +101,7 @@ async def test_multiple_failures():
             )
 
     def persistent_response(messages, **kwargs):
-        # Check if this is a preparing request (looking for JSON Response in prompt)
+        # Check if this is a triage request (looking for JSON Response in prompt)
         content = messages[-1]["content"].lower()
         if "json response" in content:
             return '{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": ["bash"], "reasoning": "Need to execute bash commands"}'

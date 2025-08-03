@@ -79,9 +79,9 @@ Multi-perspective evaluation design identified **10 critical capability areas** 
 **Specialized Areas**: Output Integrity, Observability, Configuration Compatibility, Boundary Testing
 
 ### Post-v1.0.0 Priority Additions
-**Phase 2 (v1.1+)**: Strategic expansion toward 20-25 evaluations
-- `AdaptiveReasoning` - Reasoning pipeline switching (prepare→reason→act→respond)
-- `PrepareStepValidation` - Context analysis, tool selection, and planning logic validation
+**Step 2 (v1.1+)**: Strategic expansion toward 20-25 evaluations
+- `AdaptiveReasoning` - Reasoning pipeline switching (triage→reason→act→respond)
+- `TriageStepValidation` - Context analysis, tool selection, and planning logic validation
 - `SituatedMemoryIntegration` - Contextual memory adaptation and user profile influence
 - `AmbiguityResolution` - Meta-cognitive awareness and clarification-seeking
 - `IdentityCoherence` - Consistent agent persona across sessions  
@@ -90,7 +90,7 @@ Multi-perspective evaluation design identified **10 critical capability areas** 
 - `CrossLLMCompatibility` - Provider-agnostic behavior validation
 - `ExtendedSessionStability` - Long-running interaction resilience
 
-**Phase 3 (Comprehensive)**: Full council framework implementation (~30 evaluations)
+**Step 3 (Comprehensive)**: Full council framework implementation (~30 evaluations)
 - Adversarial stress-testing methodologies
 - Multi-tier complexity validation (simple → failure boundary mapping)
 - Real-world failure mode simulation

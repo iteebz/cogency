@@ -6,7 +6,6 @@ from typing import Any, Dict, List, Optional
 from cogency.utils.parsing import _normalize_reasoning
 
 
-
 @dataclass
 class Reasoning:
     thinking: Optional[str] = None
@@ -18,7 +17,6 @@ class Reasoning:
     plan: Optional[str] = None
     # Cognitive workspace updates - the canonical solution
     updates: Optional[Dict[str, str]] = None
-
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> "Reasoning":
@@ -34,8 +32,6 @@ class Reasoning:
         # Tool calls are now raw dictionaries
         tool_calls = data.get("tool_calls", [])
 
-
-
         return cls(
             thinking=data.get("thinking"),
             tool_calls=tool_calls,
@@ -46,5 +42,4 @@ class Reasoning:
             plan=data.get("plan"),
             # Cognitive workspace updates
             updates=data.get("updates"),
-
         )

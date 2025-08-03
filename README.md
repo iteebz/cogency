@@ -24,7 +24,7 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 
 **Adaptive reasoning** - agents discover task complexity during execution and adjust their cognitive approach automatically.
 
-- **Prepare**: Context evaluation and tool selection
+- **Triage**: Context evaluation and tool selection
 - **Reason**: Depth-adaptive thinking (fast react → deep reflection)
 - **Act**: Tool execution with automatic retry and recovery
 - **Respond**: Identity-aware response formatting
@@ -39,18 +39,18 @@ await agent.run("Analyze this codebase and suggest architectural improvements")
 - **🧠 Built-in memory** - Persistent context with LLM-based synthesis
 - **⚡️ Auto-configuration** - Detects LLMs and tools from environment
 - **🌊 Streaming execution** - Watch agents think in real-time
-- **✨ Clean tracing** - Every step traced with clear phase indicators
+- **✨ Clean tracing** - Every step traced with clear step indicators
 - **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Mistral
 - **🏗️ Built-in resilience** - Automatic retry and error recovery
 
 ## How It Works
 
-**prepare → reason → act → respond**
+**triage → reason → act → respond**
 
 ```
 👤 Build a REST API for my blog
 
-🔧 prepare: Selecting tools → files, shell
+🔧 triage: Selecting tools → files, shell
 🧠 reason: Complex task → escalating to deep mode
 📁 files(action='create', path='main.py') → API structure created
 💻 shell(command='pip install fastapi uvicorn') → Dependencies installed

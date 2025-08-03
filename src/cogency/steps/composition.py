@@ -8,9 +8,9 @@ from cogency.observe.metrics import _counter, _timer
 from cogency.robust import checkpoint
 
 from .act import act
-from .prepare import prepare
 from .reason import reason
 from .respond import respond
+from .triage import triage
 
 
 def _setup_steps(llm, tools, memory, identity, output_schema, config=None):
@@ -50,7 +50,7 @@ def _setup_steps(llm, tools, memory, identity, output_schema, config=None):
         return bound_func
 
     return {
-        "prepare": _compose_step(prepare, "prepare", llm=llm, tools=tools, memory=memory),
+        "triage": _compose_step(triage, "triage", llm=llm, tools=tools, memory=memory),
         "reason": _compose_step(
             reason,
             "reason",

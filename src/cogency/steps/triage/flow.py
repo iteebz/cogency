@@ -1,4 +1,4 @@
-"""Preparing pipeline - single LLM call for all preparation."""
+"""Triage pipeline - single LLM call for all triage."""
 
 from typing import List, Optional
 
@@ -6,11 +6,11 @@ from cogency.providers import LLM
 from cogency.state import AgentState
 from cogency.tools import Tool
 
-from .prepare import Prepare
+from .triage import Triage
 
 
 class Flow:
-    """Single LLM call for all preparation tasks."""
+    """Single LLM call for all triage tasks."""
 
     def __init__(self, llm: LLM, tools: List[Tool], memory=None):
         self.llm = llm
@@ -18,14 +18,14 @@ class Flow:
         self.memory = memory
 
         # Single unified component
-        self.prepare = Prepare(llm)
+        self.triage = Triage(llm)
 
     async def process(self, state: AgentState, notifier) -> Optional[str]:
-        """Single LLM call for all preparation tasks."""
+        """Single LLM call for all triage tasks."""
         query = state.execution.query
 
-        # Single unified preparation call
-        result = await self.prepare.prepare(query, self.tools)
+        # Single unified triage call
+        result = await self.triage.triage(query, self.tools)
 
         # Handle direct response (early return)
         if result.direct_response:
@@ -39,14 +39,14 @@ class Flow:
         # Filter selected tools
         filtered_tools = self._filter_tools(result.selected_tools)
 
-        # Update state for ReAct phase
+        # Update state for ReAct step
         state.execution.mode = result.mode
         state.execution.iteration = 0
 
-        # Notify about preparation results
-        await self._notify_preparation(notifier, result, filtered_tools)
+        # Notify about triage results
+        await self._notify_triage(notifier, result, filtered_tools)
 
-        return None  # Continue to reason phase
+        return None  # Continue to reason step
 
     async def _save_memory(self, result, notifier) -> None:
         """Save extracted memory if present."""
@@ -60,7 +60,7 @@ class Flow:
         else:
             display_content = content
 
-        await notifier("prepare", state="memory_saved", content_preview=display_content)
+        await notifier("triage", state="memory_saved", content_preview=display_content)
         await self.memory.remember(content, human=True)
 
     def _filter_tools(self, selected_names: List[str]) -> List[Tool]:
@@ -73,8 +73,8 @@ class Flow:
 
         return [tool for tool in filtered if tool.name != "memorize"]
 
-    async def _notify_preparation(self, notifier, result, filtered_tools: List[Tool]) -> None:
-        """Send notifications about preparation results."""
+    async def _notify_triage(self, notifier, result, filtered_tools: List[Tool]) -> None:
+        """Send notifications about triage results."""
         if result.memory_content:
             # Memory notification already sent in _save_memory
             pass
@@ -91,12 +91,12 @@ class Flow:
 
         if selected_count < total_tools:
             await notifier(
-                "prepare",
+                "triage",
                 state="filtered",
                 selected_tools=selected_count,
                 total_tools=total_tools,
             )
         elif selected_count == 1:
-            await notifier("prepare", state="direct", tool_count=1)
+            await notifier("triage", state="direct", tool_count=1)
         else:
-            await notifier("prepare", state="react", tool_count=selected_count)
+            await notifier("triage", state="react", tool_count=selected_count)

@@ -3,7 +3,7 @@
 This module provides the core execution pipeline steps that agents use to process
 requests. The steps are:
 
-- prepare: Routing, memory extraction, tool filtering
+- triage: Routing, memory extraction, tool filtering
 - reason: Focused reasoning and decision making
 - act: Tool execution based on reasoning decisions
 - respond: Response generation and formatting

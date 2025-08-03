@@ -34,7 +34,6 @@ async def execute_tools(
     tools: List[Tool],
     state,
     notifier=None,
-
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:

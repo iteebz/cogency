@@ -219,7 +219,7 @@ class AgentExecutor:
             # Setup execution state
             state = await self._setup_execution_state(query, user_id)
 
-            # Setup phases with runtime identity (if provided)
+            # Setup steps with runtime identity (if provided)
             if identity:
                 steps = _setup_steps(
                     self.llm, self.tools, self.memory, identity, self.output_schema, self.config
@@ -236,7 +236,7 @@ class AgentExecutor:
 
             await execute_agent(
                 state,
-                steps["prepare"],
+                steps["triage"],
                 steps["reason"],
                 steps["act"],
                 steps["respond"],
@@ -306,7 +306,7 @@ class AgentExecutor:
         task = asyncio.create_task(
             execute_agent(
                 state,
-                self.steps["prepare"],
+                self.steps["triage"],
                 self.steps["reason"],
                 self.steps["act"],
                 self.steps["respond"],

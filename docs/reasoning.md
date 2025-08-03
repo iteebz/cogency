@@ -46,7 +46,7 @@ await agent.run("Any query")
 ```
 
 **Characteristics:**
-- Task complexity analysis in prepare phase
+- Task complexity analysis in triage step
 - Automatic mode selection
 - Zero configuration required
 - Best for: general-purpose agents
@@ -55,14 +55,14 @@ await agent.run("Any query")
 
 ### 4-Step Execution Loop
 
-1. **Prepare**: Evaluates task complexity and selects reasoning mode
+1. **Triage**: Evaluates task complexity and selects reasoning mode
 2. **Reason**: Applies selected reasoning depth (fast or deep)
 3. **Act**: Executes tools with automatic retry
 4. **Respond**: Formats response with identity awareness
 
 ### Complexity Analysis
 
-The prepare phase analyzes:
+The triage step analyzes:
 - Query structure and intent
 - Required tool orchestration
 - Context complexity
@@ -111,7 +111,7 @@ async for chunk in agent.stream("Complex analysis task"):
 
 Output shows reasoning progression:
 ```
-=' prepare: Complex task detected � escalating to deep mode
+=' triage: Complex task detected � escalating to deep mode
 >� reason: Analyzing requirements...
 >� reason: Planning approach...
 =� files(action='read', path='config.py') � Configuration loaded

@@ -13,13 +13,13 @@ from cogency.notify import (
     _setup_formatter,
 )
 from cogency.state import AgentState
-from cogency.steps.prepare import prepare
 from cogency.steps.respond import respond
+from cogency.steps.triage import triage
 
 
 @pytest.mark.asyncio
 async def test_step_notifications_direct():
-    """Test notifications work directly with phase functions."""
+    """Test notifications work directly with step functions."""
     formatter = EmojiFormatter()
     notifier = Notifier(formatter=formatter)
 
@@ -31,13 +31,13 @@ async def test_step_notifications_direct():
     # Create state
     state = AgentState(query="Test query")
 
-    # Test respond phase (simplest)
+    # Test respond step (simplest)
     await respond(state, notifier, mock_llm, [], identity="Test Agent")
 
     # Verify notifications were generated
     assert len(notifier.notifications) >= 1
 
-    # Check for respond phase notifications (ultimate form uses direct event types)
+    # Check for respond step notifications (ultimate form uses direct event types)
     respond_notifications = [n for n in notifier.notifications if n.type == "respond"]
     assert len(respond_notifications) >= 1
 
@@ -49,7 +49,7 @@ async def test_notification_formatter_integration():
     notifier = Notifier(formatter=formatter)
 
     # Generate some notifications using ultimate callable API
-    await notifier("prepare", state="analyzing")
+    await notifier("triage", state="analyzing")
     await notifier("reason", state="thinking")
     await notifier("tool", name="search", ok=True, result="Found results")
     await notifier("respond", state="generating")
@@ -62,7 +62,7 @@ async def test_notification_formatter_integration():
             formatted_messages.append(formatted)
 
     # Verify emoji formatting
-    assert any("⚙️" in msg and "prepare" in msg.lower() for msg in formatted_messages)
+    assert any("⚙️" in msg and "triage" in msg.lower() for msg in formatted_messages)
     assert any("💭" in msg and "reason" in msg.lower() for msg in formatted_messages)
     assert any("🔍" in msg and "search" in msg.lower() for msg in formatted_messages)
     assert any("🤖" in msg and "respond" in msg.lower() for msg in formatted_messages)
@@ -70,7 +70,7 @@ async def test_notification_formatter_integration():
 
 @pytest.mark.asyncio
 async def test_callback_integration():
-    """Test callback mechanism works with phase notifications."""
+    """Test callback mechanism works with step notifications."""
     callback_notifications = []
 
     async def test_callback(notification):
@@ -80,7 +80,7 @@ async def test_callback_integration():
     notifier = Notifier(formatter=formatter, on_notify=test_callback)
 
     # Send notifications using ultimate callable API
-    await notifier("prepare", state="starting")
+    await notifier("triage", state="starting")
     await notifier("reason", state="fast")
     await notifier("tool", name="search", ok=True)
 
@@ -91,7 +91,7 @@ async def test_callback_integration():
 
     # Verify callbacks were triggered
     assert len(callback_notifications) == 3
-    assert callback_notifications[0].type == "prepare"
+    assert callback_notifications[0].type == "triage"
     assert callback_notifications[0].data["state"] == "starting"
     assert callback_notifications[1].type == "reason"
     assert callback_notifications[1].data["state"] == "fast"

@@ -1,4 +1,4 @@
-"""Comprehensive phase tests - integration and unit testing."""
+"""Comprehensive step tests - integration and unit testing."""
 
 from unittest.mock import AsyncMock, Mock
 
@@ -66,7 +66,7 @@ async def test_execution_errors():
 
 @pytest.mark.asyncio
 async def test_respond_output():
-    """Test respond phase produces conversational text only."""
+    """Test respond step produces conversational text only."""
     mock_llm = AsyncMock()
 
     async def mock_stream(*args, **kwargs):
@@ -91,7 +91,7 @@ async def test_respond_output():
 
 @pytest.mark.asyncio
 async def test_routing():
-    """Test act phase routing behavior."""
+    """Test act step routing behavior."""
     tool = MockTool("test_tool")
     state = AgentState(query="test", user_id="test")
 
@@ -126,7 +126,7 @@ def state():
 
 @pytest.mark.asyncio
 async def test_reason_direct(state):
-    """Test reason phase when it can answer directly."""
+    """Test reason step when it can answer directly."""
     llm = MockLLM()
     llm.run = AsyncMock(
         return_value=Result.ok('{"reasoning": "I can answer this directly: 2 + 2 = 4"}')
@@ -142,7 +142,7 @@ async def test_reason_direct(state):
 
 @pytest.mark.asyncio
 async def test_reason_tools(state):
-    """Test reason phase when it needs tools."""
+    """Test reason step when it needs tools."""
     llm = MockLLM()
     llm.run = AsyncMock(
         return_value=Result.ok(
@@ -160,7 +160,7 @@ async def test_reason_tools(state):
 
 @pytest.mark.asyncio
 async def test_act_execution(state):
-    """Test act phase actually executes tools."""
+    """Test act step actually executes tools."""
     # Setup state with tool calls
     state.execution.pending_calls = [{"name": "shell", "args": {"command": "echo '4'"}}]
 
@@ -180,7 +180,7 @@ async def test_act_execution(state):
 
 @pytest.mark.asyncio
 async def test_respond_formats(state):
-    """Test respond phase creates final response."""
+    """Test respond step creates final response."""
     llm = MockLLM()
 
     await respond(state, AsyncMock(), llm=llm, tools=[])

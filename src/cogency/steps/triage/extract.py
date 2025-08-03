@@ -72,5 +72,5 @@ Examples:
         else:
             display_content = content
 
-        await notifier("prepare", state="memory_saved", content_preview=display_content)
+        await notifier("triage", state="memory_saved", content_preview=display_content)
         await memory_service.remember(content, human=True)

@@ -37,9 +37,9 @@ class CLIFormatter(Formatter):
         """Handle unknown notification types for CLIFormatter."""
         return f"Unknown notification: {notification.type}"
 
-    def _prepare(self, notification: Notification) -> str:
+    def _triage(self, notification: Notification) -> str:
         state = notification.data.get("state", "")
-        return f"Prepare {state}".strip()
+        return f"Triage {state}".strip()
 
     def _reason(self, notification: Notification) -> str:
         state = notification.data.get("state", "")
@@ -79,7 +79,7 @@ class EmojiFormatter(Formatter):
         """Format notification with emojis."""
         return getattr(self, f"_{notification.type}", self._unknown)(notification)
 
-    PHASE_EMOJIS = {"prepare": "⚙️", "reason": "💭", "action": "⚡", "respond": "🤖", "trace": "🔍"}
+    STEP_EMOJIS = {"triage": "⚙️", "reason": "💭", "action": "⚡", "respond": "🤖", "trace": "🔍"}
 
     TOOL_EMOJIS = {
         "code": "💻",
@@ -95,9 +95,9 @@ class EmojiFormatter(Formatter):
         """Handle unknown notification types."""
         return f"🔄 Unknown notification: {notification.type}"
 
-    def _prepare(self, notification: Notification) -> str:
+    def _triage(self, notification: Notification) -> str:
         state = notification.data.get("state", "")
-        return f"⚙️ Prepare {state}".strip()
+        return f"⚙️ Triage {state}".strip()
 
     def _reason(self, notification: Notification) -> str:
         state = notification.data.get("state", "")

@@ -5,14 +5,14 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from cogency.config import ObserveConfig, PersistConfig, RobustConfig
-from cogency.decorators import StepConfig, elapsed, phase, step_decorators
+from cogency.decorators import StepConfig, elapsed, step, step_decorators
 
 
 @pytest.mark.asyncio
 async def test_step_no_config():
-    """Test phase decorators with no config."""
+    """Test step decorators with no config."""
 
-    @phase.reason()
+    @step.reason()
     async def test_func():
         return "success"
 
@@ -22,12 +22,12 @@ async def test_step_no_config():
 
 @pytest.mark.asyncio
 async def test_step_with_robust():
-    """Test phase decorators with robust config."""
+    """Test step decorators with robust config."""
     robust_config = RobustConfig()
     config = StepConfig(robust=robust_config)
-    phase_with_config = step_decorators(config)
+    step_with_config = step_decorators(config)
 
-    @phase_with_config.reason()
+    @step_with_config.reason()
     async def test_func():
         return "success"
 
@@ -38,12 +38,12 @@ async def test_step_with_robust():
 
 @pytest.mark.asyncio
 async def test_step_with_observe():
-    """Test phase decorators with observe config."""
+    """Test step decorators with observe config."""
     observe_config = ObserveConfig()
     config = StepConfig(observe=observe_config)
-    phase_with_config = step_decorators(config)
+    step_with_config = step_decorators(config)
 
-    @phase_with_config.reason()
+    @step_with_config.reason()
     async def test_func(**kwargs):
         return "success"
 
@@ -63,19 +63,19 @@ def test_step_config():
     assert config.persist == persist_config
 
     # Test creating decorators with config
-    phase_decorators = step_decorators(config)
-    assert hasattr(phase_decorators, "reason")
-    assert hasattr(phase_decorators, "act")
-    assert callable(phase_decorators.reason)
+    step_decorators_obj = step_decorators(config)
+    assert hasattr(step_decorators_obj, "reason")
+    assert hasattr(step_decorators_obj, "act")
+    assert callable(step_decorators_obj.reason)
 
 
 @pytest.mark.asyncio
 async def test_step_timer_injection():
     """Test that decorator injects timer context."""
     config = StepConfig(observe=ObserveConfig())
-    phase_decorators = step_decorators(config)
+    step_decorators_obj = step_decorators(config)
 
-    @phase_decorators.generic()
+    @step_decorators_obj.generic()
     async def test_step(**kwargs):
         # Should have timer context injected
         duration = kwargs.get("elapsed", lambda: 0.0)()
@@ -90,9 +90,9 @@ async def test_step_timer_injection():
 async def test_no_observe_passthrough():
     """Test that without observe config, no timer injection occurs."""
     config = StepConfig(observe=None)
-    phase_decorators = step_decorators(config)
+    step_decorators_obj = step_decorators(config)
 
-    @phase_decorators.generic()
+    @step_decorators_obj.generic()
     async def test_step(**kwargs):
         # Should not have timer context
         duration = elapsed(**kwargs)
@@ -104,14 +104,14 @@ async def test_no_observe_passthrough():
 
 
 def test_step_decorators_exist():
-    assert hasattr(phase, "reason")
-    assert hasattr(phase, "act")
-    assert hasattr(phase, "prepare")
-    assert hasattr(phase, "respond")
-    assert hasattr(phase, "generic")
+    assert hasattr(step, "reason")
+    assert hasattr(step, "act")
+    assert hasattr(step, "triage")
+    assert hasattr(step, "respond")
+    assert hasattr(step, "generic")
 
-    assert callable(phase.reason)
-    assert callable(phase.act)
-    assert callable(phase.prepare)
-    assert callable(phase.respond)
-    assert callable(phase.generic)
+    assert callable(step.reason)
+    assert callable(step.act)
+    assert callable(step.triage)
+    assert callable(step.respond)
+    assert callable(step.generic)

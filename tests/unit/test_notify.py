@@ -20,11 +20,11 @@ from cogency.notify import (
 def test_dataclass():
     """Test v2 notification dataclass structure."""
     notification = Notification(
-        type="phase", data={"phase": "reason", "mode": "thinking", "iteration": 1}
+        type="step", data={"step": "reason", "mode": "thinking", "iteration": 1}
     )
 
-    assert notification.type == "phase"
-    assert notification.data["phase"] == "reason"
+    assert notification.type == "step"
+    assert notification.data["step"] == "reason"
     assert notification.data["mode"] == "thinking"
     assert notification.data["iteration"] == 1
     assert notification.timestamp > 0
@@ -36,14 +36,14 @@ async def test_ultimate_callable():
     formatter = EmojiFormatter()
     notifier = Notifier(formatter=formatter)
 
-    await notifier("prepare", state="analyzing")
+    await notifier("triage", state="analyzing")
     await notifier("reason", state="thinking")
     await notifier("tool", name="search", ok=True, result="Found data")
     await notifier("respond", state="generating")
     await notifier("trace", message="Debug info", step="parsing")
 
     assert len(notifier.notifications) == 5
-    assert notifier.notifications[0].type == "prepare"
+    assert notifier.notifications[0].type == "triage"
     assert notifier.notifications[0].data["state"] == "analyzing"
     assert notifier.notifications[1].data["state"] == "thinking"
     assert notifier.notifications[2].type == "tool"

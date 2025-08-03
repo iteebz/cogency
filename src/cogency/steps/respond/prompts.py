@@ -70,7 +70,7 @@ def prompt_response(
     failures: Optional[Dict[str, str]] = None,
 ) -> str:
     """Clean routing to response templates."""
-    
+
     if identity:
         secure_identity = f"You are {identity}."
     else:

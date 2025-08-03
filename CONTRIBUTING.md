@@ -24,7 +24,7 @@ Thank you for your interest in contributing to Cogency! This guide will help you
 
 Cogency follows a 4-step adaptive reasoning architecture:
 
-- **Prepare**: Context evaluation and tool selection
+- **Triage**: Context evaluation and tool selection
 - **Reason**: Depth-adaptive thinking (fast react → deep reflection)  
 - **Act**: Tool execution with automatic retry and recovery
 - **Respond**: Identity-aware response formatting

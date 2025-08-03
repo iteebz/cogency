@@ -120,13 +120,13 @@ What should I do next?
 
 ## Implementation Status
 
-### Phase 1: Complete ✅
+### Step 1: Complete ✅
 - Memory class with `impression`/`recent` fields
 - Workspace with `objective`/`assessment`/`approach`/`observations`  
 - Reasoning output with `thinking`/`tool_calls`/`updates`
 - Clean API boundaries and semantic separation
 
-### Phase 2: Validation
+### Step 2: Validation
 - Cross-session persistence for Memory schema
 - Workspace context optimization for different reasoning modes
 - Schema validation and type safety improvements

@@ -1,4 +1,4 @@
-"""Agent @phase decorator - Unified composition of resilience + checkpointing + observability."""
+"""Agent @step decorator - Unified composition of resilience + checkpointing + observability."""
 
 from dataclasses import dataclass
 from functools import wraps
@@ -50,16 +50,16 @@ def _checkpoint(name: str, interruptible: bool = True):
     return decorator
 
 
-def _auto_save(phase_name: str, config: Optional[StepConfig] = None):
-    """Auto-save state after successful phase completion."""
+def _auto_save(step_name: str, config: Optional[StepConfig] = None):
+    """Auto-save state after successful step completion."""
 
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            # Execute the phase
+            # Execute the step
             result = await func(*args, **kwargs)
 
-            # Auto-save only if persistence is configured and phase succeeded
+            # Auto-save only if persistence is configured and step succeeded
             if config and config.persist and result:
                 try:
                     state = args[0] if args else kwargs.get("state")
@@ -77,7 +77,7 @@ def _auto_save(phase_name: str, config: Optional[StepConfig] = None):
                             if persistence:
                                 await persistence.save(state)
                 except Exception:
-                    # Don't fail the phase due to persistence issues
+                    # Don't fail the step due to persistence issues
                     pass
 
             return result
@@ -87,7 +87,7 @@ def _auto_save(phase_name: str, config: Optional[StepConfig] = None):
     return decorator
 
 
-def _observe_metrics(phase_name: str, config: Optional[StepConfig] = None):
+def _observe_metrics(step_name: str, config: Optional[StepConfig] = None):
     """Unified observability wrapper - single timing measurement shared across metrics and notifications."""
 
     def decorator(func):
@@ -100,35 +100,35 @@ def _observe_metrics(phase_name: str, config: Optional[StepConfig] = None):
             # Extract state for context tags
             state = kwargs.get("state") or (args[0] if args else None)
             tags = {
-                "phase": phase_name,
+                "step": step_name,
                 "iteration": str(getattr(state, "iteration", 0)) if state else "0",
                 "mode": getattr(state, "mode", "unknown") if state else "unknown",
             }
 
-            # Count phase executions
-            _counter(f"{phase_name}.executions", 1.0, tags)
+            # Count step executions
+            _counter(f"{step_name}.executions", 1.0, tags)
 
             # Start unified timing - metrics collection handles the measurement
-            with _timer(f"{phase_name}.duration", tags) as phase_timer:
+            with _timer(f"{step_name}.duration", tags) as step_timer:
                 try:
-                    # Inject timing context into kwargs for phase functions to use
-                    kwargs["_phase_timer"] = phase_timer
+                    # Inject timing context into kwargs for step functions to use
+                    kwargs["_step_timer"] = step_timer
 
                     result = await func(*args, **kwargs)
 
                     # Success metrics
-                    _counter(f"{phase_name}.success", 1.0, tags)
+                    _counter(f"{step_name}.success", 1.0, tags)
 
                     # Result size metrics if applicable
                     if result and hasattr(result, "__len__"):
-                        _histogram(f"{phase_name}.result_size", len(str(result)), tags)
+                        _histogram(f"{step_name}.result_size", len(str(result)), tags)
 
                     return result
 
                 except Exception as e:
                     # Error metrics
                     error_tags = {**tags, "error_type": type(e).__name__}
-                    _counter(f"{phase_name}.errors", 1.0, error_tags)
+                    _counter(f"{step_name}.errors", 1.0, error_tags)
                     raise
 
         return wrapper
@@ -164,79 +164,79 @@ def _policy(
     return policy
 
 
-def _observe_policy(phase_name: str, config: Optional[StepConfig] = None):
+def _observe_policy(step_name: str, config: Optional[StepConfig] = None):
     """Observability policy factory - metrics and telemetry collection."""
 
     def policy(**kwargs):
         def decorator(func):
             # Apply observability instrumentation
-            return _observe_metrics(phase_name, config)(func)
+            return _observe_metrics(step_name, config)(func)
 
         return decorator
 
     return policy
 
 
-def _phase_factory(
-    phase_name: str, interruptible: bool, default_retry, config: Optional[StepConfig] = None
+def _step_factory(
+    step_name: str, interruptible: bool, default_retry, config: Optional[StepConfig] = None
 ):
-    """Phase decorator factory that combines robust + observe based on config."""
+    """Step decorator factory that combines robust + observe based on config."""
 
-    def phase_decorator(**kwargs):
+    def step_decorator(**kwargs):
         def decorator(func):
             # Start with the original function
             result_func = func
 
             # Apply robust behavior if enabled
             if config and config.robust:
-                robust_policy = _policy(phase_name, interruptible, default_retry, config)
+                robust_policy = _policy(step_name, interruptible, default_retry, config)
                 result_func = robust_policy(**kwargs)(result_func)
 
             # Apply observability if enabled
             if config and config.observe:
-                observe_policy = _observe_policy(phase_name, config)
+                observe_policy = _observe_policy(step_name, config)
                 result_func = observe_policy(**kwargs)(result_func)
 
             return result_func
 
         return decorator
 
-    return phase_decorator
+    return step_decorator
 
 
 def step_decorators(config: Optional[StepConfig] = None):
-    """Create phase decorators with injected config - no global state."""
+    """Create step decorators with injected config - no global state."""
 
-    class _PhaseDecorators:
-        """Unified @phase decorator."""
+    class _StepDecorators:
+        """Unified @step decorator."""
 
-        reason = staticmethod(_phase_factory("reasoning", True, Retry.api(), config))
+        reason = staticmethod(_step_factory("reasoning", True, Retry.api(), config))
         act = staticmethod(
-            _phase_factory("tool_execution", True, Retry(attempts=2, timeout=15.0), config)
+            _step_factory("tool_execution", True, Retry(attempts=2, timeout=15.0), config)
         )
-        prepare = staticmethod(
-            _phase_factory("preparing", False, Retry(attempts=2, timeout=10.0), config)
+        triage = staticmethod(
+            _step_factory("triaging", False, Retry(attempts=2, timeout=10.0), config)
         )
         respond = staticmethod(
-            _phase_factory("response", False, Retry(attempts=2, timeout=15.0), config)
+            _step_factory("response", False, Retry(attempts=2, timeout=15.0), config)
         )
-        generic = staticmethod(_phase_factory("generic", True, None, config))
+        generic = staticmethod(_step_factory("generic", True, None, config))
 
-    return _PhaseDecorators()
+    return _StepDecorators()
 
 
 def elapsed(**kwargs) -> float:
-    """Get current phase duration from injected timer context."""
-    timer_context = kwargs.get("_phase_timer")
+    """Get current step duration from injected timer context."""
+    timer_context = kwargs.get("_step_timer")
     return timer_context.current_elapsed if timer_context else 0.0
 
 
 # Main decorator instance
-phase = step_decorators()
+step = step_decorators()
 
 
 __all__ = [
-    "phase",
+    "step",
     "step_decorators",
     "StepConfig",
     "elapsed",

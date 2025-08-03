@@ -19,7 +19,7 @@ Include description, reproduction steps, and impact assessment.
 - **Impact:** Allows user to override system prompt, hijack reasoning context, and impersonate roles
 - **Evidence:** Eval test shows "HIJACKED" response from direct prompt injection attack
 - **Status:** ✅ Mitigated - Semantic security assessment + critical fallbacks
-- **Mitigation:** prepare.py:144 - unified security.assess() function
+- **Mitigation:** triage.py:144 - unified security.assess() function
 - **Related Tests:** `direct_prompt_injection`, `fake_authority_bypass`, `system_prompt_leak`
 - **Severity:** Critical - Remote prompt execution possible
 

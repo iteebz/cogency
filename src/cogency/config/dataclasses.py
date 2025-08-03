@@ -49,7 +49,7 @@ class ObserveConfig:
     timing: bool = True
     counters: bool = True
 
-    # Phase-specific telemetry
+    # Step-specific telemetry
     steps: Optional[List[str]] = None  # ["reason", "act"] or None for all
 
     # Export configuration

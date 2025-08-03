@@ -1,6 +1,6 @@
-"""Prepare step - routing, memory extraction, tool filtering.
+"""Triage step - routing, memory extraction, tool filtering.
 
-The prepare step handles initial request processing:
+The triage step handles initial request processing:
 - Routing decisions for request type
 - Memory extraction and context building
 - Tool selection and filtering
@@ -17,13 +17,13 @@ from cogency.tools import Tool
 from .flow import Flow
 
 
-async def prepare(
+async def triage(
     state: AgentState,
     notifier,
     llm: LLM,
     tools: List[Tool],
     memory,  # Impression instance or None
 ) -> Optional[str]:
-    """Prepare: routing decisions, memory extraction, tool selection."""
+    """Triage: routing decisions, memory extraction, tool selection."""
     pipeline = Flow(llm, tools, memory)
     return await pipeline.process(state, notifier)

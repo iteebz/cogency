@@ -4,20 +4,20 @@ from cogency.state import AgentState
 
 
 async def execute_agent(
-    state: AgentState, prepare_step, reason_step, act_step, respond_step, notifier=None
+    state: AgentState, triage_step, reason_step, act_step, respond_step, notifier=None
 ) -> None:
     """Early-return execution."""
-    # Prepare - may return early
-    if response := await prepare_step(state, notifier):
+    # Triage - may return early
+    if response := await triage_step(state, notifier):
         state.execution.response = response
-        state.execution.response_source = "prepare"
+        state.execution.response_source = "triage"
         # Always call respond for identity application
         await respond_step(state, notifier)
         return
 
     # ReAct loop - reason and act until early return
     while state.execution.iteration < state.execution.max_iterations:
-        # Reason phase
+        # Reason step
         response = await reason_step(state, notifier)
         from resilient_result import Result
 
@@ -37,7 +37,7 @@ async def execute_agent(
         if not state.execution.pending_calls:
             break
 
-        # Act phase
+        # Act step
         response = await act_step(state, notifier)
         if isinstance(response, Result):
             if response.success and response.data:
@@ -55,7 +55,7 @@ async def execute_agent(
         if state.execution.stop_reason:
             break
 
-    # Respond phase - fallback
+    # Respond step - fallback
     await respond_step(state, notifier)
     if not state.execution.response:
         state.execution.response = "I'm here to help. How can I assist you?"

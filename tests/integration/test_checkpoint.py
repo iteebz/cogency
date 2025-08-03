@@ -34,9 +34,9 @@ class MockCheckpointLLM(LLM):
         content = messages[-1]["content"]
         last_msg = content.lower()
 
-        # Check if this is a preparing request (looking for JSON format in prompt)
+        # Check if this is a triage request (looking for JSON format in prompt)
         if "json" in last_msg and ("format" in last_msg or "response" in last_msg):
-            # Return valid JSON for preparing
+            # Return valid JSON for triage
             return """{"memory": null, "tags": null, "memory_type": "fact", "mode": "fast", "selected_tools": [], "reasoning": "Simple analysis task, no tools needed"}"""
 
         if "checkpoint" in last_msg and "resume" in last_msg:

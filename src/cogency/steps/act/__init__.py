@@ -27,9 +27,7 @@ async def act(state: AgentState, notifier, tools: List[Tool]) -> Optional[str]:
     ]
 
     # Execute tools with built-in capability restrictions
-    tool_result = await execute_tools(
-        tool_tuples, tools, state, notifier
-    )
+    tool_result = await execute_tools(tool_tuples, tools, state, notifier)
 
     # Store results using ExecutionState methods
     if tool_result.success and tool_result.data:

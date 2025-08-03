@@ -37,7 +37,7 @@ async def respond(
     if (
         state.execution.response
         and hasattr(state.execution, "response_source")
-        and state.execution.response_source in ["prepare", "reason"]
+        and state.execution.response_source in ["triage", "reason"]
         and identity
     ):
         # Apply identity via LLM call for early returns
