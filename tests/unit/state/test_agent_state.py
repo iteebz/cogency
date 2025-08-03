@@ -14,7 +14,7 @@ def test_constructor():
     assert state.user_profile is None
 
 
-def test_constructor_with_user_id():
+def test_with_user_id():
     """Test AgentState constructor with custom user_id."""
     state = AgentState(query="test query", user_id="custom_user")
 
@@ -23,7 +23,7 @@ def test_constructor_with_user_id():
     assert state.reasoning.goal == "test query"
 
 
-def test_constructor_with_user_profile():
+def test_with_profile():
     """Test AgentState constructor with user profile."""
     profile = UserProfile(user_id="test_user")
     state = AgentState(query="test query", user_profile=profile)
@@ -53,7 +53,7 @@ def test_composition():
     assert state.execution is not state.reasoning
 
 
-def test_get_situated_context_no_profile():
+def test_context_no_profile():
     """Test get_situated_context with no user profile."""
     state = AgentState(query="test query")
 
@@ -61,7 +61,7 @@ def test_get_situated_context_no_profile():
     assert context == ""
 
 
-def test_get_situated_context_with_profile():
+def test_context_with_profile():
     """Test get_situated_context with user profile."""
     profile = UserProfile(user_id="test_user")
     # Add some test data to the profile
@@ -74,7 +74,7 @@ def test_get_situated_context_with_profile():
     assert context.startswith("USER CONTEXT:")
 
 
-def test_update_from_reasoning_thinking():
+def test_update_thinking():
     """Test updating state from reasoning response with thinking."""
     state = AgentState(query="test query")
 
@@ -94,7 +94,7 @@ def test_update_from_reasoning_thinking():
     assert state.execution.pending_calls[0]["name"] == "test_tool"
 
 
-def test_update_from_reasoning_context_updates():
+def test_update_context():
     """Test updating reasoning context from reasoning response."""
     state = AgentState(query="test query")
 
@@ -114,7 +114,7 @@ def test_update_from_reasoning_context_updates():
     assert "insight 2" in state.reasoning.insights
 
 
-def test_update_from_reasoning_direct_response():
+def test_update_response():
     """Test setting direct response from reasoning."""
     state = AgentState(query="test query")
 
@@ -125,7 +125,7 @@ def test_update_from_reasoning_direct_response():
     assert state.execution.response == "This is my response"
 
 
-def test_update_from_reasoning_mode_switch():
+def test_update_mode():
     """Test switching execution mode from reasoning."""
     state = AgentState(query="test query")
 
@@ -133,7 +133,7 @@ def test_update_from_reasoning_mode_switch():
     for mode in ["fast", "deep", "adapt"]:
         reasoning_data = {"switch_mode": mode}
         state.update_from_reasoning(reasoning_data)
-        assert state.execution.mode == mode
+        assert state.execution.mode.value == mode
 
     # Test invalid mode switch is ignored
     old_mode = state.execution.mode
@@ -142,7 +142,7 @@ def test_update_from_reasoning_mode_switch():
     assert state.execution.mode == old_mode
 
 
-def test_update_from_reasoning_empty():
+def test_update_empty():
     """Test updating with empty reasoning data."""
     state = AgentState(query="test query")
 
@@ -155,7 +155,7 @@ def test_update_from_reasoning_empty():
     assert len(state.execution.pending_calls) == 0
 
 
-def test_update_from_reasoning_comprehensive():
+def test_update_comprehensive():
     """Test comprehensive reasoning update with all fields."""
     state = AgentState(query="test query")
 
@@ -181,7 +181,7 @@ def test_update_from_reasoning_comprehensive():
     assert state.reasoning.strategy == "comprehensive strategy"
     assert "key insight" in state.reasoning.insights
     assert state.execution.response == "Final response"
-    assert state.execution.mode == "deep"
+    assert state.execution.mode.value == "deep"
 
 
 def test_state_independence():

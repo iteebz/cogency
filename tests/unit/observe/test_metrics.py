@@ -11,12 +11,20 @@ from cogency.observe.metrics import (
     MetricsReporter,
     MetricsSummary,
     TimerContext,
-    counter,
-    gauge,
     get_metrics,
-    histogram,
     measure,
-    timer,
+)
+from cogency.observe.metrics import (
+    _counter as counter,
+)
+from cogency.observe.metrics import (
+    _gauge as gauge,
+)
+from cogency.observe.metrics import (
+    _histogram as histogram,
+)
+from cogency.observe.metrics import (
+    _timer as timer,
 )
 
 

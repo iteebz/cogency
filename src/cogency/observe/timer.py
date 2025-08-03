@@ -1,10 +1,10 @@
-"""Clean timing utilities."""
+"""Timing utilities."""
 
 from time import perf_counter
 
 
 def timer(label: str):
-    """Beautiful timing closure - no ceremony, self-documenting."""
+    """Timing closure."""
     start = perf_counter()
 
     def stop():

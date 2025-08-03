@@ -3,8 +3,16 @@
 from cogency.state.user_profile import UserProfile
 
 
-def compress_for_injection(profile: UserProfile, max_tokens: int = 800) -> str:
-    """Generate situated context for agent initialization."""
+def compress(profile: UserProfile, max_tokens: int = 800) -> str:
+    """Generate compressed context from user profile for agent initialization.
+
+    Args:
+        profile: User profile containing preferences and history
+        max_tokens: Maximum tokens for compressed output
+
+    Returns:
+        Compressed context string for agent injection
+    """
     sections = []
 
     if profile.communication_style:

@@ -3,8 +3,15 @@
 from typing import Any, Dict
 
 
-def init_advanced_config(**config) -> Dict[str, Any]:
-    """Initialize and validate advanced configuration options."""
+def _init_advanced_config(**config) -> Dict[str, Any]:
+    """Initialize advanced configuration options.
+
+    Args:
+        **config: Configuration parameters
+
+    Returns:
+        Validated configuration dictionary
+    """
 
     # Known configuration keys with defaults
     known_keys = {
@@ -13,7 +20,7 @@ def init_advanced_config(**config) -> Dict[str, Any]:
         "llm": None,
         "embed": None,
         "mode": "adapt",
-        "depth": 10,
+        "max_iterations": 10,
         "notify": True,
         "debug": False,
         "formatter": None,
@@ -34,7 +41,7 @@ def init_advanced_config(**config) -> Dict[str, Any]:
     return result
 
 
-def validate_union_patterns(config):
+def validate_unions(config):
     """Validate Union pattern usage per council ruling."""
     # No conflicting configurations allowed
     if (

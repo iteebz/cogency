@@ -117,7 +117,7 @@ async def test_agent_executor_integration():
     )
 
     # Test real execution path
-    result = await agent.run("Simple test query")
+    result = await agent.run_async("Simple test query")
 
     # Verify response structure
     assert isinstance(result, str)
@@ -151,16 +151,16 @@ async def test_memory_contract_compliance():
     assert loaded_profile.user_id == "test_user"
 
     # Test profile context generation
-    from cogency.memory import compress_for_injection
+    from cogency.memory.compression import compress
 
-    context = compress_for_injection(loaded_profile)
+    context = compress(loaded_profile)
     assert isinstance(context, str)
 
 
 @pytest.mark.asyncio
 async def test_state_management_contract():
     """Verify state persistence follows contracts."""
-    from cogency.persist import get_state
+    from cogency.persist.utils import _get_state
     from cogency.state import AgentState
 
     # Test state creation contract
@@ -173,7 +173,7 @@ async def test_state_management_contract():
     # Test state persistence contract (no persistence)
     user_states = {}
 
-    state = await get_state("user1", "query1", 10, user_states, None)
+    state = await _get_state("user1", "query1", 10, user_states, None)
     assert state is not None
     assert state.execution.query == "query1"
 
@@ -190,7 +190,7 @@ async def test_error_propagation_contract():
 
     # Verify exception propagation
     with pytest.raises(Exception) as exc_info:
-        await agent.run("test error handling")
+        await agent.run_async("test error handling")
 
     assert "Deliberate LLM failure" in str(exc_info.value)
 
@@ -209,8 +209,8 @@ async def test_concurrent_agent_isolation():
     agent2 = Agent("agent2", llm=llm2, tools=[], notify=False, mode="fast")
 
     # Run concurrently with simple queries
-    task1 = asyncio.create_task(agent1.run("Simple query 1"))
-    task2 = asyncio.create_task(agent2.run("Simple query 2"))
+    task1 = asyncio.create_task(agent1.run_async("Simple query 1"))
+    task2 = asyncio.create_task(agent2.run_async("Simple query 2"))
 
     result1, result2 = await asyncio.gather(task1, task2)
 

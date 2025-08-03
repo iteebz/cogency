@@ -7,7 +7,8 @@ import pytest
 
 from cogency import Agent
 from cogency.config import PersistConfig
-from cogency.persist import Filesystem, StatePersistence
+from cogency.persist import Filesystem
+from cogency.persist.state import StatePersistence
 from cogency.state import AgentState
 
 
@@ -44,15 +45,15 @@ async def test_agent_setup():
 async def test_get_state():
     """Test the get_state utility function directly."""
 
-    from cogency.persist.utils import get_state
+    from cogency.persist.utils import _get_state
 
     user_states = {}
 
     # Test creating new state
-    state = await get_state(
+    state = await _get_state(
         user_id="test_user",
         query="test query",
-        depth=10,
+        max_iterations=10,
         user_states=user_states,
         persistence=None,
     )
@@ -63,10 +64,10 @@ async def test_get_state():
     assert "test_user" in user_states
 
     # Test getting existing state
-    state2 = await get_state(
+    state2 = await _get_state(
         user_id="test_user",
         query="new query",
-        depth=10,
+        max_iterations=10,
         user_states=user_states,
         persistence=None,
     )

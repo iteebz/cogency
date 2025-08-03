@@ -8,15 +8,15 @@ from cogency.utils.parsing import (
     _clean_json,
     _extract_json,
     _extract_json_stream,
-    _extract_with_patterns,
-    parse_json,
-    parse_tool_calls,
+    _extract_patterns,
+    _parse_json,
+    _parse_tool_calls,
 )
 
 
 def test_json():
     # Basic JSON
-    parse_result = parse_json('{"action": "respond", "message": "Hello"}')
+    parse_result = _parse_json('{"action": "respond", "message": "Hello"}')
     assert parse_result.success
     assert parse_result.data == {"action": "respond", "message": "Hello"}
 
@@ -24,23 +24,23 @@ def test_json():
     markdown_json = """```json
     {"action": "use_tools", "reasoning": "Need to search"}
     ```"""
-    parse_result = parse_json(markdown_json)
+    parse_result = _parse_json(markdown_json)
     assert parse_result.success
     assert parse_result.data == {"action": "use_tools", "reasoning": "Need to search"}
 
     # Malformed JSON without fallback
-    parse_result = parse_json("invalid json")
+    parse_result = _parse_json("invalid json")
     assert not parse_result.success
     assert parse_result.data is None
     assert parse_result.error is not None
 
     # JSON embedded in text
-    parse_result = parse_json('Here is the JSON: {"action": "respond"} and extra text')
+    parse_result = _parse_json('Here is the JSON: {"action": "respond"} and extra text')
     assert parse_result.success
     assert parse_result.data == {"action": "respond"}
 
     # Invalid JSON without fallback
-    parse_result = parse_json("invalid json")
+    parse_result = _parse_json("invalid json")
     assert not parse_result.success
     assert parse_result.data is None
     assert parse_result.error is not None
@@ -78,16 +78,16 @@ def test_calls():
             {"name": "calculate", "args": {"expression": "2+2"}},
         ]
     }
-    result = parse_tool_calls(json_data)
+    result = _parse_tool_calls(json_data)
     assert len(result) == 2
     assert result[0]["name"] == "search"
 
     # No tool_calls key
-    result = parse_tool_calls({"action": "respond", "message": "Hello"})
+    result = _parse_tool_calls({"action": "respond", "message": "Hello"})
     assert result is None
 
     # Tool calls exist regardless of action - parser extracts them
-    result = parse_tool_calls({"action": "respond", "tool_calls": [{"name": "test"}]})
+    result = _parse_tool_calls({"action": "respond", "tool_calls": [{"name": "test"}]})
     assert result == [{"name": "test"}]
 
 
@@ -98,14 +98,14 @@ async def test_llm():
     llm_response = """```json
     {"action": "use_tools", "tool_calls": [{"name": "search", "args": {"query": "test"}}]}
     ```"""
-    parse_result = parse_json(llm_response)
+    parse_result = _parse_json(llm_response)
     assert parse_result.success
     assert parse_result.data["action"] == "use_tools"
     assert len(parse_result.data["tool_calls"]) == 1
 
     # Test mixed content
     mixed_response = 'Here\'s my analysis: {"conclusion": "success"} and some extra text'
-    parse_result = parse_json(mixed_response)
+    parse_result = _parse_json(mixed_response)
     assert parse_result.success
     assert parse_result.data["conclusion"] == "success"
 
@@ -125,18 +125,18 @@ def test_multi():
 def test_patterns():
     # Pattern 1: JSON with explanation text
     response1 = 'Here is my response: {"thinking": "analysis", "tool_calls": []}'
-    extracted = _extract_with_patterns(response1)
+    extracted = _extract_patterns(response1)
     assert extracted == '{"thinking": "analysis", "tool_calls": []}'
 
     # Pattern 2: JSON with trailing text
     response2 = '{"thinking": "plan", "tool_calls": []} and some extra explanation'
-    extracted = _extract_with_patterns(response2)
+    extracted = _extract_patterns(response2)
     assert extracted == '{"thinking": "plan", "tool_calls": []}'
 
     # Pattern 3: No valid JSON structure
     response3 = "Just text with no JSON structure"
-    extracted = _extract_with_patterns(response3)
+    extracted = _extract_patterns(response3)
     assert extracted is None
 
 
-# Note: parse_json_with_correction was removed in favor of simpler fallback patterns
+# Note: _parse_json_with_correction was removed in favor of simpler fallback patterns

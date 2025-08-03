@@ -6,7 +6,7 @@ import numpy as np
 from mistralai import Mistral
 from resilient_result import Err, Ok, Result
 
-from cogency.utils import KeyManager
+from cogency.utils.keys import KeyManager
 
 from .base import Embed
 

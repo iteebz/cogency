@@ -1,8 +1,27 @@
-"""State persistence - Zero ceremony agent state management."""
+"""State persistence for agent continuity.
 
-from .state import StatePersistence
-from .store import Store, get_store, setup_persistence
+This module provides zero-ceremony state persistence for agents:
+
+- Store: Base class for custom persistence backends
+- Filesystem: Built-in filesystem-based persistence store
+
+Internal functions handle state management but are not exposed in the public API.
+Persistence is typically configured via PersistConfig in Agent setup.
+"""
+
+from .store import Store
 from .store.filesystem import Filesystem
-from .utils import get_state
 
-__all__ = ["Store", "get_store", "StatePersistence", "get_state", "setup_persistence", "Filesystem"]
+# Internal functions not exported:
+# from .state import StatePersistence
+# from .store import _store, _setup_persist
+# from .utils import _get_state
+
+__all__ = [
+    # Public persistence APIs (advanced usage)
+    "Store",  # Base class for custom stores
+    "Filesystem",  # Built-in filesystem store
+    # Internal APIs not exported:
+    # - _store, _setup_persist, _get_state (framework internals)
+    # - StatePersistence (implementation detail)
+]

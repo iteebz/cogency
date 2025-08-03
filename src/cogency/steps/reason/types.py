@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from cogency.utils import normalize_reasoning
+from cogency.utils.parsing import _normalize_reasoning
 
 
 @dataclass
@@ -27,7 +27,7 @@ class Reasoning:
             data = {}
 
         reasoning_val = data.get("reasoning")
-        normalized_reasoning = normalize_reasoning(reasoning_val)
+        normalized_reasoning = _normalize_reasoning(reasoning_val)
 
         # Tool calls are now raw dictionaries
         tool_calls = data.get("tool_calls", [])

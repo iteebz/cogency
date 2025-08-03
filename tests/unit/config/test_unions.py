@@ -63,12 +63,12 @@ def test_observe_bool_false():
 
 def test_observe_config_object():
     """Test observe=ObserveConfig() uses custom settings."""
-    config = ObserveConfig(metrics=True, export_format="json", phases=["reason"])
+    config = ObserveConfig(metrics=True, export_format="json", steps=["reason"])
     agent = Agent("test", observe=config)
     assert agent._config.observe == config
     assert agent._config.observe.metrics is True
     assert agent._config.observe.export_format == "json"
-    assert agent._config.observe.phases == ["reason"]
+    assert agent._config.observe.steps == ["reason"]
 
 
 def test_multiple_union_patterns():
@@ -83,7 +83,7 @@ def test_multiple_union_patterns():
     assert agent._config.observe is True
 
 
-def test_validation_prevents_conflicts():
+def test_prevents_conflicts():
     """Test validation catches conflicting configurations."""
     # These tests would need the flat parameter approach to work
     # Since we use Union pattern, these conflicts shouldn't be possible

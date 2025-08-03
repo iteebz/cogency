@@ -1,4 +1,4 @@
-"""Provider - Unified service/store management with singleton pattern."""
+"""Generic registry pattern for service management with singleton pattern."""
 
 from typing import Callable, Dict, Optional, Type, TypeVar, Union
 
@@ -55,6 +55,10 @@ class Provider:
                 provider = self.default
             else:
                 raise ValueError("No provider specified and no default/detection available")
+
+        if provider not in self.providers:
+            available = ", ".join(self.providers.keys())
+            raise ValueError(f"Provider '{provider}' not found. Available: {available}")
 
         cache_key = f"{provider}:{hash(frozenset(kwargs.items()))}"
 

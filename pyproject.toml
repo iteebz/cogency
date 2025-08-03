@@ -36,16 +36,18 @@ python-dotenv = ">=1.0.0"
 resilient-result = "0.3.1"
 trafilatura = ">=2.0.0,<3.0.0"
 aiohttp = ">=3.12.15,<4.0.0"
+httpx = ">=0.25.0"
 ddgs = ">=3.8.0"
 psutil = ">=5.9.0"
-
 tiktoken = ">=0.8.0,<1.0.0"
 
-# Optional providers only
+# Default LLM provider (zero ceremony)
+openai = ">=1.59.0,<2.0.0"
+
+# Optional providers
 
 # LLM providers
 google-genai = { version = ">=1.26.0,<2.0.0", optional = true }
-openai = { version = ">=1.59.0,<2.0.0", optional = true }
 anthropic = { version = ">=0.42.0,<1.0.0", optional = true }
 mistralai = { version = ">=1.3.0,<2.0.0", optional = true }
 
@@ -55,36 +57,26 @@ sentence-transformers = { version = ">=5.0.0,<6.0.0", optional = true }
 
 
 [tool.poetry.extras]
-# LLM providers
+# LLM providers (openai included in core)
 gemini = ["google-genai"]
-openai = ["openai"]
 anthropic = ["anthropic"]
 mistral = ["mistralai"]
-ollama = ["openai"]
 
 # Embedding providers
 nomic = ["nomic"]
 sentence = ["sentence-transformers"]
 
 # Everything
-all = ["google-genai", "openai", "anthropic", "mistralai", "nomic", "sentence-transformers"]
+all = ["google-genai", "anthropic", "mistralai", "nomic", "sentence-transformers"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^25.1.0"
+ruff = "^0.8.0"
 pytest = "^8.4.1"
 pytest-asyncio = "^0.21.0"
 pytest-timeout = "^2.4.0"
 jsonschema = "^4.19.0"
 pytest-xdist = "^3.3.1"  # For parallel test execution
 
-
-[tool.black]
-line-length = 100
-target-version = ['py39']
-
-[tool.isort]
-profile = "black"
-line_length = 88
 
 
 [tool.ruff]
@@ -93,6 +85,10 @@ target-version = "py39"
 exclude = [
     "evonotes",
 ]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
 
 [tool.ruff.lint]
 select = [

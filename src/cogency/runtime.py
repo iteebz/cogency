@@ -3,209 +3,224 @@
 import asyncio
 from typing import Any, AsyncIterator, Optional
 
-from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig, setup_config
-from cogency.config.dataclasses import AgentConfig
+from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig
+from cogency.config.dataclasses import AgentConfig, _setup_config
 from cogency.memory import ImpressionSynthesizer
-from cogency.notify import Notifier, setup_formatter
-from cogency.persist import get_state
-from cogency.providers import setup_embed, setup_llm
-from cogency.state import AgentState
-from cogency.steps import setup_steps
-from cogency.tools import setup_tools
-from cogency.utils import validate_query
-
-
-class _ServiceRegistry:
-    """Clean dependency injection - no global state."""
-
-    def __init__(self):
-        self.llm = None
-        self.embed = None
-        self.tools = None
-        self.memory = None
-        self.notifier = None
-        self.config = None
-        self.persistence = None
+from cogency.notify import Notifier, _setup_formatter
+from cogency.persist.utils import _get_state
+from cogency.providers.setup import _setup_embed, _setup_llm
+from cogency.state import AgentMode, AgentState
+from cogency.steps.composition import _setup_steps
+from cogency.tools.registry import _setup_tools
+from cogency.utils.validation import validate_query
 
 
 class AgentExecutor:
-    """Handles all agent complexity - service setup, dependency injection, execution."""
+    """Handles all agent complexity - explicit dependency injection, execution."""
 
-    def __init__(self, name: str, registry: Any):
+    def __init__(
+        self,
+        name: str,
+        llm,
+        embed,
+        tools,
+        memory,
+        notifier,
+        config,
+        persistence,
+        mode: AgentMode = AgentMode.ADAPT,
+        max_iterations: int = 10,
+        notify: bool = True,
+        debug: bool = False,
+        identity: str = "",
+        output_schema=None,
+        on_notify=None,
+    ):
         self.name = name
-        self._registry = registry
         self.user_states: dict[str, AgentState] = {}
         self.last_state: Optional[dict] = None
 
-        # Extract config properties
-        self.mode = "adapt"
-        self.depth = 10
-        self.notify = True
-        self.debug = False
-        self.identity = ""
-        self.output_schema = None
-        self.on_notify = None
+        # Config properties
+        self.mode = mode
+        self.max_iterations = max_iterations
+        self.notify = notify
+        self.debug = debug
+        self.identity = identity
+        self.output_schema = output_schema
+        self.on_notify = on_notify
 
-        # Setup dependencies
-        self.llm = registry.llm
-        self.embed = registry.embed
-        self.tools = registry.tools
-        self.memory = registry.memory
-        self.notifier = registry.notifier
-        self.config = registry.config
-        self.persistence = registry.persistence
+        # Dependencies
+        self.llm = llm
+        self.embed = embed
+        self.tools = tools
+        self.memory = memory
+        self.notifier = notifier
+        self.config = config
+        self.persistence = persistence
 
-        # Setup phases
-        self.phases = setup_steps(
+        self.steps = _setup_steps(
             self.llm, self.tools, self.memory, self.identity, self.output_schema, self.config
         )
+
+    @property
+    def depth(self) -> int:
+        """Alias for max_iterations (backwards compatibility)."""
+        return self.max_iterations
 
     @classmethod
     async def create(cls, name: str) -> "AgentExecutor":
         """Create executor with default configuration."""
-        registry = _ServiceRegistry()
-
         # Setup services (default: no notifications for basic create)
-        formatter = setup_formatter(notify=False)
-        registry.notifier = Notifier(formatter)
-        registry.llm = setup_llm(None, notifier=registry.notifier)
-        registry.embed = setup_embed(None)
-        registry.tools = setup_tools([], None)
+        formatter = _setup_formatter(notify=False)
+        notifier = Notifier(formatter)
+        llm = _setup_llm(None, notifier=notifier)
+        embed = _setup_embed(None)
+        tools = _setup_tools([], None)
 
         # Setup config
-        registry.config = AgentConfig()
-        registry.config.robust = setup_config(RobustConfig, False)
-        registry.config.observe = setup_config(ObserveConfig, False)
-        registry.config.persist = setup_config(PersistConfig, False)
-        registry.config.memory = setup_config(MemoryConfig, False)
+        config = AgentConfig()
+        config.robust = _setup_config(RobustConfig, False)
+        config.observe = _setup_config(ObserveConfig, False)
+        config.persist = _setup_config(PersistConfig, False)
+        config.memory = _setup_config(MemoryConfig, False)
 
-        registry.memory = None
-        registry.persistence = None
+        memory = None
+        persistence = None
 
-        return cls(name, registry)
+        return cls(
+            name=name,
+            llm=llm,
+            embed=embed,
+            tools=tools,
+            memory=memory,
+            notifier=notifier,
+            config=config,
+            persistence=persistence,
+        )
 
     @classmethod
     async def configure(cls, config) -> "AgentExecutor":
         """Create executor from builder config."""
-        from cogency.persist import setup_persistence
-
-        # Create registry with dependencies
-        registry = _ServiceRegistry()
+        from cogency.persist.store.base import _setup_persist
 
         # Setup configs first so they're available for provider setup
-        persist_config = setup_config(
+        persist_config = _setup_config(
             PersistConfig,
             config.persist,
             store=(
                 getattr(config.persist, "store", None) if hasattr(config.persist, "store") else None
             ),
         )
-        memory_config = setup_config(MemoryConfig, config.memory)
-        robust_config = setup_config(RobustConfig, config.robust)
+        memory_config = _setup_config(MemoryConfig, config.memory)
+        robust_config = _setup_config(RobustConfig, config.robust)
 
-        registry.config = AgentConfig()
-        registry.config.robust = robust_config
-        registry.config.observe = setup_config(ObserveConfig, config.observe)
-        registry.config.persist = persist_config
-        registry.config.memory = memory_config
+        agent_config = AgentConfig()
+        agent_config.robust = robust_config
+        agent_config.observe = _setup_config(ObserveConfig, config.observe)
+        agent_config.persist = persist_config
+        agent_config.memory = memory_config
 
         # Unified notification system: auto-enable unless explicitly disabled
         if config.notify is False:
             # Silent mode
-            formatter = setup_formatter(notify=False)
-            registry.notifier = Notifier(formatter)
+            formatter = _setup_formatter(notify=False)
+            notifier = Notifier(formatter)
         elif config.on_notify:
             # Custom callback mode
-            formatter = setup_formatter(notify=True, debug=config.debug)
-            registry.notifier = Notifier(formatter, config.on_notify)
+            formatter = _setup_formatter(notify=True, debug=config.debug)
+            notifier = Notifier(formatter, config.on_notify)
         else:
             # Default mode: beautiful notifications to stdout
-            formatter = setup_formatter(notify=True, debug=config.debug)
+            formatter = _setup_formatter(notify=True, debug=config.debug)
 
             def default_callback(notification):
                 output = formatter.format(notification)
                 if output:
                     print(output)
 
-            registry.notifier = Notifier(formatter, default_callback)
-        registry.llm = setup_llm(config.llm, notifier=registry.notifier)
-        registry.embed = setup_embed(config.embed)
-        registry.tools = setup_tools(config.tools or [], None)
+            notifier = Notifier(formatter, default_callback)
 
-        # Setup memory
+        llm = _setup_llm(config.llm, notifier=notifier)
+        embed = _setup_embed(config.embed)
+        tools = _setup_tools(config.tools or [], None)
+
         if memory_config:
             store = memory_config.store or (persist_config.store if persist_config else None)
-            registry.memory = ImpressionSynthesizer(registry.llm, store=store)
-            registry.memory.synthesis_threshold = memory_config.synthesis_threshold
+            memory = ImpressionSynthesizer(llm, store=store)
+            memory.synthesis_threshold = memory_config.synthesis_threshold
         else:
-            registry.memory = None
+            memory = None
 
-        registry.persistence = setup_persistence(persist_config)
+        persistence = _setup_persist(persist_config)
 
-        # Create executor
-        executor = cls(config.name, registry)
-        executor.mode = config.mode
-        executor.depth = config.depth
-        executor.notify = config.notify
-        executor.debug = config.debug
-        executor.identity = config.identity or ""
-        executor.output_schema = config.output_schema
-        executor.on_notify = config.on_notify
-
-        # Re-setup phases with updated config
-        executor.phases = setup_steps(
-            registry.llm,
-            registry.tools,
-            registry.memory,
-            executor.identity,
-            executor.output_schema,
-            registry.config,
+        # Create executor with explicit dependencies
+        return cls(
+            name=config.name,
+            llm=llm,
+            embed=embed,
+            tools=tools,
+            memory=memory,
+            notifier=notifier,
+            config=agent_config,
+            persistence=persistence,
+            mode=config.mode,
+            max_iterations=config.max_iterations,
+            notify=config.notify,
+            debug=config.debug,
+            identity=config.identity or "",
+            output_schema=config.output_schema,
+            on_notify=config.on_notify,
         )
-
-        return executor
 
     def _setup_notifier(self, callback=None):
         """Setup notification system."""
         final_callback = callback or self.on_notify
-        formatter = setup_formatter(notify=bool(final_callback), debug=self.debug)
+        formatter = _setup_formatter(notify=bool(final_callback), debug=self.debug)
         return Notifier(formatter, final_callback)
+
+    async def _setup_execution_state(self, query: str, user_id: str = "default") -> AgentState:
+        """Common setup logic for both run() and stream() methods."""
+        # Input validation
+        error = validate_query(query)
+        if error:
+            raise ValueError(error)
+
+        # Get or create state
+        state = await _get_state(
+            user_id,
+            query,
+            self.max_iterations,
+            self.user_states,
+            self.config.persist,
+        )
+
+        state.execution.add_message("user", query)
+
+        # Memory operations
+        if self.memory:
+            await self.memory.load()
+            await self.memory.remember(query, human=True)
+
+        # Set agent mode
+        state.execution.mode = self.mode
+
+        return state
 
     async def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
         """Execute agent and return complete response."""
         try:
-            # Input validation
-            error = validate_query(query)
-            if error:
-                return error
-
-            # Get or create state
-            state = await get_state(
-                user_id,
-                query,
-                self.depth,
-                self.user_states,
-                self.config.persist,
-            )
-
-            state.execution.add_message("user", query)
-
-            # Memory operations
-            if self.memory:
-                await self.memory.load()
-                await self.memory.remember(query, human=True)
-
-            # Set agent mode
-            state.execution.mode = self.mode
+            # Setup execution state
+            state = await self._setup_execution_state(query, user_id)
 
             # Setup phases with runtime identity (if provided)
             if identity:
-                phases = setup_steps(
+                steps = _setup_steps(
                     self.llm, self.tools, self.memory, identity, self.output_schema, self.config
                 )
             else:
-                phases = self.phases
+                steps = self.steps
 
-            # Execute phases
+            # Execute steps
             from cogency.steps.execution import execute_agent
 
             notifier = self._setup_notifier()
@@ -214,10 +229,10 @@ class AgentExecutor:
 
             await execute_agent(
                 state,
-                phases["prepare"],
-                phases["reason"],
-                phases["act"],
-                phases["respond"],
+                steps["prepare"],
+                steps["reason"],
+                steps["act"],
+                steps["respond"],
                 notifier,
             )
             self.last_state = state
@@ -237,6 +252,9 @@ class AgentExecutor:
 
             return response or "No response generated"
 
+        except ValueError as e:
+            # Handle validation errors from _setup_execution_state
+            return str(e)
         except Exception as e:
             import traceback
 
@@ -247,27 +265,12 @@ class AgentExecutor:
 
     async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
         """Stream agent execution."""
-        # Input validation
-        error = validate_query(query)
-        if error:
-            yield f"{error}\n"
+        try:
+            # Setup execution state
+            state = await self._setup_execution_state(query, user_id)
+        except ValueError as e:
+            yield f"{str(e)}\n"
             return
-
-        # Get or create state
-        state = await get_state(
-            user_id,
-            query,
-            self.depth,
-            self.user_states,
-            self.config.persist,
-        )
-
-        state.execution.add_message("user", query)
-
-        # Memory operations
-        if self.memory:
-            await self.memory.load()
-            await self.memory.remember(query, human=True)
 
         # Setup streaming
         queue: asyncio.Queue[str] = asyncio.Queue()
@@ -296,10 +299,10 @@ class AgentExecutor:
         task = asyncio.create_task(
             execute_agent(
                 state,
-                self.phases["prepare"],
-                self.phases["reason"],
-                self.phases["act"],
-                self.phases["respond"],
+                self.steps["prepare"],
+                self.steps["reason"],
+                self.steps["act"],
+                self.steps["respond"],
                 notifier,
             )
         )

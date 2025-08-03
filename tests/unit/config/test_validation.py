@@ -82,7 +82,7 @@ async def test_tool_response_schema_validation(validation_schemas, mock_tool):
     # Construct tool call data
     tool_call_data = {
         "tool_name": tool.name,
-        "parameters": {"arg": "test_value"},
+        "args": {"arg": "test_value"},
         "result": result.data if result.success else result.error,
     }
 

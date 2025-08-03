@@ -51,7 +51,7 @@ async def test_load_profile_new_user(synthesizer, mock_store):
 
 
 @pytest.mark.asyncio
-async def test_load_profile_existing_user(synthesizer, mock_store):
+async def test_load_existing(synthesizer, mock_store):
     """Test loading existing user profile."""
     existing_data = {
         "state": {
@@ -92,7 +92,7 @@ async def test_save_profile(synthesizer, mock_store):
 
 
 @pytest.mark.asyncio
-async def test_extract_insights_success(synthesizer, mock_llm):
+async def test_extract_success(synthesizer, mock_llm):
     """Test extracting insights from interaction."""
     mock_result = Mock()
     mock_result.success = True
@@ -105,7 +105,7 @@ async def test_extract_insights_success(synthesizer, mock_llm):
 
     interaction_data = {"query": "test query", "response": "test response", "success": True}
 
-    from cogency.memory import extract_insights
+    from cogency.memory.insights import extract_insights
 
     insights = await extract_insights(mock_llm, interaction_data)
 
@@ -115,7 +115,7 @@ async def test_extract_insights_success(synthesizer, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_extract_insights_failure(synthesizer, mock_llm):
+async def test_extract_failure(synthesizer, mock_llm):
     """Test handling LLM failure in insight extraction."""
     mock_result = Mock()
     mock_result.success = False
@@ -127,7 +127,7 @@ async def test_extract_insights_failure(synthesizer, mock_llm):
 
     interaction_data = {"query": "test", "response": "test", "success": True}
 
-    from cogency.memory import extract_insights
+    from cogency.memory.insights import extract_insights
 
     insights = await extract_insights(mock_llm, interaction_data)
 
@@ -158,7 +158,7 @@ async def test_synthesize_profile(synthesizer, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_update_impression_no_synthesis(synthesizer, mock_llm, mock_store):
+async def test_update_no_synthesis(synthesizer, mock_llm, mock_store):
     """Test updating impression without synthesis threshold."""
     # Mock profile loading
     mock_store.load.return_value = None
@@ -185,7 +185,7 @@ async def test_update_impression_no_synthesis(synthesizer, mock_llm, mock_store)
 
 
 @pytest.mark.asyncio
-async def test_update_impression_with_synthesis(synthesizer, mock_llm, mock_store):
+async def test_update_with_synthesis(synthesizer, mock_llm, mock_store):
     """Test updating impression with synthesis."""
     # Mock existing profile at synthesis threshold
     existing_data = {

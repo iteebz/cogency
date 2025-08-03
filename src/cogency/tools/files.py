@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FilesArgs:
     action: str
-    path: str = ""  # Default to empty for list action
+    path = ""
     content: Optional[str] = None
     line: Optional[int] = None
     start: Optional[int] = None
@@ -37,7 +37,7 @@ class Files(Tool):
             description="Create, read, edit and manage complete code files with full implementations.",
             schema="files(action: str, path: str = '', content: str = None, line: int = None, start: int = None, end: int = None)",
             emoji="📁",
-            params=FilesArgs,
+            args=FilesArgs,
             examples=[
                 "files(action='create', path='app.py', content='from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\"/\")\\nasync def root():\\n    return {\"message\": \"Hello World\"}')",
                 "files(action='create', path='models.py', content='from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None')",
@@ -58,7 +58,7 @@ class Files(Tool):
             ],
         )
         # Use base class formatting with templates
-        self.param_key = "path"
+        self.arg_key = "path"
         self.human_template = "{result}"
         self.agent_template = "{action} {path}"
 
@@ -80,8 +80,8 @@ class Files(Tool):
     async def run(
         self,
         action: str,
-        path: str = "",
-        content: str = "",
+        path="",
+        content="",
         line: int = None,
         start: int = None,
         end: int = None,
@@ -91,12 +91,16 @@ class Files(Tool):
             if action == "create":
                 path = self._safe_path(path)
                 if path.exists():
-                    return Result.fail(
-                        f"File already exists: {path}. Read it first with files(action='read', path='{path}') before creating."
-                    )
+                    return Result.fail(f"File already exists: {path}")
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
-                return Result.ok({"result": f"Created file: {path}", "size": len(content)})
+                return Result.ok(
+                    {
+                        "result": f"Created file: {path.relative_to(self.base_dir)}",
+                        "full_path": str(path),
+                        "size": len(content),
+                    }
+                )
 
             elif action == "read":
                 path = self._safe_path(path)
@@ -175,4 +179,4 @@ class Files(Tool):
 
         except Exception as e:
             logger.error(f"File operation failed: {e}")
-            return Result.fail(str(e))
+            return Result.fail(f"File operation failed: {str(e)}")

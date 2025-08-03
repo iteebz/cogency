@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from resilient_result import unwrap
 
 from cogency.providers import LLM
-from cogency.utils import is_simple_query, parse_json
+from cogency.utils.heuristics import is_simple_query
+from cogency.utils.parsing import _parse_json
 
 
 @dataclass
@@ -47,7 +48,7 @@ CLASSIFICATION CRITERIA:
 
         result = await self.llm.run([{"role": "user", "content": prompt}])
         response = unwrap(result)
-        parsed = unwrap(parse_json(response))
+        parsed = unwrap(_parse_json(response))
 
         return ClassificationResult(
             mode=parsed.get("mode", "fast"), reasoning=parsed.get("reasoning", "")

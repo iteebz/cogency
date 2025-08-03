@@ -55,7 +55,7 @@ def test_opentelemetry_export(metrics):
     assert "cogency.response_time" in metric_names
 
 
-def test_opentelemetry_json_export(metrics):
+def test_json_export(metrics):
     exporter = OpenTelemetry(metrics)
     json_output = exporter.export_json()
 
@@ -64,7 +64,7 @@ def test_opentelemetry_json_export(metrics):
     assert "resourceMetrics" in parsed
 
 
-def test_prometheus_label_formatting():
+def test_label_formatting():
     metrics = Metrics()
     metrics.counter("test", 1.0, {"key1": "val1", "key2": "val2"})
 

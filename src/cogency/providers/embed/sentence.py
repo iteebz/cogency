@@ -6,7 +6,7 @@ from resilient_result import Err, Ok, Result
 from .base import Embed
 
 
-class Sentence(Embed):
+class SentenceEmbed(Embed):
     """Sentence Transformers embedding provider - local, no API keys needed."""
 
     def __init__(self, model: str = "all-MiniLM-L6-v2", **kwargs):
@@ -23,8 +23,7 @@ class Sentence(Embed):
             self._model_instance = SentenceTransformer(self._model)
         except ImportError:
             raise ImportError(
-                "Sentence Transformers support not installed. "
-                "Use `pip install cogency[sentence]`"
+                "Sentence Transformers support not installed. Use `pip install cogency[sentence]`"
             ) from None
 
     def embed(self, text: str | list[str], **kwargs) -> Result:

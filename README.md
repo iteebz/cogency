@@ -4,64 +4,84 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-**Smart AI agents that think as hard as they need to.**
+**A reasoning engine for adaptive AI agents.**
 
-> 🎆 **v1.0.0 Release** - Production ready with canonical 5-tool architecture. Clean, minimal, complete.
+> 🎯 **v1.0.0** - Production ready
 
 ```python
 from cogency import Agent
 agent = Agent("assistant")
 
-# Simple task → thinks fast
+# Simple task → direct response
 await agent.run("What's 2+2?")
 
-# Complex task → thinks deep
+# Complex task → adaptive reasoning
 await agent.run("Analyze this codebase and suggest architectural improvements")
-# Automatically escalates reasoning, uses relevant tools, streams thinking
+# Automatically escalates reasoning depth and tool usage
 ```
 
-## 🧠 Adaptive Reasoning
+## Core Concept
 
-**Thinks fast or deep as needed** - agents discover task complexity during execution and adapt their cognitive approach automatically.
+**Adaptive reasoning** - agents discover task complexity during execution and adjust their cognitive approach automatically.
 
-- **Fast React**: Direct execution for simple queries
-- **Deep React**: Reflection + planning for complex analysis
-- **Zero-cost switching**: Seamless transitions preserve full context
-- **Runtime discovery**: No upfront classification - intelligence governs intelligence
+- **Prepare**: Context evaluation and tool selection
+- **Reason**: Depth-adaptive thinking (fast react → deep reflection)
+- **Act**: Tool execution with automatic retry and recovery
+- **Respond**: Identity-aware response formatting
 
-## 🚀 Key Features
+**Zero-cost switching** - seamless transitions preserve full context.
 
-- **🤖 Agents in 3 lines** - Fully functional, tool-using agents from a single import
-- **🔥 Adaptive reasoning** - Thinks fast or deep as needed, switches seamlessly during execution
-- **🌊 Streaming first** - Watch agents think in real-time with full transparency
-- **🛠️ Automatic tool discovery** - Drop tools in, they auto-register and route intelligently
-- **⚡️ Zero configuration** - Auto-detects LLMs, tools, memory from environment (fast models by default)
-- **🧠 Built-in memory** - Persistent memory with extensible backends (Pinecone, ChromaDB, PGVector)
-- **✨ Clean tracing** - Every reasoning step traced and streamed with clear phase indicators
-- **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Grok, Mistral out of the box
-- **🧩 Extensible design** - Add tools, memory backends, embedders with zero friction
-- **👥 Multi-tenancy** - Built-in user contexts and conversation isolation
-- **🏗️ Production hardened** - Resilience, rate limiting, metrics, tracing included
+## Key Features
+
+- **👌 Simple interface** - Fully functional agents from a single import
+- **🔥 Adaptive reasoning** - Thinks fast or deep as needed
+- **🛠️ Automatic tool discovery** - Tools auto-register and route intelligently
+- **🧠 Built-in memory** - Persistent context with LLM-based synthesis
+- **⚡️ Auto-configuration** - Detects LLMs and tools from environment
+- **🌊 Streaming execution** - Watch agents think in real-time
+- **✨ Clean tracing** - Every step traced with clear phase indicators
+- **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Mistral
+- **🏗️ Built-in resilience** - Automatic retry and error recovery
 
 ## How It Works
 
-**Prepare → Reason → Act → Respond**
+**prepare → reason → act → respond**
 
 ```
 👤 Build a REST API for my blog
 
-🔧 Tools: files, shell, search
-🧠 Task complexity → escalating to Deep React
-🔍 search(query='FastAPI best practices') → 5 results
-📖 scrape(url='fastapi.tiangolo.com/tutorial') → FastAPI Tutorial
+🔧 prepare: Selecting tools → files, shell
+🧠 reason: Complex task → escalating to deep mode
 📁 files(action='create', path='main.py') → API structure created
 💻 shell(command='pip install fastapi uvicorn') → Dependencies installed
-💭 Reflection: Need database integration and error handling
-📋 Planning: Add SQLite, validation, and tests
+🧠 reason: Reflection → Need database integration and tests
+📋 reason: Planning → Add SQLite, validation, and tests
 🤖 Here's your complete FastAPI blog API...
 ```
 
-The preparing phase handles tool selection, memory operations, and intelligent routing between reasoning modes.
+## Installation
+
+```bash
+pip install cogency
+```
+
+Set any LLM API key:
+
+```bash
+export OPENAI_API_KEY=...     # or
+export ANTHROPIC_API_KEY=...  # or
+export GEMINI_API_KEY=...     # etc
+```
+
+## Built-in Tools
+
+Agents automatically use relevant tools:
+
+📁 **Files** - Create, read, edit, list files and directories  
+💻 **Shell** - Execute system commands with timeout protection  
+🌐 **HTTP** - API calls and web requests  
+📖 **Scrape** - Intelligent web content extraction  
+🔍 **Search** - Web search via DuckDuckGo  
 
 ## Quick Examples
 
@@ -75,56 +95,42 @@ class MyTool(Tool):
     def __init__(self):
         super().__init__("my_tool", "Does something useful")
 
-    async def run(self, param: str):
-        return {"result": f"Processed: {param}"}
+    async def run(self, args: str):
+        return {"result": f"Processed: {args}"}
 
-# Tool auto-registers - just create agent
+# Tool auto-registers
 agent = Agent("assistant")
 await agent.run("Use my_tool with hello")
 ```
 
-**Real-World Applications**
+**Memory**
 
 ```python
-# Research Agent
-agent = Agent("researcher", tools=["search", "scrape"])
-await agent.run("Latest quantum computing developments?")
+# Enable memory
+agent = Agent("assistant", memory=True)
 
-# Coding Assistant
-agent = Agent("coder", tools=["files", "shell"])
-await agent.run("Build a FastAPI service with database integration")
-
-# Data Analyst
-agent = Agent("analyst", tools=["files", "shell", "http"])
-await agent.run("Process this CSV and POST results to analytics API")
+# Agent remembers automatically
+await agent.run("I prefer Python and work at Google")
+await agent.run("What language should I use?")  # → "Python"
 ```
 
-## Canonical 5 Tools
+**Streaming**
 
-Agents automatically discover and use relevant tools:
-
-📁 **Files** - Create, read, edit, list files and directories  
-💻 **Shell** - Execute system commands safely with timeout protection  
-🌐 **HTTP** - Universal network primitive for API calls and web requests  
-📖 **Scrape** - Intelligent web content extraction with clean text output  
-🔍 **Search** - Web search for current information via DuckDuckGo  
-
-**Complete primitive coverage** - These 5 tools compose to handle any reasonable AI agent task. HTTP serves as the universal fallback when specialized abstractions don't exist.
-
-## Installation
-
-```bash
-pip install cogency
+```python
+async for chunk in agent.stream("Research quantum computing"):
+    print(chunk, end="", flush=True)
 ```
 
-**Beta Note**: Cross-provider testing is ongoing. OpenAI and Anthropic are well-tested; other providers may have edge cases.
+## Configuration
 
-Set any LLM API key:
-
-```bash
-export OPENAI_API_KEY=...     # or
-export ANTHROPIC_API_KEY=...  # or
-export GEMINI_API_KEY=...        # etc
+```python
+agent = Agent(
+    "assistant",
+    mode="deep", # Force deep reasoning
+    memory=True, # Enable memory
+    debug=True,  # Detailed tracing
+    max_iterations=20     # Max reasoning iterations
+)
 ```
 
 ## Documentation
@@ -133,23 +139,16 @@ export GEMINI_API_KEY=...        # etc
 - **[API Reference](docs/api.md)** - Complete Agent class documentation
 - **[Tools](docs/tools.md)** - Built-in tools and custom tool creation
 - **[Examples](docs/examples.md)** - Detailed code examples and walkthroughs
-- **[Memory](docs/memory.md)** - Memory backends and configuration
+- **[Memory](docs/memory.md)** - Memory system documentation
 - **[Reasoning](docs/reasoning.md)** - Adaptive reasoning modes
-- **[Configuration](docs/configuration.md)** - Advanced configuration options
-- **[Troubleshooting](docs/troubleshooting.md)** - Common issues and solutions
 
-## 📄 License
+## License
 
-Apache 2.0 - Build whatever you want.
+Apache 2.0
 
-## Beta Feedback
-
-We're actively gathering feedback from early adopters:
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/iteebz/cogency/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/iteebz/cogency/discussions)
-- **Known limitations**: Cross-provider behavior, memory backend edge cases
 
----
-
-_Built for developers who want agents that just work, not frameworks that require PhD-level configuration._
+*Built for developers who want agents that just work.*

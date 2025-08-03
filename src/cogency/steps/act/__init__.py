@@ -1,7 +1,6 @@
-"""Act node - pure tool execution."""
+"""Tool execution."""
 
 import logging
-import time
 from typing import List, Optional
 
 from cogency.state import AgentState
@@ -13,9 +12,7 @@ logger = logging.getLogger(__name__)
 
 
 async def act(state: AgentState, notifier, tools: List[Tool]) -> Optional[str]:
-    """Act: execute tools based on reasoning decision."""
-    time.time()
-
+    """Execute tools based on reasoning decision."""
     # Check if there are pending tool calls
     if not state.execution.pending_calls:
         return None
@@ -29,7 +26,8 @@ async def act(state: AgentState, notifier, tools: List[Tool]) -> Optional[str]:
         for call in tool_calls
     ]
 
-    # Let @safe.act() handle all tool execution errors, retries, and recovery
+    # Execute tools with error isolation - execute_tools handles all tool execution
+    # errors, retries, and recovery by wrapping results in Result objects
     tool_result = await execute_tools(tool_tuples, tools, state, notifier)
 
     # Store results using ExecutionState methods

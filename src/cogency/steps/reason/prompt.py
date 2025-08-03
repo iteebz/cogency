@@ -14,7 +14,7 @@ class Prompt:
         query: str,
         context_data: Dict[str, Any],
         iteration: int,
-        depth: int,
+        max_iterations: int,
         state: AgentState,
         identity: Optional[str] = None,
     ) -> str:
@@ -29,9 +29,9 @@ class Prompt:
 
         # Build mode-specific context
         if mode == "deep":
-            reasoning_steps = self._build_deep_steps(depth)
+            reasoning_steps = self._build_deep_steps(max_iterations)
             mode_context = self._build_deep_context(
-                iteration, depth, memory_context, workspace_context, reasoning_context
+                iteration, max_iterations, memory_context, workspace_context, reasoning_context
             )
         else:  # fast mode
             reasoning_steps = self._build_fast_steps()
@@ -41,21 +41,27 @@ class Prompt:
 
         # Build base prompt
         prompt = f"""
-{mode.upper()}: {"Structured reasoning" if mode == "deep" else "Direct execution"} for query: {query}
+{mode.upper()}: {"Structured reasoning" if mode == "deep" else "Direct execution"} for query: {
+            query
+        }
 
 CRITICAL: Output ONE JSON object for THIS ITERATION ONLY. Do not anticipate future steps.
 
 JSON Response Format:
 {{
   "thinking": "What am I trying to accomplish? What's my approach to this problem?",{
-        '"reflect": "What worked/failed in previous actions? What gaps remain?",'
-        if mode == "deep"
-        else ""
-    }{'"plan": "What specific tools to use next and expected outcomes?",' if mode == "deep" else ""}
+            '"reflect": "What worked/failed in previous actions? What gaps remain?",'
+            if mode == "deep"
+            else ""
+        }{
+            '"plan": "What specific tools to use next and expected outcomes?",'
+            if mode == "deep"
+            else ""
+        }
   "tool_calls": [
-    {{"name": "tool_a", "args": {{"param": "value"}}}},
-    {{"name": "tool_b", "args": {{"param": "value"}}}},
-    {{"name": "tool_c", "args": {{"param": "value"}}}}
+    {{"name": "tool_a", "args": {{"arg": "value"}}}},
+    {{"name": "tool_b", "args": {{"arg": "value"}}}},
+    {{"name": "tool_c", "args": {{"arg": "value"}}}}
   ],
   "response": "Only populate this when ready to respond to the user directly",
   "switch_to": null,
@@ -68,7 +74,9 @@ JSON Response Format:
   }}
 }}
 
-IMPORTANT: All {MAX_TOOL_CALLS} tool calls must be in ONE tool_calls array, not separate JSON objects.
+IMPORTANT: All {
+            MAX_TOOL_CALLS
+        } tool calls must be in ONE tool_calls array, not separate JSON objects.
 
 WORKSPACE UPDATE FIELDS:
 - objective: Clear problem statement - what are we trying to achieve?
@@ -96,7 +104,7 @@ TOOLS:
 
         return prompt
 
-    def _build_deep_steps(self, depth: int) -> str:
+    def _build_deep_steps(self, max_iterations: int) -> str:
         """Build deep reasoning phase instructions."""
         return f"""
 REASONING PHASES:
@@ -105,8 +113,8 @@ REASONING PHASES:
 🎯 EXECUTE: Run planned tools sequentially when they address different aspects
 
 RECOVERY ACTIONS:
-- Tool parameter errors → Check required vs optional parameters in schema
-- No results from tools → Try different parameters or alternative approaches
+- Tool argument errors → Check required vs optional args in schema
+- No results from tools → Try different args or alternative approaches
 - Information conflicts → Use additional tools to verify or synthesize  
 - Use the DETAILED action history to understand what actually happened, not just success/failure
 - Avoid repeating successful tool calls - check action history first
@@ -115,13 +123,13 @@ DOWNSHIFT to FAST if:
 - Simple datetime request using time tool
 - Direct search with obvious keywords
 - Single-step action with clear tool choice
-- Approaching depth limit ({depth} iterations) - prioritize direct execution
+- Approaching max_iterations limit ({max_iterations} iterations) - prioritize direct execution
 - Complex analysis not yielding progress after 2+ iterations
 
 Examples:
 switch_to: "fast", switch_why: "Query simplified to direct search"
 switch_to: "fast", switch_why: "Single tool execution sufficient"
-switch_to: "fast", switch_why: "Approaching depth limit, need direct action"
+switch_to: "fast", switch_why: "Approaching max_iterations limit, need direct action"
 """
 
     def _build_fast_steps(self) -> str:
@@ -151,7 +159,7 @@ switch_to: "deep", switch_why: "Multi-step calculation required"
     def _build_deep_context(
         self,
         iteration: int,
-        depth: int,
+        max_iterations: int,
         memory_context: str,
         workspace_context: str,
         reasoning_context: str,
@@ -159,7 +167,7 @@ switch_to: "deep", switch_why: "Multi-step calculation required"
         """Build deep mode context section."""
         return f"""
 CONTEXT:
-Iteration {iteration}/{depth} - Review completed actions to avoid repetition
+Iteration {iteration}/{max_iterations} - Review completed actions to avoid repetition
 
 {memory_context}COGNITIVE WORKSPACE:
 {workspace_context}

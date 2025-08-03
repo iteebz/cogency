@@ -1,4 +1,12 @@
-"""Prepare node - routing, memory extraction, tool filtering."""
+"""Prepare step - routing, memory extraction, tool filtering.
+
+The prepare step handles initial request processing:
+- Routing decisions for request type
+- Memory extraction and context building
+- Tool selection and filtering
+
+Internal implementation uses Flow pipeline for robust processing.
+"""
 
 from typing import List, Optional
 

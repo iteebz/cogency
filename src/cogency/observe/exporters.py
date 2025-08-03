@@ -63,7 +63,7 @@ class Prometheus:
             return ""
 
         label_pairs = [f'{k}="{v}"' for k, v in sorted(tags.items())]
-        return "{" + ",".join(label_pairs) + "}"
+        return f"{{{','.join(label_pairs)}}}"
 
     def _bucket_count(self, summary: MetricsSummary, le: float) -> int:
         """Estimate bucket count for histogram."""

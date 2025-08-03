@@ -71,7 +71,6 @@ class Flow:
         selected_set = set(selected_names)
         filtered = [tool for tool in self.tools if tool.name in selected_set]
 
-        # Remove memorize tool - memory extraction is handled separately
         return [tool for tool in filtered if tool.name != "memorize"]
 
     async def _notify_preparation(self, notifier, result, filtered_tools: List[Tool]) -> None:

@@ -74,18 +74,16 @@ class ToolsetInspector:
         for i, rule in enumerate(tool.rules, 1):
             print(f"  {i}. {rule}")
 
-        # Show parameter structure
-        if hasattr(tool, "params"):
-            print("\n🔧 Parameters:")
+        # Show arg structure
+        if hasattr(tool, "args"):
+            print("\n🔧 Args:")
             import inspect
 
-            sig = inspect.signature(tool.params)
-            for param_name, param in sig.parameters.items():
-                annotation = (
-                    param.annotation if param.annotation != inspect.Parameter.empty else "Any"
-                )
-                default = f" = {param.default}" if param.default != inspect.Parameter.empty else ""
-                print(f"  {param_name}: {annotation}{default}")
+            sig = inspect.signature(tool.args)
+            for arg_name, arg in sig.args.items():
+                annotation = arg.annotation if arg.annotation != inspect.Parameter.empty else "Any"
+                default = f" = {arg.default}" if arg.default != inspect.Parameter.empty else ""
+                print(f"  {arg_name}: {annotation}{default}")
 
     async def test_tool(self, tool_name: str = None):
         """Test specific tool or all tools with basic operations."""
@@ -143,8 +141,8 @@ class ToolsetInspector:
             ),
         ]
 
-        for test_name, params in tests:
-            result = await tool.run(**params)
+        for test_name, args in tests:
+            result = await tool.run(**args)
             status = "✅" if result.success else "❌"
             details = (
                 f"items: {len(result.data.get('items', []))}"
@@ -152,7 +150,9 @@ class ToolsetInspector:
                 else (
                     f"size: {result.data.get('size', 0)}"
                     if result.success and "size" in result.data
-                    else result.error if not result.success else "success"
+                    else result.error
+                    if not result.success
+                    else "success"
                 )
             )
             print(f"   {status} {test_name}: {details}")
@@ -174,8 +174,8 @@ class ToolsetInspector:
             ("python_version", {"command": "python --version"}),
         ]
 
-        for test_name, params in tests:
-            result = await tool.run(**params)
+        for test_name, args in tests:
+            result = await tool.run(**args)
             if test_name == "blocked_command":
                 status = "✅" if not result.success else "❌"
                 details = (
@@ -215,8 +215,8 @@ class ToolsetInspector:
             ),
         ]
 
-        for test_name, params in tests:
-            result = await tool.run(**params)
+        for test_name, args in tests:
+            result = await tool.run(**args)
             status = "✅" if result.success else "❌"
             details = (
                 f"status: {result.data.get('status_code')}" if result.success else result.error

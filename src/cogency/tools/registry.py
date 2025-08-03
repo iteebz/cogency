@@ -1,4 +1,4 @@
-"""Tool registry for auto-discovery."""
+"""Tool registry."""
 
 import logging
 from typing import List, Type, Union
@@ -8,7 +8,7 @@ from cogency.tools.base import Tool
 logger = logging.getLogger(__name__)
 
 
-def setup_tools(tools, memory):
+def _setup_tools(tools, memory):
     """Setup tools with explicit configuration."""
     if tools is None:
         raise ValueError(
@@ -26,12 +26,12 @@ def setup_tools(tools, memory):
 
 
 def _resolve_tool_list(tools: List[Union[str, Tool]]) -> List[Tool]:
-    """Resolve a mixed list of tool strings and instances."""
+    """Resolve mixed list of tool strings and instances."""
     resolved = []
 
     for tool in tools:
         if isinstance(tool, str):
-            tool_instance = _get_tool_by_name(tool)
+            tool_instance = _get_tool(tool)
             if tool_instance:
                 resolved.append(tool_instance)
             else:
@@ -44,8 +44,8 @@ def _resolve_tool_list(tools: List[Union[str, Tool]]) -> List[Tool]:
     return resolved
 
 
-def _get_tool_by_name(name: str) -> Tool:
-    """Get tool instance by string name."""
+def _get_tool(name: str) -> Tool:
+    """Get tool instance by name."""
     # Import here to avoid circular imports
     from cogency.tools.files import Files
     from cogency.tools.http import HTTP
@@ -73,13 +73,13 @@ def _get_tool_by_name(name: str) -> Tool:
 
 
 class ToolRegistry:
-    """Auto-discovery registry for tools."""
+    """Registry for tools."""
 
     _tools: List[Type[Tool]] = []
 
     @classmethod
     def add(cls, tool_class: Type[Tool]):
-        """Register a tool class for auto-discovery."""
+        """Register a tool class."""
         if tool_class not in cls._tools:
             cls._tools.append(tool_class)
         return tool_class
@@ -112,12 +112,19 @@ def tool(cls):
 
 
 def get_tools(**kwargs) -> List[Tool]:
-    """Get all registered tool instances."""
+    """Get all registered tool instances.
+
+    Args:
+        **kwargs: Optional arguments passed to tool constructors
+
+    Returns:
+        List of instantiated Tool objects
+    """
     return ToolRegistry.get_tools(**kwargs)
 
 
 def build_registry(tools: List[Tool], lite: bool = False) -> str:
-    """Build tool registry with optional details."""
+    """Build tool registry string for LLM."""
     if not tools:
         return "no tools"
 

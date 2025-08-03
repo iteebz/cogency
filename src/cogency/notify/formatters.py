@@ -17,10 +17,6 @@ class Formatter:
         """Handle unknown notification types."""
         return ""  # Return empty string for silent formatter
 
-    def _unknown(self, notification: Notification) -> str:
-        """Handle unknown notification types."""
-        return ""  # Return empty string for silent formatter
-
     def _format_result(self, result: Any) -> str:
         """Format result data for display."""
         if result is None:
@@ -31,7 +27,7 @@ class Formatter:
 
 
 class CLIFormatter(Formatter):
-    """Clean CLI formatter."""
+    """CLI formatter."""
 
     def format(self, notification: Notification) -> Optional[str]:
         """Format notification for CLI display."""

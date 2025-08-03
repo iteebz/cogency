@@ -6,8 +6,9 @@ from typing import List, Optional
 from resilient_result import unwrap
 
 from cogency.providers import LLM
-from cogency.tools import Tool, build_registry
-from cogency.utils import parse_json
+from cogency.tools import Tool
+from cogency.tools.registry import build_registry
+from cogency.utils.parsing import _parse_json
 
 
 @dataclass
@@ -27,8 +28,11 @@ class PrepareResult:
     # Mode classification
     mode: str = "fast"
 
-    # Reasoning
+    # Reasoning explanation
     reasoning: str = ""
+
+    # Reasoning
+    reasoning = ""
 
     def __post_init__(self):
         if self.memory_tags is None:
@@ -107,7 +111,7 @@ Query: "I'm learning machine learning and need help with neural networks"
 
         result = await self.llm.run([{"role": "user", "content": prompt}])
         response = unwrap(result)
-        parsed = unwrap(parse_json(response))
+        parsed = unwrap(_parse_json(response))
 
         # Handle case where LLM returns array instead of object
         if isinstance(parsed, list):

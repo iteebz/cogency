@@ -1,9 +1,9 @@
-"""Response parsing for reasoning - JSON parsing and validation."""
+"""Response parsing for reasoning."""
 
 from typing import Optional
 
 from cogency.steps.reason.types import Reasoning
-from cogency.utils import parse_json
+from cogency.utils.parsing import _parse_json
 
 
 class Parse:
@@ -14,7 +14,7 @@ class Parse:
     ) -> Optional[Reasoning]:
         """Parse raw LLM response into Reasoning object."""
         # Parse JSON response - fail fast with Result pattern
-        parse_result = parse_json(raw_response)
+        parse_result = _parse_json(raw_response)
 
         # Let Result pattern propagate naturally - no silent fallback
         reasoning_response = (

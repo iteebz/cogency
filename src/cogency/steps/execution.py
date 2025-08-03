@@ -6,10 +6,9 @@ from cogency.state import AgentState
 async def execute_agent(
     state: AgentState, prepare_step, reason_step, act_step, respond_step, notifier=None
 ) -> None:
-    """Pure early-return execution - phases decide when to end."""
+    """Early-return execution."""
     # Prepare - may return early
-    response = await prepare_step(state, notifier)
-    if response:
+    if response := await prepare_step(state, notifier):
         state.execution.response = response
         state.execution.response_source = "prepare"
         # Always call respond for identity application
@@ -40,11 +39,13 @@ async def execute_agent(
 
         # Act phase
         response = await act_step(state, notifier)
-        if isinstance(response, Result) and response.success and response.data:
-            state.execution.response = response.data
-            state.execution.response_source = "act"
-            return
-        elif response and not isinstance(response, Result):
+        if isinstance(response, Result):
+            if response.success and response.data:
+                state.execution.response = response.data
+                state.execution.response_source = "act"
+                return
+            # On failure, loop continues, error is in tool_results
+        elif response:
             state.execution.response = response
             state.execution.response_source = "act"
             return

@@ -21,7 +21,7 @@ class CacheEntry:
 
 
 class LLMCache:
-    """Smart LLM response cache with TTL and size limits."""
+    """LLM response cache with TTL and size limits."""
 
     def __init__(
         self,
@@ -37,10 +37,11 @@ class LLMCache:
         self._lock = asyncio.Lock()
 
     def _generate_key(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        """Generate cache key from messages and parameters."""
+        """Generate cache key."""
         # Create deterministic hash from messages and kwargs
         content = str(messages) + str(sorted(kwargs.items()))
-        return hashlib.sha256(content.encode()).hexdigest()[:16]
+        key_length = 16
+        return hashlib.sha256(content.encode()).hexdigest()[:key_length]
 
     def _is_expired(self, entry: CacheEntry) -> bool:
         """Check if cache entry has expired."""

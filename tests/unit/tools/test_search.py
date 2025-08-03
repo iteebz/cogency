@@ -69,4 +69,4 @@ async def test_rate_limit():
         mock_ddgs.return_value.text.return_value = []
 
         await tool.run(query="test")
-        mock_sleep.assert_called_once_with(1.0)
+        mock_sleep.assert_called_once_with(0.5)

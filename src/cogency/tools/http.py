@@ -33,7 +33,7 @@ class HTTP(Tool):
             description="Make HTTP requests (GET, POST, PUT, DELETE, PATCH) with JSON data support",
             schema="http(url=str, method='get'|'post'|'put'|'delete'|'patch', headers=dict, json_data=dict)",
             emoji="🌐",
-            params=HTTPArgs,
+            args=HTTPArgs,
             examples=[
                 "http(url='https://api.example.com/data', method='get')",
                 "http(url='https://api.example.com/users', method='post', json_data={'name': 'John'})",
@@ -96,6 +96,10 @@ class HTTP(Tool):
     ) -> Dict[str, Any]:
         """Execute HTTP request with unified error handling."""
         try:
+            # Ensure URL has protocol
+            if not url.startswith(("http://", "https://")):
+                url = f"https://{url}"
+
             # Prepare request kwargs
             request_kwargs = {"timeout": timeout}
             # Handle headers
@@ -133,6 +137,10 @@ class HTTP(Tool):
             logger.error(f"HTTP request timed out after {timeout} seconds: {e}")
             return Result.fail(f"Request timed out after {timeout} seconds")
         except httpx.ConnectError as e:
+            error_str = str(e).lower()
+            if "gaierror" in error_str or "nodename nor servname provided" in error_str:
+                logger.error(f"DNS resolution failed for {url}: {e}")
+                return Result.fail(f"Could not resolve domain: {url}")
             logger.error(f"HTTP connection failed to {url}: {e}")
             return Result.fail(f"Could not connect to {url}")
         except Exception as e:

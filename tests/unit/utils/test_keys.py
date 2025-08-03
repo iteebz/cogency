@@ -1,11 +1,11 @@
 """Test LLM key rotation and LLM integration."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from cogency.providers.llm import LLM
-from cogency.utils.keys import KeyManager, KeyRotator
+from cogency.utils.keys import KeyManager, KeyRotationError, KeyRotator
 from tests.conftest import mock_llm
 
 
@@ -109,3 +109,77 @@ def test_single():
 def test_none():
     with pytest.raises(Exception):
         KeyManager.for_provider("test")
+
+
+@pytest.mark.asyncio
+async def test_retry_success():
+    manager = KeyManager.for_provider("test", ["key1", "key2"])
+
+    mock_func = AsyncMock(return_value="success")
+    result = await manager.retry_rate_limit(mock_func, "arg1", kwarg1="value1")
+
+    assert result == "success"
+    mock_func.assert_called_once_with("arg1", kwarg1="value1")
+
+
+@pytest.mark.asyncio
+async def test_retry_non_rate_limit():
+    manager = KeyManager.for_provider("test", ["key1", "key2"])
+
+    mock_func = AsyncMock(side_effect=ValueError("some other error"))
+
+    with pytest.raises(ValueError, match="some other error"):
+        await manager.retry_rate_limit(mock_func)
+
+
+@pytest.mark.asyncio
+async def test_retry_single_key():
+    manager = KeyManager(api_key="single_key")
+
+    mock_func = AsyncMock(side_effect=Exception("rate limit exceeded"))
+
+    with pytest.raises(KeyRotationError, match="All API keys exhausted"):
+        await manager.retry_rate_limit(mock_func)
+
+
+@pytest.mark.asyncio
+async def test_retry_rotation_success():
+    manager = KeyManager.for_provider("test", ["key1", "key2"])
+
+    # First call fails with rate limit, second succeeds
+    mock_func = AsyncMock(side_effect=[Exception("429 too many requests"), "success"])
+
+    result = await manager.retry_rate_limit(mock_func)
+
+    assert result == "success"
+    assert mock_func.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_retry_exhausted():
+    manager = KeyManager.for_provider("test", ["key1", "key2"])
+
+    # First fails with rate limit, second with quota (removes key), third fails with rate limit on last key
+    mock_func = AsyncMock(
+        side_effect=[
+            Exception("rate limit exceeded"),
+            Exception("quota exceeded"),
+            Exception("rate limit exceeded"),
+        ]
+    )
+
+    with pytest.raises(KeyRotationError, match="All API keys exhausted"):
+        await manager.retry_rate_limit(mock_func)
+
+    assert mock_func.call_count == 3
+
+
+@pytest.mark.asyncio
+async def test_retry_different_error():
+    manager = KeyManager.for_provider("test", ["key1", "key2"])
+
+    # First call rate limited, second has different error
+    mock_func = AsyncMock(side_effect=[Exception("429 rate limit"), ValueError("validation error")])
+
+    with pytest.raises(ValueError, match="validation error"):
+        await manager.retry_rate_limit(mock_func)

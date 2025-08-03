@@ -2,7 +2,8 @@
 
 import pytest
 
-from cogency.config import ObserveConfig, PersistConfig, RobustConfig, setup_config
+from cogency.config import ObserveConfig, PersistConfig, RobustConfig
+from cogency.config.dataclasses import _setup_config
 
 
 def test_robust_defaults():
@@ -34,19 +35,19 @@ def test_observe_defaults():
     assert config.metrics is True
     assert config.timing is True
     assert config.counters is True
-    assert config.phases is None
+    assert config.steps is None
     assert config.export_format == "prometheus"
     assert config.export_endpoint is None
 
 
 def test_observe_custom():
     config = ObserveConfig(
-        metrics=False, timing=False, phases=["reason", "act"], export_format="json"
+        metrics=False, timing=False, steps=["reason", "act"], export_format="json"
     )
 
     assert config.metrics is False
     assert config.timing is False
-    assert config.phases == ["reason", "act"]
+    assert config.steps == ["reason", "act"]
     assert config.export_format == "json"
 
 
@@ -65,31 +66,31 @@ def test_persist_custom():
     assert config.store == mock_store
 
 
-def test_setup_config_false():
-    result = setup_config(RobustConfig, False)
+def test__setup_config_false():
+    result = _setup_config(RobustConfig, False)
     assert result is None
 
 
-def test_setup_config_true():
-    result = setup_config(RobustConfig, True)
+def test__setup_config_true():
+    result = _setup_config(RobustConfig, True)
     assert isinstance(result, RobustConfig)
     assert result.retry is False
 
 
-def test_setup_config_instance():
+def test__setup_config_instance():
     custom_config = RobustConfig(attempts=10)
-    result = setup_config(RobustConfig, custom_config)
+    result = _setup_config(RobustConfig, custom_config)
     assert result is custom_config
     assert result.attempts == 10
 
 
-def test_setup_config_with_store():
+def test__setup_config_with_store():
     mock_store = "test_store"
-    result = setup_config(PersistConfig, mock_store, store=mock_store)
+    result = _setup_config(PersistConfig, mock_store, store=mock_store)
     assert isinstance(result, PersistConfig)
     assert result.store == mock_store
 
 
-def test_setup_config_none():
-    result = setup_config(RobustConfig, None)
+def test__setup_config_none():
+    result = _setup_config(RobustConfig, None)
     assert result is None

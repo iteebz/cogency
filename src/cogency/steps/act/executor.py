@@ -53,17 +53,15 @@ async def execute_tools(
 
         # Show tool execution start if state is available
         if state:
-            # Use tool's format method for params, otherwise fallback
+            # Use tool's format method for args, otherwise fallback
             if tool_instance:
-                param_str, _ = tool_instance.format_human(tool_args)
-                tool_input = param_str
+                arg_str, _ = tool_instance.format_human(tool_args)
+                tool_input = arg_str
             else:
                 tool_input = ""
                 if tool_args:
                     first_key = next(iter(tool_args))
-                    first_val = str(tool_args[first_key])[:60] + (
-                        "..." if len(str(tool_args[first_key])) > 60 else ""
-                    )
+                    first_val = str(tool_args[first_key])
                     tool_input = f"({first_val})"
 
             if notifier:
@@ -118,6 +116,8 @@ async def execute_tools(
                     "result_object": tool_output,  # Store the full Result object
                 }
                 successes.append(success_result)
+                if state:
+                    state.execution.tool_results[actual_tool_name] = tool_output.data
 
         except Exception as e:
             # Use user-friendly error message

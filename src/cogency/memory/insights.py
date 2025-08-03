@@ -2,7 +2,7 @@
 
 from typing import Any, Dict
 
-from cogency.utils import parse_json
+from cogency.utils.parsing import _parse_json
 
 
 async def extract_insights(llm, interaction_data: Dict[str, Any]) -> Dict[str, Any]:
@@ -38,6 +38,6 @@ Return JSON:
 
     result = await llm.run([{"role": "user", "content": prompt}])
     if result.success:
-        parsed = parse_json(result.data)
+        parsed = _parse_json(result.data)
         return parsed.data if parsed.success else {}
     return {}

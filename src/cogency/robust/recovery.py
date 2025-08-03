@@ -1,4 +1,4 @@
-"""Beautiful recovery - Result-first phase recovery that reads like English."""
+"""Phase recovery."""
 
 from typing import Dict, Union
 
@@ -51,7 +51,11 @@ class Recovery:
     @staticmethod
     async def _reasoning(error: Dict, state: AgentState) -> Result:
         """Reasoning recovery - mode fallback and loop breaking."""
-        if error.get("loop_detected"):
+        # Check for reasoning loops - multiple consecutive reasoning cycles
+        reasoning_count = getattr(state, "_iterations", 0) + 1
+        state._iterations = reasoning_count
+
+        if error.get("loop_detected") or reasoning_count > 10:
             state.next_step = "respond"
             state.execution.stop_reason = "loop_recovery"
             return Result.ok({"state": state, "recovery": "force_respond"})
@@ -100,7 +104,7 @@ class Recovery:
 
     @staticmethod
     async def _fallback(error: Dict, state: AgentState, phase: str) -> Result:
-        """Universal fallback - graceful degradation for unknown phases."""
+        """Universal fallback - graceful degradation for unknown steps."""
         state.next_step = "respond"
         state.execution.stop_reason = f"{phase}_error_fallback"
         return Result.ok({"state": state, "recovery": f"fallback_{phase}"})

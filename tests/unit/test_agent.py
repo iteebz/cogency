@@ -1,4 +1,4 @@
-"""Agent tests - beautiful architecture edition."""
+"""Agent tests."""
 
 from unittest.mock import AsyncMock, patch
 
@@ -83,7 +83,7 @@ async def test_config_custom():
 
 @pytest.mark.asyncio
 async def test_mode_assignment():
-    agent = Agent("test", llm=MockLLM(), mode="fast", depth=5)
+    agent = Agent("test", llm=MockLLM(), mode="fast", max_iterations=5)
     executor = await agent._get_executor()
 
     assert executor.mode == "fast"
@@ -115,7 +115,7 @@ async def test_run():
         "cogency.steps.execution.execute_agent", new_callable=AsyncMock
     ) as mock_execute_agent:
         mock_execute_agent.return_value = "Final Answer"
-        result = await agent.run("test query")
+        result = await agent.run_async("test query")
 
         mock_execute_agent.assert_called_once()
         assert result is not None
@@ -127,7 +127,7 @@ async def test_run_error():
 
     with patch("cogency.steps.execution.execute_agent", side_effect=Exception("Test error")):
         try:
-            await agent.run("test query")
+            await agent.run_async("test query")
             raise AssertionError("Should have raised exception")
         except Exception as e:
             assert "Test error" in str(e)

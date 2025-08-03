@@ -1,24 +1,14 @@
-"""Shared utilities for robust LLM response handling."""
+"""Shared utilities for robust operation.
 
-from .cli import interactive_mode, main, trace_args
-from .detection import detect_provider
-from .heuristics import is_simple_query
-from .keys import KeyManager, KeyRotator
-from .parsing import normalize_reasoning, parse_json, parse_tool_calls
-from .providers import Provider
-from .validation import validate_query
+This module provides utility functions for common operations:
 
-__all__ = [
-    "interactive_mode",
-    "main",
-    "trace_args",
-    "detect_provider",
-    "is_simple_query",
-    "KeyManager",
-    "KeyRotator",
-    "parse_json",
-    "parse_tool_calls",
-    "normalize_reasoning",
-    "Provider",
-    "validate_query",
-]
+- KeyManager: API key detection and rotation utilities
+
+Additional internal utilities exist but are not exposed to maintain a clean
+public API surface.
+"""
+
+# Public utilities for advanced usage
+from .keys import KeyManager
+
+__all__ = ["KeyManager"]

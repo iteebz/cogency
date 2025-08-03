@@ -23,20 +23,23 @@ class OpenAI(LLM):
         )
 
     async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        client = self._get_client()
-        res = await client.chat.completions.create(
-            model=self.model,
-            messages=self._format(messages),
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            **kwargs,
-        )
-        return res.choices[0].message.content
+        async def _make_request():
+            client = self._get_client()
+            res = await client.chat.completions.create(
+                model=self.model,
+                messages=self._format(messages),
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                **kwargs,
+            )
+            return res.choices[0].message.content
+
+        return await self.keys.with_rate_limit_retry(_make_request)
 
     async def _stream_impl(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
-        client = self._get_client()
-        try:
-            stream = await client.chat.completions.create(
+        async def _make_stream():
+            client = self._get_client()
+            return await client.chat.completions.create(
                 model=self.model,
                 messages=self._format(messages),
                 stream=True,
@@ -44,8 +47,10 @@ class OpenAI(LLM):
                 max_tokens=self.max_tokens,
                 **kwargs,
             )
-            async for chunk in stream:
-                if chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-        except Exception as e:
-            raise e
+
+        # Note: Streaming with rate limit handling is complex due to generator state
+        # For now, get the stream with rate limit handling, then iterate
+        stream = await self.keys.with_rate_limit_retry(_make_stream)
+        async for chunk in stream:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content

@@ -1,4 +1,4 @@
-"""Consolidated parsing utilities - clean extraction from LLM responses."""
+"""Parsing utilities for LLM responses."""
 
 import json
 import re
@@ -7,8 +7,8 @@ from typing import Any, Callable, Dict, List, Optional
 from resilient_result import Result
 
 
-def normalize_reasoning(val: Any) -> List[str]:
-    """Normalizes the 'reasoning' field into a list of strings."""
+def _normalize_reasoning(val: Any) -> List[str]:
+    """Normalize reasoning field into list of strings."""
     if isinstance(val, str):
         return [val]
     elif isinstance(val, dict):
@@ -37,21 +37,8 @@ def normalize_reasoning(val: Any) -> List[str]:
     return [str(val)]  # Catch-all for any other unexpected type
 
 
-def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) -> Result:
-    """Extract JSON from LLM response - clean Result pattern.
-
-    Handles:
-    - Markdown code fences (```json and ```)
-    - Proper brace matching for JSON objects
-    - Regex-based pattern extraction for common failure modes
-    - Graceful Result.fail() on errors
-
-    Args:
-        response: Raw LLM response string
-
-    Returns:
-        Result.ok(data) or Result.fail(error)
-    """
+def _parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) -> Result:
+    """Extract JSON from LLM response with fallback recovery."""
     if not response or not isinstance(response, str):
         return Result.fail("Empty or invalid response")
 
@@ -84,8 +71,7 @@ def parse_json(response: str, trace_fn: Optional[Callable[[str], None]] = None) 
 
         # Fallback 2: Regex-based pattern extraction for common failure modes
         try:
-            extracted_json = _extract_with_patterns(response)
-            if extracted_json:
+            if extracted_json := _extract_patterns(response):
                 if trace_fn:
                     trace_fn(
                         f"JSON recovery: extracted using regex patterns - {extracted_json[:100]}..."
@@ -171,7 +157,7 @@ def _extract_json_stream(text: str):
             pos += 1
 
 
-def _extract_with_patterns(text: str) -> Optional[str]:
+def _extract_patterns(text: str) -> Optional[str]:
     """Extract JSON using regex patterns for common LLM failure modes."""
     patterns = [
         # Pattern 1: JSON surrounded by explanation text
@@ -195,8 +181,8 @@ def _extract_with_patterns(text: str) -> Optional[str]:
     return None
 
 
-def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
-    """Extract tool calls from parsed JSON. Return None if no tool calls."""
+def _parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
+    """Extract tool calls from parsed JSON."""
     if not json_data:
         return None
 
@@ -216,15 +202,15 @@ def parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]
     return tool_calls
 
 
-def recover_json(response: str) -> Result:
+def _recover_json(response: str) -> Result:
     """Extract JSON from broken LLM responses - Result pattern."""
     if not response:
         return Result.fail("No response to recover")
 
-    return parse_json(response)
+    return _parse_json(response)
 
 
-def fallback_prompt(reason: str, system: str = None, schema: str = None) -> str:
+def _fallback_prompt(reason: str, system: str = None, schema: str = None) -> str:
     """Build fallback prompt when reasoning fails."""
     if schema:
         prompt = f"Reasoning failed: {reason}. Generate valid JSON matching schema: {schema}"
@@ -234,7 +220,7 @@ def fallback_prompt(reason: str, system: str = None, schema: str = None) -> str:
     return f"{system}\n\n{prompt}" if system else prompt
 
 
-def fallback_response(error: Exception, schema: str = None) -> str:
+def _fallback_response(error: Exception, schema: str = None) -> str:
     """Format error as JSON or text."""
     if schema:
         msg = str(error).replace('"', '\\"')

@@ -27,8 +27,7 @@ class Filesystem(Store):
         self.process_id = str(uuid.uuid4())[:8]  # Short process ID
 
     def _get_state_path(self, state_key: str) -> Path:
-        """Get file path for state key with process isolation."""
-        # Add process ID to prevent concurrent access issues
+        """Get file path for state key."""
         safe_key = state_key.replace(":", "_").replace("/", "_")
         return self.base_dir / f"{safe_key}_{self.process_id}.json"
 

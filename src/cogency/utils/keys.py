@@ -4,7 +4,11 @@ import itertools
 import os
 import random
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Awaitable, Callable, List, Optional, TypeVar, Union
+
+from cogency.utils.heuristics import is_quota_exhausted, is_rate_limit
+
+T = TypeVar("T")
 
 # Auto-load .env file for seamless key detection
 try:
@@ -19,8 +23,14 @@ except ImportError:
     pass
 
 
+class KeyRotationError(Exception):
+    """Raised when all available API keys have been exhausted due to rate limits."""
+
+    pass
+
+
 class KeyRotator:
-    """Simple key rotator for API rate limit avoidance."""
+    """Key rotator for API rate limit avoidance."""
 
     def __init__(self, keys: List[str]):
         self.keys = list(keys)
@@ -49,22 +59,36 @@ class KeyRotator:
         new_suffix = self.current_key[-8:] if self.current_key else "unknown"
         return f"Key *{old_suffix} rate limited, rotating to *{new_suffix}"
 
+    def remove_exhausted_key(self) -> str:
+        """Remove current key from rotation when quota exhausted."""
+        if len(self.keys) <= 1:
+            raise KeyRotationError("Last key exhausted")
+
+        old_suffix = self.current_key[-8:] if self.current_key else "unknown"
+        self.keys.remove(self.current_key)
+        self.cycle = itertools.cycle(self.keys)
+        self.current_key = next(self.cycle)
+        return f"Key *{old_suffix} quota exhausted, removed from rotation. {len(self.keys)} keys remaining"
+
 
 class KeyManager:
     """Unified key management - auto-detects, handles rotation, eliminates provider DRY."""
 
-    def __init__(self, api_key: Optional[str] = None, key_rotator: Optional[KeyRotator] = None):
+    def __init__(
+        self, api_key: Optional[str] = None, key_rotator: Optional[KeyRotator] = None, notifier=None
+    ):
         self.api_key = api_key
         self.key_rotator = key_rotator
+        self.notifier = notifier
 
     @classmethod
     def for_provider(
-        cls, provider: str, api_keys: Optional[Union[str, List[str]]] = None
+        cls, provider: str, api_keys: Optional[Union[str, List[str]]] = None, notifier=None
     ) -> "KeyManager":
         """Factory method - auto-detects keys, handles all scenarios. Replaces 15+ lines of DRY."""
         # Auto-detect from environment if not provided
         if api_keys is None:
-            detected_keys = cls._detect_keys_from_env(provider)
+            detected_keys = cls.detect_keys(provider)
             if not detected_keys:
                 raise ValueError(
                     f"No API keys found for {provider}. Set {provider.upper()}_API_KEY"
@@ -74,17 +98,44 @@ class KeyManager:
         # Handle the key scenarios - unified logic that was duplicated across all providers
         if isinstance(api_keys, list) and len(api_keys) > 1:
             # Multiple keys -> use rotation
-            return cls(api_key=None, key_rotator=KeyRotator(api_keys))
+            return cls(api_key=None, key_rotator=KeyRotator(api_keys), notifier=notifier)
         elif isinstance(api_keys, list) and len(api_keys) == 1:
             # Single key in list -> extract it
-            return cls(api_key=api_keys[0], key_rotator=None)
+            return cls(api_key=api_keys[0], key_rotator=None, notifier=notifier)
         else:
             # Single key as string
-            return cls(api_key=api_keys, key_rotator=None)
+            return cls(api_key=api_keys, key_rotator=None, notifier=notifier)
 
     @staticmethod
-    def _detect_keys_from_env(provider: str) -> List[str]:
-        """Auto-detect API keys from environment variables for any provider."""
+    def detect_keys(provider: str) -> List[str]:
+        """Auto-detect API keys from environment variables for any provider.
+
+        Args:
+            provider: Provider name (e.g., 'openai', 'anthropic', 'mistral')
+
+        Returns:
+            List of detected API keys for the provider
+
+        Example:
+            >>> KeyManager.detect_keys('openai')
+            ['sk-...', 'sk-...']  # If OPENAI_API_KEY_1, OPENAI_API_KEY_2 are set
+        """
+        return KeyManager.detect_from_env(provider)
+
+    @staticmethod
+    def detect_from_env(provider: str) -> List[str]:
+        """Auto-detect API keys from environment variables for any provider.
+
+        Checks for keys in this order:
+        1. Numbered keys: PROVIDER_API_KEY_1, PROVIDER_API_KEY_2, etc. (up to 5)
+        2. Base key: PROVIDER_API_KEY
+
+        Args:
+            provider: Provider name (e.g., 'openai', 'anthropic', 'mistral')
+
+        Returns:
+            List of detected API keys for the provider
+        """
         keys = []
         env_prefix = provider.upper()
 
@@ -121,6 +172,51 @@ class KeyManager:
             return self.key_rotator.rotate_key()
         return None
 
+    def remove_exhausted_key(self) -> Optional[str]:
+        """Remove current exhausted key from rotation. Returns feedback message."""
+        if self.key_rotator:
+            return self.key_rotator.remove_exhausted_key()
+        return None
+
     def has_multiple(self) -> bool:
         """Check if we have multiple keys available for rotation."""
-        return self.key_rotator is not None
+        return self.key_rotator is not None and len(self.key_rotator.keys) > 1
+
+    async def retry_rate_limit(self, func: Callable[..., Awaitable[T]], *args, **kwargs) -> T:
+        """Execute function with automatic key rotation on rate limits."""
+        while True:
+            try:
+                return await func(*args, **kwargs)
+            except Exception as e:
+                if not is_rate_limit(e) and not is_quota_exhausted(e):
+                    # Not a rate limit or quota error, re-raise original
+                    raise
+
+                if not self.has_multiple():
+                    # No keys to rotate to, raise policy error
+                    if self.notifier:
+                        await self.notifier(
+                            "error", message=f"Rate limited with no backup keys available: {str(e)}"
+                        )
+                    raise KeyRotationError(
+                        f"All API keys exhausted due to rate limits. Original error: {str(e)}"
+                    ) from e
+
+                # Handle quota exhaustion vs rate limiting differently
+                if is_quota_exhausted(e):
+                    removal_msg = self.remove_exhausted_key()
+                    if self.notifier:
+                        await self.notifier("debug", message=removal_msg)
+                else:
+                    rotation_msg = self.rotate_key()
+                    if self.notifier:
+                        await self.notifier("debug", message=rotation_msg)
+
+                # Continue loop to retry with new key
+
+
+__all__ = [
+    "KeyManager",
+    "KeyRotator",
+    "KeyRotationError",
+]

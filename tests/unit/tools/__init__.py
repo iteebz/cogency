@@ -1,1 +1,1 @@
-"""Tool tests package."""
+"""Tool system unit tests."""

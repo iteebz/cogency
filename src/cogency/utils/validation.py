@@ -8,7 +8,14 @@ T = TypeVar("T")
 
 
 def validate_query(query: str) -> str | None:
-    """Validate query input, return error message if invalid."""
+    """Validate user query input.
+
+    Args:
+        query: User query string to validate
+
+    Returns:
+        Error message if invalid, None if valid
+    """
     if not query or not query.strip():
         return "⚠️ Empty query not allowed"
 
@@ -18,11 +25,11 @@ def validate_query(query: str) -> str | None:
     return None
 
 
-def validate(params: Dict[str, Any], schema: Type[T]) -> T:
-    """Validate parameters against dataclass schema.
+def validate(args: Dict[str, Any], schema: Type[T]) -> T:
+    """Validate arguments against dataclass schema.
 
     Args:
-        params: Dictionary of parameters to validate
+        args: Dictionary of arguments to validate
         schema: Dataclass type to validate against
 
     Returns:
@@ -35,6 +42,6 @@ def validate(params: Dict[str, Any], schema: Type[T]) -> T:
         raise ValueError(f"Schema {schema} is not a dataclass")
 
     try:
-        return schema(**params)
+        return schema(**args)
     except TypeError as e:
-        raise ValueError(f"Parameter validation failed: {str(e)}") from e
+        raise ValueError(f"Argument validation failed: {str(e)}") from e

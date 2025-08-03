@@ -66,10 +66,10 @@ async def test_recovery():
     with patch.object(shell_tool, "run", side_effect=mock_code.run):
         from cogency import Agent
 
-        agent = Agent("test", llm=llm, tools=[shell_tool], depth=5)
+        agent = Agent("test", llm=llm, tools=[shell_tool], max_iterations=5)
 
         # Run agent with initial prompt
-        result = await agent.run("List the contents of the current directory")
+        result = await agent.run_async("List the contents of the current directory")
 
         # Verify recovery happened - agent.run() returns string
         assert isinstance(result, str), f"Agent should return string response, got: {type(result)}"
@@ -115,10 +115,13 @@ async def test_multiple_failures():
         from cogency import Agent
 
         agent = Agent(
-            "test", llm=MockLLM(custom_impl=persistent_response), tools=[shell_tool], depth=3
+            "test",
+            llm=MockLLM(custom_impl=persistent_response),
+            tools=[shell_tool],
+            max_iterations=3,
         )
 
-        result = await agent.run("Run a command")
+        result = await agent.run_async("Run a command")
 
         # Agent should eventually give up gracefully - agent.run() returns string
         assert isinstance(result, str), f"Agent should return string response, got: {type(result)}"

@@ -40,7 +40,7 @@ def test_fingerprint(temp_checkpoint_dir, test_state):
     fingerprint2 = cp._generate_fingerprint(test_state)
 
     assert fingerprint1 == fingerprint2
-    assert len(fingerprint1) == 16  # SHA256 truncated to 16 chars
+    assert len(fingerprint1) == 16  # SHA256 _truncated to 16 chars
 
 
 def test_fingerprint_changes(temp_checkpoint_dir):

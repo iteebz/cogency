@@ -7,16 +7,16 @@ from resilient_result import Result
 class BaseAgent:
     """Minimal agent for smoke test validation."""
 
-    def __init__(self, llm=None, tools=None, depth=10):
+    def __init__(self, llm=None, tools=None, max_iterations=10):
         self.llm = llm
         self.tools = tools or []
-        self.depth = depth
+        self.max_iterations = max_iterations
         self.messages = []
 
     async def run(self, prompt: str) -> Result:
         """Run agent with basic tool calling logic."""
         self.messages = [{"role": "user", "content": prompt}]
-        for _iteration in range(self.depth):
+        for _iteration in range(self.max_iterations):
             llm_result = await self.llm.run(self.messages)
             if not llm_result.success:
                 return Result.fail(f"LLM failed: {llm_result.error}")
@@ -45,6 +45,10 @@ class BaseAgent:
                     continue
             return Result.ok(response)
         return Result.fail("Max iterations reached")
+
+    async def run_async(self, prompt: str) -> Result:
+        """Async version of run method for compatibility."""
+        return await self.run(prompt)
 
     def _extract_command(self, response: str) -> str:
         lines = response.split("\n")

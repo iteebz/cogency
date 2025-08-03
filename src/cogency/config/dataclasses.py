@@ -1,4 +1,4 @@
-"""Configuration dataclasses - runtime limits, robustness, observability settings."""
+"""Configuration dataclasses for agent features."""
 
 from dataclasses import dataclass
 from typing import Any, List, Optional
@@ -9,7 +9,7 @@ MAX_TOOL_CALLS = 3  # Limit to prevent JSON parsing issues
 
 @dataclass
 class RobustConfig:
-    """Comprehensive robustness configuration (retry, checkpointing, circuit breaker, rate limiting)."""
+    """Robustness configuration."""
 
     # Core toggles
     retry: bool = False
@@ -42,7 +42,7 @@ class RobustConfig:
 
 @dataclass
 class ObserveConfig:
-    """Observability/telemetry configuration for metrics collection."""
+    """Observability configuration."""
 
     # Metrics collection
     metrics: bool = True
@@ -50,7 +50,7 @@ class ObserveConfig:
     counters: bool = True
 
     # Phase-specific telemetry
-    phases: Optional[List[str]] = None  # ["reason", "act"] or None for all
+    steps: Optional[List[str]] = None  # ["reason", "act"] or None for all
 
     # Export configuration
     export_format: str = "prometheus"  # "prometheus", "json", "opentelemetry"
@@ -59,7 +59,7 @@ class ObserveConfig:
 
 @dataclass
 class MemoryConfig:
-    """LLM-native memory configuration - persistence, thresholds, context injection."""
+    """Memory configuration."""
 
     # Core toggles
     enabled: bool = True
@@ -83,7 +83,7 @@ class MemoryConfig:
 
 @dataclass
 class PathsConfig:
-    """Centralized path configuration with smart .cogency/* defaults."""
+    """Path configuration."""
 
     base_dir: str = ".cogency"
     checkpoints: Optional[str] = None
@@ -94,7 +94,7 @@ class PathsConfig:
     evals: Optional[str] = None
 
     def __post_init__(self):
-        """Smart defaults under .cogency/"""
+        """Set defaults under .cogency/"""
         if self.checkpoints is None:
             self.checkpoints = f"{self.base_dir}/checkpoints"
         if self.sandbox is None:
@@ -130,7 +130,7 @@ class AgentConfig:
     tools: Optional[Any] = None
     memory: Optional[Any] = None
     mode: str = "adapt"
-    depth: int = 10
+    max_iterations: int = 10
     notify: bool = True
     debug: bool = False
     formatter: Optional[Any] = None
@@ -140,7 +140,8 @@ class AgentConfig:
     persist: Optional[Any] = None
 
 
-def setup_config(config_type, param, store=None):
+def _setup_config(config_type, param, store=None):
+    """Setup configuration object from parameter."""
     if param is False:
         return None
     if isinstance(param, config_type):

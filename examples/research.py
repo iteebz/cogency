@@ -17,7 +17,7 @@ async def main():
         identity="You are Dr. Sarah Chen, a leading AI alignment researcher at the Center for AI Safety, specializing in mesa-optimization and inner alignment. You've published extensively on emergent optimization in neural systems and are known for bridging the gap between abstract alignment theory and concrete technical solutions. You approach research with both rigorous technical analysis and genuine concern for humanity's future with advanced AI systems.",
         tools=["scrape", "search"],
         memory=False,
-        depth=15,  # Allow deeper research for complex AI safety topics
+        max_iterations=15,  # Allow deeper research for complex AI safety topics
         mode="deep",
     )
 

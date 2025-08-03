@@ -23,10 +23,10 @@ class MockSearchTool(Tool):
             examples=["search('weather today')", "search('python tutorials')"],
         )
 
-    def format_human(self, params, results=None):
-        param_str = f"(query='{params.get('query', '')}')" if params else "()"
+    def format_human(self, args, results=None):
+        arg_str = f"(query='{args.get('query', '')}')" if args else "()"
         result_str = str(results) if results else "pending"
-        return param_str, result_str
+        return arg_str, result_str
 
     def format_agent(self, result_data: dict[str, any]) -> str:
         return f"Tool output: {result_data}"

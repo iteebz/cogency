@@ -105,7 +105,7 @@ async def test_run():
         mock_configure.return_value = mock_executor
 
         agent = Agent(name="test", tools="all")
-        result = await agent.run("test query")
+        result = await agent.run_async("test query")
 
         assert result == "Final Answer"
         mock_executor.run.assert_called_once_with("test query", "default", None)

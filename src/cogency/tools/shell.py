@@ -38,7 +38,7 @@ class Shell(Tool):
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
             schema="shell(command: str, timeout: int = 30, working_dir: str = None, env: dict = None)",
             emoji="💻",
-            params=ShellArgs,
+            args=ShellArgs,
             examples=[
                 "shell(command='ls -la')",
                 "shell(command='pwd')",
@@ -61,7 +61,7 @@ class Shell(Tool):
             ],
         )
         # Use base class formatting with templates
-        self.param_key = "command"
+        self.arg_key = "command"
         self.human_template = "Exit code: {exit_code}"
         self.agent_template = "{command} → {exit_code}"
 
@@ -100,7 +100,7 @@ class Shell(Tool):
         Returns:
             Command execution results including stdout, stderr, and exit code
         """
-        # Schema validation handles required params
+        # Schema validation handles required args
         # Security checks
 
         # Limit timeout
@@ -189,9 +189,9 @@ class Shell(Tool):
             # Truncate very long output
             max_output = 10000  # 10KB per stream
             if len(stdout_text) > max_output:
-                stdout_text = stdout_text[:max_output] + "\n... (output truncated)"
+                stdout_text = stdout_text[:max_output] + "\n... (output _truncated)"
             if len(stderr_text) > max_output:
-                stderr_text = stderr_text[:max_output] + "\n... (output truncated)"
+                stderr_text = stderr_text[:max_output] + "\n... (output _truncated)"
 
             return Result.ok(
                 {

@@ -6,14 +6,14 @@ from typing import Optional, Union
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from cogency.utils import KeyManager
+from cogency.utils.keys import KeyManager
 
 from .base import Embed
 
 logger = logging.getLogger(__name__)
 
 
-class Nomic(Embed):
+class NomicEmbed(Embed):
     """Nomic embedding provider with key rotation."""
 
     def __init__(self, api_keys: Union[str, list[str]] = None, **kwargs):

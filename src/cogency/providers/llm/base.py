@@ -7,9 +7,9 @@ from typing import AsyncIterator, Dict, List, Union
 from resilient_result import Result
 
 from cogency.notify.core import Notification, emit
-from cogency.observe.metrics import counter
+from cogency.observe.metrics import _counter as counter
 from cogency.observe.tokens import cost, count
-from cogency.utils import KeyManager
+from cogency.utils.keys import KeyManager
 
 from .cache import LLMCache
 
@@ -36,12 +36,13 @@ class LLM(ABC):
         timeout: float = 15.0,
         temperature: float = 0.7,
         max_tokens: int = 16384,
+        max_retries: int = 3,
         enable_cache: bool = True,
         notifier=None,
         **kwargs,
     ):
         # Automatic key management - handles single/multiple keys, rotation, env detection
-        self.keys = KeyManager.for_provider(provider_name, api_keys)
+        self.keys = KeyManager.for_provider(provider_name, api_keys, notifier=notifier)
         self.provider_name = provider_name
         self.enable_cache = enable_cache
         self.notifier = notifier
@@ -51,6 +52,7 @@ class LLM(ABC):
         self.timeout = timeout
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.max_retries = max_retries
 
         # Provider-specific kwargs
         self.extra_kwargs = kwargs
@@ -83,16 +85,9 @@ class LLM(ABC):
         Returns:
             Result containing string response from the LLM or error
         """
-        if self.notifier:
-            await self.notifier("trace", message=f"LLM {self.provider_name}:{self.model} starting")
 
         try:
             result = await self._run_with_metrics(messages, **kwargs)
-
-            if self.notifier:
-                await self.notifier(
-                    "trace", message=f"LLM {self.provider_name} completed successfully"
-                )
 
             return result
 
@@ -115,8 +110,8 @@ class LLM(ABC):
                 counter("llm.tokens.in", tin, {"provider": self.provider_name, "cache": "hit"})
                 return Result.ok(cached_response)
 
-        # Call implementation
-        response = await self._run_impl(messages, **kwargs)
+        # Call implementation with rate limit retry
+        response = await self.keys.retry_rate_limit(self._run_impl, messages, **kwargs)
 
         # Count output tokens and track
         tout = count([{"content": response}], self.model)

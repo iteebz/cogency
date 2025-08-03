@@ -12,12 +12,12 @@ from cogency.notify import (
     JSONFormatter,
     Notification,
     Notifier,
+    _setup_formatter,
     emit,
-    setup_formatter,
 )
 
 
-def test_notification_dataclass():
+def test_dataclass():
     """Test v2 notification dataclass structure."""
     notification = Notification(
         type="phase", data={"phase": "reason", "mode": "thinking", "iteration": 1}
@@ -31,7 +31,7 @@ def test_notification_dataclass():
 
 
 @pytest.mark.asyncio
-async def test_notifier_ultimate_callable():
+async def test_ultimate_callable():
     """Test ultimate callable notifier methods."""
     formatter = EmojiFormatter()
     notifier = Notifier(formatter=formatter)
@@ -52,9 +52,9 @@ async def test_notifier_ultimate_callable():
 
 
 @pytest.mark.asyncio
-async def test_notifier_silent_mode():
+async def test_silent_mode():
     """Test silent mode returns None for all formatting."""
-    silent_formatter = setup_formatter(notify=False, debug=False, style="silent")
+    silent_formatter = _setup_formatter(notify=False, debug=False, style="silent")
     notifier = Notifier(formatter=silent_formatter)
 
     await notifier("reason", state="thinking")
@@ -68,7 +68,7 @@ async def test_notifier_silent_mode():
 
 
 @pytest.mark.asyncio
-async def test_notifier_callback():
+async def test_callback():
     """Test v2 notifier callback mechanism."""
     callback = AsyncMock()
     formatter = CLIFormatter()
@@ -153,26 +153,26 @@ async def test_core_emit_function():
     callback.assert_called_once_with(notification)
 
 
-def test_setup_formatter_factory():
-    """Test setup_formatter factory function."""
-    cli_formatter = setup_formatter(notify=True, debug=False, style="cli")
+def test__setup_formatter_factory():
+    """Test _setup_formatter factory function."""
+    cli_formatter = _setup_formatter(notify=True, debug=False, style="cli")
     assert isinstance(cli_formatter, CLIFormatter)
 
-    emoji_formatter = setup_formatter(notify=True, debug=False, style="emoji")
+    emoji_formatter = _setup_formatter(notify=True, debug=False, style="emoji")
     assert isinstance(emoji_formatter, EmojiFormatter)
 
-    json_formatter = setup_formatter(notify=True, debug=False, style="json")
+    json_formatter = _setup_formatter(notify=True, debug=False, style="json")
     assert isinstance(json_formatter, JSONFormatter)
 
-    silent_formatter = setup_formatter(notify=False, debug=False, style="silent")
+    silent_formatter = _setup_formatter(notify=False, debug=False, style="silent")
     assert isinstance(silent_formatter, Formatter)
 
     # Default case
-    default_formatter = setup_formatter(style="unknown")
+    default_formatter = _setup_formatter(style="unknown")
     assert isinstance(default_formatter, EmojiFormatter)
 
 
-def test_formatter_result_truncation():
+def test_result_truncation():
     """Test result formatting handles long results."""
     formatter = CLIFormatter()
 
@@ -184,7 +184,7 @@ def test_formatter_result_truncation():
     assert "..." in formatted
 
 
-def test_unknown_notification_type():
+def test_unknown_type():
     """Test formatters handle unknown notification types gracefully."""
     formatter = EmojiFormatter()
 

@@ -1,4 +1,4 @@
-"""Utility functions for resilience - clean boundary helpers."""
+"""Resilience utilities."""
 
 import asyncio
 import signal

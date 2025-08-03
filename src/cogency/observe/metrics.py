@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from time import perf_counter
 from typing import Any, Dict, List, Optional
 
-DEFAULT_MAX_METRIC_POINTS = 10000
+MAX_POINTS = 10000
 
 
 @dataclass
@@ -39,7 +39,7 @@ class MetricsSummary:
 class Metrics:
     """High-performance metrics collector."""
 
-    def __init__(self, max_points: int = DEFAULT_MAX_METRIC_POINTS):
+    def __init__(self, max_points: int = MAX_POINTS):
         self.max_points = max_points
         self.points: Dict[str, deque] = defaultdict(lambda: deque(maxlen=max_points))
         self.counters: Dict[str, float] = defaultdict(float)
@@ -259,41 +259,49 @@ def get_metrics() -> Metrics:
     return _metrics
 
 
-def counter(name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None):
-    """Record counter metric."""
+def _counter(name: str, value: float = 1.0, tags: Optional[Dict[str, str]] = None):
+    """Internal: Record counter metric."""
     _metrics.counter(name, value, tags)
 
 
-def gauge(name: str, value: float, tags: Optional[Dict[str, str]] = None):
-    """Record gauge metric."""
+def _gauge(name: str, value: float, tags: Optional[Dict[str, str]] = None):
+    """Internal: Record gauge metric."""
     _metrics.gauge(name, value, tags)
 
 
-def histogram(name: str, value: float, tags: Optional[Dict[str, str]] = None):
-    """Record histogram metric."""
+def _histogram(name: str, value: float, tags: Optional[Dict[str, str]] = None):
+    """Internal: Record histogram metric."""
     _metrics.histogram(name, value, tags)
 
 
-def timer(name: str, tags: Optional[Dict[str, str]] = None):
-    """Timer context manager."""
+def _timer(name: str, tags: Optional[Dict[str, str]] = None):
+    """Internal: Timer context manager for measuring duration."""
     return _metrics.timer(name, tags)
 
 
 def measure(metric_name: str, tags: Optional[Dict[str, str]] = None):
-    """Decorator to automatically time function execution."""
+    """Decorator to automatically time function execution.
+
+    Args:
+        metric_name: Name for the timing metric
+        tags: Optional tags for metric categorization
+
+    Returns:
+        Decorator function
+    """
 
     def decorator(func):
         if asyncio.iscoroutinefunction(func):
 
             async def async_wrapper(*args, **kwargs) -> Any:
-                with timer(metric_name, tags):
+                with _timer(metric_name, tags):
                     return await func(*args, **kwargs)
 
             return async_wrapper
         else:
 
             def sync_wrapper(*args, **kwargs):
-                with timer(metric_name, tags):
+                with _timer(metric_name, tags):
                     return func(*args, **kwargs)
 
             return sync_wrapper
@@ -302,7 +310,7 @@ def measure(metric_name: str, tags: Optional[Dict[str, str]] = None):
 
 
 def simple_timer(label: str):
-    """Beautiful timing closure - no ceremony, self-documenting."""
+    """Timing closure."""
     start = perf_counter()
 
     def stop():

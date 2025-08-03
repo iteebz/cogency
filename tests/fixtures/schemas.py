@@ -11,10 +11,10 @@ def validation_schemas():
             "type": "object",
             "properties": {
                 "tool_name": {"type": "string"},
-                "parameters": {"type": "object"},
+                "args": {"type": "object"},
                 "result": {"oneOf": [{"type": "string"}, {"type": "object"}]},
             },
-            "required": ["tool_name", "parameters"],
+            "required": ["tool_name", "args"],
         },
         "llm_response": {
             "type": "object",

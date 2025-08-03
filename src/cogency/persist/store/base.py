@@ -33,7 +33,7 @@ class Store(ABC):
         pass
 
 
-def setup_persistence(persist):
+def _setup_persist(persist):
     """Setup persistence backend with auto-detection."""
     if not persist:
         return None

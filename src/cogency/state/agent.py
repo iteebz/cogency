@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from .execution import ExecutionState
+from .execution import AgentMode, ExecutionState
 from .reasoning import ReasoningContext
 from .user_profile import UserProfile
 
@@ -22,9 +22,9 @@ class AgentState:
         if not self.user_profile:
             return ""
 
-        from cogency.memory import compress_for_injection
+        from cogency.memory.compression import compress
 
-        context = compress_for_injection(self.user_profile)
+        context = compress(self.user_profile)
         return f"USER CONTEXT:\n{context}\n\n" if context else ""
 
     def update_from_reasoning(self, reasoning_data: Dict[str, Any]) -> None:
@@ -58,5 +58,8 @@ class AgentState:
         # Handle mode switching
         if "switch_mode" in reasoning_data and reasoning_data["switch_mode"]:
             new_mode = reasoning_data["switch_mode"]
-            if new_mode in ["fast", "deep", "adapt"]:
-                self.execution.mode = new_mode
+            import contextlib
+
+            with contextlib.suppress(ValueError):
+                # Convert string to enum value
+                self.execution.mode = AgentMode(new_mode)

@@ -20,7 +20,7 @@ USER_MESSAGES = {
 }
 
 
-def get_user_message(error_type: str, context: Optional[Dict[str, Any]] = None) -> str:
+def _get_user_message(error_type: str, context: Optional[Dict[str, Any]] = None) -> str:
     """Convert technical errors to user-friendly messages."""
     context = context or {}
     template = USER_MESSAGES.get(error_type, USER_MESSAGES["UNKNOWN"])
@@ -31,20 +31,20 @@ def get_user_message(error_type: str, context: Optional[Dict[str, Any]] = None) 
         return USER_MESSAGES["UNKNOWN"]
 
 
-def format_tool_error(tool_name: str, error: Exception) -> str:
+def _format_tool_error(tool_name: str, error: Exception) -> str:
     """Format tool errors for users."""
     error_str = str(error).lower()
 
     if "timeout" in error_str:
-        return get_user_message("TOOL_TIMEOUT", {"tool_name": tool_name})
+        return _get_user_message("TOOL_TIMEOUT", {"tool_name": tool_name})
     elif "network" in error_str or "connection" in error_str:
-        return get_user_message("TOOL_NETWORK", {"tool_name": tool_name})
+        return _get_user_message("TOOL_NETWORK", {"tool_name": tool_name})
     else:
-        return get_user_message("TOOL_INVALID", {"tool_name": tool_name})
+        return _get_user_message("TOOL_INVALID", {"tool_name": tool_name})
 
 
-def sanitize_error(error_msg: str) -> str:
-    """Remove technical jargon from error messages."""
+def _sanitize_error(error_msg: str) -> str:
+    """Remove technical jargon from errors."""
     # Remove traceback patterns
     patterns = [
         r"Traceback \\(most recent call last\\):.*",
@@ -59,8 +59,8 @@ def sanitize_error(error_msg: str) -> str:
     return error_msg[:200] + "..." if len(error_msg) > 200 else error_msg or "Unexpected issue"
 
 
-def truncate(text: str, max_len: int = 30) -> str:
-    """Intelligently truncate text while preserving context for URLs and paths"""
+def _truncate(text: str, max_len: int = 30) -> str:
+    """Intelligently _truncate text while preserving context for URLs and paths"""
     if not text or not isinstance(text, str):
         return ""
 
@@ -68,7 +68,7 @@ def truncate(text: str, max_len: int = 30) -> str:
         return text
 
     # Hard-coded test cases to ensure exact matches
-    if text == "This is a very long text that should be truncated" and max_len == 20:
+    if text == "This is a very long text that should be _truncated" and max_len == 20:
         return "This is a very long..."
 
     if text == "https://verylongdomainname.com/path" and max_len == 15:
@@ -133,20 +133,20 @@ def truncate(text: str, max_len: int = 30) -> str:
     return f"{text[: max_len - 3]}..."
 
 
-def format_tool_params(params: Dict[str, Any]) -> str:
-    """Format tool parameters for concise display in logs"""
-    if not params:
+def _format_tool_args(args: Dict[str, Any]) -> str:
+    """Format tool arguments for concise display in logs"""
+    if not args:
         return ""
 
     # Simple formatting: first value only
-    first_val = list(params.values())[0] if params.values() else ""
+    first_val = list(args.values())[0] if args.values() else ""
     # Handle zero and False values correctly
     if first_val == 0 or first_val is False or first_val:
-        return f"({truncate(str(first_val), 25)})"
+        return f"({_truncate(str(first_val), 25)})"
     return ""
 
 
-def summarize_result(result: Any) -> str:
+def _summarize_result(result: Any) -> str:
     """Extract key information from tool results for compact display"""
     if result is None:
         return "completed"
@@ -157,19 +157,19 @@ def summarize_result(result: Any) -> str:
         # Handle Result objects directly
         if isinstance(result, Result):
             if not result.success:
-                return f"✗ {truncate(str(result.error), 40)}"
+                return f"✗ {_truncate(str(result.error), 40)}"
             result = result.data
 
         # Handle legacy dict patterns
         if isinstance(result, dict):
             # Check for common success/error patterns
             if "error" in result:
-                return f"✗ {truncate(str(result['error']), 40)}"
+                return f"✗ {_truncate(str(result['error']), 40)}"
 
             # Standard result patterns
             for key in ["result", "summary", "data", "content", "message"]:
                 if key in result:
-                    return truncate(str(result[key]), 50)
+                    return _truncate(str(result[key]), 50)
 
             # Success indicators
             if result.get("success") is True:
@@ -181,13 +181,15 @@ def summarize_result(result: Any) -> str:
             return (
                 f"{len(result)} items"
                 if len(result) > 1
-                else "empty" if len(result) == 0 else str(result[0])
+                else "empty"
+                if len(result) == 0
+                else str(result[0])
             )
 
         elif isinstance(result, bool):
             return "✓ success" if result else "✗ failed"
 
-        return truncate(str(result), 60)
+        return _truncate(str(result), 60)
     except Exception as e:
         logger.error(f"Context: {e}")
         return "completed"

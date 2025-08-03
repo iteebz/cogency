@@ -3,7 +3,8 @@
 from typing import List, Optional
 
 from cogency.providers import LLM
-from cogency.state import AgentState, build_reasoning_prompt
+from cogency.state import AgentState
+from cogency.state.context import reasoning_context
 from cogency.tools import Tool
 
 from .context import Context
@@ -13,7 +14,7 @@ from .prompt import Prompt
 
 
 class Reason:
-    """Orchestrates reasoning components in clean pipeline."""
+    """Orchestrates reasoning components."""
 
     def __init__(self, llm: LLM, tools: List[Tool], memory=None):
         self.llm = llm
@@ -36,23 +37,12 @@ class Reason:
 
         # Check stop conditions
         if iteration >= state.execution.max_iterations:
-            state.execution.stop_reason = "depth_reached"
-            await notifier(
-                "trace", message="ReAct terminated", reason="depth_reached", iterations=iteration
-            )
+            state.execution.stop_reason = "max_iterations_reached"
+            await notifier("trace", message="Max iterations reached", iterations=iteration)
             return None
 
         # Build reasoning prompt using pure function
-        reasoning_prompt = build_reasoning_prompt(state, self.tools, mode)
-
-        # Trace reasoning context for debugging
-        if iteration == 0:
-            await notifier(
-                "trace",
-                message="ReAct loop initiated",
-                mode=mode,
-                depth_limit=state.execution.max_iterations,
-            )
+        reasoning_prompt = reasoning_context(state, self.tools, mode)
 
         # Execute LLM reasoning
         messages = [{"role": "system", "content": reasoning_prompt}]
@@ -70,9 +60,9 @@ class Reason:
         raw_response = unwrap(llm_result)
 
         # Parse JSON response
-        from cogency.utils import parse_json
+        from cogency.utils.parsing import _parse_json
 
-        parsed = parse_json(raw_response)
+        parsed = _parse_json(raw_response)
 
         if not parsed.success:
             # Fallback to direct response
@@ -88,8 +78,7 @@ class Reason:
         state.update_from_reasoning(reasoning_data)
 
         # Display reasoning
-        thinking = reasoning_data.get("thinking", "")
-        if thinking:
+        if thinking := reasoning_data.get("thinking", ""):
             await notifier("reason", state="thinking", content=thinking)
 
         # Check for direct response
@@ -102,7 +91,7 @@ class Reason:
         return None
 
     async def _display_reasoning(self, reasoning_response, notifier, mode):
-        """Display reasoning phases based on mode."""
+        """Display reasoning steps based on mode."""
         if not reasoning_response:
             return
 

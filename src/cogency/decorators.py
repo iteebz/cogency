@@ -4,10 +4,9 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import Any, Optional
 
-from resilient_result import Retry
-from resilient_result import resilient as resilient_decorator
+from resilient_result import Retry, resilient
 
-from cogency.observe import counter, histogram, timer
+from cogency.observe.metrics import _counter, _histogram, _timer
 from cogency.robust import checkpoint
 
 
@@ -27,9 +26,6 @@ class StepConfig:
     robust: Optional[Any] = None
     observe: Optional[Any] = None
     persist: Optional[Any] = None
-
-
-# REMOVED: Global state eliminated - use registry injection
 
 
 def _checkpoint(name: str, interruptible: bool = True):
@@ -75,9 +71,9 @@ def _auto_save(phase_name: str, config: Optional[StepConfig] = None):
                             await persist_obj.save(state)
                         elif hasattr(persist_obj, "store") and persist_obj.enabled:
                             # It's a Persist config, need to get the StatePersistence instance
-                            from cogency.persist.store.base import setup_persistence
+                            from cogency.persist.store.base import _setup_persist
 
-                            persistence = setup_persistence(persist_obj)
+                            persistence = _setup_persist(persist_obj)
                             if persistence:
                                 await persistence.save(state)
                 except Exception:
@@ -110,10 +106,10 @@ def _observe_metrics(phase_name: str, config: Optional[StepConfig] = None):
             }
 
             # Count phase executions
-            counter(f"{phase_name}.executions", 1.0, tags)
+            _counter(f"{phase_name}.executions", 1.0, tags)
 
             # Start unified timing - metrics collection handles the measurement
-            with timer(f"{phase_name}.duration", tags) as phase_timer:
+            with _timer(f"{phase_name}.duration", tags) as phase_timer:
                 try:
                     # Inject timing context into kwargs for phase functions to use
                     kwargs["_phase_timer"] = phase_timer
@@ -121,18 +117,18 @@ def _observe_metrics(phase_name: str, config: Optional[StepConfig] = None):
                     result = await func(*args, **kwargs)
 
                     # Success metrics
-                    counter(f"{phase_name}.success", 1.0, tags)
+                    _counter(f"{phase_name}.success", 1.0, tags)
 
                     # Result size metrics if applicable
                     if result and hasattr(result, "__len__"):
-                        histogram(f"{phase_name}.result_size", len(str(result)), tags)
+                        _histogram(f"{phase_name}.result_size", len(str(result)), tags)
 
                     return result
 
                 except Exception as e:
                     # Error metrics
                     error_tags = {**tags, "error_type": type(e).__name__}
-                    counter(f"{phase_name}.errors", 1.0, error_tags)
+                    _counter(f"{phase_name}.errors", 1.0, error_tags)
                     raise
 
         return wrapper
@@ -156,7 +152,7 @@ def _policy(
                 return func
 
             # 1. Apply resilience with progress visibility
-            resilient_func = resilient_decorator(retry=retry, handler=_retry_progress_handler)(func)
+            resilient_func = resilient(retry=retry, handler=_retry_progress_handler)(func)
             # 2. Apply context-driven checkpointing
             checkpointed_func = _checkpoint(checkpoint_name, interruptible)(resilient_func)
             # 3. Apply auto-save after successful completion
@@ -212,7 +208,7 @@ def step_decorators(config: Optional[StepConfig] = None):
     """Create phase decorators with injected config - no global state."""
 
     class _PhaseDecorators:
-        """Unified @phase decorator with beautiful IDE autocomplete."""
+        """Unified @phase decorator."""
 
         reason = staticmethod(_phase_factory("reasoning", True, Retry.api(), config))
         act = staticmethod(

@@ -6,7 +6,7 @@ from typing import List, Optional
 from resilient_result import unwrap
 
 from cogency.providers import LLM
-from cogency.utils import parse_json
+from cogency.utils.parsing import _parse_json
 
 
 @dataclass
@@ -49,7 +49,7 @@ Examples:
 
         result = await self.llm.run([{"role": "user", "content": prompt}])
         response = unwrap(result)
-        parsed = unwrap(parse_json(response))
+        parsed = unwrap(_parse_json(response))
 
         return MemoryResult(
             content=parsed.get("memory"),

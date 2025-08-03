@@ -1,4 +1,4 @@
-"""User Profile - Pure data structure for user understanding."""
+"""User profile data structure."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -31,6 +31,10 @@ class UserProfile:
     last_updated: datetime = field(default_factory=datetime.now)
     interaction_count: int = 0
     synthesis_version: int = 1
+
+    def update(self, interaction_insights: Dict[str, Any]) -> None:
+        """Update profile from interaction insights."""
+        self.update_from_interaction(interaction_insights)
 
     def update_from_interaction(self, interaction_insights: Dict[str, Any]) -> None:
         """Update profile from interaction insights."""

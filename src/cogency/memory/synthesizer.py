@@ -2,11 +2,11 @@
 
 from typing import Any, Dict
 
+from cogency.memory.compression import compress
 from cogency.persist.serialization import deserialize_profile, serialize_profile
 from cogency.state.user_profile import UserProfile
-from cogency.utils import parse_json
+from cogency.utils.parsing import _parse_json
 
-from .compression import compress_for_injection
 from .insights import extract_insights
 
 
@@ -17,6 +17,7 @@ class ImpressionSynthesizer:
         self.llm = llm
         self.store = store
         self.synthesis_threshold = 3  # Synthesize every N interactions
+        self.current_user_id = "default"  # Track current user for load/remember
 
     async def update_impression(
         self, user_id: str, interaction_data: Dict[str, Any]
@@ -31,7 +32,7 @@ class ImpressionSynthesizer:
 
         # Update profile with insights
         if insights:
-            profile.update_from_interaction(insights)
+            profile.update(insights)
 
         # Synthesize if threshold reached
         if profile.interaction_count % self.synthesis_threshold == 0:
@@ -48,7 +49,7 @@ class ImpressionSynthesizer:
     ) -> UserProfile:
         """LLM-driven profile synthesis."""
 
-        current_context = compress_for_injection(profile)
+        current_context = compress(profile)
 
         prompt = f"""Synthesize evolved user profile:
 
@@ -56,8 +57,8 @@ CURRENT PROFILE:
 {current_context}
 
 RECENT INTERACTION:
-Query: {recent_interaction.get('query', '')}
-Success: {recent_interaction.get('success', True)}
+Query: {recent_interaction.get("query", "")}
+Success: {recent_interaction.get("success", True)}
 
 Create refined profile that:
 - Consolidates understanding over time
@@ -80,16 +81,14 @@ Return JSON with updated fields:
 
         result = await self.llm.run([{"role": "user", "content": prompt}])
         if result.success:
-            parsed = parse_json(result.data)
+            parsed = _parse_json(result.data)
             if parsed.success:
-                self._apply_synthesis_to_profile(profile, parsed.data)
+                self._apply_synthesis(profile, parsed.data)
                 profile.synthesis_version += 1
 
         return profile
 
-    def _apply_synthesis_to_profile(
-        self, profile: UserProfile, synthesis_data: Dict[str, Any]
-    ) -> None:
+    def _apply_synthesis(self, profile: UserProfile, synthesis_data: Dict[str, Any]) -> None:
         """Apply LLM synthesis to profile."""
         for key, value in synthesis_data.items():
             if hasattr(profile, key) and value:
@@ -99,7 +98,11 @@ Return JSON with updated fields:
         """Load or create user profile."""
         if self.store:
             key = f"profile:{user_id}"
-            result = await self.store.load(key)
+            try:
+                result = await self.store.load(key)
+            except AttributeError:
+                # Fallback if store doesn't have load method
+                return UserProfile(user_id=user_id)
 
             # Handle Result vs direct data response
             if hasattr(result, "success") and result.success:
@@ -126,3 +129,19 @@ Return JSON with updated fields:
         key = f"profile:{profile.user_id}"
         profile_dict = serialize_profile(profile)
         await self.store.save(key, profile_dict)
+
+    async def load(self, user_id: str = None) -> None:
+        """Load memory state for the current user."""
+        if user_id:
+            self.current_user_id = user_id
+        pass
+
+    async def remember(self, content: str, human: bool = True) -> None:
+        """Remember content from user interaction."""
+        interaction_data = {
+            "query" if human else "response": content,
+            "success": True,
+            "human": human,
+        }
+        # Update impression using existing logic
+        await self.update_impression(self.current_user_id, interaction_data)

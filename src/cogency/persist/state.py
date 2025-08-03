@@ -3,7 +3,7 @@
 from typing import Optional
 
 from cogency.persist.store import Filesystem, Store
-from cogency.state import AgentState
+from cogency.state import AgentMode, AgentState
 
 
 class StatePersistence:
@@ -46,10 +46,7 @@ class StatePersistence:
                 return None
 
             # Handle different data formats (backwards compatibility)
-            if "state" in data:
-                state_dict = data["state"]  # Legacy format
-            else:
-                state_dict = data  # New format
+            state_dict = data.get("state", data)
 
             # Reconstruct AgentState with v1.0.0 structure
             # Extract query and user_id from execution data
@@ -75,7 +72,12 @@ class StatePersistence:
             if "execution" in state_dict:
                 exec_data = state_dict["execution"]
                 state.execution.iteration = exec_data.get("iteration", 0)
-                state.execution.mode = exec_data.get("mode", "adapt")
+                # Handle mode conversion from string to enum
+                mode_str = exec_data.get("mode", "adapt")
+                try:
+                    state.execution.mode = AgentMode(mode_str)
+                except ValueError:
+                    state.execution.mode = AgentMode.ADAPT
                 state.execution.stop_reason = exec_data.get("stop_reason")
                 state.execution.response = exec_data.get("response")
                 state.execution.messages = exec_data.get("messages", [])

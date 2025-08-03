@@ -1,9 +1,10 @@
-"""Context building for reasoning - memory, tools, and state context."""
+"""Context building for reasoning."""
 
 from typing import Any, Dict, List
 
 from cogency.state import AgentState
-from cogency.tools import Tool, build_registry
+from cogency.tools import Tool
+from cogency.tools.registry import build_registry
 
 
 class Context:
@@ -17,7 +18,8 @@ class Context:
         tool_registry = build_registry(selected_tools)
 
         # Build reasoning context from state
-        reasoning_context = state.reasoning_context(mode, max_history=3)
+        max_history = 3
+        reasoning_context = state.reasoning_context(mode, max_history=max_history)
 
         # Get memory context if available
         memory_context = ""

@@ -72,7 +72,7 @@ class MockCheckpointLLM(LLM):
 class MockCheckpointAgent:
     """Agent with checkpoint/resume capabilities."""
 
-    def __init__(self, llm=None, tools=None, depth=10, checkpoint_file=None, **kwargs):
+    def __init__(self, llm=None, tools=None, max_iterations=10, checkpoint_file=None, **kwargs):
         # Create agent with mock LLM
         from cogency import Agent
 
@@ -133,7 +133,7 @@ class MockCheckpointAgent:
             if load_result.success:
                 # Add resume context to messages
                 resume_prompt = f"You are resuming from a checkpoint. Previous context: {prompt}. Please continue from where you left off."
-                result_string = await self.agent.run(resume_prompt)
+                result_string = await self.agent.run_async(resume_prompt)
                 from resilient_result import Result
 
                 return (
@@ -153,7 +153,7 @@ class MockCheckpointAgent:
 
         # Run the actual task
         try:
-            result_string = await self.agent.run(prompt)
+            result_string = await self.agent.run_async(prompt)
             from resilient_result import Result
 
             if result_string is None:
@@ -179,6 +179,10 @@ class MockCheckpointAgent:
 
         return result
 
+    async def run_async(self, prompt, resume_from_checkpoint=False):
+        """Async version of run method for compatibility."""
+        return await self.run(prompt, resume_from_checkpoint)
+
 
 @pytest.mark.asyncio
 async def test_resume():
@@ -191,11 +195,11 @@ async def test_resume():
         # Create agent with checkpoint support
         mock_llm = MockCheckpointLLM()
         agent = MockCheckpointAgent(
-            llm=mock_llm, tools=[], checkpoint_file=checkpoint_file, depth=3
+            llm=mock_llm, tools=[], checkpoint_file=checkpoint_file, max_iterations=3
         )
 
         # Run initial task (will create checkpoint)
-        initial_result = await agent.run("Analyze this complex dataset")
+        initial_result = await agent.run_async("Analyze this complex dataset")
         assert initial_result.success, f"Initial run should succeed: {initial_result.error}"
 
         # Verify checkpoint file was created
@@ -203,7 +207,7 @@ async def test_resume():
 
         # Create new agent instance to simulate restart
         new_agent = MockCheckpointAgent(
-            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, depth=3
+            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, max_iterations=3
         )
 
         # Resume from checkpoint
@@ -234,7 +238,7 @@ async def test_failure_recovery():
         llm=MockCheckpointLLM(),
         tools=[],
         checkpoint_file="/invalid/path/checkpoint.json",
-        depth=2,
+        max_iterations=2,
     )
 
     # Should handle checkpoint save failure gracefully
@@ -259,7 +263,7 @@ async def test_data_integrity():
 
     try:
         agent = MockCheckpointAgent(
-            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, depth=2
+            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, max_iterations=2
         )
 
         # Set up complex execution state
@@ -276,7 +280,7 @@ async def test_data_integrity():
 
         # Create new agent and load
         new_agent = MockCheckpointAgent(
-            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, depth=2
+            llm=MockCheckpointLLM(), tools=[], checkpoint_file=checkpoint_file, max_iterations=2
         )
 
         load_result = await new_agent.load_checkpoint()

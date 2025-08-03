@@ -1,4 +1,4 @@
-"""Checkpoint decorator for workflow recovery - focused and clean."""
+"""Checkpoint decorator for workflow recovery."""
 
 import hashlib
 import json
@@ -14,7 +14,12 @@ from cogency.state import AgentState
 
 
 def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = False):
-    """@checkpoint - Workflow recovery with state persistence."""
+    """Checkpoint decorator for workflow recovery.
+
+    Args:
+        checkpoint_type: Type of checkpoint for categorization
+        interruptible: Save checkpoint on success for resumption
+    """
 
     def decorator(func):
         @wraps(func)
@@ -56,7 +61,7 @@ def checkpoint(checkpoint_type: str = "tool_execution", interruptible: bool = Fa
 
 
 class Checkpoint:
-    """Manages checkpoint storage and retrieval."""
+    """Checkpoint storage and retrieval manager."""
 
     def __init__(self, checkpoint_dir: Optional[Path] = None, session_id: Optional[str] = None):
         from ..config import PathsConfig
@@ -66,6 +71,10 @@ class Checkpoint:
         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
         self.max_age_hours = 1  # Expire checkpoints after 1 hour
         self.session_id = session_id or str(os.getpid())  # Process ID for session isolation
+
+    def _fingerprint(self, state: AgentState) -> str:
+        """Generate deterministic fingerprint for state matching with session isolation."""
+        return self._generate_fingerprint(state)
 
     def _generate_fingerprint(self, state: AgentState) -> str:
         """Generate deterministic fingerprint for state matching with session isolation."""
@@ -84,8 +93,16 @@ class Checkpoint:
         return self.checkpoint_dir / f"{fingerprint}.json"
 
     def save(self, state: AgentState, checkpoint_type: str = "tool_execution") -> str:
-        """Save checkpoint with meaningful progress."""
-        fingerprint = self._generate_fingerprint(state)
+        """Save checkpoint state.
+
+        Args:
+            state: Agent state to checkpoint
+            checkpoint_type: Type for categorization
+
+        Returns:
+            Checkpoint fingerprint
+        """
+        fingerprint = self._fingerprint(state)
         checkpoint_path = self._get_checkpoint_path(fingerprint)
 
         # Extract serializable state data - v1.0.0 spec compliant
@@ -124,8 +141,8 @@ class Checkpoint:
         return fingerprint
 
     def find(self, state: AgentState) -> Optional[str]:
-        """Find matching checkpoint for current state."""
-        fingerprint = self._generate_fingerprint(state)
+        """Find matching checkpoint for state."""
+        fingerprint = self._fingerprint(state)
         checkpoint_path = self._get_checkpoint_path(fingerprint)
 
         if not checkpoint_path.exists():
@@ -179,7 +196,14 @@ class Checkpoint:
 
 
 def resume(state: AgentState) -> bool:
-    """Resume workflow from saved checkpoint if available."""
+    """Resume workflow from checkpoint.
+
+    Args:
+        state: Agent state to restore
+
+    Returns:
+        True if successfully resumed
+    """
     checkpoint_id = checkpointer.find(state)
     if not checkpoint_id:
         return False

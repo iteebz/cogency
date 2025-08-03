@@ -6,8 +6,9 @@ from typing import List
 from resilient_result import unwrap
 
 from cogency.providers import LLM
-from cogency.tools import Tool, build_registry
-from cogency.utils import parse_json
+from cogency.tools import Tool
+from cogency.tools.registry import build_registry
+from cogency.utils.parsing import _parse_json
 
 
 @dataclass
@@ -50,7 +51,7 @@ SELECTION RULES:
 
         result = await self.llm.run([{"role": "user", "content": prompt}])
         response = unwrap(result)
-        parsed = unwrap(parse_json(response))
+        parsed = unwrap(_parse_json(response))
 
         return SelectionResult(
             selected_tools=parsed.get("selected_tools", []), reasoning=parsed.get("reasoning", "")
@@ -64,5 +65,4 @@ SELECTION RULES:
         selected_set = set(selected_names)
         filtered = [tool for tool in tools if tool.name in selected_set]
 
-        # Remove memorize tool - memory extraction is handled separately
         return [tool for tool in filtered if tool.name != "memorize"]

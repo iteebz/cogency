@@ -1,4 +1,4 @@
-"""Prepareed data types - cleaned queries with context and memory integration."""
+"""Prepared data types."""
 
 from dataclasses import dataclass, field
 from typing import List, Optional

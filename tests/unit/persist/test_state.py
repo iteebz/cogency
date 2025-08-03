@@ -5,7 +5,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from cogency.persist import StatePersistence, Store
+from cogency.persist import Store
+from cogency.persist.state import StatePersistence
 from cogency.state import AgentState
 
 
@@ -152,7 +153,7 @@ async def test_reconstruct(persistence, sample_state):
     sample_state.execution.iteration = 5
     sample_state.execution.stop_reason = "depth"
     sample_state.execution.response = "Final response"
-    sample_state.execution.pending_calls = [{"name": "test_tool", "args": {"param": "value"}}]
+    sample_state.execution.pending_calls = [{"name": "test_tool", "args": {"arg": "value"}}]
     sample_state.execution.completed_calls = [{"name": "previous_tool", "result": "success"}]
 
     # Record thinking in reasoning context
@@ -167,9 +168,7 @@ async def test_reconstruct(persistence, sample_state):
     assert loaded_state.execution.iteration == 5
     assert loaded_state.execution.stop_reason == "depth"
     assert loaded_state.execution.response == "Final response"
-    assert loaded_state.execution.pending_calls == [
-        {"name": "test_tool", "args": {"param": "value"}}
-    ]
+    assert loaded_state.execution.pending_calls == [{"name": "test_tool", "args": {"arg": "value"}}]
     assert loaded_state.execution.completed_calls == [
         {"name": "previous_tool", "result": "success"}
     ]

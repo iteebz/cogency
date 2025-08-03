@@ -1,12 +1,12 @@
 """Context building tests - Comprehensive context assembly."""
 
-from cogency.memory import compress_for_injection
+from cogency.memory.compression import compress
 from cogency.state import AgentState
 from cogency.state.reasoning import ReasoningContext
 from cogency.state.user_profile import UserProfile
 
 
-def test_reasoning_context_compression():
+def test_contextcompression():
     """Test reasoning context compression for LLM context."""
     context = ReasoningContext(goal="test goal", strategy="test strategy")
     context.add_insight("key insight")
@@ -22,7 +22,7 @@ def test_reasoning_context_compression():
     assert "LAST THINKING: complex analysis" in compressed
 
 
-def test_user_profile_context_injection():
+def test_profile_injection():
     """Test user profile context for agent initialization."""
     profile = UserProfile(user_id="test_user")
     profile.communication_style = "technical"
@@ -30,7 +30,7 @@ def test_user_profile_context_injection():
     profile.expertise_areas = ["python", "ml"]
     profile.projects = {"current": "test project"}
 
-    context = compress_for_injection(profile)
+    context = compress(profile)
 
     assert "COMMUNICATION: technical" in context
     assert "CURRENT GOALS:" in context
@@ -38,7 +38,7 @@ def test_user_profile_context_injection():
     assert "ACTIVE PROJECTS: current: test project" in context
 
 
-def test_agent_state_situated_context():
+def test_situated_context():
     """Test AgentState situated context building."""
     profile = UserProfile(user_id="test_user")
     profile.communication_style = "concise"
@@ -53,7 +53,7 @@ def test_agent_state_situated_context():
     assert "CURRENT GOALS: efficiency" in situated_context
 
 
-def test_comprehensive_context_building():
+def test_context_building():
     """Test building comprehensive context from all components."""
     # Create user profile with rich context
     profile = UserProfile(user_id="expert_user")

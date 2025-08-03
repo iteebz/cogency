@@ -17,7 +17,7 @@ def test_defaults():
     assert state.user_id == "default"
     assert state.iteration == 0
     assert state.max_iterations == 10
-    assert state.mode == "adapt"
+    assert state.mode.value == "adapt"
     assert state.stop_reason is None
     assert state.messages == []
     assert state.response is None
@@ -46,7 +46,7 @@ def test_tool_calls():
     """Test tool call management."""
     state = ExecutionState(query="test query")
 
-    calls = [{"name": "test_tool", "args": {"param": "value"}}]
+    calls = [{"name": "test_tool", "args": {"arg": "value"}}]
     state.set_tool_calls(calls)
 
     assert state.pending_calls == calls

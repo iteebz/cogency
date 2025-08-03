@@ -60,9 +60,9 @@ async def test_memory_session_continuity():
 
     # Session 3: Verify profile contains accumulated understanding
     profile3 = await synthesizer._load_profile(user_id)
-    from cogency.memory import compress_for_injection
+    from cogency.memory.compression import compress
 
-    context = compress_for_injection(profile3)
+    context = compress(profile3)
 
     # Should contain learned information from both sessions
     assert profile3.interaction_count >= 2
@@ -115,10 +115,10 @@ async def test_memory_multi_user_isolation():
     assert reloaded_profile2.user_id == "user_2"
 
     # Verify context isolation
-    from cogency.memory import compress_for_injection
+    from cogency.memory.compression import compress
 
-    context1 = compress_for_injection(reloaded_profile1)
-    context2 = compress_for_injection(reloaded_profile2)
+    context1 = compress(reloaded_profile1)
+    context2 = compress(reloaded_profile2)
 
     # Each user should have their own context
     assert context1 != context2
@@ -148,8 +148,8 @@ async def test_memory_config_integration():
     assert "concise" in context_with_profile  # From communication style
 
     # Test profile compression
-    from cogency.memory import compress_for_injection
+    from cogency.memory.compression import compress
 
-    compressed = compress_for_injection(profile, max_tokens=100)
+    compressed = compress(profile, max_tokens=100)
     assert len(compressed) <= 100
     assert "Python" in compressed

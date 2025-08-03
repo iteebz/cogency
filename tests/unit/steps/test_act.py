@@ -86,3 +86,70 @@ async def test_multi(state, tools):
 
     assert len(state.execution.completed_calls) == 3
     assert all(result["name"] == "mock_tool" for result in state.execution.completed_calls)
+
+
+@pytest.mark.asyncio
+async def test_returns_non_result(state, mock_tool):
+    """Test handling when tool returns raw string instead of Result object."""
+
+    async def non_result_run(**kwargs):
+        return "raw string response"  # Not a Result object
+
+    mock_tool.run = non_result_run
+    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
+
+    await act(state, AsyncMock(), tools=[mock_tool])
+
+    assert len(state.execution.completed_calls) == 1
+    result = state.execution.completed_calls[0]
+    assert result["name"] == "mock_tool"
+    # Should handle gracefully, not crash
+
+
+@pytest.mark.asyncio
+async def test_tool_raises_exception(state, mock_tool):
+    """Test handling when tool raises standard Python exception."""
+
+    async def exception_run(**kwargs):
+        raise ValueError("Unexpected error in tool")
+
+    mock_tool.run = exception_run
+    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
+
+    await act(state, AsyncMock(), tools=[mock_tool])
+
+    assert len(state.execution.completed_calls) == 1
+    result = state.execution.completed_calls[0]
+    assert result["name"] == "mock_tool"
+    # Should be recorded as failure, not crash execution
+
+
+@pytest.mark.asyncio
+async def test_returns_none(state, mock_tool):
+    """Test handling when tool returns Result.ok(None)."""
+
+    async def none_success_run(**kwargs):
+        return Result.ok(None)
+
+    mock_tool.run = none_success_run
+    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
+
+    await act(state, AsyncMock(), tools=[mock_tool])
+
+    assert len(state.execution.completed_calls) == 1
+    result = state.execution.completed_calls[0]
+    assert result["name"] == "mock_tool"
+    # None is valid success case
+
+
+@pytest.mark.asyncio
+async def test_unknown_tool_call(state, tools):
+    """Test handling when LLM requests non-existent tool."""
+    state.execution.set_tool_calls([{"name": "nonexistent_tool", "args": {}}])
+
+    await act(state, AsyncMock(), tools=tools)
+
+    assert len(state.execution.completed_calls) == 1
+    result = state.execution.completed_calls[0]
+    assert result["name"] == "nonexistent_tool"
+    # Should record as failed tool call, not crash

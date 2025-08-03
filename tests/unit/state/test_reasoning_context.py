@@ -96,7 +96,7 @@ def test_record_thinking():
     assert len(context.thoughts) <= 5
 
 
-def test_compress_for_context():
+def testcompress_for_context():
     """Test intelligent compression for LLM context."""
     context = ReasoningContext(goal="Test goal", strategy="Test strategy")
 

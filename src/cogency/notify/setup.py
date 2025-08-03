@@ -3,7 +3,7 @@
 from .formatters import CLIFormatter, EmojiFormatter, Formatter, JSONFormatter
 
 
-def setup_formatter(notify: bool = True, debug: bool = False, style: str = None) -> Formatter:
+def _setup_formatter(notify: bool = True, debug: bool = False, style: str = None) -> Formatter:
     """Setup notification formatter - zero ceremony with smart defaults."""
     if style is not None:
         style = str(style).strip().lower()  # Ensure it's a clean lowercase string

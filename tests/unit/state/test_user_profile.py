@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from cogency.memory import compress_for_injection
+from cogency.memory.compression import compress
 from cogency.state.user_profile import UserProfile
 
 
@@ -26,15 +26,15 @@ def test_constructor():
     assert isinstance(profile.last_updated, datetime)
 
 
-def test_compress_for_injection_empty():
+def testcompress_empty():
     """Test compression with empty profile."""
     profile = UserProfile(user_id="test_user")
 
-    result = compress_for_injection(profile)
+    result = compress(profile)
     assert result == ""
 
 
-def test_compress_for_injection_populated():
+def testcompress_populated():
     """Test compression with populated profile."""
     profile = UserProfile(user_id="test_user")
     profile.communication_style = "concise"
@@ -44,7 +44,7 @@ def test_compress_for_injection_populated():
     profile.expertise_areas = ["python", "ml", "data"]
     profile.constraints = ["time", "budget"]
 
-    result = compress_for_injection(profile)
+    result = compress(profile)
 
     assert "COMMUNICATION: concise" in result
     assert "CURRENT GOALS:" in result
@@ -57,24 +57,24 @@ def test_compress_for_injection_populated():
     assert "CONSTRAINTS: time; budget" in result
 
 
-def test_compress_for_injection_truncation():
+def testcompress_truncation():
     """Test compression respects max_tokens limit."""
     profile = UserProfile(user_id="test_user")
     profile.communication_style = "very detailed and comprehensive style"
     profile.goals = ["very long goal description"] * 10
 
-    result = compress_for_injection(profile, max_tokens=50)
+    result = compress(profile, max_tokens=50)
     assert len(result) <= 50
 
 
-def test_compress_for_injection_recent_items():
+def testcompress_recent():
     """Test compression shows most recent items."""
     profile = UserProfile(user_id="test_user")
 
     # Add many goals to test recent selection
     profile.goals = [f"goal_{i}" for i in range(10)]
 
-    result = compress_for_injection(profile)
+    result = compress(profile)
 
     # Should show last 3 goals
     assert "goal_7" in result
@@ -83,7 +83,7 @@ def test_compress_for_injection_recent_items():
     assert "goal_0" not in result
 
 
-def test_update_from_interaction_preferences():
+def test_update_preferences():
     """Test updating preferences from interaction."""
     profile = UserProfile(user_id="test_user")
 
@@ -96,7 +96,7 @@ def test_update_from_interaction_preferences():
     assert profile.last_updated > profile.created_at
 
 
-def test_update_from_interaction_goals():
+def test_update_goals():
     """Test updating goals with bounded growth."""
     profile = UserProfile(user_id="test_user")
 
@@ -122,7 +122,7 @@ def test_update_from_interaction_goals():
     assert len(profile.goals) <= 10
 
 
-def test_update_from_interaction_expertise():
+def test_update_expertise():
     """Test updating expertise areas with bounded growth."""
     profile = UserProfile(user_id="test_user")
 
@@ -140,7 +140,7 @@ def test_update_from_interaction_expertise():
     assert len(profile.expertise_areas) <= 15
 
 
-def test_update_from_interaction_projects():
+def test_update_projects():
     """Test updating projects with bounded growth."""
     profile = UserProfile(user_id="test_user")
 
@@ -158,7 +158,7 @@ def test_update_from_interaction_projects():
     assert len(profile.projects) <= 10
 
 
-def test_update_from_interaction_patterns():
+def test_update_patterns():
     """Test updating success/failure patterns."""
     profile = UserProfile(user_id="test_user")
 
@@ -188,7 +188,7 @@ def test_update_from_interaction_patterns():
     assert len(profile.success_patterns) <= 5
 
 
-def test_update_from_interaction_comprehensive():
+def test_update_comprehensive():
     """Test updating all fields in one interaction."""
     profile = UserProfile(user_id="test_user")
 

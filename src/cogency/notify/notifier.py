@@ -1,4 +1,4 @@
-"""Notifier - Clean async notification orchestrator."""
+"""Async notification orchestrator."""
 
 from typing import Any, Callable, Dict, Optional
 
@@ -15,7 +15,7 @@ class Notifier:
         self.notifications = []
 
     async def __call__(self, event_type: str, **data) -> None:
-        """Pure event dispatcher - notifier(type, **payload)."""
+        """Event dispatcher."""
         notification = Notification(type=event_type, data=data)
         self.notifications.append(notification)
 

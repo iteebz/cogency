@@ -20,7 +20,7 @@ class ScrapeArgs:
 
 @tool
 class Scrape(Tool):
-    """Extract clean text content from web pages using trafilatura."""
+    """Extract text content from web pages using trafilatura."""
 
     def __init__(self):
         super().__init__(
@@ -28,7 +28,7 @@ class Scrape(Tool):
             description="Extract clean text content from web pages, removing ads, navigation, and formatting",
             schema="scrape(url: str)",
             emoji="📖",
-            params=ScrapeArgs,
+            args=ScrapeArgs,
             examples=[
                 "scrape(url='https://example.com/article')",
                 "scrape(url='https://news.site.com/story')",
@@ -41,12 +41,12 @@ class Scrape(Tool):
             ],
         )
         # Use base class formatting with templates
-        self.param_key = "url"
+        self.arg_key = "url"
         self.human_template = "Scraped '{title}'"
         self.agent_template = "scrape {url} → {title}"
 
     async def run(self, url: str, **kwargs) -> Dict[str, Any]:
-        """Extract clean content from a web page."""
+        """Extract content from a web page."""
         try:
             # Fetch URL content
             downloaded = trafilatura.fetch_url(url)
