@@ -67,7 +67,7 @@ class MyTool(Tool):
             description="Does something useful", 
             schema="my_tool(query: str, limit: int = 10)",
             emoji="🔧",
-            params=MyToolArgs,  # Auto-validation
+            args=MyToolArgs,  # Auto-validation
             examples=["my_tool(query='hello', limit=5)"],
             rules=["Keep queries concise"]
         )
@@ -83,7 +83,7 @@ await agent.run("Use my_tool with hello")
 
 ### Key Points
 - **`@tool`** - Auto-registers with agent
-- **`params=dataclass`** - Auto-validates parameters  
+- **`args=dataclass`** - Auto-validates arguments  
 - **`schema`** - Explicit schema string for LLM
 - **`examples/rules`** - LLM guidance
 - **Return `Result.ok(data)` or `Result.fail(error)`**

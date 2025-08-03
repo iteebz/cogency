@@ -1,27 +1,28 @@
 # Memory
 
-**Smart memory that learns about users without external dependencies.**
+**Situated memory that learns about users and provides contextual understanding.**
 
 ```python
 from cogency import Agent
 
-# Enable memory with one parameter
+# Enable memory with one parameter  
 agent = Agent("assistant", memory=True)
 
 # Memory learns automatically
 await agent.run("I prefer TypeScript over JavaScript")
 await agent.run("What language should I use for my project?")
-# → Agent recalls your TypeScript preference
+# → Agent recalls your TypeScript preference and provides situated context
 ```
 
 ## How It Works
 
-Memory uses a two-layer architecture:
+Memory uses **situated memory architecture** - persistent user understanding that builds over time:
 
-1. **Recent interactions** - Raw conversation history with human/agent weighting
-2. **User impression** - LLM-synthesized understanding of the user
+1. **User Profile** - Persistent understanding of preferences, goals, expertise, and patterns
+2. **LLM Synthesis** - Automatic profile updates through intelligent interaction analysis  
+3. **Context Injection** - Seamless integration into agent reasoning
 
-When recent interactions exceed 16K tokens, the LLM automatically synthesizes them into a refined user impression, preserving essential context while eliminating noise.
+The system automatically learns from interactions and synthesizes understanding without external dependencies.
 
 ## Key Features
 
@@ -46,64 +47,52 @@ await agent.run("Help me design an API")
 
 ## Memory API
 
-The memory system provides two core methods:
+Memory works automatically through agent interactions. The system tracks:
 
-### `remember(content, human=False)`
-Store information with optional human weighting:
-
-```python
-# Direct memory access (rarely needed)
-await agent.memory.remember("User prefers minimal APIs", human=True)
-await agent.memory.remember("Agent suggested REST approach", human=False)
-```
-
-### `recall()`
-Retrieve memory context for reasoning:
+- **Preferences** - Language choices, communication style, technical preferences
+- **Goals** - Current objectives and long-term aspirations  
+- **Expertise** - Technical knowledge areas and skill levels
+- **Projects** - Active work and context
+- **Patterns** - What works and what doesn't for the user
 
 ```python
-context = await agent.memory.recall()
-# Returns formatted context:
-# USER IMPRESSION:
-# [Synthesized understanding]
-# 
-# RECENT INTERACTIONS: 
-# [HUMAN] Recent user input
-# [AGENT] Recent agent response
+# Memory learns from natural conversation
+await agent.run("I prefer functional programming patterns")
+await agent.run("I'm working on a React app with TypeScript")
+await agent.run("Help me design a clean API")
+# → Agent uses your preferences and project context automatically
 ```
 
 ## Persistence
 
-Memory automatically persists across sessions when combined with the `persist` option:
+Memory automatically persists across sessions:
 
 ```python
-agent = Agent("assistant", memory=True, persist=True)
+agent = Agent("assistant", memory=True)
 
 # First session
 await agent.run("I'm working on a React app")
 
 # Later session (different process)
-agent = Agent("assistant", memory=True, persist=True)  
+agent = Agent("assistant", memory=True)  
 await agent.run("Continue helping with my project")
 # → Agent remembers it's a React app
 ```
 
 ## Memory Synthesis
 
-When recent interactions grow large (>16K tokens), memory automatically synthesizes:
+Memory automatically refines understanding over time through LLM-driven synthesis:
 
 ```python
-# Before synthesis - detailed interactions
-RECENT INTERACTIONS:
-[HUMAN] I prefer TypeScript over JavaScript  
-[AGENT] TypeScript provides better type safety
-[HUMAN] I like functional programming
-[AGENT] Consider using immutable data structures
-# ... many more interactions ...
+# Initial interactions build understanding
+await agent.run("I prefer TypeScript over JavaScript")
+await agent.run("I like functional programming")  
+await agent.run("I'm working on a React project")
 
-# After synthesis - refined impression  
-USER IMPRESSION:
-Developer with strong preferences for TypeScript and functional programming patterns. 
-Values type safety and immutable data structures. Working on React applications.
+# After several interactions, memory synthesizes
+# Consolidated understanding: 
+# "Developer with TypeScript preference, functional programming style, 
+#  working on React applications with emphasis on type safety"
 ```
 
 ## Best Practices
@@ -112,23 +101,22 @@ Values type safety and immutable data structures. Working on React applications.
 
 **Trust human priority** - User statements automatically override agent observations during synthesis.
 
-**Enable persistence for continuity** - Combine `memory=True` with `persist=True` for cross-session learning.
+**Enable memory for continuity** - Use `memory=True` for cross-session learning.
 
 ```python
 # Recommended setup for persistent learning
 agent = Agent(
     "assistant", 
-    memory=True,
-    persist=True
+    memory=True
 )
 ```
 
-## Memory vs Workspace
+## Memory vs Reasoning State
 
-- **Memory**: Persistent user context (preferences, identity, long-term facts)
-- **Workspace**: Ephemeral task context (current objective, discoveries, approach)
+- **Memory**: Persistent user understanding (preferences, goals, expertise, patterns)
+- **Reasoning**: Ephemeral task context (current objective, strategy, insights)
 
-Memory learns *about* the user. Workspace tracks *current* reasoning state.
+Memory learns *about* the user across sessions. Reasoning tracks *current* task progress.
 
 ## Advanced Configuration
 

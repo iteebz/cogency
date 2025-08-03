@@ -1,164 +1,125 @@
 # Configuration
 
-Advanced configuration for production deployments and specialized use cases.
+Cogency uses a **progressive disclosure** API design: simple boolean flags for beginners, detailed configuration objects for experts.
 
-## Configuration Objects
-
-Cogency uses configuration objects for advanced features. Default boolean values work for 90% of use cases.
-
-### Robust Configuration
+## Basic Configuration
 
 ```python
-from cogency import Robust
+from cogency import Agent
 
-# Simple usage
-agent = Agent(robust=True)   # Default settings
-agent = Agent(robust=False)  # Disable robustness
+# Simple: boolean flags enable defaults
+agent = Agent("assistant", memory=True, robust=True, observe=True)
 
-# Advanced configuration
-agent = Agent(robust=Robust(
-    attempts=5,
-    timeout=60.0,
-    backoff="exponential",
-    rate_limit_rps=10.0
-))
-```
-
-### Observe Configuration
-
-```python
-from cogency import Observe
-
-# Simple usage
-agent = Agent(observe=True)   # Basic telemetry
-
-# Advanced configuration
-agent = Agent(observe=Observe(
-    metrics=True,
-    phases=["reason", "act"],
-    export_format="prometheus"
-))
-```
-
-### Persist Configuration
-
-```python
-from cogency import Persist
-
-# Simple usage
-agent = Agent(persist=True)   # Default file-based persistence
-
-# Advanced configuration
-agent = Agent(persist=Persist(
-    enabled=True,
-    backend=CustomBackend()
-))
-```
-
-## Production Examples
-
-### High-Availability Setup
-```python
-from cogency import Robust, Observe, Persist
-
+# Advanced: specific configuration objects  
 agent = Agent(
-    "production-agent",
-    robust=Robust(attempts=5, timeout=120.0, rate_limit_rps=5.0),
-    observe=Observe(metrics=True, export_format="prometheus"),
-    persist=Persist(backend=RedisBackend())
+    "assistant",
+    mode="deep",                  # "fast" | "deep" | "adapt" 
+    max_iterations=10,                     # Max reasoning iterations
+    debug=True,                   # Detailed tracing
+    notify=True,                  # Progress notifications
+    tools=["files", "shell"],     # Specific tools
+    identity="You are..."         # Custom system prompt
 )
 ```
 
-### Development Setup
+## Memory Configuration
+
 ```python
+from cogency import Agent, MemoryConfig
+
+# Simple: enable with defaults
+agent = Agent("assistant", memory=True)
+
+# Advanced: custom settings
 agent = Agent(
-    "dev-agent",
-    debug=True,
-    notify=True,
-    mode="fast",
-    depth=5,
-    robust=Robust(attempts=2, timeout=10.0)
+    "assistant",
+    memory=MemoryConfig(
+        persist=True,
+        synthesis_threshold=8000,
+        user_id="alice"
+    )
 )
 ```
 
-### Research Agent
+## Robustness Configuration
+
 ```python
+from cogency import Agent, RobustConfig
+
+# Simple: enable with defaults
+agent = Agent("assistant", robust=True)
+
+# Advanced: custom retry/timeout settings
 agent = Agent(
-    "researcher",
-    mode="deep",
-    depth=20,
-    notify=True,
-    robust=Robust(timeout=180.0, rate_limit_rps=2.0)
+    "assistant", 
+    robust=RobustConfig(
+        retry=True,
+        attempts=5,
+        timeout=120.0,
+        rate_limit_rps=2.0
+    )
 )
 ```
 
-## Custom Backends
+## Observability Configuration
 
-### Custom Memory Backend
 ```python
-from cogency.memory import Store
+from cogency import Agent, ObserveConfig
 
-class CustomMemory(Store):
-    async def save(self, content: str, metadata: dict = None):
-        # Custom save logic
-        pass
-    
-    async def search(self, query: str, limit: int = 5) -> list:
-        # Custom search logic
-        return []
+# Simple: enable with defaults
+agent = Agent("assistant", observe=True)
 
-agent = Agent(memory=CustomMemory())
+# Advanced: custom monitoring
+agent = Agent(
+    "assistant",
+    observe=ObserveConfig(
+        metrics=True,
+        export_format="prometheus",
+        steps=["reason", "act"]
+    )
+)
 ```
 
-### Custom LLM Backend
-```python
-from cogency.providers import LLM
+## Progressive Disclosure Principle
 
-class CustomLLM(LLM):
-    async def complete(self, messages: list, **kwargs) -> str:
-        return "response"
-    
-    async def stream(self, messages: list, **kwargs):
-        yield "chunk"
+This Union pattern serves different user intents:
 
-agent = Agent(llm=CustomLLM())
-```
+- **Beginners**: Use boolean flags (`memory=True`) for quick starts
+- **Experts**: Use config objects (`memory=MemoryConfig(...)`) for precision
+
+Both patterns are validated to prevent conflicting configurations.
 
 ## Environment Variables
 
 ```bash
-# LLM Provider
+# LLM Providers
 export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...  
 export GEMINI_API_KEY=your-key
-
-# Memory
-export COGENCY_MEMORY_DIR=./custom_memory
-
-# Metrics
-export COGENCY_METRICS_ENDPOINT=http://prometheus:9090
 ```
 
-## Performance Tuning
+## Performance Profiles
 
-### Latency Optimization
+**Fastest:**
 ```python
-agent = Agent(
-    mode="fast",
-    depth=3,
-    robust=Robust(attempts=1, timeout=10.0)
-)
+agent = Agent(mode="fast", max_iterations=3, notify=False, robust=False)
 ```
 
-### Quality Optimization
+**Most accurate:**
+```python  
+agent = Agent(mode="deep", max_iterations=25, memory=True, robust=True)
+```
+
+**Production:**
 ```python
 agent = Agent(
-    mode="deep",
-    depth=25,
-    robust=Robust(attempts=5, timeout=300.0)
+    mode="adapt", 
+    memory=True, 
+    robust=RobustConfig(attempts=5, timeout=120.0),
+    observe=True
 )
 ```
 
 ---
 
-*Advanced configuration for production deployments and specialized use cases.*
+*Production-ready configuration for Cogency v1.0.0*

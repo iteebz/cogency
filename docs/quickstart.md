@@ -2,7 +2,7 @@
 
 Get up and running with Cogency in 5 minutes.
 
-> 🚧 **Beta Notice**: This is production beta software (v0.9.0). Core functionality is stable, but edge cases in cross-provider behavior and memory backends are still being addressed.
+> 🎯 **v1.0.0**: Production ready with canonical 5-tool architecture
 
 ## Installation
 
@@ -98,8 +98,8 @@ class MyTool(Tool):
     def __init__(self):
         super().__init__("my_tool", "Does something useful")
     
-    async def run(self, param: str):
-        return {"result": f"Processed: {param}"}
+    async def run(self, args: str):
+        return {"result": f"Processed: {args}"}
 
 # Tool auto-registers - just create your agent
 agent = Agent("assistant")
@@ -140,7 +140,7 @@ agent = Agent(
     mode="deep",        # Force deep reasoning
     notify=False,       # Disable progress notifications
     debug=True,         # Enable detailed tracing
-    depth=20           # Allow more reasoning iterations
+    max_iterations=20           # Allow more reasoning iterations
 )
 ```
 

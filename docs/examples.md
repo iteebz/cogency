@@ -11,18 +11,7 @@ result = await agent.run("What's 2+2?")  # → "4"
 # Streaming
 async for chunk in agent.stream("Weather in London?"):
     print(chunk, end="", flush=True)
-# → 🌤️ weather(location=London) → sunny, 18°C
-```
-
-## Multi-tool Usage
-
-```python
-# Uses multiple tools automatically
-await agent.run("Weather in Tokyo + calculate 15% tip on $45")
-# → weather(location=Tokyo) + code(expression="45 * 0.15")
-
-await agent.run("Read data.csv and create summary report")
-# → csv(file=data.csv) + files(action=create)
+# → 🔍 search(query="London weather") → sunny, 18°C
 ```
 
 ## Real-World Applications
@@ -73,51 +62,18 @@ and create a summary report with key insights
 """)
 ```
 
-### Personal Assistant
-```python
-agent = Agent("assistant")
-
-# Trip planning
-await agent.run("""
-Plan a 3-day trip to Tokyo with a budget of $2000. 
-Consider weather, activities, and accommodation.
-""")
-
-# Schedule management
-await agent.run("What's my schedule for today and what's the weather forecast?")
-```
-
 ## Memory Examples
 
 ### Persistent Conversations
 ```python
-agent = Agent("assistant")
+agent = Agent("assistant", memory=True)
 
 # First conversation
 await agent.run("Remember that I work at Google and I'm working on a React project")
 
-# Later conversation (same or different session)
+# Later conversation
 await agent.run("What project am I working on?")
 # "You're working on a React project at Google"
-```
-
-### Custom Memory Backend
-```python
-from cogency.memory import Store
-
-class DatabaseMemory(Store):
-    def __init__(self, db_connection):
-        self.db = db_connection
-    
-    async def save(self, content: str, metadata: dict = None):
-        # Save to database
-        pass
-    
-    async def search(self, query: str, limit: int = 5) -> list:
-        # Search database
-        return []
-
-agent = Agent("assistant", memory=DatabaseMemory(db_connection))
 ```
 
 ## Custom Tool Examples
@@ -134,11 +90,8 @@ class WeatherAPI(Tool):
     async def run(self, city: str, country: str = "US") -> dict:
         # Make API call
         return {"temperature": 25, "condition": "sunny"}
-    
-    def get_schema(self) -> str:
-        return "weather_api(city='string', country='US')"
 
-agent = Agent("assistant", tools=[WeatherAPI()])
+agent = Agent("assistant")  # Tool auto-registers
 ```
 
 ### Database Tool
@@ -153,7 +106,7 @@ class DatabaseQuery(Tool):
         # Execute database query
         return {"results": [], "success": True}
 
-agent = Agent("assistant", tools=[DatabaseQuery(db_connection)])
+agent = Agent("assistant")
 ```
 
 ## Configuration Examples
@@ -165,19 +118,16 @@ agent = Agent(
     debug=True,
     notify=True,
     mode="fast",
-    depth=5
+    max_iterations=5
 )
 ```
 
 ### Production Configuration
 ```python
-from cogency import Robust, Observe
-
 agent = Agent(
     "production-agent",
-    robust=Robust(attempts=5, timeout=120.0),
-    observe=Observe(metrics=True),
-    persist=True,
+    mode="adapt",
+    memory=True,
     notify=False
 )
 ```
@@ -187,7 +137,7 @@ agent = Agent(
 agent = Agent(
     "researcher",
     mode="deep",
-    depth=20,
+    max_iterations=20,
     identity="You are a thorough researcher who cites sources."
 )
 ```
@@ -203,23 +153,10 @@ except Exception as e:
     print(f"Agent execution failed: {e}")
 ```
 
-### Robust Configuration
-```python
-from cogency import Robust
-
-# Automatic retry with backoff
-agent = Agent(robust=Robust(
-    attempts=3,
-    timeout=30.0,
-    backoff="exponential"
-))
-
-# This will automatically retry on failures
-result = await agent.run("Query that might have transient failures")
-```
-
 ### Custom Error Recovery
 ```python
+import asyncio
+
 async def safe_agent_run(agent, query, max_retries=3):
     for attempt in range(max_retries):
         try:

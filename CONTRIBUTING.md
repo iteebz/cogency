@@ -6,30 +6,34 @@ Thank you for your interest in contributing to Cogency! This guide will help you
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/cogencyai/cogency.git
+   git clone https://github.com/iteebz/cogency.git
    cd cogency
    ```
 
 2. **Install dependencies**
    ```bash
-   poetry install --all-extras
+   poetry install
    ```
 
 3. **Run tests**
    ```bash
-   poetry run pytest
+   just ci
    ```
 
 ## Architecture Overview
 
-Cogency follows a phase-based cognitive architecture:
+Cogency follows a 4-step adaptive reasoning architecture:
 
-- **Phases**: ReAct cognitive stages (Prepare → Reason → Act → Respond)
-- **Tools**: Extensible capabilities with automatic discovery
-- **Services**: Provider backends (LLM, embedding, memory)
-- **Memory**: Persistent conversation context
+- **Prepare**: Context evaluation and tool selection
+- **Reason**: Depth-adaptive thinking (fast react → deep reflection)  
+- **Act**: Tool execution with automatic retry and recovery
+- **Respond**: Identity-aware response formatting
 
-See `NAVIGATION.md` for detailed architecture documentation.
+Core components:
+- **Agent**: Zero-ceremony interface (`Agent("name")`)
+- **Tools**: Auto-registering capabilities with `@tool` decorator
+- **Memory**: LLM-based synthesis without external dependencies
+- **Runtime**: Execution engine with dependency injection
 
 ## Contributing Guidelines
 
@@ -38,7 +42,7 @@ See `NAVIGATION.md` for detailed architecture documentation.
 - Follow PEP 8 for Python code style
 - Use type hints for all function signatures
 - Write docstrings for all public functions and classes
-- Maximum line length: 88 characters
+- Maximum line length: 100 characters (Black)
 
 ### Testing
 
@@ -47,27 +51,32 @@ See `NAVIGATION.md` for detailed architecture documentation.
 - Use pytest for testing framework
 - Mock external services in tests
 
-### Phase Development
+### Tool Development
 
-When extending phases:
+When creating new tools:
 
-1. **Follow the @phase decorator pattern**
+1. **Use the @tool decorator pattern**
    ```python
-   @phase(name="custom_step")
-   async def custom_step(state: State, **kwargs):
-       # Implementation with automatic robustness, observability
-       return result
+   from cogency.tools import Tool, tool
+   
+   @tool
+   class MyTool(Tool):
+       def __init__(self):
+           super().__init__("my_tool", "Description")
+       
+       async def run(self, arg: str) -> dict:
+           return {"result": f"Processed: {arg}"}
    ```
 
-2. **Use dependency injection**
-   - Phases receive dependencies (LLM, tools, memory) automatically
-   - Focus on cognitive logic, not service orchestration
-   - State flows through phases immutably
+2. **Follow single responsibility principle**
+   - Each tool does one thing well
+   - Clear argument validation
+   - Graceful error handling
 
 3. **Add comprehensive tests**
-   - Unit tests for phase logic
-   - Integration tests with mocked services
-   - Error handling and recovery scenarios
+   - Unit tests for tool logic
+   - Integration tests with agent execution
+   - Error handling scenarios
 
 ### Pull Request Process
 
@@ -83,9 +92,7 @@ When extending phases:
 
 3. **Run the test suite**
    ```bash
-   poetry run pytest
-   poetry run ruff check src/
-   poetry run ruff check src/cogency
+   just ci
    ```
 
 4. **Submit pull request**
@@ -95,21 +102,21 @@ When extending phases:
 
 ## Types of Contributions
 
-### Core Phases
-Submit new cognitive phases that follow the @phase pattern:
-- Must be atomic (single cognitive step)
-- Should integrate with ReAct architecture
+### Core Components
+Submit improvements to core execution steps:
+- Must integrate with existing 4-step architecture
+- Should maintain zero-ceremony interface
 - Need comprehensive tests
 
 ### Tools
-Add new tools that wrap services with smart behavior:
+Add new tools that extend agent capabilities:
 - Single responsibility principle
-- Graceful error handling
+- Auto-registration via `@tool` decorator
 - Comprehensive documentation
 
-### Services
-Implement service interfaces for new providers:
-- Follow existing service patterns
+### Memory Systems
+Implement memory improvements:
+- Follow LLM-based synthesis pattern
 - Add configuration options
 - Include integration tests
 
@@ -146,11 +153,11 @@ When reporting issues:
 
 Cogency prioritizes:
 
-1. **Zero Ceremony**: Magical defaults with opt-in complexity
-2. **Beautiful Abstractions**: Complex functionality with simple interfaces  
-3. **Reliability**: @robust decorator handles failures gracefully
-4. **Extensibility**: Provider pattern for infinite backends
-5. **Maintainability**: Clean code doctrine, no bullshit patterns
+1. **Zero Ceremony**: Simple interfaces with powerful defaults
+2. **Adaptive Intelligence**: Agents think as hard as they need to
+3. **Production Ready**: Built-in resilience and error handling
+4. **Extensibility**: Easy tool and provider integration
+5. **Clean Code**: Minimal, readable implementations
 
 ## Release Process
 

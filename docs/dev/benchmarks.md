@@ -46,13 +46,13 @@ Production-ready benchmark suite to validate Cogency's runtime performance claim
 
 **Test**: 1000 tool invocations across:
 - Simple function calls
-- Complex parameter validation
+- Complex args validation
 - Error recovery scenarios
 - Memory state persistence
 
 **Success Criteria**:
 - <100ms tool invocation overhead
-- >99.5% parameter validation accuracy
+- >99.5% args validation accuracy
 - <50ms state persistence per call
 - Zero memory leaks over 1000 iterations
 

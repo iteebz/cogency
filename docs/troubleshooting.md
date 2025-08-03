@@ -24,15 +24,21 @@ echo "OPENAI_API_KEY=sk-..." > .env
 
 **Rate limits:**
 ```python
-from cogency import Robust
-agent = Agent(robust=Robust(rate_limit_rps=1.0, attempts=5))
+from cogency import Agent, RobustConfig
+# Simple: enable with defaults
+agent = Agent("assistant", robust=True)
+# Advanced: custom settings
+agent = Agent("assistant", robust=RobustConfig(rate_limit_rps=1.0, attempts=5))
 ```
 
 ## Common Issues
 
 **Timeouts:**
 ```python
-agent = Agent(robust=Robust(timeout=120.0), depth=5, mode="fast")
+# Simple: enable robustness with defaults
+agent = Agent("assistant", robust=True, max_iterations=5, mode="fast")
+# Advanced: custom timeout
+agent = Agent("assistant", robust=RobustConfig(timeout=120.0), max_iterations=5, mode="fast")
 ```
 
 **Tool failures:**
@@ -42,13 +48,13 @@ agent = Agent(debug=True)  # See detailed errors
 
 **Memory issues:**
 ```python
-agent = Agent()  # Uses .cogency/memory by default
-agent = Agent(memory=None)  # Disable if not needed
+agent = Agent(memory=True)  # Uses .cogency/memory by default
+agent = Agent(memory=False)  # Disable if not needed
 ```
 
 **JSON parsing:**
 ```python
-agent = Agent(debug=True, mode="fast", depth=3)
+agent = Agent(debug=True, mode="fast", max_iterations=3)
 ```
 
 ## Performance
@@ -57,23 +63,22 @@ agent = Agent(debug=True, mode="fast", depth=3)
 ```python
 agent = Agent(
     mode="fast",
-    depth=3,
+    max_iterations=3,
     notify=False,
-    observe=False,
-    persist=False
+    memory=False
 )
 ```
 
 **Reduce memory:**
 ```python
-agent = Agent(memory=None, depth=5)
-agent.user_states.clear()  # Clear periodically
+agent = Agent(memory=False, max_iterations=5)
+# Clear user states periodically if needed
 ```
 
 **Token limits:**
 ```python
-agent = Agent(mode="fast", depth=3)
-agent.user_states.clear()  # Reset context
+agent = Agent(mode="fast", max_iterations=3)
+# Agent automatically manages context
 ```
 
 ## Debugging
@@ -97,18 +102,15 @@ logging.basicConfig(level=logging.DEBUG)
 
 **Infinite loops:**
 ```python
-agent = Agent(depth=5, mode="fast", debug=True)
+agent = Agent(max_iterations=5, mode="fast", debug=True)
 ```
 
 **Tool selection:**
 ```python
-from cogency.tools import get_tools, Code
-
-
-agent = Agent(tools=[Code()])  # Explicit tools
+agent = Agent(tools=["files", "shell"])  # Explicit tools
 ```
 
-**Context loss:**
+**Context consistency:**
 ```python
 # Use consistent user_id
 await agent.run("Remember: I like Python", user_id="alice")
@@ -128,7 +130,7 @@ CMD ["python", "app.py"]
 **Lambda:**
 ```python
 from cogency import Agent
-agent = Agent(persist=False, notify=False)
+agent = Agent(memory=False, notify=False)
 
 def lambda_handler(event, context):
     return {'response': await agent.run(event['query'])}
@@ -151,3 +153,24 @@ except Exception as e:
     import traceback
     traceback.print_exc()
 ```
+
+## Error Messages
+
+**"No LLM provider found"**
+- Set an API key: `export OPENAI_API_KEY=sk-...`
+
+**"Tool not found"**
+- Check tool name: `agent = Agent(tools=["files", "shell"])`
+
+**"Memory synthesis failed"**
+- Reduce memory load: `agent = Agent(memory=False)`
+
+**"Timeout error"**
+- Increase timeout: `agent = Agent(robust=RobustConfig(timeout=300.0))`
+
+**"Rate limit exceeded"**
+- Add rate limiting: `agent = Agent(robust=RobustConfig(rate_limit_rps=1.0))`
+
+---
+
+*Production troubleshooting for Cogency v1.0.0*

@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2025-08-02
+
+### Production Release
+- **MILESTONE**: First stable production release
+- Interface locked for semantic versioning
+- Full test coverage with 296 tests passing
+- Documentation aligned with v1.0.0 standards
+- Production/Stable development status
+
+### Changed
+- Upgraded from Beta (0.9.3) to Production/Stable (1.0.0)
+- Cleaned documentation of beta language
+- Streamlined README for production clarity
+
 ## [0.9.3] - 2025-08-01
 
 ### Added
@@ -301,7 +315,8 @@ Starting with v1.0.0, this project follows [Semantic Versioning](https://semver.
 Major architectural changes are marked with **BREAKING** labels and include migration guides.
 Always review the migration sections before upgrading across major versions.
 
-[unreleased]: https://github.com/tysonchen/cogency/compare/v0.9.3...HEAD
+[unreleased]: https://github.com/tysonchen/cogency/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/tysonchen/cogency/compare/v0.9.3...v1.0.0
 [0.9.3]: https://github.com/tysonchen/cogency/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/tysonchen/cogency/compare/v0.9.1...v0.9.2
 [0.9.1]: https://github.com/tysonchen/cogency/compare/v0.9.0...v0.9.1

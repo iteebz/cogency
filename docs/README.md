@@ -14,8 +14,8 @@ Cogency provides production-ready AI agents with adaptive reasoning, built-in to
 ## Core Features
 
 - **Adaptive Reasoning** - Automatically switches between fast and deep thinking modes
-- **Built-in Tools** - Code execution, web search, file operations, weather, and more
-- **Persistent Memory** - Remembers conversations across sessions
+- **Built-in Tools** - Files, shell, HTTP, scrape, search
+- **Situated Memory** - Learns about users and provides contextual understanding
 - **Streaming Execution** - Watch agents think in real-time
 - **Zero Configuration** - Auto-detects LLM providers and sensible defaults
 
