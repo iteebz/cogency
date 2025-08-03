@@ -8,7 +8,7 @@ from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from cogency.persist.serialization import serialize_profile
+from cogency.persist.serialize import serialize_profile
 from cogency.state import AgentState
 
 from .base import Store

@@ -121,11 +121,11 @@ class Checkpoint:
             "pending_calls": state.execution.pending_calls,
             "completed_calls": state.execution.completed_calls,
             # ReasoningContext data
-            "reasoning_goal": state.reasoning.goal,
-            "reasoning_strategy": state.reasoning.strategy,
-            "reasoning_facts": state.reasoning.facts,
-            "reasoning_insights": state.reasoning.insights,
-            "reasoning_thoughts": state.reasoning.thoughts,
+            "goal": state.reasoning.goal,
+            "strategy": state.reasoning.strategy,
+            "facts": state.reasoning.facts,
+            "insights": state.reasoning.insights,
+            "thoughts": state.reasoning.thoughts,
         }
 
         # Write checkpoint atomically to prevent corruption during interrupts
@@ -212,35 +212,34 @@ def resume(state: AgentState) -> bool:
     if not checkpoint_data:
         return False
 
-    # Restore state fields from checkpoint - v1.0.0 spec compliant
     try:
         # ExecutionState restoration
-        if "iteration" in checkpoint_data:
-            state.execution.iteration = checkpoint_data["iteration"]
-        if "mode" in checkpoint_data:
-            state.execution.mode = checkpoint_data["mode"]
-        if "stop_reason" in checkpoint_data:
-            state.execution.stop_reason = checkpoint_data["stop_reason"]
-        if "response" in checkpoint_data:
-            state.execution.response = checkpoint_data["response"]
-        if "messages" in checkpoint_data:
-            state.execution.messages = checkpoint_data["messages"]
-        if "pending_calls" in checkpoint_data:
-            state.execution.pending_calls = checkpoint_data["pending_calls"] or []
-        if "completed_calls" in checkpoint_data:
-            state.execution.completed_calls = checkpoint_data["completed_calls"] or []
+        execution_fields = {
+            "iteration": ("iteration", None),
+            "mode": ("mode", None),
+            "stop_reason": ("stop_reason", None),
+            "response": ("response", None),
+            "messages": ("messages", None),
+            "pending_calls": ("pending_calls", []),
+            "completed_calls": ("completed_calls", []),
+        }
+
+        for key, (attr, default) in execution_fields.items():
+            if key in checkpoint_data:
+                setattr(state.execution, attr, checkpoint_data[key] or default)
 
         # ReasoningContext restoration
-        if "reasoning_goal" in checkpoint_data:
-            state.reasoning.goal = checkpoint_data["reasoning_goal"]
-        if "reasoning_strategy" in checkpoint_data:
-            state.reasoning.strategy = checkpoint_data["reasoning_strategy"]
-        if "reasoning_facts" in checkpoint_data:
-            state.reasoning.facts = checkpoint_data["reasoning_facts"] or {}
-        if "reasoning_insights" in checkpoint_data:
-            state.reasoning.insights = checkpoint_data["reasoning_insights"] or []
-        if "reasoning_thoughts" in checkpoint_data:
-            state.reasoning.thoughts = checkpoint_data["reasoning_thoughts"] or []
+        reasoning_fields = {
+            "goal": ("goal", None),
+            "strategy": ("strategy", None),
+            "facts": ("facts", {}),
+            "insights": ("insights", []),
+            "thoughts": ("thoughts", []),
+        }
+
+        for key, (attr, default) in reasoning_fields.items():
+            if key in checkpoint_data:
+                setattr(state.reasoning, attr, checkpoint_data[key] or default)
 
         # Add resume context message to LLM
         _add_resume_message(state, checkpoint_data)

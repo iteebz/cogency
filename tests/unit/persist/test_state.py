@@ -20,7 +20,7 @@ class MockStore(Store):
     async def save(self, state_key: str, state: AgentState) -> bool:
         from dataclasses import asdict
 
-        from cogency.persist.serialization import serialize_profile
+        from cogency.persist.serialize import serialize_profile
 
         # Properly serialize like the real filesystem store
         state_data = {

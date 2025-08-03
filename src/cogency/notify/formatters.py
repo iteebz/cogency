@@ -71,6 +71,10 @@ class CLIFormatter(Formatter):
         message = notification.data.get("message", "Debug trace")
         return f"TRACE: {message}"
 
+    def _debug(self, notification: Notification) -> str:
+        message = notification.data.get("message", "Debug info")
+        return f"DEBUG: {message}"
+
 
 class EmojiFormatter(Formatter):
     """Emoji-rich formatter for enhanced UX."""
@@ -130,6 +134,10 @@ class EmojiFormatter(Formatter):
     def _trace(self, notification: Notification) -> str:
         message = notification.data.get("message", "Debug trace")
         return f"🔍 {message}"
+
+    def _debug(self, notification: Notification) -> str:
+        message = notification.data.get("message", "Debug info")
+        return f"🐛 {message}"
 
 
 class JSONFormatter(Formatter):

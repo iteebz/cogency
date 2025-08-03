@@ -87,7 +87,7 @@ async def test_mode_assignment():
     executor = await agent._get_executor()
 
     assert executor.mode == "fast"
-    assert executor.depth == 5
+    assert executor.max_iterations == 5
 
 
 @pytest.mark.asyncio
@@ -114,9 +114,7 @@ async def test_run():
     with patch(
         "cogency.steps.execution.execute_agent", new_callable=AsyncMock
     ) as mock_execute_agent:
-        mock_execute_agent.return_value = "Final Answer"
         result = await agent.run_async("test query")
-
         mock_execute_agent.assert_called_once()
         assert result is not None
 
@@ -125,12 +123,16 @@ async def test_run():
 async def test_run_error():
     agent = Agent("test", llm=MockLLM(), tools=[])
 
-    with patch("cogency.steps.execution.execute_agent", side_effect=Exception("Test error")):
-        try:
-            await agent.run_async("test query")
-            raise AssertionError("Should have raised exception")
-        except Exception as e:
-            assert "Test error" in str(e)
+    with patch("cogency.security.assess", new_callable=AsyncMock) as mock_assess:
+        # Mock security assessment to return safe
+        from cogency.security import SecurityAction, SecurityResult
+
+        mock_assess.return_value = SecurityResult(SecurityAction.ALLOW)
+
+        with patch("cogency.steps.execution.execute_agent", side_effect=Exception("Test error")):
+            with pytest.raises(Exception) as exc_info:
+                await agent.run_async("test query")
+            assert "Test error" in str(exc_info.value)
 
 
 @pytest.mark.asyncio
@@ -152,9 +154,9 @@ async def test_stream():
         mock_execute_agent.assert_not_called()
 
 
-def test_traces_empty():
+def test_logs_empty():
     agent = Agent("test", llm=MockLLM(), tools=[])
-    assert agent.traces() == []
+    assert agent.logs() == []
 
 
 @pytest.mark.asyncio

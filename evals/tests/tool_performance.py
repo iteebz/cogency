@@ -10,7 +10,7 @@ from typing import List, Tuple
 from cogency.tools.files import Files
 from cogency.tools.shell import Shell
 
-from ...core import Eval, EvalResult, FailureType
+from ..eval import Eval, EvalResult
 
 
 class ToolPerformance(Eval):
@@ -19,37 +19,7 @@ class ToolPerformance(Eval):
     name = "tool_performance"
     description = "Tool execution latency microbenchmark"
 
-    # Declarative test cases for performance benchmarks
-    test_cases = [
-        {
-            "name": "Shell echo latency <100ms",
-            "tool": Shell(),
-            "args": {"command": "echo 'benchmark'"},
-            "iterations": 10,
-            "expected": True,
-            "parser": "_check_latency",
-        },
-        {
-            "name": "Files write latency <100ms",
-            "tool": Files(),
-            "args": {"action": "write", "path": "bench_test.txt", "content": "test"},
-            "iterations": 10,
-            "expected": True,
-            "parser": "_check_latency",
-        },
-        {
-            "name": "Files read latency <100ms",
-            "tool": Files(),
-            "args": {"action": "read", "path": "bench_test.txt"},
-            "iterations": 10,
-            "expected": True,
-            "parser": "_check_latency",
-        },
-    ]
-
     async def run(self) -> EvalResult:
-        """Run performance tests using declarative test cases."""
-
         tracemalloc.start()
         mem_before = tracemalloc.get_traced_memory()[0]
 
@@ -58,20 +28,42 @@ class ToolPerformance(Eval):
         with contextlib.suppress(Exception):
             await setup_files.run(action="write", path="bench_test.txt", content="test")
 
-        # Track performance data for overall metrics
-        self._perf_results = []
-        self._validation_failures = 0
+        # Declarative test cases for performance benchmarks
+        test_cases = [
+            {
+                "name": "Shell echo latency <100ms",
+                "tool": Shell(),
+                "args": {"command": "echo 'benchmark'"},
+                "iterations": 10,
+            },
+            {
+                "name": "Files write latency <100ms",
+                "tool": Files(),
+                "args": {"action": "write", "path": "bench_test.txt", "content": "test"},
+                "iterations": 10,
+            },
+            {
+                "name": "Files read latency <100ms",
+                "tool": Files(),
+                "args": {"action": "read", "path": "bench_test.txt"},
+                "iterations": 10,
+            },
+        ]
 
-        # Run declarative test cases
-        for case in self.test_cases:
+        perf_results = []
+        validation_failures = 0
+        all_traces = []
+
+        # Run test cases
+        for case in test_cases:
             try:
                 times, validation_errors = await self._benchmark_tool(case)
-                self._validation_failures += validation_errors
+                validation_failures += validation_errors
 
                 if times:
                     mean_time = statistics.mean(times)
                     passed = mean_time * 1000 < 100 and validation_errors == 0
-                    self._perf_results.append(
+                    perf_results.append(
                         {
                             "test_name": case["name"],
                             "mean_ms": mean_time * 1000,
@@ -81,7 +73,7 @@ class ToolPerformance(Eval):
                     )
                 else:
                     passed = False
-                    self._perf_results.append(
+                    perf_results.append(
                         {
                             "test_name": case["name"],
                             "mean_ms": float("inf"),
@@ -90,38 +82,47 @@ class ToolPerformance(Eval):
                         }
                     )
 
-                self.check_sub_case(case["name"], passed, case["expected"])
+                all_traces.append({
+                    "test_case": case["name"],
+                    "passed": passed,
+                    "mean_latency_ms": perf_results[-1]["mean_ms"],
+                    "validation_errors": validation_errors,
+                })
 
             except Exception as e:
-                self.fail_sub_case(case["name"], f"benchmark error: {e}", FailureType.ERROR)
+                all_traces.append({
+                    "test_case": case["name"],
+                    "passed": False,
+                    "error": str(e),
+                })
 
         mem_after = tracemalloc.get_traced_memory()[0]
         tracemalloc.stop()
 
-        # Calculate overall metrics for metadata
+        # Calculate overall metrics
         mem_delta_mb = (mem_after - mem_before) / 1024 / 1024
-        avg_latency = statistics.mean(
-            [r["mean_ms"] for r in self._perf_results if r["mean_ms"] != float("inf")]
+        valid_results = [r["mean_ms"] for r in perf_results if r["mean_ms"] != float("inf")]
+        avg_latency = statistics.mean(valid_results) if valid_results else float("inf")
+        total_ops = sum(tc["iterations"] for tc in test_cases)
+        validation_accuracy = 1.0 - (validation_failures / total_ops) if total_ops > 0 else 1.0
+
+        passed_count = sum(1 for r in perf_results if r["passed"])
+        score = passed_count / len(test_cases) if test_cases else 0.0
+        passed = score >= 0.67
+
+        return EvalResult(
+            name=self.name,
+            passed=passed,
+            score=score,
+            duration=0.0,
+            traces=all_traces,
+            metadata={
+                "avg_latency_ms": avg_latency,
+                "validation_accuracy": validation_accuracy,
+                "memory_delta_mb": mem_delta_mb,
+                "individual_results": perf_results,
+            },
         )
-        total_ops = sum(tc["iterations"] for tc in self.test_cases)
-        validation_accuracy = (
-            1.0 - (self._validation_failures / total_ops) if total_ops > 0 else 1.0
-        )
-
-        metadata = {
-            "avg_latency_ms": avg_latency,
-            "validation_accuracy": validation_accuracy,
-            "memory_delta_mb": mem_delta_mb,
-            "individual_results": self._perf_results,
-        }
-
-        return self.finalize_result(metadata)
-
-    def _check_latency(self, case: dict) -> bool:
-        """Parser for latency checks - actual logic is in run()."""
-        # This parser is called from the main loop, but the actual
-        # latency checking is done in run() method for performance reasons
-        return case.get("passed", False)
 
     async def _benchmark_tool(self, test_case: dict) -> Tuple[List[float], int]:
         """Benchmark tool execution with validation."""

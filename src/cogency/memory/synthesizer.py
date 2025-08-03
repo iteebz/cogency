@@ -3,7 +3,7 @@
 from typing import Any, Dict
 
 from cogency.memory.compression import compress
-from cogency.persist.serialization import deserialize_profile, serialize_profile
+from cogency.persist.serialize import deserialize_profile, serialize_profile
 from cogency.state.user_profile import UserProfile
 from cogency.utils.parsing import _parse_json
 

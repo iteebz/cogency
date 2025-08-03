@@ -1,17 +1,22 @@
 """Agent execution engine - handles all complexity."""
 
 import asyncio
+import logging
 from typing import Any, AsyncIterator, Optional
+
+from resilient_result import Result
 
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
 from cogency.memory import ImpressionSynthesizer
 from cogency.notify import Notifier, _setup_formatter
+from cogency.persist.store.base import _setup_persist
 from cogency.persist.utils import _get_state
 from cogency.providers.setup import _setup_embed, _setup_llm
 from cogency.security import assess
 from cogency.state import AgentMode, AgentState
 from cogency.steps.composition import _setup_steps
+from cogency.steps.execution import execute_agent
 from cogency.tools.registry import _setup_tools
 from cogency.utils.validation import validate_query
 
@@ -63,11 +68,6 @@ class AgentExecutor:
             self.llm, self.tools, self.memory, self.identity, self.output_schema, self.config
         )
 
-    @property
-    def depth(self) -> int:
-        """Alias for max_iterations (backwards compatibility)."""
-        return self.max_iterations
-
     @classmethod
     async def create(cls, name: str) -> "AgentExecutor":
         """Create executor with default configuration."""
@@ -102,7 +102,6 @@ class AgentExecutor:
     @classmethod
     async def configure(cls, config) -> "AgentExecutor":
         """Create executor from builder config."""
-        from cogency.persist.store.base import _setup_persist
 
         # Setup configs first so they're available for provider setup
         persist_config = _setup_config(
@@ -179,7 +178,7 @@ class AgentExecutor:
         formatter = _setup_formatter(notify=bool(final_callback), debug=self.debug)
         return Notifier(formatter, final_callback)
 
-    async def _setup_execution_state(self, query: str, user_id: str = "default") -> AgentState:
+    async def _execution_state(self, query: str, user_id: str = "default") -> AgentState:
         """Common setup logic for both run() and stream() methods."""
         # Input validation
         error = validate_query(query)
@@ -217,7 +216,7 @@ class AgentExecutor:
         """Execute agent and return complete response."""
         try:
             # Setup execution state
-            state = await self._setup_execution_state(query, user_id)
+            state = await self._execution_state(query, user_id)
 
             # Setup steps with runtime identity (if provided)
             if identity:
@@ -228,7 +227,6 @@ class AgentExecutor:
                 steps = self.steps
 
             # Execute steps
-            from cogency.steps.execution import execute_agent
 
             notifier = self._setup_notifier()
             # Store notifier for traces() method
@@ -248,8 +246,6 @@ class AgentExecutor:
             response = state.execution.response
 
             # Unwrap Result objects at the boundary
-            from resilient_result import Result
-
             if isinstance(response, Result):
                 response = response.data if response.success else None
 
@@ -260,7 +256,7 @@ class AgentExecutor:
             return response or "No response generated"
 
         except ValueError as e:
-            # Handle validation errors from _setup_execution_state
+            # Handle validation errors from _execution_state
             return str(e)
         except Exception as e:
             import traceback
@@ -274,7 +270,7 @@ class AgentExecutor:
         """Stream agent execution."""
         try:
             # Setup execution state
-            state = await self._setup_execution_state(query, user_id)
+            state = await self._execution_state(query, user_id)
         except ValueError as e:
             yield f"{str(e)}\n"
             return
@@ -301,7 +297,6 @@ class AgentExecutor:
         notifier = self._setup_notifier(callback=stream_callback)
 
         # Execute
-        from cogency.steps.execution import execute_agent
 
         task = asyncio.create_task(
             execute_agent(
@@ -335,9 +330,9 @@ class AgentExecutor:
             if self.memory and result and hasattr(result.execution, "response"):
                 await self.memory.remember(result.execution.response, human=False)
 
-    def traces(self) -> list[dict[str, Any]]:
-        """Get execution traces (debug mode only)."""
-        if not self.debug:
-            return []
-
-        return self.notifier.messages
+    def logs(self) -> list[dict[str, Any]]:
+        """All execution logs. Always available for retrospective debugging."""
+        return [
+            {"timestamp": n.timestamp, "type": n.type, **n.data}
+            for n in self.notifier.notifications
+        ]

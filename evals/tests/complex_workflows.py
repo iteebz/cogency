@@ -1,11 +1,12 @@
 """Complex debugging workflows evaluation."""
 
-from cogency import Agent
+import os
+
 from cogency.tools.files import Files
 from cogency.tools.search import Search
 from cogency.tools.shell import Shell
 
-from ...core import Eval, FailureType
+from ..eval import Eval, EvalResult
 
 
 class ComplexWorkflows(Eval):
@@ -14,12 +15,10 @@ class ComplexWorkflows(Eval):
     name = "complex_workflows"
     description = "Test complex debugging and problem-solving workflows"
 
-    async def run(self):
-        agent = Agent(
+    async def run(self) -> EvalResult:
+        agent = self.create_agent(
             "workflow_tester",
             tools=[Files(), Search(), Shell()],
-            mode="fast",
-            memory=False,
             max_iterations=15,
         )
 
@@ -78,27 +77,9 @@ class ComplexWorkflows(Eval):
         )
 
         # Verify files don't exist (proper cleanup)
-        import os
-
         files_cleaned = not os.path.exists("debug_test.py") and not os.path.exists(
             "debug_summary.txt"
         )
-
-        metadata = {
-            "query": query,
-            "response": result,
-            "created_script": created_script,
-            "ran_initial_test": ran_initial_test,
-            "identified_issue": identified_issue,
-            "searched_solution": searched_solution,
-            "applied_fix": applied_fix,
-            "tested_fix": tested_fix,
-            "created_summary": created_summary,
-            "cleaned_up": cleaned_up,
-            "systematic_approach": systematic_approach,
-            "explained_reasoning": explained_reasoning,
-            "files_cleaned": files_cleaned,
-        }
 
         # Score based on workflow completion
         workflow_steps = [
@@ -120,38 +101,39 @@ class ComplexWorkflows(Eval):
             methodology_bonus = 0.15
 
         final_score = min(1.0, step_completion + methodology_bonus)
+        passed = step_completion >= 0.8 and files_cleaned
 
-        if step_completion >= 0.7 and files_cleaned:
-            passed = final_score >= 0.8
-            result_obj = self.check(
-                "Complex workflow completed", "Complex workflow completed", metadata
-            )
-            result_obj.score = final_score
-            result_obj.passed = passed
-            return result_obj
-        else:
-            missing_steps = []
-            if not created_script:
-                missing_steps.append("script creation")
-            if not ran_initial_test:
-                missing_steps.append("initial testing")
-            if not identified_issue:
-                missing_steps.append("issue identification")
-            if not searched_solution:
-                missing_steps.append("solution research")
-            if not applied_fix:
-                missing_steps.append("bug fix")
-            if not tested_fix:
-                missing_steps.append("fix verification")
-            if not created_summary:
-                missing_steps.append("documentation")
-            if not cleaned_up:
-                missing_steps.append("cleanup")
-            if not files_cleaned:
-                missing_steps.append("proper file removal")
+        agent_logs = agent.logs() if hasattr(agent, "logs") else []
 
-            failure_result = self.fail(
-                f"Incomplete workflow - missing: {', '.join(missing_steps)}", metadata
-            )
-            failure_result.failure_type = FailureType.LOGIC
-            return failure_result
+        return EvalResult(
+            name=self.name,
+            passed=passed,
+            score=final_score,
+            duration=0.0,
+            traces=[{
+                "query": query,
+                "response": result,
+                "created_script": created_script,
+                "ran_initial_test": ran_initial_test,
+                "identified_issue": identified_issue,
+                "searched_solution": searched_solution,
+                "applied_fix": applied_fix,
+                "tested_fix": tested_fix,
+                "created_summary": created_summary,
+                "cleaned_up": cleaned_up,
+                "logs": agent_logs,
+            }],
+            metadata={
+                "created_script": created_script,
+                "ran_initial_test": ran_initial_test,
+                "identified_issue": identified_issue,
+                "searched_solution": searched_solution,
+                "applied_fix": applied_fix,
+                "tested_fix": tested_fix,
+                "created_summary": created_summary,
+                "cleaned_up": cleaned_up,
+                "systematic_approach": systematic_approach,
+                "explained_reasoning": explained_reasoning,
+                "files_cleaned": files_cleaned,
+            },
+        )

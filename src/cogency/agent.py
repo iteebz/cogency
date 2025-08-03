@@ -107,10 +107,11 @@ class Agent:
         async for chunk in executor.stream(query, user_id):
             yield chunk
 
-    def traces(self) -> list[dict[str, Any]]:
+    def logs(self) -> list[dict[str, Any]]:
+        """All execution logs. Always available for retrospective debugging."""
         if not self._executor:
             return []
-        return self._executor.traces()
+        return self._executor.logs()
 
 
 __all__ = ["Agent"]

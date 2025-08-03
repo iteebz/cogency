@@ -9,13 +9,13 @@ poetry install
 just ci
 ```
 
-## Why This Code is Clean
+## Code == Art
 
 **Beautiful code is minimal and reads like English. One clear way to do each thing.**
 
 This codebase follows the Beauty Doctrine:
 - Zero ceremony interfaces (`Agent("name")`)
-- Self-documenting code that reads like intent
+- Self-documenting code that reads with intent
 - No wrapper classes that add no value
 - Progressive disclosure - simple things simple, complex things possible
 

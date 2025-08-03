@@ -1,8 +1,4 @@
-"""Semantic Security - AI-powered threat detection that understands intent.
-
-Beautiful, minimal security that fades into the background.
-One function. One way. Semantic reasoning with critical fallbacks.
-"""
+"""Semantic Security - Minimal threat detection via LLM inference."""
 
 from enum import Enum
 from typing import Any, Dict

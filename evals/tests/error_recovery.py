@@ -1,10 +1,11 @@
 """Error recovery evaluation."""
 
-from cogency import Agent
+import os
+
 from cogency.tools.files import Files
 from cogency.tools.shell import Shell
 
-from ...core import Eval, FailureType
+from ..eval import Eval, EvalResult
 
 
 class ErrorRecovery(Eval):
@@ -13,13 +14,11 @@ class ErrorRecovery(Eval):
     name = "error_recovery"
     description = "Test error handling patterns and recovery strategies"
 
-    async def run(self):
-        agent = Agent(
+    async def run(self) -> EvalResult:
+        agent = self.create_agent(
             "recovery_tester",
             tools=[Files(), Shell()],
-            mode="adapt",
-            memory=False,
-            max_iterations=10,
+            max_iterations=15,
         )
 
         # Design a task that will encounter errors but can be recovered from
@@ -61,23 +60,7 @@ class ErrorRecovery(Eval):
         continued_after_errors = created_recovery_file and successful_recovery
 
         # Verify file was actually cleaned up (shouldn't exist)
-        import os
-
         file_properly_cleaned = not os.path.exists("nonexistent.txt")
-
-        metadata = {
-            "query": query,
-            "response": result,
-            "attempted_nonexistent": attempted_nonexistent,
-            "created_recovery_file": created_recovery_file,
-            "verified_file_content": verified_file_content,
-            "handled_invalid_command": handled_invalid_command,
-            "successful_recovery": successful_recovery,
-            "cleaned_up": cleaned_up,
-            "explicit_error_handling": explicit_error_handling,
-            "continued_after_errors": continued_after_errors,
-            "file_properly_cleaned": file_properly_cleaned,
-        }
 
         # Score based on recovery capabilities
         recovery_steps = [
@@ -95,31 +78,35 @@ class ErrorRecovery(Eval):
         if explicit_error_handling and continued_after_errors:
             recovery_score = min(1.0, recovery_score + 0.1)
 
-        if recovery_score >= 0.7 and continued_after_errors and file_properly_cleaned:
-            passed = recovery_score >= 0.8
-            result_obj = self.check(
-                "Error recovery completed", "Error recovery completed", metadata
-            )
-            result_obj.score = recovery_score
-            result_obj.passed = passed
-            return result_obj
-        else:
-            missing_steps = []
-            if not attempted_nonexistent:
-                missing_steps.append("initial error attempt")
-            if not created_recovery_file:
-                missing_steps.append("file creation recovery")
-            if not handled_invalid_command:
-                missing_steps.append("command error handling")
-            if not successful_recovery:
-                missing_steps.append("successful recovery")
-            if not continued_after_errors:
-                missing_steps.append("continuation after errors")
-            if not file_properly_cleaned:
-                missing_steps.append("cleanup")
+        passed = recovery_score >= 0.8 and continued_after_errors and file_properly_cleaned
 
-            failure_result = self.fail(
-                f"Incomplete error recovery - missing: {', '.join(missing_steps)}", metadata
-            )
-            failure_result.failure_type = FailureType.LOGIC
-            return failure_result
+        agent_logs = agent.logs() if hasattr(agent, "logs") else []
+
+        return EvalResult(
+            name=self.name,
+            passed=passed,
+            score=recovery_score,
+            duration=0.0,
+            traces=[{
+                "query": query,
+                "response": result,
+                "attempted_nonexistent": attempted_nonexistent,
+                "created_recovery_file": created_recovery_file,
+                "verified_file_content": verified_file_content,
+                "handled_invalid_command": handled_invalid_command,
+                "successful_recovery": successful_recovery,
+                "cleaned_up": cleaned_up,
+                "logs": agent_logs,
+            }],
+            metadata={
+                "attempted_nonexistent": attempted_nonexistent,
+                "created_recovery_file": created_recovery_file,
+                "verified_file_content": verified_file_content,
+                "handled_invalid_command": handled_invalid_command,
+                "successful_recovery": successful_recovery,
+                "cleaned_up": cleaned_up,
+                "explicit_error_handling": explicit_error_handling,
+                "continued_after_errors": continued_after_errors,
+                "file_properly_cleaned": file_properly_cleaned,
+            },
+        )

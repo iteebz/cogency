@@ -61,7 +61,7 @@ class StatePersistence:
             # Create new AgentState
             user_profile = None
             if state_dict.get("user_profile"):
-                from cogency.persist.serialization import deserialize_profile
+                from cogency.persist.serialize import deserialize_profile
 
                 profile_data = state_dict["user_profile"]
                 user_profile = deserialize_profile(profile_data)
