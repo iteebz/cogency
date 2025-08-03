@@ -42,16 +42,17 @@ class MathReasoning(Eval):
     ]
 
     async def run(self) -> EvalResult:
-        agent = Agent(
-            "math_tester",
-            mode="fast",
-            memory=False,
-            notify=True,
-            on_notify=get_eval_notification_callback(),
-            max_iterations=5,
-        )
+        def agent_factory():
+            return Agent(
+                "math_tester",
+                mode="fast",
+                memory=False,
+                notify=True,
+                on_notify=get_eval_notification_callback(),
+                max_iterations=5,
+            )
 
-        await self.run_test_cases(agent, self.test_cases)
+        await self.run_test_cases(agent_factory, self.test_cases)
         return self.finalize_result()
 
     def _extract_number(self, text: str) -> int:

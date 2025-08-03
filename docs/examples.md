@@ -6,7 +6,7 @@
 from cogency import Agent
 
 agent = Agent("assistant")
-result = await agent.run("What's 2+2?")  # → "4"
+result = agent.run("What's 2+2?")  # → "4"
 
 # Streaming
 async for chunk in agent.stream("Weather in London?"):
@@ -39,13 +39,13 @@ async for chunk in agent.stream(query):
 agent = Agent("coder")
 
 # Code generation
-await agent.run("Write a Python function to calculate Fibonacci numbers efficiently")
+agent.run("Write a Python function to calculate Fibonacci numbers efficiently")
 
 # Code analysis
-await agent.run("Review this Python code and suggest improvements: [paste code here]")
+agent.run("Review this Python code and suggest improvements: [paste code here]")
 
 # Debugging help
-await agent.run("This code is throwing a KeyError. Help me debug it: [paste code]")
+agent.run("This code is throwing a KeyError. Help me debug it: [paste code]")
 ```
 
 ### Data Analyst
@@ -53,10 +53,10 @@ await agent.run("This code is throwing a KeyError. Help me debug it: [paste code
 agent = Agent("analyst")
 
 # Data analysis
-await agent.run("Analyze the sales data in quarterly_sales.csv and identify trends")
+agent.run("Analyze the sales data in quarterly_sales.csv and identify trends")
 
 # Report generation
-await agent.run("""
+agent.run("""
 Load customer_data.csv, analyze customer segments, 
 and create a summary report with key insights
 """)
@@ -69,10 +69,10 @@ and create a summary report with key insights
 agent = Agent("assistant", memory=True)
 
 # First conversation
-await agent.run("Remember that I work at Google and I'm working on a React project")
+agent.run("Remember that I work at Google and I'm working on a React project")
 
 # Later conversation
-await agent.run("What project am I working on?")
+agent.run("What project am I working on?")
 # "You're working on a React project at Google"
 ```
 
@@ -117,7 +117,6 @@ agent = Agent(
     "dev-agent",
     debug=True,
     notify=True,
-    mode="fast",
     max_iterations=5
 )
 ```
@@ -126,7 +125,6 @@ agent = Agent(
 ```python
 agent = Agent(
     "production-agent",
-    mode="adapt",
     memory=True,
     notify=False
 )
@@ -136,7 +134,6 @@ agent = Agent(
 ```python
 agent = Agent(
     "researcher",
-    mode="deep",
     max_iterations=20,
     identity="You are a thorough researcher who cites sources."
 )
@@ -147,7 +144,7 @@ agent = Agent(
 ### Basic Error Handling
 ```python
 try:
-    result = await agent.run("Complex query that might fail")
+    result = agent.run("Complex query that might fail")
     print(result)
 except Exception as e:
     print(f"Agent execution failed: {e}")
@@ -160,7 +157,7 @@ import asyncio
 async def safe_agent_run(agent, query, max_retries=3):
     for attempt in range(max_retries):
         try:
-            return await agent.run(query)
+            return agent.run(query)
         except Exception as e:
             if attempt == max_retries - 1:
                 return f"Failed after {max_retries} attempts: {e}"
@@ -181,7 +178,7 @@ agent = Agent("api-assistant")
 
 @app.post("/chat")
 async def chat(query: str):
-    result = await agent.run(query)
+    result = agent.run(query)
     return {"response": result}
 ```
 
@@ -196,7 +193,7 @@ class CogencyBot(discord.Client):
     async def on_message(self, message):
         if message.content.startswith('!ask'):
             query = message.content[5:]
-            response = await agent.run(query)
+            response = agent.run(query)
             await message.channel.send(response)
 
 bot = CogencyBot()

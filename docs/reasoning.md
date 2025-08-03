@@ -15,7 +15,7 @@ Cogency agents automatically adjust their thinking depth based on task complexit
 ### Fast Mode
 ```python
 agent = Agent("assistant", mode="fast")
-await agent.run("What's 2+2?")
+agent.run("What's 2+2?")
 # � Direct response without deep reflection
 ```
 
@@ -28,7 +28,7 @@ await agent.run("What's 2+2?")
 ### Deep Mode
 ```python
 agent = Agent("assistant", mode="deep")
-await agent.run("Analyze this codebase and suggest improvements")
+agent.run("Analyze this codebase and suggest improvements")
 # � Multi-step analysis with reflection and planning
 ```
 
@@ -41,7 +41,7 @@ await agent.run("Analyze this codebase and suggest improvements")
 ### Adaptive Mode (Default)
 ```python
 agent = Agent("assistant", mode="adapt")  # or just Agent("assistant")
-await agent.run("Any query")
+agent.run("Any query")
 # � Automatically chooses appropriate depth
 ```
 
@@ -74,10 +74,10 @@ The triage step analyzes:
 # These queries trigger different modes automatically:
 
 # Simple � Fast mode
-await agent.run("What's the weather?")
+agent.run("What's the weather?")
 
 # Complex � Deep mode  
-await agent.run("Build a production API with authentication, database, and tests")
+agent.run("Build a production API with authentication, database, and tests")
 ```
 
 ## Configuration
@@ -165,21 +165,21 @@ agent = Agent("assistant", memory=True)
 ### Research Assistant
 ```python
 agent = Agent("researcher", mode="deep", max_iterations=20)
-await agent.run("Research renewable energy trends and create a comprehensive report")
+agent.run("Research renewable energy trends and create a comprehensive report")
 # � Deep analysis with multiple reasoning passes
 ```
 
 ### Chat Bot
 ```python
 agent = Agent("chatbot", mode="fast", max_iterations=3)
-await agent.run("Hello, how are you?")
+agent.run("Hello, how are you?")
 # � Quick, friendly response
 ```
 
 ### Code Assistant
 ```python
 agent = Agent("coder", mode="adapt")
-await agent.run("Fix this bug: [code snippet]")
+agent.run("Fix this bug: [code snippet]")
 # � Automatically chooses appropriate depth based on complexity
 ```
 

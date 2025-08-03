@@ -36,9 +36,9 @@ agent = Agent("assistant", robust=RobustConfig(rate_limit_rps=1.0, attempts=5))
 **Timeouts:**
 ```python
 # Simple: enable robustness with defaults
-agent = Agent("assistant", robust=True, max_iterations=5, mode="fast")
+agent = Agent("assistant", robust=True, max_iterations=5)
 # Advanced: custom timeout
-agent = Agent("assistant", robust=RobustConfig(timeout=120.0), max_iterations=5, mode="fast")
+agent = Agent("assistant", robust=RobustConfig(timeout=120.0), max_iterations=5)
 ```
 
 **Tool failures:**
@@ -54,7 +54,7 @@ agent = Agent(memory=False)  # Disable if not needed
 
 **JSON parsing:**
 ```python
-agent = Agent(debug=True, mode="fast", max_iterations=3)
+agent = Agent(debug=True, max_iterations=3)
 ```
 
 ## Performance
@@ -77,7 +77,7 @@ agent = Agent(memory=False, max_iterations=5)
 
 **Token limits:**
 ```python
-agent = Agent(mode="fast", max_iterations=3)
+agent = Agent(max_iterations=3)
 # Agent automatically manages context
 ```
 
@@ -86,7 +86,7 @@ agent = Agent(mode="fast", max_iterations=3)
 ```python
 # Debug mode
 agent = Agent(debug=True)
-result = await agent.run("Your query")
+result = agent.run("Your query")
 traces = agent.traces()  # Detailed execution steps
 
 # Stream execution
@@ -102,7 +102,7 @@ logging.basicConfig(level=logging.DEBUG)
 
 **Infinite loops:**
 ```python
-agent = Agent(max_iterations=5, mode="fast", debug=True)
+agent = Agent(max_iterations=5, debug=True)
 ```
 
 **Tool selection:**
@@ -113,8 +113,8 @@ agent = Agent(tools=["files", "shell"])  # Explicit tools
 **Context consistency:**
 ```python
 # Use consistent user_id
-await agent.run("Remember: I like Python", user_id="alice")
-await agent.run("What do I like?", user_id="alice")
+agent.run("Remember: I like Python", user_id="alice")
+agent.run("What do I like?", user_id="alice")
 ```
 
 ## Production
@@ -133,7 +133,7 @@ from cogency import Agent
 agent = Agent(memory=False, notify=False)
 
 def lambda_handler(event, context):
-    return {'response': await agent.run(event['query'])}
+    return {'response': agent.run(event['query'])}
 ```
 
 ## Debug Info
@@ -147,7 +147,7 @@ logging.basicConfig(level=logging.DEBUG)
 agent = Agent(debug=True)
 
 try:
-    result = await agent.run("Your failing query")
+    result = agent.run("Your failing query")
 except Exception as e:
     print(f"Error: {e}")
     import traceback

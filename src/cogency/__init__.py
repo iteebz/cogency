@@ -13,7 +13,7 @@ Example:
     from cogency import Agent
 
     agent = Agent("assistant")
-    result = await agent.run("Hello, how can you help?")
+    result = agent.run("Hello, how can you help?")
     print(result)
     ```
 

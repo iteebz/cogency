@@ -5,12 +5,11 @@ from cogency import Agent
 
 # Zero ceremony
 agent = Agent("assistant")
-result = await agent.run("What's 2+2?")
+result = agent.run("What's 2+2?")
 
 # Full configuration
 agent = Agent(
     "researcher",
-    mode="deep",           # "fast" | "deep" | "adapt" 
     max_iterations=10,             # Max reasoning iterations
     identity="You are...", # Custom system prompt
     memory=True,          # Enable memory
@@ -20,8 +19,7 @@ agent = Agent(
 
 ## Parameters
 
-- **`mode`**: `"fast"` (direct) | `"deep"` (reflection) | `"adapt"` (auto-switch)
-- **`depth`**: Max reasoning iterations (default: 10)
+- **`max_iterations`**: Max reasoning iterations (default: 10)
 - **`identity`**: Custom system prompt for personality
 - **`memory`**: Enable memory (bool or MemoryConfig)
 - **`debug`**: Detailed execution tracing
@@ -32,7 +30,7 @@ agent = Agent(
 
 ```python
 # Execute and return complete response
-result = await agent.run("What's 2+2?", user_id="alice")
+result = agent.run("What's 2+2?", user_id="alice")
 
 # Stream execution with real-time progress
 async for chunk in agent.stream("Research quantum computing"):
@@ -40,7 +38,7 @@ async for chunk in agent.stream("Research quantum computing"):
 
 # Get execution traces (debug mode only)
 agent = Agent(debug=True)
-await agent.run("Calculate something")
+agent.run("Calculate something")
 traces = agent.traces()  # List of execution details
 ```
 

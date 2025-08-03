@@ -43,7 +43,7 @@ from cogency import Agent
 agent = Agent("assistant")
 
 # Simple query
-result = await agent.run("What's 2 + 2?")
+result = agent.run("What's 2 + 2?")
 print(result)  # "4"
 ```
 
@@ -69,19 +69,19 @@ Agents automatically use relevant tools:
 
 ```python
 # Uses shell tool for computation
-await agent.run("Calculate 15% of $1,250")
+agent.run("Calculate 15% of $1,250")
 
 # Uses search tool for current information
-await agent.run("Latest Python 3.12 features")
+agent.run("Latest Python 3.12 features")
 
 # Uses scrape tool for content extraction
-await agent.run("Summarize this article: https://example.com/post")
+agent.run("Summarize this article: https://example.com/post")
 
 # Uses files tool for data persistence
-await agent.run("Save this data to results.json")
+agent.run("Save this data to results.json")
 
 # Uses http tool for API calls
-await agent.run("Get my GitHub profile via API")
+agent.run("Get my GitHub profile via API")
 ```
 
 Tools automatically selected based on task requirements.
@@ -103,7 +103,7 @@ class MyTool(Tool):
 
 # Tool auto-registers - just create your agent
 agent = Agent("assistant")
-await agent.run("Use my_tool with hello")
+agent.run("Use my_tool with hello")
 ```
 
 ## Memory
@@ -112,10 +112,10 @@ Agents remember conversations automatically:
 
 ```python
 # Agent saves important information
-await agent.run("Remember I work at Google and prefer Python")
+agent.run("Remember I work at Google and prefer Python")
 
 # Later in the conversation
-await agent.run("What programming language do I prefer?")
+agent.run("What programming language do I prefer?")
 # "You prefer Python"
 ```
 
@@ -125,10 +125,10 @@ Agents automatically choose the right thinking mode:
 
 ```python
 # Simple query → fast mode
-await agent.run("What's 2+2?")
+agent.run("What's 2+2?")
 
 # Complex query → deep mode with reflection and planning
-await agent.run("Analyze this codebase and suggest improvements")
+agent.run("Analyze this codebase and suggest improvements")
 ```
 
 ## Configuration
@@ -137,10 +137,9 @@ await agent.run("Analyze this codebase and suggest improvements")
 # Custom configuration
 agent = Agent(
     "assistant",
-    mode="deep",        # Force deep reasoning
     notify=False,       # Disable progress notifications
     debug=True,         # Enable detailed tracing
-    max_iterations=20           # Allow more reasoning iterations
+    max_iterations=20   # Allow more reasoning iterations
 )
 ```
 
@@ -157,19 +156,19 @@ agent = Agent(
 ### Research Agent
 ```python
 agent = Agent("researcher", tools=["search", "scrape"])
-result = await agent.run("Find and analyze the latest quantum computing research papers")
+result = agent.run("Find and analyze the latest quantum computing research papers")
 ```
 
 ### Coding Assistant
 ```python
 agent = Agent("coder", tools=["files", "shell"])
-result = await agent.run("Create a FastAPI app with database models and run tests")
+result = agent.run("Create a FastAPI app with database models and run tests")
 ```
 
 ### Data Analysis
 ```python
 agent = Agent("analyst", tools=["files", "shell", "http"])  
-result = await agent.run("Process sales.csv, calculate trends, and POST to dashboard API")
+result = agent.run("Process sales.csv, calculate trends, and POST to dashboard API")
 ```
 
 ---

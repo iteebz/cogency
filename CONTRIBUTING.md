@@ -1,170 +1,150 @@
-# Contributing to Cogency
+# Contributing
 
-Thank you for your interest in contributing to Cogency! This guide will help you get started.
+## Quick Start
 
-## Development Setup
+```bash
+git clone https://github.com/iteebz/cogency.git
+cd cogency
+poetry install
+just ci
+```
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/iteebz/cogency.git
-   cd cogency
-   ```
+## Why This Code is Clean
 
-2. **Install dependencies**
-   ```bash
-   poetry install
-   ```
+**Beautiful code is minimal and reads like English. One clear way to do each thing.**
 
-3. **Run tests**
-   ```bash
-   just ci
-   ```
+This codebase follows the Beauty Doctrine:
+- Zero ceremony interfaces (`Agent("name")`)
+- Self-documenting code that reads like intent
+- No wrapper classes that add no value
+- Progressive disclosure - simple things simple, complex things possible
 
-## Architecture Overview
+The result? A 5-tool agent framework that just works.
 
-Cogency follows a 4-step adaptive reasoning architecture:
+## Standards
 
-- **Triage**: Context evaluation and tool selection
-- **Reason**: Depth-adaptive thinking (fast react → deep reflection)  
-- **Act**: Tool execution with automatic retry and recovery
-- **Respond**: Identity-aware response formatting
+**Run `just ci` before every commit—it formats, lints, tests, and builds:**
+- **Format**: `just format` (ruff)
+- **Lint**: `just fix` (ruff with fixes)
+- **Test**: `just test` (pytest, >90% coverage)
+- **Build**: `just build` (poetry)
 
-Core components:
-- **Agent**: Zero-ceremony interface (`Agent("name")`)
-- **Tools**: Auto-registering capabilities with `@tool` decorator
-- **Memory**: LLM-based synthesis without external dependencies
-- **Runtime**: Execution engine with dependency injection
+**Code Style:**
+- Type hints for public APIs
+- Docstrings for user-facing functions
+- No single-line imports (`from x import a, b` not separate lines)
+- No local imports (import at module level)
+- No `print()` statements (use logging)
 
-## Contributing Guidelines
+## Architecture
 
-### Code Style
+**triage → reason → act → respond**
 
-- Follow PEP 8 for Python code style
-- Use type hints for all function signatures
-- Write docstrings for all public functions and classes
-- Maximum line length: 100 characters (Black)
+The 4-step pipeline defines the core execution flow. Everything else is built around it:
+- **Agent**: Zero ceremony entry point
+- **Tools**: `@tool` decorator auto-registers capabilities  
+- **Memory**: LLM synthesis without external dependencies
+- **Runtime**: Dependency injection with clean boundaries
 
-### Testing
+## Tools
 
-- Write tests for all new features
-- Maintain test coverage above 90%
-- Use pytest for testing framework
-- Mock external services in tests
+Tools are the extension point. They must:
 
-### Tool Development
+```python
+from cogency.tools import Tool, tool
 
-When creating new tools:
+@tool
+class MyTool(Tool):
+    def __init__(self):
+        # Name and natural language description
+        super().__init__("my_tool", "Clear description")
+    
+    async def run(self, arg: str) -> dict:
+        # Single responsibility
+        # Validate inputs
+        # Handle errors gracefully
+        return {"result": f"Processed: {arg}"}
+```
 
-1. **Use the @tool decorator pattern**
-   ```python
-   from cogency.tools import Tool, tool
-   
-   @tool
-   class MyTool(Tool):
-       def __init__(self):
-           super().__init__("my_tool", "Description")
-       
-       async def run(self, arg: str) -> dict:
-           return {"result": f"Processed: {arg}"}
-   ```
+- Single responsibility (do one thing well)
+- Auto-register via `@tool` decorator
+- Comprehensive error handling
+- Thorough tests (unit + integration)
 
-2. **Follow single responsibility principle**
-   - Each tool does one thing well
-   - Clear argument validation
-   - Graceful error handling
+## Pull Requests
 
-3. **Add comprehensive tests**
-   - Unit tests for tool logic
-   - Integration tests with agent execution
-   - Error handling scenarios
+```bash
+git checkout -b feature/clear-name
+# Make changes, add tests
+just ci  # Must pass
+# Submit PR with clear description linking any issues
+```
 
-### Pull Request Process
+**What We Look For:**
+- Follows existing patterns
+- Maintains zero ceremony principle
+- Comprehensive tests
+- Clear documentation
 
-1. **Create a feature branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+## What We Accept
 
-2. **Make your changes**
-   - Follow the coding standards
-   - Add tests for new functionality
-   - Update documentation as needed
+- **Core Pipeline**: Improvements to triage/reason/act/respond
+- **Tools**: New capabilities via `@tool` decorator
+- **Memory**: LLM synthesis enhancements  
+- **Providers**: LLM/embedding integrations
+- **Docs**: Clear examples and API references
 
-3. **Run the test suite**
-   ```bash
-   just ci
-   ```
+**What We Reject:**
+- Wrapper classes without clear value
+- Breaking the zero ceremony interface
+- External dependencies without strong justification
+- Complex abstractions where simple solutions exist
 
-4. **Submit pull request**
-   - Provide clear description of changes
-   - Link to any related issues
-   - Ensure CI tests pass
+## Debugging
 
-## Types of Contributions
+The codebase is designed for easy debugging:
+- `debug=True` shows execution traces
+- Clean error messages with context
+- Minimal abstraction layers
+- Self-contained components
 
-### Core Components
-Submit improvements to core execution steps:
-- Must integrate with existing 4-step architecture
-- Should maintain zero-ceremony interface
-- Need comprehensive tests
+When debugging production issues:
+1. Strip abstractions → access raw data
+2. Fix root cause → not symptoms  
+3. Restore boundaries → re-add abstractions cleanly
 
-### Tools
-Add new tools that extend agent capabilities:
-- Single responsibility principle
-- Auto-registration via `@tool` decorator
-- Comprehensive documentation
+## Testing
 
-### Memory Systems
-Implement memory improvements:
-- Follow LLM-based synthesis pattern
-- Add configuration options
-- Include integration tests
+```bash
+just test        # Run all tests
+just test-cov    # With coverage
+just eval-fast   # Run agent evaluations
+```
 
-### Documentation
-Improve documentation:
-- Architecture explanations
-- Usage examples
-- API documentation
-- Tutorials
+- Mock external services
+- Test error conditions
+- Agent integration tests via evals
+- Maintain >90% coverage (PRs with <90% must include justification)
 
-## Issue Reporting
+## Documentation
 
-When reporting issues:
+- **User docs**: Clear examples that work
+- **API docs**: Complete parameter descriptions
+- **Examples**: Real-world usage patterns
+- **Source code is the source of truth**: Keep documentation minimal
 
-1. **Use the issue template**
-2. **Provide minimal reproduction case**
-3. **Include environment information**
-4. **Describe expected vs actual behavior**
+## Philosophy
 
-## Questions and Support
+**Zero ceremony. Adaptive intelligence. Production ready.**
 
-- **Documentation**: Check `docs/` directory
-- **Issues**: Use GitHub issues for bug reports
-- **Discussions**: Use GitHub discussions for questions
+We optimize for:
+1. Developer productivity (simple interfaces)
+2. Code clarity (reads like English)
+3. Maintainability (minimal abstractions)
+4. Extensibility (clean extension points)
 
-## Code of Conduct
+The result is a codebase that's easy to understand, modify, and extend while remaining powerful enough for production use.
 
-- Be respectful and inclusive
-- Welcome newcomers and help them learn
-- Focus on constructive feedback
-- Maintain professional communication
+---
 
-## Development Philosophy
-
-Cogency prioritizes:
-
-1. **Zero Ceremony**: Simple interfaces with powerful defaults
-2. **Adaptive Intelligence**: Agents think as hard as they need to
-3. **Production Ready**: Built-in resilience and error handling
-4. **Extensibility**: Easy tool and provider integration
-5. **Clean Code**: Minimal, readable implementations
-
-## Release Process
-
-1. **Version Bumping**: Follow semantic versioning
-2. **Changelog**: Update CHANGELOG.md with changes
-3. **Testing**: Ensure all tests pass
-4. **Documentation**: Update docs as needed
-5. **Release**: Tag and publish to PyPI
-
-Thank you for contributing to Cogency! Your contributions help make AI agent development more accessible and reliable.
+*Questions? Check `docs/` or open a GitHub discussion.*

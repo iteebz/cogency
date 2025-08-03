@@ -39,7 +39,7 @@ from cogency import Agent
 agent = Agent("assistant")
 
 # Simple usage
-result = await agent.run("What's 15% of $1,250?")
+result = agent.run("What's 15% of $1,250?")
 
 # Streaming with real-time feedback
 async for chunk in agent.stream("Plan a Tokyo trip with $2000 budget"):
@@ -55,7 +55,7 @@ async for chunk in agent.stream("Plan a Tokyo trip with $2000 budget"):
 ### API Reference  
 - **[Agent API](api.md)** - Complete constructor and method documentation
 - **[Tools](tools.md)** - Built-in tools and custom tool creation
-- **[Configuration](configuration.md)** - Advanced configuration options
+- **[Configuration](config.md)** - Advanced configuration options
 
 ### Guides
 - **[Memory](memory.md)** - Memory backends and persistence

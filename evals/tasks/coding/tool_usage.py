@@ -35,16 +35,17 @@ class ToolUsage(Eval):
     ]
 
     async def run(self) -> EvalResult:
-        agent = Agent(
-            "tool_tester",
-            tools=[Search()],
-            mode="adapt",
-            memory=False,
-            on_notify=get_eval_notification_callback(),
-            max_iterations=5,
-        )
+        def agent_factory():
+            return Agent(
+                "tool_tester",
+                tools=[Search()],
+                mode="adapt",
+                memory=False,
+                on_notify=get_eval_notification_callback(),
+                max_iterations=5,
+            )
 
-        await self.run_test_cases(agent, self.test_cases)
+        await self.run_test_cases(agent_factory, self.test_cases)
         return self.finalize_result()
 
     def _parse_search(self, result: str) -> bool:

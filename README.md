@@ -13,10 +13,10 @@ from cogency import Agent
 agent = Agent("assistant")
 
 # Simple task → direct response
-await agent.run("What's 2+2?")
+agent.run("What's 2+2?")
 
 # Complex task → adaptive reasoning
-await agent.run("Analyze this codebase and suggest architectural improvements")
+agent.run("Analyze this codebase and suggest architectural improvements")
 # Automatically escalates reasoning depth and tool usage
 ```
 
@@ -100,7 +100,7 @@ class MyTool(Tool):
 
 # Tool auto-registers
 agent = Agent("assistant")
-await agent.run("Use my_tool with hello")
+agent.run("Use my_tool with hello")
 ```
 
 **Memory**
@@ -110,8 +110,8 @@ await agent.run("Use my_tool with hello")
 agent = Agent("assistant", memory=True)
 
 # Agent remembers automatically
-await agent.run("I prefer Python and work at Google")
-await agent.run("What language should I use?")  # → "Python"
+agent.run("I prefer Python and work at Google")
+agent.run("What language should I use?")  # → "Python"
 ```
 
 **Streaming**
@@ -126,9 +126,8 @@ async for chunk in agent.stream("Research quantum computing"):
 ```python
 agent = Agent(
     "assistant",
-    mode="deep", # Force deep reasoning
-    memory=True, # Enable memory
-    debug=True,  # Detailed tracing
+    memory=True,          # Enable memory
+    debug=True,           # Detailed tracing
     max_iterations=20     # Max reasoning iterations
 )
 ```

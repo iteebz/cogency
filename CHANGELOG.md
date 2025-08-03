@@ -5,19 +5,66 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2025-08-02
+## [1.0.0] - 2025-08-03
 
 ### Production Release
-- **MILESTONE**: First stable production release
-- Interface locked for semantic versioning
-- Full test coverage with 296 tests passing
-- Documentation aligned with v1.0.0 standards
+- **MILESTONE**: First stable production release with locked API surface
+- **WARNING**: Complete architectural rewrite - no backward compatibility with v0.9.x
+- Formalized canonical 5 tools: Files, HTTP, Scrape, Search, Shell
+- Full test coverage with 379 tests passing
+- Formally defined public/private API boundaries
 - Production/Stable development status
 
+### Added
+- **NEW**: Comprehensive semantic security framework with LLM-based threat detection
+- **NEW**: Multi-layered security validation (SEC-001, SEC-002, SEC-003, SEC-004)
+  - Prompt injection detection and prevention  
+  - Command injection validation for shell operations
+  - Sensitive information sanitization in outputs
+- **NEW**: Production CLI interface with interactive agent commands
+- **NEW**: Ollama LLM provider support for local models
+- **NEW**: Provider auto-detection with lazy loading
+- **NEW**: Evaluation framework, 15 test suites
+- **NEW**: Comprehensive state management architecture
+- **NEW**: Memory synthesis and compression capabilities
+- **NEW**: Enhanced tool security validation and sandboxing
+
 ### Changed
-- Upgraded from Beta (0.9.3) to Production/Stable (1.0.0)
-- Cleaned documentation of beta language
-- Streamlined README for production clarity
+- **BREAKING**: Complete module reorganization - 173 files changed, 8584 insertions, 6415 deletions
+- **BREAKING**: Removed `AgentBuilder` - simplified to direct `Agent()` construction only
+- **BREAKING**: Complete state architecture rewrite - `state.py` → modular `state/` package
+- **BREAKING**: Memory system redesign - `memory.py` → structured `memory/` namespace  
+- **BREAKING**: Renamed `prepare` step to `triage` throughout architecture
+- **BREAKING**: Moved utilities: `utils/timer.py` → `observe/timer.py`, `utils/tokens.py` → `observe/tokens.py`
+- **BREAKING**: Simplified config system - removed complex builder patterns
+- **BREAKING**: Steps refactoring with improved symmetry and composition
+- Enhanced prompt organization across reasoning components
+- Streamlined dependency management and security posture
+- Improved error handling and execution flow reliability
+
+### Removed
+- **BREAKING**: `AgentBuilder` class and fluent configuration interface
+- **BREAKING**: Legacy `config/builder.py` module
+- **BREAKING**: Monolithic `state.py` and `memory.py` modules
+- **BREAKING**: Legacy `prepare/` step module structure
+- **BREAKING**: Legacy evaluation `suite/` modules
+- **BREAKING**: Various utility abstractions and over-engineered patterns
+- **BREAKING**: `RELEASE_NOTES.md` in favor of comprehensive CHANGELOG
+
+### Migration Guide
+**All v0.9.x code requires updates - no compatibility maintained:**
+- Replace `AgentBuilder().name("x").build()` with `Agent("x")`
+- Update imports: any internal module access beyond `cogency.Agent` and config classes
+- Replace `prepare` step references with `triage`
+- Update state/memory imports for new modular structure
+- Replace evaluation suite usage with new task-based system
+- Remove timer/token imports from `utils/` - now in `observe/`
+
+### Security
+- Implemented defense-in-depth security architecture
+- Added semantic threat analysis using LLM reasoning  
+- Enhanced input validation and output sanitization
+- Comprehensive security evaluation suite with 379 tests
 
 ## [0.9.3] - 2025-08-01
 

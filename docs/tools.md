@@ -78,7 +78,7 @@ class MyTool(Tool):
 
 # Tool auto-registers - zero ceremony
 agent = Agent("assistant")
-await agent.run("Use my_tool with hello")
+agent.run("Use my_tool with hello")
 ```
 
 ### Key Points

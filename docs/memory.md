@@ -9,8 +9,8 @@ from cogency import Agent
 agent = Agent("assistant", memory=True)
 
 # Memory learns automatically
-await agent.run("I prefer TypeScript over JavaScript")
-await agent.run("What language should I use for my project?")
+agent.run("I prefer TypeScript over JavaScript")
+agent.run("What language should I use for my project?")
 # → Agent recalls your TypeScript preference and provides situated context
 ```
 
@@ -39,9 +39,9 @@ The system automatically learns from interactions and synthesizes understanding 
 agent = Agent("assistant", memory=True)
 
 # Memory learns from every interaction
-await agent.run("I work primarily with Python and React")
-await agent.run("I prefer functional programming patterns")
-await agent.run("Help me design an API")
+agent.run("I work primarily with Python and React")
+agent.run("I prefer functional programming patterns")
+agent.run("Help me design an API")
 # → Agent uses your preferences to guide design recommendations
 ```
 
@@ -57,9 +57,9 @@ Memory works automatically through agent interactions. The system tracks:
 
 ```python
 # Memory learns from natural conversation
-await agent.run("I prefer functional programming patterns")
-await agent.run("I'm working on a React app with TypeScript")
-await agent.run("Help me design a clean API")
+agent.run("I prefer functional programming patterns")
+agent.run("I'm working on a React app with TypeScript")
+agent.run("Help me design a clean API")
 # → Agent uses your preferences and project context automatically
 ```
 
@@ -71,11 +71,11 @@ Memory automatically persists across sessions:
 agent = Agent("assistant", memory=True)
 
 # First session
-await agent.run("I'm working on a React app")
+agent.run("I'm working on a React app")
 
 # Later session (different process)
 agent = Agent("assistant", memory=True)  
-await agent.run("Continue helping with my project")
+agent.run("Continue helping with my project")
 # → Agent remembers it's a React app
 ```
 
@@ -85,9 +85,9 @@ Memory automatically refines understanding over time through LLM-driven synthesi
 
 ```python
 # Initial interactions build understanding
-await agent.run("I prefer TypeScript over JavaScript")
-await agent.run("I like functional programming")  
-await agent.run("I'm working on a React project")
+agent.run("I prefer TypeScript over JavaScript")
+agent.run("I like functional programming")  
+agent.run("I'm working on a React project")
 
 # After several interactions, memory synthesizes
 # Consolidated understanding: 

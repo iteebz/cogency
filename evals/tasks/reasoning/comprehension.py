@@ -35,15 +35,16 @@ class Comprehension(Eval):
     ]
 
     async def run(self) -> EvalResult:
-        agent = Agent(
-            "comprehension_tester",
-            mode="reasoning",
-            tools=[Search()],
-            on_notify=get_eval_notification_callback(),
-            max_iterations=8,
-        )
+        def agent_factory():
+            return Agent(
+                "comprehension_tester",
+                mode="reasoning",
+                tools=[Search()],
+                on_notify=get_eval_notification_callback(),
+                max_iterations=8,
+            )
 
-        await self.run_test_cases(agent, self.test_cases)
+        await self.run_test_cases(agent_factory, self.test_cases)
         return self.finalize_result()
 
     def _check_math(self, response: str) -> bool:
