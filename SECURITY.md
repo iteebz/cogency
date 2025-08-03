@@ -12,35 +12,49 @@ Include description, reproduction steps, and impact assessment.
 
 ### Active Security Issues
 
-#### SEC-001
+#### SEC-001: Prompt Injection
 - **Date:** 2025-08-03
-- **Type:** Prompt Injection Vulnerability
+- **Threat:** Malicious instructions to override agent behavior
 - **Vector:** Unescaped user query passed into execution context (`execution.add_message("user", query)`)
 - **Impact:** Allows user to override system prompt, hijack reasoning context, and impersonate roles
 - **Evidence:** Eval test shows "HIJACKED" response from direct prompt injection attack
-- **Status:** ✅ Mitigated - Multi-layer defense with input sanitization and secure middleware
+- **Status:** ✅ Mitigated - Semantic security assessment + critical fallbacks
+- **Mitigation:** prepare.py:144 - unified security.assess() function
 - **Related Tests:** `direct_prompt_injection`, `fake_authority_bypass`, `system_prompt_leak`
 - **Severity:** Critical - Remote prompt execution possible
 
-#### SEC-002
+#### SEC-002: Command Injection
 - **Date:** 2025-08-03
-- **Type:** Tool Parameter Injection Vulnerability
+- **Threat:** Dangerous system commands that could damage infrastructure
 - **Vector:** Unsanitized tool parameters enable shell command injection and file system access
 - **Impact:** Allows execution of dangerous commands (rm -rf, fork bombs) and access to sensitive paths
 - **Evidence:** Tool execution lacks parameter validation before command execution
-- **Status:** ✅ Mitigated - Comprehensive parameter validation with dangerous pattern blocking
+- **Status:** ✅ Mitigated - Input validation + tool filtering
+- **Mitigation:** runtime.py:201 - input validation + tools/shell.py:117 tool filtering
 - **Related Tests:** Shell command validation, file path security checks
 - **Severity:** High - System compromise via tool abuse
 
-#### SEC-003
+#### SEC-003: Information Leakage
 - **Date:** 2025-08-03
-- **Type:** Information Disclosure Vulnerability
+- **Threat:** Exposure of API keys, secrets, and sensitive data
 - **Vector:** Unfiltered agent outputs leak sensitive data (API keys, system prompts, file paths)
 - **Impact:** Exposure of credentials, internal system details, and debugging information
 - **Evidence:** Agent responses may contain raw API keys, tracebacks, and security protocol text
-- **Status:** ✅ Mitigated - Multi-pattern output sanitization with credential redaction
+- **Status:** ✅ Mitigated - Output filtering with REDACT action
+- **Mitigation:** respond/generate.py:53,106 - output filtering with REDACT action
 - **Related Tests:** API key leakage, system prompt disclosure, file path exposure
 - **Severity:** Medium - Information leakage risk
+
+#### SEC-004: Path Traversal
+- **Date:** 2025-08-03
+- **Threat:** Unauthorized access to system files and directories
+- **Vector:** Malicious file paths in tool parameters (../../../etc/passwd)
+- **Impact:** Allows access to sensitive system files and directories
+- **Evidence:** Path traversal patterns can bypass tool file access controls
+- **Status:** ✅ Mitigated - Critical fallbacks with immediate pattern blocking
+- **Mitigation:** security.py critical fallbacks - immediate pattern blocking
+- **Related Tests:** Path traversal validation, file access security
+- **Severity:** High - Unauthorized file system access
 
 ### Questions?
 

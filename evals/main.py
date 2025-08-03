@@ -82,7 +82,9 @@ FULL_SUITE = [
 async def main():
     """Run the specified eval suite."""
     if len(sys.argv) < 2:
-        logger.error("Usage: python -m evals.main [fast|full|security|single] [--sequential] [--robust]")
+        logger.error(
+            "Usage: python -m evals.main [fast|full|security|single] [--sequential] [--robust]"
+        )
         sys.exit(1)
 
     suite_name = sys.argv[1].lower()

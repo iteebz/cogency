@@ -70,12 +70,11 @@ def prompt_response(
     failures: Optional[Dict[str, str]] = None,
 ) -> str:
     """Clean routing to response templates."""
-    from cogency.security import secure
     
     if identity:
-        secure_identity = secure(f"You are {identity}.")
+        secure_identity = f"You are {identity}."
     else:
-        secure_identity = secure("You are a helpful AI assistant.")
+        secure_identity = "You are a helpful AI assistant."
 
     # Route to appropriate template
     if failures:

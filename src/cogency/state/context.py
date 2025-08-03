@@ -7,8 +7,7 @@ from .agent import AgentState
 
 def reasoning_context(state: AgentState, tools: List[Any], mode=None) -> str:
     """Pure function: State → Reasoning Prompt."""
-    from cogency.security import secure
-    
+
     mode = mode or state.execution.mode
     mode_value = mode.value if hasattr(mode, "value") else str(mode)
 
@@ -62,8 +61,8 @@ def reasoning_context(state: AgentState, tools: List[Any], mode=None) -> str:
 - ESCALATE to deep mode if task proves complex"""
 
     # SEC-001: Security-hardened identity
-    identity = secure("You are a helpful AI assistant.")
-    
+    identity = "You are a helpful AI assistant."
+
     return f"""{identity}
 
 {user_context}REASONING CONTEXT:

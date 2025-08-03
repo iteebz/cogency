@@ -41,6 +41,9 @@ class ExecutionState:
     debug: bool = False
     notifications: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Security
+    security_assessment: Optional[Any] = None  # SecurityAssessment from reasoning
+
     def add_message(self, role: str, content: str) -> None:
         """Add to conversation history."""
         self.messages.append(

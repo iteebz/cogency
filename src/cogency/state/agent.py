@@ -36,7 +36,7 @@ class AgentState:
             else:
                 # Fallback: skip update if list doesn't contain valid dict
                 return
-        
+
         # Record thinking
         thinking = reasoning_data.get("thinking", "")
         tool_calls = reasoning_data.get("tool_calls", [])
@@ -71,3 +71,7 @@ class AgentState:
             with contextlib.suppress(ValueError):
                 # Convert string to enum value
                 self.execution.mode = AgentMode(new_mode)
+
+        # Store security assessment for tool execution
+        if "security_assessment" in reasoning_data:
+            self.execution.security_assessment = reasoning_data["security_assessment"]

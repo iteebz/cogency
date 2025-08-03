@@ -9,10 +9,10 @@ from cogency.memory import ImpressionSynthesizer
 from cogency.notify import Notifier, _setup_formatter
 from cogency.persist.utils import _get_state
 from cogency.providers.setup import _setup_embed, _setup_llm
+from cogency.security import assess
 from cogency.state import AgentMode, AgentState
 from cogency.steps.composition import _setup_steps
 from cogency.tools.registry import _setup_tools
-from cogency.security import sanitize_user_input
 from cogency.utils.validation import validate_query
 
 
@@ -195,9 +195,13 @@ class AgentExecutor:
             self.config.persist,
         )
 
-        # SEC-001: Sanitize user input to prevent prompt injection
-        sanitized_query = sanitize_user_input(query)
-        state.execution.add_message("user", sanitized_query)
+        # SEC-002: Command injection protection via input validation
+        security_result = await assess(query)
+        if not security_result.safe:
+            raise ValueError("Security violation: Dangerous patterns detected")
+
+        wrapped_query = f"[user]\n{query.strip()}\n[/user]"
+        state.execution.add_message("user", wrapped_query)
 
         # Memory operations
         if self.memory:

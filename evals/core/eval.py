@@ -55,8 +55,8 @@ class Eval(ABC):
             else:
                 # Show truncated response snippet for debugging
                 snippet = response[:150] + "..." if len(response) > 150 else response
-                snippet = snippet.replace('\n', ' ').strip()
-                print(f"  {status} {name} → FAIL - Response: \"{snippet}\"", flush=True)
+                snippet = snippet.replace("\n", " ").strip()
+                print(f'  {status} {name} → FAIL - Response: "{snippet}"', flush=True)
 
         return passed
 

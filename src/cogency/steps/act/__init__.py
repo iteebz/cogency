@@ -26,9 +26,10 @@ async def act(state: AgentState, notifier, tools: List[Tool]) -> Optional[str]:
         for call in tool_calls
     ]
 
-    # Execute tools with error isolation - execute_tools handles all tool execution
-    # errors, retries, and recovery by wrapping results in Result objects
-    tool_result = await execute_tools(tool_tuples, tools, state, notifier)
+    # Execute tools with built-in capability restrictions
+    tool_result = await execute_tools(
+        tool_tuples, tools, state, notifier
+    )
 
     # Store results using ExecutionState methods
     if tool_result.success and tool_result.data:

@@ -68,18 +68,6 @@ class Shell(Tool):
         # Coordinate with file tool sandbox
         self.default_working_dir = Path(default_working_dir).resolve()
         self.default_working_dir.mkdir(parents=True, exist_ok=True)
-        # Security: blocked dangerous commands
-        self._blocked_commands = {
-            "rm",
-            "rmdir",
-            "del",
-            "sudo",
-            "su",
-            "shutdown",
-            "reboot",
-            "kill",
-            "killall",
-        }
 
     async def run(
         self,
@@ -106,16 +94,18 @@ class Shell(Tool):
         # Limit timeout
         timeout = min(max(timeout, 1), 300)  # 1-300 seconds
 
-        # Parse command to check for blocked commands
+        # Security: validate command using unified threat patterns
+        from cogency.security import _threat_patterns
+
+        security_result = _threat_patterns(command, {})  # SEC-002: Command injection protection
+        if not security_result.safe:
+            return Result.fail(f"Security violation: {security_result.message}")
+
+        # Parse command for additional validation
         try:
             cmd_parts = shlex.split(command)
             if not cmd_parts:
                 return Result.fail("Invalid command format")
-
-            base_cmd = Path(cmd_parts[0]).name.lower()
-            if base_cmd in self._blocked_commands:
-                return Result.fail(f"Command '{base_cmd}' is blocked for security")
-
         except ValueError as e:
             return Result.fail(f"Invalid command syntax: {str(e)}")
 

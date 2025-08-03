@@ -16,7 +16,7 @@ async def shape_identity(
     output_schema: Optional[str],
 ) -> str:
     """Apply agent identity to existing response via LLM call.
-    
+
     SEC-001: Use sanitized query to prevent prompt injection in identity shaping.
     """
     # SEC-001: Get sanitized user input from messages, not raw query
@@ -26,7 +26,7 @@ async def shape_identity(
         user_messages = [msg for msg in state.execution.messages if msg["role"] == "user"]
         if user_messages:
             sanitized_query = user_messages[-1]["content"]
-    
+
     identity_prompt = prompt_response(
         sanitized_query,
         has_tool_results=bool(tool_results),
@@ -42,12 +42,22 @@ async def shape_identity(
     ]
 
     from resilient_result import unwrap
-    from cogency.security import sanitize_output
+
+    from cogency.security import SecurityAction, assess
 
     llm_result = await llm.run(messages)
     response = unwrap(llm_result)
-    # SEC-003: Sanitize output to prevent information leakage
-    return sanitize_output(response)
+    # SEC-003: Assess output for security risks
+    security_result = await assess(response)
+    if security_result.action == SecurityAction.BLOCK:
+        raise ValueError("Security violation: Output contains unsafe content")
+    elif security_result.action == SecurityAction.REDACT:
+        # Apply redaction patterns
+        import re
+
+        response = re.sub(r"sk-[a-zA-Z0-9]{32,}", "[REDACTED]", response)
+        response = re.sub(r"AKIA[a-zA-Z0-9]{16}", "[REDACTED]", response)
+    return response
 
 
 async def generate_response_from_context(
@@ -59,7 +69,7 @@ async def generate_response_from_context(
     failures: Optional[Dict[str, str]],
 ) -> str:
     """Generate response from available tool results and context.
-    
+
     SEC-001: Use sanitized query to prevent prompt injection in response generation.
     """
     # SEC-001: Get sanitized user input from messages, not raw query
@@ -69,7 +79,7 @@ async def generate_response_from_context(
         user_messages = [msg for msg in state.execution.messages if msg["role"] == "user"]
         if user_messages:
             sanitized_query = user_messages[-1]["content"]
-    
+
     response_prompt = prompt_response(
         sanitized_query,
         has_tool_results=bool(tool_results),
@@ -85,12 +95,22 @@ async def generate_response_from_context(
     ]
 
     from resilient_result import unwrap
-    from cogency.security import sanitize_output
+
+    from cogency.security import SecurityAction, assess
 
     llm_result = await llm.run(messages)
     response = unwrap(llm_result)
-    # SEC-003: Sanitize output to prevent information leakage
-    return sanitize_output(response)
+    # SEC-003: Assess output for security risks
+    security_result = await assess(response)
+    if security_result.action == SecurityAction.BLOCK:
+        raise ValueError("Security violation: Output contains unsafe content")
+    elif security_result.action == SecurityAction.REDACT:
+        # Apply redaction patterns
+        import re
+
+        response = re.sub(r"sk-[a-zA-Z0-9]{32,}", "[REDACTED]", response)
+        response = re.sub(r"AKIA[a-zA-Z0-9]{16}", "[REDACTED]", response)
+    return response
 
 
 def extract_existing_response(state: AgentState) -> str:

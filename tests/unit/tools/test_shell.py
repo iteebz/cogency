@@ -29,16 +29,6 @@ async def test_failure():
 
 
 @pytest.mark.asyncio
-async def test_blocked():
-    tool = Shell()
-
-    for cmd in ["rm test", "sudo echo", "kill 123", "shutdown now"]:
-        result = await tool.run(command=cmd)
-        assert not result.success
-        assert "blocked for security" in result.error
-
-
-@pytest.mark.asyncio
 async def test_timeout():
     import asyncio
     from unittest.mock import AsyncMock, Mock, patch

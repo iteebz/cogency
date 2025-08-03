@@ -46,6 +46,7 @@ class Files(Tool):
                 "files(action='list', path='src')",
             ],
             rules=[
+                "CRITICAL: Always use files(action='...', ...) format. NEVER call files.read, files.list, files.create - these don't exist.",
                 "CRITICAL: When creating files, provide complete, functional code implementations; never placeholder comments or stubs.",
                 "Start with focused, core functionality - avoid overly long files in initial creation.",
                 "Include proper imports, error handling, and production-ready code.",
@@ -92,6 +93,16 @@ class Files(Tool):
                 path = self._safe_path(path)
                 if path.exists():
                     return Result.fail(f"File already exists: {path}")
+
+                # Security: validate file content
+                from cogency.security import _threat_patterns
+
+                security_result = _threat_patterns(
+                    content or "", {}
+                )  # SEC-002: Command injection protection
+                if not security_result.safe:
+                    return Result.fail(f"Security violation: {security_result.message}")
+
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text(content, encoding="utf-8")
                 return Result.ok(
@@ -152,7 +163,16 @@ class Files(Tool):
                     lines = content.splitlines()
                     result_msg = "Replaced entire file"
 
+                # Security: validate edited content
                 new_content = "\n".join(lines)
+                from cogency.security import _threat_patterns
+
+                security_result = _threat_patterns(
+                    new_content, {}
+                )  # SEC-002: Command injection protection
+                if not security_result.safe:
+                    return Result.fail(f"Security violation: {security_result.message}")
+
                 path.write_text(new_content, encoding="utf-8")
                 return Result.ok(
                     {
