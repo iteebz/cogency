@@ -29,6 +29,14 @@ class AgentState:
 
     def update_from_reasoning(self, reasoning_data: Dict[str, Any]) -> None:
         """Update state from LLM reasoning response."""
+        # Handle case where LLM returns list instead of dict
+        if isinstance(reasoning_data, list):
+            if reasoning_data and isinstance(reasoning_data[0], dict):
+                reasoning_data = reasoning_data[0]
+            else:
+                # Fallback: skip update if list doesn't contain valid dict
+                return
+        
         # Record thinking
         thinking = reasoning_data.get("thinking", "")
         tool_calls = reasoning_data.get("tool_calls", [])

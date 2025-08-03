@@ -29,7 +29,7 @@ class Eval(ABC):
         pass
 
     def check_sub_case(
-        self, name: str, actual: Any, expected: Any, live_output: bool = True
+        self, name: str, actual: Any, expected: Any, live_output: bool = True, response: str = ""
     ) -> bool:
         """Check sub-case result and optionally print feedback.
 
@@ -38,6 +38,7 @@ class Eval(ABC):
             actual: Actual result
             expected: Expected result
             live_output: Print result immediately
+            response: Original LLM response for debugging
 
         Returns:
             True if test passed
@@ -50,9 +51,12 @@ class Eval(ABC):
         if live_output:
             status = "✓" if passed else "✗"
             if passed:
-                print(f"  {status} {name}: {expected}", flush=True)
+                print(f"  {status} {name}: PASS", flush=True)
             else:
-                print(f"  {status} {name} → got {actual}, expected {expected}", flush=True)
+                # Show truncated response snippet for debugging
+                snippet = response[:150] + "..." if len(response) > 150 else response
+                snippet = snippet.replace('\n', ' ').strip()
+                print(f"  {status} {name} → FAIL - Response: \"{snippet}\"", flush=True)
 
         return passed
 
@@ -89,14 +93,16 @@ class Eval(ABC):
             sub_cases=self._sub_cases.copy(),
         )
 
-    async def run_test_cases(self, agent, test_cases: List[Dict]) -> None:
-        """Run test cases against agent."""
+    async def run_test_cases(self, agent_factory, test_cases: List[Dict]) -> None:
+        """Run test cases with fresh agent instances."""
         for case in test_cases:
             try:
+                # Create fresh agent for each test case to prevent context pollution
+                agent = agent_factory()
                 result = await agent.run_async(case["query"])
                 parser_method = getattr(self, case["parser"])
                 actual = parser_method(result)
-                self.check_sub_case(case["name"], actual, case["expected"])
+                self.check_sub_case(case["name"], actual, case["expected"], response=result)
             except Exception as e:
                 self.fail_sub_case(case["name"], f"error: {e}", FailureType.ERROR)
 

@@ -13,6 +13,8 @@ class FailureType(str, Enum):
     RATE_LIMIT = "rate_limit"  # API quota/throttling
     TIMEOUT = "timeout"  # Network/processing timeout
     ERROR = "error"  # Unexpected exception
+    SECURITY = "security"  # Security violation detected
+    PERFORMANCE = "performance"  # Performance/resource issue
 
 
 class SubCaseResult(BaseModel):
