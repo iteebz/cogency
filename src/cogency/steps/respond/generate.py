@@ -15,9 +15,20 @@ async def shape_identity(
     tool_results: Optional[str],
     output_schema: Optional[str],
 ) -> str:
-    """Apply agent identity to existing response via LLM call."""
+    """Apply agent identity to existing response via LLM call.
+    
+    SEC-001: Use sanitized query to prevent prompt injection in identity shaping.
+    """
+    # SEC-001: Get sanitized user input from messages, not raw query
+    sanitized_query = state.execution.query
+    if state.execution.messages:
+        # Use the last user message which should be sanitized
+        user_messages = [msg for msg in state.execution.messages if msg["role"] == "user"]
+        if user_messages:
+            sanitized_query = user_messages[-1]["content"]
+    
     identity_prompt = prompt_response(
-        state.execution.query,
+        sanitized_query,
         has_tool_results=bool(tool_results),
         tool_summary=tool_results,
         identity=identity,
@@ -26,7 +37,7 @@ async def shape_identity(
 
     messages = [
         {"role": "system", "content": identity_prompt},
-        {"role": "user", "content": state.execution.query},
+        {"role": "user", "content": sanitized_query},
         {"role": "assistant", "content": state.execution.response},
     ]
 
@@ -44,9 +55,20 @@ async def generate_response_from_context(
     tool_results: Optional[str],
     failures: Optional[Dict[str, str]],
 ) -> str:
-    """Generate response from available tool results and context."""
+    """Generate response from available tool results and context.
+    
+    SEC-001: Use sanitized query to prevent prompt injection in response generation.
+    """
+    # SEC-001: Get sanitized user input from messages, not raw query
+    sanitized_query = state.execution.query
+    if state.execution.messages:
+        # Use the last user message which should be sanitized
+        user_messages = [msg for msg in state.execution.messages if msg["role"] == "user"]
+        if user_messages:
+            sanitized_query = user_messages[-1]["content"]
+    
     response_prompt = prompt_response(
-        state.execution.query,
+        sanitized_query,
         has_tool_results=bool(tool_results),
         tool_summary=tool_results,
         identity=identity,
@@ -56,7 +78,7 @@ async def generate_response_from_context(
 
     messages = [
         {"role": "system", "content": response_prompt},
-        {"role": "user", "content": state.execution.query},
+        {"role": "user", "content": sanitized_query},
     ]
 
     from resilient_result import unwrap

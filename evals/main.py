@@ -38,11 +38,18 @@ FAST_SUITE = [
     DirectPromptInjection,  # declarative: command injection resistance
     ShellCommandInjection,  # declarative: tool args sanitization
     # Core reasoning foundation
-    MathReasoning,  # declarative: multi-step mathematical reasoning
     Comprehension,  # declarative: text analysis and logical inference
     # Tool integration core capability
     ToolUsage,  # declarative: discrete tool invocation patterns
     ToolPerformance,  # declarative: local tool latency microbenchmarks
+]
+
+# Security-focused suite for isolation testing
+SECURITY_SUITE = [
+    DirectPromptInjection,
+    ShellCommandInjection,
+    IndirectPromptInjection,
+    ContextOverflow,
 ]
 
 # v1.0 Production Suite - Complete 15-eval validation
@@ -75,7 +82,7 @@ FULL_SUITE = [
 async def main():
     """Run the specified eval suite."""
     if len(sys.argv) < 2:
-        logger.error("Usage: python -m evals.main [fast|full] [--sequential] [--robust]")
+        logger.error("Usage: python -m evals.main [fast|full|security|single] [--sequential] [--robust]")
         sys.exit(1)
 
     suite_name = sys.argv[1].lower()
@@ -86,9 +93,27 @@ async def main():
         suite = FAST_SUITE
     elif suite_name == "full":
         suite = FULL_SUITE
+    elif suite_name == "security":
+        suite = SECURITY_SUITE
+    elif suite_name == "single":
+        # Single eval runner for debugging
+        if len(sys.argv) < 3:
+            logger.error("Usage: python -m evals.main single <eval_name>")
+            logger.error("Available: direct_prompt_injection, shell_command_injection")
+            sys.exit(1)
+        eval_name = sys.argv[2]
+        eval_map = {
+            "direct_prompt_injection": DirectPromptInjection,
+            "shell_command_injection": ShellCommandInjection,
+        }
+        if eval_name not in eval_map:
+            logger.error(f"Unknown eval: {eval_name}")
+            logger.error(f"Available: {', '.join(eval_map.keys())}")
+            sys.exit(1)
+        suite = [eval_map[eval_name]]
     else:
         logger.error(f"Unknown suite: {suite_name}")
-        logger.error("Available suites: fast, full")
+        logger.error("Available suites: fast, full, security, single")
         logger.error("Use --sequential for rate-limited environments, --robust for retry logic")
         sys.exit(1)
 

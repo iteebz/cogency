@@ -12,6 +12,7 @@ from cogency.providers.setup import _setup_embed, _setup_llm
 from cogency.state import AgentMode, AgentState
 from cogency.steps.composition import _setup_steps
 from cogency.tools.registry import _setup_tools
+from cogency.security import sanitize_user_input
 from cogency.utils.validation import validate_query
 
 
@@ -194,7 +195,9 @@ class AgentExecutor:
             self.config.persist,
         )
 
-        state.execution.add_message("user", query)
+        # SEC-001: Sanitize user input to prevent prompt injection
+        sanitized_query = sanitize_user_input(query)
+        state.execution.add_message("user", sanitized_query)
 
         # Memory operations
         if self.memory:

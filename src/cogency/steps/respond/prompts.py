@@ -70,7 +70,12 @@ def prompt_response(
     failures: Optional[Dict[str, str]] = None,
 ) -> str:
     """Clean routing to response templates."""
-    identity_line = f"You are {identity}. " if identity else ""
+    from cogency.security import secure
+    
+    if identity:
+        secure_identity = secure(f"You are {identity}.")
+    else:
+        secure_identity = secure("You are a helpful AI assistant.")
 
     # Route to appropriate template
     if failures:
@@ -78,24 +83,24 @@ def prompt_response(
             [f"- Tool: {tool_name}\n- Reason: {error}" for tool_name, error in failures.items()]
         )
         prompt = FAILURE_PROMPT.format(
-            identity=identity_line, query=query, failed_tools=failed_tools
+            identity=secure_identity, query=query, failed_tools=failed_tools
         )
     elif output_schema:
         tool_section = (
             f"\n\nTOOL RESULTS:\n{tool_summary}" if has_tool_results and tool_summary else ""
         )
         prompt = JSON_PROMPT.format(
-            identity=identity_line,
+            identity=secure_identity,
             output_schema=output_schema,
             query=query,
             tool_section=tool_section,
         )
     elif has_tool_results:
         prompt = TOOL_RESULTS_PROMPT.format(
-            identity=identity_line, query=query, tool_results=tool_summary
+            identity=secure_identity, query=query, tool_results=tool_summary
         )
     else:
-        prompt = KNOWLEDGE_PROMPT.format(identity=identity_line, query=query)
+        prompt = KNOWLEDGE_PROMPT.format(identity=secure_identity, query=query)
 
     # Add anti-JSON instruction when no JSON schema is expected
     if not output_schema:
