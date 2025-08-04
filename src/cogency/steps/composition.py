@@ -4,7 +4,7 @@ from functools import partial
 
 from resilient_result import Retry, resilient
 
-from cogency.observe.metrics import _counter, _timer
+# Metrics removed - focus on agent observability only
 from cogency.robust import checkpoint
 
 from .act import act
@@ -25,15 +25,7 @@ def _setup_steps(llm, tools, memory, identity, output_schema, config=None):
 
         # Add production hardening based on config
         if config:
-            # Observability - always add if enabled
-            if getattr(config, "observe", None):
-
-                def observed_func(*args, **kwargs):
-                    _counter(f"{step_name}.executions", 1.0, {"step": step_name})
-                    with _timer(f"{step_name}.duration", {"step": step_name}):
-                        return bound_func(*args, **kwargs)
-
-                bound_func = observed_func
+            # Observability handled by event system - no decorator needed
 
             # Resilience - add retry logic for steps that need it
             if getattr(config, "robust", None) and needs_resilience:

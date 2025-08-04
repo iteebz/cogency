@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Type
 
 from resilient_result import Result
 
-from cogency.observe.metrics import _counter as counter
+# Metrics removed - agent observability handled by event system
 from cogency.utils.validation import validate
 
 
@@ -55,8 +55,11 @@ class Tool(ABC):
 
         Use this method instead of run() directly.
         """
+        import time
+
         from cogency.events import emit
 
+        start_time = time.time()
         emit("tool", operation="execute", name=self.name, status="start")
 
         try:
@@ -65,12 +68,14 @@ class Tool(ABC):
             validation_result = self._validate_args(normalized_args)
 
             if validation_result.failure:
+                duration = time.time() - start_time
                 emit(
                     "tool",
                     operation="execute",
                     name=self.name,
                     status="validation_failed",
                     error=validation_result.error,
+                    duration=duration,
                 )
                 return validation_result
 
@@ -82,30 +87,51 @@ class Tool(ABC):
                 # Fallback to direct execution if no schema
                 result = await self.run(**normalized_args)
 
-            # Track metrics and events
+            # Track events only - metrics handled by MetricsHandler
+            duration = time.time() - start_time
             if result.failure:
-                counter(f"tools.errors.{self.name}", 1.0, {"tool": self.name})
                 emit(
-                    "tool", operation="execute", name=self.name, status="failed", error=result.error
+                    "tool",
+                    operation="execute",
+                    name=self.name,
+                    status="failed",
+                    error=result.error,
+                    duration=duration,
                 )
             else:
-                counter(f"tools.success.{self.name}", 1.0, {"tool": self.name})
-                emit("tool", operation="execute", name=self.name, status="complete", success=True)
+                emit(
+                    "tool",
+                    operation="execute",
+                    name=self.name,
+                    status="complete",
+                    success=True,
+                    duration=duration,
+                )
 
             return result
 
         except ValueError as e:
             # Schema validation errors
-            counter(f"tools.errors.{self.name}", 1.0, {"tool": self.name})
+            duration = time.time() - start_time
             emit(
-                "tool", operation="execute", name=self.name, status="validation_error", error=str(e)
+                "tool",
+                operation="execute",
+                name=self.name,
+                status="validation_error",
+                error=str(e),
+                duration=duration,
             )
             return Result.fail(f"Invalid arguments: {str(e)}")
         except Exception as e:
             # Critical execution errors
-            counter(f"tools.errors.{self.name}", 1.0, {"tool": self.name})
+            duration = time.time() - start_time
             emit(
-                "tool", operation="execute", name=self.name, status="execution_error", error=str(e)
+                "tool",
+                operation="execute",
+                name=self.name,
+                status="execution_error",
+                error=str(e),
+                duration=duration,
             )
             return Result.fail(f"Tool execution failed: {str(e)}")
 

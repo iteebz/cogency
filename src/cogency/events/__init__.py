@@ -8,14 +8,14 @@ For custom streaming: Use Agent(handlers=[CallbackHandler(callback)])
 
 Internal components:
 - MessageBus, emit, init_bus: Core event infrastructure
-- ConsoleHandler, LoggerHandler, MetricsHandler: Built-in handlers
+- ConsoleHandler, LoggerHandler: Built-in handlers
 """
 
 # Internal event system - not exported
 from .core import MessageBus, component, emit, init_bus  # noqa: F401
 
 # Public: Custom event streaming handler
-from .handlers import CallbackHandler, ConsoleHandler, LoggerHandler, MetricsHandler  # noqa: F401
+from .handlers import CallbackHandler, ConsoleHandler, LoggerHandler  # noqa: F401
 
 __all__ = [
     "CallbackHandler",

@@ -6,8 +6,9 @@ from resilient_result import Result
 
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
-from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, MetricsHandler, init_bus
+from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, init_bus
 from cogency.memory import ImpressionSynthesizer
+from cogency.observe import get_metrics_handler
 from cogency.persist.store.base import _setup_persist
 from cogency.persist.utils import _get_state
 from cogency.providers.setup import _setup_embed, _setup_llm
@@ -140,7 +141,7 @@ class AgentExecutor:
         def setup_config():
             config = AgentConfig()
             config.robust = _setup_config(RobustConfig, False)
-            config.observe = _setup_config(ObserveConfig, False)
+            config.observe = ObserveConfig()  # Sensible defaults
             config.persist = _setup_config(PersistConfig, False)
             config.memory = _setup_config(MemoryConfig, False)
             return config
@@ -191,7 +192,7 @@ class AgentExecutor:
         bus.subscribe(ConsoleHandler(config.notify, config.debug))
         logger_handler = LoggerHandler()
         bus.subscribe(logger_handler)
-        bus.subscribe(MetricsHandler())
+        bus.subscribe(get_metrics_handler())
 
         # Add custom handlers
         if config.handlers:
@@ -255,7 +256,15 @@ class AgentExecutor:
 
         agent_config = AgentConfig()
         agent_config.robust = robust_config
-        agent_config.observe = _setup_config(ObserveConfig, config.observe)
+        # Handle observe config - True/False/ObserveConfig
+        if config.observe is True:
+            agent_config.observe = ObserveConfig()  # Sensible defaults
+        elif config.observe is False:
+            agent_config.observe = None
+        elif isinstance(config.observe, ObserveConfig):
+            agent_config.observe = config.observe
+        else:
+            agent_config.observe = ObserveConfig()  # Default to basic
         agent_config.persist = persist_config
         agent_config.memory = memory_config
 

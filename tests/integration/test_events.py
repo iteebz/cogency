@@ -5,7 +5,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from cogency.events.core import MessageBus, emit, init_bus
-from cogency.events.handlers import ConsoleHandler, LoggerHandler, MetricsHandler
+from cogency.events.handlers import ConsoleHandler, LoggerHandler
+from cogency.observe.handlers import MetricsHandler
 
 
 class TestIntegratedEventFlow:

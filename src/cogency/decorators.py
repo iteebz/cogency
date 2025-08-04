@@ -6,7 +6,7 @@ from typing import Any, Optional
 
 from resilient_result import Retry, resilient
 
-from cogency.observe.metrics import _counter, _histogram, _timer
+# Metrics removed - agent observability handled by event system
 from cogency.robust import checkpoint
 
 
@@ -97,39 +97,9 @@ def _observe_metrics(step_name: str, config: Optional[StepConfig] = None):
             if not config or not config.observe:
                 return await func(*args, **kwargs)
 
-            # Extract state for context tags
-            state = kwargs.get("state") or (args[0] if args else None)
-            tags = {
-                "step": step_name,
-                "iteration": str(getattr(state, "iteration", 0)) if state else "0",
-                "mode": getattr(state, "mode", "unknown") if state else "unknown",
-            }
-
-            # Count step executions
-            _counter(f"{step_name}.executions", 1.0, tags)
-
-            # Start unified timing - metrics collection handles the measurement
-            with _timer(f"{step_name}.duration", tags) as step_timer:
-                try:
-                    # Inject timing context into kwargs for step functions to use
-                    kwargs["_step_timer"] = step_timer
-
-                    result = await func(*args, **kwargs)
-
-                    # Success metrics
-                    _counter(f"{step_name}.success", 1.0, tags)
-
-                    # Result size metrics if applicable
-                    if result and hasattr(result, "__len__"):
-                        _histogram(f"{step_name}.result_size", len(str(result)), tags)
-
-                    return result
-
-                except Exception as e:
-                    # Error metrics
-                    error_tags = {**tags, "error_type": type(e).__name__}
-                    _counter(f"{step_name}.errors", 1.0, error_tags)
-                    raise
+            # Observability handled by event system - no decorator metrics needed
+            result = await func(*args, **kwargs)
+            return result
 
         return wrapper
 
@@ -226,9 +196,8 @@ def step_decorators(config: Optional[StepConfig] = None):
 
 
 def elapsed(**kwargs) -> float:
-    """Get current step duration from injected timer context."""
-    timer_context = kwargs.get("_step_timer")
-    return timer_context.current_elapsed if timer_context else 0.0
+    """Get current step duration - simplified without timer injection."""
+    return 0.0  # Timer injection removed - use event system for timing
 
 
 # Main decorator instance

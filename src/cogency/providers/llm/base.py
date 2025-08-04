@@ -7,7 +7,8 @@ from typing import AsyncIterator, Dict, List, Union
 from resilient_result import Result
 
 from cogency.events import emit
-from cogency.observe.metrics import _counter as counter
+
+# Metrics removed - agent observability handled by event system
 from cogency.observe.tokens import cost, count
 from cogency.utils.keys import KeyManager
 
@@ -126,20 +127,14 @@ class LLM(ABC):
         if self._cache:
             cached_response = await self._cache.get(messages, **kwargs)
             if cached_response:
-                # Still track cache hits
-                counter("llm.tokens.in", tin, {"provider": self.provider_name, "cache": "hit"})
                 return Result.ok(cached_response)
 
         # Call implementation with rate limit retry
         response = await self.keys.retry_rate_limit(self._run_impl, messages, **kwargs)
 
-        # Count output tokens and track
+        # Count output tokens and track cost
         tout = count([{"content": response}], self.model)
         total_cost = cost(tin, tout, self.model)
-
-        counter("llm.tokens.in", tin, {"provider": self.provider_name, "model": self.model})
-        counter("llm.tokens.out", tout, {"provider": self.provider_name, "model": self.model})
-        counter("llm.cost", total_cost, {"provider": self.provider_name, "model": self.model})
 
         # Emit beautiful notification
         emit(

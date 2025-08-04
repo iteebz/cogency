@@ -62,10 +62,45 @@ class ConsoleHandler:
         elif event_type == "tool":
             name = data.get("name", "tool")
             duration = data.get("duration", 0)
-            if data.get("ok"):
-                print(f"✅ {name}" + (f" ({duration:.1f}s)" if duration > 0 else ""))
-            else:
-                print(f"❌ {name} failed")
+            status = data.get("status", "")
+
+            if status == "complete" and data.get("success"):
+                timing_info = f" ({duration:.1f}s)" if duration >= 1.0 else ""
+                print(f"✅ {name}{timing_info}")
+            elif status in ["failed", "validation_error", "execution_error"]:
+                timing_info = f" ({duration:.1f}s)" if duration >= 1.0 else ""
+                print(f"❌ {name} failed{timing_info}")
+            elif data.get("ok"):  # Legacy format
+                timing_info = f" ({duration:.1f}s)" if duration >= 1.0 else ""
+                print(f"✅ {name}{timing_info}")
+            elif status == "start":
+                # Don't print start events to reduce noise
+                pass
+
+        # Token usage
+        elif event_type == "tokens":
+            tin = data.get("tin", 0)
+            tout = data.get("tout", 0)
+            cost = data.get("cost", "$0.0000")
+            provider = data.get("provider", "")
+            model = data.get("model", "")
+
+            # Only show for significant token usage or high cost
+            if tin + tout > 500 or float(cost.replace("$", "")) > 0.01:
+                print(f"💰 {tin + tout} tokens {cost} ({provider}/{model})")
+
+        # LLM operations
+        elif event_type == "llm":
+            provider = data.get("provider", "llm")
+            status = data.get("status", "")
+
+            if status == "start":
+                # Don't show start to reduce noise
+                pass
+            elif status == "complete" and data.get("success"):
+                print(f"🧠 {provider} complete")
+            elif status == "error":
+                print(f"❌ {provider} failed")
 
         # System
         elif event_type == "error":
@@ -125,109 +160,6 @@ class LoggerHandler:
     def configure(self, **options):
         """Update handler configuration."""
         self.config.update(options)
-
-
-class MetricsHandler:
-    """Clean stats collection - separate from decorator timing mess."""
-
-    def __init__(self, max_timings: int = 1000):
-        # Core counters - no decorator confusion
-        self.counters = {}
-        self.performance = deque(maxlen=max_timings)
-        self.sessions = deque(maxlen=100)  # Agent session metrics
-
-        # Current session tracking
-        self.current_session = None
-
-    def handle(self, event):
-        """Collect clean metrics from bus events only."""
-        event_type = event["type"]
-        data = event["data"]
-        timestamp = event["timestamp"]
-
-        # Count all events
-        self.counters[event_type] = self.counters.get(event_type, 0) + 1
-
-        # Session tracking
-        if event_type == "start":
-            self.current_session = {
-                "start_time": timestamp,
-                "query": data.get("query", ""),
-                "tools_used": 0,
-                "reasoning_steps": 0,
-                "errors": 0,
-            }
-
-        elif event_type == "tool" and self.current_session:
-            self.current_session["tools_used"] += 1
-            # Track tool performance separately
-            duration = data.get("duration", 0)
-            success = data.get("ok", False)
-            self.performance.append(
-                {
-                    "type": "tool",
-                    "name": data.get("name", "unknown"),
-                    "duration": duration,
-                    "success": success,
-                    "timestamp": timestamp,
-                }
-            )
-
-        elif event_type == "reason" and self.current_session:
-            self.current_session["reasoning_steps"] += 1
-
-        elif event_type == "error" and self.current_session:
-            self.current_session["errors"] += 1
-
-        elif event_type == "respond" and data.get("state") == "complete" and self.current_session:
-            # Session complete
-            self.current_session["end_time"] = timestamp
-            self.current_session["duration"] = timestamp - self.current_session["start_time"]
-            self.sessions.append(self.current_session.copy())
-            self.current_session = None
-
-    def stats(self) -> Dict[str, Any]:
-        """Return clean metrics - no decorator pollution."""
-        recent_sessions = list(self.sessions)[-10:]  # Last 10 sessions
-        avg_duration = (
-            sum(s.get("duration", 0) for s in recent_sessions) / len(recent_sessions)
-            if recent_sessions
-            else 0
-        )
-
-        return {
-            "event_counts": dict(self.counters),
-            "performance": list(self.performance)[-50:],  # Last 50 operations
-            "sessions": {
-                "total": len(self.sessions),
-                "recent": recent_sessions,
-                "avg_duration": avg_duration,
-                "current": self.current_session,
-            },
-        }
-
-    def tool_stats(self) -> Dict[str, Any]:
-        """Specific tool performance metrics."""
-        tool_data = {}
-        for perf in self.performance:
-            if perf["type"] == "tool":
-                name = perf["name"]
-                if name not in tool_data:
-                    tool_data[name] = {"calls": 0, "successes": 0, "total_duration": 0}
-
-                tool_data[name]["calls"] += 1
-                if perf["success"]:
-                    tool_data[name]["successes"] += 1
-                tool_data[name]["total_duration"] += perf["duration"]
-
-        # Calculate averages
-        for _name, data in tool_data.items():
-            data["success_rate"] = data["successes"] / data["calls"] if data["calls"] > 0 else 0
-            data["avg_duration"] = (
-                data["total_duration"] / data["calls"] if data["calls"] > 0 else 0
-            )
-
-        return tool_data
 
 
 class CallbackHandler:

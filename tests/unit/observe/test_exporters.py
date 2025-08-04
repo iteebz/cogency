@@ -5,17 +5,30 @@ import json
 import pytest
 
 from cogency.observe.exporters import OpenTelemetry, Prometheus
-from cogency.observe.metrics import Metrics
+from cogency.observe.handlers import MetricsHandler
 
 
 @pytest.fixture
 def metrics():
-    m = Metrics()
-    # Add test data
-    m.counter("requests", 42.0, {"service": "api", "status": "200"})
-    m.gauge("cpu_usage", 75.5, {"host": "web1"})
-    m.histogram("response_time", 0.123, {"endpoint": "/users"})
-    m.histogram("response_time", 0.456, {"endpoint": "/users"})
+    m = MetricsHandler()
+    # Simulate events to populate metrics
+    m.handle({"type": "requests", "data": {}, "timestamp": 123})
+    m.handle({"type": "start", "data": {"query": "test"}, "timestamp": 100})
+    m.handle(
+        {
+            "type": "tool",
+            "data": {"name": "search", "ok": True, "duration": 0.123},
+            "timestamp": 101,
+        }
+    )
+    m.handle(
+        {
+            "type": "tool",
+            "data": {"name": "search", "ok": True, "duration": 0.456},
+            "timestamp": 102,
+        }
+    )
+    m.handle({"type": "respond", "data": {"state": "complete"}, "timestamp": 105})
     return m
 
 
@@ -23,16 +36,16 @@ def test_prometheus_export(metrics):
     exporter = Prometheus(metrics)
     output = exporter.export()
 
-    assert "cogency_requests_total" in output
-    assert "cogency_cpu_usage" in output
-    assert "cogency_response_time_count" in output
-    assert "cogency_response_time_sum" in output
-    assert 'service="api"' in output
-    assert 'status="200"' in output
+    assert "cogency_events_total" in output
+    assert 'type="requests"' in output
+    assert 'type="start"' in output
+    assert "cogency_tool_duration_seconds_count" in output
+    assert "cogency_tool_duration_seconds_sum" in output
+    assert "cogency_sessions_total" in output
 
 
 def test_prometheus_empty():
-    empty_metrics = Metrics()
+    empty_metrics = MetricsHandler()
     exporter = Prometheus(empty_metrics)
     output = exporter.export()
 
@@ -51,8 +64,8 @@ def test_opentelemetry_export(metrics):
     metric_names = [m["name"] for m in scope_metrics]
 
     assert "cogency.requests" in metric_names
-    assert "cogency.cpu_usage" in metric_names
-    assert "cogency.response_time" in metric_names
+    assert "cogency.start" in metric_names
+    assert "cogency.tool_duration" in metric_names
 
 
 def test_json_export(metrics):
@@ -65,29 +78,30 @@ def test_json_export(metrics):
 
 
 def test_label_formatting():
-    metrics = Metrics()
-    metrics.counter("test", 1.0, {"key1": "val1", "key2": "val2"})
+    metrics = MetricsHandler()
+    metrics.handle({"type": "test", "data": {"key1": "val1", "key2": "val2"}, "timestamp": 123})
 
     exporter = Prometheus(metrics)
     output = exporter.export()
 
-    # Labels should be sorted and properly formatted
-    assert '{key1="val1",key2="val2"}' in output
+    # Should contain test event count in new format
+    assert "cogency_events_total" in output
+    assert 'type="test"' in output
 
 
 def test_opentelemetry_attributes():
-    metrics = Metrics()
-    metrics.gauge("test", 100.0, {"env": "prod", "region": "us-east"})
+    metrics = MetricsHandler()
+    metrics.handle({"type": "test", "data": {"env": "prod", "region": "us-east"}, "timestamp": 123})
 
     exporter = OpenTelemetry(metrics)
     data = exporter.export()
 
-    gauge_metric = next(
+    test_metric = next(
         m
         for m in data["resourceMetrics"][0]["scopeMetrics"][0]["metrics"]
         if m["name"] == "cogency.test"
     )
-    attributes = gauge_metric["gauge"]["dataPoints"][0]["attributes"]
 
-    assert len(attributes) == 2
-    assert {"key": "env", "value": {"stringValue": "prod"}} in attributes
+    # Should be a sum metric (counter) with the event count
+    assert "sum" in test_metric
+    assert test_metric["sum"]["dataPoints"][0]["asInt"] == 1

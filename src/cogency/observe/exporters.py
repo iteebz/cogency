@@ -1,93 +1,99 @@
-"""Beautiful telemetry exporters - Prometheus() and OpenTelemetry()."""
+"""Beautiful telemetry exporters - read from unified event system."""
 
 import json
 import time
-from typing import Dict, List, Optional
-
-from .metrics import Metrics, MetricsSummary
+from typing import Dict, List
 
 
 class Prometheus:
-    """Export metrics in Prometheus format with zero ceremony."""
+    """Export metrics in Prometheus format - reads from MetricsHandler."""
 
-    def __init__(self, metrics: Optional[Metrics] = None):
-        from .metrics import get_metrics
+    def __init__(self, metrics_handler=None):
+        if metrics_handler is None:
+            from .handlers import get_metrics_handler
 
-        self.metrics = metrics or get_metrics()
+            self.metrics_handler = get_metrics_handler()
+        else:
+            self.metrics_handler = metrics_handler
 
     def export(self) -> str:
-        """Export all metrics as Prometheus format."""
+        """Export agent metrics in proper Prometheus format."""
+        if not self.metrics_handler:
+            return ""
+
+        stats = self.metrics_handler.stats()
         lines = []
-        timestamp_ms = int(time.time() * 1000)
 
-        # Export counters
-        for key, value in self.metrics.counters.items():
-            name, tags = self._parse_key(key)
-            metric_name = f"cogency_{name}_total"
-            labels = self._format_labels(tags)
-            lines.append(f"{metric_name}{labels} {value} {timestamp_ms}")
+        # Export event counts as counters
+        event_counts = stats.get("event_counts", {})
+        if event_counts:
+            lines.append("# HELP cogency_events_total Total agent events by type")
+            lines.append("# TYPE cogency_events_total counter")
+            for event_type, count in event_counts.items():
+                lines.append(f'cogency_events_total{{type="{event_type}"}} {count}')
 
-        # Export gauges
-        for key, value in self.metrics.gauges.items():
-            name, tags = self._parse_key(key)
-            metric_name = f"cogency_{name}"
-            labels = self._format_labels(tags)
-            lines.append(f"{metric_name}{labels} {value} {timestamp_ms}")
+        # Export tool performance
+        performance = stats.get("performance", [])
+        timing_data = [p for p in performance if p.get("type") == "tool" and p.get("duration")]
 
-        # Export histogram summaries
-        for summary in self.metrics.all_summaries():
-            base_name = f"cogency_{summary.name}"
-            labels = self._format_labels(summary.tags)
+        if timing_data:
+            lines.append("")
+            lines.append("# HELP cogency_tool_duration_seconds Tool execution duration")
+            lines.append("# TYPE cogency_tool_duration_seconds histogram")
 
-            # Prometheus histogram format
+            durations = [p["duration"] for p in timing_data]
+            count = len(durations)
+            total = sum(durations)
+
             lines.extend(
                 [
-                    f"{base_name}_count{labels} {summary.count} {timestamp_ms}",
-                    f"{base_name}_sum{labels} {summary.sum} {timestamp_ms}",
-                    f'{base_name}_bucket{{le="0.5"}}{labels} {self._bucket_count(summary, 0.5)} {timestamp_ms}',
-                    f'{base_name}_bucket{{le="0.95"}}{labels} {self._bucket_count(summary, 0.95)} {timestamp_ms}',
-                    f'{base_name}_bucket{{le="0.99"}}{labels} {self._bucket_count(summary, 0.99)} {timestamp_ms}',
-                    f'{base_name}_bucket{{le="+Inf"}}{labels} {summary.count} {timestamp_ms}',
+                    f"cogency_tool_duration_seconds_count {count}",
+                    f"cogency_tool_duration_seconds_sum {total:.6f}",
+                    f'cogency_tool_duration_seconds_bucket{{le="0.1"}} {len([d for d in durations if d <= 0.1])}',
+                    f'cogency_tool_duration_seconds_bucket{{le="1.0"}} {len([d for d in durations if d <= 1.0])}',
+                    f'cogency_tool_duration_seconds_bucket{{le="10.0"}} {len([d for d in durations if d <= 10.0])}',
+                    f'cogency_tool_duration_seconds_bucket{{le="+Inf"}} {count}',
                 ]
             )
 
+        # Export session metrics
+        sessions = stats.get("sessions", {})
+        if sessions.get("total"):
+            lines.append("")
+            lines.append("# HELP cogency_sessions_total Total completed agent sessions")
+            lines.append("# TYPE cogency_sessions_total counter")
+            lines.append(f"cogency_sessions_total {sessions['total']}")
+
+            if sessions.get("avg_duration"):
+                lines.append("")
+                lines.append(
+                    "# HELP cogency_session_duration_avg Average session duration in seconds"
+                )
+                lines.append("# TYPE cogency_session_duration_avg gauge")
+                lines.append(f"cogency_session_duration_avg {sessions['avg_duration']:.6f}")
+
         return "\n".join(lines) + "\n" if lines else ""
-
-    def _parse_key(self, key: str) -> tuple:
-        """Parse metric key into name and tags."""
-        return self.metrics._parse(key)
-
-    def _format_labels(self, tags: Dict[str, str]) -> str:
-        """Format tags as Prometheus labels."""
-        if not tags:
-            return ""
-
-        label_pairs = [f'{k}="{v}"' for k, v in sorted(tags.items())]
-        return f"{{{','.join(label_pairs)}}}"
-
-    def _bucket_count(self, summary: MetricsSummary, le: float) -> int:
-        """Estimate bucket count for histogram."""
-        if le >= 0.99:
-            return int(summary.count * 0.99)
-        elif le >= 0.95:
-            return int(summary.count * 0.95)
-        elif le >= 0.5:
-            return int(summary.count * 0.5)
-        return 0
 
 
 class OpenTelemetry:
-    """Export metrics in OpenTelemetry format with zero ceremony."""
+    """Export metrics in OpenTelemetry format - reads from MetricsHandler."""
 
-    def __init__(self, metrics: Optional[Metrics] = None, service_name: str = "cogency"):
-        from .metrics import get_metrics
+    def __init__(self, metrics_handler=None, service_name: str = "cogency"):
+        if metrics_handler is None:
+            from .handlers import get_metrics_handler
 
-        self.metrics = metrics or get_metrics()
+            self.metrics_handler = get_metrics_handler()
+        else:
+            self.metrics_handler = metrics_handler
         self.service_name = service_name
 
     def export(self) -> Dict:
         """Export all metrics as OpenTelemetry JSON format."""
+        if not self.metrics_handler:
+            return {"resourceMetrics": []}
+
         timestamp_ns = int(time.time() * 1_000_000_000)
+        stats = self.metrics_handler.stats()
 
         resource_metrics = {
             "resource": {
@@ -99,31 +105,29 @@ class OpenTelemetry:
             "scopeMetrics": [
                 {
                     "scope": {"name": "cogency.observe", "version": "1.0.0"},
-                    "metrics": self._export_metrics(timestamp_ns),
+                    "metrics": self._export_metrics(stats, timestamp_ns),
                 }
             ],
         }
 
         return {"resourceMetrics": [resource_metrics]}
 
-    def _export_metrics(self, timestamp_ns: int) -> List[Dict]:
-        """Export all metric types."""
+    def _export_metrics(self, stats: Dict, timestamp_ns: int) -> List[Dict]:
+        """Export all metric types from MetricsHandler stats."""
         metrics = []
 
-        # Export counters as sums
-        for key, value in self.metrics.counters.items():
-            name, tags = self._parse_key(key)
+        # Export event counts as counters
+        for event_type, count in stats.get("event_counts", {}).items():
             metrics.append(
                 {
-                    "name": f"cogency.{name}",
-                    "description": f"Cogency {name} counter",
+                    "name": f"cogency.{event_type}",
+                    "description": f"Cogency {event_type} event count",
                     "unit": "1",
                     "sum": {
                         "dataPoints": [
                             {
-                                "attributes": self._format_attributes(tags),
                                 "timeUnixNano": timestamp_ns,
-                                "asDouble": float(value),
+                                "asInt": count,
                                 "isMonotonic": True,
                             }
                         ],
@@ -132,47 +136,54 @@ class OpenTelemetry:
                 }
             )
 
-        # Export gauges
-        for key, value in self.metrics.gauges.items():
-            name, tags = self._parse_key(key)
-            metrics.append(
-                {
-                    "name": f"cogency.{name}",
-                    "description": f"Cogency {name} gauge",
-                    "unit": "1",
-                    "gauge": {
-                        "dataPoints": [
-                            {
-                                "attributes": self._format_attributes(tags),
-                                "timeUnixNano": timestamp_ns,
-                                "asDouble": float(value),
-                            }
-                        ]
-                    },
-                }
-            )
+        # Export tool performance as histogram
+        performance = stats.get("performance", [])
+        timing_data = [p for p in performance if p.get("type") == "tool" and p.get("duration")]
 
-        # Export histograms
-        for summary in self.metrics.all_summaries():
+        if timing_data:
+            durations = [p["duration"] for p in timing_data]
+            count = len(durations)
+            total = sum(durations)
+
             metrics.append(
                 {
-                    "name": f"cogency.{summary.name}",
-                    "description": f"Cogency {summary.name} histogram",
+                    "name": "cogency.tool_duration",
+                    "description": "Tool execution duration histogram",
                     "unit": "s",
                     "histogram": {
                         "dataPoints": [
                             {
-                                "attributes": self._format_attributes(summary.tags),
                                 "timeUnixNano": timestamp_ns,
-                                "count": str(summary.count),
-                                "sum": summary.sum,
+                                "count": str(count),
+                                "sum": total,
                                 "bucketCounts": [
-                                    str(int(summary.count * 0.5)),
-                                    str(int(summary.count * 0.95)),
-                                    str(int(summary.count * 0.99)),
-                                    str(summary.count),
+                                    str(len([d for d in durations if d <= 0.1])),
+                                    str(len([d for d in durations if d <= 1.0])),
+                                    str(len([d for d in durations if d <= 10.0])),
+                                    str(count),
                                 ],
-                                "explicitBounds": [0.5, 0.95, 0.99],
+                                "explicitBounds": [0.1, 1.0, 10.0],
+                            }
+                        ],
+                        "aggregationTemporality": 2,  # CUMULATIVE
+                    },
+                }
+            )
+
+        # Export session metrics
+        sessions = stats.get("sessions", {})
+        if sessions.get("total"):
+            metrics.append(
+                {
+                    "name": "cogency.sessions",
+                    "description": "Total agent sessions",
+                    "unit": "1",
+                    "sum": {
+                        "dataPoints": [
+                            {
+                                "timeUnixNano": timestamp_ns,
+                                "asInt": sessions["total"],
+                                "isMonotonic": True,
                             }
                         ],
                         "aggregationTemporality": 2,  # CUMULATIVE
@@ -181,14 +192,6 @@ class OpenTelemetry:
             )
 
         return metrics
-
-    def _parse_key(self, key: str) -> tuple:
-        """Parse metric key into name and tags."""
-        return self.metrics._parse(key)
-
-    def _format_attributes(self, tags: Dict[str, str]) -> List[Dict]:
-        """Format tags as OpenTelemetry attributes."""
-        return [{"key": k, "value": {"stringValue": v}} for k, v in sorted(tags.items())]
 
     def export_json(self) -> str:
         """Export as JSON string."""

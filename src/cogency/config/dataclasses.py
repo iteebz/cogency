@@ -42,18 +42,21 @@ class RobustConfig:
 
 @dataclass
 class ObserveConfig:
-    """Observability configuration."""
+    """Unified observability configuration."""
 
-    # Metrics collection
-    metrics: bool = True
+    # Core collection (always enabled by default)
     timing: bool = True
-    counters: bool = True
+    tokens: bool = True
+
+    # Advanced collection (disabled by default - enable as needed)
+    metrics: bool = False
+    counters: bool = False
 
     # Step-specific telemetry
     steps: Optional[List[str]] = None  # ["reason", "act"] or None for all
 
     # Export configuration
-    export_format: str = "prometheus"  # "prometheus", "json", "opentelemetry"
+    export_format: Optional[str] = None  # None, "prometheus", "json", "opentelemetry"
     export_endpoint: Optional[str] = None
 
 

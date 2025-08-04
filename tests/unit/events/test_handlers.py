@@ -6,7 +6,8 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.events.handlers import ConsoleHandler, LoggerHandler, MetricsHandler
+from cogency.events.handlers import ConsoleHandler, LoggerHandler
+from cogency.observe.handlers import MetricsHandler
 
 
 class TestConsoleHandler:

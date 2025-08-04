@@ -1,4 +1,4 @@
-"""Token counting and cost estimation utility."""
+"""Token counting and cost estimation - emits token events."""
 
 from typing import Dict, List
 
@@ -35,10 +35,23 @@ def count(msgs: List[Dict[str, str]], model: str = "gpt-4o") -> int:
         total += len(enc.encode(msg.get("content", "")))
         total += 4  # Role tokens
     total += 2  # Chat format overhead
+
+    # Emit token count event
+    from cogency.events import emit
+
+    emit("token_count", model=model, count=total, messages=len(msgs))
+
     return total
 
 
 def cost(tin: int, tout: int, model: str) -> float:
     """Estimate cost in USD."""
     rates = COSTS.get(model, COSTS["default"])
-    return (tin * rates["in"] + tout * rates["out"]) / 1000
+    cost_usd = (tin * rates["in"] + tout * rates["out"]) / 1000
+
+    # Emit cost event
+    from cogency.events import emit
+
+    emit("token_cost", model=model, tin=tin, tout=tout, cost=cost_usd)
+
+    return cost_usd

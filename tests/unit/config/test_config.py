@@ -32,11 +32,11 @@ def test_robust_custom():
 def test_observe_defaults():
     config = ObserveConfig()
 
-    assert config.metrics is True
+    assert config.metrics is False
     assert config.timing is True
-    assert config.counters is True
+    assert config.counters is False
     assert config.steps is None
-    assert config.export_format == "prometheus"
+    assert config.export_format is None
     assert config.export_endpoint is None
 
 
