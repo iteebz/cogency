@@ -353,7 +353,7 @@ class AgentExecutor:
             raise e
 
     def logs(self) -> list[dict[str, Any]]:
-        """All execution logs. Always available for retrospective debugging."""
+        """Execution logs summary. Always available for retrospective debugging."""
         from cogency.events import get_logs
 
-        return get_logs()
+        return get_logs(summary=True)

@@ -27,8 +27,8 @@ class TestConsoleHandler:
             handler.handle({"type": "start", "data": {"query": "Hello world"}, "timestamp": 123})
 
             assert mock_print.call_count == 2
-            mock_print.assert_any_call("🚀 Starting agent...")
-            mock_print.assert_any_call("📝 Hello world")
+            mock_print.assert_any_call("[INIT] Starting agent")
+            mock_print.assert_any_call("[QUERY] Hello world")
 
     def test_agent_create_complete(self):
         handler = ConsoleHandler(enabled=True)
@@ -41,7 +41,7 @@ class TestConsoleHandler:
                     "timestamp": 123,
                 }
             )
-            mock_print.assert_called_once_with("✅ Agent 'test_agent' ready")
+            mock_print.assert_called_once_with("[READY] Agent 'test_agent'")
 
     def test_tool_success_with_duration(self):
         handler = ConsoleHandler(enabled=True)
@@ -54,7 +54,7 @@ class TestConsoleHandler:
                     "timestamp": 123,
                 }
             )
-            mock_print.assert_called_once_with("✅ search (1.5s)")
+            mock_print.assert_called_once_with("[TOOL] search complete (1.5s)")
 
     def test_error_event(self):
         handler = ConsoleHandler(enabled=True)
@@ -63,7 +63,7 @@ class TestConsoleHandler:
             handler.handle(
                 {"type": "error", "data": {"message": "Something went wrong"}, "timestamp": 123}
             )
-            mock_print.assert_called_once_with("❌ Something went wrong")
+            mock_print.assert_called_once_with("[ERROR] Something went wrong")
 
     def test_debug_event_only_when_debug_enabled(self):
         handler_debug = ConsoleHandler(enabled=True, debug=True)
@@ -73,7 +73,7 @@ class TestConsoleHandler:
 
         with patch("builtins.print") as mock_print:
             handler_debug.handle(event)
-            mock_print.assert_called_once_with("🐛 Debug info")
+            mock_print.assert_called_once_with("[DEBUG] Debug info")
 
             mock_print.reset_mock()
             handler_no_debug.handle(event)
@@ -139,6 +139,128 @@ class TestLoggerHandler:
 
         assert handler.config["filter_noise"] is False
         assert handler.config["max_size"] == 500
+
+    def test_logs_type_filtering(self):
+        handler = LoggerHandler(max_size=10, structured=True)
+
+        # Add different event types
+        handler.handle({"type": "start", "data": {"query": "test"}, "timestamp": 123})
+        handler.handle({"type": "tool", "data": {"name": "search"}, "timestamp": 124})
+        handler.handle({"type": "error", "data": {"message": "failed"}, "timestamp": 125})
+        handler.handle({"type": "tool", "data": {"name": "http"}, "timestamp": 126})
+
+        # Filter by type
+        tool_logs = handler.logs(type="tool")
+        assert len(tool_logs) == 2
+        assert all(log["type"] == "tool" for log in tool_logs)
+
+        error_logs = handler.logs(type="error")
+        assert len(error_logs) == 1
+        assert error_logs[0]["type"] == "error"
+
+    def test_logs_step_filtering(self):
+        handler = LoggerHandler(max_size=10, structured=True)
+
+        # Add step events
+        handler.handle({"type": "triage", "data": {"state": "complete"}, "timestamp": 123})
+        handler.handle({"type": "reason", "data": {"state": "planning"}, "timestamp": 124})
+        handler.handle({"type": "action", "data": {"tool": "search"}, "timestamp": 125})
+        handler.handle({"type": "respond", "data": {"state": "complete"}, "timestamp": 126})
+
+        # Filter by step
+        reason_logs = handler.logs(step="reason")
+        assert len(reason_logs) == 1
+        assert reason_logs[0]["type"] == "reason"
+
+    def test_logs_errors_only_filtering(self):
+        handler = LoggerHandler(max_size=10, structured=True)
+
+        # Add mixed events
+        handler.handle({"type": "start", "data": {"query": "test"}, "timestamp": 123})
+        handler.handle({"type": "error", "data": {"message": "first error"}, "timestamp": 124})
+        handler.handle({"type": "tool", "data": {"name": "search"}, "timestamp": 125})
+        handler.handle({"type": "error", "data": {"message": "second error"}, "timestamp": 126})
+
+        # Filter errors only
+        error_logs = handler.logs(errors_only=True)
+        assert len(error_logs) == 2
+        assert all(log["type"] == "error" for log in error_logs)
+
+    def test_logs_last_n_filtering(self):
+        handler = LoggerHandler(max_size=10, structured=True)
+
+        # Add multiple events
+        for i in range(5):
+            handler.handle({"type": f"event{i}", "data": {}, "timestamp": 123 + i})
+
+        # Get last 3 events
+        recent_logs = handler.logs(last=3)
+        assert len(recent_logs) == 3
+        assert recent_logs[0]["type"] == "event2"
+        assert recent_logs[1]["type"] == "event3"
+        assert recent_logs[2]["type"] == "event4"
+
+    def test_logs_summary_mode(self):
+        handler = LoggerHandler(max_size=20, structured=True)
+
+        # Add execution events
+        handler.handle({"type": "start", "data": {"query": "test query"}, "timestamp": 100})
+        handler.handle(
+            {
+                "type": "triage",
+                "data": {"state": "complete", "early_return": False},
+                "timestamp": 101,
+            }
+        )
+        handler.handle({"type": "reason", "data": {"state": "planning"}, "timestamp": 102})
+        handler.handle({"type": "action", "data": {"tool_count": 2}, "timestamp": 103})
+        handler.handle({"type": "respond", "data": {"state": "complete"}, "timestamp": 104})
+        handler.handle(
+            {
+                "type": "agent_complete",
+                "data": {"source": "respond", "iterations": 3},
+                "timestamp": 105,
+            }
+        )
+
+        # Get summary
+        summary = handler.logs(summary=True)
+        assert len(summary) == 6
+
+        # Check key events are included
+        steps = [event["step"] for event in summary]
+        assert "start" in steps
+        assert "triage" in steps
+        assert "action" in steps
+        assert "respond" in steps
+
+    def test_logs_combined_filters(self):
+        handler = LoggerHandler(max_size=20, structured=True)
+
+        # Add many events
+        for i in range(10):
+            handler.handle({"type": "tool", "data": {"name": f"tool{i}"}, "timestamp": 100 + i})
+
+        # Combine type and last filters
+        recent_tools = handler.logs(type="tool", last=3)
+        assert len(recent_tools) == 3
+        assert all(log["type"] == "tool" for log in recent_tools)
+        assert recent_tools[0]["name"] == "tool7"
+        assert recent_tools[1]["name"] == "tool8"
+        assert recent_tools[2]["name"] == "tool9"
+
+    def test_logs_empty_result(self):
+        handler = LoggerHandler(max_size=10, structured=True)
+
+        # No events
+        assert handler.logs() == []
+        assert handler.logs(type="nonexistent") == []
+        assert handler.logs(errors_only=True) == []
+
+        # Add non-matching events
+        handler.handle({"type": "start", "data": {}, "timestamp": 123})
+        assert handler.logs(type="error") == []
+        assert handler.logs(errors_only=True) == []
 
 
 class TestMetricsHandler:

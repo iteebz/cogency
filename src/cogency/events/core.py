@@ -37,15 +37,24 @@ def emit(event_type: str, **data) -> None:
         _bus.emit(event_type, **data)
 
 
-def get_logs() -> List[dict]:
-    """Get all events from global logger handler."""
+def get_logs(
+    *,
+    type: str = None,
+    step: str = None,
+    summary: bool = False,
+    errors_only: bool = False,
+    last: int = None,
+) -> List[dict]:
+    """Get events from global logger handler with optional filtering."""
     if not _bus:
         return []
 
     # Find the LoggerHandler in the bus
     for handler in _bus.handlers:
         if hasattr(handler, "logs"):
-            return handler.logs()
+            return handler.logs(
+                type=type, step=step, summary=summary, errors_only=errors_only, last=last
+            )
     return []
 
 

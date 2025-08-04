@@ -136,3 +136,69 @@ def test_logs_available():
     # Event bus architecture means logs are available immediately
     logs = agent.logs()
     assert isinstance(logs, list)
+
+
+def test_logs_filtering_parameters():
+    """Test Agent.logs() filtering functionality."""
+    from unittest.mock import patch
+
+    agent = Agent("test", llm=MockLLM(), tools=[])
+
+    # Mock the get_logs function to verify parameters are passed correctly
+    with patch("cogency.events.get_logs") as mock_get_logs:
+        mock_get_logs.return_value = []
+
+        # Test all filtering parameters
+        agent.logs(type="tool", step="reason", raw=True, errors_only=True, last=5)
+
+        mock_get_logs.assert_called_once_with(
+            type="tool", step="reason", summary=False, errors_only=True, last=5
+        )
+
+
+def test_logs_filtering_examples():
+    """Test Agent.logs() filtering examples from docstring."""
+    from unittest.mock import patch
+
+    agent = Agent("test", llm=MockLLM(), tools=[])
+
+    with patch("cogency.events.get_logs") as mock_get_logs:
+        mock_get_logs.return_value = []
+
+        # Basic usage examples - now defaults to summary=True
+        agent.logs()
+        mock_get_logs.assert_called_with(
+            type=None, step=None, summary=True, errors_only=False, last=None
+        )
+
+        agent.logs(errors_only=True)
+        mock_get_logs.assert_called_with(
+            type=None, step=None, summary=False, errors_only=True, last=None
+        )
+
+        agent.logs(last=10)
+        mock_get_logs.assert_called_with(
+            type=None, step=None, summary=True, errors_only=False, last=10
+        )
+
+        # Filtering examples - specific filters disable summary mode
+        agent.logs(type="tool")
+        mock_get_logs.assert_called_with(
+            type="tool", step=None, summary=False, errors_only=False, last=None
+        )
+
+        agent.logs(step="reason")
+        mock_get_logs.assert_called_with(
+            type=None, step="reason", summary=False, errors_only=False, last=None
+        )
+
+        agent.logs(type="error", last=5)
+        mock_get_logs.assert_called_with(
+            type="error", step=None, summary=False, errors_only=False, last=5
+        )
+
+        # Raw mode examples
+        agent.logs(raw=True)
+        mock_get_logs.assert_called_with(
+            type=None, step=None, summary=False, errors_only=False, last=None
+        )

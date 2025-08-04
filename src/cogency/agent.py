@@ -106,11 +106,45 @@ class Agent:
         executor = await self._get_executor()
         return await executor.run(query, user_id, identity)
 
-    def logs(self) -> list[dict[str, Any]]:
-        """All execution logs. Always available for retrospective debugging."""
+    def logs(
+        self,
+        *,
+        type: str = None,
+        step: str = None,
+        raw: bool = False,
+        errors_only: bool = False,
+        last: int = None,
+    ) -> list[dict[str, Any]]:
+        """Get execution logs with optional filtering.
+
+        Args:
+            type: Filter by event type ('tool', 'llm', 'tokens', 'error', etc.)
+            step: Filter by execution step ('triage', 'reason', 'action', 'respond')
+            raw: Return all raw events instead of summary (default False)
+            errors_only: Return only error events
+            last: Return only the last N events
+
+        Returns:
+            List of log events. Empty list if no logs match filters.
+            By default returns high-level execution summary.
+
+        Examples:
+            Basic usage:
+            >>> agent.logs()  # High-level execution path (default)
+            >>> agent.logs(raw=True)  # All detailed events
+            >>> agent.logs(errors_only=True)  # Just errors
+
+            Filtering:
+            >>> agent.logs(type='tool')  # Tool executions only
+            >>> agent.logs(step='reason')  # Reasoning steps only
+            >>> agent.logs(type='error', last=5)  # Recent 5 errors
+        """
         from cogency.events import get_logs
 
-        return get_logs()
+        # Default to summary mode unless raw=True or specific filters are used
+        summary = not raw and not type and not step and not errors_only
+        
+        return get_logs(type=type, step=step, summary=summary, errors_only=errors_only, last=last)
 
 
 __all__ = ["Agent"]

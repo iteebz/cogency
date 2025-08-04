@@ -22,15 +22,15 @@ class ConsoleHandler:
         # Agent lifecycle
         if event_type == "start":
             query = data.get("query", "")
-            print("🚀 Starting agent...")
+            print("[INIT] Starting agent")
             if query and len(query) < 100:
-                print(f"📝 {query}")
+                print(f"[QUERY] {query}")
 
         elif event_type == "agent_create":
             name = data.get("name", "agent")
             status = data.get("status", "")
             if status == "complete":
-                print(f"✅ Agent '{name}' ready")
+                print(f"[READY] Agent '{name}'")
 
         # Processing steps
         elif event_type == "triage":
@@ -38,46 +38,43 @@ class ConsoleHandler:
             if state == "complete":
                 tools = data.get("selected_tools", 0)
                 if tools:
-                    print(f"🔧 Selected {tools} tools")
+                    print(f"[TRIAGE] {tools} tools selected")
                 else:
-                    print("💭 Direct response")
+                    print("[TRIAGE] Direct response mode")
 
         elif event_type == "reason":
             state = data.get("state", "")
             if state in ["planning", "analyzing"]:
-                print(f"🧠 {state.title()}...")
+                print(f"[THINK] {state.title()}")
 
         elif event_type == "action":
             tool = data.get("tool", "tool")
-            print(f"⚡ Using {tool}")
+            print(f"[ACTION] {tool}")
 
         elif event_type == "respond":
             state = data.get("state", "")
             if state == "generating":
-                print("📝 Generating...")
+                print("[GEN] Generating response")
             elif state == "complete":
-                print("✅ Response ready")
+                print("[DONE] Response ready")
 
-        # Tools
+        # Tools - only show completion/errors
         elif event_type == "tool":
             name = data.get("name", "tool")
             duration = data.get("duration", 0)
             status = data.get("status", "")
 
             if status == "complete" and data.get("success"):
-                timing_info = f" ({duration:.1f}s)" if duration >= 1.0 else ""
-                print(f"✅ {name}{timing_info}")
+                timing_info = f" ({duration:.1f}s)" if duration >= 0.1 else ""
+                print(f"[TOOL] {name} complete{timing_info}")
             elif status in ["failed", "validation_error", "execution_error"]:
-                timing_info = f" ({duration:.1f}s)" if duration >= 1.0 else ""
-                print(f"❌ {name} failed{timing_info}")
+                timing_info = f" ({duration:.1f}s)" if duration >= 0.1 else ""
+                print(f"[ERROR] {name} failed{timing_info}")
             elif data.get("ok"):  # Legacy format
-                timing_info = f" ({duration:.1f}s)" if duration >= 1.0 else ""
-                print(f"✅ {name}{timing_info}")
-            elif status == "start":
-                # Don't print start events to reduce noise
-                pass
+                timing_info = f" ({duration:.1f}s)" if duration >= 0.1 else ""
+                print(f"[TOOL] {name} complete{timing_info}")
 
-        # Token usage
+        # Token usage - always show for transparency
         elif event_type == "tokens":
             tin = data.get("tin", 0)
             tout = data.get("tout", 0)
@@ -85,38 +82,35 @@ class ConsoleHandler:
             provider = data.get("provider", "")
             model = data.get("model", "")
 
-            # Only show for significant token usage or high cost
-            if tin + tout > 500 or float(cost.replace("$", "")) > 0.01:
-                print(f"💰 {tin + tout} tokens {cost} ({provider}/{model})")
+            total_tokens = tin + tout
+            model_info = f"{provider}/{model}" if provider and model else ""
+            print(f"[COST] {total_tokens} tokens, {cost} {model_info}")
 
-        # LLM operations
+        # LLM operations - show provider detection
         elif event_type == "llm":
             provider = data.get("provider", "llm")
             status = data.get("status", "")
 
-            if status == "start":
-                # Don't show start to reduce noise
-                pass
-            elif status == "complete" and data.get("success"):
-                print(f"🧠 {provider} complete")
+            if status == "complete" and data.get("success"):
+                print(f"[LLM] {provider} complete")
             elif status == "error":
-                print(f"❌ {provider} failed")
+                print(f"[ERROR] {provider} failed")
 
-        # System
+        # System errors - always show
         elif event_type == "error":
             message = data.get("message", "Error")
-            print(f"❌ {message}")
+            print(f"[ERROR] {message}")
 
         elif event_type == "debug" and self.debug:
             message = data.get("message", "Debug")
-            print(f"🐛 {message}")
+            print(f"[DEBUG] {message}")
 
-        # Config (quiet unless debug)
+        # Config (only in debug mode)
         elif event_type == "config_load" and self.debug:
             component = data.get("component", "component")
             status = data.get("status", "")
             if status == "complete":
-                print(f"⚙️  {component} loaded")
+                print(f"[CONFIG] {component} loaded")
 
 
 class LoggerHandler:
@@ -153,9 +147,74 @@ class LoggerHandler:
         else:
             self.events.append(event)
 
-    def logs(self) -> List[Dict[str, Any]]:
-        """Return all stored events in structured format."""
-        return list(self.events)
+    def logs(
+        self,
+        *,
+        type: str = None,
+        step: str = None,
+        summary: bool = False,
+        errors_only: bool = False,
+        last: int = None,
+    ) -> List[Dict[str, Any]]:
+        """Return stored events with optional filtering."""
+        all_logs = list(self.events)
+
+        if not all_logs:
+            return []
+
+        # Apply filters
+        filtered = all_logs
+
+        if errors_only:
+            filtered = [log for log in filtered if log.get("type") == "error"]
+        elif type:
+            filtered = [log for log in filtered if log.get("type") == type]
+
+        if step:
+            filtered = [log for log in filtered if log.get("type") == step]
+
+        # Apply summary transformation
+        if summary:
+            return self._summarize_logs(filtered)
+
+        # Apply last N limit
+        if last:
+            filtered = filtered[-last:]
+
+        return filtered
+
+    def _summarize_logs(self, logs: List[Dict]) -> List[Dict]:
+        """Create high-level execution summary from logs."""
+        summary = []
+
+        # Key execution milestones
+        key_events = ["start", "triage", "reason", "action", "respond", "agent_complete", "error"]
+
+        for log in logs:
+            if log.get("type") in key_events:
+                # Clean up event for summary view
+                summary_event = {
+                    "step": log.get("type"),
+                    "timestamp": log.get("timestamp"),
+                }
+
+                # Add relevant context
+                if log.get("type") == "start":
+                    summary_event["query"] = log.get("query", "")[:100]  # Truncate long queries
+                elif log.get("type") == "triage":
+                    if log.get("state") == "complete":
+                        summary_event["mode"] = "direct" if log.get("early_return") else "react"
+                elif log.get("type") == "action":
+                    summary_event["tool_count"] = log.get("tool_count", 0)
+                elif log.get("type") == "agent_complete":
+                    summary_event["source"] = log.get("source")
+                    summary_event["iterations"] = log.get("iterations", 0)
+                elif log.get("type") == "error":
+                    summary_event["message"] = log.get("message", "")[:200]  # Truncate long errors
+
+                summary.append(summary_event)
+
+        return summary
 
     def configure(self, **options):
         """Update handler configuration."""

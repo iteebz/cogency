@@ -52,6 +52,7 @@ build/
 
 # Environment
 .env
+sandbox/
 
 # Cogency runtime
 .cogency
