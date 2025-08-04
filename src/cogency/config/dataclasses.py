@@ -138,6 +138,7 @@ class AgentConfig:
     robust: Optional[Any] = None
     observe: Optional[Any] = None
     persist: Optional[Any] = None
+    handlers: List[Any] = None
 
 
 def _setup_config(config_type, param, store=None):

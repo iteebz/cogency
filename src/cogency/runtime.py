@@ -1,15 +1,13 @@
 """Agent execution engine - handles all complexity."""
 
-import asyncio
-import logging
-from typing import Any, AsyncIterator, Optional
+from typing import Any, Optional
 
 from resilient_result import Result
 
 from cogency.config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
+from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, MetricsHandler, init_bus
 from cogency.memory import ImpressionSynthesizer
-from cogency.notify import Notifier, _setup_formatter
 from cogency.persist.store.base import _setup_persist
 from cogency.persist.utils import _get_state
 from cogency.providers.setup import _setup_embed, _setup_llm
@@ -45,6 +43,7 @@ class AgentExecutor:
         self.name = name
         self.user_states: dict[str, AgentState] = {}
         self.last_state: Optional[dict] = None
+        self._initialized = True
 
         # Config properties
         self.mode = mode
@@ -68,51 +67,191 @@ class AgentExecutor:
             self.llm, self.tools, self.memory, self.identity, self.output_schema, self.config
         )
 
+    async def cleanup(self):
+        """Clean up agent resources and emit teardown events."""
+        if not self._initialized:
+            return
+
+        try:
+            await self.notifier("agent_teardown", name=self.name, status="cleaning")
+
+            # Clean up resources
+            if self.memory:
+                await self.notifier("teardown", component="memory", status="cleaning")
+                # Memory cleanup would go here
+                await self.notifier("teardown", component="memory", status="complete")
+
+            if self.persistence:
+                await self.notifier("teardown", component="persistence", status="cleaning")
+                # Persistence cleanup would go here
+                await self.notifier("teardown", component="persistence", status="complete")
+
+            # Clear state
+            self.user_states.clear()
+            self.last_state = None
+            self._initialized = False
+
+            await self.notifier("agent_teardown", name=self.name, status="complete")
+
+        except Exception as e:
+            await self.notifier("agent_teardown", name=self.name, status="error", error=str(e))
+            raise
+
+    def __del__(self):
+        """Ensure cleanup on garbage collection."""
+        if self._initialized and hasattr(self, "notifier"):
+            # Sync cleanup - best effort
+            import asyncio
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.cleanup())
+                else:
+                    asyncio.run(self.cleanup())
+            except Exception:
+                pass  # Ignore errors during cleanup
+
     @classmethod
     async def create(cls, name: str) -> "AgentExecutor":
         """Create executor with default configuration."""
-        # Setup services (default: no notifications for basic create)
-        formatter = _setup_formatter(notify=False)
-        notifier = Notifier(formatter)
-        llm = _setup_llm(None, notifier=notifier)
-        embed = _setup_embed(None)
-        tools = _setup_tools([], None)
+        from cogency.events import component, init_bus
 
-        # Setup config
-        config = AgentConfig()
-        config.robust = _setup_config(RobustConfig, False)
-        config.observe = _setup_config(ObserveConfig, False)
-        config.persist = _setup_config(PersistConfig, False)
-        config.memory = _setup_config(MemoryConfig, False)
+        # Setup bus
+        bus = MessageBus()
+        logger_handler = LoggerHandler()
+        bus.subscribe(logger_handler)
+        init_bus(bus)
 
-        memory = None
-        persistence = None
+        # Beautiful component setup with invisible events
+        @component("llm")
+        def setup_llm():
+            return _setup_llm(None)
+
+        @component("embed")
+        def setup_embed():
+            return _setup_embed(None)
+
+        @component("tools")
+        def setup_tools():
+            return _setup_tools([], None)
+
+        @component("config")
+        def setup_config():
+            config = AgentConfig()
+            config.robust = _setup_config(RobustConfig, False)
+            config.observe = _setup_config(ObserveConfig, False)
+            config.persist = _setup_config(PersistConfig, False)
+            config.memory = _setup_config(MemoryConfig, False)
+            return config
+
+        # Execute setup - events emitted automatically
+        class SimpleNotifier:
+            def __init__(self, logger):
+                self.logger = logger
+
+            async def __call__(self, event_type: str, **data):
+                bus.emit(event_type, **data)
+
+            @property
+            def notifications(self):
+                return [
+                    {"timestamp": e["timestamp"], "type": e["type"], **e["data"]}
+                    for e in self.logger.events
+                ]
+
+        notifier = SimpleNotifier(logger_handler)
+        llm = setup_llm()
+        embed = setup_embed()
+        tools = setup_tools()
+        config = setup_config()
 
         return cls(
             name=name,
             llm=llm,
             embed=embed,
             tools=tools,
-            memory=memory,
+            memory=None,
             notifier=notifier,
             config=config,
-            persistence=persistence,
+            persistence=None,
         )
 
     @classmethod
     async def configure(cls, config) -> "AgentExecutor":
         """Create executor from builder config."""
-
-        # Setup configs first so they're available for provider setup
-        persist_config = _setup_config(
-            PersistConfig,
-            config.persist,
-            store=(
-                getattr(config.persist, "store", None) if hasattr(config.persist, "store") else None
-            ),
+        from cogency.events import (
+            LoggerHandler,
+            MessageBus,
+            component,
         )
-        memory_config = _setup_config(MemoryConfig, config.memory)
-        robust_config = _setup_config(RobustConfig, config.robust)
+
+        # Setup bus
+        bus = MessageBus()
+        bus.subscribe(ConsoleHandler(config.notify, config.debug))
+        logger_handler = LoggerHandler()
+        bus.subscribe(logger_handler)
+        bus.subscribe(MetricsHandler())
+
+        # Add custom handlers
+        if config.handlers:
+            for handler in config.handlers:
+                bus.subscribe(handler)
+
+        init_bus(bus)
+
+        # Unified notifier
+        class Notifier:
+            def __init__(self, logger):
+                self.logger = logger
+
+            async def __call__(self, event_type: str, **data):
+                bus.emit(event_type, **data)
+
+            @property
+            def notifications(self):
+                return [
+                    {"timestamp": e["timestamp"], "type": e["type"], **e["data"]}
+                    for e in self.logger.events
+                ]
+
+        notifier = Notifier(logger_handler)
+
+        # Beautiful component setup
+        @component("persist")
+        def setup_persist():
+            return _setup_config(
+                PersistConfig,
+                config.persist,
+                store=getattr(config.persist, "store", None)
+                if hasattr(config.persist, "store")
+                else None,
+            )
+
+        @component("memory")
+        def setup_memory():
+            return _setup_config(MemoryConfig, config.memory)
+
+        @component("robust")
+        def setup_robust():
+            return _setup_config(RobustConfig, config.robust)
+
+        @component("llm")
+        def setup_llm():
+            return _setup_llm(config.llm)
+
+        @component("embed")
+        def setup_embed():
+            return _setup_embed(config.embed)
+
+        @component("tools")
+        def setup_tools():
+            return _setup_tools(config.tools or [], None)
+
+        # Execute setup - events emitted invisibly
+        persist_config = setup_persist()
+        memory_config = setup_memory()
+        robust_config = setup_robust()
 
         agent_config = AgentConfig()
         agent_config.robust = robust_config
@@ -120,29 +259,9 @@ class AgentExecutor:
         agent_config.persist = persist_config
         agent_config.memory = memory_config
 
-        # Unified notification system: auto-enable unless explicitly disabled
-        if config.notify is False:
-            # Silent mode
-            formatter = _setup_formatter(notify=False)
-            notifier = Notifier(formatter)
-        elif config.on_notify:
-            # Custom callback mode
-            formatter = _setup_formatter(notify=True, debug=config.debug)
-            notifier = Notifier(formatter, config.on_notify)
-        else:
-            # Default mode: beautiful notifications to stdout
-            formatter = _setup_formatter(notify=True, debug=config.debug)
-
-            def default_callback(notification):
-                output = formatter.format(notification)
-                if output:
-                    print(output)
-
-            notifier = Notifier(formatter, default_callback)
-
-        llm = _setup_llm(config.llm, notifier=notifier)
-        embed = _setup_embed(config.embed)
-        tools = _setup_tools(config.tools or [], None)
+        llm = setup_llm()
+        embed = setup_embed()
+        tools = setup_tools()
 
         if memory_config:
             store = memory_config.store or (persist_config.store if persist_config else None)
@@ -153,7 +272,6 @@ class AgentExecutor:
 
         persistence = _setup_persist(persist_config)
 
-        # Create executor with explicit dependencies
         return cls(
             name=config.name,
             llm=llm,
@@ -171,12 +289,6 @@ class AgentExecutor:
             output_schema=config.output_schema,
             on_notify=config.on_notify,
         )
-
-    def _setup_notifier(self, callback=None):
-        """Setup notification system."""
-        final_callback = callback or self.on_notify
-        formatter = _setup_formatter(notify=bool(final_callback), debug=self.debug)
-        return Notifier(formatter, final_callback)
 
     async def _execution_state(self, query: str, user_id: str = "default") -> AgentState:
         """Common setup logic for both run() and stream() methods."""
@@ -226,11 +338,11 @@ class AgentExecutor:
             else:
                 steps = self.steps
 
-            # Execute steps
+            # Execute steps - notifier already set up in configure()
+            notifier = self.notifier
 
-            notifier = self._setup_notifier()
-            # Store notifier for traces() method
-            self.notifier = notifier
+            # Start notification
+            await notifier("start", query=query)
 
             await execute_agent(
                 state,
@@ -266,73 +378,6 @@ class AgentExecutor:
                 await self.notifier("error", message=error_msg)
             raise e
 
-    async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
-        """Stream agent execution."""
-        try:
-            # Setup execution state
-            state = await self._execution_state(query, user_id)
-        except ValueError as e:
-            yield f"{str(e)}\n"
-            return
-
-        # Setup streaming
-        queue: asyncio.Queue[str] = asyncio.Queue()
-
-        async def stream_callback(event_type: str, **data) -> None:
-            state = data.get("state", "")
-            content = data.get("content", "")
-            message = data.get("message", "")
-
-            if content:
-                output = f"[{event_type}:{state}] {content[:60]}..."
-            elif message:
-                output = f"[{event_type}] {message}"
-            elif state:
-                output = f"[{event_type}:{state}]"
-            else:
-                output = f"[{event_type}]"
-
-            await queue.put(output)
-
-        notifier = self._setup_notifier(callback=stream_callback)
-
-        # Execute
-
-        task = asyncio.create_task(
-            execute_agent(
-                state,
-                self.steps["triage"],
-                self.steps["reason"],
-                self.steps["act"],
-                self.steps["respond"],
-                notifier,
-            )
-        )
-
-        # Stream results
-        try:
-            while not task.done():
-                try:
-                    message = await asyncio.wait_for(queue.get(), timeout=0.1)
-                    yield message
-                except asyncio.TimeoutError:
-                    continue
-
-            # Drain remaining
-            while not queue.empty():
-                yield queue.get_nowait()
-
-        finally:
-            result = await task
-            self.last_state = result
-
-            # Learn from response
-            if self.memory and result and hasattr(result.execution, "response"):
-                await self.memory.remember(result.execution.response, human=False)
-
     def logs(self) -> list[dict[str, Any]]:
         """All execution logs. Always available for retrospective debugging."""
-        return [
-            {"timestamp": n.timestamp, "type": n.type, **n.data}
-            for n in self.notifier.notifications
-        ]
+        return self.notifier.notifications

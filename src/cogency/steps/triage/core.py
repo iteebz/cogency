@@ -5,6 +5,7 @@ from typing import List, Optional
 
 from resilient_result import unwrap
 
+from cogency.events import emit
 from cogency.providers import LLM
 from cogency.security import assess
 from cogency.tools import Tool
@@ -227,6 +228,7 @@ async def notify_tool_selection(notifier, filtered_tools: List[Tool], total_tool
 
 async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> TriageResult:
     """Single LLM call to handle all triage tasks."""
+    emit("triage", state="analyzing", tool_count=len(available_tools))
 
     # Build tool registry for context
     registry_lite = (
@@ -235,6 +237,7 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
 
     prompt = build_triage_prompt(query, registry_lite)
 
+    emit("triage", state="llm_call")
     result = await llm.run([{"role": "user", "content": prompt}])
     response = unwrap(result)
     parsed = unwrap(_parse_json(response))
@@ -246,20 +249,32 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
         parsed = {}
 
     # Pass LLM security assessment to the single security function
+    emit("triage", state="security_check")
     security_section = parsed.get("security_assessment", {}) or {}
     security_result = await assess(query, {"security_assessment": security_section})
 
     if not security_result.safe:  # SEC-001: Prompt injection protection
+        emit("triage", state="security_violation")
         return TriageResult(direct_response="Security violation: Request contains unsafe content")
 
     # Extract memory section safely
     memory_section = parsed.get("memory", {}) or {}
+    selected_tools = parsed.get("selected_tools", [])
+    direct_response = parsed.get("direct_response")
+
+    # Emit completion events
+    if direct_response:
+        emit("triage", state="direct_response")
+    elif selected_tools:
+        emit("triage", state="tools_selected", selected_tools=len(selected_tools))
+    else:
+        emit("triage", state="no_tools")
 
     return TriageResult(
-        direct_response=parsed.get("direct_response"),
+        direct_response=direct_response,
         memory_content=memory_section.get("content"),
         memory_tags=memory_section.get("tags", []),
-        selected_tools=parsed.get("selected_tools", []),
+        selected_tools=selected_tools,
         mode=parsed.get("mode", "fast"),
         reasoning=parsed.get("reasoning", ""),
     )

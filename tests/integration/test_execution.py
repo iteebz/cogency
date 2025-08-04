@@ -1,6 +1,6 @@
 """Comprehensive step tests - integration and unit testing."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from resilient_result import Result
@@ -46,22 +46,23 @@ class MockTool(Tool):
 @pytest.mark.asyncio
 async def test_execution_errors():
     """Test tool execution error handling."""
-    failing_tool = MockTool("fail", should_fail=True)
-    working_tool = MockTool("work", should_fail=False)
-    tools = [failing_tool, working_tool]
+    with patch("cogency.events.core._bus", None):  # Disable event system
+        failing_tool = MockTool("fail", should_fail=True)
+        working_tool = MockTool("work", should_fail=False)
+        tools = [failing_tool, working_tool]
 
-    # Test failure
-    name, args, result = await execute_single_tool("fail", {}, tools)
-    assert not result.success
-    assert result.error is not None
+        # Test failure
+        name, args, result = await execute_single_tool("fail", {}, tools)
+        assert not result.success
+        assert result.error is not None
 
-    # Test success
-    name, args, result = await execute_single_tool("work", {}, tools)
-    assert result.success
+        # Test success
+        name, args, result = await execute_single_tool("work", {}, tools)
+        assert result.success
 
-    # Test missing tool
-    with pytest.raises(ValueError):
-        await execute_single_tool("missing", {}, tools)
+        # Test missing tool
+        with pytest.raises(ValueError):
+            await execute_single_tool("missing", {}, tools)
 
 
 @pytest.mark.asyncio
@@ -192,33 +193,36 @@ async def test_respond_formats(state):
 @pytest.mark.asyncio
 async def test_full_cycle(state):
     """Test full reasoning cycle: reason -> act -> reason -> respond."""
-    tools = [Shell()]
-    llm = MockLLM()
+    with patch("cogency.events.core._bus", None):  # Disable event system
+        tools = [Shell()]
+        llm = MockLLM()
 
-    # 1. First reason (needs tools) - this adds an action
-    llm.run = AsyncMock(
-        return_value=Result.ok(
-            '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}]}'
+        # 1. First reason (needs tools) - this adds an action
+        llm.run = AsyncMock(
+            return_value=Result.ok(
+                '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}]}'
+            )
         )
-    )
-    await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
-    assert state.execution.pending_calls
-    assert len(state.reasoning.thoughts) >= 0  # reasoning thoughts are recorded
+        await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+        assert state.execution.pending_calls
+        assert len(state.reasoning.thoughts) >= 0  # reasoning thoughts are recorded
 
-    # 2. Act (execute tools)
-    await act(state, AsyncMock(), tools=tools)
-    results = state.execution.completed_calls
-    assert len(results) > 0
+        # 2. Act (execute tools)
+        await act(state, AsyncMock(), tools=tools)
+        results = state.execution.completed_calls
+        assert len(results) > 0
 
-    # 3. Second reason (reflect on results)
-    llm.run = AsyncMock(
-        return_value=Result.ok('{"reasoning": "The code tool shows 2 + 2 = 4. I can now respond."}')
-    )
-    await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+        # 3. Second reason (reflect on results)
+        llm.run = AsyncMock(
+            return_value=Result.ok(
+                '{"reasoning": "The code tool shows 2 + 2 = 4. I can now respond."}'
+            )
+        )
+        await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
 
-    # 4. Respond (final answer)
-    await respond(state, AsyncMock(), llm=llm, tools=[])
-    assert state.execution.response
+        # 4. Respond (final answer)
+        await respond(state, AsyncMock(), llm=llm, tools=[])
+        assert state.execution.response
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,6 @@
 """Cognitive agent with zero ceremony."""
 
-from typing import Any, AsyncIterator, List, Union
+from typing import Any, List, Union
 
 from cogency.config import MemoryConfig
 from cogency.config.validation import _init_advanced_config, validate_unions
@@ -15,6 +15,7 @@ class Agent:
         name: Agent identifier (default "cogency")
         tools: Tools to enable - list of names, Tool objects, or single string
         memory: Enable memory - True for defaults or MemoryConfig for custom
+        handlers: Custom event handlers for streaming, websockets, etc
 
     Advanced config (**kwargs):
         identity: Agent persona/identity
@@ -28,7 +29,7 @@ class Agent:
 
     Examples:
         Basic: Agent("assistant")
-        With features: Agent("assistant", memory=True, robust=True)
+        With events: Agent("assistant", handlers=[WebSocketHandler(ws)])
         Advanced: Agent("assistant", memory=MemoryConfig(threshold=8000))
     """
 
@@ -38,12 +39,14 @@ class Agent:
         *,
         tools: Union[List[str], List[Tool], str] = None,
         memory: Union[bool, MemoryConfig] = False,
+        handlers: List[Any] = None,
         **config,
     ):
         from cogency.config.dataclasses import AgentConfig
 
         self.name = name
         self._executor = None
+        self._handlers = handlers or []
 
         if tools is None:
             tools = []
@@ -55,6 +58,7 @@ class Agent:
         self._config.name = name
         self._config.tools = tools
         self._config.memory = memory
+        self._config.handlers = self._handlers
 
         # Apply advanced config
         for key, value in advanced.items():
@@ -101,11 +105,6 @@ class Agent:
         """
         executor = await self._get_executor()
         return await executor.run(query, user_id, identity)
-
-    async def stream(self, query: str, user_id: str = "default") -> AsyncIterator[str]:
-        executor = await self._get_executor()
-        async for chunk in executor.stream(query, user_id):
-            yield chunk
 
     def logs(self) -> list[dict[str, Any]]:
         """All execution logs. Always available for retrospective debugging."""

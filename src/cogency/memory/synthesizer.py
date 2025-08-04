@@ -48,10 +48,20 @@ class ImpressionSynthesizer:
         self, profile: UserProfile, recent_interaction: Dict[str, Any]
     ) -> UserProfile:
         """LLM-driven profile synthesis."""
+        from cogency.events import emit
 
-        current_context = compress(profile)
+        emit(
+            "memory",
+            operation="synthesis",
+            user_id=profile.user_id,
+            status="start",
+            version=profile.synthesis_version,
+        )
 
-        prompt = f"""Synthesize evolved user profile:
+        try:
+            current_context = compress(profile)
+
+            prompt = f"""Synthesize evolved user profile:
 
 CURRENT PROFILE:
 {current_context}
@@ -79,14 +89,47 @@ Return JSON with updated fields:
     "failure_patterns": []
 }}"""
 
-        result = await self.llm.run([{"role": "user", "content": prompt}])
-        if result.success:
-            parsed = _parse_json(result.data)
-            if parsed.success:
-                self._apply_synthesis(profile, parsed.data)
-                profile.synthesis_version += 1
+            result = await self.llm.run([{"role": "user", "content": prompt}])
+            if result.success:
+                parsed = _parse_json(result.data)
+                if parsed.success:
+                    self._apply_synthesis(profile, parsed.data)
+                    profile.synthesis_version += 1
+                    emit(
+                        "memory",
+                        operation="synthesis",
+                        user_id=profile.user_id,
+                        status="complete",
+                        version=profile.synthesis_version,
+                    )
+                else:
+                    emit(
+                        "memory",
+                        operation="synthesis",
+                        user_id=profile.user_id,
+                        status="error",
+                        error="JSON parsing failed",
+                    )
+            else:
+                emit(
+                    "memory",
+                    operation="synthesis",
+                    user_id=profile.user_id,
+                    status="error",
+                    error="LLM synthesis failed",
+                )
 
-        return profile
+            return profile
+
+        except Exception as e:
+            emit(
+                "memory",
+                operation="synthesis",
+                user_id=profile.user_id,
+                status="error",
+                error=str(e),
+            )
+            raise
 
     def _apply_synthesis(self, profile: UserProfile, synthesis_data: Dict[str, Any]) -> None:
         """Apply LLM synthesis to profile."""
@@ -132,16 +175,68 @@ Return JSON with updated fields:
 
     async def load(self, user_id: str = None) -> None:
         """Load memory state for the current user."""
+        from cogency.events import emit
+
         if user_id:
             self.current_user_id = user_id
-        pass
+
+        emit("memory", operation="load", user_id=self.current_user_id, status="start")
+
+        try:
+            # Load profile to validate memory system
+            profile = await self._load_profile(self.current_user_id)
+            emit(
+                "memory",
+                operation="load",
+                user_id=self.current_user_id,
+                status="complete",
+                interactions=profile.interaction_count,
+            )
+        except Exception as e:
+            emit(
+                "memory",
+                operation="load",
+                user_id=self.current_user_id,
+                status="error",
+                error=str(e),
+            )
+            raise
 
     async def remember(self, content: str, human: bool = True) -> None:
         """Remember content from user interaction."""
-        interaction_data = {
-            "query" if human else "response": content,
-            "success": True,
-            "human": human,
-        }
-        # Update impression using existing logic
-        await self.update_impression(self.current_user_id, interaction_data)
+        from cogency.events import emit
+
+        emit(
+            "memory",
+            operation="remember",
+            user_id=self.current_user_id,
+            human=human,
+            content_length=len(content),
+            status="start",
+        )
+
+        try:
+            interaction_data = {
+                "query" if human else "response": content,
+                "success": True,
+                "human": human,
+            }
+            # Update impression using existing logic
+            profile = await self.update_impression(self.current_user_id, interaction_data)
+
+            emit(
+                "memory",
+                operation="remember",
+                user_id=self.current_user_id,
+                status="complete",
+                total_interactions=profile.interaction_count,
+            )
+        except Exception as e:
+            emit(
+                "memory",
+                operation="remember",
+                user_id=self.current_user_id,
+                status="error",
+                error=str(e),
+            )
+            raise

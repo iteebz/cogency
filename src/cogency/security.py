@@ -41,21 +41,42 @@ async def assess(text: str, context: Dict[str, Any] = None) -> SecurityResult:
     Uses LLM reasoning to understand intent, with minimal threat pattern fallbacks.
     Security that fades into the background.
     """
+    from cogency.events import emit
+
     context = context or {}
 
-    # Threat patterns - immediate protection that also trains the LLM
-    threat_result = _threat_patterns(
-        text, context
-    )  # SEC-002, SEC-004: Command injection & path traversal
-    if not threat_result.safe:
-        return threat_result
+    # Emit start of assessment
+    emit("security", operation="assess", status="checking", text_length=len(text))
 
-    # Semantic assessment via LLM (when available)
-    if "security_assessment" in context:
-        return _semantic_assessment(text, context)
+    try:
+        # Threat patterns - immediate protection that also trains the LLM
+        threat_result = _threat_patterns(
+            text, context
+        )  # SEC-002, SEC-004: Command injection & path traversal
+        if not threat_result.safe:
+            emit(
+                "security",
+                operation="assess",
+                status="blocked",
+                threat=threat_result.threat.value,
+                reason=threat_result.message,
+            )
+            return threat_result
 
-    # Default: allow with minimal validation
-    return SecurityResult(SecurityAction.ALLOW)
+        # Semantic assessment via LLM (when available)
+        if "security_assessment" in context:
+            result = _semantic_assessment(text, context)
+            emit("security", operation="assess", status="complete", safe=result.safe, semantic=True)
+            return result
+
+        # Default: allow with minimal validation
+        emit("security", operation="assess", status="complete", safe=True, semantic=False)
+        return SecurityResult(SecurityAction.ALLOW)
+
+    except Exception as e:
+        emit("security", operation="assess", status="error", error=str(e))
+        # Fail secure - block on error
+        return SecurityResult(SecurityAction.BLOCK, message=f"Security assessment failed: {e}")
 
 
 def _threat_patterns(text: str, context: Dict[str, Any]) -> SecurityResult:

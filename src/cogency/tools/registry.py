@@ -46,6 +46,8 @@ def _resolve_tool_list(tools: List[Union[str, Tool]]) -> List[Tool]:
 
 def _get_tool(name: str) -> Tool:
     """Get tool instance by name."""
+    from cogency.events import emit
+
     # Import here to avoid circular imports
     from cogency.tools.files import Files
     from cogency.tools.http import HTTP
@@ -61,14 +63,26 @@ def _get_tool(name: str) -> Tool:
         "shell": Shell,
     }
 
+    emit("tool", operation="load", name=name, status="start")
+
     tool_class = tool_map.get(name.lower())
     if tool_class:
         try:
-            return tool_class()
+            tool_instance = tool_class()
+            emit(
+                "tool",
+                operation="load",
+                name=name,
+                status="complete",
+                class_name=tool_class.__name__,
+            )
+            return tool_instance
         except Exception as e:
+            emit("tool", operation="load", name=name, status="error", error=str(e))
             logger.debug(f"Failed to instantiate {name}: {e}")
             return None
 
+    emit("tool", operation="load", name=name, status="not_found")
     return None
 
 
@@ -87,17 +101,40 @@ class ToolRegistry:
     @classmethod
     def get_tools(cls, **kwargs) -> List[Tool]:
         """Get all registered tool instances - zero ceremony instantiation."""
+        from cogency.events import emit
+
+        emit("tool", operation="registry", status="start", count=len(cls._tools))
+
         tools = []
         for tool_class in cls._tools:
             try:
                 # Try with kwargs first, fallback to no-args
                 try:
-                    tools.append(tool_class(**kwargs))
+                    tool_instance = tool_class(**kwargs)
+                    tools.append(tool_instance)
+                    emit("tool", operation="registry", status="loaded", name=tool_class.__name__)
                 except TypeError:
-                    tools.append(tool_class())
+                    tool_instance = tool_class()
+                    tools.append(tool_instance)
+                    emit("tool", operation="registry", status="loaded", name=tool_class.__name__)
             except Exception as e:
+                emit(
+                    "tool",
+                    operation="registry",
+                    status="skipped",
+                    name=tool_class.__name__,
+                    error=str(e),
+                )
                 logger.debug(f"Skipped {tool_class.__name__}: {e}")
                 continue
+
+        emit(
+            "tool",
+            operation="registry",
+            status="complete",
+            loaded=len(tools),
+            total=len(cls._tools),
+        )
         return tools
 
     @classmethod

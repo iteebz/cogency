@@ -2,7 +2,6 @@
 
 import asyncio
 
-from cogency import Agent
 from cogency.tools.search import Search
 from cogency.tools.shell import Shell
 
@@ -85,12 +84,14 @@ class AgentConcurrency(Eval):
         passed = all_completed and reasonable_time and score >= 0.67
 
         for i, (task, result) in enumerate(zip(tasks, results)):
-            all_traces.append({
-                "task": task,
-                "result": str(result)[:200] + "..." if len(str(result)) > 200 else str(result),
-                "success": not isinstance(result, Exception),
-                "agent_logs": agents[i].logs() if hasattr(agents[i], "logs") else [],
-            })
+            all_traces.append(
+                {
+                    "task": task,
+                    "result": str(result)[:200] + "..." if len(str(result)) > 200 else str(result),
+                    "success": not isinstance(result, Exception),
+                    "agent_logs": agents[i].logs() if hasattr(agents[i], "logs") else [],
+                }
+            )
 
         return EvalResult(
             name=self.name,

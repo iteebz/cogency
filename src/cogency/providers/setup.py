@@ -35,29 +35,92 @@ _embed_provider = Provider(
 
 def _setup_llm(provider: str | LLM | None = None, notifier=None) -> LLM:
     """Setup LLM provider with lazy discovery."""
+    from cogency.events import emit
+
     from .lazy import _llm_base
 
-    _llm_base = _llm_base()
-    if isinstance(provider, _llm_base):
-        provider.notifier = notifier
-        return provider
+    emit("provider", type="llm", operation="setup", provider=str(provider), status="start")
 
     try:
-        return _llm_provider.instance(provider, notifier=notifier)
+        _llm_base = _llm_base()
+        if isinstance(provider, _llm_base):
+            provider.notifier = notifier
+            emit(
+                "provider",
+                type="llm",
+                operation="setup",
+                provider="existing_instance",
+                status="complete",
+            )
+            return provider
+
+        # Discovery and instantiation
+        result = _llm_provider.instance(provider, notifier=notifier)
+        emit(
+            "provider",
+            type="llm",
+            operation="setup",
+            provider=getattr(getattr(result, "__class__", None), "__name__", str(provider)),
+            status="complete",
+        )
+        return result
+
     except ValueError as e:
         # Add installation hint for missing optional providers
         if provider in ["gemini", "anthropic", "mistral"]:
-            raise ValueError(f"{e}\n\nTo use {provider}: pip install cogency[{provider}]") from e
+            error_msg = f"{e}\n\nTo use {provider}: pip install cogency[{provider}]"
+            emit(
+                "provider",
+                type="llm",
+                operation="setup",
+                provider=str(provider),
+                status="error",
+                error=error_msg,
+            )
+            raise ValueError(error_msg) from e
+
+        emit(
+            "provider",
+            type="llm",
+            operation="setup",
+            provider=str(provider),
+            status="error",
+            error=str(e),
+        )
         raise
 
 
 def _setup_embed(provider: str | None = None) -> Type[Embed]:
     """Setup embedding provider with lazy discovery."""
-    embed_class = _embed_provider.get(provider)
+    from cogency.events import emit
 
-    def create_embed(**kwargs):
-        return embed_class(**kwargs)
+    emit("provider", type="embed", operation="setup", provider=str(provider), status="start")
 
-    create_embed.__name__ = embed_class.__name__
-    create_embed.__qualname__ = embed_class.__qualname__
-    return create_embed
+    try:
+        embed_class = _embed_provider.get(provider)
+
+        def create_embed(**kwargs):
+            return embed_class(**kwargs)
+
+        create_embed.__name__ = embed_class.__name__
+        create_embed.__qualname__ = embed_class.__qualname__
+
+        emit(
+            "provider",
+            type="embed",
+            operation="setup",
+            provider=embed_class.__name__,
+            status="complete",
+        )
+        return create_embed
+
+    except Exception as e:
+        emit(
+            "provider",
+            type="embed",
+            operation="setup",
+            provider=str(provider),
+            status="error",
+            error=str(e),
+        )
+        raise

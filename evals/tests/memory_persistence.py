@@ -17,8 +17,8 @@ class MemoryPersistence(Eval):
             "What number did I ask you to remember at the start?",
             "Create a story involving the special number from our conversation",
         ]
-        
+
         def validator(response, test_case):
             return "42" in response and len(response) > 20
-        
+
         return await self.run_test_cases(test_cases, validator, "memory_tester", memory=True)

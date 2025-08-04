@@ -82,19 +82,23 @@ class ToolPerformance(Eval):
                         }
                     )
 
-                all_traces.append({
-                    "test_case": case["name"],
-                    "passed": passed,
-                    "mean_latency_ms": perf_results[-1]["mean_ms"],
-                    "validation_errors": validation_errors,
-                })
+                all_traces.append(
+                    {
+                        "test_case": case["name"],
+                        "passed": passed,
+                        "mean_latency_ms": perf_results[-1]["mean_ms"],
+                        "validation_errors": validation_errors,
+                    }
+                )
 
             except Exception as e:
-                all_traces.append({
-                    "test_case": case["name"],
-                    "passed": False,
-                    "error": str(e),
-                })
+                all_traces.append(
+                    {
+                        "test_case": case["name"],
+                        "passed": False,
+                        "error": str(e),
+                    }
+                )
 
         mem_after = tracemalloc.get_traced_memory()[0]
         tracemalloc.stop()

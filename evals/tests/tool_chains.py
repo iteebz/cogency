@@ -38,10 +38,10 @@ class ToolChains(Eval):
         # Check if file actually exists and has content
         file_exists = os.path.exists("search_results.txt")
         has_content = False
-        
+
         if file_exists:
             try:
-                with open("search_results.txt", "r") as f:
+                with open("search_results.txt") as f:
                     content = f.read()
                     has_content = bool(content and content.strip())
                 # Clean up
@@ -51,7 +51,11 @@ class ToolChains(Eval):
 
         # Success requires all chain steps
         passed = created_file and performed_search and used_shell and file_exists and has_content
-        score = 1.0 if passed else sum([created_file, performed_search, used_shell, file_exists, has_content]) / 5.0
+        score = (
+            1.0
+            if passed
+            else sum([created_file, performed_search, used_shell, file_exists, has_content]) / 5.0
+        )
 
         agent_logs = agent.logs() if hasattr(agent, "logs") else []
 
@@ -60,16 +64,18 @@ class ToolChains(Eval):
             passed=passed,
             score=score,
             duration=0.0,
-            traces=[{
-                "query": query,
-                "response": result,
-                "created_file": created_file,
-                "performed_search": performed_search,
-                "used_shell": used_shell,
-                "file_exists": file_exists,
-                "has_content": has_content,
-                "logs": agent_logs,
-            }],
+            traces=[
+                {
+                    "query": query,
+                    "response": result,
+                    "created_file": created_file,
+                    "performed_search": performed_search,
+                    "used_shell": used_shell,
+                    "file_exists": file_exists,
+                    "has_content": has_content,
+                    "logs": agent_logs,
+                }
+            ],
             metadata={
                 "created_file": created_file,
                 "performed_search": performed_search,

@@ -109,34 +109,3 @@ async def test_run():
 
         assert result == "Final Answer"
         mock_executor.run.assert_called_once_with("test query", "default", None)
-
-
-@pytest.mark.asyncio
-async def test_stream_validation():
-    from unittest.mock import AsyncMock, Mock
-
-    with patch("cogency.runtime.AgentExecutor.configure", new_callable=AsyncMock) as mock_configure:
-        # Mock executor with stream method
-        mock_executor = Mock()
-
-        async def mock_stream(query, user_id="default"):
-            if not query:
-                yield "Empty query not allowed"
-            elif len(query) > 10000:
-                yield "Query too long"
-            else:
-                yield "Normal response"
-
-        mock_executor.stream = mock_stream
-        mock_configure.return_value = mock_executor
-
-        agent = Agent(name="test", tools="all")
-
-        # Empty query
-        chunks = [chunk async for chunk in agent.stream("")]
-        assert "Empty query not allowed" in chunks[0]
-
-        # Too long query
-        long_query = "a" * 10001
-        chunks = [chunk async for chunk in agent.stream(long_query)]
-        assert "Query too long" in chunks[0]

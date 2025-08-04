@@ -53,11 +53,15 @@ class LLMCache:
 
     async def get(self, messages: List[Dict[str, str]], **kwargs) -> Optional[str]:
         """Get cached response if available and valid."""
-        async with self._lock:
-            cache_key = self._generate_key(messages, **kwargs)
+        from cogency.events import emit
 
+        cache_key = self._generate_key(messages, **kwargs)
+        emit("cache", operation="get", key=cache_key[:8], status="checking")
+
+        async with self._lock:
             if cache_key not in self._cache:
                 self._stats["misses"] += 1
+                emit("cache", operation="get", key=cache_key[:8], status="miss")
                 return None
 
             entry = self._cache[cache_key]
@@ -66,24 +70,38 @@ class LLMCache:
             if self._is_expired(entry):
                 del self._cache[cache_key]
                 self._stats["misses"] += 1
+                emit("cache", operation="get", key=cache_key[:8], status="expired")
                 return None
 
             # Update hit statistics
             entry.hit_count += 1
-            entry.tokens_saved += self._estimate_tokens(entry.response)
+            tokens_saved = self._estimate_tokens(entry.response)
+            entry.tokens_saved += tokens_saved
             self._stats["hits"] += 1
-            self._stats["total_tokens_saved"] += self._estimate_tokens(entry.response)
+            self._stats["total_tokens_saved"] += tokens_saved
 
-            logger.debug(
-                f"Cache hit for key {cache_key[:8]}... (saved ~{self._estimate_tokens(entry.response)} tokens)"
+            emit(
+                "cache",
+                operation="get",
+                key=cache_key[:8],
+                status="hit",
+                tokens_saved=tokens_saved,
+                hit_count=entry.hit_count,
             )
+
+            logger.debug(f"Cache hit for key {cache_key[:8]}... (saved ~{tokens_saved} tokens)")
             return entry.response
 
     async def set(self, messages: List[Dict[str, str]], response: str, **kwargs) -> None:
         """Cache LLM response with metadata."""
-        async with self._lock:
-            cache_key = self._generate_key(messages, **kwargs)
+        from cogency.events import emit
 
+        cache_key = self._generate_key(messages, **kwargs)
+        tokens = self._estimate_tokens(response)
+
+        emit("cache", operation="set", key=cache_key[:8], status="storing", tokens=tokens)
+
+        async with self._lock:
             # Enforce size limit with LRU eviction
             if len(self._cache) >= self._max_size:
                 await self._evict_oldest()
@@ -91,12 +109,21 @@ class LLMCache:
             entry = CacheEntry(response=response, timestamp=time.time(), tokens_saved=0)
 
             self._cache[cache_key] = entry
-            logger.debug(
-                f"Cached response for key {cache_key[:8]}... ({self._estimate_tokens(response)} tokens)"
+            emit(
+                "cache",
+                operation="set",
+                key=cache_key[:8],
+                status="stored",
+                tokens=tokens,
+                cache_size=len(self._cache),
             )
+
+            logger.debug(f"Cached response for key {cache_key[:8]}... ({tokens} tokens)")
 
     async def _evict_oldest(self) -> None:
         """Evict least recently used entries."""
+        from cogency.events import emit
+
         if not self._cache:
             return
 
@@ -104,14 +131,35 @@ class LLMCache:
         sorted_entries = sorted(self._cache.items(), key=lambda x: x[1].timestamp)
 
         evict_count = max(1, len(sorted_entries) // 10)
+        emit(
+            "cache",
+            operation="evict",
+            status="start",
+            count=evict_count,
+            cache_size=len(self._cache),
+        )
+
         for key, _ in sorted_entries[:evict_count]:
             del self._cache[key]
             self._stats["evictions"] += 1
 
+        emit(
+            "cache",
+            operation="evict",
+            status="complete",
+            evicted=evict_count,
+            new_size=len(self._cache),
+        )
+
     async def clear(self) -> None:
         """Clear all cached entries."""
+        from cogency.events import emit
+
         async with self._lock:
+            cache_size = len(self._cache)
+            emit("cache", operation="clear", status="start", cache_size=cache_size)
             self._cache.clear()
+            emit("cache", operation="clear", status="complete", cleared=cache_size)
             logger.info("LLM cache cleared")
 
     def get_stats(self) -> Dict[str, Any]:

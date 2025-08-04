@@ -6,7 +6,7 @@ from typing import AsyncIterator, Dict, List, Union
 
 from resilient_result import Result
 
-from cogency.notify.core import Notification, emit
+from cogency.events import emit
 from cogency.observe.metrics import _counter as counter
 from cogency.observe.tokens import cost, count
 from cogency.utils.keys import KeyManager
@@ -85,13 +85,33 @@ class LLM(ABC):
         Returns:
             Result containing string response from the LLM or error
         """
+        from cogency.events import emit
+
+        emit("llm", operation="run", provider=self.provider_name, model=self.model, status="start")
 
         try:
             result = await self._run_with_metrics(messages, **kwargs)
 
+            emit(
+                "llm",
+                operation="run",
+                provider=self.provider_name,
+                model=self.model,
+                status="complete",
+                success=result.success,
+            )
+
             return result
 
         except Exception as e:
+            emit(
+                "llm",
+                operation="run",
+                provider=self.provider_name,
+                model=self.model,
+                status="error",
+                error=str(e),
+            )
             if self.notifier:
                 await self.notifier("trace", message=f"LLM {self.provider_name} failed: {str(e)}")
             logger.debug(f"LLM {self.provider_name} failed: {e}")
@@ -122,17 +142,13 @@ class LLM(ABC):
         counter("llm.cost", total_cost, {"provider": self.provider_name, "model": self.model})
 
         # Emit beautiful notification
-        await emit(
-            Notification(
-                "tokens",
-                {
-                    "tin": tin,
-                    "tout": tout,
-                    "cost": f"${total_cost:.4f}",
-                    "provider": self.provider_name,
-                    "model": self.model,
-                },
-            )
+        emit(
+            "tokens",
+            tin=tin,
+            tout=tout,
+            cost=f"${total_cost:.4f}",
+            provider=self.provider_name,
+            model=self.model,
         )
 
         # Cache response if enabled

@@ -95,15 +95,17 @@ class NetworkResilience(Eval):
             passed=passed,
             score=resilience_score,
             duration=execution_time,
-            traces=[{
-                "query": query,
-                "response": result,
-                "handled_timeout": handled_timeout,
-                "handled_rate_limit": handled_rate_limit,
-                "handled_dns_failure": handled_dns_failure,
-                "successful_fallback": successful_fallback,
-                "logs": agent_logs,
-            }],
+            traces=[
+                {
+                    "query": query,
+                    "response": result,
+                    "handled_timeout": handled_timeout,
+                    "handled_rate_limit": handled_rate_limit,
+                    "handled_dns_failure": handled_dns_failure,
+                    "successful_fallback": successful_fallback,
+                    "logs": agent_logs,
+                }
+            ],
             metadata={
                 "execution_time": execution_time,
                 "handled_timeout": handled_timeout,

@@ -87,17 +87,19 @@ class ErrorRecovery(Eval):
             passed=passed,
             score=recovery_score,
             duration=0.0,
-            traces=[{
-                "query": query,
-                "response": result,
-                "attempted_nonexistent": attempted_nonexistent,
-                "created_recovery_file": created_recovery_file,
-                "verified_file_content": verified_file_content,
-                "handled_invalid_command": handled_invalid_command,
-                "successful_recovery": successful_recovery,
-                "cleaned_up": cleaned_up,
-                "logs": agent_logs,
-            }],
+            traces=[
+                {
+                    "query": query,
+                    "response": result,
+                    "attempted_nonexistent": attempted_nonexistent,
+                    "created_recovery_file": created_recovery_file,
+                    "verified_file_content": verified_file_content,
+                    "handled_invalid_command": handled_invalid_command,
+                    "successful_recovery": successful_recovery,
+                    "cleaned_up": cleaned_up,
+                    "logs": agent_logs,
+                }
+            ],
             metadata={
                 "attempted_nonexistent": attempted_nonexistent,
                 "created_recovery_file": created_recovery_file,

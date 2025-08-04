@@ -55,12 +55,23 @@ class Tool(ABC):
 
         Use this method instead of run() directly.
         """
+        from cogency.events import emit
+
+        emit("tool", operation="execute", name=self.name, status="start")
+
         try:
             # Pre-validate and normalize arguments
             normalized_args = self._normalize_args(kwargs)
             validation_result = self._validate_args(normalized_args)
 
             if validation_result.failure:
+                emit(
+                    "tool",
+                    operation="execute",
+                    name=self.name,
+                    status="validation_failed",
+                    error=validation_result.error,
+                )
                 return validation_result
 
             # Validate args using dataclass schema if provided
@@ -71,21 +82,31 @@ class Tool(ABC):
                 # Fallback to direct execution if no schema
                 result = await self.run(**normalized_args)
 
-            # Track metrics
+            # Track metrics and events
             if result.failure:
                 counter(f"tools.errors.{self.name}", 1.0, {"tool": self.name})
+                emit(
+                    "tool", operation="execute", name=self.name, status="failed", error=result.error
+                )
             else:
                 counter(f"tools.success.{self.name}", 1.0, {"tool": self.name})
+                emit("tool", operation="execute", name=self.name, status="complete", success=True)
 
             return result
 
         except ValueError as e:
             # Schema validation errors
             counter(f"tools.errors.{self.name}", 1.0, {"tool": self.name})
+            emit(
+                "tool", operation="execute", name=self.name, status="validation_error", error=str(e)
+            )
             return Result.fail(f"Invalid arguments: {str(e)}")
         except Exception as e:
             # Critical execution errors
             counter(f"tools.errors.{self.name}", 1.0, {"tool": self.name})
+            emit(
+                "tool", operation="execute", name=self.name, status="execution_error", error=str(e)
+            )
             return Result.fail(f"Tool execution failed: {str(e)}")
 
     def _normalize_args(self, args: Dict[str, Any]) -> Dict[str, Any]:
@@ -160,7 +181,8 @@ class Tool(ABC):
         if not args:
             return ""
 
-        from cogency.notify.format import _truncate
+        def _truncate(text: str, length: int) -> str:
+            return text if len(text) <= length else text[: length - 3] + "..."
 
         # Use hint if provided
         if self.arg_key and self.arg_key in args:

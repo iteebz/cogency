@@ -15,11 +15,7 @@ class ToolEdges(Eval):
     description = "Test tool args limits and error handling"
 
     async def run(self) -> EvalResult:
-        agent = self.create_agent(
-            "edge_tester", 
-            tools=[Files(), Search()], 
-            max_iterations=8
-        )
+        agent = self.create_agent("edge_tester", tools=[Files(), Search()], max_iterations=8)
 
         # Test multiple edge cases - avoid security triggers
         edge_cases = [
@@ -45,7 +41,7 @@ class ToolEdges(Eval):
                     await asyncio.sleep(2**attempt)  # Exponential backoff
                     continue
                 raise
-        
+
         response_lower = result.lower()
 
         # Look for evidence of proper error handling
@@ -81,7 +77,13 @@ class ToolEdges(Eval):
         )
 
         # Success requires testing boundaries and handling failures
-        score = 1.0 if (tested_limits and graceful_handling and handled_errors and attempted_multiple) else 0.8 if (handled_errors and attempted_multiple) else 0.4
+        score = (
+            1.0
+            if (tested_limits and graceful_handling and handled_errors and attempted_multiple)
+            else 0.8
+            if (handled_errors and attempted_multiple)
+            else 0.4
+        )
         passed = handled_errors and attempted_multiple and score >= 0.8
 
         agent_logs = agent.logs() if hasattr(agent, "logs") else []
@@ -91,15 +93,17 @@ class ToolEdges(Eval):
             passed=passed,
             score=score,
             duration=0.0,
-            traces=[{
-                "query": query,
-                "response": result,
-                "handled_errors": handled_errors,
-                "tested_limits": tested_limits,
-                "graceful_handling": graceful_handling,
-                "attempted_multiple": attempted_multiple,
-                "logs": agent_logs,
-            }],
+            traces=[
+                {
+                    "query": query,
+                    "response": result,
+                    "handled_errors": handled_errors,
+                    "tested_limits": tested_limits,
+                    "graceful_handling": graceful_handling,
+                    "attempted_multiple": attempted_multiple,
+                    "logs": agent_logs,
+                }
+            ],
             metadata={
                 "handled_errors": handled_errors,
                 "tested_limits": tested_limits,

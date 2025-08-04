@@ -20,29 +20,47 @@ class StatePersistence:
 
     async def save(self, state: AgentState) -> bool:
         """Save state with v1.0.0 structure."""
+        from cogency.events import emit
+
         if not self.enabled:
             return True
 
-        try:
-            state_key = self._state_key(state.execution.user_id)
+        state_key = self._state_key(state.execution.user_id)
+        emit("persistence", operation="save", key=state_key, status="start")
 
+        try:
             # Let the store handle AgentState serialization
             # The filesystem store has the proper serialization logic
-            return await self.store.save(state_key, state)
+            result = await self.store.save(state_key, state)
 
-        except Exception:
+            emit(
+                "persistence",
+                operation="save",
+                key=state_key,
+                status="complete" if result else "failed",
+                success=result,
+            )
+            return result
+
+        except Exception as e:
+            emit("persistence", operation="save", key=state_key, status="error", error=str(e))
             return False
 
     async def load(self, user_id: str) -> Optional[AgentState]:
         """Load state with v1.0.0 structure."""
+        from cogency.events import emit
+
         if not self.enabled:
             return None
 
+        state_key = self._state_key(user_id)
+        emit("persistence", operation="load", key=state_key, status="start")
+
         try:
-            state_key = self._state_key(user_id)
             data = await self.store.load(state_key)
 
             if not data:
+                emit("persistence", operation="load", key=state_key, status="not_found")
                 return None
 
             # Handle different data formats (backwards compatibility)
@@ -93,20 +111,42 @@ class StatePersistence:
                 state.reasoning.insights = reasoning_data.get("insights", [])
                 state.reasoning.thoughts = reasoning_data.get("thoughts", [])
 
+            emit(
+                "persistence",
+                operation="load",
+                key=state_key,
+                status="complete",
+                has_profile=user_profile is not None,
+                iteration=state.execution.iteration,
+            )
             return state
 
         except Exception as e:
+            emit("persistence", operation="load", key=state_key, status="error", error=str(e))
             # Graceful degradation - for debugging
             print(f"Debug: Load failed with {e}")
             return None
 
     async def delete(self, user_id: str) -> bool:
         """Delete persisted state."""
+        from cogency.events import emit
+
         if not self.enabled:
             return True
 
+        state_key = self._state_key(user_id)
+        emit("persistence", operation="delete", key=state_key, status="start")
+
         try:
-            state_key = self._state_key(user_id)
-            return await self.store.delete(state_key)
-        except Exception:
+            result = await self.store.delete(state_key)
+            emit(
+                "persistence",
+                operation="delete",
+                key=state_key,
+                status="complete" if result else "not_found",
+                success=result,
+            )
+            return result
+        except Exception as e:
+            emit("persistence", operation="delete", key=state_key, status="error", error=str(e))
             return False
