@@ -86,7 +86,14 @@ class LLM(ABC):
         """
         from cogency.events import emit
 
-        emit("llm", operation="run", provider=self.provider_name, model=self.model, status="start")
+        emit(
+            "llm",
+            level="debug",
+            operation="run",
+            provider=self.provider_name,
+            model=self.model,
+            status="start",
+        )
 
         try:
             result = await self._run_with_metrics(messages, **kwargs)

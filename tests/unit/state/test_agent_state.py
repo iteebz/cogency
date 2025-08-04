@@ -1,7 +1,7 @@
 """AgentState tests - Complete agent state composition."""
 
 from cogency.state import AgentState
-from cogency.state.user_profile import UserProfile
+from cogency.state.user import UserProfile
 
 
 def test_constructor():
@@ -11,7 +11,7 @@ def test_constructor():
     assert state.execution.query == "test query"
     assert state.execution.user_id == "default"
     assert state.reasoning.goal == "test query"
-    assert state.user_profile is None
+    assert state.user is None
 
 
 def test_with_user_id():
@@ -29,8 +29,8 @@ def test_with_profile():
     state = AgentState(query="test query", user_profile=profile)
 
     assert state.execution.query == "test query"
-    assert state.user_profile is profile
-    assert state.user_profile.user_id == "test_user"
+    assert state.user is profile
+    assert state.user.user_id == "test_user"
 
 
 def test_composition():

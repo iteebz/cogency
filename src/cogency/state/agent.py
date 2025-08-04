@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 
 from .execution import AgentMode, ExecutionState
 from .reasoning import ReasoningContext
-from .user_profile import UserProfile
+from .user import UserProfile
 
 
 class AgentState:
@@ -15,16 +15,17 @@ class AgentState:
     ):
         self.execution = ExecutionState(query=query, user_id=user_id)
         self.reasoning = ReasoningContext(goal=query)
-        self.user_profile = user_profile  # Situated memory
+        self.user = user_profile  # Situated memory
+        self.user_profile = user_profile  # Alias for backward compatibility
 
     def get_situated_context(self) -> str:
         """Get user context for prompt injection."""
-        if not self.user_profile:
+        if not self.user:
             return ""
 
         from cogency.memory.compression import compress
 
-        context = compress(self.user_profile)
+        context = compress(self.user)
         return f"USER CONTEXT:\n{context}\n\n" if context else ""
 
     def update_from_reasoning(self, reasoning_data: Dict[str, Any]) -> None:
@@ -59,18 +60,31 @@ class AgentState:
                 for insight in context_updates["insights"]:
                     self.reasoning.add_insight(insight)
 
+        # Also handle workspace_update for backward compatibility
+        workspace_update = reasoning_data.get("workspace_update", {})
+        if workspace_update:
+            if "objective" in workspace_update:
+                self.reasoning.goal = workspace_update["objective"]
+            if "approach" in workspace_update:
+                self.reasoning.strategy = workspace_update["approach"]
+            if "observations" in workspace_update and isinstance(
+                workspace_update["observations"], list
+            ):
+                for insight in workspace_update["observations"]:
+                    self.reasoning.add_insight(insight)
+
         # Handle direct response
         if "response" in reasoning_data and reasoning_data["response"]:
             self.execution.response = reasoning_data["response"]
 
         # Handle mode switching
-        if "switch_mode" in reasoning_data and reasoning_data["switch_mode"]:
-            new_mode = reasoning_data["switch_mode"]
+        mode_field = reasoning_data.get("switch_mode") or reasoning_data.get("switch_to")
+        if mode_field:
             import contextlib
 
             with contextlib.suppress(ValueError):
                 # Convert string to enum value
-                self.execution.mode = AgentMode(new_mode)
+                self.execution.mode = AgentMode(mode_field)
 
         # Store security assessment for tool execution
         if "security_assessment" in reasoning_data:

@@ -39,7 +39,7 @@ def count(msgs: List[Dict[str, str]], model: str = "gpt-4o") -> int:
     # Emit token count event
     from cogency.events import emit
 
-    emit("token_count", model=model, count=total, messages=len(msgs))
+    emit("token_count", level="debug", model=model, count=total, messages=len(msgs))
 
     return total
 
@@ -52,6 +52,6 @@ def cost(tin: int, tout: int, model: str) -> float:
     # Emit cost event
     from cogency.events import emit
 
-    emit("token_cost", model=model, tin=tin, tout=tout, cost=cost_usd)
+    emit("token_cost", level="debug", model=model, tin=tin, tout=tout, cost=cost_usd)
 
     return cost_usd

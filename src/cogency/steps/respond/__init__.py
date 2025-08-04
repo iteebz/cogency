@@ -32,7 +32,7 @@ async def respond(
     output_schema: Optional[str] = None,
 ) -> None:
     """Respond: generate final formatted response."""
-    emit("respond", state="generating")
+    emit("respond", level="debug", state="generating")
 
     # Collect context
     tool_results = collect_tool_results(state)

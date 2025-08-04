@@ -18,7 +18,7 @@ async def synthesize(state: AgentState, memory) -> None:
     emit("synthesize", state="start", user_id=state.execution.user_id)
 
     # Check synthesis triggers
-    user_profile = state.user_profile or await memory._load_profile(state.execution.user_id)
+    user_profile = state.user or await memory._load_profile(state.execution.user_id)
 
     if not _should_synthesize(user_profile, state):
         emit("synthesize", state="skipped", reason="no_trigger")

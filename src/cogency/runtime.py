@@ -174,14 +174,30 @@ class AgentExecutor:
 
         # Setup unified events system
         bus = MessageBus()
-        bus.subscribe(ConsoleHandler(config.notify, config.debug))
+
+        # Add console handler if enabled
+        if getattr(config, "console", config.notify):
+            bus.subscribe(ConsoleHandler())
+
         bus.subscribe(LoggerHandler())  # For agent.logs()
         bus.subscribe(get_metrics_handler())
 
-        # Add custom handlers
+        # Add custom handlers (functions or handler objects)
         if config.handlers:
             for handler in config.handlers:
-                bus.subscribe(handler)
+                if callable(handler) and not hasattr(handler, "handle"):
+                    # Function - wrap in simple handler
+                    class FunctionHandler:
+                        def __init__(self, func):
+                            self.func = func
+
+                        def handle(self, event):
+                            self.func(event)
+
+                    bus.subscribe(FunctionHandler(handler))
+                else:
+                    # Handler object with handle() method
+                    bus.subscribe(handler)
 
         init_bus(bus)
 
@@ -299,7 +315,7 @@ class AgentExecutor:
             await self.memory.remember(query, human=True)
             # CRITICAL FIX: Connect memory to AgentState for context injection
             user_profile = await self.memory._load_profile(user_id)
-            state.user_profile = user_profile
+            state.user = user_profile
 
         # Set agent mode
         state.execution.mode = self.mode

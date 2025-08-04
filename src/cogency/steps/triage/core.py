@@ -142,14 +142,16 @@ async def _early_check(llm: LLM, query: str, available_tools: List[Tool]) -> Opt
     prompt = f"""Query: "{query}"
 Available tools: {tool_names}
 
-Can this query be answered directly without using any tools? Answer with:
-- "DIRECT: [your answer]" if it can be answered directly
-- "TOOLS" if it requires tools or complex reasoning
+Can this query be answered with ONLY the information I currently have? Answer with:
+- "DIRECT: [answer]" if I have all the specific data/context needed
+- "TOOLS" if I need to gather information, execute commands, or access external data
 
 Examples:
+- "What does pwd do?" → "DIRECT: Shows current directory"
+- "Use pwd to show current directory" → "TOOLS"
 - "What is 5+5?" → "DIRECT: 10"
 - "Hello, who are you?" → "DIRECT: I'm an AI assistant"
-- "What's the weather?" → "TOOLS"
+- "What's the weather in NYC?" → "TOOLS"
 - "Search for Python tutorials" → "TOOLS"
 """
 
@@ -228,7 +230,7 @@ async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) ->
 
 async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> TriageResult:
     """Single LLM call to handle all triage tasks."""
-    emit("triage", state="analyzing", tool_count=len(available_tools))
+    emit("triage", level="debug", state="analyzing", tool_count=len(available_tools))
 
     # Build tool registry for context
     registry_lite = (
@@ -237,7 +239,7 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
 
     prompt = build_triage_prompt(query, registry_lite)
 
-    emit("triage", state="llm_call")
+    emit("triage", level="debug", state="llm_call")
     result = await llm.run([{"role": "user", "content": prompt}])
     response = unwrap(result)
     parsed = unwrap(_parse_json(response))
@@ -249,12 +251,12 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
         parsed = {}
 
     # Pass LLM security assessment to the single security function
-    emit("triage", state="security_check")
+    emit("triage", level="debug", state="security_check")
     security_section = parsed.get("security_assessment", {}) or {}
     security_result = await assess(query, {"security_assessment": security_section})
 
     if not security_result.safe:  # SEC-001: Prompt injection protection
-        emit("triage", state="security_violation")
+        emit("triage", level="debug", state="security_violation")
         return TriageResult(direct_response="Security violation: Request contains unsafe content")
 
     # Extract memory section safely
@@ -264,11 +266,11 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
 
     # Emit completion events
     if direct_response:
-        emit("triage", state="direct_response")
+        emit("triage", level="debug", state="direct_response")
     elif selected_tools:
-        emit("triage", state="tools_selected", selected_tools=len(selected_tools))
+        emit("triage", level="debug", state="tools_selected", selected_tools=len(selected_tools))
     else:
-        emit("triage", state="no_tools")
+        emit("triage", level="debug", state="no_tools")
 
     return TriageResult(
         direct_response=direct_response,

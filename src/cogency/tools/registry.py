@@ -160,6 +160,82 @@ def get_tools(**kwargs) -> List[Tool]:
     return ToolRegistry.get_tools(**kwargs)
 
 
+def _to_json(schema: str, tool_name: str) -> str:
+    """Convert function-call schema to JSON format for LLM."""
+    # Parse "files(action: str, path: str = '', content: str = None, ...)"
+    if not schema or "(" not in schema:
+        return f'{{"name": "{tool_name}", "args": {{}}}}'
+
+    # Extract args from function signature
+    try:
+        # Find content between parentheses
+        start = schema.find("(")
+        end = schema.rfind(")")
+        if start == -1 or end == -1:
+            return f'{{"name": "{tool_name}", "args": {{}}}}'
+
+        args_str = schema[start + 1 : end].strip()
+        if not args_str:
+            return f'{{"name": "{tool_name}", "args": {{}}}}'
+
+        # Simple parsing - split by comma, extract arg names
+        args = {}
+        for arg in args_str.split(","):
+            arg = arg.strip()
+            if ":" in arg:
+                arg_name = arg.split(":")[0].strip()
+                # Clean up arg name (remove defaults, etc)
+                if "=" in arg_name:
+                    arg_name = arg_name.split("=")[0].strip()
+                args[arg_name] = "value"
+
+        return f'{{"name": "{tool_name}", "args": {args}}}'.replace("'", '"')
+
+    except Exception:
+        # Fallback if parsing fails
+        return f'{{"name": "{tool_name}", "args": {{}}}}'
+
+
+def _convert_examples_to_json(examples: list, tool_name: str) -> list:
+    """Convert function-call examples to JSON format."""
+    json_examples = []
+    for example in examples:
+        # Convert "files(action='create', path='app.py')" to JSON
+        if "(" in example and example.startswith(tool_name):
+            try:
+                # Extract args from function call
+                start = example.find("(")
+                end = example.rfind(")")
+                if start != -1 and end != -1:
+                    args_str = example[start + 1 : end]
+                    # Simple conversion - this is basic but should work for most cases
+                    json_example = f'{{"name": "{tool_name}", "args": {{{args_str}}}}}'
+                    json_examples.append(json_example)
+                else:
+                    json_examples.append(f'{{"name": "{tool_name}", "args": {{}}}}')
+            except (ValueError, IndexError, AttributeError):
+                json_examples.append(f'{{"name": "{tool_name}", "args": {{}}}}')
+        else:
+            json_examples.append(example)
+    return json_examples
+
+
+def _convert_rules_to_json(rules: list, tool_name: str) -> list:
+    """Convert function-call rules to JSON format."""
+    json_rules = []
+    for rule in rules:
+        # Replace function-call references with JSON format
+        converted_rule = rule.replace(
+            f"{tool_name}(action='...', ...)",
+            f'{{"name": "{tool_name}", "args": {{"action": "...", "...": "..."}}}}',
+        )
+        converted_rule = converted_rule.replace(
+            "files.read, files.list, files.create", "method-style calls like files.read()"
+        )
+        json_rules.append(converted_rule)
+    return json_rules
+
+
 def build_registry(tools: List[Tool], lite: bool = False) -> str:
     """Build tool registry string for LLM."""
     if not tools:
@@ -173,17 +249,17 @@ def build_registry(tools: List[Tool], lite: bool = False) -> str:
                 f"{tool_instance.emoji} [{tool_instance.name}]: {tool_instance.description}"
             )
         else:
-            rules_str = (
-                "\n".join(f"- {r}" for r in tool_instance.rules) if tool_instance.rules else "None"
-            )
-            examples_str = (
-                "\n".join(f"- {e}" for e in tool_instance.examples)
-                if tool_instance.examples
-                else "None"
+            # Convert rules and examples to JSON format
+            json_rules = _convert_rules_to_json(tool_instance.rules or [], tool_instance.name)
+            json_examples = _convert_examples_to_json(
+                tool_instance.examples or [], tool_instance.name
             )
 
+            rules_str = "\n".join(f"- {r}" for r in json_rules) if json_rules else "None"
+            examples_str = "\n".join(f"- {e}" for e in json_examples) if json_examples else "None"
+
             entry = f"{tool_instance.emoji} [{tool_instance.name}]\n{tool_instance.description}\n\n"
-            entry += f"{tool_instance.schema}\n\n"
+            entry += f"{_to_json(tool_instance.schema, tool_instance.name)}\n\n"
             entry += f"Rules:\n{rules_str}\n\n"
             entry += f"Examples:\n{examples_str}\n"
             entry += "---"

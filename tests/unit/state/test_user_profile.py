@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from cogency.memory.compression import compress
-from cogency.state.user_profile import UserProfile
+from cogency.state.user import UserProfile
 
 
 def test_constructor():
@@ -13,7 +13,7 @@ def test_constructor():
     assert profile.user_id == "test_user"
     assert profile.preferences == {}
     assert profile.goals == []
-    assert profile.expertise_areas == []
+    assert profile.expertise == []
     assert profile.communication_style == ""
     assert profile.projects == {}
     assert profile.interests == []
@@ -41,7 +41,7 @@ def testcompress_populated():
     profile.goals = ["goal1", "goal2", "goal3"]
     profile.preferences = {"format": "json", "detail": "high"}
     profile.projects = {"proj1": "description1", "proj2": "description2"}
-    profile.expertise_areas = ["python", "ml", "data"]
+    profile.expertise = ["python", "ml", "data"]
     profile.constraints = ["time", "budget"]
 
     result = compress(profile)
@@ -129,15 +129,15 @@ def test_update_expertise():
     insights = {"expertise": ["python", "machine learning"]}
     profile.update_from_interaction(insights)
 
-    assert "python" in profile.expertise_areas
-    assert "machine learning" in profile.expertise_areas
+    assert "python" in profile.expertise
+    assert "machine learning" in profile.expertise
 
     # Test bounded growth
     for i in range(20):
         insights = {"expertise": [f"skill_{i}"]}
         profile.update_from_interaction(insights)
 
-    assert len(profile.expertise_areas) <= 15
+    assert len(profile.expertise) <= 15
 
 
 def test_update_projects():
@@ -206,7 +206,7 @@ def test_update_comprehensive():
 
     assert profile.preferences["format"] == "json"
     assert "complete project" in profile.goals
-    assert "python" in profile.expertise_areas
+    assert "python" in profile.expertise
     assert profile.communication_style == "technical"
     assert profile.projects["proj1"] == "test project"
     assert "detailed specs work" in profile.success_patterns

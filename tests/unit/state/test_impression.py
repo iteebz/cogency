@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from cogency.memory import ImpressionSynthesizer
-from cogency.state.user_profile import UserProfile
+from cogency.state.user import UserProfile
 
 
 @pytest.fixture

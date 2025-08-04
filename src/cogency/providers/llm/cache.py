@@ -56,12 +56,12 @@ class LLMCache:
         from cogency.events import emit
 
         cache_key = self._generate_key(messages, **kwargs)
-        emit("cache", operation="get", key=cache_key[:8], status="checking")
+        emit("cache", level="debug", operation="get", key=cache_key[:8], status="checking")
 
         async with self._lock:
             if cache_key not in self._cache:
                 self._stats["misses"] += 1
-                emit("cache", operation="get", key=cache_key[:8], status="miss")
+                emit("cache", level="debug", operation="get", key=cache_key[:8], status="miss")
                 return None
 
             entry = self._cache[cache_key]
@@ -70,7 +70,7 @@ class LLMCache:
             if self._is_expired(entry):
                 del self._cache[cache_key]
                 self._stats["misses"] += 1
-                emit("cache", operation="get", key=cache_key[:8], status="expired")
+                emit("cache", level="debug", operation="get", key=cache_key[:8], status="expired")
                 return None
 
             # Update hit statistics
@@ -99,7 +99,14 @@ class LLMCache:
         cache_key = self._generate_key(messages, **kwargs)
         tokens = self._estimate_tokens(response)
 
-        emit("cache", operation="set", key=cache_key[:8], status="storing", tokens=tokens)
+        emit(
+            "cache",
+            level="debug",
+            operation="set",
+            key=cache_key[:8],
+            status="storing",
+            tokens=tokens,
+        )
 
         async with self._lock:
             # Enforce size limit with LRU eviction
@@ -157,9 +164,9 @@ class LLMCache:
 
         async with self._lock:
             cache_size = len(self._cache)
-            emit("cache", operation="clear", status="start", cache_size=cache_size)
+            emit("cache", level="debug", operation="clear", status="start", cache_size=cache_size)
             self._cache.clear()
-            emit("cache", operation="clear", status="complete", cleared=cache_size)
+            emit("cache", level="debug", operation="clear", status="complete", cleared=cache_size)
             logger.info("LLM cache cleared")
 
     def get_stats(self) -> Dict[str, Any]:

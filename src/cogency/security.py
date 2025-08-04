@@ -46,7 +46,7 @@ async def assess(text: str, context: Dict[str, Any] = None) -> SecurityResult:
     context = context or {}
 
     # Emit start of assessment
-    emit("security", operation="assess", status="checking", text_length=len(text))
+    emit("security", level="debug", operation="assess", status="checking", text_length=len(text))
 
     try:
         # Threat patterns - immediate protection that also trains the LLM
@@ -66,15 +66,29 @@ async def assess(text: str, context: Dict[str, Any] = None) -> SecurityResult:
         # Semantic assessment via LLM (when available)
         if "security_assessment" in context:
             result = _semantic_assessment(text, context)
-            emit("security", operation="assess", status="complete", safe=result.safe, semantic=True)
+            emit(
+                "security",
+                level="debug",
+                operation="assess",
+                status="complete",
+                safe=result.safe,
+                semantic=True,
+            )
             return result
 
         # Default: allow with minimal validation
-        emit("security", operation="assess", status="complete", safe=True, semantic=False)
+        emit(
+            "security",
+            level="debug",
+            operation="assess",
+            status="complete",
+            safe=True,
+            semantic=False,
+        )
         return SecurityResult(SecurityAction.ALLOW)
 
     except Exception as e:
-        emit("security", operation="assess", status="error", error=str(e))
+        emit("security", level="debug", operation="assess", status="error", error=str(e))
         # Fail secure - block on error
         return SecurityResult(SecurityAction.BLOCK, message=f"Security assessment failed: {e}")
 

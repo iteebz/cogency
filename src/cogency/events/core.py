@@ -18,9 +18,9 @@ class MessageBus:
         """Add event handler."""
         self.handlers.append(handler)
 
-    def emit(self, event_type: str, **payload):
-        """Emit event to all handlers."""
-        event = {"type": event_type, "data": payload, "timestamp": time.time()}
+    def emit(self, event_type: str, level: str = "info", **payload):
+        """Emit event to all handlers with level."""
+        event = {"type": event_type, "level": level, "data": payload, "timestamp": time.time()}
         for handler in self.handlers:
             handler.handle(event)
 
@@ -31,17 +31,18 @@ def init_bus(bus: "MessageBus") -> None:
     _bus = bus
 
 
-def emit(event_type: str, **data) -> None:
-    """Emit to global bus if available."""
+def emit(event_type: str, level: str = "info", **data) -> None:
+    """Emit to global bus if available with level."""
     if _bus:
-        _bus.emit(event_type, **data)
+        _bus.emit(event_type, level=level, **data)
 
 
 def get_logs(
     *,
+    mode: str = None,
     type: str = None,
     step: str = None,
-    summary: bool = False,
+    summary: bool = None,
     errors_only: bool = False,
     last: int = None,
 ) -> List[dict]:
@@ -49,11 +50,20 @@ def get_logs(
     if not _bus:
         return []
 
+    # Handle backward compatibility - if mode is not provided, use summary parameter
+    if mode is None:
+        if summary is True:
+            mode = "summary"
+        elif errors_only:
+            mode = "errors"
+        else:
+            mode = "debug"
+
     # Find the LoggerHandler in the bus
     for handler in _bus.handlers:
         if hasattr(handler, "logs"):
             return handler.logs(
-                type=type, step=step, summary=summary, errors_only=errors_only, last=last
+                mode=mode, type=type, step=step, summary=summary, errors_only=errors_only, last=last
             )
     return []
 

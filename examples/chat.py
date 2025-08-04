@@ -13,11 +13,12 @@ async def main():
     print("I can code, research, analyze data, remember our conversations, and more.")
     print("Type 'quit' to exit.\n")
 
-    # Cogency agent - concise and direct
+    # Cogency agent - concise and direct with thinking indicators
     agent = Agent(
         "cogency",
         identity="Cogency - concise, direct, helpful AI. Brief responses unless detail is specifically requested.",
         memory=True,
+        console="thinking",  # Show friendly thinking indicators
     )
 
     while True:
@@ -29,37 +30,9 @@ async def main():
 
             if user_input:
                 print()  # Newline to separate
-                response_started = False
-                async for chunk in agent.stream(user_input):
-                    # Detect when actual response starts (not thinking/tools)
-                    if not response_started:
-                        if chunk.startswith(
-                            (
-                                "\n🧠",
-                                "\n⚡",
-                                "\n🔍",
-                                "\n📁",
-                                "\n🚀",
-                                "\n💾",
-                                "\n🛠️",
-                                "\n🌐",
-                                "\n⏰",
-                                "\n📊",
-                                "\n🧮",
-                                " ↳",
-                            )
-                        ):
-                            # This is thinking/tool output - just print it
-                            print(chunk, end="", flush=True)
-                        else:
-                            # This is the start of the actual response
-                            print("\n", end="", flush=True)
-                            print(chunk, end="", flush=True)
-                            response_started = True
-                    else:
-                        # Already in response mode
-                        print(chunk, end="", flush=True)
-                print("\n")
+                response = await agent.run_async(user_input)
+                print(f"🤖 {response}")
+                print()
 
         except KeyboardInterrupt:
             print("\n👋 Goodbye!")

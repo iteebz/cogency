@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Any, Dict
 
 from cogency.persist.serialize import deserialize_profile, serialize_profile
-from cogency.state.user_profile import UserProfile
+from cogency.state.user import UserProfile
 
 
 class ImpressionSynthesizer:

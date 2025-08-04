@@ -63,7 +63,7 @@ class AgentState:
     def __init__(self, query: str, user_id: str = "default", user_profile: Optional['UserProfile'] = None):
         self.execution = ExecutionState(query=query, user_id=user_id)
         self.reasoning = ReasoningContext(goal=query)  
-        self.user_profile = user_profile  # Situated memory
+        self.user = user_profile  # Situated memory
 ```
 
 ## Situated Memory Architecture
@@ -142,11 +142,11 @@ User context is injected into reasoning prompts:
 ```python
 def get_situated_context(self) -> str:
     """Get user context for prompt injection."""
-    if not self.user_profile:
+    if not self.user:
         return ""
         
     from cogency.memory import compress
-    context = compress(self.user_profile)
+    context = compress(self.user)
     return f"USER CONTEXT:\n{context}\n\n" if context else ""
 ```
 
@@ -182,7 +182,7 @@ state_data = {
     "state": {
         "execution": asdict(state.execution),
         "reasoning": asdict(state.reasoning), 
-        "user_profile": serialize_profile(state.user_profile) if state.user_profile else None,
+        "user_profile": serialize_profile(state.user) if state.user else None,
     },
     "process_id": self.process_id,
 }

@@ -4,7 +4,7 @@ from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict
 
-from cogency.state.user_profile import UserProfile
+from cogency.state.user import UserProfile
 
 
 def serialize_profile(profile: UserProfile) -> Dict[str, Any]:

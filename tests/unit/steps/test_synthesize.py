@@ -21,10 +21,10 @@ class MockMemory:
     def __init__(self):
         self.update_impression = AsyncMock()
         self._load_profile = AsyncMock()
-        self.user_profile = UserProfile(user_id="test_user")
+        self.user = UserProfile(user_id="test_user")
 
     async def _load_profile(self, user_id: str):
-        return self.user_profile
+        return self.user
 
 
 @pytest.fixture
@@ -61,7 +61,7 @@ async def test_synthesize_no_memory(agent_state):
 @pytest.mark.asyncio
 async def test_synthesize_with_triggers(agent_state, mock_memory, user_profile):
     """Test synthesis when triggers are met."""
-    agent_state.user_profile = user_profile
+    agent_state.user = user_profile
 
     # Set up threshold trigger
     user_profile.interaction_count = 10
@@ -76,7 +76,7 @@ async def test_synthesize_with_triggers(agent_state, mock_memory, user_profile):
 @pytest.mark.asyncio
 async def test_synthesize_no_triggers(agent_state, mock_memory, user_profile):
     """Test synthesis when no triggers are met."""
-    agent_state.user_profile = user_profile
+    agent_state.user = user_profile
 
     # No triggers met
     user_profile.interaction_count = 2
@@ -93,7 +93,7 @@ async def test_synthesize_no_triggers(agent_state, mock_memory, user_profile):
 @pytest.mark.asyncio
 async def test_synthesize_idempotence(agent_state, mock_memory, user_profile):
     """Test that synthesis doesn't run twice concurrently."""
-    agent_state.user_profile = user_profile
+    agent_state.user = user_profile
 
     # Set up triggers
     user_profile.interaction_count = 10

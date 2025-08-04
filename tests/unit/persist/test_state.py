@@ -26,7 +26,7 @@ class MockStore(Store):
         state_data = {
             "execution": asdict(state.execution),
             "reasoning": asdict(state.reasoning),
-            "user_profile": serialize_profile(state.user_profile) if state.user_profile else None,
+            "user_profile": serialize_profile(state.user) if state.user else None,
         }
         self.states[state_key] = {"state": state_data}
         return True
@@ -141,13 +141,13 @@ async def test_key_gen(persistence, sample_state):
 async def test_reconstruct(persistence, sample_state):
     """Test complete state reconstruction with v1.0.0 structure."""
     # Add complex v1.0.0 state data
-    from cogency.state.user_profile import UserProfile
+    from cogency.state.user import UserProfile
 
     # Set up user profile
     profile = UserProfile(user_id="test_user")
     profile.preferences = {"style": "detailed"}
     profile.goals = ["Learn programming"]
-    sample_state.user_profile = profile
+    sample_state.user = profile
 
     # Add complex execution state
     sample_state.execution.iteration = 5
@@ -180,6 +180,6 @@ async def test_reconstruct(persistence, sample_state):
     assert "Important insight" in loaded_state.reasoning.insights
 
     # Verify user profile
-    assert loaded_state.user_profile is not None
-    assert loaded_state.user_profile.preferences["style"] == "detailed"
-    assert "Learn programming" in loaded_state.user_profile.goals
+    assert loaded_state.user is not None
+    assert loaded_state.user.preferences["style"] == "detailed"
+    assert "Learn programming" in loaded_state.user.goals

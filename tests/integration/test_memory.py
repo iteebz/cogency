@@ -175,7 +175,7 @@ async def test_synthesis_step_integration():
         # Create agent state
         state = AgentState(query="test query", user_id="integration_test")
         state.execution.user_id = "integration_test"
-        state.user_profile = user_profile
+        state.user = user_profile
 
         # Execute synthesis step
         await synthesize(state, memory)
@@ -212,7 +212,7 @@ async def test_synthesis_lifecycle_complete():
         profile_threshold.last_synthesis_count = 0
 
         state_threshold = AgentState(query="test", user_id="threshold_user")
-        state_threshold.user_profile = profile_threshold
+        state_threshold.user = profile_threshold
 
         # Should trigger synthesis
         assert _should_synthesize(profile_threshold, state_threshold) is True
@@ -229,7 +229,7 @@ async def test_synthesis_lifecycle_complete():
         profile_session.session_timeout = 1800  # 30 minutes
 
         state_session = AgentState(query="test", user_id="session_user")
-        state_session.user_profile = profile_session
+        state_session.user = profile_session
 
         # Should trigger synthesis due to session timeout
         assert _should_synthesize(profile_session, state_session) is True
@@ -246,7 +246,7 @@ async def test_synthesis_lifecycle_complete():
 
         state_high_value = AgentState(query="test", user_id="high_value_user")
         state_high_value.execution.iteration = 8  # High complexity
-        state_high_value.user_profile = profile_high_value
+        state_high_value.user = profile_high_value
 
         # Should trigger synthesis due to high complexity
         assert _should_synthesize(profile_high_value, state_high_value) is True

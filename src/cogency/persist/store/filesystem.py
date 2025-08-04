@@ -42,9 +42,7 @@ class Filesystem(Store):
                 "state": {
                     "execution": asdict(state.execution),
                     "reasoning": asdict(state.reasoning),
-                    "user_profile": (
-                        serialize_profile(state.user_profile) if state.user_profile else None
-                    ),
+                    "user_profile": (serialize_profile(state.user) if state.user else None),
                 },
                 "process_id": self.process_id,
             }

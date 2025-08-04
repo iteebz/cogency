@@ -18,12 +18,13 @@ User Query: {query}
 Agent Response: {response}
 Success: {success}
 
-Extract insights about:
-- User goals and preferences
-- Technical expertise level  
-- Communication preferences
-- Project context
-- Success/failure patterns
+Extract specific insights:
+- Preferences: Key-value pairs of user preferences
+- Goals: What is the user trying to build/achieve?
+- Expertise: Areas of knowledge and skill
+- Communication: Prefers concise vs detailed explanations
+- Project: Name, domain, current focus area
+- Patterns: What types of requests succeed/fail?
 
 Return JSON:
 {{

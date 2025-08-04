@@ -18,7 +18,7 @@ Internal components:
 from .agent import AgentState  # noqa: F401
 from .execution import AgentMode, ExecutionState  # noqa: F401
 from .reasoning import ReasoningContext  # noqa: F401
-from .user_profile import UserProfile  # noqa: F401
+from .user import UserProfile  # noqa: F401
 
 # No public exports - use Agent APIs instead
 __all__ = []

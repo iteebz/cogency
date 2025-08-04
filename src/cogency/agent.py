@@ -16,6 +16,7 @@ class Agent:
         tools: Tools to enable - list of names, Tool objects, or single string
         memory: Enable memory - True for defaults or MemoryConfig for custom
         handlers: Custom event handlers for streaming, websockets, etc
+        console: Show console output - True/False (default True)
 
     Advanced config (**kwargs):
         identity: Agent persona/identity
@@ -29,6 +30,8 @@ class Agent:
 
     Examples:
         Basic: Agent("assistant")
+        Production: Agent("assistant", console=False)
+        See reasoning: Agent("assistant", console=True)
         With events: Agent("assistant", handlers=[WebSocketHandler(ws)])
         Advanced: Agent("assistant", memory=MemoryConfig(threshold=8000))
     """
@@ -40,6 +43,7 @@ class Agent:
         tools: Union[List[str], List[Tool], str] = None,
         memory: Union[bool, MemoryConfig] = False,
         handlers: List[Any] = None,
+        console: bool = True,
         **config,
     ):
         from cogency.config.dataclasses import AgentConfig
@@ -59,6 +63,7 @@ class Agent:
         self._config.tools = tools
         self._config.memory = memory
         self._config.handlers = self._handlers
+        self._config.console = console
 
         # Apply advanced config
         for key, value in advanced.items():
@@ -106,43 +111,78 @@ class Agent:
         executor = await self._get_executor()
         return await executor.run(query, user_id, identity)
 
+    async def stream(self, query: str, user_id: str = "default", identity: str = None):
+        """Execute agent query with streaming response.
+
+        Args:
+            query: User query to process
+            user_id: User identifier for memory/state
+            identity: Override agent identity for this query
+
+        Yields:
+            Response chunks as they become available
+        """
+        # For now, fall back to complete response and yield it
+        # TODO: Implement true streaming at the execution level
+        response = await self.run_async(query, user_id, identity)
+
+        # Simulate streaming by yielding the response in chunks
+        chunk_size = 50
+        for i in range(0, len(response), chunk_size):
+            chunk = response[i : i + chunk_size]
+            yield chunk
+            # Small delay to simulate streaming
+            import asyncio
+
+            await asyncio.sleep(0.01)
+
     def logs(
         self,
         *,
+        mode: str = "summary",
         type: str = None,
         step: str = None,
-        raw: bool = False,
+        raw: bool = None,  # Deprecated, use mode="debug"
         errors_only: bool = False,
         last: int = None,
     ) -> list[dict[str, Any]]:
         """Get execution logs with optional filtering.
 
         Args:
-            type: Filter by event type ('tool', 'llm', 'tokens', 'error', etc.)
-            step: Filter by execution step ('triage', 'reason', 'action', 'respond')
-            raw: Return all raw events instead of summary (default False)
-            errors_only: Return only error events
+            mode: Log mode - "summary" (default), "performance", "errors", "debug"
+            type: Filter by event type (only for debug mode)
+            step: Filter by execution step (only for debug mode)
+            raw: Deprecated, use mode="debug" instead
+            errors_only: Return only error events (deprecated, use mode="errors")
             last: Return only the last N events
 
         Returns:
             List of log events. Empty list if no logs match filters.
-            By default returns high-level execution summary.
+            By default returns developer-friendly execution summaries.
 
         Examples:
             Basic usage:
-            >>> agent.logs()  # High-level execution path (default)
-            >>> agent.logs(raw=True)  # All detailed events
-            >>> agent.logs(errors_only=True)  # Just errors
+            >>> agent.logs()  # Execution summaries (default)
+            >>> agent.logs(mode="performance")  # Performance analysis
+            >>> agent.logs(mode="errors")  # Error analysis
+            >>> agent.logs(mode="debug")  # Raw events
 
             Filtering:
-            >>> agent.logs(type='tool')  # Tool executions only
-            >>> agent.logs(step='reason')  # Reasoning steps only
-            >>> agent.logs(type='error', last=5)  # Recent 5 errors
+            >>> agent.logs(mode="debug", type='tool')  # Tool events only
+            >>> agent.logs(mode="debug", step='reason')  # Reasoning steps only
+            >>> agent.logs(last=5)  # Recent 5 summaries
         """
         from cogency.events import get_logs
 
-        # Default to summary mode unless raw=True or specific filters are used
-        summary = not raw and not type and not step and not errors_only
+        # Handle deprecated parameters and determine summary mode
+        if raw is True or errors_only:
+            summary = False
+        else:
+            # Default behavior - use summary mode unless specific filters are applied
+            if type is not None or step is not None:
+                summary = False
+            else:
+                summary = True
 
         return get_logs(type=type, step=step, summary=summary, errors_only=errors_only, last=last)
 

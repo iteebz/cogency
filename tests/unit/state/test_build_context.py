@@ -3,7 +3,7 @@
 from cogency.memory.compression import compress
 from cogency.state import AgentState
 from cogency.state.reasoning import ReasoningContext
-from cogency.state.user_profile import UserProfile
+from cogency.state.user import UserProfile
 
 
 def test_contextcompression():
@@ -27,7 +27,7 @@ def test_profile_injection():
     profile = UserProfile(user_id="test_user")
     profile.communication_style = "technical"
     profile.goals = ["complete project", "learn skills"]
-    profile.expertise_areas = ["python", "ml"]
+    profile.expertise = ["python", "ml"]
     profile.projects = {"current": "test project"}
 
     context = compress(profile)
@@ -59,7 +59,7 @@ def test_context_building():
     profile = UserProfile(user_id="expert_user")
     profile.communication_style = "technical and detailed"
     profile.goals = ["optimize performance", "maintain code quality"]
-    profile.expertise_areas = ["python", "distributed systems", "optimization"]
+    profile.expertise = ["python", "distributed systems", "optimization"]
     profile.projects = {"current": "high-performance service"}
     profile.preferences = {"format": "structured", "detail_level": "high"}
 

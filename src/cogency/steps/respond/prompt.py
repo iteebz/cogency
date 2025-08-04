@@ -12,11 +12,11 @@ FAILED TOOL DETAILS:
 {failed_tools}
 
 RESPONSE STRATEGY:
-- Acknowledge the tool failure gracefully without technical jargon
-- Briefly explain what went wrong: "I encountered an issue when trying to..."
-- Suggest concrete alternative approaches or ask for clarification
-- Maintain a helpful and solution-focused tone
-- Offer to retry with different parameters if applicable"""
+- Acknowledge what you attempted: "I tried to [specific action] but..."
+- Explain the specific failure: permission denied, timeout, invalid input, etc.
+- Suggest concrete alternatives: different tool, modified approach, manual steps
+- Ask clarifying questions if the request was ambiguous
+- Offer to retry with corrected parameters if error suggests a fix"""
 
 JSON_PROMPT = """{identity}
 Your goal is to generate a final response formatted as a JSON object.

@@ -85,7 +85,7 @@ async def test_end_to_end():
         manager = StatePersistence(store=store)
 
         # Create and save state with v1.0.0 structure
-        from cogency.state.user_profile import UserProfile
+        from cogency.state.user import UserProfile
 
         profile = UserProfile(user_id="test_user")
         profile.preferences = {"language": "Python"}
@@ -113,8 +113,8 @@ async def test_end_to_end():
         assert loaded_state.execution.messages[1]["content"] == "Hi there"
 
         # Test v1.0.0 specific features
-        assert loaded_state.user_profile is not None
-        assert loaded_state.user_profile.user_id == "test_user"
-        assert loaded_state.user_profile.preferences["language"] == "Python"
-        assert loaded_state.user_profile.communication_style == "concise"
+        assert loaded_state.user is not None
+        assert loaded_state.user.user_id == "test_user"
+        assert loaded_state.user.preferences["language"] == "Python"
+        assert loaded_state.user.communication_style == "concise"
         assert "Test insight" in loaded_state.reasoning.insights

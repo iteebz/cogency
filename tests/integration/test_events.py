@@ -4,8 +4,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cogency.events.console import ConsoleHandler
 from cogency.events.core import MessageBus, emit, init_bus
-from cogency.events.handlers import ConsoleHandler, LoggerHandler
+from cogency.events.handlers import LoggerHandler
 from cogency.observe.handlers import MetricsHandler
 
 

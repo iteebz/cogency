@@ -1,6 +1,6 @@
 """Profile compression utilities for context injection."""
 
-from cogency.state.user_profile import UserProfile
+from cogency.state.user import UserProfile
 
 
 def compress(profile: UserProfile, max_tokens: int = 800) -> str:
@@ -32,8 +32,8 @@ def compress(profile: UserProfile, max_tokens: int = 800) -> str:
         projects_str = "; ".join(f"{k}: {v}" for k, v in projects_items)
         sections.append(f"ACTIVE PROJECTS: {projects_str}")
 
-    if profile.expertise_areas:
-        expertise_str = ", ".join(profile.expertise_areas[-5:])
+    if profile.expertise:
+        expertise_str = ", ".join(profile.expertise[-5:])
         sections.append(f"EXPERTISE: {expertise_str}")
 
     if profile.constraints:

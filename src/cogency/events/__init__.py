@@ -1,22 +1,15 @@
 """Event system for agent observability.
 
-Tactical message bus for comprehensive agent monitoring and debugging.
-Event system components are internal implementation details.
-
 For event access: Use agent.logs() method
-For custom streaming: Use Agent(handlers=[CallbackHandler(callback)])
+For custom streaming: Use Agent(handlers=[callback_function])
 
 Internal components:
 - MessageBus, emit, init_bus: Core event infrastructure
 - ConsoleHandler, LoggerHandler: Built-in handlers
 """
 
-# Internal event system - not exported
+from .console import ConsoleHandler, console_callback  # noqa: F401
 from .core import MessageBus, component, emit, get_logs, init_bus  # noqa: F401
+from .handlers import LoggerHandler  # noqa: F401
 
-# Public: Custom event streaming handler
-from .handlers import CallbackHandler, ConsoleHandler, LoggerHandler  # noqa: F401
-
-__all__ = [
-    "CallbackHandler",
-]
+__all__ = []  # All internal

@@ -8,16 +8,21 @@ async def execute_agent(
     state: AgentState, triage_step, reason_step, act_step, respond_step, synthesize_step
 ) -> None:
     """Early-return execution."""
-    emit("agent_start", mode=state.execution.mode, max_iterations=state.execution.max_iterations)
+    emit(
+        "agent_start",
+        level="debug",
+        mode=state.execution.mode,
+        max_iterations=state.execution.max_iterations,
+    )
 
     # Triage - may return early
-    emit("triage", state="start")
+    emit("triage", level="debug", state="start")
     if response := await triage_step(state):
         emit("triage", state="complete", early_return=True)
         state.execution.response = response
         state.execution.response_source = "triage"
         # Always call respond for identity application
-        emit("respond", state="start", source="triage")
+        emit("respond", level="debug", state="start", source="triage")
         await respond_step(state)
         # Always call synthesize after response
         await synthesize_step(state)
@@ -28,10 +33,10 @@ async def execute_agent(
     emit("triage", state="complete", early_return=False)
     while state.execution.iteration < state.execution.max_iterations:
         state.execution.iteration += 1
-        emit("react_iteration", iteration=state.execution.iteration)
+        emit("react_iteration", level="debug", iteration=state.execution.iteration)
 
         # Reason step
-        emit("reason", state="start", iteration=state.execution.iteration)
+        emit("reason", level="debug", state="start", iteration=state.execution.iteration)
         response = await reason_step(state)
         from resilient_result import Result
 
@@ -40,7 +45,7 @@ async def execute_agent(
             state.execution.response = response.data
             state.execution.response_source = "reason"
             # Always call respond for identity application
-            emit("respond", state="start", source="reason")
+            emit("respond", level="debug", state="start", source="reason")
             await respond_step(state)
             # Always call synthesize after response
             await synthesize_step(state)
@@ -50,7 +55,7 @@ async def execute_agent(
             emit("reason", state="complete", early_return=True)
             state.execution.response = response
             state.execution.response_source = "reason"
-            emit("respond", state="start", source="reason")
+            emit("respond", level="debug", state="start", source="reason")
             await respond_step(state)
             # Always call synthesize after response
             await synthesize_step(state)
@@ -66,11 +71,11 @@ async def execute_agent(
 
         # If no tool calls, exit ReAct loop
         if not state.execution.pending_calls:
-            emit("react_exit", reason="no_tool_calls")
+            emit("react_exit", level="debug", reason="no_tool_calls")
             break
 
         # Act step
-        emit("action", state="start", tool_count=len(state.execution.pending_calls))
+        emit("action", level="debug", state="start", tool_count=len(state.execution.pending_calls))
         response = await act_step(state)
         if isinstance(response, Result):
             if response.success and response.data:

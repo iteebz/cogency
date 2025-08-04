@@ -14,7 +14,7 @@ class UserProfile:
     # Core Understanding
     preferences: Dict[str, Any] = field(default_factory=dict)
     goals: List[str] = field(default_factory=list)
-    expertise_areas: List[str] = field(default_factory=list)
+    expertise: List[str] = field(default_factory=list)
     communication_style: str = ""
 
     # Contextual Knowledge
@@ -56,10 +56,10 @@ class UserProfile:
         # Update expertise areas
         if "expertise" in interaction_insights:
             for area in interaction_insights["expertise"]:
-                if area not in self.expertise_areas:
-                    self.expertise_areas.append(area)
-            if len(self.expertise_areas) > 15:
-                self.expertise_areas = self.expertise_areas[-15:]
+                if area not in self.expertise:
+                    self.expertise.append(area)
+            if len(self.expertise) > 15:
+                self.expertise = self.expertise[-15:]
 
         # Update communication style
         if "communication_style" in interaction_insights:

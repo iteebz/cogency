@@ -82,13 +82,15 @@ Respond with JSON:
     "tool_calls": [
         {{"name": "tool_name", "args": {{"arg": "value"}}}}
     ],
-    "context_updates": {{
-        "goal": "refined goal if needed",
-        "strategy": "current approach", 
-        "insights": ["new insight if discovered"]
+    "workspace_update": {{
+        "objective": "refined problem statement if needed",
+        "assessment": "current situation analysis", 
+        "approach": "strategy being used",
+        "observations": ["key insights discovered"]
     }},
     "response": "direct response if ready to answer user",
-    "switch_mode": "fast|deep"
+    "switch_to": "fast|deep",
+    "switch_why": "reason for mode switch if switching"
 }}"""
 
 
