@@ -187,34 +187,74 @@ class LoggerHandler:
         """Create high-level execution summary from logs."""
         summary = []
 
-        # Key execution milestones
-        key_events = ["start", "triage", "reason", "action", "respond", "agent_complete", "error"]
-
         for log in logs:
-            if log.get("type") in key_events:
-                # Clean up event for summary view
-                summary_event = {
-                    "step": log.get("type"),
-                    "timestamp": log.get("timestamp"),
-                }
+            log_type = log.get("type")
 
-                # Add relevant context
-                if log.get("type") == "start":
-                    summary_event["query"] = log.get("query", "")[:100]  # Truncate long queries
-                elif log.get("type") == "triage":
-                    if log.get("state") == "complete":
-                        summary_event["mode"] = "direct" if log.get("early_return") else "react"
-                elif log.get("type") == "action":
-                    summary_event["tool_count"] = log.get("tool_count", 0)
-                elif log.get("type") == "agent_complete":
-                    summary_event["source"] = log.get("source")
-                    summary_event["iterations"] = log.get("iterations", 0)
-                elif log.get("type") == "error":
-                    summary_event["message"] = log.get("message", "")[:200]  # Truncate long errors
+            # Only include meaningful milestones, not every event
+            if log_type == "start":
+                summary.append(
+                    {
+                        "step": "start",
+                        "timestamp": log.get("timestamp"),
+                        "query": log.get("query", "")[:100],  # Truncate long queries
+                    }
+                )
+            elif log_type == "triage":
+                summary.append(
+                    {
+                        "step": "triage",
+                        "timestamp": log.get("timestamp"),  
+                        "mode": "direct" if log.get("early_return") else "react",
+                    }
+                )
+            elif log_type == "react_iteration":
+                summary.append(
+                    {
+                        "step": "iteration",
+                        "timestamp": log.get("timestamp"),
+                        "iteration": log.get("iteration", 0),
+                    }
+                )
+            elif log_type == "reason" and log.get("state") == "complete":
+                summary.append({"step": "reason", "timestamp": log.get("timestamp")})
+            elif log_type == "action" and log.get("status") == "complete":
+                summary.append(
+                    {
+                        "step": "action",
+                        "timestamp": log.get("timestamp"),
+                        "tool_count": log.get("tool_count", 0),
+                    }
+                )
+            elif log_type == "respond":
+                summary.append({"step": "respond", "timestamp": log.get("timestamp")})
+            elif log_type == "agent_complete":
+                summary.append(
+                    {
+                        "step": "complete",
+                        "timestamp": log.get("timestamp"),
+                        "source": log.get("source"),
+                        "iterations": log.get("iterations", 0),
+                    }
+                )
+            elif log_type == "error":
+                summary.append(
+                    {
+                        "step": "error",
+                        "timestamp": log.get("timestamp"),
+                        "message": log.get("message", "")[:200],  # Truncate long errors
+                    }
+                )
 
-                summary.append(summary_event)
-
-        return summary
+        # Dedupe consecutive similar steps, keeping only the last occurrence
+        deduped = []
+        for entry in summary:
+            if not deduped or entry["step"] != deduped[-1]["step"]:
+                deduped.append(entry)
+            else:
+                # Replace with newer entry of same step type
+                deduped[-1] = entry
+        
+        return deduped
 
     def configure(self, **options):
         """Update handler configuration."""

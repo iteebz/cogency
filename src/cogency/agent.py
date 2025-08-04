@@ -143,7 +143,7 @@ class Agent:
 
         # Default to summary mode unless raw=True or specific filters are used
         summary = not raw and not type and not step and not errors_only
-        
+
         return get_logs(type=type, step=step, summary=summary, errors_only=errors_only, last=last)
 
 

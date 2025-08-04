@@ -1,13 +1,10 @@
 """LLM-driven user understanding synthesis."""
 
+from datetime import datetime
 from typing import Any, Dict
 
-from cogency.memory.compression import compress
 from cogency.persist.serialize import deserialize_profile, serialize_profile
 from cogency.state.user_profile import UserProfile
-from cogency.utils.parsing import _parse_json
-
-from .insights import extract_insights
 
 
 class ImpressionSynthesizer:
@@ -27,115 +24,17 @@ class ImpressionSynthesizer:
         # Load existing profile
         profile = await self._load_profile(user_id)
 
-        # Extract insights from interaction
-        insights = await extract_insights(self.llm, interaction_data)
+        # Update interaction count only - insights extracted async post-response
+        profile.interaction_count += 1
+        profile.last_updated = datetime.now()
 
-        # Update profile with insights
-        if insights:
-            profile.update(insights)
-
-        # Synthesize if threshold reached
-        if profile.interaction_count % self.synthesis_threshold == 0:
-            profile = await self._synthesize_profile(profile, interaction_data)
+        # Synthesis moved to async post-response processing
 
         # Save updated profile
         if self.store:
             await self._save_profile(profile)
 
         return profile
-
-    async def _synthesize_profile(
-        self, profile: UserProfile, recent_interaction: Dict[str, Any]
-    ) -> UserProfile:
-        """LLM-driven profile synthesis."""
-        from cogency.events import emit
-
-        emit(
-            "memory",
-            operation="synthesis",
-            user_id=profile.user_id,
-            status="start",
-            version=profile.synthesis_version,
-        )
-
-        try:
-            current_context = compress(profile)
-
-            prompt = f"""Synthesize evolved user profile:
-
-CURRENT PROFILE:
-{current_context}
-
-RECENT INTERACTION:
-Query: {recent_interaction.get("query", "")}
-Success: {recent_interaction.get("success", True)}
-
-Create refined profile that:
-- Consolidates understanding over time
-- Prioritizes recent patterns
-- Eliminates contradictions
-- Builds coherent user model
-
-Return JSON with updated fields:
-{{
-    "preferences": {{}},
-    "goals": [],
-    "expertise_areas": [],
-    "communication_style": "",
-    "projects": {{}},
-    "interests": [],
-    "constraints": [],
-    "success_patterns": [],
-    "failure_patterns": []
-}}"""
-
-            result = await self.llm.run([{"role": "user", "content": prompt}])
-            if result.success:
-                parsed = _parse_json(result.data)
-                if parsed.success:
-                    self._apply_synthesis(profile, parsed.data)
-                    profile.synthesis_version += 1
-                    emit(
-                        "memory",
-                        operation="synthesis",
-                        user_id=profile.user_id,
-                        status="complete",
-                        version=profile.synthesis_version,
-                    )
-                else:
-                    emit(
-                        "memory",
-                        operation="synthesis",
-                        user_id=profile.user_id,
-                        status="error",
-                        error="JSON parsing failed",
-                    )
-            else:
-                emit(
-                    "memory",
-                    operation="synthesis",
-                    user_id=profile.user_id,
-                    status="error",
-                    error="LLM synthesis failed",
-                )
-
-            return profile
-
-        except Exception as e:
-            emit(
-                "memory",
-                operation="synthesis",
-                user_id=profile.user_id,
-                status="error",
-                error=str(e),
-            )
-            raise
-
-    def _apply_synthesis(self, profile: UserProfile, synthesis_data: Dict[str, Any]) -> None:
-        """Apply LLM synthesis to profile."""
-        for key, value in synthesis_data.items():
-            if hasattr(profile, key) and value:
-                setattr(profile, key, value)
 
     async def _load_profile(self, user_id: str) -> UserProfile:
         """Load or create user profile."""
@@ -203,7 +102,7 @@ Return JSON with updated fields:
             raise
 
     async def remember(self, content: str, human: bool = True) -> None:
-        """Remember content from user interaction."""
+        """Store interaction for future processing - no LLM calls."""
         from cogency.events import emit
 
         emit(
@@ -221,7 +120,7 @@ Return JSON with updated fields:
                 "success": True,
                 "human": human,
             }
-            # Update impression using existing logic
+            # Pure data storage - no LLM processing
             profile = await self.update_impression(self.current_user_id, interaction_data)
 
             emit(

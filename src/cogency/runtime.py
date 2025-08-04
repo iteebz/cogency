@@ -131,7 +131,8 @@ class AgentExecutor:
 
         @component("embed")
         def setup_embed():
-            return _setup_embed(None)
+            # Only setup embed if memory will be used
+            return None
 
         @component("tools")
         def setup_tools():
@@ -209,7 +210,11 @@ class AgentExecutor:
 
         @component("embed")
         def setup_embed():
-            return _setup_embed(config.embed)
+            # Only setup embed if memory is enabled
+            memory_cfg = _setup_config(MemoryConfig, config.memory)
+            if memory_cfg:
+                return _setup_embed(config.embed)
+            return None
 
         @component("tools")
         def setup_tools():
@@ -290,8 +295,11 @@ class AgentExecutor:
 
         # Memory operations
         if self.memory:
-            await self.memory.load()
+            await self.memory.load(user_id)
             await self.memory.remember(query, human=True)
+            # CRITICAL FIX: Connect memory to AgentState for context injection
+            user_profile = await self.memory._load_profile(user_id)
+            state.user_profile = user_profile
 
         # Set agent mode
         state.execution.mode = self.mode
@@ -324,6 +332,7 @@ class AgentExecutor:
                 steps["reason"],
                 steps["act"],
                 steps["respond"],
+                steps["synthesize"],
             )
             self.last_state = state
 

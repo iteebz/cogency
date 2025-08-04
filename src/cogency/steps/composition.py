@@ -10,6 +10,7 @@ from cogency.robust import checkpoint
 from .act import act
 from .reason import reason
 from .respond import respond
+from .synthesize import synthesize
 from .triage import triage
 
 
@@ -68,5 +69,10 @@ def _setup_steps(llm, tools, memory, identity, output_schema, config=None):
             memory=memory,
             identity=identity,
             output_schema=output_schema,
+        ),
+        "synthesize": _compose_step(
+            synthesize,
+            "synthesize",
+            memory=memory,
         ),
     }

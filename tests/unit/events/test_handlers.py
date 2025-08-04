@@ -212,8 +212,10 @@ class TestLoggerHandler:
                 "timestamp": 101,
             }
         )
-        handler.handle({"type": "reason", "data": {"state": "planning"}, "timestamp": 102})
-        handler.handle({"type": "action", "data": {"tool_count": 2}, "timestamp": 103})
+        handler.handle({"type": "reason", "data": {"state": "complete"}, "timestamp": 102})
+        handler.handle(
+            {"type": "action", "data": {"status": "complete", "tool_count": 2}, "timestamp": 103}
+        )
         handler.handle({"type": "respond", "data": {"state": "complete"}, "timestamp": 104})
         handler.handle(
             {
@@ -223,16 +225,20 @@ class TestLoggerHandler:
             }
         )
 
-        # Get summary
+        # Get summary - should have 6 meaningful milestones
         summary = handler.logs(summary=True)
         assert len(summary) == 6
 
-        # Check key events are included
+        # Check key milestones are included in order
         steps = [event["step"] for event in summary]
-        assert "start" in steps
-        assert "triage" in steps
-        assert "action" in steps
-        assert "respond" in steps
+        assert steps == ["start", "triage", "reason", "action", "respond", "complete"]
+
+        # Verify meaningful content
+        assert summary[0]["query"] == "test query"
+        assert summary[1]["mode"] == "react"
+        assert summary[2]["step"] == "reason"
+        assert summary[3]["tool_count"] == 2
+        assert summary[5]["iterations"] == 3
 
     def test_logs_combined_filters(self):
         handler = LoggerHandler(max_size=20, structured=True)

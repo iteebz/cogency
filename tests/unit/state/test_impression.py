@@ -135,43 +135,10 @@ async def test_extract_failure(synthesizer, mock_llm):
 
 
 @pytest.mark.asyncio
-async def test_synthesize_profile(synthesizer, mock_llm):
-    """Test profile synthesis."""
-    profile = UserProfile(user_id="test_user")
-    profile.preferences = {"old": "preference"}
-
-    mock_result = Mock()
-    mock_result.success = True
-    mock_result.data = '{"preferences": {"new": "preference"}, "goals": ["synthesized goal"]}'
-
-    # Make the mock async
-    from unittest.mock import AsyncMock
-
-    mock_llm.run = AsyncMock(return_value=mock_result)
-
-    recent_interaction = {"query": "test", "success": True}
-
-    result_profile = await synthesizer._synthesize_profile(profile, recent_interaction)
-
-    assert result_profile.synthesis_version == 2
-    mock_llm.run.assert_called_once()
-
-
-@pytest.mark.asyncio
 async def test_update_no_synthesis(synthesizer, mock_llm, mock_store):
-    """Test updating impression without synthesis threshold."""
+    """Test updating impression - now pure data storage."""
     # Mock profile loading
     mock_store.load.return_value = None
-
-    # Mock insight extraction
-    mock_result = Mock()
-    mock_result.success = True
-    mock_result.data = '{"preferences": {"format": "json"}}'
-
-    # Make the mock async
-    from unittest.mock import AsyncMock
-
-    mock_llm.run = AsyncMock(return_value=mock_result)
 
     interaction_data = {"query": "test", "response": "test", "success": True}
 
@@ -179,14 +146,15 @@ async def test_update_no_synthesis(synthesizer, mock_llm, mock_store):
 
     assert profile.user_id == "test_user"
     assert profile.interaction_count == 1
-    assert profile.preferences["format"] == "json"
-    # Should not synthesize (count=1, threshold=3)
-    assert profile.synthesis_version == 1
+    # No LLM calls in new canonical implementation
+    mock_llm.run.assert_not_called()
+    # Profile saved to store
+    mock_store.save.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_update_with_synthesis(synthesizer, mock_llm, mock_store):
-    """Test updating impression with synthesis."""
+    """Test updating impression - synthesis moved to async processing."""
     # Mock existing profile at synthesis threshold
     existing_data = {
         "state": {
@@ -199,21 +167,11 @@ async def test_update_with_synthesis(synthesizer, mock_llm, mock_store):
     }
     mock_store.load.return_value = existing_data
 
-    # Mock insight extraction and synthesis
-    mock_result = Mock()
-    mock_result.success = True
-    mock_result.data = '{"preferences": {"format": "json"}}'
-
-    # Make the mock async
-    from unittest.mock import AsyncMock
-
-    mock_llm.run = AsyncMock(return_value=mock_result)
-
     interaction_data = {"query": "test", "response": "test", "success": True}
 
     profile = await synthesizer.update_impression("test_user", interaction_data)
 
     assert profile.interaction_count == 3
-    # Should trigger synthesis (3 % 3 == 0)
-    assert mock_llm.run.call_count == 2  # Once for extraction, once for synthesis
+    # No LLM calls in new canonical implementation
+    mock_llm.run.assert_not_called()
     mock_store.save.assert_called_once()
