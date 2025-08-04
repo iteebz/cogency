@@ -46,7 +46,7 @@ async def test_fast():
 
     state = AgentState(query=query)
 
-    result = await triage(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+    result = await triage(state, llm=llm, tools=tools, memory=None)
 
     # The triage function should complete successfully
     assert result is None or isinstance(result, str)
@@ -65,7 +65,7 @@ async def test_deep():
 
     state = AgentState(query=query)
 
-    result = await triage(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+    result = await triage(state, llm=llm, tools=tools, memory=None)
 
     # The triage function should complete successfully
     assert result is None or isinstance(result, str)
@@ -82,7 +82,7 @@ async def test_response():
 
     state = AgentState(query=query)
 
-    result = await triage(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+    result = await triage(state, llm=llm, tools=tools, memory=None)
 
     # Should return early response for greetings or have empty tools
     assert result is None or isinstance(result, str)

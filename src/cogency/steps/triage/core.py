@@ -102,7 +102,7 @@ Examples:
     )
 
 
-async def save_memory(memory_result: MemoryResult, memory_service, notifier) -> None:
+async def save_memory(memory_result: MemoryResult, memory_service) -> None:
     """Save extracted memory if present."""
     if not memory_result.content or not memory_service:
         return
@@ -117,7 +117,7 @@ async def save_memory(memory_result: MemoryResult, memory_service, notifier) -> 
     else:
         display_content = content
 
-    await notifier("triage", state="memory_saved", content_preview=display_content)
+    emit("triage", state="memory_saved", content_preview=display_content)
     await memory_service.remember(content, human=True)
 
 
@@ -206,7 +206,7 @@ SELECTION RULES:
     )
 
 
-async def notify_tool_selection(notifier, filtered_tools: List[Tool], total_tools: int) -> None:
+async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) -> None:
     """Send appropriate notifications about tool selection."""
     if not filtered_tools:
         return
@@ -214,16 +214,16 @@ async def notify_tool_selection(notifier, filtered_tools: List[Tool], total_tool
     selected_count = len(filtered_tools)
 
     if selected_count < total_tools:
-        await notifier(
+        emit(
             "triage",
             state="filtered",
             selected_tools=selected_count,
             total_tools=total_tools,
         )
     elif selected_count == 1:
-        await notifier("triage", state="direct", tool_count=1)
+        emit("triage", state="direct", tool_count=1)
     else:
-        await notifier("triage", state="react", tool_count=selected_count)
+        emit("triage", state="react", tool_count=selected_count)
 
 
 async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> TriageResult:

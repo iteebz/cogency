@@ -83,7 +83,7 @@ async def test_respond_output():
 
     state = AgentState(query="weather?", user_id="test")
 
-    await respond(state, AsyncMock(), llm=mock_llm, tools=[])
+    await respond(state, llm=mock_llm, tools=[])
 
     assert isinstance(state.execution.response, str)
     assert not state.execution.response.startswith("{")
@@ -103,7 +103,7 @@ async def test_routing():
     # Record thinking in reasoning context
     state.reasoning.record_thinking("test thinking", tool_calls)
 
-    await act(state, AsyncMock(), tools=[tool])
+    await act(state, tools=[tool])
     latest_results = state.execution.completed_calls
     assert len(latest_results) > 0
     # Check that we have results - format may vary based on implementation
@@ -111,7 +111,7 @@ async def test_routing():
 
     # Test no tool calls
     state.execution.pending_calls = []
-    await act(state, AsyncMock(), tools=[])
+    await act(state, tools=[])
     # Should not change existing results
     assert len(state.execution.completed_calls) > 0  # Still has previous results
 
@@ -133,7 +133,7 @@ async def test_reason_direct(state):
         return_value=Result.ok('{"reasoning": "I can answer this directly: 2 + 2 = 4"}')
     )
 
-    await reason(state, AsyncMock(), llm=llm, tools=[], memory=None)
+    await reason(state, llm=llm, tools=[], memory=None)
 
     # Should have no tool calls for direct answer
     assert not state.execution.pending_calls
@@ -151,7 +151,7 @@ async def test_reason_tools(state):
         )
     )
 
-    await reason(state, AsyncMock(), llm=llm, tools=[Shell()], memory=None)
+    await reason(state, llm=llm, tools=[Shell()], memory=None)
 
     # Should have tool calls
     assert state.execution.pending_calls
@@ -166,7 +166,7 @@ async def test_act_execution(state):
     state.execution.pending_calls = [{"name": "shell", "args": {"command": "echo '4'"}}]
 
     tools = [Shell()]
-    await act(state, AsyncMock(), tools=tools)
+    await act(state, tools=tools)
 
     # Should have results (tool calls with outcome key)
     results = state.execution.completed_calls
@@ -184,7 +184,7 @@ async def test_respond_formats(state):
     """Test respond step creates final response."""
     llm = MockLLM()
 
-    await respond(state, AsyncMock(), llm=llm, tools=[])
+    await respond(state, llm=llm, tools=[])
 
     # Should have a response
     assert state.execution.response is not None
@@ -203,12 +203,12 @@ async def test_full_cycle(state):
                 '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}]}'
             )
         )
-        await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+        await reason(state, llm=llm, tools=tools, memory=None)
         assert state.execution.pending_calls
         assert len(state.reasoning.thoughts) >= 0  # reasoning thoughts are recorded
 
         # 2. Act (execute tools)
-        await act(state, AsyncMock(), tools=tools)
+        await act(state, tools=tools)
         results = state.execution.completed_calls
         assert len(results) > 0
 
@@ -218,10 +218,10 @@ async def test_full_cycle(state):
                 '{"reasoning": "The code tool shows 2 + 2 = 4. I can now respond."}'
             )
         )
-        await reason(state, AsyncMock(), llm=llm, tools=tools, memory=None)
+        await reason(state, llm=llm, tools=tools, memory=None)
 
         # 4. Respond (final answer)
-        await respond(state, AsyncMock(), llm=llm, tools=[])
+        await respond(state, llm=llm, tools=[])
         assert state.execution.response
 
 
@@ -235,9 +235,9 @@ async def test_no_tools_flow(state):
     )
 
     # 1. Reason (no tools needed)
-    await reason(state, AsyncMock(), llm=llm, tools=[], memory=None)
+    await reason(state, llm=llm, tools=[], memory=None)
     assert not state.execution.pending_calls
 
     # 2. Respond directly
-    await respond(state, AsyncMock(), llm=llm, tools=[])
+    await respond(state, llm=llm, tools=[])
     assert state.execution.response

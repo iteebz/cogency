@@ -3,6 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
+from cogency.events import emit
 from cogency.state import AgentState
 from cogency.tools import Tool
 from cogency.utils.parsing import _parse_json
@@ -97,9 +98,7 @@ def execute_mode_switch(state: AgentState, new_mode: str, switch_why: str) -> No
         state.switch_mode(new_mode, switch_why)
 
 
-async def handle_mode_switching(
-    state: AgentState, raw_response: str, mode: str, iteration: int, notifier
-) -> None:
+async def _switch_mode(state: AgentState, raw_response: str, mode: str, iteration: int) -> None:
     """Handle complete mode switching logic."""
     # Handle mode switching - only if agent mode is "adapt"
     agent_mode = getattr(state, "agent_mode", "adapt")
@@ -111,7 +110,7 @@ async def handle_mode_switching(
 
     # Check if switch should be executed
     if should_mode_switch(mode, switch_to, switch_why, iteration, state.execution.max_iterations):
-        await notifier(
+        emit(
             "trace",
             message="Mode switch executed",
             from_mode=mode,

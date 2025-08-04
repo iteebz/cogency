@@ -6,6 +6,7 @@ import random
 from pathlib import Path
 from typing import Awaitable, Callable, List, Optional, TypeVar, Union
 
+from cogency.events import emit
 from cogency.utils.heuristics import is_quota_exhausted, is_rate_limit
 
 T = TypeVar("T")
@@ -74,16 +75,13 @@ class KeyRotator:
 class KeyManager:
     """Unified key management - auto-detects, handles rotation, eliminates provider DRY."""
 
-    def __init__(
-        self, api_key: Optional[str] = None, key_rotator: Optional[KeyRotator] = None, notifier=None
-    ):
+    def __init__(self, api_key: Optional[str] = None, key_rotator: Optional[KeyRotator] = None):
         self.api_key = api_key
         self.key_rotator = key_rotator
-        self.notifier = notifier
 
     @classmethod
     def for_provider(
-        cls, provider: str, api_keys: Optional[Union[str, List[str]]] = None, notifier=None
+        cls, provider: str, api_keys: Optional[Union[str, List[str]]] = None
     ) -> "KeyManager":
         """Factory method - auto-detects keys, handles all scenarios. Replaces 15+ lines of DRY."""
         # Auto-detect from environment if not provided
@@ -98,13 +96,13 @@ class KeyManager:
         # Handle the key scenarios - unified logic that was duplicated across all providers
         if isinstance(api_keys, list) and len(api_keys) > 1:
             # Multiple keys -> use rotation
-            return cls(api_key=None, key_rotator=KeyRotator(api_keys), notifier=notifier)
+            return cls(api_key=None, key_rotator=KeyRotator(api_keys))
         elif isinstance(api_keys, list) and len(api_keys) == 1:
             # Single key in list -> extract it
-            return cls(api_key=api_keys[0], key_rotator=None, notifier=notifier)
+            return cls(api_key=api_keys[0], key_rotator=None)
         else:
             # Single key as string
-            return cls(api_key=api_keys, key_rotator=None, notifier=notifier)
+            return cls(api_key=api_keys, key_rotator=None)
 
     @staticmethod
     def detect_keys(provider: str) -> List[str]:
@@ -194,10 +192,7 @@ class KeyManager:
 
                 if not self.has_multiple():
                     # No keys to rotate to, raise policy error
-                    if self.notifier:
-                        await self.notifier(
-                            "error", message=f"Rate limited with no backup keys available: {str(e)}"
-                        )
+                    emit("error", message=f"Rate limited with no backup keys available: {str(e)}")
                     raise KeyRotationError(
                         f"All API keys exhausted due to rate limits. Original error: {str(e)}"
                     ) from e
@@ -205,12 +200,10 @@ class KeyManager:
                 # Handle quota exhaustion vs rate limiting differently
                 if is_quota_exhausted(e):
                     removal_msg = self.remove_exhausted_key()
-                    if self.notifier:
-                        await self.notifier("debug", message=removal_msg)
+                    emit("debug", message=removal_msg)
                 else:
                     rotation_msg = self.rotate_key()
-                    if self.notifier:
-                        await self.notifier("debug", message=rotation_msg)
+                    emit("debug", message=rotation_msg)
 
                 # Continue loop to retry with new key
 

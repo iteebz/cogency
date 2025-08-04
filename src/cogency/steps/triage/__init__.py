@@ -17,7 +17,6 @@ from .core import MemoryResult, filter_tools, notify_tool_selection, save_memory
 
 async def triage(
     state: AgentState,
-    notifier,
     llm: LLM,
     tools: List[Tool],
     memory,  # Impression instance or None
@@ -38,7 +37,7 @@ async def triage(
         memory_result = MemoryResult(
             content=result.memory_content, tags=result.memory_tags, memory_type="fact"
         )
-        await save_memory(memory_result, memory, notifier)
+        await save_memory(memory_result, memory)
 
     # Select tools
     filtered_tools = filter_tools(tools, result.selected_tools)
@@ -48,6 +47,6 @@ async def triage(
     state.execution.iteration = 0
 
     # Notify results
-    await notify_tool_selection(notifier, filtered_tools, len(tools))
+    await notify_tool_selection(filtered_tools, len(tools))
 
     return None  # Continue to reason step

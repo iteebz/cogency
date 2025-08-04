@@ -53,7 +53,12 @@ def _setup_steps(llm, tools, memory, identity, output_schema, config=None):
             memory=memory,
         ),
         "act": _compose_step(
-            act, "act", checkpoint_name="tool_execution", needs_resilience=True, tools=tools
+            act,
+            "act",
+            checkpoint_name="tool_execution",
+            needs_resilience=True,
+            llm=llm,
+            tools=tools,
         ),
         "respond": _compose_step(
             respond,

@@ -108,9 +108,9 @@ class Agent:
 
     def logs(self) -> list[dict[str, Any]]:
         """All execution logs. Always available for retrospective debugging."""
-        if not self._executor:
-            return []
-        return self._executor.logs()
+        from cogency.events import get_logs
+
+        return get_logs()
 
 
 __all__ = ["Agent"]

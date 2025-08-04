@@ -16,11 +16,11 @@ class TestIntegratedEventFlow:
         """Test a complete agent session from start to finish."""
         # Setup
         bus = MessageBus()
-        notifier = ConsoleHandler(enabled=False)  # Disable printing for test
+        console = ConsoleHandler(enabled=False)  # Disable printing for test
         logger = LoggerHandler(max_size=100)
         metrics = MetricsHandler()
 
-        bus.subscribe(notifier)
+        bus.subscribe(console)
         bus.subscribe(logger)
         bus.subscribe(metrics)
         init_bus(bus)
@@ -85,11 +85,11 @@ class TestIntegratedEventFlow:
     def test_error_handling_across_handlers(self):
         """Test error event handling in all handlers."""
         bus = MessageBus()
-        notifier = MagicMock()  # Mock to capture calls
+        console = MagicMock()  # Mock to capture calls
         logger = LoggerHandler()
         metrics = MetricsHandler()
 
-        bus.subscribe(notifier)
+        bus.subscribe(console)
         bus.subscribe(logger)
         bus.subscribe(metrics)
         init_bus(bus)
@@ -98,10 +98,10 @@ class TestIntegratedEventFlow:
         emit("error", message="Something went wrong")
         emit("respond", state="complete")
 
-        # Notifier should have received error
-        notifier.handle.assert_called()
+        # Console should have received error
+        console.handle.assert_called()
         error_call = None
-        for call in notifier.handle.call_args_list:
+        for call in console.handle.call_args_list:
             if call[0][0]["type"] == "error":
                 error_call = call[0][0]
                 break
@@ -121,6 +121,9 @@ class TestIntegratedEventFlow:
 
     def test_handler_independence(self):
         """Test that handler failures don't affect other handlers."""
+        # Save original bus to restore later
+        from cogency.events.core import _bus as original_bus
+
         bus = MessageBus()
 
         # Create a handler that will fail
@@ -136,7 +139,11 @@ class TestIntegratedEventFlow:
         bus.subscribe(metrics)
         init_bus(bus)
 
-        # Bus doesn't catch handler exceptions - handlers should be robust
-        # This is expected behavior - failing handlers propagate exceptions
-        with pytest.raises(Exception, match="Handler failed"):
-            emit("test_event", data="value")
+        try:
+            # Bus doesn't catch handler exceptions - handlers should be robust
+            # This is expected behavior - failing handlers propagate exceptions
+            with pytest.raises(Exception, match="Handler failed"):
+                emit("test_event", data="value")
+        finally:
+            # Restore original bus to prevent test pollution
+            init_bus(original_bus)

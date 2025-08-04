@@ -20,7 +20,7 @@ def state():
 async def test_none(state, tools):
     """Test act node when no tool calls are present."""
     state.execution.pending_calls = []
-    await act(state, AsyncMock(), tools=tools)
+    await act(state, tools=tools)
     assert len(state.execution.completed_calls) == 0
 
 
@@ -28,7 +28,7 @@ async def test_none(state, tools):
 async def test_empty(state, tools):
     """Test act node with empty tool call list."""
     state.execution.pending_calls = []
-    await act(state, AsyncMock(), tools=tools)
+    await act(state, tools=tools)
     assert len(state.execution.completed_calls) == 0
 
 
@@ -36,7 +36,7 @@ async def test_empty(state, tools):
 async def test_invalid(state, tools):
     """Test act node with invalid tool calls format (not a list)."""
     state.execution.pending_calls = []
-    await act(state, AsyncMock(), tools=tools)
+    await act(state, tools=tools)
     assert len(state.execution.completed_calls) == 0
 
 
@@ -44,7 +44,7 @@ async def test_invalid(state, tools):
 async def test_success(state, tools):
     """Test successful tool execution."""
     state.execution.set_tool_calls([{"name": "mock_tool", "args": {"x": 5}}])
-    await act(state, AsyncMock(), tools=tools)
+    await act(state, tools=tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -63,7 +63,7 @@ async def test_failure(state, mock_tool):
     mock_tool.run = failing_run
     state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
 
-    await act(state, AsyncMock(), tools=[mock_tool])
+    await act(state, tools=[mock_tool])
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -82,7 +82,7 @@ async def test_multi(state, tools):
         ]
     )
 
-    await act(state, AsyncMock(), tools=tools)
+    await act(state, tools=tools)
 
     assert len(state.execution.completed_calls) == 3
     assert all(result["name"] == "mock_tool" for result in state.execution.completed_calls)
@@ -98,7 +98,7 @@ async def test_returns_non_result(state, mock_tool):
     mock_tool.run = non_result_run
     state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
 
-    await act(state, AsyncMock(), tools=[mock_tool])
+    await act(state, tools=[mock_tool])
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -116,7 +116,7 @@ async def test_tool_raises_exception(state, mock_tool):
     mock_tool.run = exception_run
     state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
 
-    await act(state, AsyncMock(), tools=[mock_tool])
+    await act(state, tools=[mock_tool])
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -134,7 +134,7 @@ async def test_returns_none(state, mock_tool):
     mock_tool.run = none_success_run
     state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
 
-    await act(state, AsyncMock(), tools=[mock_tool])
+    await act(state, tools=[mock_tool])
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -147,7 +147,7 @@ async def test_unknown_tool_call(state, tools):
     """Test handling when LLM requests non-existent tool."""
     state.execution.set_tool_calls([{"name": "nonexistent_tool", "args": {}}])
 
-    await act(state, AsyncMock(), tools=tools)
+    await act(state, tools=tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]

@@ -30,7 +30,6 @@ class AgentExecutor:
         embed,
         tools,
         memory,
-        notifier,
         config,
         persistence,
         mode: AgentMode = AgentMode.ADAPT,
@@ -60,7 +59,6 @@ class AgentExecutor:
         self.embed = embed
         self.tools = tools
         self.memory = memory
-        self.notifier = notifier
         self.config = config
         self.persistence = persistence
 
@@ -73,34 +71,36 @@ class AgentExecutor:
         if not self._initialized:
             return
 
+        from cogency.events import emit
+
         try:
-            await self.notifier("agent_teardown", name=self.name, status="cleaning")
+            emit("agent_teardown", name=self.name, status="cleaning")
 
             # Clean up resources
             if self.memory:
-                await self.notifier("teardown", component="memory", status="cleaning")
+                emit("teardown", component="memory", status="cleaning")
                 # Memory cleanup would go here
-                await self.notifier("teardown", component="memory", status="complete")
+                emit("teardown", component="memory", status="complete")
 
             if self.persistence:
-                await self.notifier("teardown", component="persistence", status="cleaning")
+                emit("teardown", component="persistence", status="cleaning")
                 # Persistence cleanup would go here
-                await self.notifier("teardown", component="persistence", status="complete")
+                emit("teardown", component="persistence", status="complete")
 
             # Clear state
             self.user_states.clear()
             self.last_state = None
             self._initialized = False
 
-            await self.notifier("agent_teardown", name=self.name, status="complete")
+            emit("agent_teardown", name=self.name, status="complete")
 
         except Exception as e:
-            await self.notifier("agent_teardown", name=self.name, status="error", error=str(e))
+            emit("agent_teardown", name=self.name, status="error", error=str(e))
             raise
 
     def __del__(self):
         """Ensure cleanup on garbage collection."""
-        if self._initialized and hasattr(self, "notifier"):
+        if self._initialized:
             # Sync cleanup - best effort
             import asyncio
 
@@ -147,21 +147,6 @@ class AgentExecutor:
             return config
 
         # Execute setup - events emitted automatically
-        class SimpleNotifier:
-            def __init__(self, logger):
-                self.logger = logger
-
-            async def __call__(self, event_type: str, **data):
-                bus.emit(event_type, **data)
-
-            @property
-            def notifications(self):
-                return [
-                    {"timestamp": e["timestamp"], "type": e["type"], **e["data"]}
-                    for e in self.logger.events
-                ]
-
-        notifier = SimpleNotifier(logger_handler)
         llm = setup_llm()
         embed = setup_embed()
         tools = setup_tools()
@@ -173,7 +158,6 @@ class AgentExecutor:
             embed=embed,
             tools=tools,
             memory=None,
-            notifier=notifier,
             config=config,
             persistence=None,
         )
@@ -187,11 +171,10 @@ class AgentExecutor:
             component,
         )
 
-        # Setup bus
+        # Setup unified events system
         bus = MessageBus()
         bus.subscribe(ConsoleHandler(config.notify, config.debug))
-        logger_handler = LoggerHandler()
-        bus.subscribe(logger_handler)
+        bus.subscribe(LoggerHandler())  # For agent.logs()
         bus.subscribe(get_metrics_handler())
 
         # Add custom handlers
@@ -200,23 +183,6 @@ class AgentExecutor:
                 bus.subscribe(handler)
 
         init_bus(bus)
-
-        # Unified notifier
-        class Notifier:
-            def __init__(self, logger):
-                self.logger = logger
-
-            async def __call__(self, event_type: str, **data):
-                bus.emit(event_type, **data)
-
-            @property
-            def notifications(self):
-                return [
-                    {"timestamp": e["timestamp"], "type": e["type"], **e["data"]}
-                    for e in self.logger.events
-                ]
-
-        notifier = Notifier(logger_handler)
 
         # Beautiful component setup
         @component("persist")
@@ -287,7 +253,6 @@ class AgentExecutor:
             embed=embed,
             tools=tools,
             memory=memory,
-            notifier=notifier,
             config=agent_config,
             persistence=persistence,
             mode=config.mode,
@@ -347,11 +312,11 @@ class AgentExecutor:
             else:
                 steps = self.steps
 
-            # Execute steps - notifier already set up in configure()
-            notifier = self.notifier
+            # Execute steps - events system already set up in configure()
+            from cogency.events import emit
 
             # Start notification
-            await notifier("start", query=query)
+            emit("start", query=query)
 
             await execute_agent(
                 state,
@@ -359,7 +324,6 @@ class AgentExecutor:
                 steps["reason"],
                 steps["act"],
                 steps["respond"],
-                notifier,
             )
             self.last_state = state
 
@@ -382,11 +346,14 @@ class AgentExecutor:
         except Exception as e:
             import traceback
 
+            from cogency.events import emit
+
             error_msg = f"Flow execution failed: {e}\n{traceback.format_exc()}"
-            if self.notifier:
-                await self.notifier("error", message=error_msg)
+            emit("error", message=error_msg)
             raise e
 
     def logs(self) -> list[dict[str, Any]]:
         """All execution logs. Always available for retrospective debugging."""
-        return self.notifier.notifications
+        from cogency.events import get_logs
+
+        return get_logs()

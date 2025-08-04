@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Tuple
 
 from resilient_result import Result
 
+from cogency.events import emit
 from cogency.tools.base import Tool
 
 from .core import (
@@ -18,7 +19,6 @@ async def execute_tools(
     tool_calls: List[Tuple[str, Dict]],
     tools: List[Tool],
     state,
-    notifier=None,
 ) -> Dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
@@ -33,8 +33,6 @@ async def execute_tools(
     successes = []
     failures = []
 
-    # Progress display handled by notifier
-
     for tool_name, tool_args in tool_calls:
         # Find the tool instance for formatting
         tool_instance = next((t for t in tools if t.name == tool_name), None)
@@ -42,23 +40,17 @@ async def execute_tools(
         # Show tool execution start if state is available
         if state:
             tool_input = format_tool_input(tool_instance, tool_name, tool_args)
-            if notifier:
-                await notifier("action", state="executing", tool=tool_name, input=tool_input)
+            emit("action", state="executing", tool=tool_name, input=tool_input)
 
         try:
             result = await execute_single_tool(tool_name, tool_args, tools)
             actual_tool_name, actual_args, tool_output = result
 
-            # Debug prints removed - use notifier if needed
-
             if not tool_output.success:
                 # Use user-friendly error message
                 raw_error = tool_output.error or "Unknown error"
                 user_friendly_error = f"{actual_tool_name} failed: {raw_error}"
-                if notifier:
-                    await notifier(
-                        "tool", name=actual_tool_name, ok=False, error=user_friendly_error
-                    )
+                emit("tool", name=actual_tool_name, ok=False, error=user_friendly_error)
                 failure_result = {
                     "tool_name": actual_tool_name,
                     "args": actual_args,
@@ -73,10 +65,7 @@ async def execute_tools(
                     readable_result = format_tool_result(
                         tool_instance, actual_tool_name, actual_args, tool_output
                     )
-                    if notifier:
-                        await notifier(
-                            "tool", name=actual_tool_name, ok=True, result=readable_result
-                        )
+                    emit("tool", name=actual_tool_name, ok=True, result=readable_result)
 
                 success_result = {
                     "tool_name": actual_tool_name,
@@ -90,8 +79,7 @@ async def execute_tools(
         except Exception as e:
             # Use user-friendly error message
             user_friendly_error = f"{tool_name} failed: {str(e)}"
-            if notifier:
-                await notifier("tool", name=tool_name, ok=False, error=user_friendly_error)
+            emit("tool", name=tool_name, ok=False, error=user_friendly_error)
             failure_result = {
                 "tool_name": tool_name,
                 "args": tool_args,

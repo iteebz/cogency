@@ -8,6 +8,7 @@ The respond step handles final response creation:
 
 from typing import List, Optional
 
+from cogency.events import emit
 from cogency.providers import LLM
 from cogency.state import AgentState
 from cogency.tools import Tool
@@ -24,7 +25,6 @@ from .core import (
 
 async def respond(
     state: AgentState,
-    notifier,
     llm: LLM,
     tools: List[Tool],
     memory=None,  # Impression instance or None
@@ -32,7 +32,7 @@ async def respond(
     output_schema: Optional[str] = None,
 ) -> None:
     """Respond: generate final formatted response."""
-    await notifier("respond", state="generating")
+    emit("respond", state="generating")
 
     # Collect context
     tool_results = collect_tool_results(state)
@@ -56,5 +56,5 @@ async def respond(
     state.execution.add_message("assistant", response_text)
     state.execution.response = response_text
 
-    await notifier("respond", state="complete", content=(response_text or "")[:100])
+    emit("respond", state="complete", content=(response_text or "")[:100])
     return state

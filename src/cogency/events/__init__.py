@@ -12,7 +12,7 @@ Internal components:
 """
 
 # Internal event system - not exported
-from .core import MessageBus, component, emit, init_bus  # noqa: F401
+from .core import MessageBus, component, emit, get_logs, init_bus  # noqa: F401
 
 # Public: Custom event streaming handler
 from .handlers import CallbackHandler, ConsoleHandler, LoggerHandler  # noqa: F401

@@ -33,7 +33,7 @@ _embed_provider = Provider(
 )
 
 
-def _setup_llm(provider: str | LLM | None = None, notifier=None) -> LLM:
+def _setup_llm(provider: str | LLM | None = None) -> LLM:
     """Setup LLM provider with lazy discovery."""
     from cogency.events import emit
 
@@ -44,7 +44,6 @@ def _setup_llm(provider: str | LLM | None = None, notifier=None) -> LLM:
     try:
         _llm_base = _llm_base()
         if isinstance(provider, _llm_base):
-            provider.notifier = notifier
             emit(
                 "provider",
                 type="llm",
@@ -55,7 +54,7 @@ def _setup_llm(provider: str | LLM | None = None, notifier=None) -> LLM:
             return provider
 
         # Discovery and instantiation
-        result = _llm_provider.instance(provider, notifier=notifier)
+        result = _llm_provider.instance(provider)
         emit(
             "provider",
             type="llm",

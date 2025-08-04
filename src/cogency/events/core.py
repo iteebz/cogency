@@ -37,6 +37,18 @@ def emit(event_type: str, **data) -> None:
         _bus.emit(event_type, **data)
 
 
+def get_logs() -> List[dict]:
+    """Get all events from global logger handler."""
+    if not _bus:
+        return []
+
+    # Find the LoggerHandler in the bus
+    for handler in _bus.handlers:
+        if hasattr(handler, "logs"):
+            return handler.logs()
+    return []
+
+
 # Beautiful decorators that fade into background
 def lifecycle(event: str, **meta):
     """Decorator for lifecycle events (creation, teardown)."""

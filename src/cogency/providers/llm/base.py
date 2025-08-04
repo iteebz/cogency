@@ -39,14 +39,12 @@ class LLM(ABC):
         max_tokens: int = 16384,
         max_retries: int = 3,
         enable_cache: bool = True,
-        notifier=None,
         **kwargs,
     ):
         # Automatic key management - handles single/multiple keys, rotation, env detection
-        self.keys = KeyManager.for_provider(provider_name, api_keys, notifier=notifier)
+        self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
         self.enable_cache = enable_cache
-        self.notifier = notifier
 
         # Common LLM configuration
         self.model = model or self.default_model
@@ -113,8 +111,7 @@ class LLM(ABC):
                 status="error",
                 error=str(e),
             )
-            if self.notifier:
-                await self.notifier("trace", message=f"LLM {self.provider_name} failed: {str(e)}")
+            emit("trace", message=f"LLM {self.provider_name} failed: {str(e)}")
             logger.debug(f"LLM {self.provider_name} failed: {e}")
             raise
 
