@@ -36,8 +36,6 @@ async def reason(
     iteration = state.execution.iteration
     mode = state.execution.mode
 
-    emit("reason", state=mode)
-
     # Check stop conditions
     if iteration >= state.execution.max_iterations:
         state.execution.stop_reason = "max_iterations_reached"
@@ -74,7 +72,12 @@ async def reason(
     # Handle mode switching
     await _switch_mode(state, raw_response, mode, iteration)
 
-    # Handle response types
+    # Check for tool calls first - tools should execute before direct responses
+    if state.execution.pending_calls:
+        # Tool calls present - continue to action step
+        return None
+
+    # Handle direct response only if no tool calls
     if state.execution.response:
         emit("reason", state="direct_response", content=state.execution.response[:100])
         return state.execution.response

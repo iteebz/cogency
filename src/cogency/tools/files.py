@@ -94,12 +94,10 @@ class Files(Tool):
                 if path.exists():
                     return Result.fail(f"File already exists: {path}")
 
-                # Security: validate file content
-                from cogency.security import _threat_patterns
+                # Security: validate file content using centralized patterns
+                from cogency.security import secure_tool
 
-                security_result = _threat_patterns(
-                    content or "", {}
-                )  # SEC-002: Command injection protection
+                security_result = secure_tool(content or "")
                 if not security_result.safe:
                     return Result.fail(f"Security violation: {security_result.message}")
 
@@ -163,13 +161,11 @@ class Files(Tool):
                     lines = content.splitlines()
                     result_msg = "Replaced entire file"
 
-                # Security: validate edited content
+                # Security: validate edited content using centralized patterns
                 new_content = "\n".join(lines)
-                from cogency.security import _threat_patterns
+                from cogency.security import secure_tool
 
-                security_result = _threat_patterns(
-                    new_content, {}
-                )  # SEC-002: Command injection protection
+                security_result = secure_tool(new_content)
                 if not security_result.safe:
                     return Result.fail(f"Security violation: {security_result.message}")
 

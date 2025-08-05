@@ -5,6 +5,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from resilient_result import unwrap
+
 
 class AgentMode(Enum):
     """Agent execution modes with clear semantics."""
@@ -88,6 +90,40 @@ class ExecutionState:
         """Process completed tool results."""
         self.completed_calls.extend(results)
         self.pending_calls.clear()
+
+        # Add tool results to conversation history so agent can see what was executed
+        if results:
+            tool_summary = []
+            for result in results:
+                tool_name = result.get("name", "unknown")
+                result_obj = result.get("result")
+
+                try:
+                    # Unwrap Result objects from resilient_result
+                    unwrapped_result = unwrap(result_obj)
+
+                    # For shell tools, show command output
+                    if isinstance(unwrapped_result, dict) and "stdout" in unwrapped_result:
+                        output = unwrapped_result["stdout"].strip()
+                        if output:
+                            tool_summary.append(
+                                f"Tool '{tool_name}' executed successfully: {output}"
+                            )
+                        else:
+                            tool_summary.append(
+                                f"Tool '{tool_name}' executed successfully (no output)"
+                            )
+                    else:
+                        # Generic success message
+                        tool_summary.append(f"Tool '{tool_name}' executed successfully")
+
+                except Exception as e:
+                    # If unwrap fails, it means the Result was a failure
+                    error_msg = str(e) if str(e) else "Unknown error"
+                    tool_summary.append(f"Tool '{tool_name}' failed: {error_msg}")
+
+            if tool_summary:
+                self.add_message("system", "Tool execution results:\n" + "\n".join(tool_summary))
 
     def should_continue(self) -> bool:
         """Determine if reasoning loop should continue."""

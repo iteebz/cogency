@@ -75,11 +75,9 @@ async def execute_agent(
             break
 
         # Act step
-        emit("action", level="debug", state="start", tool_count=len(state.execution.pending_calls))
         response = await act_step(state)
         if isinstance(response, Result):
             if response.success and response.data:
-                emit("action", state="complete", early_return=True)
                 state.execution.response = response.data
                 state.execution.response_source = "act"
                 # Always call synthesize after response
@@ -87,7 +85,6 @@ async def execute_agent(
                 emit("agent_complete", source="act", iterations=state.execution.iteration)
                 return
             # On failure, loop continues, error is in tool_results
-            emit("action", state="complete", early_return=False, success=False)
         elif response:
             emit("action", state="complete", early_return=True)
             state.execution.response = response
@@ -96,8 +93,6 @@ async def execute_agent(
             await synthesize_step(state)
             emit("agent_complete", source="act", iterations=state.execution.iteration)
             return
-        else:
-            emit("action", state="complete", early_return=False)
 
         if state.execution.stop_reason:
             emit("react_exit", reason=state.execution.stop_reason)

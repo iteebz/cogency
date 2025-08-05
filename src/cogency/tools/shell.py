@@ -94,10 +94,10 @@ class Shell(Tool):
         # Limit timeout
         timeout = min(max(timeout, 1), 300)  # 1-300 seconds
 
-        # Security: validate command using unified threat patterns
-        from cogency.security import _threat_patterns
+        # Security: validate command using centralized patterns
+        from cogency.security import secure_tool
 
-        security_result = _threat_patterns(command, {})  # SEC-002: Command injection protection
+        security_result = secure_tool(command)
         if not security_result.safe:
             return Result.fail(f"Security violation: {security_result.message}")
 

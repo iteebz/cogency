@@ -51,7 +51,14 @@ WORKSPACE_UPDATE_GUIDELINES = """WORKSPACE UPDATE FIELDS:
 
 def _build_tool_execution_guidelines(max_tool_calls: int) -> str:
     """Build tool execution guidelines."""
-    return f"""IMPORTANT: All {max_tool_calls} tool calls must be in ONE tool_calls array, not separate JSON objects.
+    return f"""CRITICAL DECISION LOGIC:
+- If user requests tool usage (shell commands, file operations, etc.) → Use tool_calls array, leave response empty
+- If you can answer directly without tools → Use response field, leave tool_calls empty
+- NEVER put tool descriptions in response field when user requested tool execution
+
+TOOL EXECUTION: All {max_tool_calls} tool calls must be in ONE tool_calls array, not separate JSON objects.
+
+When using tools: {{"thinking": "I need to execute tools", "tool_calls": [{{"name": "shell", "args": {{"command": "echo hello"}}}}], "response": "", "switch_to": null, "switch_why": null, "workspace_update": {{...}}}}
 
 When ready to respond: {{"thinking": "explanation", "security_assessment": {{"risk_level": "SAFE", "threats_detected": [], "restrictions": [], "reasoning": "No security risks detected"}}, "tool_calls": [], "response": "your response to the user", "switch_to": null, "switch_why": null, "workspace_update": {{"objective": "updated objective", "assessment": "what we learned", "approach": "approach used", "observations": "key insights found"}}}}"""
 

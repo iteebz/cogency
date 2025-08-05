@@ -7,7 +7,7 @@ from resilient_result import unwrap
 
 from cogency.events import emit
 from cogency.providers import LLM
-from cogency.security import assess
+from cogency.security import secure_semantic
 from cogency.tools import Tool
 from cogency.tools.registry import build_registry
 from cogency.utils.heuristics import is_simple_query
@@ -250,14 +250,17 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
     elif not isinstance(parsed, dict):
         parsed = {}
 
-    # Pass LLM security assessment to the single security function
+    # Extract and process security assessment from unified response
     emit("triage", level="debug", state="security_check")
-    security_section = parsed.get("security_assessment", {}) or {}
-    security_result = await assess(query, {"security_assessment": security_section})
+    security_data = parsed.get("security_assessment", {})
+    security_result = secure_semantic(security_data)
 
-    if not security_result.safe:  # SEC-001: Prompt injection protection
+    if not security_result.safe:
         emit("triage", level="debug", state="security_violation")
-        return TriageResult(direct_response="Security violation: Request contains unsafe content")
+        return TriageResult(
+            direct_response=security_result.message
+            or "Security violation: Request contains unsafe content"
+        )
 
     # Extract memory section safely
     memory_section = parsed.get("memory", {}) or {}

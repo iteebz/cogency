@@ -12,7 +12,6 @@ from cogency.observe import get_metrics_handler
 from cogency.persist.store.base import _setup_persist
 from cogency.persist.utils import _get_state
 from cogency.providers.setup import _setup_embed, _setup_llm
-from cogency.security import assess
 from cogency.state import AgentMode, AgentState
 from cogency.steps.composition import _setup_steps
 from cogency.steps.execution import execute_agent
@@ -301,10 +300,7 @@ class AgentExecutor:
             self.config.persist,
         )
 
-        # SEC-002: Command injection protection via input validation
-        security_result = await assess(query)
-        if not security_result.safe:
-            raise ValueError("Security violation: Dangerous patterns detected")
+        # SEC-002: Security validation now handled in triage step for unified approach
 
         wrapped_query = f"[user]\n{query.strip()}\n[/user]"
         state.execution.add_message("user", wrapped_query)

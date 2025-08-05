@@ -17,7 +17,11 @@ async def _get_state(
     # Check existing in-memory state first
     state = user_states.get(user_id)
     if state:
-        state.execution.query = query
+        # Reset execution state for new query to prevent response caching
+        from cogency.state.execution import ExecutionState
+
+        state.execution = ExecutionState(query=query, user_id=user_id)
+        state.execution.max_iterations = max_iterations
         return state
 
     # Try to restore from persistence

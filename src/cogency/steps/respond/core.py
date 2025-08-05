@@ -1,6 +1,5 @@
 """Core response functions - consolidated business logic."""
 
-import re
 from typing import Dict, Optional
 
 from resilient_result import Result, unwrap
@@ -81,20 +80,6 @@ def get_sanitized_query(state: AgentState) -> str:
     return sanitized_query
 
 
-async def apply_security_check(response: str) -> str:
-    """Apply security assessment and redaction to response."""
-    from cogency.security import SecurityAction, assess
-
-    security_result = await assess(response)
-    if security_result.action == SecurityAction.BLOCK:
-        raise ValueError("Security violation: Output contains unsafe content")
-    elif security_result.action == SecurityAction.REDACT:
-        # Apply redaction patterns
-        response = re.sub(r"sk-[a-zA-Z0-9]{32,}", "[REDACTED]", response)
-        response = re.sub(r"AKIA[a-zA-Z0-9]{16}", "[REDACTED]", response)
-    return response
-
-
 async def apply_identity(
     state: AgentState,
     llm: LLM,
@@ -121,7 +106,9 @@ async def apply_identity(
 
     llm_result = await llm.run(messages)
     response = unwrap(llm_result)
-    return await apply_security_check(response)
+    from cogency.security import secure_response
+
+    return secure_response(response)
 
 
 async def generate_new_response(
@@ -151,4 +138,6 @@ async def generate_new_response(
 
     llm_result = await llm.run(messages)
     response = unwrap(llm_result)
-    return await apply_security_check(response)
+    from cogency.security import secure_response
+
+    return secure_response(response)
