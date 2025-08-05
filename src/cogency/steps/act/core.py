@@ -58,27 +58,7 @@ def format_tool_result(tool_instance, tool_name: str, tool_args: dict, tool_outp
 
 def prepare_completed_results(successes: List[dict], failures: List[dict]) -> List[dict]:
     """Prepare results for state completion."""
-    completed_results = []
-
-    for success in successes:
-        completed_results.append(
-            {
-                "name": success["tool_name"],
-                "args": success["args"],
-                "result": success["result_object"],
-            }
-        )
-
-    for failure in failures:
-        completed_results.append(
-            {
-                "name": failure["tool_name"],
-                "args": failure["args"],
-                "result": failure["result_object"],
-            }
-        )
-
-    return completed_results
+    return successes + failures
 
 
 def generate_execution_summary(successes: List[dict], failures: List[dict]) -> str:

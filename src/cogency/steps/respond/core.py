@@ -17,7 +17,7 @@ def collect_tool_results(state: AgentState) -> Optional[str]:
 
     # Format completed tool results
     successful_results = [
-        result for result in state.execution.completed_calls[:5] if "result" in result
+        result for result in state.execution.completed_calls[:5] if result.get("success", False)
     ]
 
     if not successful_results:
@@ -25,7 +25,7 @@ def collect_tool_results(state: AgentState) -> Optional[str]:
 
     return "\n".join(
         [
-            f"• {result['name']}: {str(result['result'] or 'no result')[:200]}..."
+            f"• {result['name']}: {str(result['data'] or 'no result')[:200]}..."
             for result in successful_results
         ]
     )
@@ -45,13 +45,8 @@ def collect_failures(state: AgentState) -> Optional[Dict[str, str]]:
 
     # Check for tool failures in completed calls
     for result in state.execution.completed_calls:
-        if (
-            "result" in result
-            and result["result"]
-            and hasattr(result["result"], "success")
-            and not result["result"].success
-        ):
-            failures[result["name"]] = str(result["result"].error) or "Tool execution failed"
+        if not result.get("success", True):  # Count as failure if success is False
+            failures[result["name"]] = str(result.get("error", "Tool execution failed"))
 
     return failures if failures else None
 

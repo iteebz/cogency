@@ -52,9 +52,13 @@ async def execute_tools(
                 user_friendly_error = f"{actual_tool_name} failed: {raw_error}"
                 emit("tool", name=actual_tool_name, ok=False, error=user_friendly_error)
                 failure_result = {
-                    "tool_name": actual_tool_name,
+                    "name": actual_tool_name,
                     "args": actual_args,
-                    "result_object": tool_output,  # Store the full Result object
+                    "success": False,
+                    "data": None,
+                    "error": str(tool_output.error)
+                    if hasattr(tool_output, "error")
+                    else "Unknown error",
                 }
                 failures.append(failure_result)
             else:
@@ -68,9 +72,11 @@ async def execute_tools(
                     emit("tool", name=actual_tool_name, ok=True, result=readable_result)
 
                 success_result = {
-                    "tool_name": actual_tool_name,
+                    "name": actual_tool_name,
                     "args": actual_args,
-                    "result_object": tool_output,  # Store the full Result object
+                    "success": True,
+                    "data": tool_output.data,
+                    "error": None,
                 }
                 successes.append(success_result)
                 if state:
@@ -81,9 +87,11 @@ async def execute_tools(
             user_friendly_error = f"{tool_name} failed: {str(e)}"
             emit("tool", name=tool_name, ok=False, error=user_friendly_error)
             failure_result = {
-                "tool_name": tool_name,
+                "name": tool_name,
                 "args": tool_args,
-                "result_object": Result.fail(user_friendly_error),  # Store a Result.fail object
+                "success": False,
+                "data": None,
+                "error": str(e),
             }
             failures.append(failure_result)
 

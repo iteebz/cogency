@@ -49,7 +49,10 @@ async def test_success(state, tools):
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
     assert result["name"] == "mock_tool"
-    assert "result" in result
+    assert "success" in result
+    assert "data" in result
+    assert "error" in result
+    assert result["success"] is True
 
 
 @pytest.mark.asyncio

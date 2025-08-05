@@ -5,6 +5,89 @@ from typing import Any, Dict, List
 from .agent import AgentState
 
 
+def execution_history(state: AgentState, tools: List[Any]) -> str:
+    """State → Rich execution history with full context."""
+    if not state.execution.completed_calls:
+        return ""
+
+    history_lines = []
+    for result in state.execution.completed_calls[-5:]:  # Last 5
+        tool_name = result.get("name", "unknown")
+        tool_args = result.get("args", {})
+        success = result.get("success", False)
+        data = result.get("data")
+        error = result.get("error")
+
+        # Args summary (first 50 chars)
+        args_str = str(tool_args)[:50] if tool_args else ""
+
+        if success:
+            # Success: show what was learned
+            tool = next((t for t in tools if t.name == tool_name), None)
+            if tool and data:
+                try:
+                    output = tool.format_agent(data)[:150]
+                except (KeyError, ValueError, AttributeError):
+                    output = "completed"
+            else:
+                output = "completed"
+            history_lines.append(f"✓ {tool_name}({args_str}) → {output}")
+        else:
+            # Failure: show why it failed
+            error_msg = str(error)[:100] if error else "failed"
+            history_lines.append(f"✗ {tool_name}({args_str}) → FAILED: {error_msg}")
+
+    return f"EXECUTION HISTORY:\n{chr(10).join(history_lines)}\n\n"
+
+
+def knowledge_synthesis(state: AgentState) -> str:
+    """State → Synthesized knowledge from all tool results."""
+    knowledge = []
+
+    # Extract insights from successful tool calls
+    for result in state.execution.completed_calls:
+        if result.get("success", False):
+            tool_name = result["name"]
+            data = result.get("data")
+
+            # Tool-specific knowledge extraction
+            if tool_name == "files" and isinstance(data, str):
+                knowledge.append(f"File content: {len(data)} chars loaded")
+            elif tool_name == "search" and isinstance(data, list):
+                knowledge.append(f"Found {len(data)} search results")
+            elif tool_name == "shell" and isinstance(data, dict) and "stdout" in data:
+                output = data["stdout"].strip()
+                if output:
+                    knowledge.append(f"Command output: {output[:100]}")
+
+    if not knowledge:
+        return ""
+
+    return f"KNOWLEDGE GATHERED:\n{chr(10).join(f'- {k}' for k in knowledge[-5:])}\n\n"
+
+
+def readiness_assessment(state: AgentState) -> str:
+    """State → Can I respond to the user now?"""
+
+    # Simple heuristics
+    has_successful_tools = any(r.get("success", False) for r in state.execution.completed_calls)
+
+    recent_failures = sum(
+        1
+        for r in state.execution.completed_calls[-3:]
+        if not r.get("success", True)  # Count as failure if success is False
+    )
+
+    if has_successful_tools and recent_failures == 0:
+        readiness = "READY - Have successful results, no recent failures"
+    elif recent_failures >= 2:
+        readiness = "CONSIDER RESPONDING - Multiple recent failures, may need different approach"
+    else:
+        readiness = "CONTINUE - Gathering more information"
+
+    return f"RESPONSE READINESS: {readiness}\n\n"
+
+
 def reasoning_context(state: AgentState, tools: List[Any], mode=None) -> str:
     """Pure function: State → Reasoning Prompt."""
 
@@ -20,33 +103,10 @@ def reasoning_context(state: AgentState, tools: List[Any], mode=None) -> str:
     # Tool registry
     tool_registry = "\n".join(f"- {tool.name}: {tool.description}" for tool in tools)
 
-    # Recent results with formatted output
-    max_recent = 3
-    recent_results = (
-        state.execution.completed_calls[-max_recent:] if state.execution.completed_calls else []
-    )
-    results_context = ""
-    if recent_results:
-        results_parts = []
-        for result in recent_results:
-            name = result.get("name", "unknown")
-            result_obj = result.get("result")
-            success = result_obj.success if result_obj and hasattr(result_obj, "success") else False
-            status = "✓" if success else "✗"
-
-            # Use tool's agent template for formatted output
-            formatted_output = ""
-            if success and result_obj and hasattr(result_obj, "data") and result_obj.data:
-                tool = next((t for t in tools if t.name == name), None)
-                if tool:
-                    try:
-                        formatted_output = f" → {tool.format_agent(result_obj.data)}"
-                    except (KeyError, ValueError, AttributeError):
-                        # Graceful fallback if tool template fails
-                        formatted_output = f" → {name} completed"
-
-            results_parts.append(f"{status} {name}{formatted_output}")
-        results_context = f"RECENT RESULTS:\n{'\n'.join(results_parts)}\n\n"
+    # Rich execution context
+    execution_context = execution_history(state, tools)
+    knowledge_context = knowledge_synthesis(state)
+    readiness_context = readiness_assessment(state)
 
     # Mode-specific instructions
     if mode_value == "deep":
@@ -68,7 +128,7 @@ def reasoning_context(state: AgentState, tools: List[Any], mode=None) -> str:
 {user_context}REASONING CONTEXT:
 {reasoning_context}
 
-{results_context}AVAILABLE TOOLS:
+{execution_context}{knowledge_context}{readiness_context}AVAILABLE TOOLS:
 {tool_registry}
 
 {instructions}
