@@ -12,7 +12,7 @@ from cogency.providers import LLM
 from cogency.state import AgentState
 from cogency.tools import Tool
 
-from .core import MemoryResult, filter_tools, notify_tool_selection, save_memory, unified_triage
+from .core import filter_tools, notify_tool_selection, triage_prompt
 
 
 async def triage(
@@ -25,19 +25,12 @@ async def triage(
 
     # Route and filter
     query = state.execution.query
-    result = await unified_triage(llm, query, tools)
+    result = await triage_prompt(llm, query, tools)
 
     # Handle direct response (early return)
     if result.direct_response:
         state.execution.response = result.direct_response
         return result.direct_response
-
-    # Extract memory
-    if result.memory_content and memory:
-        memory_result = MemoryResult(
-            content=result.memory_content, tags=result.memory_tags, memory_type="fact"
-        )
-        await save_memory(memory_result, memory)
 
     # Select tools
     filtered_tools = filter_tools(tools, result.selected_tools)

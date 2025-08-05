@@ -18,19 +18,13 @@ DIRECT_RESPONSE = """2. DIRECT RESPONSE:
    - If direct response provided, ignore tools/mode"""
 
 
-MEMORY_EXTRACTION = """3. MEMORY EXTRACTION:
-   - Extract factual user statements (goals, context, identity, preferences)
-   - Ignore questions, commands, or temporary context
-   - Examples: "I'm building a React app" → extract, "What is 2+2?" → null"""
-
-
-TOOL_SELECTION = """4. TOOL SELECTION:
+TOOL_SELECTION = """3. TOOL SELECTION:
    - Select only tools directly needed for execution
    - Empty list means no tools needed (direct LLM response)
    - Consider query intent and tool capabilities"""
 
 
-MODE_CLASSIFICATION = """5. MODE CLASSIFICATION:
+MODE_CLASSIFICATION = """4. MODE CLASSIFICATION:
    - FAST: Single factual lookup, basic calculation, direct command
    - DEEP: Multiple sources needed, comparison/synthesis, creative generation"""
 
@@ -38,8 +32,7 @@ MODE_CLASSIFICATION = """5. MODE CLASSIFICATION:
 DECISION_PRINCIPLES = """LOGIC:
 - Direct answer available → direct_response
 - Tools needed → select tools + mode  
-- Security violation → BLOCK
-- Factual statements → extract memory"""
+- Security violation → BLOCK"""
 
 
 JSON_RESPONSE_FORMAT = """JSON Response:
@@ -50,11 +43,6 @@ JSON_RESPONSE_FORMAT = """JSON Response:
     "threats": ["specific threat types if any"]
   },
   "direct_response": "complete answer if query can be answered directly without tools" | null,
-  "memory": {
-    "content": "extracted user fact worth persisting" | null,
-    "tags": ["topical", "categories"] | [],
-    "type": "fact"
-  },
   "selected_tools": ["tool1", "tool2"] | [],
   "mode": "fast" | "deep",
   "reasoning": "brief explanation of decisions"
@@ -70,8 +58,6 @@ DECISION RULES:
 {SECURITY_ASSESSMENT}
 
 {DIRECT_RESPONSE}
-
-{MEMORY_EXTRACTION}
 
 {TOOL_SELECTION}
 

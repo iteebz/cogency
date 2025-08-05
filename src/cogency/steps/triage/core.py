@@ -17,13 +17,6 @@ from .prompt import build_triage_prompt
 
 
 @dataclass
-class MemoryResult:
-    content: Optional[str]
-    tags: List[str]
-    memory_type: str = "fact"
-
-
-@dataclass
 class SelectionResult:
     selected_tools: List[str]
     reasoning: str
@@ -36,10 +29,6 @@ class TriageResult:
     # Early return
     direct_response: Optional[str] = None
 
-    # Memory extraction
-    memory_content: Optional[str] = None
-    memory_tags: List[str] = None
-
     # Tool selection
     selected_tools: List[str] = None
 
@@ -50,8 +39,6 @@ class TriageResult:
     reasoning: str = ""
 
     def __post_init__(self):
-        if self.memory_tags is None:
-            self.memory_tags = []
         if self.selected_tools is None:
             self.selected_tools = []
 
@@ -64,61 +51,6 @@ def filter_tools(tools: List[Tool], selected_names: List[str]) -> List[Tool]:
     selected_set = set(selected_names)
     filtered = [tool for tool in tools if tool.name in selected_set]
     return [tool for tool in filtered if tool.name != "memorize"]
-
-
-async def extract_memory(llm: LLM, query: str) -> MemoryResult:
-    """Extract user facts worth persisting."""
-    prompt = f"""Extract memorable user facts from this query:
-
-Query: "{query}"
-
-JSON Response:
-{{
-  "memory": "extracted user fact relevant for persistence" | null,
-  "tags": ["topical", "categories"] | [],
-  "memory_type": "fact"
-}}
-
-EXTRACTION RULES:
-- Extract factual user statements (goals, context, identity, preferences)
-- Ignore questions, commands, or temporary context
-- Return null if no memorable facts present
-- Tags should be interpretive categories for later retrieval
-
-Examples:
-- "I'm building a React app" → "User mentioned building a React app"
-- "What is 2+2?" → null
-- "My name is John" → "User's name is John"
-"""
-
-    result = await llm.run([{"role": "user", "content": prompt}])
-    response = unwrap(result)
-    parsed = unwrap(_parse_json(response))
-
-    return MemoryResult(
-        content=parsed.get("memory"),
-        tags=parsed.get("tags", []),
-        memory_type=parsed.get("memory_type", "fact"),
-    )
-
-
-async def save_memory(memory_result: MemoryResult, memory_service) -> None:
-    """Save extracted memory if present."""
-    if not memory_result.content or not memory_service:
-        return
-
-    # Truncate for notification display
-    content = memory_result.content
-    if len(content) > 60:
-        break_point = content.rfind(" ", 40, 60)
-        if break_point == -1:
-            break_point = 60
-        display_content = f"{content[:break_point]}..."
-    else:
-        display_content = content
-
-    emit("triage", state="memory_saved", content_preview=display_content)
-    await memory_service.remember(content, human=True)
 
 
 async def check_early_return(llm: LLM, query: str, selected_tools: List[Tool]) -> Optional[str]:
@@ -228,7 +160,7 @@ async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) ->
         emit("triage", state="react", tool_count=selected_count)
 
 
-async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> TriageResult:
+async def triage_prompt(llm: LLM, query: str, available_tools: List[Tool]) -> TriageResult:
     """Single LLM call to handle all triage tasks."""
     emit("triage", level="debug", state="analyzing", tool_count=len(available_tools))
 
@@ -262,8 +194,7 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
             or "Security violation: Request contains unsafe content"
         )
 
-    # Extract memory section safely
-    memory_section = parsed.get("memory", {}) or {}
+    # Extract response fields
     selected_tools = parsed.get("selected_tools", [])
     direct_response = parsed.get("direct_response")
 
@@ -277,8 +208,6 @@ async def unified_triage(llm: LLM, query: str, available_tools: List[Tool]) -> T
 
     return TriageResult(
         direct_response=direct_response,
-        memory_content=memory_section.get("content"),
-        memory_tags=memory_section.get("tags", []),
         selected_tools=selected_tools,
         mode=parsed.get("mode", "fast"),
         reasoning=parsed.get("reasoning", ""),
