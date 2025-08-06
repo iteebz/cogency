@@ -1,7 +1,6 @@
 """Console output for development."""
 
 
-
 class ConsoleHandler:
     """Clean CLI output using canonical symbol system."""
 
@@ -136,12 +135,12 @@ class ConsoleHandler:
             # Handle string format
             if isinstance(input_text, str):
                 import re
-                
+
                 # Try parentheses format first (from format_human) like "(ls -la)"
-                paren_match = re.search(r'\(([^)]+)\)', input_text)
+                paren_match = re.search(r"\(([^)]+)\)", input_text)
                 if paren_match:
                     return paren_match.group(1).strip()
-                
+
                 # Try JSON format for backward compatibility
                 # Try to extract from nested args structure
                 args_match = re.search(r'"args":\s*{([^}]+)}', input_text)
@@ -150,17 +149,17 @@ class ConsoleHandler:
                     cmd_match = re.search(r'"command":\s*"([^"]+)"', args_content)
                     if cmd_match:
                         return cmd_match.group(1)
-                
+
                 # Try direct JSON format
                 if "command" in input_text:
                     match = re.search(r'"command":\s*"([^"]+)"', input_text)
                     if match:
                         return match.group(1)
-                
+
                 # If it looks like a direct command, use it
-                if input_text.strip() and not input_text.startswith('{'):
+                if input_text.strip() and not input_text.startswith("{"):
                     return input_text.strip()
-            
+
             # Handle dict format
             elif isinstance(input_text, dict):
                 # Check if it's the full tool call format
@@ -180,17 +179,17 @@ class ConsoleHandler:
             # Handle human-readable format from format_human() like "(create, demo.py)"
             if isinstance(input_text, str):
                 import re
-                
+
                 # Try parentheses format first (from format_human)
-                paren_match = re.search(r'\(([^)]+)\)', input_text)
+                paren_match = re.search(r"\(([^)]+)\)", input_text)
                 if paren_match:
                     content = paren_match.group(1).strip()
-                    parts = [p.strip() for p in content.split(',')]
-                    
+                    parts = [p.strip() for p in content.split(",")]
+
                     if len(parts) >= 2:
                         action = parts[0].lower()
                         path = parts[1]
-                        
+
                         if action == "create":
                             return f"Create({path})"
                         elif action == "read":
@@ -207,7 +206,7 @@ class ConsoleHandler:
                         # Since we can't determine action from format_human output,
                         # use generic Files(path) format
                         return f"Files({path})"
-                
+
                 # Try JSON format for backward compatibility
                 if "action" in input_text:
                     # Try to extract from nested args structure
@@ -234,7 +233,7 @@ class ConsoleHandler:
                         return f"List({path})" if path else "List(.)"
                     elif action and path:
                         return f"{action.title()}({path})"
-            
+
             # Handle dict format
             elif isinstance(input_text, dict):
                 # Check if it's the full tool call format
@@ -245,7 +244,7 @@ class ConsoleHandler:
                 else:
                     action = input_text.get("action", "")
                     path = input_text.get("path", "")
-                
+
                 if action == "create" and path:
                     return f"Create({path})"
                 elif action == "read" and path:
@@ -340,7 +339,7 @@ class ConsoleHandler:
             first_line = output_lines[0]
             if "successfully installed" in first_line.lower():
                 packages = first_line.split("Successfully installed")[1].strip()
-                package_count = packages.count(' ') + 1
+                package_count = packages.count(" ") + 1
                 return f"{package_count} packages installed"
             elif "failed" in first_line.lower() and "passed" in first_line.lower():
                 return first_line
@@ -355,7 +354,8 @@ class ConsoleHandler:
             if "Created file:" in result or "File created" in result:
                 # Extract filename from result
                 import re
-                filename_match = re.search(r'(?:Created file:|File created)\s*([^\n]+)', result)
+
+                filename_match = re.search(r"(?:Created file:|File created)\s*([^\n]+)", result)
                 if filename_match:
                     filename = filename_match.group(1).strip()
                     return f"File created ({filename})"
@@ -366,11 +366,18 @@ class ConsoleHandler:
             elif "Edited" in result or "Replaced" in result:
                 return "File updated"
             else:
-                return result.split("\n")[0][:50] + "..." if result and len(result.split("\n")[0]) > 50 else result.split("\n")[0] if result else "Operation completed"
+                return (
+                    result.split("\n")[0][:50] + "..."
+                    if result and len(result.split("\n")[0]) > 50
+                    else result.split("\n")[0]
+                    if result
+                    else "Operation completed"
+                )
 
         elif tool_name == "search":
             if "Found" in result and "results" in result:
                 import re
+
                 match = re.search(r"Found (\d+) results", result)
                 if match:
                     count = match.group(1)
@@ -382,7 +389,13 @@ class ConsoleHandler:
                 return "Content scraped successfully"
             return "Scrape completed"
 
-        return result[:50] + "..." if result and len(result) > 50 else result if result else "Completed"
+        return (
+            result[:50] + "..."
+            if result and len(result) > 50
+            else result
+            if result
+            else "Completed"
+        )
 
     def _clean_markdown(self, text):
         """Clean markdown formatting for CLI display."""
@@ -412,31 +425,31 @@ class ConsoleHandler:
         # Keep only last 3 thinking entries for comparison
         if len(self._recent_thinking) > 3:
             self._recent_thinking = self._recent_thinking[-3:]
-        
+
         # Check for exact duplicates
         if content in self._recent_thinking:
             return True
-        
+
         # Check for very similar content (>80% overlap)
         for recent in self._recent_thinking:
             if self._similarity_ratio(content, recent) > 0.8:
                 return True
-        
+
         # Add to recent thinking
         self._recent_thinking.append(content)
         return False
-    
+
     def _similarity_ratio(self, text1, text2):
         """Calculate similarity ratio between two texts."""
         words1 = set(text1.lower().split())
         words2 = set(text2.lower().split())
-        
+
         if not words1 and not words2:
             return 1.0
         if not words1 or not words2:
             return 0.0
-        
+
         intersection = words1.intersection(words2)
         union = words1.union(words2)
-        
+
         return len(intersection) / len(union)

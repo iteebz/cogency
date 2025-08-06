@@ -2,9 +2,9 @@
 
 Built-in tools auto-register and route intelligently. Create custom tools with zero ceremony.
 
-## Canonical 5 Tools
+## Core Tools
 
-Cogency ships with 5 core tools that provide complete primitive coverage:
+Cogency ships with 4 core tools that provide complete primitive coverage:
 
 ### 📁 **Files** - Local Filesystem I/O
 ```python
@@ -21,11 +21,7 @@ shell(command='python app.py')
 shell(command='git status', working_dir='/path/to/repo')
 ```
 
-### 🌐 **HTTP** - Universal Network Primitive
-```python
-http(url='https://api.github.com/user', method='get', headers={'Authorization': 'token xyz'})
-http(url='https://api.service.com/data', method='post', json_data={'name': 'test'})
-```
+
 
 ### 📖 **Scrape** - Intelligent Web Content Extraction
 ```python
@@ -39,14 +35,12 @@ search(query='latest AI developments 2024', max_results=5)
 
 ## Tool Coverage
 
-These 5 tools compose to handle any reasonable AI agent task:
+These 4 tools compose to handle any reasonable AI agent task:
 - **Local system**: Files + Shell
-- **Network/Web**: HTTP + Scrape + Search  
+- **Network/Web**: Scrape + Search  
 - **Information gathering**: Search + Scrape
 - **Execution**: Shell
 - **Data persistence**: Files
-
-**HTTP as the universal fallback**: When specialized tools fail or don't exist, HTTP can call any API, webhook, or service.
 
 ## Custom Tools
 

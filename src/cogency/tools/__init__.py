@@ -4,7 +4,7 @@ This module provides the tool system that enables agents to interact with extern
 systems and perform actions. It includes:
 
 - Tool: Base class for creating custom tools
-- Built-in tools: Files, HTTP, Scrape, Search, Shell
+- Built-in tools: Files, Scrape, Search, Shell
 - @tool: Decorator for registering tool functions
 - get_tools: Utility for accessing registered tools
 
@@ -13,9 +13,9 @@ Example:
 
     ```python
     from cogency import Agent
-    from cogency.tools import Files, HTTP
+    from cogency.tools import Files
 
-    agent = Agent("assistant", tools=[Files(), HTTP()])
+    agent = Agent("assistant", tools=[Files()])
     ```
 
     Creating custom tools:
@@ -35,9 +35,6 @@ from .base import Tool
 
 # Public: Built-in file operations tool
 from .files import Files
-
-# Public: Built-in HTTP requests tool
-from .http import HTTP
 
 # Public: Core tool system functions for registration and LLM integration
 from .registry import (
@@ -60,7 +57,6 @@ __all__ = [
     # Public tool APIs
     "Tool",  # Base class for custom tools
     "Files",  # Built-in file operations
-    "HTTP",  # Built-in HTTP requests
     "Scrape",  # Built-in web scraping
     "Search",  # Built-in web search
     "Shell",  # Built-in shell commands

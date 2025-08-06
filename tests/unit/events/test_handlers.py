@@ -54,7 +54,7 @@ class TestConsoleHandler:
                     "timestamp": 123,
                 }
             )
-            mock_print.assert_called_once_with("[TOOL] search complete (1.5s)")
+            mock_print.assert_called_once_with("✓ Search completed")
 
     def test_error_event(self):
         handler = ConsoleHandler(enabled=True)

@@ -7,7 +7,6 @@ import pytest
 
 from cogency.tools.base import Tool
 from cogency.tools.files import Files
-from cogency.tools.http import HTTP
 from cogency.tools.registry import (
     _get_tool,
     _resolve_tool_list,
@@ -55,14 +54,14 @@ def test_setup_string_names():
 
 def test_setup_mixed_list():
     """Test that mixed string/instance lists work."""
-    http_instance = HTTP()
-    result = _setup_tools(["search", http_instance], None)
+    files_instance = Files()
+    result = _setup_tools(["search", files_instance], None)
 
     assert len(result) == 2
     assert all(isinstance(tool, Tool) for tool in result)
 
-    # Check that HTTP instance is preserved
-    assert http_instance in result
+    # Check that Files instance is preserved
+    assert files_instance in result
 
 
 def test_setup_all():
@@ -132,11 +131,11 @@ def test_resolve_strings():
 
 def test_resolve_mixed():
     """Test resolving mixed string/instance list."""
-    http_instance = HTTP()
-    result = _resolve_tool_list(["search", http_instance])
+    files_instance = Files()
+    result = _resolve_tool_list(["search", files_instance])
 
     assert len(result) == 2
-    assert http_instance in result
+    assert files_instance in result
 
     # Find the search tool
     search_tool = next(tool for tool in result if tool.name == "search")
@@ -172,7 +171,7 @@ def test_resolve_invalid_type():
 
 def test_all_tools_resolvable():
     """Test that all tools in the mapping can be resolved."""
-    tool_names = ["files", "http", "scrape", "search", "shell"]
+    tool_names = ["files", "scrape", "search", "shell"]
 
     for name in tool_names:
         tool = _get_tool(name)

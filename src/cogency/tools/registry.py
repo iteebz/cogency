@@ -65,14 +65,12 @@ def _get_tool(name: str) -> Tool:
 
     # Import here to avoid circular imports
     from cogency.tools.files import Files
-    from cogency.tools.http import HTTP
     from cogency.tools.scrape import Scrape
     from cogency.tools.search import Search
     from cogency.tools.shell import Shell
 
     tool_map = {
         "files": Files,
-        "http": HTTP,
         "scrape": Scrape,
         "search": Search,
         "shell": Shell,
