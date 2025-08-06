@@ -93,7 +93,6 @@ class AgentExecutor:
                 steps["triage"],
                 steps["reason"],
                 steps["act"],
-                steps["respond"],
                 steps["synthesize"],
             )
 
@@ -160,7 +159,6 @@ class AgentExecutor:
                 steps["triage"],
                 steps["reason"],
                 steps["act"],
-                steps["respond"],
                 steps["synthesize"],
             )
 

@@ -62,13 +62,24 @@ JSON_RESPONSE_FORMAT = f"""{JSON_FORMAT_CORE}
 {_build_triage_json_format()}"""
 
 
-def build_triage_prompt(query: str, registry_lite: str, user_context: str = "") -> str:
+def build_triage_prompt(
+    query: str, registry_lite: str, user_context: str = "", identity: str = None
+) -> str:
     """Build triage prompt with decomposed sections."""
-    return f"""{CORE_INSTRUCTIONS.format(query=query, registry_lite=registry_lite, user_context=user_context)}
+    identity_header = identity or "You are a helpful AI assistant."
+    identity_section = (
+        f"IDENTITY: When providing direct_response, adopt the personality and tone: {identity_header}\n\n"
+        if identity
+        else ""
+    )
+
+    return f"""{identity_header}
+
+{CORE_INSTRUCTIONS.format(query=query, registry_lite=registry_lite, user_context=user_context)}
 
 {SECURITY_ASSESSMENT}
 {DIRECT_RESPONSE}
-{TOOL_SELECTION}
+{identity_section}{TOOL_SELECTION}
 {MODE_CLASSIFICATION}
 {DECISION_PRINCIPLES}
 

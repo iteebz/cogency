@@ -10,84 +10,78 @@ logger = logging.getLogger(__name__)
 
 
 async def interactive_mode(agent) -> None:
-    """Interactive mode."""
-    logger.info("🤖 Cogency Agent")
-    logger.info("Type 'exit' to quit")
-    logger.info("-" * 30)
+    """Interactive chat mode with clean console output."""
+    print("Cogency Agent")
+    print("Type 'exit' to quit")
+    print("-" * 30)
 
     while True:
         try:
             message = input("\n> ").strip()
 
             if message.lower() in ["exit", "quit"]:
-                logger.info("Goodbye!")
+                print("Goodbye!")
                 break
 
             if not message:
                 continue
 
-            response = await agent.run(message)
-            logger.info(f"🤖 {response}")
+            # Agent will handle output automatically
+            await agent.run_async(message)
 
         except KeyboardInterrupt:
-            logger.info("\nGoodbye!")
+            print("\nGoodbye!")
             break
         except Exception as e:
-            logger.error(f"Error: {e}")
-
-
-def trace_args() -> bool:
-    """Parse trace argument from CLI and return trace flag."""
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-t", "--trace", action="store_true", help="Enable detailed tracing output")
-    args = parser.parse_args()
-    return args.trace
+            print(f"✗ Error: {e}")
 
 
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Cogency - Zero ceremony cognitive agents")
-    subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
-    # Default behavior - run agent
-    parser.add_argument("message", nargs="?", help="Message for agent")
+    # Main arguments
+    parser.add_argument("message", nargs="*", help="Message for agent")
     parser.add_argument("-i", "--interactive", action="store_true", help="Interactive mode")
-    parser.add_argument("-t", "--trace", action="store_true", help="Enable detailed tracing output")
-
-    # Tools subcommand
-    subparsers.add_parser("tools", help="List available tools")
-
-    # Init subcommand
-    init_parser = subparsers.add_parser("init", help="Initialize a new Cogency project")
-    init_parser.add_argument("name", nargs="?", default="cogency-project", help="Project name")
+    parser.add_argument("--tools", action="store_true", help="List available tools")
+    parser.add_argument("--init", type=str, metavar="NAME", help="Initialize project with NAME")
 
     args = parser.parse_args()
 
-    # Handle subcommands
-    if args.command == "tools":
+    # Handle special commands
+    if args.tools:
         list_tools()
         return
-    elif args.command == "init":
-        init_project(args.name)
+    elif args.init:
+        init_project(args.init)
         return
 
     # Default agent behavior
     from cogency import Agent
+    from cogency.tools import Files, Scrape, Search, Shell
 
     try:
-        agent = Agent("assistant", trace=args.trace)
+        agent = Agent(
+            "assistant",
+            tools=[Files(), Shell(), Search(), Scrape()],
+            memory=True,
+            identity="You are Cogency, a helpful AI assistant with a knack for getting things done efficiently. Keep responses concise and clear.",
+        )
     except Exception as e:
-        logger.error(f"Error: {e}")
+        print(f"✗ Error: {e}")
         sys.exit(1)
 
-    if args.interactive or not args.message:
+    # Determine message
+    message = " ".join(args.message) if args.message else ""
+
+    if args.interactive or not message:
         asyncio.run(interactive_mode(agent))
     else:
+        # Single command mode with clean output
         try:
-            response = asyncio.run(agent.run_async(args.message))
-            logger.info(response)
+            asyncio.run(agent.run_async(message))
         except Exception as e:
-            logger.error(f"Error: {e}")
+            print(f"✗ Error: {e}")
 
 
 def list_tools():

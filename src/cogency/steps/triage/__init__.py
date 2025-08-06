@@ -20,13 +20,14 @@ async def triage(
     llm: LLM,
     tools: List[Tool],
     memory,  # Impression instance or None
+    identity: str = None,
 ) -> Optional[str]:
     """Triage: routing decisions, memory extraction, tool selection."""
 
     # Route and filter
     query = state.execution.query
     user_context = state.get_situated_context()
-    result = await triage_prompt(llm, query, tools, user_context)
+    result = await triage_prompt(llm, query, tools, user_context, identity)
 
     # Handle direct response (early return)
     if result.direct_response:

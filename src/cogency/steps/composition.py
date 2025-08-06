@@ -4,7 +4,6 @@ from functools import partial
 
 from .act import act
 from .reason import reason
-from .respond import respond
 from .synthesize import synthesize
 from .triage import triage
 
@@ -16,9 +15,16 @@ def _setup_steps(llm, tools, memory, identity, output_schema, config=None):
     from cogency.decorators import compose_step
 
     return {
-        "triage": partial(triage, llm=llm, tools=tools, memory=memory),
+        "triage": partial(triage, llm=llm, tools=tools, memory=memory, identity=identity),
         "reason": compose_step(
-            partial(reason, llm=llm, tools=tools, memory=memory),
+            partial(
+                reason,
+                llm=llm,
+                tools=tools,
+                memory=memory,
+                identity=identity,
+                output_schema=output_schema,
+            ),
             config=config,
             checkpoint_name="reasoning",
             retry_policy=Retry.api(),
@@ -28,14 +34,6 @@ def _setup_steps(llm, tools, memory, identity, output_schema, config=None):
             config=config,
             checkpoint_name="tool_execution",
             retry_policy=Retry.db(),
-        ),
-        "respond": partial(
-            respond,
-            llm=llm,
-            tools=tools,
-            memory=memory,
-            identity=identity,
-            output_schema=output_schema,
         ),
         "synthesize": partial(synthesize, memory=memory),
     }

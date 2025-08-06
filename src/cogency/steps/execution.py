@@ -5,7 +5,7 @@ from cogency.state import AgentState
 
 
 async def execute_agent(
-    state: AgentState, triage_step, reason_step, act_step, respond_step, synthesize_step
+    state: AgentState, triage_step, reason_step, act_step, synthesize_step
 ) -> None:
     """Early-return execution."""
     emit(
@@ -21,12 +21,14 @@ async def execute_agent(
         emit("triage", state="complete", early_return=True)
         state.execution.response = response
         state.execution.response_source = "triage"
-        # Always call respond for identity application
-        emit("respond", level="debug", state="start", source="triage")
-        await respond_step(state)
         # Always call synthesize after response
         await synthesize_step(state)
-        emit("agent_complete", source="triage", iterations=state.execution.iteration)
+        emit(
+            "agent_complete",
+            source="triage",
+            iterations=state.execution.iteration,
+            response=state.execution.response,
+        )
         return
 
     # ReAct loop - reason and act until early return
@@ -45,22 +47,27 @@ async def execute_agent(
             emit("reason", state="complete", early_return=True)
             state.execution.response = response.data
             state.execution.response_source = "reason"
-            # Always call respond for identity application
-            emit("respond", level="debug", state="start", source="reason")
-            await respond_step(state)
             # Always call synthesize after response
             await synthesize_step(state)
-            emit("agent_complete", source="reason", iterations=state.execution.iteration)
+            emit(
+                "agent_complete",
+                source="reason",
+                iterations=state.execution.iteration,
+                response=state.execution.response,
+            )
             return
         elif response and not isinstance(response, Result):
             emit("reason", state="complete", early_return=True)
             state.execution.response = response
             state.execution.response_source = "reason"
-            emit("respond", level="debug", state="start", source="reason")
-            await respond_step(state)
             # Always call synthesize after response
             await synthesize_step(state)
-            emit("agent_complete", source="reason", iterations=state.execution.iteration)
+            emit(
+                "agent_complete",
+                source="reason",
+                iterations=state.execution.iteration,
+                response=state.execution.response,
+            )
             return
 
         emit(
@@ -83,7 +90,12 @@ async def execute_agent(
                 state.execution.response_source = "act"
                 # Always call synthesize after response
                 await synthesize_step(state)
-                emit("agent_complete", source="act", iterations=state.execution.iteration)
+                emit(
+                    "agent_complete",
+                    source="act",
+                    iterations=state.execution.iteration,
+                    response=state.execution.response,
+                )
                 return
             # On failure, loop continues, error is in tool_results
         elif response:
@@ -92,7 +104,12 @@ async def execute_agent(
             state.execution.response_source = "act"
             # Always call synthesize after response
             await synthesize_step(state)
-            emit("agent_complete", source="act", iterations=state.execution.iteration)
+            emit(
+                "agent_complete",
+                source="act",
+                iterations=state.execution.iteration,
+                response=state.execution.response,
+            )
             return
 
         if state.execution.stop_reason:

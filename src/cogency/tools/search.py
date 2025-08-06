@@ -24,14 +24,14 @@ class Search(Tool):
     def __init__(self):
         super().__init__(
             name="search",
-            description="Search the web using DuckDuckGo for current information and answers to questions.",
+            description="Search the web for current information, recent events, or specific data not available in training knowledge.",
             schema="search(query: str, max_results: int = 5)",
             emoji="🔍",
             args=SearchArgs,
             examples=[
-                '{"name": "search", "args": {"query": "latest AI developments 2024"}}',
-                '{"name": "search", "args": {"query": "Python async programming", "max_results": 3}}',
-                '{"name": "search", "args": {"query": "weather London today"}}',
+                '{"name": "search", "args": {"query": "latest AI developments January 2025"}}',
+                '{"name": "search", "args": {"query": "current stock price AAPL", "max_results": 3}}',
+                '{"name": "search", "args": {"query": "weather forecast New York today"}}',
             ],
             rules=[
                 'CRITICAL: Use JSON format: {"name": "search", "args": {"query": "...", "max_results": 5}}. Never use function-call syntax.',
@@ -89,7 +89,7 @@ class Search(Tool):
         # Create formatted summary for agent context
         results_summary = []
         for i, result in enumerate(formatted_results[:3], 1):  # Show top 3 results
-            results_summary.append(f"{i}. {result['title']}: {result['snippet'][:100]}...")
+            results_summary.append(f"{i}. {result['title']}: {result['snippet']}")
 
         return Result.ok(
             {

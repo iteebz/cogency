@@ -27,9 +27,7 @@ class TestConsoleHandler:
         with patch("builtins.print") as mock_print:
             handler.handle({"type": "start", "data": {"query": "Hello world"}, "timestamp": 123})
 
-            assert mock_print.call_count == 2
-            mock_print.assert_any_call("[INIT] Starting agent")
-            mock_print.assert_any_call("[QUERY] Hello world")
+            mock_print.assert_called_once_with("> Hello world")
 
     def test_agent_create_complete(self):
         handler = ConsoleHandler(enabled=True)
@@ -42,7 +40,8 @@ class TestConsoleHandler:
                     "timestamp": 123,
                 }
             )
-            mock_print.assert_called_once_with("[READY] Agent 'test_agent'")
+            # agent_create events are no longer handled (not in cli.md spec)
+            mock_print.assert_not_called()
 
     def test_tool_success_with_duration(self):
         handler = ConsoleHandler(enabled=True)
@@ -64,7 +63,7 @@ class TestConsoleHandler:
             handler.handle(
                 {"type": "error", "data": {"message": "Something went wrong"}, "timestamp": 123}
             )
-            mock_print.assert_called_once_with("[ERROR] Something went wrong")
+            mock_print.assert_called_once_with("✗ Something went wrong")
 
     def test_debug_event_only_when_debug_enabled(self):
         handler_debug = ConsoleHandler(enabled=True, debug=True)
@@ -217,29 +216,28 @@ class TestLoggerHandler:
         handler.handle(
             {"type": "action", "data": {"status": "complete", "tool_count": 2}, "timestamp": 103}
         )
-        handler.handle({"type": "respond", "data": {"state": "complete"}, "timestamp": 104})
         handler.handle(
             {
                 "type": "agent_complete",
-                "data": {"source": "respond", "iterations": 3},
-                "timestamp": 105,
+                "data": {"source": "reason", "iterations": 3},
+                "timestamp": 104,
             }
         )
 
         # Get summary - should have 6 meaningful milestones
         summary = handler.logs(summary=True)
-        assert len(summary) == 6
+        assert len(summary) == 5
 
         # Check key milestones are included in order
         steps = [event["step"] for event in summary]
-        assert steps == ["start", "triage", "reason", "action", "respond", "complete"]
+        assert steps == ["start", "triage", "reason", "action", "complete"]
 
         # Verify meaningful content
         assert summary[0]["query"] == "test query"
         assert summary[1]["mode"] == "react"
         assert summary[2]["step"] == "reason"
         assert summary[3]["tool_count"] == 2
-        assert summary[5]["iterations"] == 3
+        assert summary[4]["iterations"] == 3
 
     def test_logs_combined_filters(self):
         handler = LoggerHandler(max_size=20, structured=True)

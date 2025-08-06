@@ -9,7 +9,6 @@ from cogency.state import AgentState
 from cogency.steps.act import act
 from cogency.steps.act.core import execute_single_tool
 from cogency.steps.reason import reason
-from cogency.steps.respond import respond
 from cogency.tools.base import Tool
 from cogency.tools.shell import Shell
 from cogency.utils.parsing import _parse_tool_calls as parse_tool_calls
@@ -66,28 +65,26 @@ async def test_execution_errors():
 
 
 @pytest.mark.asyncio
-async def test_respond_output():
-    """Test respond step produces conversational text only."""
+async def test_reason_response_output():
+    """Test reason step produces conversational text when completing."""
     mock_llm = AsyncMock()
-
-    async def mock_stream(*args, **kwargs):
-        yield "The weather is sunny today!"
 
     async def mock_run(*args, **kwargs):
         from resilient_result import Result
 
-        return Result.ok("The weather is sunny today!")
+        return Result.ok(
+            '{"thinking": "This is a simple weather question", "tool_calls": [], "response": "The weather is sunny today!"}'
+        )
 
-    mock_llm.stream = mock_stream
     mock_llm.run = mock_run
 
     state = AgentState(query="weather?", user_id="test")
 
-    await respond(state, llm=mock_llm, tools=[])
+    response = await reason(state, llm=mock_llm, tools=[], memory=None)
 
-    assert isinstance(state.execution.response, str)
-    assert not state.execution.response.startswith("{")
-    # The respond function doesn't set stop_reason to "finished"
+    assert isinstance(response, str)
+    assert not response.startswith("{")
+    assert response == "The weather is sunny today!"
 
 
 @pytest.mark.asyncio
@@ -180,19 +177,25 @@ async def test_act_execution(state):
 
 
 @pytest.mark.asyncio
-async def test_respond_formats(state):
-    """Test respond step creates final response."""
+async def test_reason_formats_response(state):
+    """Test reason step creates final response when completing."""
     llm = MockLLM()
+    llm.run = AsyncMock(
+        return_value=Result.ok(
+            '{"thinking": "I can answer this directly", "tool_calls": [], "response": "2 + 2 = 4"}'
+        )
+    )
 
-    await respond(state, llm=llm, tools=[])
+    response = await reason(state, llm=llm, tools=[], memory=None)
 
     # Should have a response
-    assert state.execution.response is not None
+    assert response is not None
+    assert response == "2 + 2 = 4"
 
 
 @pytest.mark.asyncio
 async def test_full_cycle(state):
-    """Test full reasoning cycle: reason -> act -> reason -> respond."""
+    """Test full reasoning cycle: reason -> act -> reason (with final response)."""
     with patch("cogency.events.core._bus", None):  # Disable event system
         tools = [Shell()]
         llm = MockLLM()
@@ -200,7 +203,7 @@ async def test_full_cycle(state):
         # 1. First reason (needs tools) - this adds an action
         llm.run = AsyncMock(
             return_value=Result.ok(
-                '{"reasoning": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}]}'
+                '{"thinking": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}], "response": ""}'
             )
         )
         await reason(state, llm=llm, tools=tools, memory=None)
@@ -212,17 +215,15 @@ async def test_full_cycle(state):
         results = state.execution.completed_calls
         assert len(results) > 0
 
-        # 3. Second reason (reflect on results)
+        # 3. Second reason (reflect on results and provide final answer)
         llm.run = AsyncMock(
             return_value=Result.ok(
-                '{"reasoning": "The code tool shows 2 + 2 = 4. I can now respond."}'
+                '{"thinking": "The code tool shows 2 + 2 = 4. I can now respond.", "tool_calls": [], "response": "The answer is 4."}'
             )
         )
-        await reason(state, llm=llm, tools=tools, memory=None)
-
-        # 4. Respond (final answer)
-        await respond(state, llm=llm, tools=[])
-        assert state.execution.response
+        response = await reason(state, llm=llm, tools=tools, memory=None)
+        assert response == "The answer is 4."
+        assert state.execution.response == "The answer is 4."
 
 
 @pytest.mark.asyncio
@@ -231,13 +232,13 @@ async def test_no_tools_flow(state):
     state.execution.query = "Hello, how are you?"
     llm = MockLLM()
     llm.run = AsyncMock(
-        return_value=Result.ok('{"reasoning": "This is a greeting, I can respond directly."}')
+        return_value=Result.ok(
+            '{"thinking": "This is a greeting, I can respond directly.", "tool_calls": [], "response": "Hello! I\'m doing well, thank you for asking."}'
+        )
     )
 
-    # 1. Reason (no tools needed)
-    await reason(state, llm=llm, tools=[], memory=None)
+    # 1. Reason (no tools needed, provides direct response)
+    response = await reason(state, llm=llm, tools=[], memory=None)
     assert not state.execution.pending_calls
-
-    # 2. Respond directly
-    await respond(state, llm=llm, tools=[])
-    assert state.execution.response
+    assert response == "Hello! I'm doing well, thank you for asking."
+    assert state.execution.response == "Hello! I'm doing well, thank you for asking."

@@ -20,8 +20,15 @@ async def _get_state(
         # Reset execution state for new query to prevent response caching
         from cogency.state.execution import ExecutionState
 
+        # Preserve conversation history from previous execution
+        previous_messages = state.execution.messages if state.execution else []
+
         state.execution = ExecutionState(query=query, user_id=user_id)
         state.execution.max_iterations = max_iterations
+
+        # Restore conversation history
+        state.execution.messages = previous_messages
+
         return state
 
     # Try to restore from persistence

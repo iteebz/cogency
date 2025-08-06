@@ -53,7 +53,7 @@ class MemoryConfig:
     max_impressions: int = 50  # Prune oldest impressions past this limit
 
     # Context injection policy
-    recall_steps: List[str] = None  # ["reason", "respond", "both"] or None for reason-only
+    recall_steps: List[str] = None  # ["reason"] or None for reason-only
 
     # User identification
     user_id: str = "default"
@@ -105,7 +105,9 @@ class AgentConfig:
     """Agent configuration container."""
 
     name: str = "cogency"
-    identity: Optional[str] = None
+    identity: Optional[str] = (
+        "You are Cogency, a helpful AI assistant with a knack for getting things done efficiently. Keep it concise and clear."
+    )
     output_schema: Optional[Any] = None
     llm: Optional[Any] = None
     embed: Optional[Any] = None

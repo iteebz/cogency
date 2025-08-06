@@ -10,12 +10,14 @@ from cogency.utils.parsing import _parse_json
 logger = logging.getLogger(__name__)
 
 
-def build_reasoning_prompt(state: AgentState, tools: List[Tool], memory=None) -> str:
+def build_reasoning_prompt(
+    state: AgentState, tools: List[Tool], memory=None, identity: str = None
+) -> str:
     """Build reasoning prompt from current context."""
     from .prompt import Prompt
 
     prompt_builder = Prompt()
-    return prompt_builder.build(state, tools)
+    return prompt_builder.build(state, tools, identity=identity)
 
 
 def build_messages(prompt: str, state: AgentState) -> List[Dict[str, str]]:

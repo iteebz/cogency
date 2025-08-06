@@ -14,7 +14,7 @@ Internal components:
 - ConsoleHandler, LoggerHandler: Built-in handlers
 """
 
-from .console import ConsoleHandler, console_callback  # noqa: F401
+from .console import ConsoleHandler  # noqa: F401
 from .core import MessageBus, component, emit, get_logs, init_bus  # noqa: F401
 from .handlers import LoggerHandler  # noqa: F401
 

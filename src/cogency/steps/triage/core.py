@@ -155,7 +155,7 @@ async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) ->
 
 
 async def triage_prompt(
-    llm: LLM, query: str, available_tools: List[Tool], user_context: str = ""
+    llm: LLM, query: str, available_tools: List[Tool], user_context: str = "", identity: str = None
 ) -> TriageResult:
     """Single LLM call to handle all triage tasks."""
     emit("triage", level="debug", state="analyzing", tool_count=len(available_tools))
@@ -165,7 +165,7 @@ async def triage_prompt(
         build_tool_descriptions(available_tools) if available_tools else "No tools available"
     )
 
-    prompt = build_triage_prompt(query, registry_lite, user_context)
+    prompt = build_triage_prompt(query, registry_lite, user_context, identity)
 
     emit("triage", level="debug", state="llm_call")
     result = await llm.run([{"role": "user", "content": prompt}])
