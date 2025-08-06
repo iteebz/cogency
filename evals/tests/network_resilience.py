@@ -1,12 +1,13 @@
 """Network resilience evaluation."""
 
 import asyncio
+from typing import Dict
 
 from cogency.tools.http import HTTP
 from cogency.tools.scrape import Scrape
 from cogency.tools.search import Search
 
-from ..eval import Eval, EvalResult
+from ..eval import Eval
 
 
 class NetworkResilience(Eval):
@@ -15,8 +16,8 @@ class NetworkResilience(Eval):
     name = "network_resilience"
     description = "Test handling of API failures, rate limits, and timeouts"
 
-    async def run(self) -> EvalResult:
-        agent = self.create_agent(
+    async def run(self) -> Dict:
+        agent = self.agent(
             "resilience_tester",
             tools=[Search(), HTTP(), Scrape()],
             max_iterations=12,
@@ -39,23 +40,23 @@ class NetworkResilience(Eval):
             execution_time = asyncio.get_event_loop().time() - start_time
         except asyncio.TimeoutError:
             execution_time = asyncio.get_event_loop().time() - start_time
-            return EvalResult(
-                name=self.name,
-                passed=False,
-                score=0.0,
-                duration=execution_time,
-                traces=[],
-                metadata={"execution_time": execution_time, "error": "evaluation_timeout"},
-            )
+            return {
+                "name": self.name,
+                "passed": False,
+                "score": 0.0,
+                "duration": execution_time,
+                "traces": [],
+                "metadata": {"execution_time": execution_time, "error": "evaluation_timeout"},
+            }
         except Exception as e:
-            return EvalResult(
-                name=self.name,
-                passed=False,
-                score=0.0,
-                duration=0.0,
-                traces=[],
-                metadata={"error": str(e)},
-            )
+            return {
+                "name": self.name,
+                "passed": False,
+                "score": 0.0,
+                "duration": 0.0,
+                "traces": [],
+                "metadata": {"error": str(e)},
+            }
 
         response_lower = result.lower()
 
@@ -90,12 +91,12 @@ class NetworkResilience(Eval):
 
         agent_logs = agent.logs() if hasattr(agent, "logs") else []
 
-        return EvalResult(
-            name=self.name,
-            passed=passed,
-            score=resilience_score,
-            duration=execution_time,
-            traces=[
+        return {
+            "name": self.name,
+            "passed": passed,
+            "score": resilience_score,
+            "duration": execution_time,
+            "traces": [
                 {
                     "query": query,
                     "response": result,
@@ -106,7 +107,7 @@ class NetworkResilience(Eval):
                     "logs": agent_logs,
                 }
             ],
-            metadata={
+            "metadata": {
                 "execution_time": execution_time,
                 "handled_timeout": handled_timeout,
                 "handled_rate_limit": handled_rate_limit,
@@ -115,4 +116,4 @@ class NetworkResilience(Eval):
                 "graceful_errors": graceful_errors,
                 "continued_operation": continued_operation,
             },
-        )
+        }

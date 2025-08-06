@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.config import ObserveConfig, PersistConfig, RobustConfig
+from cogency.config import PersistConfig, RobustConfig
 from cogency.config.dataclasses import _setup_config
 
 
@@ -27,28 +27,6 @@ def test_robust_custom():
     assert config.attempts == 5
     assert config.backoff == "linear"
     assert config.backoff_delay == 0.5
-
-
-def test_observe_defaults():
-    config = ObserveConfig()
-
-    assert config.metrics is False
-    assert config.timing is True
-    assert config.counters is False
-    assert config.steps is None
-    assert config.export_format is None
-    assert config.export_endpoint is None
-
-
-def test_observe_custom():
-    config = ObserveConfig(
-        metrics=False, timing=False, steps=["reason", "act"], export_format="json"
-    )
-
-    assert config.metrics is False
-    assert config.timing is False
-    assert config.steps == ["reason", "act"]
-    assert config.export_format == "json"
 
 
 def test_persist_defaults():

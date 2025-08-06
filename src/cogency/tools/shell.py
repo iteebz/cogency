@@ -40,12 +40,12 @@ class Shell(Tool):
             emoji="💻",
             args=ShellArgs,
             examples=[
-                "shell(command='ls -la')",
-                "shell(command='pwd')",
-                "shell(command='echo \"Hello World\"')",
-                "shell(command='python --version')",
-                "shell(command='git status', working_dir='/path/to/repo')",
-                "shell(command='python -m pip install -r requirements.txt')",
+                '{"name": "shell", "args": {"command": "ls -la"}}',
+                '{"name": "shell", "args": {"command": "pwd"}}',
+                '{"name": "shell", "args": {"command": "echo \\"Hello World\\""}}',
+                '{"name": "shell", "args": {"command": "python --version"}}',
+                '{"name": "shell", "args": {"command": "git status", "working_dir": "/path/to/repo"}}',
+                '{"name": "shell", "args": {"command": "python -m pip install -r requirements.txt"}}',
             ],
             rules=[
                 "Prefer 'python -m <module>' for executing Python modules (e.g., 'python -m pip', 'python -m pytest').",

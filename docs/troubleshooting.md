@@ -107,7 +107,9 @@ agent = Agent(max_iterations=5, debug=True)
 
 **Tool selection:**
 ```python
-agent = Agent(tools=["files", "shell"])  # Explicit tools
+from cogency import Agent, Files, Shell
+
+agent = Agent(tools=[Files(), Shell()])  # Explicit tools
 ```
 
 **Context consistency:**
@@ -160,7 +162,7 @@ except Exception as e:
 - Set an API key: `export OPENAI_API_KEY=sk-...`
 
 **"Tool not found"**
-- Check tool name: `agent = Agent(tools=["files", "shell"])`
+- Check tool imports: `from cogency import Agent, Files, Shell`
 
 **"Memory synthesis failed"**
 - Reduce memory load: `agent = Agent(memory=False)`

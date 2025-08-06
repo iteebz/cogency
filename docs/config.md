@@ -5,7 +5,7 @@ Cogency uses a **progressive disclosure** API design: simple boolean flags for b
 ## Basic Configuration
 
 ```python
-from cogency import Agent
+from cogency import Agent, Files, Shell
 
 # Simple: boolean flags enable defaults
 agent = Agent("assistant", memory=True, robust=True, observe=True)
@@ -17,7 +17,7 @@ agent = Agent(
     max_iterations=10,                     # Max reasoning iterations
     debug=True,                   # Detailed tracing
     notify=True,                  # Progress notifications
-    tools=["files", "shell"],     # Specific tools
+    tools=[Files(), Shell()],     # Specific tools
     identity="You are..."         # Custom system prompt
 )
 ```

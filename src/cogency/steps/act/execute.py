@@ -9,9 +9,6 @@ from cogency.tools.base import Tool
 
 from .core import (
     execute_single_tool,
-    format_tool_input,
-    format_tool_result,
-    generate_execution_summary,
 )
 
 
@@ -39,7 +36,7 @@ async def execute_tools(
 
         # Show tool execution start if state is available
         if state:
-            tool_input = format_tool_input(tool_instance, tool_name, tool_args)
+            tool_input, _ = tool_instance.format_human(tool_args) if tool_instance else ("", "")
             emit("action", state="executing", tool=tool_name, input=tool_input)
 
         try:
@@ -50,12 +47,18 @@ async def execute_tools(
                 # Use user-friendly error message
                 raw_error = tool_output.error or "Unknown error"
                 user_friendly_error = f"{actual_tool_name} failed: {raw_error}"
-                emit("tool", name=actual_tool_name, ok=False, error=user_friendly_error)
+                emit(
+                    "tool",
+                    name=actual_tool_name,
+                    ok=False,
+                    error=user_friendly_error,
+                    args=actual_args,
+                )
                 failure_result = {
                     "name": actual_tool_name,
                     "args": actual_args,
                     "success": False,
-                    "data": None,
+                    "result": tool_output,  # Keep Result object
                     "error": str(tool_output.error)
                     if hasattr(tool_output, "error")
                     else "Unknown error",
@@ -66,16 +69,24 @@ async def execute_tools(
 
                 # Show result using tool's format method if available
                 if state:
-                    readable_result = format_tool_result(
-                        tool_instance, actual_tool_name, actual_args, tool_output
+                    _, readable_result = (
+                        tool_instance.format_human(actual_args, tool_output)
+                        if tool_instance
+                        else ("", str(tool_output.data))
                     )
-                    emit("tool", name=actual_tool_name, ok=True, result=readable_result)
+                    emit(
+                        "tool",
+                        name=actual_tool_name,
+                        ok=True,
+                        result=readable_result,
+                        args=actual_args,
+                    )
 
                 success_result = {
                     "name": actual_tool_name,
                     "args": actual_args,
                     "success": True,
-                    "data": tool_output.data,
+                    "result": tool_output,  # Keep Result object
                     "error": None,
                 }
                 successes.append(success_result)
@@ -90,13 +101,19 @@ async def execute_tools(
                 "name": tool_name,
                 "args": tool_args,
                 "success": False,
-                "data": None,
+                "result": Result.fail(str(e)),  # Keep Result object
                 "error": str(e),
             }
             failures.append(failure_result)
 
     # Generate summary
-    summary = generate_execution_summary(successes, failures)
+    # Generate execution summary
+    summary_parts = []
+    if successes:
+        summary_parts.append(f"{len(successes)} tools executed successfully")
+    if failures:
+        summary_parts.append(f"{len(failures)} tools failed")
+    summary = "; ".join(summary_parts) if summary_parts else "No tools executed"
 
     final_result = Result.ok(
         {

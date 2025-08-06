@@ -39,7 +39,7 @@ async for chunk in agent.stream("Research quantum computing"):
 # Get execution traces (debug mode only)
 agent = Agent(debug=True)
 agent.run("Calculate something")
-traces = agent.traces()  # List of execution details
+logs = agent.logs(mode="debug")  # List of execution details
 ```
 
 ## Memory Configuration

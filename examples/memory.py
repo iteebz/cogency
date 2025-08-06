@@ -1,35 +1,51 @@
 #!/usr/bin/env python3
-"""Memory example - save and recall information."""
+"""Persistent Memory - Context that spans conversations."""
 
 import asyncio
 
 from cogency import Agent
 
 
+async def session_1():
+    """First conversation - establish context."""
+    print("📝 SESSION 1: Setting Context")
+    print("=" * 40)
+
+    agent = Agent("assistant", memory=True, persist=True)
+
+    await agent.run_async("""
+    I'm the CTO of a fintech startup building a mobile banking app. 
+    Our stack is React Native, Node.js, PostgreSQL, and we're deployed on AWS.
+    We have 50K users and are processing $2M in transactions monthly.
+    My biggest concerns are security, scalability, and regulatory compliance.
+    Remember all of this for future conversations.
+    """)
+
+    print("Context established ✓")
+
+
+async def session_2():
+    """Second conversation - test memory recall."""
+    print("\n💭 SESSION 2: Memory Recall")
+    print("=" * 40)
+
+    # Same user_id to access stored memory
+    agent = Agent("assistant", memory=True, persist=True)
+
+    response = await agent.run_async("""
+    We're seeing 15% latency increase during peak hours. 
+    What architectural changes should we prioritize?
+    """)
+
+    print(
+        "Response considers our context:",
+        "✓" if any(term in response for term in ["fintech", "50K", "banking", "AWS"]) else "✗",
+    )
+
+
 async def main():
-    print("🧠 MEMORY DEMO")
-    print("=" * 20)
-
-    # Create agent with memory
-    agent = Agent("assistant", memory=True)
-
-    # Teach the agent
-    query_1 = "My name is Alex, I'm a Python developer working on a fintech app"
-    print(f"👤 {query_1}\n")
-    async for chunk in agent.stream(query_1):
-        print(chunk, end="", flush=True)
-
-    # Test recall
-    query_2 = "What do you know about me?"
-    print(f"\n👤 {query_2}\n")
-    async for chunk in agent.stream(query_2):
-        print(chunk, end="", flush=True)
-
-    # Apply memory
-    query_3 = "What database should I use for my project?"
-    print(f"\n👤 {query_3}\n")
-    async for chunk in agent.stream(query_3):
-        print(chunk, end="", flush=True)
+    await session_1()
+    await session_2()
 
 
 if __name__ == "__main__":

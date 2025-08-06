@@ -63,29 +63,20 @@ class Tool(ABC):
         emit("tool", operation="execute", name=self.name, status="start")
 
         try:
-            # Pre-validate and normalize arguments
+            # Normalize and validate arguments
             normalized_args = self._normalize_args(kwargs)
-            validation_result = self._validate_args(normalized_args)
-
-            if validation_result.failure:
-                duration = time.time() - start_time
-                emit(
-                    "tool",
-                    operation="execute",
-                    name=self.name,
-                    status="validation_failed",
-                    error=validation_result.error,
-                    duration=duration,
-                )
-                return validation_result
 
             # Validate args using dataclass schema if provided
             if self.args:
                 validated_args = validate(normalized_args, self.args)
                 result = await self.run(**validated_args.__dict__)
             else:
-                # Fallback to direct execution if no schema
+                # Direct execution if no schema
                 result = await self.run(**normalized_args)
+
+            # Auto-wrap non-Result returns for better DX
+            if not hasattr(result, "failure"):
+                result = Result.ok(result)
 
             # Track events only - metrics handled by MetricsHandler
             duration = time.time() - start_time
@@ -138,18 +129,6 @@ class Tool(ABC):
     def _normalize_args(self, args: Dict[str, Any]) -> Dict[str, Any]:
         """Basic argument normalization."""
         return args
-
-    def _validate_args(self, args: Dict[str, Any]) -> Result:
-        """Runtime argument validation."""
-        if not self.args:
-            return Result.ok(args)
-
-        try:
-            # Test argument instantiation without executing
-            self.args(**args)
-            return Result.ok(args)
-        except Exception as e:
-            return Result.fail(f"Argument validation failed: {str(e)}")
 
     @abstractmethod
     async def run(self, **kwargs: Any) -> Result:

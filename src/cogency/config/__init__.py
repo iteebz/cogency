@@ -3,7 +3,6 @@
 This module provides configuration dataclasses for customizing agent behavior:
 
 - MemoryConfig: Configure memory and impression synthesis
-- ObserveConfig: Configure metrics and observability
 - PersistConfig: Configure state persistence
 - RobustConfig: Configure retry and resilience behavior
 - PathsConfig: Configure file paths (advanced usage)
@@ -11,12 +10,11 @@ This module provides configuration dataclasses for customizing agent behavior:
 
 Example:
     ```python
-    from cogency import Agent, MemoryConfig, ObserveConfig
+    from cogency import Agent, MemoryConfig
 
     agent = Agent(
         "assistant",
-        memory=MemoryConfig(max_tokens=1000),
-        observe=ObserveConfig(prometheus=True)
+        memory=MemoryConfig(max_tokens=1000)
     )
     ```
 """
@@ -24,7 +22,6 @@ Example:
 from .dataclasses import (
     MAX_TOOL_CALLS,
     MemoryConfig,
-    ObserveConfig,
     PathsConfig,
     PersistConfig,
     RobustConfig,
@@ -33,7 +30,6 @@ from .dataclasses import (
 __all__ = [
     "MAX_TOOL_CALLS",
     "MemoryConfig",
-    "ObserveConfig",
     "PathsConfig",
     "PersistConfig",
     "RobustConfig",

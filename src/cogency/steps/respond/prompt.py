@@ -2,6 +2,8 @@
 
 from typing import Dict, Optional
 
+from ..common import JSON_FORMAT_CORE
+
 # Response prompt templates
 FAILURE_PROMPT = """{identity}
 A tool operation failed while trying to fulfill the user's request. Your goal is to generate a helpful response acknowledging the failure and suggesting next steps.
@@ -18,19 +20,23 @@ RESPONSE STRATEGY:
 - Ask clarifying questions if the request was ambiguous
 - Offer to retry with corrected parameters if error suggests a fix"""
 
-JSON_PROMPT = """{identity}
-Your goal is to generate a final response formatted as a JSON object.
+JSON_PROMPT = (
+    """{identity}
+Generate final response as JSON object.
 
-JSON RESPONSE FORMAT (required):
+{json_format_core}
+
+FORMAT:
 {output_schema}
 
-USER QUERY: "{query}"{tool_section}
+QUERY: "{query}"{tool_section}
 
-RESPONSE STRATEGY:
-- Populate JSON fields exactly as specified by the schema
-- Incorporate relevant information from USER QUERY and TOOL RESULTS into JSON content
-- Ensure JSON is valid, complete, and properly formatted
-- Use tool results as evidence, synthesize don't just dump data"""
+STRATEGY:
+- Populate fields per schema
+- Synthesize tool results + query
+- Valid, complete JSON"""
+    ""
+)
 
 TOOL_RESULTS_PROMPT = """{identity}
 Your goal is to generate a final, comprehensive response synthesizing the available information.
@@ -90,6 +96,7 @@ def prompt_response(
         )
         prompt = JSON_PROMPT.format(
             identity=secure_identity,
+            json_format_core=JSON_FORMAT_CORE,
             output_schema=output_schema,
             query=query,
             tool_section=tool_section,
@@ -103,6 +110,6 @@ def prompt_response(
 
     # Add anti-JSON instruction when no JSON schema is expected
     if not output_schema:
-        prompt += "\n\nCRITICAL: Respond in natural language only. Do NOT output JSON, reasoning objects, or tool_calls. This is your final response to the user."
+        prompt += "\n\nRespond naturally. No JSON, reasoning objects, or tool_calls."
 
     return prompt

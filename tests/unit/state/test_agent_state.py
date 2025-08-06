@@ -40,7 +40,7 @@ def test_composition():
     # Has all required components
     assert hasattr(state, "execution")
     assert hasattr(state, "reasoning")
-    assert hasattr(state, "user_profile")
+    assert hasattr(state, "user")
 
     # Components are properly typed
     from cogency.state.execution import ExecutionState
@@ -128,10 +128,11 @@ def test_update_response():
 def test_update_mode():
     """Test switching execution mode from reasoning."""
     state = AgentState(query="test query")
+    state.execution.iteration = 1  # Set iteration to allow mode switching
 
     # Test valid mode switches
     for mode in ["fast", "deep", "adapt"]:
-        reasoning_data = {"switch_mode": mode}
+        reasoning_data = {"switch_mode": mode, "switch_why": f"switching to {mode} mode"}
         state.update_from_reasoning(reasoning_data)
         assert state.execution.mode.value == mode
 
@@ -158,6 +159,7 @@ def test_update_empty():
 def test_update_comprehensive():
     """Test comprehensive reasoning update with all fields."""
     state = AgentState(query="test query")
+    state.execution.iteration = 1  # Set iteration to allow mode switching
 
     reasoning_data = {
         "thinking": "Complex analysis required",
@@ -167,8 +169,9 @@ def test_update_comprehensive():
             "strategy": "comprehensive strategy",
             "insights": ["key insight"],
         },
-        "response": "Final response",
+        "response": "",
         "switch_mode": "deep",
+        "switch_why": "complex analysis required",
     }
 
     state.update_from_reasoning(reasoning_data)
@@ -180,7 +183,7 @@ def test_update_comprehensive():
     assert state.reasoning.goal == "refined goal"
     assert state.reasoning.strategy == "comprehensive strategy"
     assert "key insight" in state.reasoning.insights
-    assert state.execution.response == "Final response"
+    assert state.execution.response == ""
     assert state.execution.mode.value == "deep"
 
 

@@ -9,8 +9,7 @@ from cogency.events import emit
 from cogency.providers import LLM
 from cogency.security import secure_semantic
 from cogency.tools import Tool
-from cogency.tools.registry import build_registry
-from cogency.utils.heuristics import is_simple_query
+from cogency.tools.registry import build_tool_descriptions
 from cogency.utils.parsing import _parse_json
 
 from .prompt import build_triage_prompt
@@ -57,12 +56,7 @@ async def check_early_return(llm: LLM, query: str, selected_tools: List[Tool]) -
     """Check if query can be answered directly without ReAct."""
     query_str = query if isinstance(query, str) else str(query)
 
-    # Early return conditions:
-    # 1. Simple query with no tools selected
-    if not selected_tools and is_simple_query(query_str):
-        return await _direct_response(llm, query_str)
-
-    # 2. Use LLM to determine if this is a simple query that doesn't need tools
+    # Use LLM to determine if this query needs tools
     return await _early_check(llm, query_str, selected_tools)
 
 
@@ -110,7 +104,7 @@ async def select_tools(llm: LLM, query: str, available_tools: List[Tool]) -> Sel
     if not available_tools:
         return SelectionResult(selected_tools=[], reasoning="No tools available")
 
-    registry_lite = build_registry(available_tools, lite=True)
+    registry_lite = build_tool_descriptions(available_tools)
 
     prompt = f"""Select tools needed for this query:
 
@@ -160,16 +154,18 @@ async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) ->
         emit("triage", state="react", tool_count=selected_count)
 
 
-async def triage_prompt(llm: LLM, query: str, available_tools: List[Tool]) -> TriageResult:
+async def triage_prompt(
+    llm: LLM, query: str, available_tools: List[Tool], user_context: str = ""
+) -> TriageResult:
     """Single LLM call to handle all triage tasks."""
     emit("triage", level="debug", state="analyzing", tool_count=len(available_tools))
 
     # Build tool registry for context
     registry_lite = (
-        build_registry(available_tools, lite=True) if available_tools else "No tools available"
+        build_tool_descriptions(available_tools) if available_tools else "No tools available"
     )
 
-    prompt = build_triage_prompt(query, registry_lite)
+    prompt = build_triage_prompt(query, registry_lite, user_context)
 
     emit("triage", level="debug", state="llm_call")
     result = await llm.run([{"role": "user", "content": prompt}])

@@ -1,45 +1,46 @@
 # Cogency Examples
 
-Clean, focused examples showcasing core AI agent capabilities.
+**Agents that just work.** From 5-line demos to complete applications.
 
-## 🚀 Core Examples
+## 🚀 Quick Start
 
-### `memory.py` - Persistent Memory
+**Zero to AI in 5 lines:**
 ```bash
-python memory.py
+python hello.py
 ```
-Save and recall information across conversations.
 
-### `chat.py` - Interactive Chat
+## 💪 Showcases
+
+**Autonomous Coder** - Complete apps from single commands:
 ```bash
-python chat.py
+python coder.py    # → Task management API with auth, tests, Docker
 ```
-Interactive chat with memory and streaming responses.
 
-### `coding.py` - Code Generation
+**Intelligence Analyst** - Multi-source research with insights:
+```bash  
+python research.py # → Market analysis with strategic recommendations
+```
+
+**DevOps Automation** - Infrastructure that configures itself:
 ```bash
-python coding.py
+python devops.py   # → Full CI/CD pipeline with K8s manifests
 ```
-ML engineering agent with shell and file tools for complex coding tasks.
 
-### `research.py` - Deep Research
+**ML Pipeline** - From data to deployed model:
 ```bash
-python research.py
+python ml.py       # → Churn prediction with MLOps practices
 ```
-Deep research agent with web scraping and search capabilities.
 
-## Tool Coverage
+**Persistent Memory** - Context across conversations:
+```bash
+python memory.py   # → Remembers your role, stack, constraints
+```
 
-Examples demonstrate 4 of 5 canonical tools:
-- **Shell & Files**: `coding.py` uses shell commands and file operations
-- **Scrape & Search**: `research.py` uses web scraping and search
-- **HTTP**: Not covered (use directly: `Agent(tools=["http"])`)
+## 🎯 What Makes These Special
 
-## Getting Started
+- **Adaptive Intelligence**: Simple queries get instant responses, complex tasks trigger full reasoning
+- **Zero Configuration**: No prompts, no setup - just natural language requirements  
+- **Production Ready**: Generates working code with tests, error handling, best practices
+- **Memory Enabled**: Maintains context across sessions (where applicable)
 
-1. Start with `memory.py` for basic memory functionality
-2. Try `chat.py` for interactive experience
-3. Run `coding.py` to see tool usage in action
-4. Use `research.py` for deep research workflows
-
-No configuration needed - examples auto-detect your LLM provider from environment variables.
+Each example demonstrates cogency's core principle: **intelligence that scales automatically** from trivial to transformative tasks.

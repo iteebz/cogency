@@ -123,8 +123,7 @@ class StatePersistence:
 
         except Exception as e:
             emit("persistence", operation="load", key=state_key, status="error", error=str(e))
-            # Graceful degradation - for debugging
-            print(f"Debug: Load failed with {e}")
+            # Graceful degradation
             return None
 
     async def delete(self, user_id: str) -> bool:

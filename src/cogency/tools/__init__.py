@@ -41,7 +41,8 @@ from .http import HTTP
 
 # Public: Core tool system functions for registration and LLM integration
 from .registry import (
-    build_registry,  # Public: Used by external agents to build tool registries for LLM prompts
+    build_tool_descriptions,  # Public: Brief tool descriptions for triage/overview
+    build_tool_schemas,  # Public: Complete schemas with examples for LLM execution
     get_tools,  # Public: Access all registered tools for custom agent initialization
     tool,  # Public: Decorator for registering custom tool classes
 )
@@ -65,5 +66,6 @@ __all__ = [
     "Shell",  # Built-in shell commands
     "tool",  # Decorator for tool registration
     "get_tools",  # Get registered tools (advanced usage)
-    "build_registry",  # Build tool registry string for LLM
+    "build_tool_descriptions",  # Brief tool descriptions for triage/overview
+    "build_tool_schemas",  # Complete schemas with examples for LLM execution
 ]

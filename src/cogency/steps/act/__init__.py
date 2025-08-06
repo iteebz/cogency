@@ -6,7 +6,6 @@ from typing import List, Optional
 from cogency.state import AgentState
 from cogency.tools import Tool
 
-from .core import prepare_completed_results
 from .execute import execute_tools
 
 logger = logging.getLogger(__name__)
@@ -42,8 +41,8 @@ async def act(state: AgentState, llm=None, tools: List[Tool] = None) -> Optional
         successes = results_data.get("results", [])
         failures = results_data.get("errors", [])
 
-        # Prepare and complete results
-        completed_results = prepare_completed_results(successes, failures)
+        # Complete results
+        completed_results = successes + failures
         state.execution.complete_tool_calls(completed_results)
 
     return None

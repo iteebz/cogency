@@ -31,7 +31,8 @@ async def execute_agent(
 
     # ReAct loop - reason and act until early return
     emit("triage", state="complete", early_return=False)
-    while state.execution.iteration < state.execution.max_iterations:
+    max_iter = state.execution.max_iterations or 50  # Default to 50 if None
+    while state.execution.iteration < max_iter:
         state.execution.iteration += 1
         emit("react_iteration", level="debug", iteration=state.execution.iteration)
 
@@ -69,7 +70,7 @@ async def execute_agent(
             tool_calls=len(state.execution.pending_calls),
         )
 
-        # If no tool calls, exit ReAct loop
+        # If no tool calls, trust the LLM's decision to complete
         if not state.execution.pending_calls:
             emit("react_exit", level="debug", reason="no_tool_calls")
             break
@@ -98,11 +99,8 @@ async def execute_agent(
             emit("react_exit", reason=state.execution.stop_reason)
             break
 
-    # Respond step - fallback
-    emit("respond", state="start", source="fallback")
-    await respond_step(state)
-    if not state.execution.response:
-        state.execution.response = "I'm here to help. How can I assist you?"
-    # Always call synthesize after response
+    # No fallback - if we reach here, something went wrong
+    emit("agent_error", reason="execution_incomplete", iterations=state.execution.iteration)
+    state.execution.response = f"Agent failed to complete task after {state.execution.iteration} iterations. The LLM may not be generating valid responses."
+    state.execution.response_source = "error"
     await synthesize_step(state)
-    emit("agent_complete", source="fallback", iterations=state.execution.iteration)

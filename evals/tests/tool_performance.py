@@ -5,12 +5,12 @@ import contextlib
 import statistics
 import tracemalloc
 from time import perf_counter
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from cogency.tools.files import Files
 from cogency.tools.shell import Shell
 
-from ..eval import Eval, EvalResult
+from ..eval import Eval
 
 
 class ToolPerformance(Eval):
@@ -19,7 +19,7 @@ class ToolPerformance(Eval):
     name = "tool_performance"
     description = "Tool execution latency microbenchmark"
 
-    async def run(self) -> EvalResult:
+    async def run(self) -> Dict:
         tracemalloc.start()
         mem_before = tracemalloc.get_traced_memory()[0]
 
@@ -114,19 +114,19 @@ class ToolPerformance(Eval):
         score = passed_count / len(test_cases) if test_cases else 0.0
         passed = score >= 0.67
 
-        return EvalResult(
-            name=self.name,
-            passed=passed,
-            score=score,
-            duration=0.0,
-            traces=all_traces,
-            metadata={
+        return {
+            "name": self.name,
+            "passed": passed,
+            "score": score,
+            "duration": 0.0,
+            "traces": all_traces,
+            "metadata": {
                 "avg_latency_ms": avg_latency,
                 "validation_accuracy": validation_accuracy,
                 "memory_delta_mb": mem_delta_mb,
                 "individual_results": perf_results,
             },
-        )
+        }
 
     async def _benchmark_tool(self, test_case: dict) -> Tuple[List[float], int]:
         """Benchmark tool execution with validation."""

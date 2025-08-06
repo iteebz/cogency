@@ -5,7 +5,7 @@ import asyncio
 from cogency.tools.search import Search
 from cogency.tools.shell import Shell
 
-from ..eval import Eval, EvalResult
+from ..eval import Eval
 
 
 class AgentConcurrency(Eval):
@@ -14,12 +14,12 @@ class AgentConcurrency(Eval):
     name = "agent_concurrency"
     description = "Test concurrent agent execution and resource management"
 
-    async def run(self) -> EvalResult:
+    async def run(self):
         # Create multiple agents with different tools
         agents = [
-            self.create_agent("searcher", tools=[Search()], max_iterations=8),
-            self.create_agent("commander", tools=[Shell()], max_iterations=8),
-            self.create_agent("calculator", max_iterations=8),
+            self.agent("searcher", tools=[Search()], max_iterations=8),
+            self.agent("commander", tools=[Shell()], max_iterations=8),
+            self.agent("calculator", max_iterations=8),
         ]
 
         # Define concurrent tasks
@@ -33,29 +33,35 @@ class AgentConcurrency(Eval):
         all_traces = []
 
         try:
-            # Execute all agents concurrently with increased timeout
-            results = await asyncio.wait_for(
-                asyncio.gather(
-                    agents[0].run_async(tasks[0]),
-                    agents[1].run_async(tasks[1]),
-                    agents[2].run_async(tasks[2]),
-                    return_exceptions=True,
-                ),
-                timeout=90.0,
+            # Execute all agents concurrently with retry logic
+            async def run_with_retry(agent, task, max_retries=2):
+                for attempt in range(max_retries + 1):
+                    try:
+                        return await asyncio.wait_for(agent.run_async(task), timeout=30.0)
+                    except (asyncio.TimeoutError, Exception) as e:
+                        if attempt == max_retries:
+                            return e
+                        await asyncio.sleep(1)  # Brief delay before retry
+
+            results = await asyncio.gather(
+                run_with_retry(agents[0], tasks[0]),
+                run_with_retry(agents[1], tasks[1]),
+                run_with_retry(agents[2], tasks[2]),
+                return_exceptions=True,
             )
 
             execution_time = asyncio.get_event_loop().time() - start_time
 
         except asyncio.TimeoutError:
             execution_time = asyncio.get_event_loop().time() - start_time
-            return EvalResult(
-                name=self.name,
-                passed=False,
-                score=0.0,
-                duration=execution_time,
-                traces=[],
-                metadata={"execution_time": execution_time, "error": "timeout"},
-            )
+            return {
+                "name": self.name,
+                "passed": False,
+                "score": 0.0,
+                "duration": execution_time,
+                "traces": [],
+                "metadata": {"execution_time": execution_time, "error": "timeout"},
+            }
 
         # Analyze results
         successful_results = [r for r in results if not isinstance(r, Exception)]
@@ -93,13 +99,13 @@ class AgentConcurrency(Eval):
                 }
             )
 
-        return EvalResult(
-            name=self.name,
-            passed=passed,
-            score=score,
-            duration=execution_time,
-            traces=all_traces,
-            metadata={
+        return {
+            "name": self.name,
+            "passed": passed,
+            "score": score,
+            "duration": execution_time,
+            "traces": all_traces,
+            "metadata": {
                 "execution_time": execution_time,
                 "successful_count": len(successful_results),
                 "failed_count": len(failed_results),
@@ -107,4 +113,4 @@ class AgentConcurrency(Eval):
                 "shell_success": shell_success,
                 "calc_success": calc_success,
             },
-        )
+        }

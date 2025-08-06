@@ -12,25 +12,27 @@ from tests.fixtures.llm import MockLLM
 async def test_agent_defaults():
     from unittest.mock import AsyncMock, Mock
 
-    with patch("cogency.runtime.AgentExecutor.configure", new_callable=AsyncMock) as mock_configure:
-        # Mock executor with required attributes
+    with patch("cogency.runtime.AgentRuntime.configure", new_callable=AsyncMock) as mock_configure:
+        # Mock runtime with executor
+        mock_runtime = Mock()
         mock_executor = Mock()
         mock_executor.llm = MockLLM()
         mock_executor.memory = None
         shell_tool = Mock()
         shell_tool.name = "shell"
         mock_executor.tools = [shell_tool]
-        mock_configure.return_value = mock_executor
+        mock_runtime.executor = mock_executor
+        mock_configure.return_value = mock_runtime
 
         agent = Agent(name="test_agent", tools="all")
 
         # Trigger executor creation
-        executor = agent._executor or await agent._get_executor()
+        runtime = agent._executor or await agent._get_executor()
 
-        assert executor.llm is not None
-        assert executor.memory is None  # Memory disabled by default
+        assert runtime.executor.llm is not None
+        assert runtime.executor.memory is None  # Memory disabled by default
 
-        tool_names = [tool.name for tool in executor.tools]
+        tool_names = [tool.name for tool in runtime.executor.tools]
         assert "shell" in tool_names
 
 
@@ -38,22 +40,24 @@ async def test_agent_defaults():
 async def test_memory_disabled():
     from unittest.mock import AsyncMock, Mock
 
-    with patch("cogency.runtime.AgentExecutor.configure", new_callable=AsyncMock) as mock_configure:
-        # Mock executor with required attributes
+    with patch("cogency.runtime.AgentRuntime.configure", new_callable=AsyncMock) as mock_configure:
+        # Mock runtime with executor
+        mock_runtime = Mock()
         mock_executor = Mock()
         mock_executor.memory = None
         shell_tool = Mock()
         shell_tool.name = "shell"
         mock_executor.tools = [shell_tool]
-        mock_configure.return_value = mock_executor
+        mock_runtime.executor = mock_executor
+        mock_configure.return_value = mock_runtime
 
         agent = Agent(name="test", tools="all")
 
         # Trigger executor creation
-        executor = agent._executor or await agent._get_executor()
+        runtime = agent._executor or await agent._get_executor()
 
-        assert executor.memory is None
-        tool_names = [tool.name for tool in executor.tools]
+        assert runtime.executor.memory is None
+        tool_names = [tool.name for tool in runtime.executor.tools]
         assert "shell" in tool_names
 
 
@@ -71,24 +75,26 @@ async def test_custom_tools(memory_enabled, expected_tools):
 
     from cogency.tools.shell import Shell
 
-    with patch("cogency.runtime.AgentExecutor.configure", new_callable=AsyncMock) as mock_configure:
-        # Mock executor with required attributes
+    with patch("cogency.runtime.AgentRuntime.configure", new_callable=AsyncMock) as mock_configure:
+        # Mock runtime with executor
+        mock_runtime = Mock()
         mock_executor = Mock()
         mock_executor.memory = Mock() if memory_enabled else None
         shell_tool = Mock()
         shell_tool.name = "shell"
         mock_executor.tools = [shell_tool]
-        mock_configure.return_value = mock_executor
+        mock_runtime.executor = mock_executor
+        mock_configure.return_value = mock_runtime
 
         if memory_enabled:
             agent = Agent("test", tools=[Shell()], memory=True)
         else:
             agent = Agent("test", tools=[Shell()])
 
-        # Get executor to access tools
-        executor = await agent._get_executor()
+        # Get runtime to access tools
+        runtime = await agent._get_executor()
 
-        tool_names = [tool.name for tool in executor.tools]
+        tool_names = [tool.name for tool in runtime.executor.tools]
         for tool in expected_tools:
             assert tool in tool_names
         assert len(tool_names) == len(expected_tools)
@@ -98,14 +104,14 @@ async def test_custom_tools(memory_enabled, expected_tools):
 async def test_run():
     from unittest.mock import AsyncMock, Mock
 
-    with patch("cogency.runtime.AgentExecutor.configure", new_callable=AsyncMock) as mock_configure:
-        # Mock executor with run method
-        mock_executor = Mock()
-        mock_executor.run = AsyncMock(return_value="Final Answer")
-        mock_configure.return_value = mock_executor
+    with patch("cogency.runtime.AgentRuntime.configure", new_callable=AsyncMock) as mock_configure:
+        # Mock runtime with run method
+        mock_runtime = Mock()
+        mock_runtime.run = AsyncMock(return_value="Final Answer")
+        mock_configure.return_value = mock_runtime
 
         agent = Agent(name="test", tools="all")
         result = await agent.run_async("test query")
 
         assert result == "Final Answer"
-        mock_executor.run.assert_called_once_with("test query", "default", None)
+        mock_runtime.run.assert_called_once_with("test query", "default", None)

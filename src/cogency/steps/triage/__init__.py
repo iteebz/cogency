@@ -25,12 +25,18 @@ async def triage(
 
     # Route and filter
     query = state.execution.query
-    result = await triage_prompt(llm, query, tools)
+    user_context = state.get_situated_context()
+    result = await triage_prompt(llm, query, tools, user_context)
 
     # Handle direct response (early return)
     if result.direct_response:
         state.execution.response = result.direct_response
         return result.direct_response
+
+    # Check if tools are requested but none available
+    if result.selected_tools and not tools:
+        state.execution.response = "I don't have access to any tools to help with this request. I can only provide direct responses based on my knowledge."
+        return state.execution.response
 
     # Select tools
     filtered_tools = filter_tools(tools, result.selected_tools)

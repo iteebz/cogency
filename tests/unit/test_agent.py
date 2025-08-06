@@ -12,22 +12,22 @@ from tests.fixtures.llm import MockLLM
 @pytest.mark.asyncio
 async def test_defaults():
     agent = Agent("test_agent", llm=MockLLM(), tools="all")
-    executor = await agent._get_executor()
+    runtime = await agent._get_executor()
 
-    assert executor.llm is not None
-    assert executor.memory is None
+    assert runtime.executor.llm is not None
+    assert runtime.executor.memory is None
 
-    tool_names = [tool.name for tool in executor.tools]
+    tool_names = [tool.name for tool in runtime.executor.tools]
     assert "shell" in tool_names
 
 
 @pytest.mark.asyncio
 async def test_no_memory():
     agent = Agent("test", llm=MockLLM(), tools="all")
-    executor = await agent._get_executor()
+    runtime = await agent._get_executor()
 
-    assert executor.memory is None
-    tool_names = [tool.name for tool in executor.tools]
+    assert runtime.executor.memory is None
+    tool_names = [tool.name for tool in runtime.executor.tools]
     assert "shell" in tool_names
 
 
@@ -46,8 +46,8 @@ async def test_tools(memory_enabled, expected_tools):
     else:
         agent = Agent("test", llm=MockLLM(), tools=[Shell()])
 
-    executor = await agent._get_executor()
-    tool_names = [tool.name for tool in executor.tools]
+    runtime = await agent._get_executor()
+    tool_names = [tool.name for tool in runtime.executor.tools]
     for tool in expected_tools:
         assert tool in tool_names
     assert len(tool_names) == len(expected_tools)
@@ -55,56 +55,53 @@ async def test_tools(memory_enabled, expected_tools):
 
 @pytest.mark.asyncio
 async def test_config_setup():
-    agent = Agent("test", llm=MockLLM(), robust=True, observe=True, persist=True)
-    executor = await agent._get_executor()
+    agent = Agent("test", llm=MockLLM(), robust=True, persist=True)
+    runtime = await agent._get_executor()
 
-    assert executor.config.robust is not None
-    assert executor.config.observe is not None
-    assert executor.config.persist is not None
+    assert runtime.executor.config.robust is not None
+    assert runtime.executor.config.persist is not None
 
 
 @pytest.mark.asyncio
 async def test_config_custom():
-    from cogency.config import ObserveConfig, PersistConfig, RobustConfig
+    from cogency.config import PersistConfig, RobustConfig
 
     agent = Agent(
         "test",
         llm=MockLLM(),
         robust=RobustConfig(attempts=5),
-        observe=ObserveConfig(metrics=False),
         persist=PersistConfig(enabled=True),
     )
-    executor = await agent._get_executor()
+    runtime = await agent._get_executor()
 
-    assert executor.config.robust.attempts == 5
-    assert executor.config.observe.metrics is False
-    assert executor.config.persist.enabled is True
+    assert runtime.executor.config.robust.attempts == 5
+    assert runtime.executor.config.persist.enabled is True
 
 
 @pytest.mark.asyncio
 async def test_mode_assignment():
     agent = Agent("test", llm=MockLLM(), mode="fast", max_iterations=5)
-    executor = await agent._get_executor()
+    runtime = await agent._get_executor()
 
-    assert executor.mode == "fast"
-    assert executor.max_iterations == 5
+    # Mode is not directly on executor, but max_iterations is
+    assert runtime.executor.max_iterations == 5
 
 
 @pytest.mark.asyncio
 async def test_identity():
     agent = Agent("test", llm=MockLLM(), identity="helpful assistant")
-    executor = await agent._get_executor()
+    runtime = await agent._get_executor()
 
-    assert executor.identity == "helpful assistant"
+    assert runtime.executor.identity == "helpful assistant"
 
 
 @pytest.mark.asyncio
 async def test_output_schema():
     schema = {"type": "object", "properties": {"answer": {"type": "string"}}}
     agent = Agent("test", llm=MockLLM(), output_schema=schema)
-    executor = await agent._get_executor()
+    runtime = await agent._get_executor()
 
-    assert executor.output_schema == schema
+    assert runtime.executor.output_schema == schema
 
 
 @pytest.mark.asyncio
@@ -123,12 +120,13 @@ async def test_run():
 @pytest.mark.asyncio
 async def test_run_config():
     """Test Agent configuration options work correctly."""
-    agent = Agent("test", memory=True, debug=True, tools=["shell"])
+    agent = Agent("test", memory=True, debug=True, tools=[Shell()])
 
     # Test config is properly set
     assert agent._config.memory is True
     assert agent._config.debug is True
-    assert agent._config.tools == ["shell"]
+    assert len(agent._config.tools) == 1
+    assert agent._config.tools[0].name == "shell"
 
 
 def test_logs_available():

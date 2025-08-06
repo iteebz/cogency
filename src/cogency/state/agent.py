@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from .execution import AgentMode, ExecutionState
+from .execution import ExecutionState
 from .reasoning import ReasoningContext
 from .user import UserProfile
 
@@ -16,7 +16,6 @@ class AgentState:
         self.execution = ExecutionState(query=query, user_id=user_id)
         self.reasoning = ReasoningContext(goal=query)
         self.user = user_profile  # Situated memory
-        self.user_profile = user_profile  # Alias for backward compatibility
 
     def get_situated_context(self) -> str:
         """Get user context for prompt injection."""
@@ -62,7 +61,7 @@ class AgentState:
 
         # Also handle workspace_update for backward compatibility
         workspace_update = reasoning_data.get("workspace_update", {})
-        if workspace_update:
+        if workspace_update and isinstance(workspace_update, dict):
             if "objective" in workspace_update:
                 self.reasoning.goal = workspace_update["objective"]
             if "approach" in workspace_update:
@@ -73,18 +72,32 @@ class AgentState:
                 for insight in workspace_update["observations"]:
                     self.reasoning.add_insight(insight)
 
-        # Handle direct response
-        if "response" in reasoning_data and reasoning_data["response"]:
-            self.execution.response = reasoning_data["response"]
+        # Handle direct response - set if provided, prioritize tool calls over non-empty responses
+        if "response" in reasoning_data:
+            response_content = reasoning_data["response"]
+            if not tool_calls or not response_content:
+                # Set response if no tool calls, or if response is empty (allows clearing)
+                self.execution.response = response_content
 
-        # Handle mode switching
+        # Handle mode switching - delegated to ModeController
         mode_field = reasoning_data.get("switch_mode") or reasoning_data.get("switch_to")
-        if mode_field:
+        switch_why = reasoning_data.get("switch_why", "")
+        if mode_field and switch_why:
             import contextlib
 
+            from cogency.steps.reason.modes import ModeController
+
             with contextlib.suppress(ValueError):
-                # Convert string to enum value
-                self.execution.mode = AgentMode(mode_field)
+                # Use centralized mode switching logic
+                current_mode = str(self.execution.mode)
+                if ModeController.should_switch(
+                    current_mode,
+                    mode_field,
+                    switch_why,
+                    self.execution.iteration,
+                    self.execution.max_iterations,
+                ):
+                    ModeController.execute_switch(self, mode_field, switch_why)
 
         # Store security assessment for tool execution
         if "security_assessment" in reasoning_data:

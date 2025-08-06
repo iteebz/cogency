@@ -41,26 +41,6 @@ class RobustConfig:
 
 
 @dataclass
-class ObserveConfig:
-    """Unified observability configuration."""
-
-    # Core collection (always enabled by default)
-    timing: bool = True
-    tokens: bool = True
-
-    # Advanced collection (disabled by default - enable as needed)
-    metrics: bool = False
-    counters: bool = False
-
-    # Step-specific telemetry
-    steps: Optional[List[str]] = None  # ["reason", "act"] or None for all
-
-    # Export configuration
-    export_format: Optional[str] = None  # None, "prometheus", "json", "opentelemetry"
-    export_endpoint: Optional[str] = None
-
-
-@dataclass
 class MemoryConfig:
     """Memory configuration."""
 
@@ -75,8 +55,7 @@ class MemoryConfig:
     # Context injection policy
     recall_steps: List[str] = None  # ["reason", "respond", "both"] or None for reason-only
 
-    # Store configuration
-    store: Optional[Any] = None
+    # User identification
     user_id: str = "default"
 
     def __post_init__(self):
@@ -133,13 +112,12 @@ class AgentConfig:
     tools: Optional[Any] = None
     memory: Optional[Any] = None
     mode: str = "adapt"
-    max_iterations: int = 10
+    max_iterations: Optional[int] = None
     notify: bool = True
     debug: bool = False
     formatter: Optional[Any] = None
     on_notify: Optional[Any] = None
     robust: Optional[Any] = None
-    observe: Optional[Any] = None
     persist: Optional[Any] = None
     handlers: List[Any] = None
 

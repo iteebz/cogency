@@ -42,11 +42,11 @@ export OPENAI_API_KEY="ollama"
 ## Interactive Example
 
 ```python
-from cogency import Agent
+from cogency import Agent, Files, Shell
 
 agent = Agent(
     "assistant",
-    tools=["files", "shell"],
+    tools=[Files(), Shell()],
     identity="You are a helpful AI assistant."
 )
 

@@ -29,11 +29,12 @@ class Search(Tool):
             emoji="🔍",
             args=SearchArgs,
             examples=[
-                "search(query='latest AI developments 2024')",
-                "search(query='Python async programming', max_results=3)",
-                "search(query='weather London today')",
+                '{"name": "search", "args": {"query": "latest AI developments 2024"}}',
+                '{"name": "search", "args": {"query": "Python async programming", "max_results": 3}}',
+                '{"name": "search", "args": {"query": "weather London today"}}',
             ],
             rules=[
+                'CRITICAL: Use JSON format: {"name": "search", "args": {"query": "...", "max_results": 5}}. Never use function-call syntax.',
                 "Use specific queries, avoid repetitive searches",
             ],
         )

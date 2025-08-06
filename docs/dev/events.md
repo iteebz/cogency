@@ -1,124 +1,133 @@
 # Event System
 
-**Tactical message bus for agent observability - minimal and fast.**
-
-## Architecture
-
-```
-cogency/events/
-├── core.py      # MessageBus, emit(), decorators
-├── handlers.py  # ConsoleHandler, LoggerHandler, MetricsHandler, CallbackHandler
-└── __init__.py  # Clean imports
-```
+**Zero ceremony event bus for agent observability.**
 
 ## Usage
 
-### Zero Ceremony
+### Agent Logs (Retrospective)
 ```python
-from cogency.events import emit
-
-emit("start", query="Hello")
-emit("tool", name="search", duration=1.2, ok=True)
+agent = Agent("assistant")
+result = agent.run("Hello")
+logs = agent.logs()  # Structured execution history
 ```
 
-### Canonical Agent API
+### Custom Event Handlers (Real-time)
 ```python
-# Zero ceremony
-agent = Agent("assistant")
-result = await agent.run_async("Hello")
-logs = agent.logs()  # Structured events
+# Beautiful: just a function
+def my_handler(event):
+    print(f"Event: {event['type']}")
 
-# Custom event streaming
+agent = Agent("assistant", handlers=[my_handler])
+result = agent.run("Hello")  # Events flow to your function
+```
+
+### WebSocket Streaming Example
+```python
 def stream_to_websocket(event):
+    ws.send(json.dumps({
+        "type": event["type"],
+        "data": event.get("data", {})
+    }))
+
+agent = Agent("assistant", handlers=[stream_to_websocket])
+```
+
+### Multiple Handlers Example
+```python
+# Queue handler
+def queue_handler(event):
+    queue.put(event)
+
+# File logging  
+def file_handler(event):
+    with open("agent.log", "a") as f:
+        f.write(f"{event}\n")
+
+# WebSocket streaming
+def websocket_handler(event):
     ws.send(json.dumps(event))
 
-agent = Agent("assistant", handlers=[CallbackHandler(stream_to_websocket)])
-result = await agent.run_async("Hello")  # Events stream to WebSocket
+agent = Agent("assistant", handlers=[
+    queue_handler,
+    file_handler, 
+    websocket_handler
+])
 ```
 
-## Components
+## Event Structure
 
-### MessageBus
-Core event router. Handlers subscribe, events flow.
-
-### Handlers
-- **ConsoleHandler**: Real-time terminal feedback with emojis
-- **LoggerHandler**: Rolling buffer for `agent.logs()`
-- **MetricsHandler**: Performance data collection
-- **CallbackHandler**: Custom event callbacks (WebSockets, streaming, etc)
-
-### Decorators
-- `@component(name)`: Setup/teardown events
-- `@lifecycle(event)`: Creation/destruction events  
-- `@secure`: Security operation events
+All events follow this format:
+```python
+{
+    "type": "start|triage|reason|action|tool|respond|agent_complete|error",
+    "timestamp": 1234567890.12,
+    "data": {...}  # Event-specific payload
+}
+```
 
 ## Event Types
 
 | Type | Purpose | Data |
 |------|---------|------|
 | `start` | Agent execution begins | `query` |
-| `triage` | Tool selection complete | `selected_tools` |
-| `tool` | Tool execution | `name`, `duration`, `ok` |
-| `respond` | Response generation | `state` |
-| `error` | Failure occurred | `message` |
-
-## Streaming Patterns
-
-```python
-# WebSocket streaming
-def websocket_handler(event):
-    ws.send(json.dumps(event))
-
-# Queue streaming  
-def queue_handler(event):
-    queue.put(event)
-
-# File logging
-def file_handler(event):
-    log_file.write(f"{event}\n")
-
-agent = Agent("assistant", handlers=[
-    CallbackHandler(websocket_handler),
-    CallbackHandler(queue_handler),
-    CallbackHandler(file_handler)
-])
-```
+| `triage` | Tool selection complete | `selected_tools`, `mode` |
+| `reason` | Reasoning step | `content`, `state` |
+| `action` | Tool execution | `tool`, `input` |
+| `tool` | Tool result | `name`, `duration`, `ok` |
+| `respond` | Response generation | `content`, `state` |
+| `agent_complete` | Execution finished | `source`, `iterations` |
+| `error` | Failure occurred | `message`, `context` |
 
 ## Implementation Notes
 
-- **Global bus**: `init_bus(bus)` once, `emit()` anywhere
-- **No async**: Handlers process synchronously  
-- **Structured logs**: Flattened format for easy access
-- **Noise filtering**: Config events filtered by default
-- **Rolling buffer**: LoggerHandler caps at 1000 events
-- **Custom handlers**: Add via `Agent(handlers=[...])`
+- **Zero ceremony**: Just pass functions to `Agent(handlers=[...])`
+- **Automatic wrapping**: Functions get wrapped in handler objects internally
+- **Synchronous only**: Handlers process events synchronously
+- **Error isolation**: Handler errors don't crash the agent  
 - **Graceful degradation**: Events are optional - core logic never depends on them
+- **Rolling buffer**: Built-in logger caps at 1000 events for `agent.logs()`
 
-## Private API (v1.0.0)
+## Architecture
 
-Only `CallbackHandler` is publicly exported. All other components are internal:
+```
+cogency/events/
+├── core.py      # MessageBus, emit(), decorators
+├── handlers.py  # LoggerHandler (for agent.logs())
+├── console.py   # ConsoleHandler (terminal output)
+└── __init__.py  # Internal only - no public exports
+```
+
+## Internal Components
+
+All components are internal. No public event API exports:
 
 ```python
-# Public API
-from cogency.events import CallbackHandler
+# USER API: Just functions
+def my_handler(event): pass
+agent = Agent("assistant", handlers=[my_handler])
 
-# Internal (not exported)
-from cogency.events.core import MessageBus, emit, init_bus
-from cogency.events.handlers import ConsoleHandler, LoggerHandler
+# INTERNAL: Don't import these  
+from cogency.events.core import MessageBus, emit  # Internal only
+from cogency.events.handlers import LoggerHandler  # Internal only
 ```
+
+**Built-in Handlers:**
+- **ConsoleHandler**: Terminal output (`[INIT]`, `[TOOL]`, `[DONE]`)
+- **LoggerHandler**: Structured logging for `agent.logs()`  
+- **MetricsHandler**: Performance tracking
 
 ## Testing Strategy
 
-Events can be cleanly disabled in tests without breaking functionality:
+Events can be disabled in tests:
 
 ```python
-# Unit tests - disable events to focus on business logic
+# Unit tests - focus on business logic
 with patch("cogency.events.core._bus", None):
     result = await execute_single_tool("search", {}, tools)
 ```
 
-## Legacy Removal
+## Design Principles
 
-**Eliminated**: Old `notify` system, `Notification` class, dual emit patterns, bloated `stream()` method.
+**Beautiful code is minimal**: No wrapper classes, no ceremony, just functions.
 
-**Result**: Single unified event system, zero ceremony, beautiful API, v1.0.0 ready.
+**Question everything**: Eliminated complex handler hierarchies, callback interfaces, and async patterns for simple function passing.

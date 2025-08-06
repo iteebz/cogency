@@ -146,7 +146,10 @@ async def _synthesize_with_llm(
         prompt = build_synthesis_prompt(user_profile, interaction_data, state)
 
         # Get LLM synthesis
-        llm_response = await memory.llm.generate(prompt)
+        from resilient_result import unwrap
+
+        llm_result = await memory.llm.run([{"role": "user", "content": prompt}])
+        llm_response = unwrap(llm_result)
 
         # Parse synthesis results
         synthesis_data = _parse_synthesis_response(llm_response)

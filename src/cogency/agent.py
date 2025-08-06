@@ -4,7 +4,7 @@ from typing import Any, List, Union
 
 from cogency.config import MemoryConfig
 from cogency.config.validation import _init_advanced_config, validate_unions
-from cogency.runtime import AgentExecutor
+from cogency.runtime import AgentRuntime
 from cogency.tools import Tool
 
 
@@ -16,23 +16,20 @@ class Agent:
         tools: Tools to enable - list of names, Tool objects, or single string
         memory: Enable memory - True for defaults or MemoryConfig for custom
         handlers: Custom event handlers for streaming, websockets, etc
-        console: Show console output - True/False (default True)
 
     Advanced config (**kwargs):
         identity: Agent persona/identity
         mode: Reasoning mode - "adapt", "fast", or "deep" (default "adapt")
         max_iterations: Max reasoning iterations (default 10)
-        debug: Enable debug mode (default False)
         notify: Enable progress notifications (default True)
+        debug: Enable debug mode (default False)
         robust: Enable robustness - True for defaults or RobustConfig
-        observe: Enable observability - True for defaults or ObserveConfig
         persist: Enable persistence - True for defaults or PersistConfig
 
     Examples:
         Basic: Agent("assistant")
-        Production: Agent("assistant", console=False)
-        See reasoning: Agent("assistant", console=True)
-        With events: Agent("assistant", handlers=[WebSocketHandler(ws)])
+        Production: Agent("assistant", notify=False)
+        With events: Agent("assistant", handlers=[websocket_handler])
         Advanced: Agent("assistant", memory=MemoryConfig(threshold=8000))
     """
 
@@ -43,7 +40,6 @@ class Agent:
         tools: Union[List[str], List[Tool], str] = None,
         memory: Union[bool, MemoryConfig] = False,
         handlers: List[Any] = None,
-        console: bool = True,
         **config,
     ):
         from cogency.config.dataclasses import AgentConfig
@@ -63,7 +59,6 @@ class Agent:
         self._config.tools = tools
         self._config.memory = memory
         self._config.handlers = self._handlers
-        self._config.console = console
 
         # Apply advanced config
         for key, value in advanced.items():
@@ -71,10 +66,10 @@ class Agent:
 
         validate_unions(self._config)
 
-    async def _get_executor(self) -> AgentExecutor:
+    async def _get_executor(self) -> AgentRuntime:
         """Get or create executor."""
         if not self._executor:
-            self._executor = await AgentExecutor.configure(self._config)
+            self._executor = await AgentRuntime.configure(self._config)
         return self._executor
 
     async def memory(self):
@@ -112,7 +107,7 @@ class Agent:
         return await executor.run(query, user_id, identity)
 
     async def stream(self, query: str, user_id: str = "default", identity: str = None):
-        """Execute agent query with streaming response.
+        """Stream agent response asynchronously.
 
         Args:
             query: User query to process
@@ -120,21 +115,11 @@ class Agent:
             identity: Override agent identity for this query
 
         Yields:
-            Response chunks as they become available
+            Agent response chunks
         """
-        # For now, fall back to complete response and yield it
-        # TODO: Implement true streaming at the execution level
-        response = await self.run_async(query, user_id, identity)
-
-        # Simulate streaming by yielding the response in chunks
-        chunk_size = 50
-        for i in range(0, len(response), chunk_size):
-            chunk = response[i : i + chunk_size]
+        executor = await self._get_executor()
+        async for chunk in executor.stream(query, user_id, identity):
             yield chunk
-            # Small delay to simulate streaming
-            import asyncio
-
-            await asyncio.sleep(0.01)
 
     def logs(
         self,

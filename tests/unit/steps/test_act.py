@@ -50,7 +50,7 @@ async def test_success(state, tools):
     result = state.execution.completed_calls[0]
     assert result["name"] == "mock_tool"
     assert "success" in result
-    assert "data" in result
+    assert "result" in result
     assert "error" in result
     assert result["success"] is True
 

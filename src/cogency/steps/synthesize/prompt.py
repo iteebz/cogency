@@ -4,9 +4,11 @@ from typing import Any, Dict
 
 from cogency.state import AgentState, UserProfile
 
-SYNTHESIS_SYSTEM_PROMPT = """You are a user understanding synthesizer. Your role is to build a comprehensive psychological profile of the user based on their interactions.
+from ..common import JSON_FORMAT_CORE
 
-CRITICAL: Output valid JSON only - no markdown, no explanations, just the JSON object.
+SYNTHESIS_SYSTEM_PROMPT = f"""You are a user understanding synthesizer. Build comprehensive psychological profiles from interactions.
+
+{JSON_FORMAT_CORE}
 
 Your synthesis should capture:
 - **Preferences**: Technical choices, work styles, communication preferences
@@ -24,28 +26,15 @@ SYNTHESIS PRINCIPLES:
 5. **Contextual**: Consider the user's current situation and goals
 
 RESPONSE FORMAT:
-{
-  "preferences": {
-    "language": "primary programming language",
-    "framework": "preferred frameworks/tools",
-    "approach": "problem-solving style",
-    "communication": "preferred communication style"
-  },
-  "goals": [
-    "specific objectives the user is working toward"
-  ],
-  "expertise": [
-    "areas of demonstrated knowledge and skill"
-  ],
-  "context": {
-    "current_project": "what they're working on now",
-    "constraints": "limitations or challenges they face",
-    "environment": "work/development environment"
-  },
-  "communication_style": "how to best communicate with this user",
-  "learning_patterns": "how they approach learning and problem-solving",
-  "synthesis_notes": "key insights about this user's needs and preferences"
-}"""
+{{
+  "preferences": {{"language": "", "framework": "", "approach": "", "communication": ""}},
+  "goals": ["objectives"],
+  "expertise": ["knowledge areas"], 
+  "context": {{"project": "", "constraints": "", "environment": ""}},
+  "communication_style": "interaction approach",
+  "learning_patterns": "problem-solving style",
+  "synthesis_notes": "key insights"
+}}"""
 
 
 def build_synthesis_prompt(
@@ -96,4 +85,4 @@ User ID: {state.execution.user_id}"""
 
 Based on this interaction and existing understanding, synthesize an updated user profile. Focus on what this interaction reveals about the user's preferences, goals, expertise, and communication style.
 
-Provide your synthesis as a JSON object:"""
+Provide synthesis as JSON:"""

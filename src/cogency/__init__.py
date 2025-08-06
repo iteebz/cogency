@@ -17,15 +17,29 @@ Example:
     print(result)
     ```
 
-    With configuration:
+    Streaming execution:
 
     ```python
-    from cogency import Agent, MemoryConfig, ObserveConfig
+    async for chunk in agent.stream("Research quantum computing"):
+        print(chunk, end="", flush=True)
+    ```
+
+    With configuration and tools:
+
+    ```python
+    from cogency import Agent, MemoryConfig, Tool, tool
+
+    @tool
+    class Calculator(Tool):
+        def __init__(self):
+            super().__init__("calc", "Calculator", "calc(expr: str)")
+        async def run(self, expr: str):
+            return {"result": eval(expr)}
 
     agent = Agent(
         "research_assistant",
         memory=MemoryConfig(),
-        observe=ObserveConfig()
+        tools="all"
     )
     ```
 """
@@ -34,12 +48,21 @@ Example:
 from .agent import Agent
 
 # Public: Configuration classes for customizing agent behavior
-from .config import MemoryConfig, ObserveConfig, PersistConfig, RobustConfig
+from .config import MemoryConfig, PersistConfig, RobustConfig
+
+# Public: Tool classes and system for explicit imports
+from .tools import HTTP, Files, Scrape, Search, Shell, Tool, tool
 
 __all__ = [
     "Agent",
     "MemoryConfig",
-    "ObserveConfig",
     "PersistConfig",
     "RobustConfig",
+    "Files",
+    "HTTP",
+    "Scrape",
+    "Search",
+    "Shell",
+    "Tool",
+    "tool",
 ]

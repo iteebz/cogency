@@ -155,19 +155,28 @@ agent = Agent(
 
 ### Research Agent
 ```python
-agent = Agent("researcher", tools=["search", "scrape"])
+from cogency import Agent
+
+# Tools auto-register - agents use what they need
+agent = Agent("researcher")
 result = agent.run("Find and analyze the latest quantum computing research papers")
 ```
 
 ### Coding Assistant
 ```python
-agent = Agent("coder", tools=["files", "shell"])
+from cogency import Agent
+
+# Built-in tools: Files, Shell, HTTP, Search, Scrape
+agent = Agent("coder")
 result = agent.run("Create a FastAPI app with database models and run tests")
 ```
 
 ### Data Analysis
 ```python
-agent = Agent("analyst", tools=["files", "shell", "http"])  
+from cogency import Agent
+
+# All tools available automatically
+agent = Agent("analyst")
 result = agent.run("Process sales.csv, calculate trends, and POST to dashboard API")
 ```
 

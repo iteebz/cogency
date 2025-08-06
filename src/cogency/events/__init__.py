@@ -1,7 +1,13 @@
 """Event system for agent observability.
 
 For event access: Use agent.logs() method
-For custom streaming: Use Agent(handlers=[callback_function])
+For custom handlers: Use Agent(handlers=[callback_function])
+
+Example:
+    def my_handler(event):
+        print(f"Event: {event['type']}")
+
+    agent = Agent("assistant", handlers=[my_handler])
 
 Internal components:
 - MessageBus, emit, init_bus: Core event infrastructure
@@ -12,4 +18,4 @@ from .console import ConsoleHandler, console_callback  # noqa: F401
 from .core import MessageBus, component, emit, get_logs, init_bus  # noqa: F401
 from .handlers import LoggerHandler  # noqa: F401
 
-__all__ = []  # All internal
+__all__ = []  # All internal - use bare functions for custom handlers

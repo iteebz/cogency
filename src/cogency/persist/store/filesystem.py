@@ -6,7 +6,7 @@ import uuid
 from dataclasses import asdict
 from fcntl import LOCK_EX, LOCK_UN, flock
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from cogency.persist.serialize import serialize_profile
 from cogency.state import AgentState
@@ -24,28 +24,44 @@ class Filesystem(Store):
             base_dir = PathsConfig().state
         self.base_dir = Path(base_dir)
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        self.process_id = str(uuid.uuid4())[:8]  # Short process ID
+
+        # Create memory subdirectory for user profiles
+        self.memory_dir = self.base_dir / "memory"
+        self.memory_dir.mkdir(parents=True, exist_ok=True)
+
+        self.process_id = str(uuid.uuid4())[:8]  # Unique process ID for isolation
 
     def _get_state_path(self, state_key: str) -> Path:
         """Get file path for state key."""
+        # Handle profile keys with clean directory structure
+        if state_key.startswith("profile:"):
+            user_id = state_key.replace("profile:", "")
+            safe_user_id = user_id.replace("/", "_").replace(":", "_")
+            return self.memory_dir / f"{safe_user_id}.json"
+
+        # Legacy format for other state keys
         safe_key = state_key.replace(":", "_").replace("/", "_")
         return self.base_dir / f"{safe_key}_{self.process_id}.json"
 
-    async def save(self, state_key: str, state: AgentState) -> bool:
+    async def save(self, state_key: str, state: Union[AgentState, Dict[str, Any]]) -> bool:
         """Save state atomically with file locking."""
         try:
             state_path = self._get_state_path(state_key)
             temp_path = state_path.with_suffix(".tmp")
 
-            # Prepare serializable state data for AgentState
-            state_data = {
-                "state": {
-                    "execution": asdict(state.execution),
-                    "reasoning": asdict(state.reasoning),
-                    "user_profile": (serialize_profile(state.user) if state.user else None),
-                },
-                "process_id": self.process_id,
-            }
+            # Handle both AgentState objects and raw dicts (for memory system)
+            if isinstance(state, dict):
+                state_data = {"state": state, "process_id": self.process_id}
+            else:
+                # Prepare serializable state data for AgentState
+                state_data = {
+                    "state": {
+                        "execution": asdict(state.execution),
+                        "reasoning": asdict(state.reasoning),
+                        "user_profile": (serialize_profile(state.user) if state.user else None),
+                    },
+                    "process_id": self.process_id,
+                }
 
             # Atomic write: write to temp file first, then rename
             with open(temp_path, "w") as f:

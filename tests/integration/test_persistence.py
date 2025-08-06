@@ -25,20 +25,23 @@ async def test_agent_setup():
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             persist_config = PersistConfig(enabled=True, store=store)
             agent = Agent("test_agent", tools=[], persist=persist_config)
-            executor = await agent._get_executor()
+            runtime = await agent._get_executor()
 
-        assert executor.config.persist is not None
-        assert isinstance(executor.config.persist, PersistConfig)
-        assert executor.config.persist.store is store
-        assert executor.config.persist.enabled is True
+        assert runtime.executor.config.persist is not None
+        assert isinstance(runtime.executor.config.persist, PersistConfig)
+        assert runtime.executor.config.persist.store is store
+        assert runtime.executor.config.persist.enabled is True
 
         # Test persistence disabled
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             agent = Agent("test_agent", tools=[])
-            executor = await agent._get_executor()
+            runtime = await agent._get_executor()
 
         # Default persistence config should be None when disabled
-        assert executor.config.persist is None or executor.config.persist.enabled is False
+        assert (
+            runtime.executor.config.persist is None
+            or runtime.executor.config.persist.enabled is False
+        )
 
 
 @pytest.mark.asyncio

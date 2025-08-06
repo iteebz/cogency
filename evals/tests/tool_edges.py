@@ -5,7 +5,7 @@ import asyncio
 from cogency.tools.files import Files
 from cogency.tools.search import Search
 
-from ..eval import Eval, EvalResult
+from ..eval import Eval
 
 
 class ToolEdges(Eval):
@@ -14,8 +14,8 @@ class ToolEdges(Eval):
     name = "tool_edges"
     description = "Test tool args limits and error handling"
 
-    async def run(self) -> EvalResult:
-        agent = self.create_agent("edge_tester", tools=[Files(), Search()], max_iterations=8)
+    async def run(self):
+        agent = self.agent("edge_tester", tools=[Files(), Search()], max_iterations=8)
 
         # Test multiple edge cases - avoid security triggers
         edge_cases = [
@@ -88,12 +88,12 @@ class ToolEdges(Eval):
 
         agent_logs = agent.logs() if hasattr(agent, "logs") else []
 
-        return EvalResult(
-            name=self.name,
-            passed=passed,
-            score=score,
-            duration=0.0,
-            traces=[
+        return {
+            "name": self.name,
+            "passed": passed,
+            "score": score,
+            "duration": 0.0,
+            "traces": [
                 {
                     "query": query,
                     "response": result,
@@ -104,10 +104,10 @@ class ToolEdges(Eval):
                     "logs": agent_logs,
                 }
             ],
-            metadata={
+            "metadata": {
                 "handled_errors": handled_errors,
                 "tested_limits": tested_limits,
                 "graceful_handling": graceful_handling,
                 "attempted_multiple": attempted_multiple,
             },
-        )
+        }

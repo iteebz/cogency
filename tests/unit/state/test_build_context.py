@@ -151,7 +151,7 @@ def test_execution_history_failure():
 
     assert "EXECUTION HISTORY:" in history
     assert "✗ shell({'command': 'invalid_command'})" in history
-    assert "FAILED: Command not found" in history
+    assert "FAILED: Resource not found - verify path exists. Error: Command not found" in history
 
 
 def test_execution_history_mixed():
@@ -180,7 +180,7 @@ def test_execution_history_mixed():
 
     assert "✓ shell({'command': 'echo hello'})" in history
     assert "✗ shell({'command': 'invalid_cmd'})" in history
-    assert "FAILED: Command not found" in history
+    assert "FAILED: Resource not found - verify path exists. Error: Command not found" in history
 
 
 def test_execution_history_truncation():

@@ -30,11 +30,12 @@ class Scrape(Tool):
             emoji="📖",
             args=ScrapeArgs,
             examples=[
-                "scrape(url='https://example.com/article')",
-                "scrape(url='https://news.site.com/story')",
-                "scrape(url='https://blog.com/post')",
+                '{"name": "scrape", "args": {"url": "https://example.com/article"}}',
+                '{"name": "scrape", "args": {"url": "https://news.site.com/story"}}',
+                '{"name": "scrape", "args": {"url": "https://blog.com/post"}}',
             ],
             rules=[
+                'CRITICAL: Use JSON format: {"name": "scrape", "args": {"url": "..."}}. Never use function-call syntax.',
                 "Provide a valid and accessible URL.",
                 "Avoid re-scraping URLs that previously failed or returned no content.",
                 "If a URL fails to scrape, try alternative sources instead of retrying.",

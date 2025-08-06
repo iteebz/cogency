@@ -3,7 +3,7 @@
 import pytest
 
 from cogency import Agent
-from cogency.config import MemoryConfig, ObserveConfig, RobustConfig
+from cogency.config import MemoryConfig, RobustConfig
 
 
 def test_memory_bool_true():
@@ -49,38 +49,15 @@ def test_robust_config_object():
     assert agent._config.robust.rate_limit_rps == 1.5
 
 
-def test_observe_bool_true():
-    """Test observe=True enables observability with defaults."""
-    agent = Agent("test", observe=True)
-    assert agent._config.observe is True
-
-
-def test_observe_bool_false():
-    """Test observe=False disables observability."""
-    agent = Agent("test", observe=False)
-    assert agent._config.observe is False
-
-
-def test_observe_config_object():
-    """Test observe=ObserveConfig() uses custom settings."""
-    config = ObserveConfig(metrics=True, export_format="json", steps=["reason"])
-    agent = Agent("test", observe=config)
-    assert agent._config.observe == config
-    assert agent._config.observe.metrics is True
-    assert agent._config.observe.export_format == "json"
-    assert agent._config.observe.steps == ["reason"]
-
-
 def test_multiple_union_patterns():
     """Test multiple Union patterns work together."""
     memory_config = MemoryConfig(user_id="bob")
     robust_config = RobustConfig(attempts=3)
 
-    agent = Agent("test", memory=memory_config, robust=robust_config, observe=True)  # Bool variant
+    agent = Agent("test", memory=memory_config, robust=robust_config)
 
     assert agent._config.memory == memory_config
     assert agent._config.robust == robust_config
-    assert agent._config.observe is True
 
 
 def test_prevents_conflicts():
@@ -88,12 +65,11 @@ def test_prevents_conflicts():
     # These tests would need the flat parameter approach to work
     # Since we use Union pattern, these conflicts shouldn't be possible
     # But we test the validation logic exists
-    agent = Agent("test", memory=False, robust=False, observe=False)
+    agent = Agent("test", memory=False, robust=False)
 
     # Should not raise - no conflicts with Union pattern
     assert agent._config.memory is False
     assert agent._config.robust is False
-    assert agent._config.observe is False
 
 
 def test_progressive_disclosure_example():

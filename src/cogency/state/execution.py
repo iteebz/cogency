@@ -38,6 +38,7 @@ class ExecutionState:
     pending_calls: List[Dict[str, Any]] = field(default_factory=list)
     completed_calls: List[Dict[str, Any]] = field(default_factory=list)
     tool_results: Dict[str, Any] = field(default_factory=dict)
+    iterations_without_tools: int = 0  # Track consecutive iterations without tool usage
 
     # System
     debug: bool = False
@@ -90,6 +91,7 @@ class ExecutionState:
         """Process completed tool results."""
         self.completed_calls.extend(results)
         self.pending_calls.clear()
+        self.iterations_without_tools = 0  # Reset counter on tool usage
 
         # Add tool results to conversation history so agent can see what was executed
         if results:
@@ -97,6 +99,11 @@ class ExecutionState:
             for result in results:
                 tool_name = result.get("name", "unknown")
                 result_obj = result.get("result")
+
+                # Handle case where result_obj might be None (shouldn't happen but defensive)
+                if result_obj is None:
+                    tool_summary.append(f"Tool '{tool_name}' failed: No result returned")
+                    continue
 
                 try:
                     # Unwrap Result objects from resilient_result

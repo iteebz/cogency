@@ -11,12 +11,23 @@ def execution_history(state: AgentState, tools: List[Any]) -> str:
         return ""
 
     history_lines = []
+    tool_patterns = {}  # Track tool+args patterns for repetition detection
+    successful_results = {}
+
     for result in state.execution.completed_calls[-5:]:  # Last 5
         tool_name = result.get("name", "unknown")
         tool_args = result.get("args", {})
         success = result.get("success", False)
         data = result.get("data")
         error = result.get("error")
+
+        # Track pattern-based usage (tool + args signature)
+        pattern_key = f"{tool_name}:{str(tool_args)[:30]}"
+        tool_patterns[pattern_key] = tool_patterns.get(pattern_key, 0) + 1
+
+        # Store successful results for context
+        if success and data:
+            successful_results[tool_name] = str(data)[:80]
 
         # Args summary (first 50 chars)
         args_str = str(tool_args)[:50] if tool_args else ""
@@ -31,13 +42,52 @@ def execution_history(state: AgentState, tools: List[Any]) -> str:
                     output = "completed"
             else:
                 output = "completed"
-            history_lines.append(f"✓ {tool_name}({args_str}) → {output}")
-        else:
-            # Failure: show why it failed
-            error_msg = str(error)[:100] if error else "failed"
-            history_lines.append(f"✗ {tool_name}({args_str}) → FAILED: {error_msg}")
 
-    return f"EXECUTION HISTORY:\n{chr(10).join(history_lines)}\n\n"
+            # Add pattern-based repetition warning
+            count = tool_patterns[pattern_key]
+            repeat_warning = f" [USED {count}x]" if count > 1 else ""
+            history_lines.append(f"✓ {tool_name}({args_str}) → {output}{repeat_warning}")
+        else:
+            # Failure: provide full diagnostic context
+            error_str = str(error) if error else "Unknown error"
+            if "not found" in error_str.lower():
+                error_analysis = (
+                    f"FAILED: Resource not found - verify path exists. Error: {error_str}"
+                )
+            else:
+                error_analysis = f"FAILED: {error_str}"
+            count = tool_patterns[pattern_key]
+            repeat_warning = f" [USED {count}x]" if count > 1 else ""
+            history_lines.append(f"✗ {tool_name}({args_str}) → {error_analysis}{repeat_warning}")
+
+    # Pattern-based repetition warnings with actionable context
+    repetition_warnings = []
+    for pattern_key, count in tool_patterns.items():
+        if count >= 2:
+            tool_name = pattern_key.split(":")[0]
+            if tool_name in successful_results:
+                repetition_warnings.append(
+                    f"⚠️ {tool_name} already succeeded with similar args - result: {successful_results[tool_name]}"
+                )
+            elif count >= 3:
+                repetition_warnings.append(
+                    f"⚠️ {tool_name} failed {count} times with similar args - try different approach"
+                )
+
+    # Show successful results for context
+    success_context = []
+    if successful_results:
+        success_context.append("RECENT SUCCESSFUL RESULTS:")
+        for tool_name, output in list(successful_results.items())[-3:]:
+            success_context.append(f"- {tool_name}: {output}")
+
+    history_section = f"EXECUTION HISTORY:\n{chr(10).join(history_lines)}\n"
+    if repetition_warnings:
+        history_section += f"\nREPETITION WARNINGS:\n{chr(10).join(repetition_warnings)}\n"
+    if success_context:
+        history_section += f"\n{chr(10).join(success_context)}\n"
+
+    return history_section + "\n"
 
 
 def knowledge_synthesis(state: AgentState) -> str:
@@ -67,91 +117,36 @@ def knowledge_synthesis(state: AgentState) -> str:
 
 
 def readiness_assessment(state: AgentState) -> str:
-    """State → Can I respond to the user now?"""
+    """State → Factual summary for LLM decision-making."""
 
-    # Simple heuristics
-    has_successful_tools = any(r.get("success", False) for r in state.execution.completed_calls)
-
-    recent_failures = sum(
-        1
-        for r in state.execution.completed_calls[-3:]
-        if not r.get("success", True)  # Count as failure if success is False
+    # Just provide facts, let LLM decide
+    successful_calls = [r for r in state.execution.completed_calls if r.get("success", False)]
+    failed_calls = [r for r in state.execution.completed_calls if not r.get("success", True)]
+    recent_failures = len(
+        [r for r in state.execution.completed_calls[-3:] if not r.get("success", True)]
     )
 
-    if has_successful_tools and recent_failures == 0:
-        readiness = "READY - Have successful results, no recent failures"
+    facts = [
+        f"Successful tool calls: {len(successful_calls)}",
+        f"Failed tool calls: {len(failed_calls)}",
+        f"Recent failures (last 3): {recent_failures}",
+    ]
+
+    if successful_calls:
+        recent_success = successful_calls[-1]
+        facts.append(f"Last success: {recent_success.get('name', 'unknown')} tool")
+
+    # Add readiness recommendation based on execution state
+    readiness_line = ""
+    if successful_calls and recent_failures == 0:
+        readiness_line = "RESPONSE READINESS: READY - Have successful results, no recent failures"
     elif recent_failures >= 2:
-        readiness = "CONSIDER RESPONDING - Multiple recent failures, may need different approach"
+        readiness_line = "RESPONSE READINESS: CONSIDER RESPONDING - Multiple recent failures"
     else:
-        readiness = "CONTINUE - Gathering more information"
+        readiness_line = "RESPONSE READINESS: CONTINUE - Gathering more information"
 
-    return f"RESPONSE READINESS: {readiness}\n\n"
-
-
-def reasoning_context(state: AgentState, tools: List[Any], mode=None) -> str:
-    """Pure function: State → Reasoning Prompt."""
-
-    mode = mode or state.execution.mode
-    mode_value = mode.value if hasattr(mode, "value") else str(mode)
-
-    # Situated memory injection
-    user_context = state.get_situated_context()
-
-    # Reasoning context
-    reasoning_context = state.reasoning.compress_for_context()
-
-    # Tool registry
-    tool_registry = "\n".join(f"- {tool.name}: {tool.description}" for tool in tools)
-
-    # Rich execution context
-    execution_context = execution_history(state, tools)
-    knowledge_context = knowledge_synthesis(state)
-    readiness_context = readiness_assessment(state)
-
-    # Mode-specific instructions
-    if mode_value == "deep":
-        instructions = """DEEP MODE: Structured reasoning required
-- REFLECT: What have I learned? What worked/failed? What gaps remain?
-- ANALYZE: What are the core problems or strategic considerations?  
-- STRATEGIZE: What's my multi-step plan? What tools will I use and why?"""
-    else:
-        instructions = """FAST MODE: Direct execution
-- Review context above
-- Choose appropriate tools and act efficiently
-- ESCALATE to deep mode if task proves complex"""
-
-    # SEC-001: Security-hardened identity
-    identity = "You are a helpful AI assistant."
-
-    return f"""{identity}
-
-{user_context}REASONING CONTEXT:
-{reasoning_context}
-
-{execution_context}{knowledge_context}{readiness_context}AVAILABLE TOOLS:
-{tool_registry}
-
-{instructions}
-
-Iteration {state.execution.iteration}/{state.execution.max_iterations}
-
-
-Respond with JSON:
-{{
-    "thinking": "Your reasoning for this step",
-    "tool_calls": [
-        {{"name": "tool_name", "args": {{"arg": "value"}}}}
-    ],
-    "workspace_update": {{
-        "objective": "refined problem statement if needed",
-        "assessment": "current situation analysis", 
-        "approach": "strategy being used",
-        "observations": ["key insights discovered"]
-    }},
-    "response": "direct response if ready to answer user",
-    "switch_to": "fast|deep",
-    "switch_why": "reason for mode switch if switching"
-}}"""
+    facts_section = f"EXECUTION FACTS:\n{chr(10).join(f'- {fact}' for fact in facts)}\n\n"
+    return facts_section + readiness_line + "\n\n"
 
 
 def build_context(state: AgentState) -> List[Dict[str, str]]:
@@ -164,7 +159,3 @@ def build_context(state: AgentState) -> List[Dict[str, str]]:
         List of message dictionaries with role and content
     """
     return [{"role": msg["role"], "content": msg["content"]} for msg in state.execution.messages]
-
-
-# Alias for consistency with imports
-conversation_context = build_context

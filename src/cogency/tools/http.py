@@ -35,11 +35,12 @@ class HTTP(Tool):
             emoji="🌐",
             args=HTTPArgs,
             examples=[
-                "http(url='https://api.example.com/data', method='get')",
-                "http(url='https://api.example.com/users', method='post', json_data={'name': 'John'})",
-                "http(url='https://api.example.com/user/123', method='put', json_data={'status': 'active'})",
+                '{"name": "http", "args": {"url": "https://api.example.com/data", "method": "get"}}',
+                '{"name": "http", "args": {"url": "https://api.example.com/users", "method": "post", "json_data": {"name": "John"}}}',
+                '{"name": "http", "args": {"url": "https://api.example.com/user/123", "method": "put", "json_data": {"status": "active"}}}',
             ],
             rules=[
+                'CRITICAL: Use JSON format: {"name": "http", "args": {"url": "...", "method": "..."}}. Never use function-call syntax.',
                 "Use GET for retrieving data.",
                 "Use POST for creating resources.",
                 "Use PUT for updating entire resources.",

@@ -1,45 +1,33 @@
 """Prompt building for reasoning - mode-specific prompt generation."""
 
-from typing import Any, Dict, Optional
+from typing import Any, List, Optional
 
 from cogency.state import AgentState
 
-CORE_REASONING_INSTRUCTIONS = (
-    """CRITICAL: Output ONE JSON object for THIS ITERATION ONLY. Do not anticipate future steps."""
-)
+from ..common import JSON_FORMAT_CORE, TOOL_RESPONSE_LOGIC, build_json_schema
+
+CORE_REASONING_INSTRUCTIONS = f"""CRITICAL: {JSON_FORMAT_CORE}
+
+EXAMPLE VALID:
+{{"thinking": "...", "tool_calls": [...], "response": ""}}
+
+NEVER OUTPUT:
+```json
+- yaml format
+plain text reasoning"""
 
 
 def _build_json_format_section(mode: str) -> str:
     """Build JSON response format with mode-specific fields."""
-    reflect_field = (
-        '"reflect": "What worked/failed in previous actions? What gaps remain?",'
-        if mode == "deep"
-        else ""
-    )
-    plan_field = (
-        '"plan": "What specific tools to use next and expected outcomes?",'
-        if mode == "deep"
-        else ""
-    )
-
-    return f"""{{
-  "thinking": "What am I trying to accomplish? What's my approach to this problem?",{reflect_field}{plan_field}
-
-  "tool_calls": [
-    {{"name": "tool_a", "args": {{"arg": "value"}}}},
-    {{"name": "tool_b", "args": {{"arg": "value"}}}},
-    {{"name": "tool_c", "args": {{"arg": "value"}}}}
-  ],
-  "response": "Only populate this when ready to respond to the user directly",
-  "switch_to": null,
-  "switch_why": null,
-  "workspace_update": {{
-    "objective": "Clear problem statement: What is the main goal?",
-    "assessment": "Current situation: What information have we gathered?",
-    "approach": "Current strategy: What method are we using?",
-    "observations": "Key findings: What important insights have we found?"
-  }}
-}}"""
+    fields = {
+        "thinking": "Your reasoning for this step",
+        "tool_calls": '[{"name": "tool", "args": {}}] or []',
+        "workspace_update": "{objective, assessment, approach, observations}",
+        "response": "final answer (REQUIRED if tool_calls=[]) or empty string",
+        "switch_to": "fast|deep (optional)",
+        "switch_why": "reason for mode switch (if switching)",
+    }
+    return build_json_schema(fields)
 
 
 WORKSPACE_UPDATE_GUIDELINES = """WORKSPACE UPDATE FIELDS:
@@ -51,16 +39,12 @@ WORKSPACE_UPDATE_GUIDELINES = """WORKSPACE UPDATE FIELDS:
 
 def _build_tool_execution_guidelines(max_tool_calls: int) -> str:
     """Build tool execution guidelines."""
-    return f"""CRITICAL DECISION LOGIC:
-- If user requests tool usage (shell commands, file operations, etc.) → Use tool_calls array, leave response empty
-- If you can answer directly without tools → Use response field, leave tool_calls empty
-- NEVER put tool descriptions in response field when user requested tool execution
+    return f"""{TOOL_RESPONSE_LOGIC}
 
-TOOL EXECUTION: All {max_tool_calls} tool calls must be in ONE tool_calls array, not separate JSON objects.
+TOOL MODE: Actions needed → tool_calls=[...], response=""
+RESPONSE MODE: Task complete → tool_calls=[], response="answer"
 
-When using tools: {{"thinking": "I need to execute tools", "tool_calls": [{{"name": "shell", "args": {{"command": "echo hello"}}}}], "response": "", "switch_to": null, "switch_why": null, "workspace_update": {{...}}}}
-
-When ready to respond: {{"thinking": "explanation", "security_assessment": {{"risk_level": "SAFE", "threats_detected": [], "restrictions": [], "reasoning": "No security risks detected"}}, "tool_calls": [], "response": "your response to the user", "switch_to": null, "switch_why": null, "workspace_update": {{"objective": "updated objective", "assessment": "what we learned", "approach": "approach used", "observations": "key insights found"}}}}"""
+Limit: Max {max_tool_calls} tools per iteration for JSON stability."""
 
 
 DEEP_REASONING_STEPS = """REASONING STEPS:
@@ -76,30 +60,10 @@ RECOVERY ACTIONS:
 - Avoid repeating successful tool calls - check action history first"""
 
 
-def _build_deep_downshift_rules(max_iterations: int) -> str:
-    """Build downshift rules for deep mode."""
-    return f"""DOWNSHIFT to FAST if:
-- Simple datetime request using time tool
-- Direct search with obvious keywords
-- Single-step action with clear tool choice
-- Approaching max_iterations limit ({max_iterations} iterations) - prioritize direct execution
-- Complex analysis not yielding progress after 2+ iterations
-
-Examples:
-switch_to: "fast", switch_why: "Query simplified to direct search"
-switch_to: "fast", switch_why: "Single tool execution sufficient"
-switch_to: "fast", switch_why: "Approaching max_iterations limit, need direct action\""""
-
-
-FAST_REASONING_STEPS = """CRITICAL STOP CONDITIONS:
-- If you see previous attempts that ALREADY answered the query → populate "response"
-- If query is fully satisfied by previous results → populate "response"  
-- If no tool can help with this query → populate "response"
-- If repeating same failed action → populate "response"
-
-GUIDANCE:
+FAST_REASONING_STEPS = """GUIDANCE:
 - FIRST: Review previous attempts to avoid repeating actions
-- Use tools only if query needs MORE information
+- Use tools when you need to take actions or gather information
+- Only provide "response" when you have FULLY completed the user's request
 
 ESCALATE to DEEP if encountering:
 - Tool results conflict and need synthesis
@@ -112,9 +76,18 @@ switch_to: "deep", switch_why: "Search results contradict, need analysis"
 switch_to: "deep", switch_why: "Multi-step calculation required\""""
 
 
-FINAL_EXECUTION_GUIDELINES = """- Populate "response" field when ready to respond directly to the user
-- If original query has been fully resolved, populate "response" with your answer
-- LIMIT: Maximum {max_tool_calls} tool calls per iteration to avoid JSON parsing issues"""
+FINAL_EXECUTION_GUIDELINES = """COMPLETION DECISION:
+When to CONTINUE: tool_calls=[...], response=""
+- Need more information to answer completely
+- Haven't addressed all parts of the query
+
+When to COMPLETE: tool_calls=[], response="final answer"
+- Have sufficient information to provide complete answer
+- All query requirements satisfied
+- CRITICAL: If you have taken multiple actions and made progress, you MUST complete with a summary
+- NEVER generate tool_calls=[] with response="" - this causes infinite loops
+
+Max {max_tool_calls} tools/iteration for stability."""
 
 
 class Prompt:
@@ -122,38 +95,75 @@ class Prompt:
 
     def build(
         self,
-        mode: str,
-        query: str,
-        context_data: Dict[str, Any],
-        iteration: int,
-        max_iterations: int,
         state: AgentState,
-        identity: Optional[str] = None,
+        tools: List[Any],
+        mode: Optional[str] = None,
     ) -> str:
         """Build reasoning prompt with mode-specific sections."""
         from cogency.config import MAX_TOOL_CALLS
+        from cogency.state.context import (
+            execution_history,
+            knowledge_synthesis,
+            readiness_assessment,
+        )
+        from cogency.tools.registry import build_tool_schemas
 
-        # Get context components
-        tool_registry = context_data["tool_registry"]
-        reasoning_context = context_data["reasoning_context"]
-        memory_context = context_data["memory_context"]
-        workspace_context = context_data["workspace_context"]
+        mode = mode or state.execution.mode
+        mode_value = mode.value if hasattr(mode, "value") else str(mode)
 
-        # Build mode-specific context
-        if mode == "deep":
-            reasoning_steps = self._build_deep_steps(max_iterations)
-            mode_context = self._build_deep_context(
-                iteration, max_iterations, memory_context, workspace_context, reasoning_context
-            )
-        else:  # fast mode
-            reasoning_steps = self._build_fast_steps()
-            mode_context = self._build_fast_context(
-                memory_context, workspace_context, reasoning_context
-            )
+        # Get context fragments from state/context.py
+        user_context = state.get_situated_context()
+        reasoning_context = state.reasoning.compress_for_context()
+        execution_context = execution_history(state, tools)
+        knowledge_context = knowledge_synthesis(state)
+        readiness_context = readiness_assessment(state)
 
-        # Build base prompt using decomposed sections
-        prompt = f"""
-{mode.upper()}: {"Structured reasoning" if mode == "deep" else "Direct execution"} for query: {query}
+        # Tool registry
+        if tools:
+            tool_registry = build_tool_schemas(tools)
+            tools_section = f"AVAILABLE TOOLS:\n{tool_registry}"
+        else:
+            tools_section = "NO TOOLS AVAILABLE - You can only provide direct responses"
+
+        # Build mode-specific instructions with centralized switching guidelines
+        from .modes import ModeController
+
+        if mode_value == "deep":
+            instructions = f"""DEEP MODE: Structured reasoning required
+- REFLECT: What have I learned? What worked/failed? What gaps remain?
+- ANALYZE: What are the core problems or strategic considerations?  
+- STRATEGIZE: What's my multi-step plan? What tools will I use and why?
+- WORKSPACE: Update goal, strategy, and insights for structured reflection
+
+{ModeController.get_switch_guidelines("deep", state.execution.max_iterations)}"""
+        elif mode_value == "adapt":
+            instructions = f"""ADAPT MODE: Dynamic reasoning - start fast, escalate as needed
+- Review context above
+- Choose appropriate tools and act efficiently
+- ESCALATE to deep mode when encountering complexity
+
+{ModeController.get_switch_guidelines("adapt", state.execution.max_iterations)}"""
+        else:
+            instructions = f"""FAST MODE: Direct execution
+- Review context above
+- Choose appropriate tools and act efficiently
+- Focus on immediate action completion
+
+{ModeController.get_switch_guidelines("fast", state.execution.max_iterations)}"""
+
+        # Build complete prompt
+        identity = "You are a helpful AI assistant."
+
+        prompt = f"""{identity}
+
+{user_context}REASONING CONTEXT:
+{reasoning_context}
+
+{execution_context}{knowledge_context}{readiness_context}{tools_section}
+
+{instructions}
+
+Iteration {state.execution.iteration}/{state.execution.max_iterations}
 
 {CORE_REASONING_INSTRUCTIONS}
 
@@ -161,67 +171,10 @@ class Prompt:
 
 {WORKSPACE_UPDATE_GUIDELINES}
 
-TOOLS:
-{tool_registry}
-
-{mode_context}
-
-{reasoning_steps}
-
 {FINAL_EXECUTION_GUIDELINES.format(max_tool_calls=MAX_TOOL_CALLS)}
 
 JSON Response Format:
-{_build_json_format_section(mode)}
+{_build_json_format_section(mode_value)}
 """
-
-        # Add identity if provided
-        if identity:
-            prompt = f"{identity}\n\n{prompt}"
 
         return prompt
-
-    def _build_deep_steps(self, max_iterations: int) -> str:
-        """Build deep reasoning step instructions."""
-        return f"""
-{DEEP_REASONING_STEPS}
-
-{_build_deep_downshift_rules(max_iterations)}
-"""
-
-    def _build_fast_steps(self) -> str:
-        """Build fast reasoning step instructions."""
-        return f"""
-{FAST_REASONING_STEPS}
-"""
-
-    def _build_deep_context(
-        self,
-        iteration: int,
-        max_iterations: int,
-        memory_context: str,
-        workspace_context: str,
-        reasoning_context: str,
-    ) -> str:
-        """Build deep mode context section."""
-        return f"""
-CONTEXT:
-Iteration {iteration}/{max_iterations} - Review completed actions to avoid repetition
-
-{memory_context}COGNITIVE WORKSPACE:
-{workspace_context}
-
-PREVIOUS ACTIONS:
-{reasoning_context}
-"""
-
-    def _build_fast_context(
-        self, memory_context: str, workspace_context: str, reasoning_context: str
-    ) -> str:
-        """Build fast mode context section."""
-        return f"""
-{memory_context}COGNITIVE WORKSPACE:
-{workspace_context}
-
-PREVIOUS CONTEXT:
-{reasoning_context if reasoning_context else "Initial execution - no prior actions"}
-"""

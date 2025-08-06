@@ -1,11 +1,12 @@
 """Error recovery evaluation."""
 
 import os
+from typing import Dict
 
 from cogency.tools.files import Files
 from cogency.tools.shell import Shell
 
-from ..eval import Eval, EvalResult
+from ..eval import Eval
 
 
 class ErrorRecovery(Eval):
@@ -14,8 +15,8 @@ class ErrorRecovery(Eval):
     name = "error_recovery"
     description = "Test error handling patterns and recovery strategies"
 
-    async def run(self) -> EvalResult:
-        agent = self.create_agent(
+    async def run(self) -> Dict:
+        agent = self.agent(
             "recovery_tester",
             tools=[Files(), Shell()],
             max_iterations=15,
@@ -82,12 +83,12 @@ class ErrorRecovery(Eval):
 
         agent_logs = agent.logs() if hasattr(agent, "logs") else []
 
-        return EvalResult(
-            name=self.name,
-            passed=passed,
-            score=recovery_score,
-            duration=0.0,
-            traces=[
+        return {
+            "name": self.name,
+            "passed": passed,
+            "score": recovery_score,
+            "duration": 0.0,
+            "traces": [
                 {
                     "query": query,
                     "response": result,
@@ -100,7 +101,7 @@ class ErrorRecovery(Eval):
                     "logs": agent_logs,
                 }
             ],
-            metadata={
+            "metadata": {
                 "attempted_nonexistent": attempted_nonexistent,
                 "created_recovery_file": created_recovery_file,
                 "verified_file_content": verified_file_content,
@@ -111,4 +112,4 @@ class ErrorRecovery(Eval):
                 "continued_after_errors": continued_after_errors,
                 "file_properly_cleaned": file_properly_cleaned,
             },
-        )
+        }

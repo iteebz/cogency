@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FilesArgs:
     action: str
-    path = ""
+    path: str = ""
     content: Optional[str] = None
     line: Optional[int] = None
     start: Optional[int] = None
@@ -39,14 +39,14 @@ class Files(Tool):
             emoji="📁",
             args=FilesArgs,
             examples=[
-                "files(action='create', path='app.py', content='from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\"/\")\\nasync def root():\\n    return {\"message\": \"Hello World\"}')",
-                "files(action='create', path='models.py', content='from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None')",
-                "files(action='read', path='app.py')",
-                "files(action='edit', path='app.py', line=5, content='@app.get(\"/users\")')",
-                "files(action='list', path='src')",
+                '{"name": "files", "args": {"action": "create", "path": "app.py", "content": "from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\\"/\\")\\nasync def root():\\n    return {\\"message\\": \\"Hello World\\"}"}}',
+                '{"name": "files", "args": {"action": "create", "path": "models.py", "content": "from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None"}}',
+                '{"name": "files", "args": {"action": "read", "path": "app.py"}}',
+                '{"name": "files", "args": {"action": "edit", "path": "app.py", "line": 5, "content": "@app.get(\\"/users\\")"}}',
+                '{"name": "files", "args": {"action": "list", "path": "src"}}',
             ],
             rules=[
-                "CRITICAL: Always use files(action='...', ...) format. NEVER call files.read, files.list, files.create - these don't exist.",
+                'CRITICAL: Use JSON format: {"name": "files", "args": {"action": "...", ...}}. Never use function-call syntax.',
                 "CRITICAL: When creating files, provide complete, functional code implementations; never placeholder comments or stubs.",
                 "Start with focused, core functionality - avoid overly long files in initial creation.",
                 "Include proper imports, error handling, and production-ready code.",
@@ -71,7 +71,21 @@ class Files(Tool):
         if not rel_path:
             raise ValueError("Path cannot be empty")
 
-        path = (self.base_dir / rel_path).resolve()
+        # Normalize path: strip sandbox prefix if already included
+        # This fixes the double-sandbox-path bug
+        normalized_path = rel_path
+        try:
+            # Only normalize if base_dir is relative to current working directory
+            sandbox_prefix = str(self.base_dir.relative_to(Path.cwd()))
+            if rel_path.startswith(sandbox_prefix + "/"):
+                normalized_path = rel_path[len(sandbox_prefix) + 1 :]
+            elif rel_path.startswith(sandbox_prefix):
+                normalized_path = rel_path[len(sandbox_prefix) :].lstrip("/")
+        except ValueError:
+            # base_dir is not relative to cwd (e.g., temp directory) - use path as-is
+            pass
+
+        path = (self.base_dir / normalized_path).resolve()
 
         if not str(path).startswith(str(self.base_dir)):
             raise ValueError(f"Unsafe path access: {rel_path}")
@@ -92,7 +106,9 @@ class Files(Tool):
             if action == "create":
                 path = self._safe_path(path)
                 if path.exists():
-                    return Result.fail(f"File already exists: {path}")
+                    return Result.fail(
+                        f"File already exists: {path}. Please specify if you want to overwrite, rename, or choose a different approach."
+                    )
 
                 # Security: validate file content using centralized patterns
                 from cogency.security import secure_tool

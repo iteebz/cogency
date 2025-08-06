@@ -17,17 +17,21 @@ def collect_tool_results(state: AgentState) -> Optional[str]:
 
     # Format completed tool results
     successful_results = [
-        result for result in state.execution.completed_calls[:5] if result.get("success", False)
+        result for result in state.execution.completed_calls[:10] if result.get("success", False)
     ]
 
     if not successful_results:
         return None
 
+    def format_result(result):
+        """Extract data from Result object safely."""
+        result_obj = result.get("result")
+        if result_obj and hasattr(result_obj, "success") and result_obj.success:
+            return str(result_obj.data or "no result")[:2000]
+        return "no result"
+
     return "\n".join(
-        [
-            f"• {result['name']}: {str(result['data'] or 'no result')[:200]}..."
-            for result in successful_results
-        ]
+        [f"• {result['name']}: {format_result(result)}..." for result in successful_results]
     )
 
 

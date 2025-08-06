@@ -20,13 +20,28 @@ def _setup_tools(tools, memory):
     elif isinstance(tools, str):
         raise ValueError(f"Invalid tools value '{tools}'; use 'all' or a list of tools")
     elif isinstance(tools, list):
-        return _resolve_tool_list(tools)
+        resolved = _resolve_tool_list(tools)
+
+        # Developer hint when no tools configured but tools are registered
+        if not resolved and ToolRegistry._tools:
+            from cogency.events import emit
+
+            registered_count = len(ToolRegistry._tools)
+            emit(
+                "agent",
+                operation="setup",
+                status="no_tools_configured",
+                message=f"Agent initialized with no tools, but {registered_count} tools are registered. Use tools='all' to enable them.",
+                registered_tools=[cls.__name__ for cls in ToolRegistry._tools],
+            )
+
+        return resolved
 
     return tools
 
 
 def _resolve_tool_list(tools: List[Union[str, Tool]]) -> List[Tool]:
-    """Resolve mixed list of tool strings and instances."""
+    """Resolve list of tool instances."""
     resolved = []
 
     for tool in tools:
@@ -108,15 +123,10 @@ class ToolRegistry:
         tools = []
         for tool_class in cls._tools:
             try:
-                # Try with kwargs first, fallback to no-args
-                try:
-                    tool_instance = tool_class(**kwargs)
-                    tools.append(tool_instance)
-                    emit("tool", operation="registry", status="loaded", name=tool_class.__name__)
-                except TypeError:
-                    tool_instance = tool_class()
-                    tools.append(tool_instance)
-                    emit("tool", operation="registry", status="loaded", name=tool_class.__name__)
+                # Consistent no-args instantiation
+                tool_instance = tool_class()
+                tools.append(tool_instance)
+                emit("tool", operation="registry", status="loaded", name=tool_class.__name__)
             except Exception as e:
                 emit(
                     "tool",
@@ -160,108 +170,36 @@ def get_tools(**kwargs) -> List[Tool]:
     return ToolRegistry.get_tools(**kwargs)
 
 
-def _to_json(schema: str, tool_name: str) -> str:
-    """Convert function-call schema to JSON format for LLM."""
-    # Parse "files(action: str, path: str = '', content: str = None, ...)"
-    if not schema or "(" not in schema:
-        return f'{{"name": "{tool_name}", "args": {{}}}}'
-
-    # Extract args from function signature
-    try:
-        # Find content between parentheses
-        start = schema.find("(")
-        end = schema.rfind(")")
-        if start == -1 or end == -1:
-            return f'{{"name": "{tool_name}", "args": {{}}}}'
-
-        args_str = schema[start + 1 : end].strip()
-        if not args_str:
-            return f'{{"name": "{tool_name}", "args": {{}}}}'
-
-        # Simple parsing - split by comma, extract arg names
-        args = {}
-        for arg in args_str.split(","):
-            arg = arg.strip()
-            if ":" in arg:
-                arg_name = arg.split(":")[0].strip()
-                # Clean up arg name (remove defaults, etc)
-                if "=" in arg_name:
-                    arg_name = arg_name.split("=")[0].strip()
-                args[arg_name] = "value"
-
-        return f'{{"name": "{tool_name}", "args": {args}}}'.replace("'", '"')
-
-    except Exception:
-        # Fallback if parsing fails
-        return f'{{"name": "{tool_name}", "args": {{}}}}'
-
-
-def _convert_examples_to_json(examples: list, tool_name: str) -> list:
-    """Convert function-call examples to JSON format."""
-    json_examples = []
-    for example in examples:
-        # Convert "files(action='create', path='app.py')" to JSON
-        if "(" in example and example.startswith(tool_name):
-            try:
-                # Extract args from function call
-                start = example.find("(")
-                end = example.rfind(")")
-                if start != -1 and end != -1:
-                    args_str = example[start + 1 : end]
-                    # Simple conversion - this is basic but should work for most cases
-                    json_example = f'{{"name": "{tool_name}", "args": {{{args_str}}}}}'
-                    json_examples.append(json_example)
-                else:
-                    json_examples.append(f'{{"name": "{tool_name}", "args": {{}}}}')
-            except (ValueError, IndexError, AttributeError):
-                json_examples.append(f'{{"name": "{tool_name}", "args": {{}}}}')
-        else:
-            json_examples.append(example)
-    return json_examples
-
-
-def _convert_rules_to_json(rules: list, tool_name: str) -> list:
-    """Convert function-call rules to JSON format."""
-    json_rules = []
-    for rule in rules:
-        # Replace function-call references with JSON format
-        converted_rule = rule.replace(
-            f"{tool_name}(action='...', ...)",
-            f'{{"name": "{tool_name}", "args": {{"action": "...", "...": "..."}}}}',
-        )
-        converted_rule = converted_rule.replace(
-            "files.read, files.list, files.create", "method-style calls like files.read()"
-        )
-        json_rules.append(converted_rule)
-    return json_rules
-
-
-def build_registry(tools: List[Tool], lite: bool = False) -> str:
-    """Build tool registry string for LLM."""
+def build_tool_descriptions(tools: List[Tool]) -> str:
+    """Build brief tool descriptions for triage/overview contexts."""
     if not tools:
         return "no tools"
 
     entries = []
-
     for tool_instance in tools:
-        if lite:
-            entries.append(
-                f"{tool_instance.emoji} [{tool_instance.name}]: {tool_instance.description}"
-            )
-        else:
-            # Convert rules and examples to JSON format
-            json_rules = _convert_rules_to_json(tool_instance.rules or [], tool_instance.name)
-            json_examples = _convert_examples_to_json(
-                tool_instance.examples or [], tool_instance.name
-            )
+        entries.append(f"{tool_instance.emoji} [{tool_instance.name}]: {tool_instance.description}")
+    return "\n".join(entries)
 
-            rules_str = "\n".join(f"- {r}" for r in json_rules) if json_rules else "None"
-            examples_str = "\n".join(f"- {e}" for e in json_examples) if json_examples else "None"
 
-            entry = f"{tool_instance.emoji} [{tool_instance.name}]\n{tool_instance.description}\n\n"
-            entry += f"{_to_json(tool_instance.schema, tool_instance.name)}\n\n"
-            entry += f"Rules:\n{rules_str}\n\n"
-            entry += f"Examples:\n{examples_str}\n"
-            entry += "---"
-            entries.append(entry)
+def build_tool_schemas(tools: List[Tool]) -> str:
+    """Build tool schemas with examples and rules - no JSON conversion."""
+    if not tools:
+        return "no tools"
+
+    entries = []
+    for tool_instance in tools:
+        rules_str = (
+            "\n".join(f"- {r}" for r in tool_instance.rules) if tool_instance.rules else "None"
+        )
+        examples_str = (
+            "\n".join(f"- {e}" for e in tool_instance.examples)
+            if tool_instance.examples
+            else "None"
+        )
+
+        entry = f"{tool_instance.emoji} [{tool_instance.name}]\n{tool_instance.description}\n\n"
+        entry += f"Rules:\n{rules_str}\n\n"
+        entry += f"Examples:\n{examples_str}\n"
+        entry += "---"
+        entries.append(entry)
     return "\n".join(entries)
