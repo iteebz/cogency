@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, List, Optional, Tuple
 
-from cogency.state import AgentState
+from cogency.state import State
 from cogency.tools import Tool
 from cogency.utils.parsing import _parse_json
 
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 def build_reasoning_prompt(
-    state: AgentState, tools: List[Tool], memory=None, identity: str = None
+    state: State, tools: List[Tool], memory=None, identity: str = None
 ) -> str:
     """Build reasoning prompt from current context."""
     from .prompt import Prompt
@@ -20,7 +20,7 @@ def build_reasoning_prompt(
     return prompt_builder.build(state, tools, identity=identity)
 
 
-def build_messages(prompt: str, state: AgentState) -> List[Dict[str, str]]:
+def build_messages(prompt: str, state: State) -> List[Dict[str, str]]:
     """Build message array for LLM."""
     messages = [{"role": "system", "content": prompt}]
     messages.extend(
@@ -35,7 +35,7 @@ def parse_reasoning_response(raw_response: str) -> Tuple[bool, Optional[Dict[str
     return parsed.success, parsed.data if parsed.success else None
 
 
-async def _switch_mode(state: AgentState, raw_response: str, mode: str, iteration: int) -> None:
+async def _switch_mode(state: State, raw_response: str, mode: str, iteration: int) -> None:
     """Handle complete mode switching logic."""
     from .modes import ModeController
 

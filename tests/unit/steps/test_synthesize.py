@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.state import AgentState, ExecutionState, UserProfile
+from cogency.state import ExecutionState, State, UserProfile
 from cogency.steps.synthesize.core import (
     _check_high_value_interaction,
     _check_session_end,
@@ -34,8 +34,8 @@ def mock_memory():
 
 @pytest.fixture
 def agent_state():
-    state = AgentState(query="test query", user_id="test_user")
-    state.execution.user_id = "test_user"
+    state = State(query="test query", user_id="test_user")
+    # user_id already set in State constructor
     state.execution.iteration = 1
     return state
 
@@ -61,7 +61,7 @@ async def test_synthesize_no_memory(agent_state):
 @pytest.mark.asyncio
 async def test_synthesize_with_triggers(agent_state, mock_memory, user_profile):
     """Test synthesis when triggers are met."""
-    agent_state.user = user_profile
+    agent_state.profile = user_profile
 
     # Set up threshold trigger
     user_profile.interaction_count = 10
@@ -76,7 +76,7 @@ async def test_synthesize_with_triggers(agent_state, mock_memory, user_profile):
 @pytest.mark.asyncio
 async def test_synthesize_no_triggers(agent_state, mock_memory, user_profile):
     """Test synthesis when no triggers are met."""
-    agent_state.user = user_profile
+    agent_state.profile = user_profile
 
     # No triggers met
     user_profile.interaction_count = 2
@@ -93,7 +93,7 @@ async def test_synthesize_no_triggers(agent_state, mock_memory, user_profile):
 @pytest.mark.asyncio
 async def test_synthesize_idempotence(agent_state, mock_memory, user_profile):
     """Test that synthesis doesn't run twice concurrently."""
-    agent_state.user = user_profile
+    agent_state.profile = user_profile
 
     # Set up triggers
     user_profile.interaction_count = 10

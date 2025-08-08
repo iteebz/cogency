@@ -160,12 +160,12 @@ async def test_memory_contract_compliance():
 @pytest.mark.asyncio
 async def test_state_management_contract():
     """Verify state persistence follows contracts."""
-    from cogency.persist.utils import _get_state
-    from cogency.state import AgentState
+    from cogency.state import State
+    from cogency.storage.utils import _get_state
 
     # Test state creation contract
-    state = AgentState("test query")
-    assert state.execution.query == "test query"
+    state = State("test query")
+    assert state.query == "test query"
     assert state.execution.iteration == 0
     assert hasattr(state.execution, "messages")
     assert hasattr(state.execution, "pending_calls")
@@ -175,7 +175,7 @@ async def test_state_management_contract():
 
     state = await _get_state("user1", "query1", 10, user_states, None)
     assert state is not None
-    assert state.execution.query == "query1"
+    assert state.query == "query1"
 
 
 @pytest.mark.asyncio

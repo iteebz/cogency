@@ -2,7 +2,7 @@
 
 from typing import Any, Dict
 
-from cogency.state import AgentState, UserProfile
+from cogency.state import State
 
 from ..common import JSON_FORMAT_CORE
 
@@ -37,43 +37,40 @@ RESPONSE FORMAT:
 }}"""
 
 
-def build_synthesis_prompt(
-    user_profile: UserProfile, interaction_data: Dict[str, Any], state: AgentState
-) -> str:
-    """Build synthesis prompt with user context."""
+def build_synthesis_prompt(interaction_data: Dict[str, Any], state: State) -> str:
+    """Build synthesis prompt with flat state context."""
 
-    # Extract current interaction details
-    current_query = interaction_data.get("query", "")
-    current_response = interaction_data.get("response", "")
+    # Extract interaction details
+    current_query = interaction_data.get("query", state.query)
+    current_response = interaction_data.get("response", state.execution.response or "")
     success = interaction_data.get("success", True)
 
-    # Build existing understanding context
+    # Build existing understanding from flat state
     existing_understanding = ""
-    if user_profile:
-        if hasattr(user_profile, "preferences") and user_profile.preferences:
-            existing_understanding += f"CURRENT PREFERENCES: {user_profile.preferences}\n"
-        if hasattr(user_profile, "goals") and user_profile.goals:
-            existing_understanding += f"CURRENT GOALS: {user_profile.goals}\n"
-        if hasattr(user_profile, "expertise") and user_profile.expertise:
-            existing_understanding += f"CURRENT EXPERTISE: {user_profile.expertise}\n"
-        if hasattr(user_profile, "communication_style") and user_profile.communication_style:
-            existing_understanding += f"COMMUNICATION STYLE: {user_profile.communication_style}\n"
+    if hasattr(state, "preferences") and state.preferences:
+        existing_understanding += f"CURRENT PREFERENCES: {state.preferences}\n"
+    if hasattr(state, "goals") and state.goals:
+        existing_understanding += f"CURRENT GOALS: {state.goals}\n"
+    if hasattr(state, "expertise") and state.expertise:
+        existing_understanding += f"CURRENT EXPERTISE: {state.expertise}\n"
+    if hasattr(state, "communication_style") and state.communication_style:
+        existing_understanding += f"COMMUNICATION STYLE: {state.communication_style}\n"
 
     if not existing_understanding:
-        existing_understanding = "EXISTING UNDERSTANDING: None - this is the first synthesis"
+        existing_understanding = "EXISTING UNDERSTANDING: None - first synthesis"
 
     # Build interaction context
     interaction_context = f"""CURRENT INTERACTION:
 Query: {current_query}
 Response: {current_response}
 Success: {success}
-Complexity: {state.execution.iteration} iterations
-Tools Used: {len(getattr(state.execution, 'completed_calls', []))} tools"""
+Complexity: {state.iteration} iterations
+Tools Used: {len(state.tool_calls)} tools"""
 
     # Build session context
     session_context = f"""SESSION CONTEXT:
-Total Interactions: {user_profile.interaction_count if user_profile else 1}
-User ID: {state.execution.user_id}"""
+Total Messages: {len(state.messages)}
+User ID: {state.user_id}"""
 
     return f"""{SYNTHESIS_SYSTEM_PROMPT}
 

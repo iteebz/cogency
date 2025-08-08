@@ -1,12 +1,10 @@
 """Simple execution loop - zero ceremony, zero kwargs."""
 
 from cogency.events import emit
-from cogency.state import AgentState
+from cogency.state import State
 
 
-async def execute_agent(
-    state: AgentState, triage_step, reason_step, act_step, synthesize_step
-) -> None:
+async def execute_agent(state: State, triage_step, reason_step, act_step, synthesize_step) -> None:
     """Early-return execution."""
     emit(
         "agent_start",

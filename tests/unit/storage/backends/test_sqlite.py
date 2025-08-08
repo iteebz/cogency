@@ -5,23 +5,25 @@ from pathlib import Path
 
 import pytest
 
-from cogency.persist.store.sqlite import SQLiteStore
-from cogency.state import AgentState
-from cogency.state.user import UserProfile
+from cogency.state import State
+from cogency.state.agent import UserProfile
+from cogency.storage.backends.sqlite import SQLite
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_basic_operations():
+async def test_basic_operations():
     """Test basic save/load/delete operations."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "test.db"
-        store = SQLiteStore(str(db_path))
+        store = SQLite(str(db_path))
 
         # Create test state
-        state = AgentState(query="test query", user_id="test_user")
-        state.execution.add_message("user", "Hello")
+        from cogency.state.mutations import add_message, learn_insight
+
+        state = State(query="test query", user_id="test_user")
+        add_message(state, "user", "Hello")
         state.execution.iteration = 3
-        state.reasoning.learn("Test insight")
+        learn_insight(state, "Test insight")
 
         # Save state
         success = await store.save("test_user:process1", state)
@@ -46,11 +48,11 @@ async def test_sqlite_store_basic_operations():
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_with_user_profile():
+async def test_with_user_profile():
     """Test state with user profile."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "test.db"
-        store = SQLiteStore(str(db_path))
+        store = SQLite(str(db_path))
 
         # Create profile
         profile = UserProfile(user_id="test_user")
@@ -58,8 +60,11 @@ async def test_sqlite_store_with_user_profile():
         profile.communication_style = "technical"
 
         # Create state with profile
-        state = AgentState(query="test query", user_id="test_user", user_profile=profile)
-        state.execution.add_message("assistant", "Response")
+        from cogency.state.mutations import add_message
+
+        state = State(query="test query", user_id="test_user")
+        state.profile = profile
+        add_message(state, "assistant", "Response")
 
         # Save and load
         await store.save("test_user:session1", state)
@@ -74,11 +79,11 @@ async def test_sqlite_store_with_user_profile():
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_profile_operations():
+async def test_profile_operations():
     """Test separate profile save/load operations."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "test.db"
-        store = SQLiteStore(str(db_path))
+        store = SQLite(str(db_path))
 
         # Create profile data
         profile_data = {
@@ -109,15 +114,15 @@ async def test_sqlite_store_profile_operations():
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_list_states():
+async def test_list_states():
     """Test listing states for a user."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "test.db"
-        store = SQLiteStore(str(db_path))
+        store = SQLite(str(db_path))
 
         # Create multiple states for same user
-        state1 = AgentState(query="query1", user_id="multi_user")
-        state2 = AgentState(query="query2", user_id="multi_user")
+        state1 = State(query="query1", user_id="multi_user")
+        state2 = State(query="query2", user_id="multi_user")
 
         await store.save("multi_user:session1", state1)
         await store.save("multi_user:session2", state2)
@@ -125,22 +130,23 @@ async def test_sqlite_store_list_states():
         # List states
         state_keys = await store.list_states("multi_user")
         assert len(state_keys) == 2
-        assert "multi_user:default" in state_keys
+        assert "multi_user:session1" in state_keys
+        assert "multi_user:session2" in state_keys
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_query_states():
+async def test_query_states():
     """Test querying states with metadata."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "test.db"
-        store = SQLiteStore(str(db_path))
+        store = SQLite(str(db_path))
 
         # Create states with different iterations and modes
-        state1 = AgentState(query="query1", user_id="query_user1")
+        state1 = State(query="query1", user_id="query_user1")
         state1.execution.iteration = 5
         state1.execution.mode = "fast"
 
-        state2 = AgentState(query="query2", user_id="query_user2")
+        state2 = State(query="query2", user_id="query_user2")
         state2.execution.iteration = 10
         state2.execution.mode = "deep"
 
@@ -166,18 +172,18 @@ async def test_sqlite_store_query_states():
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_concurrent_access():
+async def test_concurrent_access():
     """Test concurrent read/write operations."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "concurrent.db"
 
         # Create multiple store instances (simulating concurrent access)
-        store1 = SQLiteStore(str(db_path))
-        store2 = SQLiteStore(str(db_path))
+        store1 = SQLite(str(db_path))
+        store2 = SQLite(str(db_path))
 
         # Concurrent writes
-        state1 = AgentState(query="concurrent1", user_id="concurrent_user1")
-        state2 = AgentState(query="concurrent2", user_id="concurrent_user2")
+        state1 = State(query="concurrent1", user_id="concurrent_user1")
+        state2 = State(query="concurrent2", user_id="concurrent_user2")
 
         import asyncio
 
@@ -200,19 +206,19 @@ async def test_sqlite_store_concurrent_access():
 
 
 @pytest.mark.asyncio
-async def test_sqlite_store_schema_evolution():
+async def test_schema_evolution():
     """Test that the store handles schema creation properly."""
     with tempfile.TemporaryDirectory() as temp_dir:
         db_path = Path(temp_dir) / "schema.db"
 
         # First store instance creates schema
-        store1 = SQLiteStore(str(db_path))
-        state = AgentState(query="schema test", user_id="schema_user")
+        store1 = SQLite(str(db_path))
+        state = State(query="schema test", user_id="schema_user")
         success = await store1.save("schema_user:default", state)
         assert success is True
 
         # Second store instance uses existing schema
-        store2 = SQLiteStore(str(db_path))
+        store2 = SQLite(str(db_path))
         loaded = await store2.load("schema_user:default")
         assert loaded is not None
         assert loaded["state"]["execution"]["query"] == "schema test"

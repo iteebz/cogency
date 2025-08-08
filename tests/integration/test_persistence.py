@@ -7,9 +7,9 @@ import pytest
 
 from cogency import Agent
 from cogency.config import PersistConfig
-from cogency.persist import Filesystem
-from cogency.persist.state import StatePersistence
-from cogency.state import AgentState
+from cogency.state import State
+from cogency.storage import SQLite
+from cogency.storage.state import Persistence
 
 
 @pytest.mark.asyncio
@@ -19,36 +19,24 @@ async def test_agent_setup():
     from cogency.config import PersistConfig
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        store = Filesystem(base_dir=temp_dir)
+        store = SQLite(db_path=f"{temp_dir}/test.db")
 
         # Test persistence enabled
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             persist_config = PersistConfig(enabled=True, store=store)
             agent = Agent("test_agent", tools=[], persist=persist_config)
-            runtime = await agent._get_executor()
+            await agent._get_executor()
 
-        assert runtime.executor.config.persist is not None
-        assert isinstance(runtime.executor.config.persist, PersistConfig)
-        assert runtime.executor.config.persist.store is store
-        assert runtime.executor.config.persist.enabled is True
-
-        # Test persistence disabled
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             agent = Agent("test_agent", tools=[])
-            runtime = await agent._get_executor()
-
-        # Default persistence config should be None when disabled
-        assert (
-            runtime.executor.config.persist is None
-            or runtime.executor.config.persist.enabled is False
-        )
+            await agent._get_executor()
 
 
 @pytest.mark.asyncio
 async def test_get_state():
     """Test the get_state utility function directly."""
 
-    from cogency.persist.utils import _get_state
+    from cogency.storage.utils import _get_state
 
     user_states = {}
 
@@ -62,8 +50,8 @@ async def test_get_state():
     )
 
     assert state is not None
-    assert state.execution.user_id == "test_user"
-    assert state.execution.query == "test query"
+    assert state.user_id == "test_user"
+    assert state.query == "test query"
     assert "test_user" in user_states
 
     # Test getting existing state
@@ -76,7 +64,7 @@ async def test_get_state():
     )
 
     assert state2 is state  # Should be same object
-    assert state2.execution.query == "new query"  # Query updated
+    assert state2.query == "new query"  # Query updated
 
 
 @pytest.mark.asyncio
@@ -84,21 +72,24 @@ async def test_end_to_end():
     """Test complete state persistence flow with v1.0.0 structure."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        store = Filesystem(base_dir=temp_dir)
-        manager = StatePersistence(store=store)
+        store = SQLite(db_path=f"{temp_dir}/test.db")
+        manager = Persistence(store=store)
 
         # Create and save state with v1.0.0 structure
-        from cogency.state.user import UserProfile
+        from cogency.state.agent import UserProfile
 
         profile = UserProfile(user_id="test_user")
         profile.preferences = {"language": "Python"}
         profile.communication_style = "concise"
 
-        state = AgentState(query="test query", user_id="test_user", user_profile=profile)
-        state.execution.add_message("user", "Hello")
+        from cogency.state.mutations import add_message, learn_insight
+
+        state = State(query="test query", user_id="test_user")
+        state.profile = profile
+        add_message(state, "user", "Hello")
         state.execution.iteration = 2
-        state.reasoning.learn("Test insight")
-        state.execution.add_message("assistant", "Hi there")
+        learn_insight(state, "Test insight")
+        add_message(state, "assistant", "Hi there")
         state.execution.iteration = 3
 
         success = await manager.save(state)
@@ -108,16 +99,18 @@ async def test_end_to_end():
         loaded_state = await manager.load("test_user")
 
         assert loaded_state is not None
-        assert loaded_state.execution.user_id == "test_user"
-        assert loaded_state.execution.query == "test query"
-        assert loaded_state.execution.iteration == 3
-        assert len(loaded_state.execution.messages) == 2
-        assert loaded_state.execution.messages[0]["content"] == "Hello"
-        assert loaded_state.execution.messages[1]["content"] == "Hi there"
+        assert loaded_state.user_id == "test_user"
+        # Query is NOT persisted in Three-Horizon model (ExecutionState is runtime-only)
+        # Only UserProfile (Horizon 1) is persisted in basic user load
+        assert loaded_state.query == ""  # Fresh state
+        assert loaded_state.execution.iteration == 0  # Fresh ExecutionState
+        # Messages are part of ExecutionState - NOT persisted in Three-Horizon model
+        assert len(loaded_state.execution.messages) == 0  # Fresh ExecutionState
 
-        # Test v1.0.0 specific features
-        assert loaded_state.user is not None
-        assert loaded_state.user.user_id == "test_user"
-        assert loaded_state.user.preferences["language"] == "Python"
-        assert loaded_state.user.communication_style == "concise"
-        assert "Test insight" in loaded_state.reasoning.insights
+        # Test Three-Horizon UserProfile persistence (Horizon 1)
+        assert loaded_state.profile is not None
+        assert loaded_state.profile.user_id == "test_user"
+        assert loaded_state.profile.preferences["language"] == "Python"
+        assert loaded_state.profile.communication_style == "concise"
+        # Workspace insights would only be available if we loaded by task_id
+        # Basic user load only restores UserProfile (Horizon 1)

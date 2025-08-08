@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.state import AgentState
+from cogency.state import State
 
 # Import the triage function directly
 from cogency.steps.triage import triage
@@ -44,7 +44,7 @@ async def test_fast():
     query = "What is the weather today?"
     llm.response = '{"mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
 
-    state = AgentState(query=query)
+    state = State(query=query)
 
     result = await triage(state, llm=llm, tools=tools, memory=None)
 
@@ -63,7 +63,7 @@ async def test_deep():
         '{"mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
     )
 
-    state = AgentState(query=query)
+    state = State(query=query)
 
     result = await triage(state, llm=llm, tools=tools, memory=None)
 
@@ -80,7 +80,7 @@ async def test_response():
     query = "Hello, how are you?"
     llm.response = '{"selected_tools": [], "reasoning": "Simple greeting"}'
 
-    state = AgentState(query=query)
+    state = State(query=query)
 
     result = await triage(state, llm=llm, tools=tools, memory=None)
 

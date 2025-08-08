@@ -3,7 +3,7 @@
 from datetime import datetime
 
 from cogency.memory.compression import compress
-from cogency.state.user import UserProfile
+from cogency.state.agent import UserProfile
 
 
 def test_constructor():
@@ -13,20 +13,14 @@ def test_constructor():
     assert profile.user_id == "test_user"
     assert profile.preferences == {}
     assert profile.goals == []
-    assert profile.expertise == []
+    assert profile.expertise_areas == []
     assert profile.communication_style == ""
     assert profile.projects == {}
-    assert profile.interests == []
-    assert profile.constraints == []
-    assert profile.success_patterns == []
-    assert profile.failure_patterns == []
-    assert profile.interaction_count == 0
-    assert profile.synthesis_version == 1
     assert isinstance(profile.created_at, datetime)
     assert isinstance(profile.last_updated, datetime)
 
 
-def testcompress_empty():
+def test_compress_empty():
     """Test compression with empty profile."""
     profile = UserProfile(user_id="test_user")
 
@@ -34,15 +28,14 @@ def testcompress_empty():
     assert result == ""
 
 
-def testcompress_populated():
+def test_compress_populated():
     """Test compression with populated profile."""
     profile = UserProfile(user_id="test_user")
     profile.communication_style = "concise"
     profile.goals = ["goal1", "goal2", "goal3"]
     profile.preferences = {"format": "json", "detail": "high"}
     profile.projects = {"proj1": "description1", "proj2": "description2"}
-    profile.expertise = ["python", "ml", "data"]
-    profile.constraints = ["time", "budget"]
+    profile.expertise_areas = ["python", "ml", "data"]
 
     result = compress(profile)
 
@@ -54,10 +47,9 @@ def testcompress_populated():
     assert "ACTIVE PROJECTS:" in result
     assert "proj1: description1" in result
     assert "EXPERTISE: python, ml, data" in result
-    assert "CONSTRAINTS: time; budget" in result
 
 
-def testcompress_truncation():
+def test_compress_truncation():
     """Test compression respects max_tokens limit."""
     profile = UserProfile(user_id="test_user")
     profile.communication_style = "very detailed and comprehensive style"
@@ -67,7 +59,7 @@ def testcompress_truncation():
     assert len(result) <= 50
 
 
-def testcompress_recent():
+def test_compress_recent():
     """Test compression shows most recent items."""
     profile = UserProfile(user_id="test_user")
 
@@ -83,132 +75,65 @@ def testcompress_recent():
     assert "goal_0" not in result
 
 
-def test_update_preferences():
-    """Test updating preferences from interaction."""
+def test_profile_mutability():
+    """Test UserProfile fields can be modified."""
     profile = UserProfile(user_id="test_user")
 
-    insights = {"preferences": {"format": "markdown", "style": "detailed"}}
+    # Update preferences
+    profile.preferences["theme"] = "dark"
+    profile.preferences["format"] = "markdown"
+    assert profile.preferences == {"theme": "dark", "format": "markdown"}
 
-    profile.update_from_interaction(insights)
+    # Update goals
+    profile.goals.append("learn python")
+    profile.goals.append("build app")
+    assert len(profile.goals) == 2
+    assert "learn python" in profile.goals
 
-    assert profile.preferences == {"format": "markdown", "style": "detailed"}
-    assert profile.interaction_count == 1
-    assert profile.last_updated > profile.created_at
+    # Update expertise areas
+    profile.expertise_areas.extend(["python", "web development"])
+    assert len(profile.expertise_areas) == 2
+    assert "python" in profile.expertise_areas
+
+    # Update communication style
+    profile.communication_style = "technical and detailed"
+    assert profile.communication_style == "technical and detailed"
+
+    # Update projects
+    profile.projects["project1"] = "description1"
+    profile.projects["project2"] = "description2"
+    assert len(profile.projects) == 2
+    assert profile.projects["project1"] == "description1"
 
 
-def test_update_goals():
-    """Test updating goals with bounded growth."""
+def test_profile_independence():
+    """Test that different UserProfile instances are independent."""
+    profile1 = UserProfile(user_id="user1")
+    profile2 = UserProfile(user_id="user2")
+
+    # Modify profile1
+    profile1.preferences["theme"] = "dark"
+    profile1.goals.append("goal1")
+    profile1.communication_style = "technical"
+
+    # profile2 should be unaffected
+    assert profile2.preferences == {}
+    assert profile2.goals == []
+    assert profile2.communication_style == ""
+    assert profile2.user_id == "user2"
+
+
+def test_timestamps():
+    """Test timestamp behavior."""
     profile = UserProfile(user_id="test_user")
 
-    # Add initial goals
-    insights = {"goals": ["goal1", "goal2"]}
-    profile.update_from_interaction(insights)
+    # Timestamps should be set
+    assert profile.created_at is not None
+    assert profile.last_updated is not None
 
-    assert "goal1" in profile.goals
-    assert "goal2" in profile.goals
+    # Both should be datetime objects
+    assert isinstance(profile.created_at, datetime)
+    assert isinstance(profile.last_updated, datetime)
 
-    # Add duplicate goal (should be ignored)
-    insights = {"goals": ["goal1", "goal3"]}
-    profile.update_from_interaction(insights)
-
-    assert len([g for g in profile.goals if g == "goal1"]) == 1
-    assert "goal3" in profile.goals
-
-    # Test bounded growth
-    for i in range(15):
-        insights = {"goals": [f"goal_{i}"]}
-        profile.update_from_interaction(insights)
-
-    assert len(profile.goals) <= 10
-
-
-def test_update_expertise():
-    """Test updating expertise areas with bounded growth."""
-    profile = UserProfile(user_id="test_user")
-
-    insights = {"expertise": ["python", "machine learning"]}
-    profile.update_from_interaction(insights)
-
-    assert "python" in profile.expertise
-    assert "machine learning" in profile.expertise
-
-    # Test bounded growth
-    for i in range(20):
-        insights = {"expertise": [f"skill_{i}"]}
-        profile.update_from_interaction(insights)
-
-    assert len(profile.expertise) <= 15
-
-
-def test_update_projects():
-    """Test updating projects with bounded growth."""
-    profile = UserProfile(user_id="test_user")
-
-    insights = {"project_context": {"proj1": "desc1", "proj2": "desc2"}}
-    profile.update_from_interaction(insights)
-
-    assert profile.projects["proj1"] == "desc1"
-    assert profile.projects["proj2"] == "desc2"
-
-    # Test bounded growth
-    for i in range(15):
-        insights = {"project_context": {f"proj_{i}": f"desc_{i}"}}
-        profile.update_from_interaction(insights)
-
-    assert len(profile.projects) <= 10
-
-
-def test_update_patterns():
-    """Test updating success/failure patterns."""
-    profile = UserProfile(user_id="test_user")
-
-    # Add success pattern
-    insights = {"success_pattern": "clear requirements work well"}
-    profile.update_from_interaction(insights)
-
-    assert "clear requirements work well" in profile.success_patterns
-
-    # Add failure pattern
-    insights = {"failure_pattern": "vague requests cause confusion"}
-    profile.update_from_interaction(insights)
-
-    assert "vague requests cause confusion" in profile.failure_patterns
-
-    # Test duplicate patterns are ignored
-    insights = {"success_pattern": "clear requirements work well"}
-    profile.update_from_interaction(insights)
-
-    assert len([p for p in profile.success_patterns if p == "clear requirements work well"]) == 1
-
-    # Test bounded growth
-    for i in range(10):
-        insights = {"success_pattern": f"pattern_{i}"}
-        profile.update_from_interaction(insights)
-
-    assert len(profile.success_patterns) <= 5
-
-
-def test_update_comprehensive():
-    """Test updating all fields in one interaction."""
-    profile = UserProfile(user_id="test_user")
-
-    insights = {
-        "preferences": {"format": "json"},
-        "goals": ["complete project"],
-        "expertise": ["python"],
-        "communication_style": "technical",
-        "project_context": {"proj1": "test project"},
-        "success_pattern": "detailed specs work",
-        "failure_pattern": "rushed work fails",
-    }
-
-    profile.update_from_interaction(insights)
-
-    assert profile.preferences["format"] == "json"
-    assert "complete project" in profile.goals
-    assert "python" in profile.expertise
-    assert profile.communication_style == "technical"
-    assert profile.projects["proj1"] == "test project"
-    assert "detailed specs work" in profile.success_patterns
-    assert "rushed work fails" in profile.failure_patterns
-    assert profile.interaction_count == 1
+    # Initially they should be equal
+    assert profile.created_at == profile.last_updated

@@ -61,13 +61,13 @@ async def test_store_data_validation(in_memory_store, validation_schemas):
 
     assert validate_schema(memory_data, schema)
 
-    # Test store operations
+    # Test store operations - store methods return boolean, not Result objects
     result = await store.save("memory_1", memory_data)
-    assert result.success
+    assert result is True
 
     loaded_result = await store.load("memory_1")
-    assert loaded_result.success
-    assert validate_schema(loaded_result.data, schema)
+    assert loaded_result is not None
+    assert validate_schema(loaded_result, schema)
 
 
 @pytest.mark.asyncio
@@ -171,14 +171,16 @@ async def test_state_persistence_schema():
         "required": ["query", "iteration", "messages"],
     }
 
-    from cogency.state import AgentState
+    from cogency.state import State
 
-    state = AgentState("test query")
-    state.execution.add_message("user", "test message")
+    state = State("test query")
+    from cogency.state.mutations import add_message
+
+    add_message(state, "user", "test message")
 
     # Convert state to dict for validation
     state_data = {
-        "query": state.execution.query,
+        "query": state.query,
         "iteration": state.execution.iteration,
         "messages": state.execution.messages,
         "tool_calls": state.execution.pending_calls,

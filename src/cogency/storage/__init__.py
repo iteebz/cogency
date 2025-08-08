@@ -3,27 +3,27 @@
 This module provides zero-ceremony state persistence for agents:
 
 - Store: Base class for custom persistence backends
-- Filesystem: Built-in filesystem-based persistence store
+- SQLite/Supabase: CANONICAL Three-Horizon backends
 
 Internal functions handle state management but are not exposed in the public API.
 Persistence is typically configured via PersistConfig in Agent setup.
 """
 
-from .store import Store
-from .store.filesystem import Filesystem
-from .store.sqlite import SQLiteStore
+from .backends import Store
+from .backends.sqlite import SQLite
+from .backends.supabase import Supabase
 
 # Internal functions not exported:
-# from .state import StatePersistence
+# from .state import Persistence
 # from .store import _store, _setup_persist
 # from .utils import _get_state
 
 __all__ = [
     # Public persistence APIs (advanced usage)
     "Store",  # Base class for custom stores
-    "Filesystem",  # Built-in filesystem store
-    "SQLiteStore",  # Built-in SQLite store
+    "SQLite",  # CANONICAL SQLite backend
+    "Supabase",  # CANONICAL Supabase backend
     # Internal APIs not exported:
     # - _store, _setup_persist, _get_state (framework internals)
-    # - StatePersistence (implementation detail)
+    # - Persistence (implementation detail)
 ]

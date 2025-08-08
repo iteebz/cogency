@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from cogency.observe import observe
 from cogency.resilience import resilience
-from cogency.state import AgentState
+from cogency.state import State
 from cogency.tools import Tool
 
 from .execute import execute_tools
@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 @observe
 @resilience
-async def act(state: AgentState, llm=None, tools: List[Tool] = None) -> Optional[str]:
+async def act(state: State, llm=None, tools: List[Tool] = None) -> Optional[str]:
     """Act: execute tools based on reasoning decision."""
 
     # Check pending calls
@@ -46,7 +46,9 @@ async def act(state: AgentState, llm=None, tools: List[Tool] = None) -> Optional
         failures = results_data.get("errors", [])
 
         # Complete results
+        from cogency.state.mutations import finish_tools
+
         completed_results = successes + failures
-        state.execution.finish_tools(completed_results)
+        finish_tools(state, completed_results)
 
     return None

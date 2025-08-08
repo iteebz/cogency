@@ -2,13 +2,12 @@
 
 from typing import Optional
 
-from cogency.persist.utils import _get_state
-from cogency.state import AgentMode
 from cogency.steps.act import act
 from cogency.steps.execution import execute_agent
 from cogency.steps.reason import reason
 from cogency.steps.synthesize import synthesize
 from cogency.steps.triage import triage
+from cogency.storage.utils import _get_state
 from cogency.utils.validation import validate_query
 
 
@@ -66,7 +65,9 @@ class AgentExecutor:
 
             # Prepare query
             wrapped_query = f"[user]\n{query.strip()}\n[/user]"
-            state.execution.add_message("user", wrapped_query)
+            from cogency.state.mutations import add_message
+
+            add_message(state, "user", wrapped_query)
 
             # Memory operations
             if self.memory:
@@ -74,10 +75,16 @@ class AgentExecutor:
                 await self.memory.remember(query, human=True)
                 # Connect memory to state
                 user_profile = await self.memory._load_profile(user_id)
-                state.user = user_profile
+                if user_profile:
+                    # Copy user profile data into state
+                    state.preferences = user_profile.preferences
+                    state.goals = user_profile.goals
+                    state.expertise = user_profile.expertise
+                    state.communication_style = user_profile.communication_style
+                    state.projects = user_profile.projects
 
             # Set agent mode
-            state.execution.mode = AgentMode.ADAPT
+            state.mode = "adapt"
 
             # Steps are passed directly - identity is passed as parameter
 
@@ -137,16 +144,14 @@ class AgentExecutor:
                 user_id, query, self.max_iterations, self.user_states, self.persistence
             )
 
+            from cogency.state.mutations import add_message
+
             wrapped_query = f"[user]\n{query.strip()}\n[/user]"
-            state.execution.add_message("user", wrapped_query)
+            add_message(state, "user", wrapped_query)
 
             if self.memory:
                 await self.memory.load(user_id)
                 await self.memory.remember(query, human=True)
-                user_profile = await self.memory._load_profile(user_id)
-                state.user = user_profile
-
-            state.execution.mode = AgentMode.ADAPT
 
             emit("start", query=query)
 

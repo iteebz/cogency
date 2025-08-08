@@ -2,29 +2,32 @@
 
 from typing import Dict
 
-from cogency.state import AgentState
+from cogency.state.agent import State
 
 
 async def _get_state(
     user_id: str,
     query: str,
     max_iterations: int,
-    user_states: Dict[str, AgentState],
+    user_states: Dict[str, State],
     persistence=None,
-) -> AgentState:
+) -> State:
     """Internal: Get existing state or restore from persistence, creating new if needed."""
 
     # Check existing in-memory state first
     state = user_states.get(user_id)
     if state:
-        # Reset execution state for new query to prevent response caching
-        from cogency.state.execution import ExecutionState
-
         # Preserve conversation history from previous execution
-        previous_messages = state.execution.messages if state.execution else []
+        previous_messages = state.execution.messages
 
-        state.execution = ExecutionState(query=query, user_id=user_id)
+        # Reset for new query to prevent response caching
+        state.query = query
+        state.execution.iteration = 0
+        state.execution.response = None
+        state.execution.pending_calls.clear()
+        state.execution.completed_calls.clear()
         state.execution.max_iterations = max_iterations
+        state.execution.stop_reason = None
 
         # Restore conversation history
         state.execution.messages = previous_messages
@@ -37,12 +40,12 @@ async def _get_state(
 
         if state:
             # Update query for restored state
-            state.execution.query = query
+            state.query = query
             user_states[user_id] = state
             return state
 
     # Create new state if restore failed or persistence disabled
-    state = AgentState(query=query, user_id=user_id)
+    state = State(query=query, user_id=user_id)
     state.execution.max_iterations = max_iterations
     user_states[user_id] = state
     return state

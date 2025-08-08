@@ -9,14 +9,14 @@ The triage step handles initial request processing:
 from typing import List, Optional
 
 from cogency.providers import LLM
-from cogency.state import AgentState
+from cogency.state import State
 from cogency.tools import Tool
 
 from .core import filter_tools, notify_tool_selection, triage_prompt
 
 
 async def triage(
-    state: AgentState,
+    state: State,
     llm: LLM,
     tools: List[Tool],
     memory,  # Impression instance or None
@@ -25,8 +25,10 @@ async def triage(
     """Triage: routing decisions, memory extraction, tool selection."""
 
     # Route and filter
-    query = state.execution.query
-    user_context = state.get_situated_context()
+    from cogency.state.mutations import get_situated_context
+
+    query = state.query  # CANONICAL: query is at top level in Three-Horizon model
+    user_context = get_situated_context(state)
     result = await triage_prompt(llm, query, tools, user_context, identity)
 
     # Handle direct response (early return)

@@ -29,14 +29,15 @@ def _init_advanced_config(**config) -> Dict[str, Any]:
         "observe": False,
     }
 
-    # Validate all provided keys are known
-    unknown_keys = set(config.keys()) - set(known_keys.keys())
+    # Filter out persist (always enabled) and validate remaining keys
+    filtered_config = {k: v for k, v in config.items() if k != "persist"}
+    unknown_keys = set(filtered_config.keys()) - set(known_keys.keys())
     if unknown_keys:
         raise ValueError(f"Unknown config keys: {', '.join(sorted(unknown_keys))}")
 
     # Return config with defaults applied
     result = known_keys.copy()
-    result.update(config)
+    result.update(filtered_config)
     return result
 
 

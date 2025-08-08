@@ -15,7 +15,7 @@ from cogency.events import emit
 from cogency.observe import observe
 from cogency.providers import LLM
 from cogency.resilience import resilience
-from cogency.state import AgentState
+from cogency.state import State
 from cogency.tools import Tool
 
 from .core import (
@@ -29,7 +29,7 @@ from .core import (
 @observe
 @resilience
 async def reason(
-    state: AgentState,
+    state: State,
     llm: LLM,
     tools: List[Tool],
     memory,  # Impression instance or None
@@ -114,7 +114,7 @@ async def reason(
 
 
 async def _finalize_response(
-    state: AgentState,
+    state: State,
     llm: LLM,
     identity: Optional[str],
     output_schema: Optional[str],
@@ -171,7 +171,7 @@ async def _finalize_response(
     return secure_response(final_response)
 
 
-def _collect_tool_results(state: AgentState) -> Optional[str]:
+def _collect_tool_results(state: State) -> Optional[str]:
     """Extract and format tool results for response context."""
     if not state.execution.completed_calls:
         return None
@@ -196,7 +196,7 @@ def _collect_tool_results(state: AgentState) -> Optional[str]:
     )
 
 
-def _collect_failures(state: AgentState) -> Optional[dict]:
+def _collect_failures(state: State) -> Optional[dict]:
     """Collect all failure scenarios into unified dict."""
     failures = {}
 
@@ -216,7 +216,7 @@ def _collect_failures(state: AgentState) -> Optional[dict]:
     return failures if failures else None
 
 
-def _get_sanitized_query(state: AgentState) -> str:
+def _get_sanitized_query(state: State) -> str:
     """Get sanitized user input from messages, not raw query."""
     sanitized_query = state.execution.query
     if state.execution.messages:

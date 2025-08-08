@@ -2,7 +2,7 @@
 
 from typing import Any, List, Optional
 
-from cogency.state import AgentState
+from cogency.state import State
 
 from ..common import JSON_FORMAT_CORE, TOOL_RESPONSE_LOGIC, build_json_schema
 
@@ -125,7 +125,7 @@ class Prompt:
 
     def build(
         self,
-        state: AgentState,
+        state: State,
         tools: List[Any],
         mode: Optional[str] = None,
         identity: Optional[str] = None,
@@ -143,8 +143,10 @@ class Prompt:
         mode_value = mode.value if hasattr(mode, "value") else str(mode)
 
         # Get context fragments from state/context.py
-        user_context = state.get_situated_context()
-        reasoning_context = state.reasoning.compress_for_context()
+        from cogency.state.mutations import compress_for_context, get_situated_context
+
+        user_context = get_situated_context(state)
+        reasoning_context = compress_for_context(state)
         execution_context = execution_history(state, tools)
         knowledge_context = knowledge_synthesis(state)
         readiness_context = readiness_assessment(state)

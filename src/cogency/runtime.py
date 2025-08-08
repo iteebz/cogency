@@ -20,7 +20,7 @@ class AgentRuntime:
         agent_config = AgentSetup.config(config)
         llm = AgentSetup.llm(config.llm)
         tools = AgentSetup.tools(config.tools)
-        persistence = AgentSetup.persistence(config.persist)
+        persistence = AgentSetup.persistence(True)
         memory = AgentSetup.memory(config.memory, llm, persistence)
 
         # Create executor with explicit dependencies

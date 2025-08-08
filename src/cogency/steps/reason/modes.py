@@ -136,22 +136,8 @@ DOWNSHIFT to FAST: Analysis complete, simple execution remains"""
 
     @staticmethod
     def execute_switch(state, new_mode: str, reason: str) -> None:
-        """Execute mode switch - update state only."""
-        from cogency.events import emit
-        from cogency.state.execution import AgentMode
+        """Execute mode switch - minimal state update."""
+        from cogency.state.mutations import autosave
 
-        old_mode = state.execution.mode
-        state.execution.mode = AgentMode(new_mode)
-
-        emit(
-            "trace",
-            message="Mode switch executed",
-            from_mode=str(old_mode),
-            to_mode=new_mode,
-            reason=reason,
-            iteration=state.execution.iteration,
-        )
-
-        # Track switch if state supports it
-        if hasattr(state, "switch_mode"):
-            state.switch_mode(new_mode, reason)
+        state.mode = new_mode
+        autosave(state)

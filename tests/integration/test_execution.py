@@ -3,9 +3,9 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
-from resilient_result import Result
+from resilient_result import Result, unwrap
 
-from cogency.state import AgentState
+from cogency.state import State
 from cogency.steps.act import act
 from cogency.steps.act.core import execute_single_tool
 from cogency.steps.reason import reason
@@ -78,10 +78,12 @@ async def test_reason_response_output():
 
     mock_llm.run = mock_run
 
-    state = AgentState(query="weather?", user_id="test")
+    state = State(query="weather?", user_id="test")
 
-    response = await reason(state, llm=mock_llm, tools=[], memory=None)
+    result = await reason(state, llm=mock_llm, tools=[], memory=None)
 
+    # Unwrap result like production code does
+    response = unwrap(result)
     assert isinstance(response, str)
     assert not response.startswith("{")
     assert response == "The weather is sunny today!"
@@ -91,14 +93,14 @@ async def test_reason_response_output():
 async def test_routing():
     """Test act step routing behavior."""
     tool = MockTool("test_tool")
-    state = AgentState(query="test", user_id="test")
+    state = State(query="test", user_id="test")
 
     # Create proper ToolCall objects
     tool_calls = [{"name": "test_tool", "args": {}}]
     state.execution.pending_calls = tool_calls
 
-    # Record thinking in reasoning context
-    state.reasoning.record_thinking("test thinking", tool_calls)
+    # Record thinking in workspace context
+    state.workspace.thoughts.append({"thinking": "test thinking", "tool_calls": tool_calls})
 
     await act(state, tools=[tool])
     latest_results = state.execution.completed_calls
@@ -119,7 +121,7 @@ async def test_routing():
 @pytest.fixture
 def state():
     """Basic state for testing."""
-    return AgentState(query="What is 2 + 2?")
+    return State(query="What is 2 + 2?")
 
 
 @pytest.mark.asyncio
@@ -134,8 +136,8 @@ async def test_reason_direct(state):
 
     # Should have no tool calls for direct answer
     assert not state.execution.pending_calls
-    # Reasoning thoughts are recorded
-    assert len(state.reasoning.thoughts) >= 0
+    # Workspace thoughts are recorded
+    assert len(state.workspace.thoughts) >= 0
 
 
 @pytest.mark.asyncio
@@ -186,9 +188,10 @@ async def test_reason_formats_response(state):
         )
     )
 
-    response = await reason(state, llm=llm, tools=[], memory=None)
+    result = await reason(state, llm=llm, tools=[], memory=None)
 
-    # Should have a response
+    # Unwrap result like production code does
+    response = unwrap(result)
     assert response is not None
     assert response == "2 + 2 = 4"
 
@@ -208,7 +211,7 @@ async def test_full_cycle(state):
         )
         await reason(state, llm=llm, tools=tools, memory=None)
         assert state.execution.pending_calls
-        assert len(state.reasoning.thoughts) >= 0  # reasoning thoughts are recorded
+        assert len(state.workspace.thoughts) >= 0  # workspace thoughts are recorded
 
         # 2. Act (execute tools)
         await act(state, tools=tools)
@@ -221,7 +224,8 @@ async def test_full_cycle(state):
                 '{"thinking": "The code tool shows 2 + 2 = 4. I can now respond.", "tool_calls": [], "response": "The answer is 4."}'
             )
         )
-        response = await reason(state, llm=llm, tools=tools, memory=None)
+        result = await reason(state, llm=llm, tools=tools, memory=None)
+        response = unwrap(result)
         assert response == "The answer is 4."
         assert state.execution.response == "The answer is 4."
 
@@ -229,7 +233,7 @@ async def test_full_cycle(state):
 @pytest.mark.asyncio
 async def test_no_tools_flow(state):
     """Test simple question that needs no tools."""
-    state.execution.query = "Hello, how are you?"
+    state.query = "Hello, how are you?"
     llm = MockLLM()
     llm.run = AsyncMock(
         return_value=Result.ok(
@@ -238,7 +242,8 @@ async def test_no_tools_flow(state):
     )
 
     # 1. Reason (no tools needed, provides direct response)
-    response = await reason(state, llm=llm, tools=[], memory=None)
+    result = await reason(state, llm=llm, tools=[], memory=None)
+    response = unwrap(result)
     assert not state.execution.pending_calls
     assert response == "Hello! I'm doing well, thank you for asking."
     assert state.execution.response == "Hello! I'm doing well, thank you for asking."

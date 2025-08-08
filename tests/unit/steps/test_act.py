@@ -5,13 +5,14 @@ from unittest.mock import AsyncMock
 import pytest
 from resilient_result import Result
 
-from cogency.state import AgentState
+from cogency.state import State
+from cogency.state.mutations import set_tool_calls
 from cogency.steps.act import act
 
 
 @pytest.fixture
 def state():
-    state = AgentState(query="test query")
+    state = State(query="test query")
     state.execution.debug = True
     return state
 
@@ -43,7 +44,7 @@ async def test_invalid(state, tools):
 @pytest.mark.asyncio
 async def test_success(state, tools):
     """Test successful tool execution."""
-    state.execution.set_tool_calls([{"name": "mock_tool", "args": {"x": 5}}])
+    set_tool_calls(state, [{"name": "mock_tool", "args": {"x": 5}}])
     await act(state, tools=tools)
 
     assert len(state.execution.completed_calls) == 1
@@ -64,7 +65,7 @@ async def test_failure(state, mock_tool):
         return Result.fail("Tool failed")
 
     mock_tool.run = failing_run
-    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
+    set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
     await act(state, tools=[mock_tool])
 
@@ -77,12 +78,13 @@ async def test_failure(state, mock_tool):
 async def test_multi(state, tools):
     """Test execution of multiple tools in sequence."""
     # Use single tool multiple times for simplicity
-    state.execution.set_tool_calls(
+    set_tool_calls(
+        state,
         [
             {"name": "mock_tool", "args": {}},
             {"name": "mock_tool", "args": {}},
             {"name": "mock_tool", "args": {}},
-        ]
+        ],
     )
 
     await act(state, tools=tools)
@@ -99,7 +101,7 @@ async def test_returns_non_result(state, mock_tool):
         return "raw string response"  # Not a Result object
 
     mock_tool.run = non_result_run
-    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
+    set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
     await act(state, tools=[mock_tool])
 
@@ -117,7 +119,7 @@ async def test_tool_raises_exception(state, mock_tool):
         raise ValueError("Unexpected error in tool")
 
     mock_tool.run = exception_run
-    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
+    set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
     await act(state, tools=[mock_tool])
 
@@ -135,7 +137,7 @@ async def test_returns_none(state, mock_tool):
         return Result.ok(None)
 
     mock_tool.run = none_success_run
-    state.execution.set_tool_calls([{"name": "mock_tool", "args": {}}])
+    set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
     await act(state, tools=[mock_tool])
 
@@ -148,7 +150,7 @@ async def test_returns_none(state, mock_tool):
 @pytest.mark.asyncio
 async def test_unknown_tool_call(state, tools):
     """Test handling when LLM requests non-existent tool."""
-    state.execution.set_tool_calls([{"name": "nonexistent_tool", "args": {}}])
+    set_tool_calls(state, [{"name": "nonexistent_tool", "args": {}}])
 
     await act(state, tools=tools)
 

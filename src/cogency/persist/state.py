@@ -3,10 +3,10 @@
 from typing import Optional
 
 from cogency.persist.store import Filesystem, Store
-from cogency.state import AgentMode, AgentState
+from cogency.state import AgentMode, State
 
 
-class StatePersistence:
+class Persistence:
     """Manages state persistence with validation and error handling."""
 
     def __init__(self, store: Optional[Store] = None, enabled: bool = True):
@@ -18,7 +18,7 @@ class StatePersistence:
         proc_id = process_id or getattr(self.store, "process_id", "default")
         return f"{user_id}:{proc_id}"
 
-    async def save(self, state: AgentState) -> bool:
+    async def save(self, state: State) -> bool:
         """Save state with v1.0.0 structure."""
         from cogency.events import emit
 
@@ -29,7 +29,7 @@ class StatePersistence:
         emit("persistence", operation="save", key=state_key, status="start")
 
         try:
-            # Let the store handle AgentState serialization
+            # Let the store handle State serialization
             # The filesystem store has the proper serialization logic
             result = await self.store.save(state_key, state)
 
@@ -46,7 +46,7 @@ class StatePersistence:
             emit("persistence", operation="save", key=state_key, status="error", error=str(e))
             return False
 
-    async def load(self, user_id: str) -> Optional[AgentState]:
+    async def load(self, user_id: str) -> Optional[State]:
         """Load state with v1.0.0 structure."""
         from cogency.events import emit
 
@@ -66,7 +66,7 @@ class StatePersistence:
             # Handle different data formats (backwards compatibility)
             state_dict = data.get("state", data)
 
-            # Reconstruct AgentState with v1.0.0 structure
+            # Reconstruct State with v1.0.0 structure
             # Extract query and user_id from execution data
             if "execution" in state_dict:
                 exec_data = state_dict["execution"]
@@ -76,7 +76,7 @@ class StatePersistence:
                 query = state_dict.get("query", "")
                 user_id = state_dict.get("user_id", "default")
 
-            # Create new AgentState
+            # Create new State
             user_profile = None
             if state_dict.get("user_profile"):
                 from cogency.persist.serialize import deserialize_profile
@@ -84,7 +84,7 @@ class StatePersistence:
                 profile_data = state_dict["user_profile"]
                 user_profile = deserialize_profile(profile_data)
 
-            state = AgentState(query=query, user_id=user_id, user_profile=user_profile)
+            state = State(query=query, user_id=user_id, user_profile=user_profile)
 
             # Restore execution state
             if "execution" in state_dict:

@@ -1,202 +1,142 @@
-"""AgentState tests - Complete agent state composition."""
+"""State tests - Split-State Model architecture."""
 
-from cogency.state import AgentState
-from cogency.state.user import UserProfile
+from cogency.state import State
+from cogency.state.agent import ExecutionState, UserProfile, Workspace
 
 
 def test_constructor():
-    """Test AgentState constructor with minimal parameters."""
-    state = AgentState(query="test query")
+    """Test State constructor with minimal parameters."""
+    state = State(query="test query")
 
-    assert state.execution.query == "test query"
-    assert state.execution.user_id == "default"
-    assert state.reasoning.goal == "test query"
-    assert state.user is None
+    assert state.query == "test query"
+    assert state.user_id == "default"
+    assert state.profile.user_id == "default"
+    assert state.workspace.objective == "test query"
+    assert state.execution is not None
 
 
 def test_with_user_id():
-    """Test AgentState constructor with custom user_id."""
-    state = AgentState(query="test query", user_id="custom_user")
+    """Test State constructor with custom user_id."""
+    state = State(query="test query", user_id="custom_user")
 
-    assert state.execution.query == "test query"
-    assert state.execution.user_id == "custom_user"
-    assert state.reasoning.goal == "test query"
+    assert state.query == "test query"
+    assert state.user_id == "custom_user"
+    assert state.profile.user_id == "custom_user"
 
 
 def test_with_profile():
-    """Test AgentState constructor with user profile."""
+    """Test State constructor with user profile."""
     profile = UserProfile(user_id="test_user")
-    state = AgentState(query="test query", user_profile=profile)
+    state = State(query="test query", profile=profile)
 
-    assert state.execution.query == "test query"
-    assert state.user is profile
-    assert state.user.user_id == "test_user"
+    assert state.query == "test query"
+    assert state.profile is profile
+    assert state.profile.user_id == "test_user"
 
 
-def test_composition():
-    """Test that AgentState properly composes all components."""
-    state = AgentState(query="test query")
+def test_split_state_composition():
+    """Test that State properly implements Split-State Model."""
+    state = State(query="test query")
 
-    # Has all required components
-    assert hasattr(state, "execution")
-    assert hasattr(state, "reasoning")
-    assert hasattr(state, "user")
+    # Has all required layers
+    assert hasattr(state, "profile")  # Persistent across sessions
+    assert hasattr(state, "workspace")  # Ephemeral task state
+    assert hasattr(state, "execution")  # Runtime-only mechanics
 
     # Components are properly typed
-    from cogency.state.execution import ExecutionState
-    from cogency.state.reasoning import Reasoning
-
+    assert isinstance(state.profile, UserProfile)
+    assert isinstance(state.workspace, Workspace)
     assert isinstance(state.execution, ExecutionState)
-    assert isinstance(state.reasoning, Reasoning)
 
     # Components are independent
-    assert state.execution is not state.reasoning
+    assert state.profile is not state.workspace
+    assert state.workspace is not state.execution
+    assert state.execution is not state.profile
 
 
-def test_context_no_profile():
-    """Test get_situated_context with no user profile."""
-    state = AgentState(query="test query")
+def test_profile_layer():
+    """Test UserProfile layer - persistent across sessions."""
+    state = State(query="test query")
 
-    context = state.get_situated_context()
-    assert context == ""
-
-
-def test_context_with_profile():
-    """Test get_situated_context with user profile."""
-    profile = UserProfile(user_id="test_user")
-    # Add some test data to the profile
-    profile.communication_style = "technical"
-    profile.goals = ["complete project"]
-
-    state = AgentState(query="test query", user_profile=profile)
-
-    context = state.get_situated_context()
-    assert context.startswith("USER CONTEXT:")
+    # Profile is initialized with user_id
+    assert state.profile.user_id == "default"
+    assert isinstance(state.profile.preferences, dict)
+    assert isinstance(state.profile.goals, list)
+    assert isinstance(state.profile.expertise_areas, list)
 
 
-def test_update_thinking():
-    """Test updating state from reasoning response with thinking."""
-    state = AgentState(query="test query")
+def test_workspace_layer():
+    """Test Workspace layer - ephemeral task state."""
+    state = State(query="test query")
 
-    reasoning_data = {
-        "thinking": "I need to analyze this",
-        "tool_calls": [{"name": "test_tool", "args": {}}],
-    }
-
-    state.update_from_reasoning(reasoning_data)
-
-    # Should record thinking in reasoning context
-    assert len(state.reasoning.thoughts) == 1
-    assert state.reasoning.thoughts[0]["thinking"] == "I need to analyze this"
-
-    # Should set tool calls in execution
-    assert len(state.execution.pending_calls) == 1
-    assert state.execution.pending_calls[0]["name"] == "test_tool"
+    # Workspace objective is set from query
+    assert state.workspace.objective == "test query"
+    assert isinstance(state.workspace.observations, list)
+    assert isinstance(state.workspace.insights, list)
+    assert isinstance(state.workspace.facts, dict)
 
 
-def test_update_context():
-    """Test updating reasoning context from reasoning response."""
-    state = AgentState(query="test query")
+def test_execution_layer():
+    """Test ExecutionState layer - runtime-only mechanics."""
+    state = State(query="test query")
 
-    reasoning_data = {
-        "context_updates": {
-            "goal": "updated goal",
-            "strategy": "new strategy",
-            "insights": ["insight 1", "insight 2"],
-        }
-    }
-
-    state.update_from_reasoning(reasoning_data)
-
-    assert state.reasoning.goal == "updated goal"
-    assert state.reasoning.strategy == "new strategy"
-    assert "insight 1" in state.reasoning.insights
-    assert "insight 2" in state.reasoning.insights
-
-
-def test_update_response():
-    """Test setting direct response from reasoning."""
-    state = AgentState(query="test query")
-
-    reasoning_data = {"response": "This is my response"}
-
-    state.update_from_reasoning(reasoning_data)
-
-    assert state.execution.response == "This is my response"
-
-
-def test_update_mode():
-    """Test switching execution mode from reasoning."""
-    state = AgentState(query="test query")
-    state.execution.iteration = 1  # Set iteration to allow mode switching
-
-    # Test valid mode switches
-    for mode in ["fast", "deep", "adapt"]:
-        reasoning_data = {"switch_mode": mode, "switch_why": f"switching to {mode} mode"}
-        state.update_from_reasoning(reasoning_data)
-        assert state.execution.mode.value == mode
-
-    # Test invalid mode switch is ignored
-    old_mode = state.execution.mode
-    reasoning_data = {"switch_mode": "invalid_mode"}
-    state.update_from_reasoning(reasoning_data)
-    assert state.execution.mode == old_mode
-
-
-def test_update_empty():
-    """Test updating with empty reasoning data."""
-    state = AgentState(query="test query")
-
-    # Should not crash with empty data
-    state.update_from_reasoning({})
-
-    # State should remain unchanged
-    assert state.execution.response is None
-    assert len(state.reasoning.thoughts) == 0
-    assert len(state.execution.pending_calls) == 0
-
-
-def test_update_comprehensive():
-    """Test comprehensive reasoning update with all fields."""
-    state = AgentState(query="test query")
-    state.execution.iteration = 1  # Set iteration to allow mode switching
-
-    reasoning_data = {
-        "thinking": "Complex analysis required",
-        "tool_calls": [{"name": "analyze", "args": {"data": "test"}}],
-        "context_updates": {
-            "goal": "refined goal",
-            "strategy": "comprehensive strategy",
-            "insights": ["key insight"],
-        },
-        "response": "",
-        "switch_mode": "deep",
-        "switch_why": "complex analysis required",
-    }
-
-    state.update_from_reasoning(reasoning_data)
-
-    # All updates should be applied
-    assert len(state.reasoning.thoughts) == 1
-    assert state.reasoning.thoughts[0]["thinking"] == "Complex analysis required"
-    assert len(state.execution.pending_calls) == 1
-    assert state.reasoning.goal == "refined goal"
-    assert state.reasoning.strategy == "comprehensive strategy"
-    assert "key insight" in state.reasoning.insights
-    assert state.execution.response == ""
-    assert state.execution.mode.value == "deep"
+    # Execution state is properly initialized
+    assert state.execution.iteration == 0
+    assert state.execution.mode == "adapt"
+    assert isinstance(state.execution.messages, list)
+    assert isinstance(state.execution.pending_calls, list)
 
 
 def test_state_independence():
-    """Test that different AgentState instances are independent."""
-    state1 = AgentState(query="query 1")
-    state2 = AgentState(query="query 2")
+    """Test that different State instances are independent."""
+    state1 = State(query="query 1")
+    state2 = State(query="query 2")
 
     # Modify state1
     state1.execution.iteration = 5
-    state1.reasoning.strategy = "strategy 1"
+    state1.workspace.assessment = "assessment 1"
+    state1.profile.communication_style = "technical"
 
     # state2 should be unaffected
     assert state2.execution.iteration == 0
-    assert state2.reasoning.strategy == ""
-    assert state2.execution.query == "query 2"
+    assert state2.workspace.assessment == ""
+    assert state2.profile.communication_style == ""
+    assert state2.query == "query 2"
+
+
+def test_post_init_behavior():
+    """Test __post_init__ initialization behavior."""
+    # Test with no profile
+    state = State(query="test query", user_id="alice")
+    assert state.profile.user_id == "alice"
+    assert state.workspace.objective == "test query"
+    assert state.execution is not None
+
+    # Test with existing profile
+    profile = UserProfile(user_id="bob")
+    state = State(query="another query", profile=profile)
+    assert state.profile is profile
+    assert state.profile.user_id == "bob"
+
+
+def test_semantic_boundaries():
+    """Test semantic time horizons are properly isolated."""
+    state = State(query="test query")
+
+    # Profile: persistent across sessions
+    state.profile.preferences["theme"] = "dark"
+    state.profile.goals.append("learn python")
+
+    # Workspace: ephemeral task state
+    state.workspace.insights.append("need to refactor")
+    state.workspace.facts["api_key"] = "test123"
+
+    # Execution: runtime-only mechanics
+    state.execution.messages.append({"role": "user", "content": "hello"})
+    state.execution.iteration = 3
+
+    # All layers should contain their respective data
+    assert "theme" in state.profile.preferences
+    assert "need to refactor" in state.workspace.insights
+    assert len(state.execution.messages) == 1
+    assert state.execution.iteration == 3

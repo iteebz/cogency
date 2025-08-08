@@ -1,10 +1,10 @@
 """LLM-driven user understanding synthesis."""
 
+from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict
 
-from cogency.persist.serialize import deserialize_profile, serialize_profile
-from cogency.state.user import UserProfile
+from cogency.state.agent import UserProfile
 
 
 class ImpressionSynthesizer:
@@ -55,11 +55,10 @@ class ImpressionSynthesizer:
                 data = None
 
             if data and "state" in data:
-                profile_data = data["state"]
-                return deserialize_profile(profile_data)
+                return UserProfile(**data["state"])
             elif data:
+                return UserProfile(**data)
                 # Direct profile data format
-                return deserialize_profile(data)
 
         return UserProfile(user_id=user_id)
 
@@ -69,8 +68,7 @@ class ImpressionSynthesizer:
             return
 
         key = f"profile:{profile.user_id}"
-        profile_dict = serialize_profile(profile)
-        await self.store.save(key, profile_dict)
+        await self.store.save(key, asdict(profile))
 
     async def load(self, user_id: str = None) -> None:
         """Load memory state for the current user."""

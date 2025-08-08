@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent, MemoryConfig
-from cogency.persist.store.filesystem import Filesystem
+from cogency.storage.backends.sqlite import SQLite
 from tests.fixtures.llm import MockLLM
 
 
@@ -121,23 +121,24 @@ async def test_memory_multi_user_isolation():
 
 @pytest.mark.asyncio
 async def test_memory_config_integration():
-    """Test AgentState integration with UserProfile."""
-    from cogency.state import AgentState, UserProfile
+    """Test State integration with UserProfile."""
+    from cogency.state import State, UserProfile
 
-    # Test AgentState without user profile
-    state_no_profile = AgentState(query="test query", user_id="test_user")
+    # Test State without user profile
+    state_no_profile = State(query="test query", user_id="test_user")
     context_no_profile = state_no_profile.get_situated_context()
     assert context_no_profile == ""  # No profile means no context
 
-    # Test AgentState with user profile
+    # Test State with user profile
     profile = UserProfile(user_id="test_user")
     profile.preferences = {"language": "Python"}
     profile.goals = ["Learn backend development"]
     profile.communication_style = "concise"
 
-    state_with_profile = AgentState(query="test query", user_id="test_user", user_profile=profile)
+    state = State(query="test query", user_id="test_user")
+    state.profile = profile
 
-    context_with_profile = state_with_profile.get_situated_context()
+    context_with_profile = state.get_situated_context()
     assert "USER CONTEXT:" in context_with_profile
     assert "Python" in context_with_profile  # From preferences
     assert "concise" in context_with_profile  # From communication style
@@ -155,7 +156,7 @@ async def test_synthesis_step_integration():
     """Test synthesis step integration with full pipeline."""
     with patch("cogency.events.core._bus", None):  # Disable event system
         from cogency.memory import ImpressionSynthesizer
-        from cogency.state import AgentState, UserProfile
+        from cogency.state import State, UserProfile
         from cogency.steps.synthesize.core import synthesize
         from tests.fixtures.store import InMemoryStore
 
@@ -173,9 +174,9 @@ async def test_synthesis_step_integration():
         user_profile.last_synthesis_count = 0
 
         # Create agent state
-        state = AgentState(query="test query", user_id="integration_test")
-        state.execution.user_id = "integration_test"
-        state.user = user_profile
+        state = State(query="test query", user_id="integration_test")
+        # user_id already set in State constructor
+        state.profile = user_profile
 
         # Execute synthesis step
         await synthesize(state, memory)
@@ -196,7 +197,7 @@ async def test_synthesis_lifecycle_complete():
         from datetime import datetime, timedelta
 
         from cogency.memory import ImpressionSynthesizer
-        from cogency.state import AgentState, UserProfile
+        from cogency.state import State, UserProfile
         from cogency.steps.synthesize.core import _should_synthesize, synthesize
         from tests.fixtures.store import InMemoryStore
 
@@ -211,7 +212,7 @@ async def test_synthesis_lifecycle_complete():
         profile_threshold.synthesis_threshold = 5
         profile_threshold.last_synthesis_count = 0
 
-        state_threshold = AgentState(query="test", user_id="threshold_user")
+        state_threshold = State(query="test", user_id="threshold_user")
         state_threshold.user = profile_threshold
 
         # Should trigger synthesis
@@ -228,7 +229,7 @@ async def test_synthesis_lifecycle_complete():
         profile_session.last_interaction_time = datetime.now() - timedelta(minutes=45)
         profile_session.session_timeout = 1800  # 30 minutes
 
-        state_session = AgentState(query="test", user_id="session_user")
+        state_session = State(query="test", user_id="session_user")
         state_session.user = profile_session
 
         # Should trigger synthesis due to session timeout
@@ -244,7 +245,7 @@ async def test_synthesis_lifecycle_complete():
         profile_high_value.last_synthesis_count = 0
         profile_high_value.last_interaction_time = datetime.now() - timedelta(minutes=5)
 
-        state_high_value = AgentState(query="test", user_id="high_value_user")
+        state_high_value = State(query="test", user_id="high_value_user")
         state_high_value.execution.iteration = 8  # High complexity
         state_high_value.user = profile_high_value
 

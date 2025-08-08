@@ -4,10 +4,10 @@ from cogency.config import MemoryConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
 from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, init_bus
 from cogency.memory import ImpressionSynthesizer
+from cogency.providers.setup import _setup_embed, _setup_llm
 
 # Simplified observability - no complex metrics handlers needed
-from cogency.persist.store.base import _setup_persist
-from cogency.providers.setup import _setup_embed, _setup_llm
+from cogency.storage.backends.base import _setup_persist
 from cogency.tools.registry import _setup_tools
 
 
@@ -84,8 +84,6 @@ class AgentSetup:
         """Setup unified agent config."""
         agent_config = AgentConfig()
         agent_config.robust = _setup_config(RobustConfig, config.robust)
-
-        agent_config.persist = _setup_config(PersistConfig, config.persist)
         agent_config.memory = _setup_config(MemoryConfig, config.memory)
 
         return agent_config

@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict
 
 from cogency.config import MemoryConfig, PersistConfig
-from cogency.persist.store.filesystem import Filesystem
+from cogency.storage.store.filesystem import Filesystem
 
 from ..eval import Eval
 

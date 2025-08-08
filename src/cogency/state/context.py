@@ -2,10 +2,10 @@
 
 from typing import Any, Dict, List
 
-from .agent import AgentState
+from .agent import State
 
 
-def execution_history(state: AgentState, tools: List[Any]) -> str:
+def execution_history(state: State, tools: List[Any]) -> str:
     """State → Rich execution history with full context."""
     if not state.execution.completed_calls:
         return ""
@@ -90,7 +90,7 @@ def execution_history(state: AgentState, tools: List[Any]) -> str:
     return history_section + "\n"
 
 
-def knowledge_synthesis(state: AgentState) -> str:
+def knowledge_synthesis(state: State) -> str:
     """State → Synthesized knowledge from all tool results."""
     knowledge = []
 
@@ -116,7 +116,7 @@ def knowledge_synthesis(state: AgentState) -> str:
     return f"KNOWLEDGE GATHERED:\n{chr(10).join(f'- {k}' for k in knowledge[-5:])}\n\n"
 
 
-def readiness_assessment(state: AgentState) -> str:
+def readiness_assessment(state: State) -> str:
     """State → Factual summary for LLM decision-making."""
 
     # Just provide facts, let LLM decide
@@ -149,7 +149,7 @@ def readiness_assessment(state: AgentState) -> str:
     return facts_section + readiness_line + "\n\n"
 
 
-def build_context(state: AgentState) -> List[Dict[str, str]]:
+def build_context(state: State) -> List[Dict[str, str]]:
     """Build conversation context from agent state.
 
     Args:

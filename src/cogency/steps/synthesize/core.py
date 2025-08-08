@@ -5,20 +5,20 @@ from datetime import datetime
 from typing import Any, Dict, Optional
 
 from cogency.events import emit
-from cogency.state import AgentState
+from cogency.state import State
 
 from .prompt import build_synthesis_prompt
 
 
-async def synthesize(state: AgentState, memory) -> None:
+async def synthesize(state: State, memory) -> None:
     """Synthesis step - consolidates memory based on triggers."""
     if not memory:
         return
 
-    emit("synthesize", state="start", user_id=state.execution.user_id)
+    emit("synthesize", state="start", user_id=state.user_id)
 
     # Check synthesis triggers
-    user_profile = state.user or await memory._load_profile(state.execution.user_id)
+    user_profile = state.profile or await memory._load_profile(state.user_id)
 
     if not _should_synthesize(user_profile, state):
         emit("synthesize", state="skipped", reason="no_trigger")
@@ -35,9 +35,9 @@ async def synthesize(state: AgentState, memory) -> None:
 
         # Async synthesis to prevent blocking
         emit("synthesize", state="executing", synthesis_type="async")
-        await _execute_synthesis(memory, state.execution.user_id, user_profile, state)
+        await _execute_synthesis(memory, state.user_id, user_profile, state)
 
-        emit("synthesize", state="complete", user_id=state.execution.user_id)
+        emit("synthesize", state="complete", user_id=state.user_id)
 
     except Exception as e:
         emit("synthesize", state="error", error=str(e))
@@ -46,7 +46,7 @@ async def synthesize(state: AgentState, memory) -> None:
         _mark_synthesis_complete(user_profile)
 
 
-def _should_synthesize(user_profile, state: AgentState) -> bool:
+def _should_synthesize(user_profile, state: State) -> bool:
     """Check if synthesis should trigger based on OR conditions."""
     if not user_profile:
         return False
@@ -72,7 +72,7 @@ def _check_threshold(user_profile) -> bool:
     return interactions_since >= threshold
 
 
-def _check_session_end(user_profile, state: AgentState) -> bool:
+def _check_session_end(user_profile, state: State) -> bool:
     """Detect session ending based on time gap."""
     if not hasattr(user_profile, "last_interaction_time"):
         return False
@@ -93,7 +93,7 @@ def _check_session_end(user_profile, state: AgentState) -> bool:
     return time_gap.total_seconds() > session_timeout
 
 
-def _check_high_value_interaction(state: AgentState) -> bool:
+def _check_high_value_interaction(state: State) -> bool:
     """Check if interaction was high-value (complex reasoning/multiple tools)."""
     # High value indicators
     high_iterations = state.execution.iteration > 3
@@ -120,7 +120,7 @@ def _mark_synthesis_complete(user_profile):
     user_profile.last_synthesis_time = datetime.now().isoformat()
 
 
-async def _execute_synthesis(memory, user_id: str, user_profile, state: AgentState):
+async def _execute_synthesis(memory, user_id: str, user_profile, state: State):
     """Execute the actual synthesis process with LLM."""
     # Create interaction data from current state
     interaction_data = {
@@ -138,7 +138,7 @@ async def _execute_synthesis(memory, user_id: str, user_profile, state: AgentSta
 
 
 async def _synthesize_with_llm(
-    memory, user_id: str, user_profile, interaction_data: Dict[str, Any], state: AgentState
+    memory, user_id: str, user_profile, interaction_data: Dict[str, Any], state: State
 ):
     """Perform LLM-powered synthesis of user understanding."""
     try:

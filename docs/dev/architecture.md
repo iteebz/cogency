@@ -55,11 +55,11 @@ class Reasoning:
     thoughts: List[Dict[str, Any]] = field(default_factory=list)
 ```
 
-### AgentState
+### State
 Complete agent state combining execution + reasoning + situated memory:
 
 ```python
-class AgentState:
+class State:
     def __init__(self, query: str, user_id: str = "default", user_profile: Optional['UserProfile'] = None):
         self.execution = ExecutionState(query=query, user_id=user_id)
         self.reasoning = Reasoning(goal=query)  
@@ -115,7 +115,7 @@ class ImpressionSynthesizer:
 All context generation is pure functional without side effects:
 
 ```python
-def reasoning_context(state: AgentState, tools: List[Any], mode: str = None) -> str:
+def reasoning_context(state: State, tools: List[Any], mode: str = None) -> str:
     """Pure function: State → Reasoning Prompt."""
     # Situated memory injection
     user_context = state.get_situated_context()
@@ -129,7 +129,7 @@ def reasoning_context(state: AgentState, tools: List[Any], mode: str = None) -> 
     
     return formatted_prompt
 
-def conversation_context(state: AgentState) -> List[Dict[str, str]]:
+def conversation_context(state: State) -> List[Dict[str, str]]:
     """Pure function: State → LLM Messages."""
     return [{"role": msg["role"], "content": msg["content"]} for msg in state.execution.messages]
 ```
@@ -174,7 +174,7 @@ def compress(profile: UserProfile, max_tokens: int = 800) -> str:
 ## Persistence Layer
 
 ### State Serialization
-AgentState objects are serialized with proper datetime handling:
+State objects are serialized with proper datetime handling:
 
 ```python
 # Filesystem store serialization
@@ -212,7 +212,7 @@ def deserialize_profile(profile_data: Dict[str, Any]) -> UserProfile:
 ## Module Organization
 
 ### State Layer (`cogency.state`)
-- `agent.py` - AgentState class with situated context
+- `agent.py` - State class with situated context
 - `execution.py` - ExecutionState for loop control  
 - `reasoning.py` - Reasoning for structured cognition
 - `user_profile.py` - UserProfile data structure
@@ -223,7 +223,7 @@ def deserialize_profile(profile_data: Dict[str, Any]) -> UserProfile:
 - `insights.py` - Interaction insight extraction
 
 ### Persistence Layer (`cogency.persist`)
-- `state.py` - StatePersistence coordinator
+- `state.py` - Persistence coordinator
 - `serialization.py` - Datetime serialization utilities
 - `store/` - Storage implementations (filesystem, mock)
 
