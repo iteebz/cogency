@@ -29,6 +29,16 @@ class UserProfile:
             if self.last_updated is None:
                 self.last_updated = now
 
+    @property
+    def expertise(self) -> List[str]:
+        """Backward compatibility alias for expertise_areas."""
+        return self.expertise_areas
+
+    @expertise.setter
+    def expertise(self, value: List[str]) -> None:
+        """Backward compatibility setter for expertise_areas."""
+        self.expertise_areas = value
+
 
 @dataclass
 class Workspace:

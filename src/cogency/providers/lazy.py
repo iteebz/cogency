@@ -57,12 +57,31 @@ def _llms():
 
 
 def _embedders():
-    """Lazy import embed providers."""
-    from .embed import MistralEmbed, NomicEmbed, OpenAIEmbed, SentenceEmbed
+    """Lazy import embed providers with graceful failure."""
+    providers = {}
+    
+    try:
+        from .embed.sentence import SentenceEmbed
+        providers["sentence"] = SentenceEmbed
+    except ImportError:
+        pass
+    
+    try:
+        from .embed.openai import OpenAIEmbed
+        providers["openai"] = OpenAIEmbed
+    except ImportError:
+        pass
+    
+    try:
+        from .embed.nomic import NomicEmbed
+        providers["nomic"] = NomicEmbed
+    except ImportError:
+        pass
+    
+    try:
+        from .embed.mistral import MistralEmbed
+        providers["mistral"] = MistralEmbed
+    except ImportError:
+        pass
 
-    return {
-        "mistral": MistralEmbed,
-        "nomic": NomicEmbed,
-        "openai": OpenAIEmbed,
-        "sentence": SentenceEmbed,
-    }
+    return providers
