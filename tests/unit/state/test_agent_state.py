@@ -44,10 +44,10 @@ def test_composition():
 
     # Components are properly typed
     from cogency.state.execution import ExecutionState
-    from cogency.state.reasoning import ReasoningContext
+    from cogency.state.reasoning import Reasoning
 
     assert isinstance(state.execution, ExecutionState)
-    assert isinstance(state.reasoning, ReasoningContext)
+    assert isinstance(state.reasoning, Reasoning)
 
     # Components are independent
     assert state.execution is not state.reasoning

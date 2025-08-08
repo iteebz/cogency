@@ -7,12 +7,21 @@ from typing import AsyncIterator, Dict, List, Union
 from resilient_result import Result
 
 from cogency.events import emit
-
-# Metrics removed - agent observability handled by event system
-from cogency.observe.tokens import cost, count
 from cogency.utils.keys import KeyManager
 
 from .cache import LLMCache
+
+
+# Simple token counting for cost tracking
+def count_tokens(text: str) -> int:
+    """Simple token count approximation."""
+    return len(text.split()) * 1.3  # Rough approximation
+
+
+def calculate_cost(input_tokens: int, output_tokens: int, model: str) -> float:
+    """Simple cost calculation."""
+    return (input_tokens + output_tokens) * 0.00001  # Rough approximation
+
 
 logger = logging.getLogger(__name__)
 
@@ -125,7 +134,8 @@ class LLM(ABC):
     async def _run_with_metrics(self, messages: List[Dict[str, str]], **kwargs) -> Result:
         """Run implementation with metrics and caching"""
         # Count input tokens
-        tin = count(messages, self.model)
+        message_text = " ".join([msg.get("content", "") for msg in messages])
+        tin = int(count_tokens(message_text))
 
         # Check cache first if enabled
         if self._cache:
@@ -137,8 +147,8 @@ class LLM(ABC):
         response = await self.keys.retry_rate_limit(self._run_impl, messages, **kwargs)
 
         # Count output tokens and track cost
-        tout = count([{"content": response}], self.model)
-        total_cost = cost(tin, tout, self.model)
+        tout = int(count_tokens(response))
+        total_cost = calculate_cost(tin, tout, self.model)
 
         # Emit beautiful notification
         emit(

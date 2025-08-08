@@ -24,7 +24,6 @@ class Agent:
         notify: Enable progress notifications (default True)
         debug: Enable debug mode (default False)
         robust: Enable robustness - True for defaults or RobustConfig
-        persist: Enable persistence - True for defaults or PersistConfig
 
     Examples:
         Basic: Agent("assistant")

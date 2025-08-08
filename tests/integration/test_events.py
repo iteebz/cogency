@@ -7,7 +7,6 @@ import pytest
 from cogency.events.console import ConsoleHandler
 from cogency.events.core import MessageBus, emit, init_bus
 from cogency.events.handlers import LoggerHandler
-from cogency.observe.handlers import MetricsHandler
 
 
 class TestIntegratedEventFlow:
@@ -19,11 +18,9 @@ class TestIntegratedEventFlow:
         bus = MessageBus()
         console = ConsoleHandler(enabled=False)  # Disable printing for test
         logger = LoggerHandler(max_size=100)
-        metrics = MetricsHandler()
 
         bus.subscribe(console)
         bus.subscribe(logger)
-        bus.subscribe(metrics)
         init_bus(bus)
 
         # Simulate agent session
@@ -40,24 +37,17 @@ class TestIntegratedEventFlow:
         assert logs[0]["type"] == "start"
         assert logs[0]["query"] == "What is 2+2?"
 
-        # Verify metrics tracked session
-        stats = metrics.stats()
-        assert stats["event_counts"]["start"] == 1
-        assert stats["event_counts"]["respond"] == 2
-        assert stats["sessions"]["total"] == 1
-
-        session = stats["sessions"]["recent"][0]
-        assert session["query"] == "What is 2+2?"
-        assert session["reasoning_steps"] == 2
+        # Verify session flow in logs
+        assert logs[0]["query"] == "What is 2+2?"
+        assert any(log["type"] == "reason" for log in logs)
+        assert any(log["type"] == "respond" for log in logs)
 
     def test_tool_usage_tracking(self):
         """Test tool execution tracking across handlers."""
         bus = MessageBus()
         logger = LoggerHandler()
-        metrics = MetricsHandler()
 
         bus.subscribe(logger)
-        bus.subscribe(metrics)
         init_bus(bus)
 
         # Start session
@@ -71,28 +61,24 @@ class TestIntegratedEventFlow:
         # End session
         emit("respond", state="complete")
 
-        # Check logger
+        # Check logger captured tool events
         logs = logger.logs()
         tool_logs = [log for log in logs if log["type"] == "tool"]
         assert len(tool_logs) == 3
 
-        # Check metrics
-        tool_stats = metrics.tool_stats()
-        assert tool_stats["search"]["calls"] == 2
-        assert tool_stats["search"]["successes"] == 2
-        assert tool_stats["search"]["success_rate"] == 1.0
-        assert tool_stats["http"]["success_rate"] == 0.0
+        # Verify tool details in logs
+        search_logs = [log for log in tool_logs if log.get("name") == "search"]
+        assert len(search_logs) == 2
+        assert all(log.get("ok") for log in search_logs)
 
     def test_error_handling_across_handlers(self):
         """Test error event handling in all handlers."""
         bus = MessageBus()
         console = MagicMock()  # Mock to capture calls
         logger = LoggerHandler()
-        metrics = MetricsHandler()
 
         bus.subscribe(console)
         bus.subscribe(logger)
-        bus.subscribe(metrics)
         init_bus(bus)
 
         emit("start", query="Test error handling")
@@ -116,9 +102,7 @@ class TestIntegratedEventFlow:
         assert len(error_logs) == 1
         assert error_logs[0]["message"] == "Something went wrong"
 
-        # Metrics should count error
-        stats = metrics.stats()
-        assert stats["sessions"]["recent"][0]["errors"] == 1
+        # Verify error was properly handled
 
     def test_handler_independence(self):
         """Test that handler failures don't affect other handlers."""
@@ -133,11 +117,9 @@ class TestIntegratedEventFlow:
 
         # Create normal handlers
         logger = LoggerHandler()
-        metrics = MetricsHandler()
 
         bus.subscribe(failing_handler)
         bus.subscribe(logger)
-        bus.subscribe(metrics)
         init_bus(bus)
 
         try:

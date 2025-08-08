@@ -53,7 +53,7 @@ def test_tool_calls():
     assert state.completed_calls == []
 
     results = [{"name": "test_tool", "result": "success"}]
-    state.complete_tool_calls(results)
+    state.finish_tools(results)
 
     assert state.pending_calls == []
     assert state.completed_calls == results

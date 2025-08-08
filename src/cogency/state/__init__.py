@@ -10,14 +10,14 @@ Internal components:
 - AgentState: Main state container for agent execution
 - ExecutionState: Manages execution flow and tool calls
 - AgentMode: Execution mode enumeration
-- ReasoningContext: Context for reasoning operations
+- Reasoning: Context for reasoning operations
 - UserProfile: User preference and context management
 """
 
 # Internal state management - not exported
 from .agent import AgentState  # noqa: F401
 from .execution import AgentMode, ExecutionState  # noqa: F401
-from .reasoning import ReasoningContext  # noqa: F401
+from .reasoning import Reasoning  # noqa: F401
 from .user import UserProfile  # noqa: F401
 
 # No public exports - use Agent APIs instead

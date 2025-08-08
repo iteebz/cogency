@@ -12,7 +12,9 @@ from typing import List, Optional
 from resilient_result import unwrap
 
 from cogency.events import emit
+from cogency.observe import observe
 from cogency.providers import LLM
+from cogency.resilience import resilience
 from cogency.state import AgentState
 from cogency.tools import Tool
 
@@ -24,6 +26,8 @@ from .core import (
 )
 
 
+@observe
+@resilience
 async def reason(
     state: AgentState,
     llm: LLM,

@@ -1,4 +1,4 @@
-"""ReasoningContext - Structured cognition without string pollution."""
+"""Reasoning - Structured cognition without string pollution."""
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -6,7 +6,7 @@ from typing import Any, Dict, List
 
 
 @dataclass
-class ReasoningContext:
+class Reasoning:
     """Structured reasoning memory - no string-based fields."""
 
     # Core Cognition (Structured Facts - ChatGPT's requirement)
@@ -18,16 +18,30 @@ class ReasoningContext:
     # Reasoning History (Simplified - Gemini's requirement)
     thoughts: List[Dict[str, Any]] = field(default_factory=list)
 
-    def add_insight(self, insight: str) -> None:
-        """Add new insight with bounded growth."""
+    # Persistence
+    store: Any = field(default=None, init=True)
+    user_id: str = field(default="default", init=True)
+    state: Any = field(default=None, init=True)
+
+    def __post_init__(self):
+        """Initialize store if not provided."""
+        if self.store is None:
+            from cogency.persist.store import get_store
+
+            self.store = get_store()
+
+    def learn(self, insight: str) -> None:
+        """Add new insight with bounded growth and immediate persistence."""
         if insight and insight.strip() and insight not in self.insights:
             self.insights.append(insight.strip())
             # Prevent unbounded growth - keep last 10
             if len(self.insights) > 10:
                 self.insights = self.insights[-10:]
+            if self.state:
+                self.state.persist()
 
     def update_facts(self, key: str, value: Any) -> None:
-        """Update structured knowledge."""
+        """Update structured knowledge with immediate persistence."""
         if key and key.strip():
             self.facts[key] = value
             # Prevent unbounded growth - keep last 20 facts
@@ -35,9 +49,11 @@ class ReasoningContext:
                 oldest_keys = list(self.facts.keys())[:-20]
                 for old_key in oldest_keys:
                     del self.facts[old_key]
+            if self.state:
+                self.state.persist()
 
     def record_thinking(self, thinking: str, tool_calls: List[Dict[str, Any]]) -> None:
-        """Record reasoning step."""
+        """Record reasoning step with immediate persistence."""
         thought = {
             "thinking": thinking,
             "tool_calls": tool_calls,
@@ -47,6 +63,8 @@ class ReasoningContext:
         # Keep last 5 thoughts for context
         if len(self.thoughts) > 5:
             self.thoughts = self.thoughts[-5:]
+        if self.state:
+            self.state.persist()
 
     def compress_for_context(self, max_tokens: int = 1000) -> str:
         """Intelligent compression for LLM context."""

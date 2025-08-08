@@ -39,12 +39,12 @@ class ExecutionState:
     completed_calls: List[Dict[str, Any]] = field(default_factory=list)
 ```
 
-### ReasoningContext
+### Reasoning
 Structured reasoning memory without string fields:
 
 ```python
 @dataclass  
-class ReasoningContext:
+class Reasoning:
     # Core Cognition (Structured Facts)
     goal: str = ""
     facts: Dict[str, Any] = field(default_factory=dict)
@@ -62,7 +62,7 @@ Complete agent state combining execution + reasoning + situated memory:
 class AgentState:
     def __init__(self, query: str, user_id: str = "default", user_profile: Optional['UserProfile'] = None):
         self.execution = ExecutionState(query=query, user_id=user_id)
-        self.reasoning = ReasoningContext(goal=query)  
+        self.reasoning = Reasoning(goal=query)  
         self.user = user_profile  # Situated memory
 ```
 
@@ -214,7 +214,7 @@ def deserialize_profile(profile_data: Dict[str, Any]) -> UserProfile:
 ### State Layer (`cogency.state`)
 - `agent.py` - AgentState class with situated context
 - `execution.py` - ExecutionState for loop control  
-- `reasoning.py` - ReasoningContext for structured cognition
+- `reasoning.py` - Reasoning for structured cognition
 - `user_profile.py` - UserProfile data structure
 
 ### Memory Layer (`cogency.memory`)  
@@ -231,7 +231,7 @@ def deserialize_profile(profile_data: Dict[str, Any]) -> UserProfile:
 
 **What Will NOT Change Beyond v1.0.0:**
 
-1. ✅ Core state separation: ExecutionState vs ReasoningContext vs UserProfile
+1. ✅ Core state separation: ExecutionState vs Reasoning vs UserProfile
 2. ✅ Situated memory architecture: User context injection pattern  
 3. ✅ Pure functional context generation: No methods in state classes for prompt building
 4. ✅ Structured facts over strings: No return to string-based cognitive fields

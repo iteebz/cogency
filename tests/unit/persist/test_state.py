@@ -158,7 +158,7 @@ async def test_reconstruct(persistence, sample_state):
 
     # Record thinking in reasoning context
     sample_state.reasoning.record_thinking("Test thinking", [{"name": "test_tool", "args": {}}])
-    sample_state.reasoning.add_insight("Important insight")
+    sample_state.reasoning.learn("Important insight")
 
     # Save and load
     await persistence.save(sample_state)

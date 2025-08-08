@@ -4,8 +4,11 @@ from typing import Optional
 
 from cogency.persist.utils import _get_state
 from cogency.state import AgentMode
-from cogency.steps.composition import _setup_steps
+from cogency.steps.act import act
 from cogency.steps.execution import execute_agent
+from cogency.steps.reason import reason
+from cogency.steps.synthesize import synthesize
+from cogency.steps.triage import triage
 from cogency.utils.validation import validate_query
 
 
@@ -33,10 +36,8 @@ class AgentExecutor:
         self.identity = identity
         self.output_schema = output_schema
 
-        # Setup execution steps
-        self.steps = _setup_steps(
-            self.llm, self.tools, self.memory, self.identity, self.output_schema, self.config
-        )
+        # Steps are just functions - no setup needed
+        self.steps = {"triage": triage, "reason": reason, "act": act, "synthesize": synthesize}
 
         # Runtime state
         self.user_states = {}
@@ -78,22 +79,24 @@ class AgentExecutor:
             # Set agent mode
             state.execution.mode = AgentMode.ADAPT
 
-            # Use runtime identity if provided
-            steps = self.steps
-            if identity:
-                steps = _setup_steps(
-                    self.llm, self.tools, self.memory, identity, self.output_schema, self.config
-                )
+            # Steps are passed directly - identity is passed as parameter
 
             # Execute
             emit("start", query=query)
 
             await execute_agent(
                 state,
-                steps["triage"],
-                steps["reason"],
-                steps["act"],
-                steps["synthesize"],
+                lambda s: triage(s, self.llm, self.tools, self.memory),
+                lambda s: reason(
+                    s,
+                    self.llm,
+                    self.tools,
+                    self.memory,
+                    identity or self.identity,
+                    self.output_schema,
+                ),
+                lambda s: act(s, self.llm, self.tools),
+                lambda s: synthesize(s, self.memory),
             )
 
             self.last_state = state
@@ -145,21 +148,22 @@ class AgentExecutor:
 
             state.execution.mode = AgentMode.ADAPT
 
-            steps = self.steps
-            if identity:
-                steps = _setup_steps(
-                    self.llm, self.tools, self.memory, identity, self.output_schema, self.config
-                )
-
             emit("start", query=query)
 
             # Execute with streaming via event handlers
             await execute_agent(
                 state,
-                steps["triage"],
-                steps["reason"],
-                steps["act"],
-                steps["synthesize"],
+                lambda s: triage(s, self.llm, self.tools, self.memory),
+                lambda s: reason(
+                    s,
+                    self.llm,
+                    self.tools,
+                    self.memory,
+                    identity or self.identity,
+                    self.output_schema,
+                ),
+                lambda s: act(s, self.llm, self.tools),
+                lambda s: synthesize(s, self.memory),
             )
 
             self.last_state = state

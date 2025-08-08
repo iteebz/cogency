@@ -1,21 +1,6 @@
 """Simple timing utilities - pure event emission."""
 
 import time
-from time import perf_counter
-
-
-def simple_timer(label: str):
-    """Simple timing closure - emits timing events only."""
-    start = perf_counter()
-
-    def stop():
-        duration = perf_counter() - start
-        from cogency.events import emit
-
-        emit("timing", label=label, duration=duration)
-        return duration
-
-    return stop
 
 
 class TimerContext:

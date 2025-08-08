@@ -3,15 +3,15 @@
 from cogency.memory.compression import compress
 from cogency.state import AgentState
 from cogency.state.context import execution_history, knowledge_synthesis, readiness_assessment
-from cogency.state.reasoning import ReasoningContext
+from cogency.state.reasoning import Reasoning
 from cogency.state.user import UserProfile
 from cogency.tools.shell import Shell
 
 
 def test_contextcompression():
     """Test reasoning context compression for LLM context."""
-    context = ReasoningContext(goal="test goal", strategy="test strategy")
-    context.add_insight("key insight")
+    context = Reasoning(goal="test goal", strategy="test strategy")
+    context.learn("key insight")
     context.update_facts("important_fact", "fact_value")
     context.record_thinking("complex analysis", [{"tool": "test"}])
 
@@ -70,7 +70,7 @@ def test_context_building():
 
     # Add reasoning context
     state.reasoning.strategy = "analyze bottlenecks then optimize"
-    state.reasoning.add_insight("database is the main bottleneck")
+    state.reasoning.learn("database is the main bottleneck")
     state.reasoning.update_facts("current_query_time", "500ms")
 
     # Build complete context

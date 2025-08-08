@@ -120,7 +120,6 @@ class AgentConfig:
     formatter: Optional[Any] = None
     on_notify: Optional[Any] = None
     robust: Optional[Any] = None
-    persist: Optional[Any] = None
     handlers: List[Any] = None
 
 

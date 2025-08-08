@@ -97,7 +97,7 @@ async def test_end_to_end():
         state = AgentState(query="test query", user_id="test_user", user_profile=profile)
         state.execution.add_message("user", "Hello")
         state.execution.iteration = 2
-        state.reasoning.add_insight("Test insight")
+        state.reasoning.learn("Test insight")
         state.execution.add_message("assistant", "Hi there")
         state.execution.iteration = 3
 

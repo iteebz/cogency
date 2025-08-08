@@ -4,7 +4,8 @@ from cogency.config import MemoryConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
 from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, init_bus
 from cogency.memory import ImpressionSynthesizer
-from cogency.observe import get_metrics_handler
+
+# Simplified observability - no complex metrics handlers needed
 from cogency.persist.store.base import _setup_persist
 from cogency.providers.setup import _setup_embed, _setup_llm
 from cogency.tools.registry import _setup_tools
@@ -58,7 +59,6 @@ class AgentSetup:
             bus.subscribe(ConsoleHandler())
 
         bus.subscribe(LoggerHandler())
-        bus.subscribe(get_metrics_handler())
 
         # Add custom handlers
         if config.handlers:

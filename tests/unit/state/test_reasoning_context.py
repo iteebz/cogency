@@ -1,17 +1,17 @@
-"""ReasoningContext tests - Structured cognition."""
+"""Reasoning tests - Structured cognition."""
 
-from cogency.state.reasoning import ReasoningContext
+from cogency.state.reasoning import Reasoning
 
 
 def test_create():
-    """Test creating a ReasoningContext instance."""
-    context = ReasoningContext(goal="test goal")
+    """Test creating a Reasoning instance."""
+    context = Reasoning(goal="test goal")
     assert context.goal == "test goal"
 
 
 def test_defaults():
     """Test that default values are properly set."""
-    context = ReasoningContext()
+    context = Reasoning()
 
     assert context.goal == ""
     assert context.facts == {}
@@ -20,37 +20,37 @@ def test_defaults():
     assert context.thoughts == []
 
 
-def test_add_insight():
+def test_learn():
     """Test adding insights with bounded growth."""
-    context = ReasoningContext()
+    context = Reasoning()
 
     # Add unique insights
-    context.add_insight("First insight")
-    context.add_insight("Second insight")
+    context.learn("First insight")
+    context.learn("Second insight")
 
     assert len(context.insights) == 2
     assert "First insight" in context.insights
     assert "Second insight" in context.insights
 
     # Duplicate insights are ignored
-    context.add_insight("First insight")
+    context.learn("First insight")
     assert len(context.insights) == 2
 
     # Empty insights are ignored
-    context.add_insight("")
-    context.add_insight("   ")
+    context.learn("")
+    context.learn("   ")
     assert len(context.insights) == 2
 
     # Test bounded growth (max 10)
     for i in range(15):
-        context.add_insight(f"Insight {i}")
+        context.learn(f"Insight {i}")
 
     assert len(context.insights) <= 10
 
 
 def test_update_facts():
     """Test updating structured knowledge."""
-    context = ReasoningContext()
+    context = Reasoning()
 
     # Add facts
     context.update_facts("key1", "value1")
@@ -77,7 +77,7 @@ def test_update_facts():
 
 def test_record_thinking():
     """Test recording reasoning steps."""
-    context = ReasoningContext()
+    context = Reasoning()
 
     # Record thoughts
     context.record_thinking("First thought", [{"tool": "test"}])
@@ -98,10 +98,10 @@ def test_record_thinking():
 
 def testcompress_for_context():
     """Test intelligent compression for LLM context."""
-    context = ReasoningContext(goal="Test goal", strategy="Test strategy")
+    context = Reasoning(goal="Test goal", strategy="Test strategy")
 
     # Add some data
-    context.add_insight("Test insight")
+    context.learn("Test insight")
     context.update_facts("test_key", "test_value")
     context.record_thinking("Test thinking", [])
 

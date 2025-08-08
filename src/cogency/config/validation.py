@@ -27,7 +27,6 @@ def _init_advanced_config(**config) -> Dict[str, Any]:
         "on_notify": None,
         "robust": False,
         "observe": False,
-        "persist": False,
     }
 
     # Validate all provided keys are known

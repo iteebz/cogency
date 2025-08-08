@@ -1,6 +1,5 @@
 """ExecutionState - Pure execution tracking with zero ceremony."""
 
-from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import Any, Dict, List, Optional
@@ -16,42 +15,52 @@ class AgentMode(Enum):
     ADAPT = "adapt"
 
 
-@dataclass
 class ExecutionState:
-    """Execution tracking."""
+    """Execution tracking with persistent state."""
 
-    # Core Identity
-    query: str
-    user_id: str = "default"
+    def __init__(self, query: str, user_id: str = "default", store=None, state=None):
+        # Core Identity
+        self.query = query
+        self.user_id = user_id
 
-    # Loop Control
-    iteration: int = 0
-    max_iterations: int = 10
-    mode: AgentMode = AgentMode.ADAPT
-    stop_reason: Optional[str] = None
+        # Always have persistence - default to SQLite
+        if store is None:
+            from cogency.persist.store import get_store
 
-    # Communication
-    messages: List[Dict[str, str]] = field(default_factory=list)
-    response: Optional[str] = None
+            store = get_store()
+        self.store = store
+        self.state = state
 
-    # Tool Execution (Dictionary-based - Gemini's simplification)
-    pending_calls: List[Dict[str, Any]] = field(default_factory=list)
-    completed_calls: List[Dict[str, Any]] = field(default_factory=list)
-    tool_results: Dict[str, Any] = field(default_factory=dict)
-    iterations_without_tools: int = 0  # Track consecutive iterations without tool usage
+        # Loop Control
+        self.iteration = 0
+        self.max_iterations = 10
+        self.mode = AgentMode.ADAPT
+        self.stop_reason = None
 
-    # System
-    debug: bool = False
-    notifications: List[Dict[str, Any]] = field(default_factory=list)
+        # Communication
+        self.messages = []
+        self.response = None
 
-    # Security
-    security_assessment: Optional[Any] = None  # SecurityAssessment from reasoning
+        # Tool Execution
+        self.pending_calls = []
+        self.completed_calls = []
+        self.tool_results = {}
+        self.iterations_without_tools = 0
+
+        # System
+        self.debug = False
+        self.notifications = []
+
+        # Security
+        self.security_assessment = None
 
     def add_message(self, role: str, content: str) -> None:
-        """Add to conversation history."""
+        """Add to conversation history with immediate persistence."""
         self.messages.append(
             {"role": role, "content": content, "timestamp": datetime.now().isoformat()}
         )
+        if self.state:
+            self.state.persist()
 
     def set_tool_calls(self, calls: List[Dict[str, Any]]) -> None:
         """Set pending tool calls from reasoning with validation."""
@@ -87,11 +96,13 @@ class ExecutionState:
 
         return validated
 
-    def complete_tool_calls(self, results: List[Dict[str, Any]]) -> None:
-        """Process completed tool results."""
+    def finish_tools(self, results: List[Dict[str, Any]]) -> None:
+        """Process completed tool results with immediate persistence."""
         self.completed_calls.extend(results)
         self.pending_calls.clear()
         self.iterations_without_tools = 0  # Reset counter on tool usage
+        if self.state:
+            self.state.persist()
 
         # Add tool results to conversation history so agent can see what was executed
         if results:
@@ -144,3 +155,5 @@ class ExecutionState:
     def advance_iteration(self) -> None:
         """Move to next reasoning iteration."""
         self.iteration += 1
+        if self.state:
+            self.state.persist()

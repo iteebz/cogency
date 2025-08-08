@@ -32,7 +32,7 @@ while state.execution.should_continue():
     # Execute tools
     if state.execution.pending_calls:
         tool_results = await execute_tools(state.execution.pending_calls)
-        state.execution.complete_tool_calls(tool_results)
+        state.execution.finish_tools(tool_results)
     
     state.execution.advance_iteration()
 
@@ -73,7 +73,7 @@ def update_from_reasoning(self, reasoning_data: Dict[str, Any]) -> None:
             self.reasoning.strategy = context_updates["strategy"]
         if "insights" in context_updates:
             for insight in context_updates["insights"]:
-                self.reasoning.add_insight(insight)
+                self.reasoning.learn(insight)
     
     # Handle direct response
     if "response" in reasoning_data:
@@ -222,9 +222,9 @@ async def save(self, state_key: str, state: AgentState) -> bool:
 
 ### Bounded Growth Prevention
 
-**ReasoningContext:**
+**Reasoning:**
 ```python
-def add_insight(self, insight: str) -> None:
+def learn(self, insight: str) -> None:
     if insight and insight.strip() and insight not in self.insights:
         self.insights.append(insight.strip())
         # Prevent unbounded growth - keep last 10

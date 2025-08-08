@@ -11,6 +11,7 @@ Persistence is typically configured via PersistConfig in Agent setup.
 
 from .store import Store
 from .store.filesystem import Filesystem
+from .store.sqlite import SQLiteStore
 
 # Internal functions not exported:
 # from .state import StatePersistence
@@ -21,6 +22,7 @@ __all__ = [
     # Public persistence APIs (advanced usage)
     "Store",  # Base class for custom stores
     "Filesystem",  # Built-in filesystem store
+    "SQLiteStore",  # Built-in SQLite store
     # Internal APIs not exported:
     # - _store, _setup_persist, _get_state (framework internals)
     # - StatePersistence (implementation detail)

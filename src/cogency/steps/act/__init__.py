@@ -3,6 +3,8 @@
 import logging
 from typing import List, Optional
 
+from cogency.observe import observe
+from cogency.resilience import resilience
 from cogency.state import AgentState
 from cogency.tools import Tool
 
@@ -11,6 +13,8 @@ from .execute import execute_tools
 logger = logging.getLogger(__name__)
 
 
+@observe
+@resilience
 async def act(state: AgentState, llm=None, tools: List[Tool] = None) -> Optional[str]:
     """Act: execute tools based on reasoning decision."""
 
@@ -43,6 +47,6 @@ async def act(state: AgentState, llm=None, tools: List[Tool] = None) -> Optional
 
         # Complete results
         completed_results = successes + failures
-        state.execution.complete_tool_calls(completed_results)
+        state.execution.finish_tools(completed_results)
 
     return None
