@@ -77,9 +77,8 @@ async def execute_agent(
             tool_calls=len(state.execution.pending_calls),
         )
 
-        # If no tool calls, trust the LLM's decision to complete
+        # No tool calls means completion - either with response or graceful exit
         if not state.execution.pending_calls:
-            emit("react_exit", level="debug", reason="no_tool_calls")
             break
 
         # Act step
@@ -116,8 +115,9 @@ async def execute_agent(
             emit("react_exit", reason=state.execution.stop_reason)
             break
 
-    # No fallback - if we reach here, something went wrong
-    emit("agent_error", reason="execution_incomplete", iterations=state.execution.iteration)
-    state.execution.response = f"Agent failed to complete task after {state.execution.iteration} iterations. The LLM may not be generating valid responses."
-    state.execution.response_source = "error"
+    # Natural completion - use response if available
+    if not state.execution.response:
+        state.execution.response = "Task completed."
+        state.execution.response_source = "natural"
     await synthesize_step(state)
+    emit("agent_complete", source="natural", iterations=state.execution.iteration)

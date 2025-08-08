@@ -8,6 +8,12 @@ from ..common import JSON_FORMAT_CORE, TOOL_RESPONSE_LOGIC, build_json_schema
 
 CORE_REASONING_INSTRUCTIONS = f"""CRITICAL: {JSON_FORMAT_CORE}
 
+ACCURACY REQUIREMENTS:
+- Use ONLY information from tool results - never hallucinate facts, numbers, or data
+- If tool results contain conflicting information, acknowledge the conflict
+- When extracting specific values (numbers, names, IDs), quote directly from tool results
+- If information is missing or unclear, state this explicitly rather than guessing
+
 EXAMPLE FOR SIMPLE QUERY "what was my last message?":
 {{"thinking": "Checking conversation history", "tool_calls": [], "response": "hi there"}}
 
@@ -55,6 +61,12 @@ DEEP_REASONING_STEPS = """REASONING STEPS:
 📋 PLAN: Choose NEW tools that address remaining gaps - avoid repeating successful actions
 🎯 EXECUTE: Run planned tools sequentially when they address different aspects
 
+COMPLETION FOCUS:
+- If 2+ tools succeeded, synthesize results and complete
+- Don't endlessly analyze - use what you have
+- Gaps in information are OK - respond with available data
+- Progress > Perfection
+
 RECOVERY ACTIONS:
 - Tool argument errors → Check required vs optional args in schema
 - No results from tools → Try different args or alternative approaches
@@ -83,12 +95,20 @@ FINAL_EXECUTION_GUIDELINES = """COMPLETION DECISION:
 When to CONTINUE: tool_calls=[...], response=""
 - Need more information to answer completely
 - Haven't addressed all parts of the query
+- NOT at maximum iteration limit
 
 When to COMPLETE: tool_calls=[], response="clean direct answer"
 - Have sufficient information to provide complete answer
 - All query requirements satisfied
 - CRITICAL: If you have taken multiple actions and made progress, you MUST complete with a summary
+- MANDATORY: At maximum iteration limit, you MUST provide a response with available information
 - NEVER generate tool_calls=[] with response="" - this causes infinite loops
+
+STOP OVERTHINKING:
+- After 1-2 successful tool calls, provide response immediately
+- Don't re-analyze successful tool results - use them directly
+- If tools worked, complete the task - don't second-guess
+- Prefer completion over perfectionism
 
 RESPONSE GUIDELINES:
 - "thinking": Brief process explanation (user sees this)

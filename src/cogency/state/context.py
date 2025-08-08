@@ -27,7 +27,7 @@ def execution_history(state: AgentState, tools: List[Any]) -> str:
 
         # Store successful results for context
         if success and data:
-            successful_results[tool_name] = str(data)[:80]
+            successful_results[tool_name] = str(data)
 
         # Args summary (first 50 chars)
         args_str = str(tool_args)[:50] if tool_args else ""
@@ -37,7 +37,7 @@ def execution_history(state: AgentState, tools: List[Any]) -> str:
             tool = next((t for t in tools if t.name == tool_name), None)
             if tool and data:
                 try:
-                    output = tool.format_agent(data)[:150]
+                    output = tool.format_agent(data)
                 except (KeyError, ValueError, AttributeError):
                     output = "completed"
             else:

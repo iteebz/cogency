@@ -184,7 +184,7 @@ def _collect_tool_results(state: AgentState) -> Optional[str]:
         """Extract data from Result object safely."""
         result_obj = result.get("result")
         if result_obj and hasattr(result_obj, "success") and result_obj.success:
-            return str(result_obj.data or "no result")[:2000]
+            return str(result_obj.data or "no result")
         return "no result"
 
     return "\n".join(

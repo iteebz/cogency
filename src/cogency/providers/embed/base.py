@@ -11,6 +11,8 @@ class Embed(ABC):
 
     def __init__(self, api_key: str = None, **kwargs):
         self.api_key = api_key
+        self._should_retry = kwargs.get("should_retry", False)
+        self.key_rotator = kwargs.get("key_rotator")
 
     @abstractmethod
     def embed(self, text: str | list[str], **kwargs) -> Result:

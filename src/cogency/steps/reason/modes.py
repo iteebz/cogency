@@ -65,8 +65,8 @@ class ModeController:
                 logger.info(f"Blocked premature deep→fast: '{reason}'")
                 return False
 
-        # Prevent switching too late
-        return iteration < max_iterations - 1
+        # Prevent switching too late - but allow final iteration switches for completion
+        return iteration <= max_iterations
 
     @staticmethod
     def get_switch_guidelines(current_mode: str, max_iterations: int) -> str:

@@ -138,10 +138,22 @@ class KeyManager:
         env_prefix = provider.upper()
 
         # Try numbered keys first (PROVIDER_API_KEY_1, PROVIDER_API_KEY_2, etc.)
-        for i in range(1, 6):  # Check up to 5 numbered keys
-            key = os.getenv(f"{env_prefix}_API_KEY_{i}")
-            if key:
-                keys.append(key)
+        # Scan all environment variables to find all numbered keys dynamically
+        numbered_keys = []
+        for env_var, value in os.environ.items():
+            if env_var.startswith(f"{env_prefix}_API_KEY_") and env_var != f"{env_prefix}_API_KEY":
+                try:
+                    # Extract the number and store with the key
+                    suffix = env_var[len(f"{env_prefix}_API_KEY_") :]
+                    key_num = int(suffix)
+                    numbered_keys.append((key_num, value))
+                except ValueError:
+                    # Skip non-numeric suffixes
+                    continue
+
+        # Sort by key number and add to keys list
+        numbered_keys.sort(key=lambda x: x[0])
+        keys.extend([key for _, key in numbered_keys])
 
         # Fall back to base key if no numbered keys found
         if not keys:
