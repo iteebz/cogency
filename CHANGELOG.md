@@ -5,6 +5,80 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-08-08
+
+**MILESTONE**: Three-Horizon Split-State Architecture
+
+**WARNING**: This release is NOT backward compatible. Complete state system redesign.
+
+### Major Changes
+- **Three-Horizon Split-State Model**: Separates agent state across three temporal boundaries:
+  - **Horizon 1**: UserProfile (permanent user context)
+  - **Horizon 2**: Workspace (task-scoped memory)  
+  - **Horizon 3**: ExecutionState (runtime-only, never persisted)
+- **Database-as-State**: SQLite schema exactly matches dataclass structure
+- **Built-in Observability**: `@observe` decorator enabled by default on all core steps
+- **Task Lifecycle Management**: Explicit `start_task`/`continue_task`/`complete_task` methods
+- **Mutation-Based API**: State changes through documented functions (`add_message`, `learn_insight`)
+
+### Breaking Changes
+- **State access patterns**: `state.reasoning` → `state.workspace`, `state.user` → `state.profile`
+- **Persistence layer**: Entire `src/cogency/persist/store/` directory removed
+- **State properties**: `state.execution.query` → `state.query` (moved to State level)
+- **Task isolation**: Each task gets isolated workspace, deleted on completion
+- **API methods**: Direct state manipulation replaced with mutation functions
+
+### Removed
+- `src/cogency/persist/store/` - entire directory (17 files)
+- `src/cogency/state/execution.py` - merged into new model
+- `src/cogency/state/reasoning.py` - replaced with Workspace
+- `src/cogency/state/user.py` - replaced with UserProfile
+- `docs/dev/schema.md` - obsoleted by canonical state model
+- `tests/unit/persist/` - entire directory removed
+- Legacy test files: `test_build_context.py`, `test_impression.py`, `test_reasoning_context.py`
+
+### Added
+- **Canonical SQLite Backend**: `src/cogency/storage/backends/sqlite.py`
+- **Three-Horizon Persistence**: `src/cogency/storage/state.py`
+- **State Mutations**: `src/cogency/state/mutations.py` with 12+ mutation functions
+- **Checkpoint System**: `src/cogency/robust/checkpoint.py` for workflow recovery
+- **ACID Task Management**: Database transactions for task operations
+- **Built-in Observability**: Step execution timing, success/failure tracking, OpenTelemetry export
+
+### Changed
+- **Test Infrastructure**: 100% CI pass rate (289 tests) with Three-Horizon test patterns
+- **Database Schema**: `user_profiles` and `task_workspaces` tables replace `agent_states`
+- **Autosave Mechanism**: Respects test boundaries, prevents infinite hangs
+- **Store Interface**: Horizon-specific methods (`save_user_profile`, `save_task_workspace`)
+- **State Initialization**: UserProfile timestamps synchronized to prevent microsecond differences
+
+### Migration Guide
+This is a breaking change requiring code updates:
+
+1. **Update state access**: 
+   ```python
+   state.reasoning → state.workspace
+   state.user → state.profile
+   state.execution.query → state.query
+   ```
+
+2. **Use mutation functions**:
+   ```python
+   # Replace direct manipulation
+   state.execution.messages.append(...)
+   # With mutations
+   from cogency.state.mutations import add_message
+   add_message(state, role, content)
+   ```
+
+3. **Update persistence**:
+   ```python
+   # Replace store.save(key, state)
+   # With horizon-specific operations
+   await store.save_user_profile(key, state.profile)
+   await store.save_task_workspace(task_id, user_id, state.workspace)
+   ```
+
 ## [1.0.1] - 2025-08-07
 
 ### Fixed
@@ -336,7 +410,9 @@ Starting with v1.0.0, this project follows [Semantic Versioning](https://semver.
 Major architectural changes are marked with **BREAKING** labels and include migration guides.
 Always review the migration sections before upgrading across major versions.
 
-[unreleased]: https://github.com/tysonchen/cogency/compare/v1.0.0...HEAD
+[unreleased]: https://github.com/tysonchen/cogency/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/tysonchen/cogency/compare/v1.0.1...v1.1.0
+[1.0.1]: https://github.com/tysonchen/cogency/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/tysonchen/cogency/compare/v0.9.3...v1.0.0
 [0.9.3]: https://github.com/tysonchen/cogency/compare/v0.9.2...v0.9.3
 [0.9.2]: https://github.com/tysonchen/cogency/compare/v0.9.1...v0.9.2

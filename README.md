@@ -6,8 +6,6 @@
 
 **A reasoning engine for adaptive AI agents.**
 
-> 🎯 **v1.0.0** - Production ready
-
 ```python
 from cogency import Agent
 agent = Agent("assistant")
@@ -20,116 +18,133 @@ agent.run("Analyze this codebase and suggest architectural improvements")
 # Automatically escalates reasoning depth and tool usage
 ```
 
-## Core Concept
+## Why Cogency?
 
-**Adaptive reasoning** - agents discover task complexity during execution and adjust their cognitive approach automatically.
+**Zero ceremony, maximum capability** - get production-ready agents from a single import.
 
-- **Triage**: Context evaluation and tool selection
-- **Reason**: Depth-adaptive thinking (fast react → deep reflection)
-- **Act**: Tool execution with automatic retry and recovery
-- **Respond**: Identity-aware response formatting
+- **🔒 Semantic security** - Built-in safety, blocks unsafe requests automatically
+- **⚡ Adaptive reasoning** - Thinks fast for simple queries, deep for complex tasks
+- **🛠️ Smart tooling** - Tools auto-register and route intelligently 
+- **🧠 Built-in memory** - Persistent context that actually learns about users
+- **🏗️ Production ready** - Resilience, tracing, and error recovery out of the box
 
-**Zero-cost switching** - seamless transitions preserve full context.
-
-## Key Features
-
-- **👌 Simple interface** - Fully functional agents from a single import
-- **🔥 Adaptive reasoning** - Thinks fast or deep as needed
-- **🛠️ Automatic tool discovery** - Tools auto-register and route intelligently
-- **🧠 Built-in memory** - Persistent context with LLM-based synthesis
-- **⚡️ Auto-configuration** - Detects LLMs and tools from environment
-- **🌊 Streaming execution** - Watch agents think in real-time
-- **✨ Clean tracing** - Every step traced with clear step indicators
-- **🌍 Universal LLM support** - OpenAI, Anthropic, Gemini, Mistral
-- **🏗️ Built-in resilience** - Automatic retry and error recovery
-
-## How It Works
-
-**triage → reason → act → respond**
-
-```
-👤 Build a REST API for my blog
-
-🔧 triage: Selecting tools → files, shell
-🧠 reason: Complex task → escalating to deep mode
-📁 files(action='create', path='main.py') → API structure created
-💻 shell(command='pip install fastapi uvicorn') → Dependencies installed
-🧠 reason: Reflection → Need database integration and tests
-📋 reason: Planning → Add SQLite, validation, and tests
-🤖 Here's your complete FastAPI blog API...
-```
-
-## Installation
+## Get Started in 30 Seconds
 
 ```bash
 pip install cogency
+export OPENAI_API_KEY=...
 ```
-
-Set any LLM API key:
-
-```bash
-export OPENAI_API_KEY=...     # or
-export ANTHROPIC_API_KEY=...  # or
-export GEMINI_API_KEY=...     # etc
-```
-
-## Built-in Tools
-
-Agents automatically use relevant tools:
-
-📁 **Files** - Create, read, edit, list files and directories  
-💻 **Shell** - Execute system commands with timeout protection  
-🌐 **HTTP** - API calls and web requests  
-📖 **Scrape** - Intelligent web content extraction  
-🔍 **Search** - Web search via DuckDuckGo  
-
-## Quick Examples
-
-**Custom Tools**
 
 ```python
-from cogency.tools import Tool, tool
+from cogency import Agent
 
-@tool
-class MyTool(Tool):
-    def __init__(self):
-        super().__init__("my_tool", "Does something useful")
-
-    async def run(self, args: str):
-        return {"result": f"Processed: {args}"}
-
-# Tool auto-registers
 agent = Agent("assistant")
-agent.run("Use my_tool with hello")
+result = agent.run("What's in the current directory?")
+print(result)
 ```
 
-**Memory**
+**That's it.** No configuration, no setup, no tool registration. Just working agents.
 
+## What Makes It Different
+
+**Semantic Security**
 ```python
-# Enable memory
-agent = Agent("assistant", memory=True)
+agent.run("rm -rf /")  # ❌ Blocked automatically
+agent.run("List files safely")  # ✅ Proceeds normally
+```
 
-# Agent remembers automatically
+**Adaptive Intelligence**  
+```python
+agent.run("What's 2+2?")  # Fast: Direct response
+agent.run("Analyze my codebase")  # Deep: Multi-step reasoning
+```
+
+**Memory That Actually Works**
+```python
+agent = Agent("assistant", memory=True)
 agent.run("I prefer Python and work at Google")
 agent.run("What language should I use?")  # → "Python"
 ```
 
-**Streaming**
+## Built-in Capabilities
 
+**Tools that just work:**
+📁 **Files** - Read, write, edit any file  
+💻 **Shell** - Execute commands safely  
+🌐 **HTTP** - API calls and requests  
+📖 **Scrape** - Extract web content  
+🔍 **Search** - Web search via DuckDuckGo  
+
+**Plus add your own:**
 ```python
-async for chunk in agent.stream("Research quantum computing"):
-    print(chunk, end="", flush=True)
+@tool
+class DatabaseTool(Tool):
+    async def run(self, query: str):
+        return await db.execute(query)
+
+# Automatically available to all agents
 ```
 
-## Configuration
+## Universal LLM Support
+
+Works with any LLM - just set the API key:
+
+```bash
+# OpenAI
+export OPENAI_API_KEY=sk-...
+
+# Anthropic  
+export ANTHROPIC_API_KEY=sk-ant-...
+
+# Google Gemini
+export GEMINI_API_KEY=...
+
+# Mistral, Ollama, etc.
+```
+
+No configuration needed - Cogency detects and configures automatically.  
+
+## Production Features
+
+**Streaming responses:**
+```python
+async for chunk in agent.stream("Analyze this large codebase"):
+    print(chunk, end="")
+```
+
+**Full observability:**
+```python
+result = agent.run("Deploy my app")
+logs = agent.logs()  # See exactly what happened
+print(logs)  # ["🔧 triage: selected 2 tools", "💻 shell: deploying...", ...]
+```
+
+**Error resilience:**
+```python
+# Tool failures don't crash execution
+agent.run("List files in /nonexistent")  # → Graceful error handling
+# API timeouts auto-retry with backoff
+# Memory failures don't block responses
+```
+
+## Advanced Usage
 
 ```python
+# Full customization when needed
 agent = Agent(
     "assistant",
-    memory=True,          # Enable memory
-    debug=True,           # Detailed tracing
-    max_iterations=20     # Max reasoning iterations
+    memory=True,              # Persistent user context
+    tools=["files", "shell"],  # Specific tools only  
+    max_iterations=20,        # Deep reasoning limit
+    debug=True               # Detailed execution logs
 )
+
+# Custom memory configuration
+from cogency.config import MemoryConfig
+agent = Agent("assistant", memory=MemoryConfig(threshold=8000))
+
+# Custom event handlers
+agent = Agent("assistant", handlers=[websocket_handler])
 ```
 
 ## Documentation
