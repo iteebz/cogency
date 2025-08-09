@@ -8,14 +8,16 @@ from cogency.providers.llm.base import LLM
 
 
 class OpenRouter(LLM):
-    def __init__(self, 
-                 model: str = "anthropic/claude-3-haiku",
-                 temperature: float = 0.7,
-                 max_tokens: int = 16384,
-                 top_p: float = 1.0,
-                 frequency_penalty: float = 0.0,
-                 presence_penalty: float = 0.0,
-                 **kwargs):
+    def __init__(
+        self,
+        model: str = "anthropic/claude-3.5-haiku",
+        temperature: float = 0.7,
+        max_tokens: int = 16384,
+        top_p: float = 1.0,
+        frequency_penalty: float = 0.0,
+        presence_penalty: float = 0.0,
+        **kwargs,
+    ):
         # Universal params to base class
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
         # Provider-specific params handled locally

@@ -71,7 +71,7 @@ class RealisticMockLLM(LLM):
             "I've completed the requested action successfully.",
         ]
         self.call_count = 0
-        super().__init__("realistic_mock", api_keys="test", **kwargs)
+        super().__init__(api_keys="test", model="gpt-4-realistic-mock", **kwargs)
 
     @property
     def default_model(self) -> str:

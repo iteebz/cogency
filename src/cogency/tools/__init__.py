@@ -36,9 +36,6 @@ from .base import Tool
 # Public: Built-in file operations tool
 from .files import Files
 
-# Public: Built-in document retrieval tool
-from .retrieval import Retrieval
-
 # Public: Core tool system functions for registration and LLM integration
 from .registry import (
     build_tool_descriptions,  # Public: Brief tool descriptions for triage/overview
@@ -46,6 +43,9 @@ from .registry import (
     get_tools,  # Public: Access all registered tools for custom agent initialization
     tool,  # Public: Decorator for registering custom tool classes
 )
+
+# Public: Built-in document retrieval tool
+from .retrieval import Retrieval
 
 # Public: Built-in web scraping tool
 from .scrape import Scrape

@@ -8,14 +8,16 @@ from cogency.providers.llm.base import LLM
 
 
 class Groq(LLM):
-    def __init__(self, 
-                 model: str = "llama-3.1-70b-versatile",
-                 temperature: float = 0.7,
-                 max_tokens: int = 16384,
-                 top_p: float = 1.0,
-                 frequency_penalty: float = 0.0,
-                 presence_penalty: float = 0.0,
-                 **kwargs):
+    def __init__(
+        self,
+        model: str = "llama-3.3-70b-versatile",
+        temperature: float = 0.7,
+        max_tokens: int = 16384,
+        top_p: float = 1.0,
+        frequency_penalty: float = 0.0,
+        presence_penalty: float = 0.0,
+        **kwargs,
+    ):
         # Universal params to base class
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
         # Provider-specific params handled locally

@@ -39,7 +39,7 @@ def temp_docs_dir():
     with tempfile.TemporaryDirectory() as temp_dir:
         docs_dir = Path(temp_dir) / "docs"
         docs_dir.mkdir()
-        
+
         # Create test documents
         (docs_dir / "readme.md").write_text(
             "# Project Documentation\nThis is a test project with authentication features."
@@ -50,7 +50,7 @@ def temp_docs_dir():
         (docs_dir / "api.md").write_text(
             "# API Reference\nThe API supports rate limiting at 1000 requests per hour."
         )
-        
+
         yield docs_dir
 
 

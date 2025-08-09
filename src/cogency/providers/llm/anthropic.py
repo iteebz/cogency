@@ -11,13 +11,15 @@ logger = logging.getLogger(__name__)
 
 
 class Anthropic(LLM):
-    def __init__(self, 
-                 model: str = "claude-3-5-haiku-20241022",
-                 temperature: float = 0.7,
-                 max_tokens: int = 16384,
-                 top_k: int = 40,
-                 top_p: float = 1.0,
-                 **kwargs):
+    def __init__(
+        self,
+        model: str = "claude-3-5-haiku-20241022",
+        temperature: float = 0.7,
+        max_tokens: int = 16384,
+        top_k: int = 40,
+        top_p: float = 1.0,
+        **kwargs,
+    ):
         # Universal params to base class
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
         # Anthropic-specific params

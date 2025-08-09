@@ -10,22 +10,14 @@ class MockEmbedder(Embed):
     """Mock embedder for testing."""
 
     def __init__(self, dimension=384):
-        super().__init__()
         self.dimension = dimension
+        super().__init__(api_keys="mock-key", model="mock-model", dimensionality=dimension)
 
     def embed(self, text):
         """Mock embed method - handles both string and list[str]."""
         if isinstance(text, str):
             return Result.ok([[0.1, 0.2, 0.3] * (self.dimension // 3)])
         return Result.ok([[0.1, 0.2, 0.3] * (self.dimension // 3) for _ in text])
-
-    @property
-    def model(self):
-        return "mock-model"
-
-    @property
-    def dimensionality(self):
-        return self.dimension
 
 
 def test_abstract():

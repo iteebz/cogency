@@ -6,8 +6,6 @@ import numpy as np
 import openai
 from resilient_result import Err, Ok, Result
 
-from cogency.utils.keys import KeyManager
-
 from .base import Embed
 
 
@@ -55,18 +53,19 @@ class OpenAIEmbed(Embed):
         """Internal embed implementation."""
         try:
             self._rotate_client()
-            # Build embedding parameters
-            embed_kwargs = {"input": text, "model": self.model}
-            
+            # Build embedding parameters - clean, no ceremony
+            api_kwargs = {
+                "input": text,
+                "model": self.model,
+            }
+
             # Add dimensions for text-embedding-3 models
             if "text-embedding-3" in self.model:
-                embed_kwargs["dimensions"] = self.dimensionality
-                
-            embed_kwargs.update(kwargs)
-            response = self._client.embeddings.create(**embed_kwargs)
+                api_kwargs["dimensions"] = self.dimensionality
+
+            response = self._client.embeddings.create(**api_kwargs, **kwargs)
             if isinstance(text, str):
                 return Ok([np.array(response.data[0].embedding)])
             return Ok([np.array(data.embedding) for data in response.data])
         except Exception as e:
             return Err(e)
-

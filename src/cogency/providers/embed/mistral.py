@@ -6,8 +6,6 @@ import numpy as np
 from mistralai import Mistral
 from resilient_result import Err, Ok, Result
 
-from cogency.utils.keys import KeyManager
-
 from .base import Embed
 
 
@@ -58,14 +56,18 @@ class MistralEmbed(Embed):
         try:
             self._rotate_client()
             inputs = [text] if isinstance(text, str) else text
-            # Use dimensionality if it matches Mistral's supported dimensions
-            embed_kwargs = {"model": self.model, "inputs": inputs}
-            if hasattr(self, 'dimensionality') and self.dimensionality != 1024:
-                embed_kwargs["output_dimension"] = self.dimensionality
-            embed_kwargs.update(kwargs)
-            
-            response = self._client.embeddings.create(**embed_kwargs)
+
+            # Build API parameters - clean, no ceremony
+            api_kwargs = {
+                "model": self.model,
+                "inputs": inputs,
+            }
+
+            # Add custom dimensionality if not default
+            if self.dimensionality != 1024:
+                api_kwargs["output_dimension"] = self.dimensionality
+
+            response = self._client.embeddings.create(**api_kwargs, **kwargs)
             return Ok([np.array(data.embedding) for data in response.data])
         except Exception as e:
             return Err(e)
-

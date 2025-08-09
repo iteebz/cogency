@@ -8,12 +8,14 @@ from cogency.providers.llm.base import LLM
 
 
 class Ollama(LLM):
-    def __init__(self, 
-                 model: str = "llama3.3",
-                 temperature: float = 0.7,
-                 max_tokens: int = 16384,
-                 base_url: str = "http://localhost:11434/v1",
-                 **kwargs):
+    def __init__(
+        self,
+        model: str = "llama3.1:8b",
+        temperature: float = 0.7,
+        max_tokens: int = 16384,
+        base_url: str = "http://localhost:11434/v1",
+        **kwargs,
+    ):
         # Universal params to base class
         super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
         # Ollama-specific params

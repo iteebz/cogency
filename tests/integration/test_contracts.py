@@ -38,7 +38,7 @@ class ContractValidatingLLM(LLM):
 
     def __init__(self, response_data: Dict[str, Any] = None):
         self.response_data = response_data or {"content": "Mock response", "tokens": 10}
-        super().__init__("mock", api_keys="test", model="test-model")
+        super().__init__(api_keys="test", model="test-model")
 
     @property
     def default_model(self) -> str:

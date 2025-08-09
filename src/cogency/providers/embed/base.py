@@ -31,11 +31,11 @@ class Embed(ABC):
     ):
         # Auto-derive provider name from class name
         provider_name = self.__class__.__name__.lower().replace("embed", "")
-        
+
         # Automatic key management - handles single/multiple keys, rotation, env detection
         self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
-        
+
         # Validate parameters
         if model is None:
             raise ValueError(f"{self.__class__.__name__} must specify a model")
@@ -43,16 +43,16 @@ class Embed(ABC):
             raise ValueError(f"{self.__class__.__name__} must specify positive dimensionality")
         if not (0 <= timeout <= 300):
             raise ValueError("timeout must be between 0 and 300 seconds")
-        
+
         # Common embedding configuration
         self.model = model
         self.dimensionality = dimensionality
         self.timeout = timeout
         self.max_retries = max_retries
-        
+
         # Provider-specific kwargs
         self.extra_kwargs = kwargs
-        
+
         # Legacy compatibility
         self.api_key = self.keys.current
         self._should_retry = kwargs.get("should_retry", True)
@@ -80,7 +80,6 @@ class Embed(ABC):
             return Result.ok(empty_array)
         return Result.ok(np.array(embeddings))
 
-        
     def next_key(self) -> str:
         """Get next API key - rotates automatically on every call."""
         return self.keys.get_next()

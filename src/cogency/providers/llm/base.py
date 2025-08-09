@@ -47,11 +47,13 @@ class LLM(ABC):
         max_tokens: int = 16384,
         max_retries: int = 3,
         enable_cache: bool = True,
+        cache_ttl: int = 3600,  # 1 hour
+        cache_size: int = 1000,  # entries
         **kwargs,
     ):
         # Auto-derive provider name from class name
         provider_name = self.__class__.__name__.lower()
-        
+
         # Automatic key management - handles single/multiple keys, rotation, env detection
         self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
@@ -77,9 +79,12 @@ class LLM(ABC):
         # Provider-specific kwargs
         self.extra_kwargs = kwargs
 
-        # Cache instance
-        self._cache = LLMCache() if enable_cache else None
-
+        # Cache instance with configuration
+        self._cache = (
+            LLMCache(max_size=cache_size, ttl_seconds=cache_ttl, enable_stats=True)
+            if enable_cache
+            else None
+        )
 
     def next_key(self) -> str:
         """Get next API key - rotates automatically on every call."""

@@ -51,6 +51,8 @@ nomic = ">=3.5.3,<4.0.0"
 # Persistence providers
 aiosqlite = ">=0.20.0,<1.0.0"
 supabase = ">=2.0.0,<3.0.0"
+groq = "^0.31.0"
+ollama = "^0.5.3"
 
 
 [tool.poetry.extras]

@@ -21,7 +21,7 @@ class SessionMemory(Eval):
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = Path(temp_dir) / "test_memory.db"
 
-            # Create shared store for all sessions  
+            # Create shared store for all sessions
             store = Filesystem(db_path=str(db_path))
             memory_config = MemoryConfig(store=store)
             persist_config = PersistConfig(store=store)

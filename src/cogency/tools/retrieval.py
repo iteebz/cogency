@@ -4,7 +4,7 @@ import hashlib
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import numpy as np
 from resilient_result import Result
@@ -87,39 +87,49 @@ class Retrieval(Tool):
             await self._ensure_index()
 
             if not self._index:
-                return Result.ok({
-                    "results": [],
-                    "query": query,
-                    "total_results": 0,
-                    "message": f"No documents found in {self.path}",
-                    "results_summary": "No documents available for search",
-                })
+                return Result.ok(
+                    {
+                        "results": [],
+                        "query": query,
+                        "total_results": 0,
+                        "message": f"No documents found in {self.path}",
+                        "results_summary": "No documents available for search",
+                    }
+                )
 
             # Perform semantic search
             results = await self._search(query, k)
 
             if not results:
-                return Result.ok({
-                    "results": [],
-                    "query": query,
-                    "total_results": 0,
-                    "message": f"No relevant content found for '{query}'",
-                    "results_summary": "No relevant content found",
-                })
+                return Result.ok(
+                    {
+                        "results": [],
+                        "query": query,
+                        "total_results": 0,
+                        "message": f"No relevant content found for '{query}'",
+                        "results_summary": "No relevant content found",
+                    }
+                )
 
             # Format results summary for context
             results_summary = []
             for i, result in enumerate(results[:3], 1):  # Top 3 for summary
-                preview = result["content"][:200] + "..." if len(result["content"]) > 200 else result["content"]
+                preview = (
+                    result["content"][:200] + "..."
+                    if len(result["content"]) > 200
+                    else result["content"]
+                )
                 results_summary.append(f"{i}. {result['source']}: {preview}")
 
-            return Result.ok({
-                "results": results,
-                "query": query,
-                "total_results": len(results),
-                "message": f"Found {len(results)} relevant documents for '{query}'",
-                "results_summary": "\n".join(results_summary),
-            })
+            return Result.ok(
+                {
+                    "results": results,
+                    "query": query,
+                    "total_results": len(results),
+                    "message": f"Found {len(results)} relevant documents for '{query}'",
+                    "results_summary": "\n".join(results_summary),
+                }
+            )
 
         except Exception as e:
             logger.error(f"Retrieval search failed for query '{query}': {e}")
@@ -152,7 +162,7 @@ class Retrieval(Tool):
                 hasher.update(file_path.read_bytes())
             except Exception:
                 continue  # Skip files that can't be read
-        
+
         return hasher.hexdigest()
 
     def _discover_documents(self) -> List[Path]:
@@ -160,7 +170,17 @@ class Retrieval(Tool):
         if not self.path.exists():
             return []
 
-        supported_extensions = {'.txt', '.md', '.rst', '.py', '.js', '.ts', '.json', '.yaml', '.yml'}
+        supported_extensions = {
+            ".txt",
+            ".md",
+            ".rst",
+            ".py",
+            ".js",
+            ".ts",
+            ".json",
+            ".yaml",
+            ".yml",
+        }
         documents = []
 
         if self.path.is_file():
@@ -168,7 +188,7 @@ class Retrieval(Tool):
                 documents.append(self.path)
         else:
             for ext in supported_extensions:
-                documents.extend(self.path.rglob(f'*{ext}'))
+                documents.extend(self.path.rglob(f"*{ext}"))
 
         return sorted(documents)
 
@@ -187,7 +207,7 @@ class Retrieval(Tool):
         chunks = []
         for doc_path in documents:
             try:
-                content = doc_path.read_text(encoding='utf-8', errors='ignore')
+                content = doc_path.read_text(encoding="utf-8", errors="ignore")
                 doc_chunks = self._chunk_document(content, str(doc_path.relative_to(self.path)))
                 chunks.extend(doc_chunks)
             except Exception as e:
@@ -227,25 +247,27 @@ class Retrieval(Tool):
 
         chunks = []
         start = 0
-        
+
         while start < len(content):
             end = start + self.chunk_size
             chunk_text = content[start:end]
-            
+
             # Try to break at word boundaries
             if end < len(content):
-                last_space = chunk_text.rfind(' ')
+                last_space = chunk_text.rfind(" ")
                 if last_space > self.chunk_size * 0.8:  # Only if we don't lose too much
                     chunk_text = chunk_text[:last_space]
                     end = start + last_space
 
             if chunk_text.strip():
-                chunks.append({
-                    "content": chunk_text.strip(),
-                    "source": source,
-                    "start": start,
-                    "end": end,
-                })
+                chunks.append(
+                    {
+                        "content": chunk_text.strip(),
+                        "source": source,
+                        "start": start,
+                        "end": end,
+                    }
+                )
 
             start = end - self.chunk_overlap
             if start >= len(content):
@@ -273,27 +295,29 @@ class Retrieval(Tool):
 
         # Get top-k results
         top_indices = np.argsort(similarities)[::-1][:top_k]
-        
+
         results = []
         for idx in top_indices:
             chunk = self._index["chunks"][idx]
             similarity_score = float(similarities[idx])
-            
+
             # Only return results with reasonable similarity
             if similarity_score > 0.1:  # Threshold for relevance
-                results.append({
-                    "content": chunk["content"],
-                    "source": chunk["source"],
-                    "similarity_score": similarity_score,
-                    "start": chunk["start"],
-                    "end": chunk["end"],
-                })
+                results.append(
+                    {
+                        "content": chunk["content"],
+                        "source": chunk["source"],
+                        "similarity_score": similarity_score,
+                        "start": chunk["start"],
+                        "end": chunk["end"],
+                    }
+                )
 
         return results
 
     async def _get_embedder(self):
         """Get the configured embedding provider using canonical setup."""
         from cogency.providers.setup import _setup_embed
-        
+
         embed_class = _setup_embed(self.embed_model)
         return embed_class()

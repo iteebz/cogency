@@ -6,8 +6,6 @@ from typing import Optional, Union
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from cogency.utils.keys import KeyManager
-
 from .base import Embed
 
 logger = logging.getLogger(__name__)
@@ -16,15 +14,19 @@ logger = logging.getLogger(__name__)
 class NomicEmbed(Embed):
     """Nomic embedding provider with key rotation."""
 
-    def __init__(self, 
-                 api_keys: Union[str, list[str]] = None, 
-                 model: str = "nomic-embed-text-v2-moe", 
-                 dimensionality: int = 768,
-                 batch_size: int = 3,
-                 **kwargs):
+    def __init__(
+        self,
+        api_keys: Union[str, list[str]] = None,
+        model: str = "nomic-embed-text-v1.5",
+        dimensionality: int = 768,
+        batch_size: int = 3,
+        task_type: str = "search_query",
+        **kwargs,
+    ):
         super().__init__(api_keys=api_keys, model=model, dimensionality=dimensionality, **kwargs)
         self._initialized = False
         self._batch_size = batch_size
+        self._task_type = task_type
 
     def _init_client(self):
         """Initialize Nomic client with current key."""
@@ -93,10 +95,6 @@ class NomicEmbed(Embed):
         # Use provided batch size or default
         bsz = batch_size or self._batch_size
 
-        # Extract embedding parameters
-        model = kwargs.get("model", self.model)
-        dims = kwargs.get("dimensionality", self.dimensionality)
-
         try:
             from nomic import embed
 
@@ -109,14 +107,26 @@ class NomicEmbed(Embed):
                     batch = texts[i : i + bsz]
                     logger.debug(f"Processing batch {i // bsz + 1}/{(len(texts) + bsz - 1) // bsz}")
 
-                    batch_result = embed.text(texts=batch, model=model, dimensionality=dims)
+                    batch_result = embed.text(
+                        texts=batch,
+                        model=self.model,
+                        dimensionality=self.dimensionality,
+                        task_type=self._task_type,
+                        **kwargs,
+                    )
                     all_embeddings.extend(batch_result["embeddings"])
 
                 logger.info(f"Successfully embedded {len(texts)} texts")
                 return Ok([np.array(emb) for emb in all_embeddings])
             else:
                 # Single batch
-                result = embed.text(texts=texts, model=model, dimensionality=dims)
+                result = embed.text(
+                    texts=texts,
+                    model=self.model,
+                    dimensionality=self.dimensionality,
+                    task_type=self._task_type,
+                    **kwargs,
+                )
                 logger.info(f"Successfully embedded {len(texts)} texts")
                 return Ok([np.array(emb) for emb in result["embeddings"]])
 
@@ -128,7 +138,6 @@ class NomicEmbed(Embed):
                 logger.error("This might be an API key issue. Check your NOMIC_API_KEY.")
 
             return Err(e)
-
 
     def set_model(self, model: str, dims: int = 768):
         """
