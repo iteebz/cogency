@@ -102,7 +102,7 @@ def list_tools():
 
     print(f"\nTotal: {len(core_tools)} core tools available")
     print("\nUsage: Agent('assistant', tools=['files', 'shell'])")
-    print("Docs: https://github.com/teebee-ai/cogency/docs/tools.md")
+    print("Docs: https://github.com/iteebz/cogency/docs/tools.md")
 
 
 def init_project(name: str):
@@ -194,7 +194,7 @@ Edit `main.py` to customize your agent:
 - **Identity**: Define your agent's personality and role
 - **LLM**: Specify provider with `llm="gemini"` or `llm="openai"`
 
-See [Cogency docs](https://github.com/teebee-ai/cogency) for more options.
+See [Cogency docs](https://github.com/iteebz/cogency) for more options.
 """
 
     (project_path / "README.md").write_text(readme)

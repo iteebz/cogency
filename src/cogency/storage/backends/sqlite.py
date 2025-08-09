@@ -15,7 +15,11 @@ from .base import Store
 class SQLite(Store):
     """CANONICAL SQLite backend implementing Three-Horizon Split-State Model per docs/dev/state.md"""
 
-    def __init__(self, db_path: str = "cogency_state.db"):
+    def __init__(self, db_path: str = None):
+        if db_path is None:
+            cogency_dir = Path.home() / ".cogency"
+            cogency_dir.mkdir(exist_ok=True)
+            db_path = cogency_dir / "store.db"
         self.db_path = str(Path(db_path).expanduser().resolve())
         self.process_id = "default"
 

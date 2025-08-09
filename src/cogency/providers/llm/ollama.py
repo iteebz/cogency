@@ -13,11 +13,14 @@ class Ollama(LLM):
         model: str = "llama3.1:8b",
         temperature: float = 0.7,
         max_tokens: int = 16384,
+        timeout: float = 60.0,  # Local models need more time
         base_url: str = "http://localhost:11434/v1",
         **kwargs,
     ):
         # Universal params to base class
-        super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        super().__init__(
+            model=model, temperature=temperature, max_tokens=max_tokens, timeout=timeout, **kwargs
+        )
         # Ollama-specific params
         self.base_url = base_url
 
