@@ -1,11 +1,11 @@
-"""LLM response caching for performance optimization."""
+"""Provider response caching for LLM and embedding performance optimization."""
 
 import asyncio
 import hashlib
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -14,14 +14,15 @@ logger = logging.getLogger(__name__)
 class CacheEntry:
     """Single cache entry with metadata."""
 
-    response: str
+    response: Any  # String for LLM, numpy arrays for embeddings
     timestamp: float
     hit_count: int = 0
     tokens_saved: int = 0
+    cache_type: str = "llm"  # "llm" or "embed"
 
 
-class LLMCache:
-    """LLM response cache with TTL and size limits."""
+class Cache:
+    """Provider response cache with TTL and size limits - supports LLM and embedding caching."""
 
     def __init__(
         self,
@@ -36,10 +37,10 @@ class LLMCache:
         self._stats = {"hits": 0, "misses": 0, "evictions": 0, "total_tokens_saved": 0}
         self._lock = asyncio.Lock()
 
-    def _generate_key(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        """Generate cache key."""
-        # Create deterministic hash from messages and kwargs
-        content = str(messages) + str(sorted(kwargs.items()))
+    def _generate_key(self, input_data: Any, **kwargs) -> str:
+        """Generate cache key for any input type."""
+        # Create deterministic hash from input and kwargs
+        content = str(input_data) + str(sorted(kwargs.items()))
         key_length = 16
         return hashlib.sha256(content.encode()).hexdigest()[:key_length]
 
@@ -47,15 +48,22 @@ class LLMCache:
         """Check if cache entry has expired."""
         return time.time() - entry.timestamp > self._ttl_seconds
 
-    def _estimate_tokens(self, text: str) -> int:
-        """Rough token estimation (4 chars per token average)."""
-        return len(text) // 4
+    def _estimate_tokens(self, response: Any, cache_type: str = "llm") -> int:
+        """Rough token/dimension estimation."""
+        if cache_type == "llm":
+            return len(str(response)) // 4  # 4 chars per token average
+        elif cache_type == "embed":
+            # For embeddings, count total dimensions across all vectors
+            if hasattr(response, "__len__"):
+                return sum(len(emb) if hasattr(emb, "__len__") else 1 for emb in response)
+            return 1
+        return len(str(response)) // 4
 
-    async def get(self, messages: List[Dict[str, str]], **kwargs) -> Optional[str]:
+    async def get(self, input_data: Any, **kwargs) -> Optional[Any]:
         """Get cached response if available and valid."""
         from cogency.events import emit
 
-        cache_key = self._generate_key(messages, **kwargs)
+        cache_key = self._generate_key(input_data, **kwargs)
         emit("cache", level="debug", operation="get", key=cache_key[:8], status="checking")
 
         async with self._lock:
@@ -75,7 +83,7 @@ class LLMCache:
 
             # Update hit statistics
             entry.hit_count += 1
-            tokens_saved = self._estimate_tokens(entry.response)
+            tokens_saved = self._estimate_tokens(entry.response, entry.cache_type)
             entry.tokens_saved += tokens_saved
             self._stats["hits"] += 1
             self._stats["total_tokens_saved"] += tokens_saved
@@ -92,12 +100,12 @@ class LLMCache:
             logger.debug(f"Cache hit for key {cache_key[:8]}... (saved ~{tokens_saved} tokens)")
             return entry.response
 
-    async def set(self, messages: List[Dict[str, str]], response: str, **kwargs) -> None:
-        """Cache LLM response with metadata."""
+    async def set(self, input_data: Any, response: Any, cache_type: str = "llm", **kwargs) -> None:
+        """Cache provider response with metadata."""
         from cogency.events import emit
 
-        cache_key = self._generate_key(messages, **kwargs)
-        tokens = self._estimate_tokens(response)
+        cache_key = self._generate_key(input_data, **kwargs)
+        tokens = self._estimate_tokens(response, cache_type)
 
         emit(
             "cache",
@@ -113,7 +121,9 @@ class LLMCache:
             if len(self._cache) >= self._max_size:
                 await self._evict_oldest()
 
-            entry = CacheEntry(response=response, timestamp=time.time(), tokens_saved=0)
+            entry = CacheEntry(
+                response=response, timestamp=time.time(), tokens_saved=0, cache_type=cache_type
+            )
 
             self._cache[cache_key] = entry
             emit(
@@ -167,7 +177,7 @@ class LLMCache:
             emit("cache", level="debug", operation="clear", status="start", cache_size=cache_size)
             self._cache.clear()
             emit("cache", level="debug", operation="clear", status="complete", cleared=cache_size)
-            logger.info("LLM cache cleared")
+            logger.info("Provider cache cleared")
 
     def get_stats(self) -> Dict[str, Any]:
         """Get cache performance statistics."""

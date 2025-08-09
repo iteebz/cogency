@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
-from tests.fixtures.llm import MockLLM
+from tests.fixtures.provider import MockProvider
 
 
 @pytest.mark.asyncio
@@ -16,7 +16,7 @@ async def test_agent_defaults():
         # Mock runtime with executor
         mock_runtime = Mock()
         mock_executor = Mock()
-        mock_executor.llm = MockLLM()
+        mock_executor.provider = MockProvider()
         mock_executor.memory = None
         shell_tool = Mock()
         shell_tool.name = "shell"

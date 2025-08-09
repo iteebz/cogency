@@ -149,10 +149,10 @@ async def _synthesize_with_llm(
         from resilient_result import unwrap
 
         llm_result = await memory.llm.run([{"role": "user", "content": prompt}])
-        llm_response = unwrap(llm_result)
+        response = unwrap(llm_result)
 
         # Parse synthesis results
-        synthesis_data = _parse_synthesis_response(llm_response)
+        synthesis_data = _parse_synthesis_response(response)
 
         if synthesis_data:
             # Update user profile with synthesis results
@@ -177,11 +177,11 @@ async def _synthesize_with_llm(
         await memory.update_impression(user_id, interaction_data)
 
 
-def _parse_synthesis_response(llm_response: str) -> Optional[Dict[str, Any]]:
+def _parse_synthesis_response(response: str) -> Optional[Dict[str, Any]]:
     """Parse LLM synthesis response into structured data."""
     try:
         # Clean the response - remove any markdown formatting
-        clean_response = llm_response.strip()
+        clean_response = response.strip()
         if clean_response.startswith("```json"):
             clean_response = clean_response[7:]
         if clean_response.endswith("```"):
@@ -192,7 +192,7 @@ def _parse_synthesis_response(llm_response: str) -> Optional[Dict[str, Any]]:
         return synthesis_data
 
     except (json.JSONDecodeError, ValueError) as e:
-        emit("synthesis_parse_error", error=str(e), response_preview=llm_response[:200])
+        emit("synthesis_parse_error", error=str(e), response_preview=response[:200])
         return None
 
 

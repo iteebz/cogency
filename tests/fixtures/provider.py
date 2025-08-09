@@ -1,15 +1,16 @@
-"""LLM mock fixtures for testing."""
+"""Provider mock fixtures for testing."""
 
-from typing import Any, AsyncIterator, List
+from typing import Any, AsyncIterator, Dict, List, Union
 
+import numpy as np
 import pytest
-from resilient_result import Result
+from resilient_result import Err, Ok, Result
 
-from cogency.providers.llm import LLM
+from cogency.providers import Provider
 
 
-class MockLLM(LLM):
-    """Mock LLM for testing."""
+class MockProvider(Provider):
+    """Mock provider for testing."""
 
     def __init__(
         self,
@@ -26,7 +27,6 @@ class MockLLM(LLM):
         self.custom_impl = custom_impl
         self._model = model
         super().__init__(
-            provider_name="mock",
             api_keys=api_keys,
             enable_cache=enable_cache,
             model=model,
@@ -44,7 +44,7 @@ class MockLLM(LLM):
 
     async def _run_impl(self, messages, **kwargs) -> str:
         if self.should_fail:
-            raise Exception("Mock LLM failure")
+            raise Exception("Mock provider failure")
         if self.custom_impl:
             return self.custom_impl(messages, **kwargs)
         return self.response
@@ -53,14 +53,42 @@ class MockLLM(LLM):
         for char in self.response:
             yield char
 
+    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+        """Mock run method."""
+        if self.should_fail:
+            return Err(Exception("Mock provider failure"))
+        if self.custom_impl:
+            response = self.custom_impl(messages, **kwargs)
+        else:
+            response = self.response
+        return Ok(response)
 
-def mock_llm(response: str, **kwargs):
-    """Create a mock LLM with specified response."""
-    return MockLLM(response=response, **kwargs)
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+        """Mock stream method."""
+        async for chunk in self._stream_impl(messages, **kwargs):
+            yield chunk
+
+    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+        """Mock embed method - handles both string and list[str]."""
+        if self.should_fail:
+            return Err(Exception("Mock embed failure"))
+
+        # Generate mock embeddings
+        dimension = 384
+        mock_embedding = [0.1, 0.2, 0.3] * (dimension // 3)
+
+        if isinstance(text, str):
+            return Ok([np.array(mock_embedding)])
+        return Ok([np.array(mock_embedding) for _ in text])
 
 
-class RealisticMockLLM(LLM):
-    """Mock LLM with realistic response patterns for integration tests."""
+def mock_provider(response: str, **kwargs):
+    """Create a mock provider with specified response."""
+    return MockProvider(response=response, **kwargs)
+
+
+class RealisticMockProvider(Provider):
+    """Mock provider with realistic response patterns for integration tests."""
 
     def __init__(self, responses: List[str] = None, **kwargs):
         self.responses = responses or [
@@ -103,14 +131,38 @@ class RealisticMockLLM(LLM):
                 yield " "
             yield word
 
+    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+        """Realistic mock run method."""
+        from resilient_result import Ok
+
+        response = await self._run_impl(messages, **kwargs)
+        return Ok(response)
+
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+        """Realistic mock stream method."""
+        async for chunk in self._stream_impl(messages, **kwargs):
+            yield chunk
+
+    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+        """Realistic mock embed method."""
+        from resilient_result import Ok
+
+        # Generate realistic mock embeddings
+        dimension = 1536  # GPT-3 embedding dimension
+        mock_embedding = [0.1, -0.2, 0.3] * (dimension // 3)
+
+        if isinstance(text, str):
+            return Ok([np.array(mock_embedding)])
+        return Ok([np.array(mock_embedding) for _ in text])
+
 
 @pytest.fixture
-def mock_llm():
-    """Mock LLM instance."""
-    return MockLLM()
+def mock_provider():
+    """Mock provider instance."""
+    return MockProvider()
 
 
 @pytest.fixture
-def realistic_llm():
-    """Realistic mock LLM for integration tests."""
-    return RealisticMockLLM()
+def realistic_provider():
+    """Realistic mock provider for integration tests."""
+    return RealisticMockProvider()

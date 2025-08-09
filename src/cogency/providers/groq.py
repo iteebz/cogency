@@ -1,16 +1,20 @@
-"""Groq LLM provider - ultra-fast hardware inference with OpenAI compatibility."""
+"""Groq provider - ultra-fast hardware inference with OpenAI compatibility."""
 
 from typing import AsyncIterator, Dict, List
 
 import openai
+from resilient_result import Ok, Result
 
-from cogency.providers.llm.base import LLM
+from cogency.events import emit
+from cogency.observe.tokens import cost, count
+
+from .base import Provider
 
 
-class Groq(LLM):
+class Groq(Provider):
     def __init__(
         self,
-        model: str = "llama-3.3-70b-versatile",
+        llm_model: str = "llama-3.3-70b-versatile",
         temperature: float = 0.7,
         max_tokens: int = 16384,
         top_p: float = 1.0,
@@ -19,8 +23,8 @@ class Groq(LLM):
         **kwargs,
     ):
         # Universal params to base class
-        super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
-        # Provider-specific params handled locally
+        super().__init__(model=llm_model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        # Provider-specific params
         self.top_p = top_p
         self.frequency_penalty = frequency_penalty
         self.presence_penalty = presence_penalty
@@ -33,7 +37,16 @@ class Groq(LLM):
             max_retries=self.max_retries,
         )
 
-    async def _run_impl(self, messages: List[Dict[str, str]], **kwargs) -> str:
+    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+        """Generate LLM response with metrics and caching."""
+        tin = count(messages, self.model)
+
+        # Check cache first
+        if self._cache:
+            cached_response = await self._cache.get(messages, **kwargs)
+            if cached_response:
+                return Ok(cached_response)
+
         client = self._get_client()
         res = await client.chat.completions.create(
             model=self.model,
@@ -45,9 +58,26 @@ class Groq(LLM):
             presence_penalty=self.presence_penalty,
             **kwargs,
         )
-        return res.choices[0].message.content
+        response = res.choices[0].message.content
 
-    async def _stream_impl(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+        tout = count([{"role": "assistant", "content": response}], self.model)
+        emit(
+            "provider",
+            provider=self.provider_name,
+            model=self.model,
+            tin=tin,
+            tout=tout,
+            cost=cost(tin, tout, self.model),
+        )
+
+        # Cache response
+        if self._cache:
+            await self._cache.set(messages, response, cache_type="llm", **kwargs)
+
+        return Ok(response)
+
+    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+        """Generate streaming LLM response."""
         client = self._get_client()
         stream = await client.chat.completions.create(
             model=self.model,

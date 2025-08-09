@@ -7,7 +7,7 @@ from typing import Any, Dict
 import pytest
 from jsonschema import ValidationError, validate
 
-from tests.fixtures.llm import MockLLM, RealisticMockLLM
+from tests.fixtures.provider import MockProvider, RealisticMockProvider
 from tests.fixtures.store import InMemoryStore
 
 
@@ -21,14 +21,14 @@ def validate_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> bool:
 
 
 @pytest.mark.asyncio
-async def test_llm_response_schema_validation(validation_schemas):
+async def test_response_schema_validation(validation_schemas):
     """Validate LLM responses conform to expected schema."""
-    llm = RealisticMockLLM()
-    schema = validation_schemas["llm_response"]
+    provider = RealisticMockProvider()
+    schema = validation_schemas["response"]
 
     # Test basic response
     messages = [{"role": "user", "content": "test query"}]
-    response = await llm.run(messages)
+    response = await provider.run(messages)
 
     assert response.success
 
@@ -36,7 +36,7 @@ async def test_llm_response_schema_validation(validation_schemas):
     response_data = {
         "content": response.data,
         "tokens": 42,  # Mock token count
-        "model": llm.default_model,
+        "model": provider.default_model,
     }
 
     assert validate_schema(response_data, schema)
@@ -92,7 +92,7 @@ async def test_tool_response_schema_validation(validation_schemas, mock_tool):
 
 def test_invalid_schema_rejection(validation_schemas):
     """Verify invalid data is properly rejected."""
-    schema = validation_schemas["llm_response"]
+    schema = validation_schemas["response"]
 
     # Missing required field
     invalid_data = {

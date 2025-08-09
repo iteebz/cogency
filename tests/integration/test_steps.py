@@ -7,8 +7,8 @@ import pytest
 from resilient_result import Result
 
 
-class MockMultiStepLLM:
-    """Mock LLM that simulates complex multi-step reasoning."""
+class MockMultiStepProvider:
+    """Mock provider that simulates complex multi-step reasoning."""
 
     def __init__(self):
         self.step = 0
@@ -95,11 +95,11 @@ async def test_multi_step(base_agent):
     """Test agent can perform complex multi-step reasoning tasks."""
 
     # Setup mocks
-    mock_llm = MockMultiStepLLM()
+    mock_provider = MockMultiStepProvider()
     mock_bash = MockBashTool()
 
     # Create agent
-    agent = base_agent(llm=mock_llm, tools=[mock_bash], max_iterations=8)
+    agent = base_agent(provider=mock_provider, tools=[mock_bash], max_iterations=8)
 
     # Run complex analysis task
     result = await agent.run_async(
@@ -108,7 +108,7 @@ async def test_multi_step(base_agent):
 
     # Verify multi-step execution succeeded
     assert result.success, f"Multi-step reasoning should succeed: {result.error}"
-    assert mock_llm.step >= 4, "Should execute multiple reasoning steps"
+    assert mock_provider.step >= 4, "Should execute multiple reasoning steps"
 
     # Verify final result indicates completion
     final_response = result.data.lower()
@@ -131,7 +131,7 @@ async def test_with_failures(base_agent):
             else:
                 return Result.ok(f"Command output for: {command}")
 
-    class RecoveryLLM:
+    class RecoveryProvider:
         def __init__(self):
             self.step = 0
 
@@ -150,7 +150,9 @@ async def test_with_failures(base_agent):
             else:
                 return Result.ok("Analysis complete using alternative methods.")
 
-    agent = base_agent(llm=RecoveryLLM(), tools=[SometimesFailingBash()], max_iterations=6)
+    agent = base_agent(
+        provider=RecoveryProvider(), tools=[SometimesFailingBash()], max_iterations=6
+    )
 
     result = await agent.run_async("Analyze system configuration files")
 

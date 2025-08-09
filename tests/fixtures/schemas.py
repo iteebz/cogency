@@ -16,7 +16,7 @@ def validation_schemas():
             },
             "required": ["tool_name", "args"],
         },
-        "llm_response": {
+        "response": {
             "type": "object",
             "properties": {
                 "content": {"type": "string", "minLength": 1},

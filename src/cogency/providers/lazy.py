@@ -2,24 +2,24 @@
 
 
 def _llm_base():
-    """Lazy import LLM base."""
-    from .llm.base import LLM
+    """Lazy import Provider base - backwards compatibility."""
+    from .base import Provider
 
-    return LLM
+    return Provider
 
 
 def _embed_base():
-    """Lazy import embed base."""
-    from .embed.base import Embed
+    """Lazy import Provider base - backwards compatibility."""
+    from .base import Provider
 
-    return Embed
+    return Provider
 
 
 def _llm_cache():
-    """Lazy import LLM cache."""
-    from .llm.cache import LLMCache
+    """Lazy import Cache."""
+    from .cache import Cache
 
-    return LLMCache
+    return Cache
 
 
 def _llms():
@@ -27,29 +27,36 @@ def _llms():
     providers = {}
 
     # OpenAI is always available (core dependency)
-    from .llm import OpenAI
+    from .openai import OpenAI
 
     providers["openai"] = OpenAI
 
     # Optional providers with graceful failure
     try:
-        from .llm import Anthropic
+        from .anthropic import Anthropic
 
         providers["anthropic"] = Anthropic
     except ImportError:
         pass
 
     try:
-        from .llm import Gemini
+        from .gemini import Gemini
 
         providers["gemini"] = Gemini
     except ImportError:
         pass
 
     try:
-        from .llm import Mistral
+        from .mistral import Mistral
 
         providers["mistral"] = Mistral
+    except ImportError:
+        pass
+
+    try:
+        from .ollama import Ollama
+
+        providers["ollama"] = Ollama
     except ImportError:
         pass
 
@@ -61,23 +68,23 @@ def _embedders():
     providers = {}
 
     try:
-        from .embed.openai import OpenAIEmbed
+        from .openai import OpenAI
 
-        providers["openai"] = OpenAIEmbed
+        providers["openai"] = OpenAI
     except ImportError:
         pass
 
     try:
-        from .embed.nomic import NomicEmbed
+        from .nomic import Nomic
 
-        providers["nomic"] = NomicEmbed
+        providers["nomic"] = Nomic
     except ImportError:
         pass
 
     try:
-        from .embed.mistral import MistralEmbed
+        from .mistral import Mistral
 
-        providers["mistral"] = MistralEmbed
+        providers["mistral"] = Mistral
     except ImportError:
         pass
 

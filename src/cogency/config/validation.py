@@ -17,7 +17,7 @@ def _init_advanced_config(**config) -> Dict[str, Any]:
     known_keys = {
         "identity": None,
         "output_schema": None,
-        "llm": None,
+        "provider": None,
         "embed": None,
         "mode": "adapt",
         "max_iterations": 10,

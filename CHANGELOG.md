@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1] - 2025-08-09
+**Provider Consolidation**
+
+- **Unified Provider ABC** - Single base class for LLM + embedding capabilities
+- **8 Production providers** - OpenAI, Anthropic, Mistral, Gemini, OpenRouter, Groq, Nomic, Ollama
+- **Semantic parameters** - `llm_model`/`embed_model` over generic `model`
+
 ## [1.2.0] - 2025-08-09
 **Provider Ecosystem + RAG**
 

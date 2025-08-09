@@ -12,9 +12,9 @@ from cogency.state import State
 from .fixtures import (
     base_agent,
     in_memory_store,
-    mock_llm,
+    mock_provider,
     mock_tool,
-    realistic_llm,
+    realistic_provider,
     tools,
     validation_schemas,
 )

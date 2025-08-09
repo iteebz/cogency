@@ -1,36 +1,37 @@
 """Nomic embedding provider - text vectorization with key rotation."""
 
 import logging
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from .base import Embed
+from .base import Provider
 
 logger = logging.getLogger(__name__)
 
 
-class NomicEmbed(Embed):
+class Nomic(Provider):
     """Nomic embedding provider with key rotation."""
 
     def __init__(
         self,
-        api_keys: Union[str, list[str]] = None,
-        model: str = "nomic-embed-text-v1.5",
+        api_keys: Union[str, List[str]] = None,
+        embed_model: str = "nomic-embed-text-v1.5",
         dimensionality: int = 768,
         batch_size: int = 3,
         task_type: str = "search_query",
         **kwargs,
     ):
-        super().__init__(api_keys=api_keys, model=model, dimensionality=dimensionality, **kwargs)
+        super().__init__(api_keys=api_keys, model=embed_model, **kwargs)
         self._initialized = False
         self._batch_size = batch_size
         self._task_type = task_type
+        self.dimensionality = dimensionality
 
     def _init_client(self):
         """Initialize Nomic client with current key."""
-        current_key = self.key_rotator.get_key() if self.key_rotator else self.api_key
+        current_key = self.next_key()
         if current_key:
             try:
                 import nomic
@@ -49,19 +50,20 @@ class NomicEmbed(Embed):
 
     def _rotate_client(self):
         """Rotate to the next key and re-initialize the client."""
-        if self.keys.has_multiple():
+        if self.keys.key_rotator:
             self._init_client()
 
     def _ensure_initialized(self) -> None:
         """Initialize Nomic API connection if not already done"""
         if not self._initialized:
-            if not self.api_key:
-                raise ValueError("NOMIC_API_KEY required for NomicEmbed")
+            api_key = self.next_key()
+            if not api_key:
+                raise ValueError("NOMIC_API_KEY required for Nomic")
 
             try:
                 import nomic
 
-                nomic.login(self.api_key)
+                nomic.login(api_key)
                 self._initialized = True
                 logger.info("Nomic API initialized")
             except ImportError:
@@ -69,23 +71,16 @@ class NomicEmbed(Embed):
                     "nomic package required. Install with: pip install nomic"
                 ) from None
 
-    def embed(self, text: str | list[str], batch_size: Optional[int] = None, **kwargs) -> Result:
-        """Embed text(s) - handles both single strings and lists."""
-        if self._should_retry:
-            from resilient_result import Retry, resilient
-
-            @resilient(retry=Retry.api())
-            def _resilient_embed():
-                return self._embed_impl(text, batch_size, **kwargs)
-
-            return _resilient_embed()
-        return self._embed_impl(text, batch_size, **kwargs)
-
-    def _embed_impl(
-        self, text: str | list[str], batch_size: Optional[int] = None, **kwargs
+    async def embed(
+        self, text: Union[str, List[str]], batch_size: Optional[int] = None, **kwargs
     ) -> Result:
-        """Internal embed implementation."""
-        self._rotate_client()
+        """Embed text(s) - handles both single strings and lists."""
+        # Check cache first
+        if self._cache:
+            cached_response = await self._cache.get(text, model=self.model, **kwargs)
+            if cached_response:
+                return Ok(cached_response)
+
         self._ensure_initialized()
 
         texts = [text] if isinstance(text, str) else text
@@ -117,7 +112,15 @@ class NomicEmbed(Embed):
                     all_embeddings.extend(batch_result["embeddings"])
 
                 logger.info(f"Successfully embedded {len(texts)} texts")
-                return Ok([np.array(emb) for emb in all_embeddings])
+                result = [np.array(emb) for emb in all_embeddings]
+
+                # Cache result
+                if self._cache:
+                    await self._cache.set(
+                        text, result, cache_type="embed", model=self.model, **kwargs
+                    )
+
+                return Ok(result)
             else:
                 # Single batch
                 result = embed.text(
@@ -128,7 +131,15 @@ class NomicEmbed(Embed):
                     **kwargs,
                 )
                 logger.info(f"Successfully embedded {len(texts)} texts")
-                return Ok([np.array(emb) for emb in result["embeddings"]])
+                result_embeddings = [np.array(emb) for emb in result["embeddings"]]
+
+                # Cache result
+                if self._cache:
+                    await self._cache.set(
+                        text, result_embeddings, cache_type="embed", model=self.model, **kwargs
+                    )
+
+                return Ok(result_embeddings)
 
         except Exception as e:
             logger.error(f"Embedding failed: {e}")
@@ -148,6 +159,5 @@ class NomicEmbed(Embed):
             dims: Embedding dimensions
         """
         self.model = model
-        # Update base class dimensionality through property
-        super().__init__(api_keys=self.keys.api_key, model=model, dimensionality=dims)
+        self.dimensionality = dims
         logger.info(f"Model set to {model} with {dims} dimensions")

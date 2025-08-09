@@ -1,38 +1,43 @@
-"""LLM and embedding provider management.
+"""Unified provider management - LLM and embedding capabilities.
 
-This module handles automatic discovery and setup of AI providers (LLM and embedding).
+This module handles automatic discovery and setup of AI providers.
 It provides:
 
-- LLM: Base class for language model providers
-- Embed: Base class for embedding providers
-- LLMCache: Caching layer for LLM responses
+- Provider: Unified base class supporting LLM and/or embedding capabilities
+- Cache: Caching layer for both LLM responses and embeddings
 - Automatic provider detection based on available API keys
 - Lazy loading of optional provider dependencies
 
-The module supports OpenAI (core), Anthropic, Gemini, Mistral (optional extras).
+The module supports OpenAI, Anthropic, Gemini, Mistral, Ollama (core), and Nomic (optional extras).
 Providers are auto-detected based on available imports and API keys.
 
 Note: Provider instances are typically created automatically by Agent initialization.
 """
 
-# Public: Base classes for creating custom providers
-from .lazy import _embed_base, _llm_base, _llm_cache
-
-
-def __getattr__(name):
-    """Lazy loading for module attributes."""
-    if name == "LLM":
-        return _llm_base()
-    elif name == "Embed":
-        return _embed_base()
-    elif name == "LLMCache":
-        return _llm_cache()
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-
+# Public: Unified base class and cache for creating custom providers
+# Concrete provider implementations
+from .anthropic import Anthropic
+from .base import Provider
+from .cache import Cache
+from .gemini import Gemini
+from .groq import Groq
+from .mistral import Mistral
+from .nomic import Nomic
+from .ollama import Ollama
+from .openai import OpenAI
+from .openrouter import OpenRouter
 
 __all__ = [
-    # Public provider base classes for extensions
-    "LLM",
-    "Embed",
-    "LLMCache",
+    # Public provider base class for extensions
+    "Provider",
+    "Cache",
+    # Concrete providers
+    "Anthropic",
+    "Gemini",
+    "Groq",
+    "Mistral",
+    "Nomic",
+    "Ollama",
+    "OpenAI",
+    "OpenRouter",
 ]

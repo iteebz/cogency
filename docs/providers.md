@@ -5,13 +5,15 @@ Cogency supports multiple LLM and embedding providers with unified interfaces an
 ## LLM Providers
 
 ```python
-from cogency.providers.llm import OpenAI, Anthropic, Mistral, Gemini, Ollama
+from cogency.providers import OpenAI, Anthropic, Mistral, Gemini, Ollama, OpenRouter, Groq, Nomic
 
 # Cost-optimized defaults
 llm = OpenAI()  # gpt-4o-mini
-llm = Anthropic()  # claude-3-5-haiku-20241022
+llm = Anthropic()  # claude-3-5-haiku
 llm = Mistral()  # mistral-small-latest
 llm = Gemini()  # gemini-2.0-flash-exp
+llm = OpenRouter()  # anthropic/claude-3.5-haiku
+llm = Groq()  # llama-3.3-70b-versatile
 llm = Ollama()  # llama3.3
 
 # Custom configuration
@@ -59,22 +61,24 @@ llm = Anthropic(
 ## Embedding Providers
 
 ```python
-from cogency.providers.embed import NomicEmbed, OpenAIEmbed, MistralEmbed
+# Unified providers support both LLM and embedding
+from cogency.providers import OpenAI, Mistral, Gemini, Nomic
 
-# Cost-optimized defaults
-embed = NomicEmbed()  # nomic-embed-text-v2-moe, 768D
-embed = OpenAIEmbed()  # text-embedding-3-small, 1536D
-embed = MistralEmbed()  # mistral-embed, 1024D
+# Cost-optimized embedding defaults
+embed = Nomic()  # nomic-embed-text-v1.5, 768D
+embed = OpenAI()  # text-embedding-3-small, 1536D
+embed = Mistral()  # mistral-embed, 1024D
+embed = Gemini()  # gemini-embedding-001, 768D
 
 # Custom configuration
-embed = NomicEmbed(
-    model="nomic-embed-text-v2",
+embed = Nomic(
+    embed_model="nomic-embed-text-v1.5",
     dimensionality=512,
     batch_size=10
 )
 
-embed = OpenAIEmbed(
-    model="text-embedding-3-large",
+embed = OpenAI(
+    embed_model="text-embedding-3-large",
     dimensionality=3072
 )
 ```
@@ -88,6 +92,10 @@ embed = OpenAIEmbed(
 
 **Nomic**
 - `batch_size`: Processing batch size
+- `task_type`: Embedding task type
+
+**OpenAI, Mistral, Gemini**
+- Provider-specific embedding models and dimensions
 
 ## Key Management
 
@@ -110,6 +118,8 @@ Environment variables:
 - `MISTRAL_API_KEY`
 - `GOOGLE_API_KEY`
 - `NOMIC_API_KEY`
+- `GROQ_API_KEY`
+- `OPENROUTER_API_KEY`
 
 ## Usage
 
@@ -127,8 +137,12 @@ print(response.data)
 async for chunk in llm.stream(messages):
     print(chunk, end="")
 
-# Embedding
-result = embed.embed("Hello world")
+# Embedding (single text)
+result = await embed.embed("Hello world")
+vectors = result.data  # List of numpy arrays
+
+# Embedding (multiple texts)
+result = await embed.embed(["Hello", "world"])
 vectors = result.data  # List of numpy arrays
 ```
 

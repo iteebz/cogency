@@ -6,7 +6,7 @@ import pytest
 
 from cogency import Agent, MemoryConfig
 from cogency.storage.backends.sqlite import SQLite
-from tests.fixtures.llm import MockLLM
+from tests.fixtures.provider import MockProvider
 
 
 def create_memory_agent(name="test", **kwargs):
@@ -27,10 +27,10 @@ async def test_memory_session_continuity():
 
         # Setup shared store and synthesizer
         store = InMemoryStore()
-        synthesis_llm = MockLLM(
+        provider = MockProvider(
             response='{"preferences": {"language": "TypeScript"}, "goals": ["React development"], "expertise": ["frontend"]}'
         )
-        synthesizer = ImpressionSynthesizer(synthesis_llm, store=store)
+        synthesizer = ImpressionSynthesizer(provider, store=store)
         synthesizer.synthesis_threshold = 1  # Synthesize every interaction
 
         user_id = "test_user_continuity"
@@ -76,10 +76,10 @@ async def test_memory_multi_user_isolation():
 
         # Shared store and synthesizer
         store = InMemoryStore()
-        synthesis_llm = MockLLM(
+        provider = MockProvider(
             response='{"preferences": {"language": "Python"}, "expertise": ["backend"]}'
         )
-        synthesizer = ImpressionSynthesizer(synthesis_llm, store=store)
+        synthesizer = ImpressionSynthesizer(provider, store=store)
 
         # User 1 interaction
         user1_interaction = {
@@ -89,11 +89,11 @@ async def test_memory_multi_user_isolation():
         }
         profile1 = await synthesizer.update_impression("user_1", user1_interaction)
 
-        # User 2 interaction with different LLM response
-        synthesis_llm_user2 = MockLLM(
+        # User 2 interaction with different provider response
+        provider_2 = MockProvider(
             response='{"preferences": {"language": "Go"}, "expertise": ["systems"]}'
         )
-        synthesizer2 = ImpressionSynthesizer(synthesis_llm_user2, store=store)
+        synthesizer2 = ImpressionSynthesizer(provider_2, store=store)
 
         user2_interaction = {
             "query": "I prefer Go for systems programming",
@@ -162,10 +162,10 @@ async def test_synthesis_step_integration():
 
         # Setup
         store = InMemoryStore()
-        synthesis_llm = MockLLM(
+        provider = MockProvider(
             response='{"preferences": {"framework": "React"}, "goals": ["Build web apps"]}'
         )
-        memory = ImpressionSynthesizer(synthesis_llm, store=store)
+        memory = ImpressionSynthesizer(provider, store=store)
 
         # Create user profile with synthesis triggers
         user_profile = UserProfile(user_id="integration_test")
@@ -203,8 +203,8 @@ async def test_synthesis_lifecycle_complete():
 
         # Setup components
         store = InMemoryStore()
-        synthesis_llm = MockLLM(response='{"synthesis": "complete"}')
-        memory = ImpressionSynthesizer(synthesis_llm, store=store)
+        provider = MockProvider(response='{"synthesis": "complete"}')
+        memory = ImpressionSynthesizer(provider, store=store)
 
         # Test Case 1: Threshold trigger
         profile_threshold = UserProfile(user_id="threshold_user")

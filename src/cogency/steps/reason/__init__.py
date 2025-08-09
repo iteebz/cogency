@@ -13,7 +13,7 @@ from resilient_result import unwrap
 
 from cogency.events import emit
 from cogency.observe import observe
-from cogency.providers import LLM
+from cogency.providers import Provider
 from cogency.resilience import resilience
 from cogency.state import State
 from cogency.tools import Tool
@@ -30,7 +30,7 @@ from .core import (
 @resilience
 async def reason(
     state: State,
-    llm: LLM,
+    provider: Provider,
     tools: List[Tool],
     memory,  # Impression instance or None
     identity: str = None,
@@ -66,7 +66,7 @@ async def reason(
     # Execute LLM call
     messages = build_messages(prompt, state)
     await asyncio.sleep(0)  # Yield for UI
-    llm_result = await llm.run(messages)
+    llm_result = await provider.run(messages)
     raw_response = unwrap(llm_result)
 
     # Parse and update state
@@ -106,7 +106,7 @@ async def reason(
     # Handle direct response only if no tool calls
     if state.execution.response:
         # Apply output schema and identity if needed
-        final_response = await _finalize_response(state, llm, identity, output_schema)
+        final_response = await _finalize_response(state, provider, identity, output_schema)
         emit("reason", state="direct_response", content=final_response[:100])
         return final_response
 
@@ -115,7 +115,7 @@ async def reason(
 
 async def _finalize_response(
     state: State,
-    llm: LLM,
+    provider: Provider,
     identity: Optional[str],
     output_schema: Optional[str],
 ) -> str:
@@ -165,7 +165,7 @@ async def _finalize_response(
         {"role": "assistant", "content": response},
     ]
 
-    llm_result = await llm.run(messages)
+    llm_result = await provider.run(messages)
     final_response = unwrap(llm_result)
 
     return secure_response(final_response)

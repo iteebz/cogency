@@ -158,7 +158,11 @@ class Agent:
         """
         from cogency.events import get_logs
 
-        # Handle deprecated parameters and determine summary mode
+        # If mode is explicitly provided, use it directly without summary override
+        if mode is not None:
+            return get_logs(mode=mode, type=type, step=step, errors_only=errors_only, last=last)
+
+        # Handle deprecated parameters and determine summary mode for backward compatibility
         if raw is True or errors_only:
             summary = False
         else:

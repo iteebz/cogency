@@ -10,8 +10,8 @@ from cogency.state.agent import UserProfile
 class ImpressionSynthesizer:
     """LLM-driven user understanding synthesis."""
 
-    def __init__(self, llm, store=None):
-        self.llm = llm
+    def __init__(self, provider, store=None):
+        self.provider = provider
         self.store = store
         self.synthesis_threshold = 3  # Synthesize every N interactions
         self.current_user_id = "default"  # Track current user for load/remember

@@ -1,86 +1,88 @@
-"""Test LLM caching functionality."""
+"""Provider cache unit tests."""
 
 import pytest
 
-from cogency.providers import LLMCache
-
-
-def test_creation():
-    cache = LLMCache()
-    assert cache.is_enabled()
-    assert cache._max_size == 1000
-    assert cache._ttl_seconds == 3600
-
-
-def test_disabled():
-    cache = LLMCache(max_size=0)
-    assert not cache.is_enabled()
+from cogency.providers import Cache
 
 
 @pytest.mark.asyncio
-async def test_miss():
-    cache = LLMCache()
-    messages = [{"role": "user", "content": "Hello"}]
+async def test_cache_basic_operations():
+    """Test basic cache set/get/clear operations."""
+    cache = Cache()
+    await cache.clear()
 
-    # Should be a miss initially
-    result = await cache.get(messages)
-    assert result is None
+    # Test set and get
+    input_data = {"messages": [{"role": "user", "content": "test"}]}
+    response = "test response"
 
-    # Set a value
-    await cache.set(messages, "Test response")
+    await cache.set(input_data, response)
+    cached = await cache.get(input_data)
 
-    # Should be a hit now
-    result = await cache.get(messages)
-    assert result == "Test response"
-
-
-@pytest.mark.asyncio
-async def test_key_gen():
-    cache = LLMCache()
-    messages1 = [{"role": "user", "content": "Hello"}]
-    messages2 = [{"role": "user", "content": "Hello"}]
-    messages3 = [{"role": "user", "content": "Hi"}]
-
-    key1 = cache._generate_key(messages1)
-    key2 = cache._generate_key(messages2)
-    key3 = cache._generate_key(messages3)
-
-    assert key1 == key2  # Same content should have same key
-    assert key1 != key3  # Different content should have different keys
+    assert cached is not None
+    assert cached == response
 
 
 @pytest.mark.asyncio
-async def test_stats():
-    cache = LLMCache()
-    messages = [{"role": "user", "content": "Hello"}]
+async def test_cache_stats():
+    """Test cache statistics tracking."""
+    cache = Cache()
+    await cache.clear()
 
-    # Initial stats
+    # Initially no hits or misses
     stats = cache.get_stats()
     assert stats["hits"] == 0
     assert stats["misses"] == 0
+    assert stats["hit_rate"] == 0.0
+
+    input_data = {"test": "data"}
 
     # Miss
-    await cache.get(messages)
+    result = await cache.get(input_data)
+    assert result is None
     stats = cache.get_stats()
     assert stats["misses"] == 1
+    assert stats["hits"] == 0
 
     # Set and hit
-    await cache.set(messages, "Response")
-    result = await cache.get(messages)
-    assert result == "Response"
-
+    await cache.set(input_data, "response")
+    result = await cache.get(input_data)
+    assert result is not None
     stats = cache.get_stats()
     assert stats["hits"] == 1
-    assert stats["hit_rate"] == 0.5  # 1 hit out of 2 total requests
+    assert stats["misses"] == 1
+    assert stats["hit_rate"] == 0.5
 
 
 @pytest.mark.asyncio
-async def test_clear():
-    cache = LLMCache()
-    messages = [{"role": "user", "content": "Hello"}]
-
-    await cache.set(messages, "Response")
-    assert await cache.get(messages) == "Response"
-
+async def test_cache_different_keys():
+    """Test that different input data creates different cache entries."""
+    cache = Cache()
     await cache.clear()
-    assert await cache.get(messages) is None
+
+    input1 = {"test": "data1"}
+    input2 = {"test": "data2"}
+
+    await cache.set(input1, "response1")
+    await cache.set(input2, "response2")
+
+    result1 = await cache.get(input1)
+    result2 = await cache.get(input2)
+
+    assert result1 == "response1"
+    assert result2 == "response2"
+
+
+@pytest.mark.asyncio
+async def test_cache_clear():
+    """Test cache clearing functionality."""
+    cache = Cache()
+
+    # Add some data
+    await cache.set({"test": "data"}, "response")
+    result = await cache.get({"test": "data"})
+    assert result is not None
+
+    # Clear and verify empty
+    await cache.clear()
+    result = await cache.get({"test": "data"})
+    assert result is None

@@ -4,23 +4,22 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Type
 
-from cogency.utils.registry import Provider
+from cogency.utils.registry import Provider as Registry
 
 from .detection import _detect_llm, _detect_provider
 from .lazy import _embedders, _llms
 
 if TYPE_CHECKING:
-    from cogency.providers.embed.base import Embed
-    from cogency.providers.llm.base import LLM
+    from .base import Provider
 
 
 # Provider registries with zero ceremony defaults
-_llm_provider = Provider(
+_llm_provider = Registry(
     _llms,
     detect_fn=_detect_llm,
 )
 
-_embed_provider = Provider(
+_embed_provider = Registry(
     _embedders,
     detect_fn=lambda: _detect_provider(
         {
@@ -33,17 +32,16 @@ _embed_provider = Provider(
 )
 
 
-def _setup_llm(provider: str | LLM | None = None) -> LLM:
+def _setup_llm(provider: str | Provider | None = None) -> Provider:
     """Setup LLM provider with lazy discovery."""
     from cogency.events import emit
 
-    from .lazy import _llm_base
+    from .base import Provider as ProviderBase
 
     emit("provider", type="llm", operation="setup", provider=str(provider), status="start")
 
     try:
-        _llm_base = _llm_base()
-        if isinstance(provider, _llm_base):
+        if isinstance(provider, ProviderBase):
             emit(
                 "provider",
                 type="llm",
@@ -89,7 +87,7 @@ def _setup_llm(provider: str | LLM | None = None) -> LLM:
         raise
 
 
-def _setup_embed(provider: str | None = None) -> Type[Embed]:
+def _setup_embed(provider: str | None = None) -> Type[Provider]:
     """Setup embedding provider with lazy discovery."""
     from cogency.events import emit
 
@@ -98,11 +96,11 @@ def _setup_embed(provider: str | None = None) -> Type[Embed]:
     try:
         embed_class = _embed_provider.get(provider)
 
-        def create_embed(**kwargs):
+        def create_provider(**kwargs):
             return embed_class(**kwargs)
 
-        create_embed.__name__ = embed_class.__name__
-        create_embed.__qualname__ = embed_class.__qualname__
+        create_provider.__name__ = embed_class.__name__
+        create_provider.__qualname__ = embed_class.__qualname__
 
         emit(
             "provider",
@@ -111,7 +109,7 @@ def _setup_embed(provider: str | None = None) -> Type[Embed]:
             provider=embed_class.__name__,
             status="complete",
         )
-        return create_embed
+        return create_provider
 
     except Exception as e:
         emit(

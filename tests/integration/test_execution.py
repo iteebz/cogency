@@ -12,7 +12,7 @@ from cogency.steps.reason import reason
 from cogency.tools.base import Tool
 from cogency.tools.shell import Shell
 from cogency.utils.parsing import _parse_tool_calls as parse_tool_calls
-from tests.fixtures.llm import MockLLM
+from tests.fixtures.provider import MockProvider
 
 
 class MockTool(Tool):
@@ -67,7 +67,7 @@ async def test_execution_errors():
 @pytest.mark.asyncio
 async def test_reason_response_output():
     """Test reason step produces conversational text when completing."""
-    mock_llm = AsyncMock()
+    mock_provider = AsyncMock()
 
     async def mock_run(*args, **kwargs):
         from resilient_result import Result
@@ -76,11 +76,11 @@ async def test_reason_response_output():
             '{"thinking": "This is a simple weather question", "tool_calls": [], "response": "The weather is sunny today!"}'
         )
 
-    mock_llm.run = mock_run
+    mock_provider.run = mock_run
 
     state = State(query="weather?", user_id="test")
 
-    result = await reason(state, llm=mock_llm, tools=[], memory=None)
+    result = await reason(state, provider=mock_provider, tools=[], memory=None)
 
     # Unwrap result like production code does
     response = unwrap(result)
@@ -127,12 +127,12 @@ def state():
 @pytest.mark.asyncio
 async def test_reason_direct(state):
     """Test reason step when it can answer directly."""
-    llm = MockLLM()
-    llm.run = AsyncMock(
+    provider = MockProvider()
+    provider.run = AsyncMock(
         return_value=Result.ok('{"reasoning": "I can answer this directly: 2 + 2 = 4"}')
     )
 
-    await reason(state, llm=llm, tools=[], memory=None)
+    await reason(state, provider=provider, tools=[], memory=None)
 
     # Should have no tool calls for direct answer
     assert not state.execution.pending_calls
@@ -143,14 +143,14 @@ async def test_reason_direct(state):
 @pytest.mark.asyncio
 async def test_reason_tools(state):
     """Test reason step when it needs tools."""
-    llm = MockLLM()
-    llm.run = AsyncMock(
+    provider = MockProvider()
+    provider.run = AsyncMock(
         return_value=Result.ok(
             '{"reasoning": "I need to calculate this.", "tool_calls": [{"name": "code", "args": {"expression": "2 + 2"}}]}'
         )
     )
 
-    await reason(state, llm=llm, tools=[Shell()], memory=None)
+    await reason(state, provider=provider, tools=[Shell()], memory=None)
 
     # Should have tool calls
     assert state.execution.pending_calls
@@ -181,14 +181,14 @@ async def test_act_execution(state):
 @pytest.mark.asyncio
 async def test_reason_formats_response(state):
     """Test reason step creates final response when completing."""
-    llm = MockLLM()
-    llm.run = AsyncMock(
+    provider = MockProvider()
+    provider.run = AsyncMock(
         return_value=Result.ok(
             '{"thinking": "I can answer this directly", "tool_calls": [], "response": "2 + 2 = 4"}'
         )
     )
 
-    result = await reason(state, llm=llm, tools=[], memory=None)
+    result = await reason(state, provider=provider, tools=[], memory=None)
 
     # Unwrap result like production code does
     response = unwrap(result)
@@ -201,15 +201,15 @@ async def test_full_cycle(state):
     """Test full reasoning cycle: reason -> act -> reason (with final response)."""
     with patch("cogency.events.core._bus", None):  # Disable event system
         tools = [Shell()]
-        llm = MockLLM()
+        provider = MockProvider()
 
         # 1. First reason (needs tools) - this adds an action
-        llm.run = AsyncMock(
+        provider.run = AsyncMock(
             return_value=Result.ok(
                 '{"thinking": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}], "response": ""}'
             )
         )
-        await reason(state, llm=llm, tools=tools, memory=None)
+        await reason(state, provider=provider, tools=tools, memory=None)
         assert state.execution.pending_calls
         assert len(state.workspace.thoughts) >= 0  # workspace thoughts are recorded
 
@@ -219,12 +219,12 @@ async def test_full_cycle(state):
         assert len(results) > 0
 
         # 3. Second reason (reflect on results and provide final answer)
-        llm.run = AsyncMock(
+        provider.run = AsyncMock(
             return_value=Result.ok(
                 '{"thinking": "The code tool shows 2 + 2 = 4. I can now respond.", "tool_calls": [], "response": "The answer is 4."}'
             )
         )
-        result = await reason(state, llm=llm, tools=tools, memory=None)
+        result = await reason(state, provider=provider, tools=tools, memory=None)
         response = unwrap(result)
         assert response == "The answer is 4."
         assert state.execution.response == "The answer is 4."
@@ -234,15 +234,15 @@ async def test_full_cycle(state):
 async def test_no_tools_flow(state):
     """Test simple question that needs no tools."""
     state.query = "Hello, how are you?"
-    llm = MockLLM()
-    llm.run = AsyncMock(
+    provider = MockProvider()
+    provider.run = AsyncMock(
         return_value=Result.ok(
             '{"thinking": "This is a greeting, I can respond directly.", "tool_calls": [], "response": "Hello! I\'m doing well, thank you for asking."}'
         )
     )
 
     # 1. Reason (no tools needed, provides direct response)
-    result = await reason(state, llm=llm, tools=[], memory=None)
+    result = await reason(state, provider=provider, tools=[], memory=None)
     response = unwrap(result)
     assert not state.execution.pending_calls
     assert response == "Hello! I'm doing well, thank you for asking."

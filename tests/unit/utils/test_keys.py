@@ -4,51 +4,51 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from cogency.providers.llm import LLM
+from cogency.providers import Provider
 from cogency.utils.keys import KeyManager, KeyRotationError, KeyRotator
-from tests.conftest import mock_llm
+from tests.conftest import mock_provider
 
 
-def test_llm(mock_llm):
+def test_provider(mock_provider):
     # Single key
-    mock_llm.keys = KeyManager(api_key="single_key")
-    assert mock_llm.keys.current == "single_key"
-    assert not mock_llm.keys.has_multiple()
+    mock_provider.keys = KeyManager(api_key="single_key")
+    assert mock_provider.keys.current == "single_key"
+    assert not mock_provider.keys.has_multiple()
 
     # Multiple keys
     keys = ["key1", "key2", "key3"]
-    mock_llm.keys = KeyManager.for_provider("test", keys)
-    assert mock_llm.keys.has_multiple()
-    assert mock_llm.next_key() in keys
+    mock_provider.keys = KeyManager.for_provider("test", keys)
+    assert mock_provider.keys.has_multiple()
+    assert mock_provider.next_key() in keys
 
 
 @pytest.mark.asyncio
-async def test_methods(mock_llm):
-    mock_llm.response = "Mock response"
+async def test_methods(mock_provider):
+    mock_provider.response = "Mock response"
     messages = [{"role": "user", "content": "Hello"}]
 
     # Test run method
-    result = await mock_llm.run(messages)
+    result = await mock_provider.run(messages)
     assert result.success
     assert isinstance(result.data, str)
     assert len(result.data) > 0
 
     # Test stream method
     chunks = []
-    async for chunk in mock_llm.stream(messages):
+    async for chunk in mock_provider.stream(messages):
         chunks.append(chunk)
         assert isinstance(chunk, str)
     assert len(chunks) > 0
 
 
-def test_rotation(mock_llm):
+def test_rotation(mock_provider):
     keys = ["key1", "key2", "key3"]
-    mock_llm.keys = KeyManager.for_provider("test", keys)
+    mock_provider.keys = KeyManager.for_provider("test", keys)
 
     # Track keys used across multiple calls
     used_keys = []
     for _ in range(6):  # More than number of keys to see cycling
-        used_keys.append(mock_llm.next_key())
+        used_keys.append(mock_provider.next_key())
 
     # Should have rotated through all keys
     unique_keys = set(used_keys)

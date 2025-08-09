@@ -95,10 +95,10 @@ def test_calls():
 @pytest.mark.asyncio
 async def test_llm():
     # Test markdown wrapped JSON
-    llm_response = """```json
+    response = """```json
     {"action": "use_tools", "tool_calls": [{"name": "search", "args": {"query": "test"}}]}
     ```"""
-    parse_result = _parse_json(llm_response)
+    parse_result = _parse_json(response)
     assert parse_result.success
     assert parse_result.data["action"] == "use_tools"
     assert len(parse_result.data["tool_calls"]) == 1

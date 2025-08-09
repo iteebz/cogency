@@ -9,7 +9,7 @@ from cogency.state import State
 # Import the triage function directly
 from cogency.steps.triage import triage
 from cogency.tools.base import Tool
-from tests.fixtures.llm import MockLLM
+from tests.fixtures.provider import MockProvider
 
 
 class MockSearchTool(Tool):
@@ -38,15 +38,15 @@ class MockSearchTool(Tool):
 @pytest.mark.asyncio
 async def test_fast():
     """Test that simple queries get fast_react."""
-    llm = MockLLM()
+    provider = MockProvider(
+        response='{"mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
+    )
     tools = [MockSearchTool()]
 
     query = "What is the weather today?"
-    llm.response = '{"mode": "fast", "selected_tools": ["search"], "reasoning": "Simple query"}'
-
     state = State(query=query)
 
-    result = await triage(state, llm=llm, tools=tools, memory=None)
+    result = await triage(state, provider=provider, tools=tools, memory=None)
 
     # The triage function should complete successfully
     assert result is None or isinstance(result, str)
@@ -55,17 +55,15 @@ async def test_fast():
 @pytest.mark.asyncio
 async def test_deep():
     """Test that complex queries get deep_react."""
-    llm = MockLLM()
+    provider = MockProvider(
+        response='{"mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
+    )
     tools = [MockSearchTool()]
 
     query = "Analyze the economic implications of AI development and compare different regulatory approaches across multiple countries, synthesizing policy recommendations."
-    llm.response = (
-        '{"mode": "deep", "selected_tools": ["search"], "reasoning": "Complex analysis needed"}'
-    )
-
     state = State(query=query)
 
-    result = await triage(state, llm=llm, tools=tools, memory=None)
+    result = await triage(state, provider=provider, tools=tools, memory=None)
 
     # The triage function should complete successfully
     assert result is None or isinstance(result, str)
@@ -74,15 +72,13 @@ async def test_deep():
 @pytest.mark.asyncio
 async def test_response():
     """Test that direct response queries are routed correctly."""
-    llm = MockLLM()
+    provider = MockProvider(response='{"selected_tools": [], "reasoning": "Simple greeting"}')
     tools = [MockSearchTool()]
 
     query = "Hello, how are you?"
-    llm.response = '{"selected_tools": [], "reasoning": "Simple greeting"}'
-
     state = State(query=query)
 
-    result = await triage(state, llm=llm, tools=tools, memory=None)
+    result = await triage(state, provider=provider, tools=tools, memory=None)
 
     # Should return early response for greetings or have empty tools
     assert result is None or isinstance(result, str)
