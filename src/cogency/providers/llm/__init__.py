@@ -8,6 +8,8 @@ Provides access to various LLM providers through a unified interface:
 - Gemini: Google's models (optional extra)
 - Mistral: Mistral AI models (optional extra)
 - Ollama: Local model serving (optional extra)
+- OpenRouter: Model routing and cost optimization (optional extra)
+- Groq: Ultra-fast hardware inference (optional extra)
 - LLMCache: Response caching layer
 
 All providers are lazy-loaded to avoid import errors for missing dependencies.
@@ -42,6 +44,14 @@ def __getattr__(name):
         from .ollama import Ollama
 
         return Ollama
+    elif name == "OpenRouter":
+        from .openrouter import OpenRouter
+
+        return OpenRouter
+    elif name == "Groq":
+        from .groq import Groq
+
+        return Groq
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
@@ -51,9 +61,11 @@ __all__ = [
     # Configuration classes
     "Anthropic",
     "Gemini",
+    "Groq",
     "Mistral",
     "OpenAI",
     "Ollama",
+    "OpenRouter",
     # Utilities
     "LLMCache",
 ]
