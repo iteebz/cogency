@@ -28,7 +28,7 @@ class Retrieval(Tool):
     def __init__(
         self,
         path: str = "./docs",
-        embed_model: str = "nomic",
+        embed_model: str = "openai",
         chunk_size: int = 800,
         chunk_overlap: int = 100,
         top_k: int = 3,

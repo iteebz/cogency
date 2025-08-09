@@ -4,7 +4,7 @@ from cogency.config import MemoryConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
 from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, init_bus
 from cogency.memory import ImpressionSynthesizer
-from cogency.providers.setup import _setup_embed, _setup_llm
+from cogency.providers.setup import _setup_llm
 
 # Simplified observability - no complex metrics handlers needed
 from cogency.storage.backends.base import _setup_persist
@@ -18,13 +18,6 @@ class AgentSetup:
     def llm(config):
         """Setup LLM provider."""
         return _setup_llm(config)
-
-    @staticmethod
-    def embed(config, memory_config):
-        """Setup embedding provider - only if memory enabled."""
-        if memory_config:
-            return _setup_embed(config)
-        return None
 
     @staticmethod
     def tools(config):

@@ -51,7 +51,7 @@ from .agent import Agent
 from .config import MemoryConfig, PersistConfig, RobustConfig
 
 # Public: Tool classes and system for explicit imports
-from .tools import Files, Retrieval, Scrape, Search, Shell, Tool, tool
+from .tools import Files, HTTP, Retrieval, Scrape, Search, Shell, Tool, tool
 
 __all__ = [
     "Agent",
@@ -59,6 +59,7 @@ __all__ = [
     "PersistConfig",
     "RobustConfig",
     "Files",
+    "HTTP",
     "Retrieval",
     "Scrape",
     "Search",

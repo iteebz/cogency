@@ -61,12 +61,6 @@ def _embedders():
     providers = {}
     
     try:
-        from .embed.sentence import SentenceEmbed
-        providers["sentence"] = SentenceEmbed
-    except ImportError:
-        pass
-    
-    try:
         from .embed.openai import OpenAIEmbed
         providers["openai"] = OpenAIEmbed
     except ImportError:

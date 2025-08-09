@@ -28,7 +28,7 @@ _embed_provider = Provider(
             "mistral": "MISTRAL",
             "nomic": "NOMIC",
         },
-        fallback="sentence",
+        fallback="openai",
     ),
 )
 

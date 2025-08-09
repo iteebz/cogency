@@ -29,10 +29,6 @@ def __getattr__(name):
         from .openai import OpenAIEmbed
 
         return OpenAIEmbed
-    elif name == "SentenceEmbed":
-        from .sentence import SentenceEmbed
-
-        return SentenceEmbed
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 
@@ -43,5 +39,4 @@ __all__ = [
     "MistralEmbed",
     "NomicEmbed",
     "OpenAIEmbed",
-    "SentenceEmbed",
 ]
