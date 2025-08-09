@@ -8,12 +8,20 @@ from cogency.providers.llm.base import LLM
 
 
 class OpenAI(LLM):
-    def __init__(self, **kwargs):
-        super().__init__("openai", **kwargs)
-
-    @property
-    def default_model(self) -> str:
-        return "gpt-4o-mini"  # Fast, cost-aware default
+    def __init__(self, 
+                 model: str = "gpt-4o-mini",
+                 temperature: float = 0.7,
+                 max_tokens: int = 16384,
+                 top_p: float = 1.0,
+                 frequency_penalty: float = 0.0,
+                 presence_penalty: float = 0.0,
+                 **kwargs):
+        # Universal params to base class
+        super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        # Provider-specific params handled locally
+        self.top_p = top_p
+        self.frequency_penalty = frequency_penalty
+        self.presence_penalty = presence_penalty
 
     def _get_client(self):
         return openai.AsyncOpenAI(
@@ -29,6 +37,9 @@ class OpenAI(LLM):
             messages=self._format(messages),
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            top_p=self.top_p,
+            frequency_penalty=self.frequency_penalty,
+            presence_penalty=self.presence_penalty,
             **kwargs,
         )
         return res.choices[0].message.content
@@ -41,6 +52,9 @@ class OpenAI(LLM):
             stream=True,
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            top_p=self.top_p,
+            frequency_penalty=self.frequency_penalty,
+            presence_penalty=self.presence_penalty,
             **kwargs,
         )
         async for chunk in stream:

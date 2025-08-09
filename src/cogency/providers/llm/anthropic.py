@@ -11,12 +11,18 @@ logger = logging.getLogger(__name__)
 
 
 class Anthropic(LLM):
-    def __init__(self, **kwargs):
-        super().__init__("anthropic", **kwargs)
-
-    @property
-    def default_model(self) -> str:
-        return "claude-3-5-haiku-20241022"  # Fast, cost-aware default
+    def __init__(self, 
+                 model: str = "claude-3-5-haiku-20241022",
+                 temperature: float = 0.7,
+                 max_tokens: int = 16384,
+                 top_k: int = 40,
+                 top_p: float = 1.0,
+                 **kwargs):
+        # Universal params to base class
+        super().__init__(model=model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        # Anthropic-specific params
+        self.top_k = top_k
+        self.top_p = top_p
 
     def _get_client(self):
         return anthropic.AsyncAnthropic(
@@ -32,6 +38,8 @@ class Anthropic(LLM):
             messages=self._format(messages),
             temperature=self.temperature,
             max_tokens=self.max_tokens,
+            top_k=self.top_k,
+            top_p=self.top_p,
             **kwargs,
         )
         return res.content[0].text
@@ -44,10 +52,12 @@ class Anthropic(LLM):
                 messages=self._format(messages),
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
+                top_k=self.top_k,
+                top_p=self.top_p,
                 **kwargs,
             ) as stream:
                 async for text in stream.text_stream:
                     yield text
         except Exception as e:
             logger.error(f"Anthropic streaming failed: {e}")
-            return
+            raise e

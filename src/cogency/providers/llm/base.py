@@ -40,9 +40,8 @@ class LLM(ABC):
 
     def __init__(
         self,
-        provider_name: str,
         api_keys: Union[str, List[str]] = None,
-        model: str = None,
+        model: str = None,  # Must be set by provider
         timeout: float = 15.0,
         temperature: float = 0.7,
         max_tokens: int = 16384,
@@ -50,13 +49,26 @@ class LLM(ABC):
         enable_cache: bool = True,
         **kwargs,
     ):
+        # Auto-derive provider name from class name
+        provider_name = self.__class__.__name__.lower()
+        
         # Automatic key management - handles single/multiple keys, rotation, env detection
         self.keys = KeyManager.for_provider(provider_name, api_keys)
         self.provider_name = provider_name
         self.enable_cache = enable_cache
 
+        # Validate parameters
+        if model is None:
+            raise ValueError(f"{self.__class__.__name__} must specify a model")
+        if not (0.0 <= temperature <= 2.0):
+            raise ValueError("temperature must be between 0.0 and 2.0")
+        if not (1 <= max_tokens <= 100000):
+            raise ValueError("max_tokens must be between 1 and 100000")
+        if not (0 <= timeout <= 300):
+            raise ValueError("timeout must be between 0 and 300 seconds")
+
         # Common LLM configuration
-        self.model = model or self.default_model
+        self.model = model
         self.timeout = timeout
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -68,11 +80,6 @@ class LLM(ABC):
         # Cache instance
         self._cache = LLMCache() if enable_cache else None
 
-    @property
-    @abstractmethod
-    def default_model(self) -> str:
-        """Default model for this provider."""
-        pass
 
     def next_key(self) -> str:
         """Get next API key - rotates automatically on every call."""

@@ -16,14 +16,15 @@ logger = logging.getLogger(__name__)
 class NomicEmbed(Embed):
     """Nomic embedding provider with key rotation."""
 
-    def __init__(self, api_keys: Union[str, list[str]] = None, **kwargs):
-        # Beautiful unified key management - auto-detects, handles all scenarios
-        self.keys = KeyManager.for_provider("nomic", api_keys)
-        super().__init__(self.keys.api_key, **kwargs)
+    def __init__(self, 
+                 api_keys: Union[str, list[str]] = None, 
+                 model: str = "nomic-embed-text-v2-moe", 
+                 dimensionality: int = 768,
+                 batch_size: int = 3,
+                 **kwargs):
+        super().__init__(api_keys=api_keys, model=model, dimensionality=dimensionality, **kwargs)
         self._initialized = False
-        self._model = "nomic-embed-text-v1.5"
-        self._dimensionality = 768
-        self._batch_size = 3
+        self._batch_size = batch_size
 
     def _init_client(self):
         """Initialize Nomic client with current key."""
@@ -93,8 +94,8 @@ class NomicEmbed(Embed):
         bsz = batch_size or self._batch_size
 
         # Extract embedding parameters
-        model = kwargs.get("model", self._model)
-        dims = kwargs.get("dimensionality", self._dimensionality)
+        model = kwargs.get("model", self.model)
+        dims = kwargs.get("dimensionality", self.dimensionality)
 
         try:
             from nomic import embed
@@ -128,15 +129,6 @@ class NomicEmbed(Embed):
 
             return Err(e)
 
-    @property
-    def model(self) -> str:
-        """Get the current embedding model"""
-        return self._model
-
-    @property
-    def dimensionality(self) -> int:
-        """Get the embedding dimensionality"""
-        return self._dimensionality
 
     def set_model(self, model: str, dims: int = 768):
         """
@@ -146,6 +138,7 @@ class NomicEmbed(Embed):
             model: Model name (e.g., 'nomic-embed-text-v2')
             dims: Embedding dimensions
         """
-        self._model = model
-        self._dimensionality = dims
+        self.model = model
+        # Update base class dimensionality through property
+        super().__init__(api_keys=self.keys.api_key, model=model, dimensionality=dims)
         logger.info(f"Model set to {model} with {dims} dimensions")

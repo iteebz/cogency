@@ -18,12 +18,10 @@ class MistralEmbed(Embed):
         self,
         api_keys: Union[str, list[str]] = None,
         model: str = "mistral-embed",
+        dimensionality: int = 1024,
         **kwargs,
     ):
-        # Beautiful unified key management - auto-detects, handles all scenarios
-        self.keys = KeyManager.for_provider("mistral", api_keys)
-        super().__init__(self.keys.api_key, **kwargs)
-        self._model = model
+        super().__init__(api_keys=api_keys, model=model, dimensionality=dimensionality, **kwargs)
         self._client = None
         self._init_client()
 
@@ -60,17 +58,14 @@ class MistralEmbed(Embed):
         try:
             self._rotate_client()
             inputs = [text] if isinstance(text, str) else text
-            response = self._client.embeddings.create(model=self._model, inputs=inputs, **kwargs)
+            # Use dimensionality if it matches Mistral's supported dimensions
+            embed_kwargs = {"model": self.model, "inputs": inputs}
+            if hasattr(self, 'dimensionality') and self.dimensionality != 1024:
+                embed_kwargs["output_dimension"] = self.dimensionality
+            embed_kwargs.update(kwargs)
+            
+            response = self._client.embeddings.create(**embed_kwargs)
             return Ok([np.array(data.embedding) for data in response.data])
         except Exception as e:
             return Err(e)
 
-    @property
-    def model(self) -> str:
-        """Get the current embedding model."""
-        return self._model
-
-    @property
-    def dimensionality(self) -> int:
-        """Get embedding dimensionality."""
-        return 1024  # mistral-embed outputs 1024-dimensional vectors

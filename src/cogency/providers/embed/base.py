@@ -1,18 +1,62 @@
 """Base embedding interface - text vectorization with key rotation and resilience."""
 
 from abc import ABC, abstractmethod
+from typing import List, Union
 
 import numpy as np
 from resilient_result import Result
 
+from cogency.utils.keys import KeyManager
+
 
 class Embed(ABC):
-    """Base class for embedding providers"""
+    """
+    Base class for all embedding implementations in the cogency framework.
 
-    def __init__(self, api_key: str = None, **kwargs):
-        self.api_key = api_key
-        self._should_retry = kwargs.get("should_retry", False)
-        self.key_rotator = kwargs.get("key_rotator")
+    All embedding providers support:
+    - Automatic key rotation for high-volume usage
+    - Unified interface across providers
+    - Dynamic model/parameter configuration
+    - Batch processing and dimensionality control
+    """
+
+    def __init__(
+        self,
+        api_keys: Union[str, List[str]] = None,
+        model: str = None,  # Must be set by provider
+        dimensionality: int = None,  # Must be set by provider
+        timeout: float = 15.0,
+        max_retries: int = 3,
+        **kwargs,
+    ):
+        # Auto-derive provider name from class name
+        provider_name = self.__class__.__name__.lower().replace("embed", "")
+        
+        # Automatic key management - handles single/multiple keys, rotation, env detection
+        self.keys = KeyManager.for_provider(provider_name, api_keys)
+        self.provider_name = provider_name
+        
+        # Validate parameters
+        if model is None:
+            raise ValueError(f"{self.__class__.__name__} must specify a model")
+        if dimensionality is None or dimensionality <= 0:
+            raise ValueError(f"{self.__class__.__name__} must specify positive dimensionality")
+        if not (0 <= timeout <= 300):
+            raise ValueError("timeout must be between 0 and 300 seconds")
+        
+        # Common embedding configuration
+        self.model = model
+        self.dimensionality = dimensionality
+        self.timeout = timeout
+        self.max_retries = max_retries
+        
+        # Provider-specific kwargs
+        self.extra_kwargs = kwargs
+        
+        # Legacy compatibility
+        self.api_key = self.keys.current
+        self._should_retry = kwargs.get("should_retry", True)
+        self.key_rotator = None  # Deprecated - use self.keys
 
     @abstractmethod
     def embed(self, text: str | list[str], **kwargs) -> Result:
@@ -36,14 +80,7 @@ class Embed(ABC):
             return Result.ok(empty_array)
         return Result.ok(np.array(embeddings))
 
-    @property
-    @abstractmethod
-    def model(self) -> str:
-        """Get the current embedding model"""
-        pass
-
-    @property
-    @abstractmethod
-    def dimensionality(self) -> int:
-        """Get the embedding dimensionality"""
-        pass
+        
+    def next_key(self) -> str:
+        """Get next API key - rotates automatically on every call."""
+        return self.keys.get_next()

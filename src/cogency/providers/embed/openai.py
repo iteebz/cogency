@@ -18,12 +18,10 @@ class OpenAIEmbed(Embed):
         self,
         api_keys: Union[str, list[str]] = None,
         model: str = "text-embedding-3-small",
+        dimensionality: int = 1536,
         **kwargs,
     ):
-        # Beautiful unified key management - auto-detects, handles all scenarios
-        self.keys = KeyManager.for_provider("openai", api_keys)
-        super().__init__(self.keys.api_key, **kwargs)
-        self._model = model
+        super().__init__(api_keys=api_keys, model=model, dimensionality=dimensionality, **kwargs)
         self._client = None
         self._init_client()
 
@@ -57,26 +55,18 @@ class OpenAIEmbed(Embed):
         """Internal embed implementation."""
         try:
             self._rotate_client()
-            response = self._client.embeddings.create(input=text, model=self._model, **kwargs)
+            # Build embedding parameters
+            embed_kwargs = {"input": text, "model": self.model}
+            
+            # Add dimensions for text-embedding-3 models
+            if "text-embedding-3" in self.model:
+                embed_kwargs["dimensions"] = self.dimensionality
+                
+            embed_kwargs.update(kwargs)
+            response = self._client.embeddings.create(**embed_kwargs)
             if isinstance(text, str):
                 return Ok([np.array(response.data[0].embedding)])
             return Ok([np.array(data.embedding) for data in response.data])
         except Exception as e:
             return Err(e)
 
-    @property
-    def model(self) -> str:
-        """Get the current embedding model."""
-        return self._model
-
-    @property
-    def dimensionality(self) -> int:
-        """Get embedding dimensionality."""
-        if "3-small" in self._model:
-            return 1536
-        elif "3-large" in self._model:
-            return 3072
-        elif "ada-002" in self._model:
-            return 1536
-        else:
-            return 1536  # Default
