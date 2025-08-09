@@ -19,10 +19,10 @@ class SessionMemory(Eval):
     async def run(self) -> Dict:
         # Use temporary directory for isolated testing
         with tempfile.TemporaryDirectory() as temp_dir:
-            memory_path = Path(temp_dir) / "agent_memory"
+            db_path = Path(temp_dir) / "test_memory.db"
 
-            # Create shared store for all sessions
-            store = Filesystem(base_dir=str(memory_path))
+            # Create shared store for all sessions  
+            store = Filesystem(db_path=str(db_path))
             memory_config = MemoryConfig(store=store)
             persist_config = PersistConfig(store=store)
 

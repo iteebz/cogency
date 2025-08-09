@@ -20,18 +20,18 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
 def discover_evals() -> dict[str, type[Eval]]:
-    """Auto-discover eval classes from tests/ directory."""
+    """Auto-discover eval classes from suite/ directory."""
     evals = {}
-    tests_dir = Path(__file__).parent / "tests"
+    suite_dir = Path(__file__).parent / "suite"
 
-    if not tests_dir.exists():
+    if not suite_dir.exists():
         return evals
 
-    for py_file in tests_dir.glob("*.py"):
+    for py_file in suite_dir.glob("*.py"):
         if py_file.name.startswith("_"):
             continue
 
-        module_name = f"evals.tests.{py_file.stem}"
+        module_name = f"evals.suite.{py_file.stem}"
         try:
             module = importlib.import_module(module_name)
 
