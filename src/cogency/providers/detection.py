@@ -2,7 +2,7 @@
 
 from typing import Dict, Optional
 
-from cogency.utils.keys import KeyManager
+from cogency.utils.credentials import Credentials
 
 
 def _detect_llm():
@@ -18,8 +18,8 @@ def _detect_llm():
     for provider in preference_order:
         if provider in available_providers:
             try:
-                keys = KeyManager.detect_keys(provider)
-                if keys:
+                detected = Credentials.detect(provider)
+                if detected and detected.get("api_key"):
                     return provider
             except Exception:
                 continue
@@ -50,8 +50,8 @@ def _detect_provider(providers: Dict[str, str], fallback: Optional[str] = None) 
     for provider, env_prefix in providers.items():
         try:
             # Try to detect keys for this provider
-            keys = KeyManager.detect_keys(env_prefix.lower())
-            if keys:
+            detected = Credentials.detect(env_prefix.lower())
+            if detected and detected.get("api_key"):
                 return provider
         except Exception:
             continue

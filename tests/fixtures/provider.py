@@ -7,6 +7,7 @@ import pytest
 from resilient_result import Err, Ok, Result
 
 from cogency.providers import Provider
+from cogency.providers.base import setup_rotator
 
 
 class MockProvider(Provider):
@@ -26,8 +27,11 @@ class MockProvider(Provider):
         self.should_fail = should_fail
         self.custom_impl = custom_impl
         self._model = model
+
+        # Use canonical pattern
+        rotator = setup_rotator("mock", api_keys, required=True)
         super().__init__(
-            api_keys=api_keys,
+            rotator=rotator,
             enable_cache=enable_cache,
             model=model,
             **kwargs,
@@ -64,9 +68,13 @@ class MockProvider(Provider):
         return Ok(response)
 
     async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
-        """Mock stream method."""
-        async for chunk in self._stream_impl(messages, **kwargs):
-            yield chunk
+        """Mock stream method - yields realistic word chunks."""
+        words = self.response.split()
+        for i, word in enumerate(words):
+            if i > 0:
+                yield " " + word
+            else:
+                yield word
 
     async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
         """Mock embed method - handles both string and list[str]."""
@@ -99,7 +107,9 @@ class RealisticMockProvider(Provider):
             "I've completed the requested action successfully.",
         ]
         self.call_count = 0
-        super().__init__(api_keys="test", model="gpt-4-realistic-mock", **kwargs)
+        # Use canonical pattern
+        rotator = setup_rotator("mock", "test", required=True)
+        super().__init__(rotator=rotator, model="gpt-4-realistic-mock", **kwargs)
 
     @property
     def default_model(self) -> str:

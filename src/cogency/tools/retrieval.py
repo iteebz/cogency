@@ -199,9 +199,9 @@ class Retrieval(Tool):
             self._index = None
             return
 
-        # Load embedder
+        # Load embedder for document indexing
         if self._embedder is None:
-            self._embedder = await self._get_embedder()
+            self._embedder = await self._get_embedder(task_type="search_document")
 
         # Process documents into chunks
         chunks = []
@@ -221,7 +221,7 @@ class Retrieval(Tool):
         # Generate embeddings
         texts = [chunk["content"] for chunk in chunks]
         try:
-            result = self._embedder.embed(texts)
+            result = await self._embedder.embed(texts)
             if result.failure:
                 logger.error(f"Embedding generation failed: {result.error}")
                 self._index = None
@@ -280,8 +280,9 @@ class Retrieval(Tool):
         if not self._index:
             return []
 
-        # Get query embedding
-        result = self._embedder.embed([query])
+        # Get query embedding with search_query task type
+        query_embedder = await self._get_embedder(task_type="search_query")
+        result = await query_embedder.embed([query])
         if result.failure:
             return []
         query_embedding = result.data
@@ -315,9 +316,14 @@ class Retrieval(Tool):
 
         return results
 
-    async def _get_embedder(self):
-        """Get the configured embedding provider using canonical setup."""
+    async def _get_embedder(self, task_type: str = "search_query"):
+        """Get the configured embedding provider with specified task type."""
         from cogency.providers.setup import _setup_embed
 
         embed_class = _setup_embed(self.embed_model)
-        return embed_class()
+
+        # For Nomic, pass the task_type parameter
+        if self.embed_model == "nomic":
+            return embed_class(task_type=task_type)
+        else:
+            return embed_class()

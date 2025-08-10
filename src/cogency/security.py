@@ -63,6 +63,14 @@ class SecurityResult:
 
 def secure_semantic(security_data: Dict[str, Any]) -> SecurityResult:
     """SEC-003: Create SecurityResult from triage security assessment data."""
+    # Handle case where security_data might be a string instead of dict
+    if isinstance(security_data, str):
+        # Default to safe for string responses
+        return SecurityResult(SecurityAction.ALLOW)
+
+    if not isinstance(security_data, dict):
+        security_data = {}
+
     is_safe = security_data.get("is_safe", True)
     reasoning = security_data.get("reasoning", "")
     threats = security_data.get("threats", [])

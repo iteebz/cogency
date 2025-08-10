@@ -6,7 +6,7 @@ from typing import List, Optional, Union
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from .base import Provider
+from .base import Provider, setup_rotator
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,9 @@ class Nomic(Provider):
         task_type: str = "search_query",
         **kwargs,
     ):
-        super().__init__(api_keys=api_keys, model=embed_model, **kwargs)
+        rotator = setup_rotator("nomic", api_keys, required=False)
+
+        super().__init__(rotator=rotator, model=embed_model, **kwargs)
         self._initialized = False
         self._batch_size = batch_size
         self._task_type = task_type

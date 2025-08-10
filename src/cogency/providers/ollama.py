@@ -9,12 +9,13 @@ from resilient_result import Err, Ok, Result
 from cogency.events import emit
 from cogency.observe.tokens import cost, count
 
-from .base import Provider
+from .base import Provider, setup_rotator
 
 
 class Ollama(Provider):
     def __init__(
         self,
+        api_key: str = None,
         llm_model: str = "llama3.1:8b",
         embed_model: str = "nomic-embed-text",
         dimensionality: int = 768,
@@ -24,8 +25,10 @@ class Ollama(Provider):
         base_url: str = "http://localhost:11434/v1",
         **kwargs,
     ):
-        # Universal params to base class
+        rotator = setup_rotator("ollama", api_key, required=False)
+
         super().__init__(
+            rotator=rotator,
             model=llm_model,
             temperature=temperature,
             max_tokens=max_tokens,

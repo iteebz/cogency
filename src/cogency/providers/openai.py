@@ -9,12 +9,13 @@ from resilient_result import Err, Ok, Result
 from cogency.events import emit
 from cogency.observe.tokens import cost, count
 
-from .base import Provider
+from .base import Provider, setup_rotator
 
 
 class OpenAI(Provider):
     def __init__(
         self,
+        api_keys: Union[str, List[str]] = None,
         llm_model: str = "gpt-4o-mini",
         embed_model: str = "text-embedding-3-small",
         dimensionality: int = 1536,
@@ -25,8 +26,15 @@ class OpenAI(Provider):
         presence_penalty: float = 0.0,
         **kwargs,
     ):
-        # Universal params to base class
-        super().__init__(model=llm_model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        rotator = setup_rotator("openai", api_keys, required=True)
+
+        super().__init__(
+            rotator=rotator,
+            model=llm_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
         # Provider-specific params
         self.embed_model = embed_model
         self.dimensionality = dimensionality

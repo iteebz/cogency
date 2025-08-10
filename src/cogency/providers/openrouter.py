@@ -8,12 +8,13 @@ from resilient_result import Ok, Result
 from cogency.events import emit
 from cogency.observe.tokens import cost, count
 
-from .base import Provider
+from .base import Provider, setup_rotator
 
 
 class OpenRouter(Provider):
     def __init__(
         self,
+        api_keys=None,
         llm_model: str = "anthropic/claude-3.5-haiku",
         temperature: float = 0.7,
         max_tokens: int = 16384,
@@ -22,8 +23,15 @@ class OpenRouter(Provider):
         presence_penalty: float = 0.0,
         **kwargs,
     ):
-        # Universal params to base class
-        super().__init__(model=llm_model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        rotator = setup_rotator("openrouter", api_keys, required=True)
+
+        super().__init__(
+            rotator=rotator,
+            model=llm_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
         # Provider-specific params
         self.top_p = top_p
         self.frequency_penalty = frequency_penalty

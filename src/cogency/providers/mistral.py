@@ -9,12 +9,13 @@ from resilient_result import Err, Ok, Result
 from cogency.events import emit
 from cogency.observe.tokens import cost, count
 
-from .base import Provider
+from .base import Provider, setup_rotator
 
 
 class Mistral(Provider):
     def __init__(
         self,
+        api_keys=None,
         llm_model: str = "mistral-small-latest",
         embed_model: str = "mistral-embed",
         dimensionality: int = 1024,
@@ -23,8 +24,15 @@ class Mistral(Provider):
         top_p: float = 1.0,
         **kwargs,
     ):
-        # Universal params to base class
-        super().__init__(model=llm_model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        rotator = setup_rotator("mistral", api_keys, required=True)
+
+        super().__init__(
+            rotator=rotator,
+            model=llm_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
         # Mistral-specific params
         self.embed_model = embed_model
         self.dimensionality = dimensionality

@@ -2,13 +2,13 @@
 
 This module provides utility functions for common operations:
 
-- KeyManager: API key detection and rotation utilities
+- Credentials: Universal credential detection for any service
 
 Additional internal utilities exist but are not exposed to maintain a clean
 public API surface.
 """
 
 # Public utilities for advanced usage
-from .keys import KeyManager
+from .credentials import Credentials
 
-__all__ = ["KeyManager"]
+__all__ = ["Credentials"]

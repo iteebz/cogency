@@ -9,12 +9,13 @@ from resilient_result import Err, Ok, Result
 from cogency.events import emit
 from cogency.observe.tokens import cost, count
 
-from .base import Provider
+from .base import Provider, setup_rotator
 
 
 class Gemini(Provider):
     def __init__(
         self,
+        api_keys: Union[str, List[str]] = None,
         llm_model: str = "gemini-2.0-flash-exp",
         embed_model: str = "gemini-embedding-001",
         dimensionality: int = 768,
@@ -24,8 +25,15 @@ class Gemini(Provider):
         top_p: float = 1.0,
         **kwargs,
     ):
-        # Universal params to base class
-        super().__init__(model=llm_model, temperature=temperature, max_tokens=max_tokens, **kwargs)
+        rotator = setup_rotator("gemini", api_keys, required=True)
+
+        super().__init__(
+            rotator=rotator,
+            model=llm_model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            **kwargs,
+        )
         # Gemini-specific params
         self.embed_model = embed_model
         self.dimensionality = dimensionality

@@ -2,15 +2,63 @@
 
 import logging
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, List, Union
+from typing import AsyncIterator, Dict, List, Optional, Union
 
-from resilient_result import Result
+from resilient_result import Err, Ok, Result
 
-from cogency.utils.keys import KeyManager
+from cogency.providers.rotation import ApiKeyRotator
+from cogency.utils.credentials import Credentials
 
 from .cache import Cache
 
+
+def setup_rotator(
+    provider_name: str, api_keys=None, required: bool = True
+) -> Optional[ApiKeyRotator]:
+    """Beautiful helper - handles credential detection and rotator setup."""
+    # Auto-detect if not provided
+    if api_keys is None:
+        detected = Credentials.detect(provider_name)
+        api_keys = detected.get("api_key") if detected else None
+
+    # Set up rotation if we have keys
+    if api_keys:
+        if isinstance(api_keys, str):
+            return ApiKeyRotator([api_keys])
+        else:
+            return ApiKeyRotator(api_keys)
+    elif required:
+        raise ValueError(f"{provider_name.title()} requires API keys")
+    else:
+        return None
+
+
 logger = logging.getLogger(__name__)
+
+
+def rotate_retry(func):
+    """Beautiful decorator - automatic key rotation on rate limits."""
+    from functools import wraps
+
+    @wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        if hasattr(self, "rotator") and self.rotator:
+            try:
+                result = await self.rotator.rotate_retry(func, self, *args, **kwargs)
+                return result if isinstance(result, Result) else Ok(result)
+            except Exception as e:
+                return Err(e)
+        else:
+            # No rotator - call method directly
+            try:
+                result = await func(self, *args, **kwargs)
+                return result if isinstance(result, Result) else Ok(result)
+            except Exception as e:
+                return Err(e)
+
+    # Mark this as our rotate_retry decorator
+    wrapper._is_rotate_retry = True
+    return wrapper
 
 
 class Provider(ABC):
@@ -22,12 +70,25 @@ class Provider(ABC):
     - Embedding providers: override embed()
     - Multi-capability: override all methods
 
-    Unsupported methods raise clear NotImplementedError messages.
+    Key rotation is automatically applied to all provider methods.
     """
+
+    def __init_subclass__(cls, **kwargs):
+        """Automatically wrap provider methods with key rotation."""
+        super().__init_subclass__(**kwargs)
+
+        # Apply @rotate_retry to provider methods that return Results (not async generators)
+        for method_name in ["run", "embed"]:  # stream returns AsyncIterator, not Result
+            if method_name in cls.__dict__:
+                provider_method = cls.__dict__[method_name]
+                # Only wrap if not manually decorated already
+                if not getattr(provider_method, "_is_rotate_retry", False):
+                    wrapped_method = rotate_retry(provider_method)
+                    setattr(cls, method_name, wrapped_method)
 
     def __init__(
         self,
-        api_keys: Union[str, List[str]] = None,
+        rotator: Optional[ApiKeyRotator] = None,
         model: str = None,  # Must be set by provider
         timeout: float = 15.0,
         temperature: float = 0.7,
@@ -39,12 +100,14 @@ class Provider(ABC):
         **kwargs,
     ):
         # Auto-derive provider name from class name
-        provider_name = self.__class__.__name__.lower()
-
-        # Automatic key management
-        self.keys = KeyManager.for_provider(provider_name, api_keys)
-        self.provider_name = provider_name
+        self.provider_name = self.__class__.__name__.lower()
         self.enable_cache = enable_cache
+
+        # Simple rotator assignment - providers handle their own credential logic
+        self.rotator = rotator
+
+        # Backward compatibility - expose current key if rotator exists
+        self.api_key = rotator.current if rotator else None
 
         # Validate parameters
         if model is None:
@@ -75,7 +138,9 @@ class Provider(ABC):
 
     def next_key(self) -> str:
         """Get next API key - rotates automatically on every call."""
-        return self.keys.get_next()
+        if self.rotator:
+            return self.rotator.get_next()
+        return self.api_key
 
     @abstractmethod
     def _get_client(self):

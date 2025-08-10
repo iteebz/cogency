@@ -56,42 +56,6 @@ def needs_network_retry(errors: List[Dict]) -> bool:
     )
 
 
-def is_rate_limit(error: Exception) -> bool:
-    """Check if error indicates API rate limiting.
-
-    Structural heuristic: Detect rate limit errors that warrant key rotation
-    rather than generic retry logic.
-    """
-    error_str = str(error).lower()
-    rate_limit_indicators = [
-        "rate limit",
-        "too many requests",
-        "429",
-        "rate_limit_exceeded",
-    ]
-
-    return any(indicator in error_str for indicator in rate_limit_indicators)
-
-
-def is_quota_exhausted(error: Exception) -> bool:
-    """Check if error indicates quota exhaustion (daily/monthly limits).
-
-    Structural heuristic: Detect quota exhaustion that requires key removal
-    rather than simple rotation.
-    """
-    error_str = str(error).lower()
-    quota_indicators = [
-        "quota exceeded",
-        "current quota",
-        "billing details",
-        "resource_exhausted",
-        "free tier",
-        "exceeded your current quota",
-    ]
-
-    return any(indicator in error_str for indicator in quota_indicators)
-
-
 def query_needs_tools(query: str, available_tools: List) -> bool:
     """Check if query needs tools but none are available.
 
