@@ -99,11 +99,12 @@ class State:
     @classmethod
     async def start_task(cls, query: str, user_id: str = "default") -> "State":
         """CANONICAL: Create new task with fresh workspace - Horizon 2 created"""
-        from ..storage.state import Persistence
+        from ..storage.state import SQLite
 
         # Load Horizon 1: UserProfile from user_profiles table
-        persistence = Persistence()
-        profile = await persistence.load_user_profile(user_id)
+        store = SQLite()
+        state_key = f"{user_id}:default"
+        profile = await store.load_user_profile(state_key)
         if profile is None:
             profile = UserProfile(user_id=user_id)
 
@@ -118,24 +119,25 @@ class State:
         )
 
         # Save new workspace to task_workspaces table by task_id
-        await persistence.save_task_workspace(state.task_id, state.user_id, state.workspace)
+        await store.save_task_workspace(state.task_id, state.user_id, state.workspace)
 
         return state
 
     @classmethod
     async def continue_task(cls, task_id: str, user_id: str = "default") -> "State":
         """CANONICAL: Resume existing task with preserved workspace - Horizon 2 loaded"""
-        from ..storage.state import Persistence
+        from ..storage.state import SQLite
 
-        persistence = Persistence()
+        store = SQLite()
 
         # Load Horizon 1: UserProfile from user_profiles table
-        profile = await persistence.load_user_profile(user_id)
+        state_key = f"{user_id}:default"
+        profile = await store.load_user_profile(state_key)
         if profile is None:
             raise ValueError(f"No user profile found for user_id: {user_id}")
 
         # Load Horizon 2: Existing workspace from task_workspaces table
-        workspace_data = await persistence.load_task_workspace(task_id, user_id)
+        workspace_data = await store.load_task_workspace(task_id, user_id)
         if workspace_data is None:
             raise ValueError(f"No workspace found for task_id: {task_id}")
 
@@ -143,7 +145,7 @@ class State:
         execution = ExecutionState()
 
         return cls(
-            query=workspace_data.get("objective", ""),  # Extract original query
+            query=workspace_data.objective,  # Extract original query from workspace
             user_id=user_id,
             task_id=task_id,
             profile=profile,
@@ -153,15 +155,16 @@ class State:
 
     async def complete_task(self) -> None:
         """CANONICAL: Finalize task and cleanup workspace - Horizon 2 deleted"""
-        from ..storage.state import Persistence
+        from ..storage.state import SQLite
 
-        persistence = Persistence()
+        store = SQLite()
 
         # Save final Horizon 1: UserProfile updates to user_profiles table
-        await persistence.save_user_profile(self.user_id, self.profile)
+        state_key = f"{self.user_id}:default"
+        await store.save_user_profile(state_key, self.profile)
 
         # DELETE Horizon 2: Workspace from task_workspaces table - task finished
-        await persistence.delete_task_workspace(self.task_id)
+        await store.delete_task_workspace(self.task_id)
 
         # Horizon 3: ExecutionState discarded automatically (never persisted)
 

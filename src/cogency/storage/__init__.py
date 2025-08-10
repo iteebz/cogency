@@ -1,29 +1,48 @@
-"""State persistence for agent continuity.
+"""Storage interfaces for agent persistence and retrieval.
 
-This module provides zero-ceremony state persistence for agents:
+This module provides clean storage interfaces for different domains:
 
-- Store: Base class for custom persistence backends
-- SQLite/Supabase: CANONICAL Three-Horizon backends
+State Storage (Agent Persistence):
+- StateStore: Base interface for agent state persistence
+- SQLite: Local file-based state storage
+- Supabase: Cloud-based state storage
 
-Internal functions handle state management but are not exposed in the public API.
-Persistence is typically configured via PersistConfig in Agent setup.
+Vector Storage (Document Retrieval):
+- VectorStore: Base interface for semantic search
+- FileStore: Local embeddings from JSON files
+
+Example:
+    State storage:
+
+    ```python
+    from cogency.storage.state import SQLite
+
+    store = SQLite("agent_state.db")
+    await store.save_user_profile(user_id, profile)
+    ```
+
+    Vector storage:
+
+    ```python
+    from cogency.storage.vector import FileStore
+
+    store = FileStore("embeddings.json")
+    results = await store.search(query_embedding, top_k=5)
+    ```
 """
 
-from .backends import Store
-from .backends.sqlite import SQLite
-from .backends.supabase import Supabase
+# Import state storage domain
+from .state import SQLite, StateStore, Supabase
 
-# Internal functions not exported:
-# from .state import Persistence
-# from .store import _store, _setup_persist
-# from .utils import _get_state
+# Import vector storage domain
+from .vector import FileStore, VectorStore
 
 __all__ = [
-    # Public persistence APIs (advanced usage)
-    "Store",  # Base class for custom stores
-    "SQLite",  # CANONICAL SQLite backend
-    "Supabase",  # CANONICAL Supabase backend
-    # Internal APIs not exported:
-    # - _store, _setup_persist, _get_state (framework internals)
-    # - Persistence (implementation detail)
+    # State storage
+    "StateStore",
+    "SQLite",
+    "Supabase",
+    # Vector storage
+    "VectorStore",
+    "FileStore",
 ]

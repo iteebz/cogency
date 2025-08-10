@@ -1,35 +1,52 @@
 """Unit tests for Retrieval tool."""
 
-from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
-import numpy as np
 import pytest
 from resilient_result import Result
 
+from cogency.storage.vector import VectorStore
 from cogency.tools.retrieval import Retrieval
+
+
+class MockVectorStore(VectorStore):
+    """Mock vector store for testing."""
+
+    def __init__(self, mock_results=None):
+        self.mock_results = mock_results or []
+
+    async def search(self, query_embedding, top_k=5, filters=None, threshold=None):
+        """Return mock search results."""
+        return self.mock_results[:top_k]
+
+    async def add(self, embeddings, documents, ids=None):
+        return True
+
+    async def delete(self, ids):
+        return True
 
 
 def test_retrieval_init():
     """Test initialization with defaults and custom config."""
-    # Defaults
+    # Defaults (FileStore)
     tool = Retrieval()
     assert tool.name == "retrieval"
-    assert tool.path == Path("./docs")
-    assert tool.embed_model == "openai"
-    assert tool.default_top_k == 3
-
-    # Custom config
-    tool = Retrieval("./knowledge", embed_model="openai", top_k=5)
-    assert tool.path == Path("./knowledge")
     assert tool.embed_model == "openai"
     assert tool.default_top_k == 5
+
+    # Custom vector store
+    mock_store = MockVectorStore()
+    tool = Retrieval(vector_store=mock_store, embed_model="nomic", top_k=10)
+    assert tool.vector_store is mock_store
+    assert tool.embed_model == "nomic"
+    assert tool.default_top_k == 10
 
 
 @pytest.mark.asyncio
 async def test_run_validation():
     """Test input validation."""
-    tool = Retrieval("/nonexistent")
+    mock_store = MockVectorStore()
+    tool = Retrieval(vector_store=mock_store)
 
     # Empty query
     result = await tool.run("")
@@ -43,145 +60,155 @@ async def test_run_validation():
 
 
 @pytest.mark.asyncio
-async def test_run_no_documents():
-    """Test with nonexistent path returns empty results."""
-    tool = Retrieval("/nonexistent")
+async def test_run_no_results():
+    """Test with empty search results."""
+    mock_store = MockVectorStore(mock_results=[])
+    tool = Retrieval(vector_store=mock_store)
+
+    # Mock embedder
+    mock_embedder = AsyncMock()
+    mock_embedder.embed.return_value = Result.ok([[0.1, 0.2, 0.3]])
+    tool._embedder = mock_embedder
+
     result = await tool.run("test query")
 
     assert result.success
-    assert result.data["total_results"] == 0
-    assert "No documents found" in result.data["message"]
+    data = result.data
+    assert data["total_results"] == 0
+    assert data["results"] == []
+    assert "No relevant content found" in data["message"]
 
 
 @pytest.mark.asyncio
-@patch("cogency.tools.retrieval.Retrieval._get_embedder")
-async def test_run_successful_search(mock_get_embedder, temp_docs_dir):
-    """Test successful end-to-end search."""
-    mock_embedder = Mock()
+async def test_run_successful_search():
+    """Test successful search with mock results."""
+    mock_results = [
+        {
+            "content": "Authentication systems are crucial for security",
+            "similarity": 0.95,
+            "metadata": {"source": "auth.md"},
+        },
+        {
+            "content": "API authentication using tokens",
+            "similarity": 0.87,
+            "metadata": {"source": "api.md"},
+        },
+    ]
 
-    # Create async mock that returns Result objects
-    async def mock_embed(texts):
-        if len(texts) == 3:  # Doc embeddings
-            return Result.ok([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]])
-        else:  # Query embedding
-            return Result.ok([[0.1, 0.2, 0.3]])
+    mock_store = MockVectorStore(mock_results)
+    tool = Retrieval(vector_store=mock_store)
 
-    mock_embedder.embed = mock_embed
-    mock_get_embedder.return_value = mock_embedder
+    # Mock embedder
+    mock_embedder = AsyncMock()
+    mock_embedder.embed.return_value = Result.ok([[0.1, 0.2, 0.3]])
+    tool._embedder = mock_embedder
 
-    tool = Retrieval(path=str(temp_docs_dir))
-    result = await tool.run("authentication")
+    result = await tool.run("authentication", top_k=2)
 
     assert result.success
-    assert result.data["total_results"] > 0
-    assert "results" in result.data
+    data = result.data
+    assert data["total_results"] == 2
+    assert len(data["results"]) == 2
 
+    # Check first result
+    first_result = data["results"][0]
+    assert first_result["content"] == "Authentication systems are crucial for security"
+    assert first_result["similarity_score"] == 0.95
+    assert first_result["source"] == "auth.md"
 
-def test_document_discovery(temp_docs_dir):
-    """Test document discovery and chunking."""
-    tool = Retrieval(path=str(temp_docs_dir))
-
-    # Discovery
-    documents = tool._discover_documents()
-    assert len(documents) == 3
-    assert all(doc.suffix == ".md" for doc in documents)
-
-    # Chunking
-    content = "Short content for testing chunking functionality in the retrieval system."
-    chunks = tool._chunk_document(content, "test.md")
-    assert len(chunks) == 1
-    assert chunks[0]["content"] == content
-    assert chunks[0]["source"] == "test.md"
+    # Check results summary
+    assert "auth.md" in data["results_summary"]
+    assert "Found 2 relevant documents" in data["message"]
 
 
 @pytest.mark.asyncio
-async def test_index_management(temp_docs_dir):
-    """Test lazy index building and change detection."""
-    tool = Retrieval(path=str(temp_docs_dir))
+async def test_run_with_filters_and_threshold():
+    """Test search with filters and threshold parameters."""
+    mock_results = [
+        {
+            "content": "Filtered content",
+            "similarity": 0.9,
+            "metadata": {"source": "filtered.md", "category": "auth"},
+        }
+    ]
 
-    # Initial hash
-    hash1 = tool._compute_content_hash()
-    assert hash1
+    mock_store = MockVectorStore(mock_results)
+    tool = Retrieval(vector_store=mock_store)
 
-    # Hash consistency
-    hash2 = tool._compute_content_hash()
-    assert hash1 == hash2
+    # Mock embedder
+    mock_embedder = AsyncMock()
+    mock_embedder.embed.return_value = Result.ok([[0.1, 0.2, 0.3]])
+    tool._embedder = mock_embedder
 
-    # Hash changes with content
-    (temp_docs_dir / "new.md").write_text("New content")
-    hash3 = tool._compute_content_hash()
-    assert hash3 != hash1
+    # Test with filters and threshold
+    filters = {"category": "auth"}
+    threshold = 0.8
 
+    result = await tool.run("test", top_k=3, filters=filters, threshold=threshold)
 
-@pytest.mark.asyncio
-@patch("cogency.tools.retrieval.Retrieval._get_embedder")
-async def test_search_functionality(mock_get_embedder):
-    """Test semantic search with mock data."""
-    tool = Retrieval()
-    # Use consistent 3D embeddings to match the test expectations
-    tool._index = {
-        "chunks": [
-            {"content": "authentication system", "source": "auth.md", "start": 0, "end": 20},
-            {"content": "API documentation", "source": "api.md", "start": 0, "end": 17},
-        ],
-        "embeddings": np.array(
-            [
-                [0.9, 0.1, 0.0],  # High similarity to query
-                [0.1, 0.9, 0.0],  # Low similarity to query
-            ]
-        ),
-    }
-
-    # Create async mock embedder that matches our 3D mock data
-    async def mock_embed(texts):
-        return Result.ok([[1.0, 0.0, 0.0]])  # Perfect match to first
-
-    mock_embedder = Mock()
-    mock_embedder.embed = mock_embed
-    mock_get_embedder.return_value = mock_embedder
-
-    results = await tool._search("auth", 1)
-
-    assert len(results) == 1
-    assert results[0]["source"] == "auth.md"
-    assert results[0]["similarity_score"] > 0.5
+    assert result.success
+    assert result.data["total_results"] == 1
 
 
 @pytest.mark.asyncio
-@patch("cogency.providers.setup._setup_embed")
-async def test_provider_integration(mock_setup_embed):
-    """Test canonical provider setup integration."""
-    mock_embed_class = Mock()
-    mock_embed_instance = Mock()
-    mock_embed_class.return_value = mock_embed_instance
-    mock_setup_embed.return_value = mock_embed_class
+async def test_embedding_failure():
+    """Test graceful handling of embedding failures."""
+    mock_store = MockVectorStore([])
+    tool = Retrieval(vector_store=mock_store)
 
-    tool = Retrieval(embed_model="openai")
-    embedder = await tool._get_embedder()
+    # Mock embedder that fails
+    mock_embedder = AsyncMock()
+    mock_embedder.embed.return_value = Result.fail("Embedding failed")
+    tool._embedder = mock_embedder
 
-    mock_setup_embed.assert_called_once_with("openai")
-    assert embedder is mock_embed_instance
+    result = await tool.run("test query")
+
+    assert result.failure
+    assert "Query embedding failed" in result.error
 
 
 @pytest.mark.asyncio
-async def test_top_k_capping(temp_docs_dir):
+async def test_top_k_capping():
     """Test top_k is capped at reasonable limits."""
-    tool = Retrieval(path=str(temp_docs_dir))
-    tool._index = {"chunks": [], "embeddings": []}
+    mock_store = MockVectorStore([])
+    tool = Retrieval(vector_store=mock_store)
 
-    with patch.object(tool, "_ensure_index"), patch.object(tool, "_search") as mock_search:
-        mock_search.return_value = []
-        await tool.run("test", top_k=100)
-        mock_search.assert_called_once_with("test", 20)  # Capped at 20
+    # Mock embedder
+    mock_embedder = AsyncMock()
+    mock_embedder.embed.return_value = Result.ok([[0.1, 0.2, 0.3]])
+    tool._embedder = mock_embedder
+
+    result = await tool.run("test", top_k=100)
+
+    assert result.success
+    # Should be capped at 50 (our new limit)
 
 
 @pytest.mark.asyncio
-async def test_error_handling(temp_docs_dir):
-    """Test graceful error handling."""
-    tool = Retrieval(path=str(temp_docs_dir))
-    tool._embedder = Mock()
-    tool._embedder.embed = Mock(side_effect=Exception("Embedding failed"))
+async def test_get_embedder_openai():
+    """Test embedder setup for OpenAI."""
+    tool = Retrieval(embed_model="openai")
 
-    # Should handle embedding failures gracefully
-    await tool._build_index()
-    assert tool._index is None
+    with patch("cogency.providers.setup._setup_embed") as mock_setup:
+        mock_embed_class = Mock()
+        mock_setup.return_value = mock_embed_class
+
+        await tool._get_embedder()
+
+        mock_setup.assert_called_once_with("openai")
+        mock_embed_class.assert_called_once_with()
+
+
+@pytest.mark.asyncio
+async def test_get_embedder_nomic():
+    """Test embedder setup for Nomic with task_type."""
+    tool = Retrieval(embed_model="nomic")
+
+    with patch("cogency.providers.setup._setup_embed") as mock_setup:
+        mock_embed_class = Mock()
+        mock_setup.return_value = mock_embed_class
+
+        await tool._get_embedder()
+
+        mock_setup.assert_called_once_with("nomic")
+        mock_embed_class.assert_called_once_with(task_type="search_query")

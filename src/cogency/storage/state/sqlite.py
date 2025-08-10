@@ -2,17 +2,17 @@
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional
 
 import aiosqlite
 
 if TYPE_CHECKING:
     from cogency.state.agent import UserProfile, Workspace
 
-from .base import Store
+from . import StateStore
 
 
-class SQLite(Store):
+class SQLite(StateStore):
     """CANONICAL SQLite backend implementing Three-Horizon Split-State Model per docs/dev/state.md"""
 
     def __init__(self, db_path: str = None):
@@ -20,7 +20,12 @@ class SQLite(Store):
             cogency_dir = Path.home() / ".cogency"
             cogency_dir.mkdir(exist_ok=True)
             db_path = cogency_dir / "store.db"
-        self.db_path = str(Path(db_path).expanduser().resolve())
+        
+        # Don't resolve :memory: paths - keep them as-is
+        if db_path == ":memory:" or str(db_path).startswith(":memory:"):
+            self.db_path = str(db_path)
+        else:
+            self.db_path = str(Path(db_path).expanduser().resolve())
         self.process_id = "default"
 
     async def _ensure_schema(self):
@@ -241,178 +246,5 @@ class SQLite(Store):
                 rows = await cursor.fetchall()
 
             return [row[0] for row in rows]
-        except Exception:
-            return []
-
-    # BASE CLASS COMPATIBILITY (Store interface)
-
-    async def save(self, state_key: str, data: Union[Dict[str, Any], Any]) -> bool:
-        """Store interface compatibility - serializes state data"""
-        await self._ensure_schema()
-
-        try:
-            # Handle State objects
-            if hasattr(data, "execution") and hasattr(data, "workspace"):
-                # Full State object - serialize all components
-                state_data = {
-                    "state": {
-                        "execution": {
-                            "query": data.query,
-                            "user_id": data.user_id,
-                            "iteration": data.execution.iteration,
-                            "mode": data.execution.mode,
-                            "messages": data.execution.messages,
-                            "stop_reason": data.execution.stop_reason,
-                            "response": data.execution.response,
-                            "pending_calls": data.execution.pending_calls,
-                            "completed_calls": data.execution.completed_calls,
-                            "iterations_without_tools": data.execution.iterations_without_tools,
-                            "tool_results": data.execution.tool_results,
-                        },
-                        "reasoning": {
-                            "objective": data.workspace.objective,
-                            "assessment": data.workspace.assessment,
-                            "approach": data.workspace.approach,
-                            "observations": data.workspace.observations,
-                            "insights": data.workspace.insights,
-                            "facts": data.workspace.facts,
-                            "thoughts": data.workspace.thoughts,
-                        },
-                        "user_profile": {
-                            "user_id": data.profile.user_id,
-                            "preferences": data.profile.preferences,
-                            "goals": data.profile.goals,
-                            "expertise_areas": data.profile.expertise_areas,
-                            "communication_style": data.profile.communication_style,
-                            "projects": data.profile.projects,
-                            "interaction_count": getattr(data.profile, "interaction_count", 0),
-                            "created_at": data.profile.created_at.isoformat(),
-                            "last_updated": data.profile.last_updated.isoformat(),
-                        }
-                        if data.profile
-                        else None,
-                    }
-                }
-            else:
-                # Raw data
-                state_data = data if isinstance(data, dict) else {"state": data}
-
-            async with aiosqlite.connect(self.db_path) as db:
-                await db.execute(
-                    """
-                    CREATE TABLE IF NOT EXISTS legacy_states (
-                        state_key TEXT PRIMARY KEY,
-                        state_data TEXT NOT NULL,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                    """
-                )
-
-                await db.execute(
-                    """
-                    INSERT OR REPLACE INTO legacy_states (state_key, state_data, updated_at)
-                    VALUES (?, ?, CURRENT_TIMESTAMP)
-                    """,
-                    (state_key, json.dumps(state_data)),
-                )
-                await db.commit()
-
-            return True
-
-        except Exception:
-            return False
-
-    async def load(self, state_key: str) -> Optional[Dict[str, Any]]:
-        """Store interface compatibility - deserializes state data"""
-        await self._ensure_schema()
-
-        try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute(
-                    "SELECT state_data FROM legacy_states WHERE state_key = ?", (state_key,)
-                )
-                row = await cursor.fetchone()
-
-                if not row:
-                    return None
-
-                return json.loads(row[0])
-
-        except Exception:
-            return None
-
-    async def delete(self, state_key: str) -> bool:
-        """Store interface compatibility - deletes from legacy table"""
-        await self._ensure_schema()
-
-        try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute(
-                    "DELETE FROM legacy_states WHERE state_key = ?", (state_key,)
-                )
-                await db.commit()
-                return cursor.rowcount > 0
-
-        except Exception:
-            return False
-
-    async def list_states(self, user_id: str) -> List[str]:
-        """Store interface compatibility - lists from legacy table"""
-        await self._ensure_schema()
-
-        try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute("SELECT state_key FROM legacy_states")
-                rows = await cursor.fetchall()
-
-                # Filter by user_id prefix - only return actual stored keys
-                user_keys = [row[0] for row in rows if row[0].startswith(f"{user_id}:")]
-
-                return user_keys
-
-        except Exception:
-            return []
-
-    async def query_states(
-        self, min_iteration: Optional[int] = None, mode: Optional[str] = None
-    ) -> List[Dict[str, Any]]:
-        """Query states with filtering - compatibility for tests"""
-        await self._ensure_schema()
-
-        try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute("SELECT state_key, state_data FROM legacy_states")
-                rows = await cursor.fetchall()
-
-                results = []
-                for state_key, state_data_json in rows:
-                    try:
-                        state_data = json.loads(state_data_json)
-
-                        # Extract state info for filtering
-                        execution = state_data.get("state", {}).get("execution", {})
-                        iteration = execution.get("iteration", 0)
-                        state_mode = execution.get("mode", "")
-                        user_id = execution.get("user_id", "")
-
-                        # Apply filters
-                        if min_iteration is not None and iteration < min_iteration:
-                            continue
-                        if mode is not None and state_mode != mode:
-                            continue
-
-                        results.append(
-                            {
-                                "state_key": state_key,
-                                "user_id": user_id,
-                                "iteration": iteration,
-                                "mode": state_mode,
-                            }
-                        )
-                    except (json.JSONDecodeError, KeyError):
-                        continue
-
-                return results
-
         except Exception:
             return []

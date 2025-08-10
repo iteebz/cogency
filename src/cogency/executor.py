@@ -7,7 +7,6 @@ from cogency.steps.execution import execute_agent
 from cogency.steps.reason import reason
 from cogency.steps.synthesize import synthesize
 from cogency.steps.triage import triage
-from cogency.storage.utils import _get_state
 from cogency.utils.validation import validate_query
 
 
@@ -55,13 +54,18 @@ class AgentExecutor:
                 raise ValueError(error)
 
             # Setup execution state
-            state = await _get_state(
-                user_id,
-                query,
-                self.max_iterations,
-                self.user_states,
-                self.persistence,
-            )
+            state = {
+                "user_id": user_id,
+                "query": query,
+                "max_iterations": self.max_iterations,
+                "current_iteration": 0,
+                "messages": [],
+                "tools_used": [],
+                "user_profile": None,
+            }
+
+            # Store state reference
+            self.user_states[user_id] = state
 
             # Prepare query
             wrapped_query = f"[user]\n{query.strip()}\n[/user]"
@@ -140,9 +144,19 @@ class AgentExecutor:
                 yield f"Error: {error}"
                 return
 
-            state = await _get_state(
-                user_id, query, self.max_iterations, self.user_states, self.persistence
-            )
+            # Setup execution state
+            state = {
+                "user_id": user_id,
+                "query": query,
+                "max_iterations": self.max_iterations,
+                "current_iteration": 0,
+                "messages": [],
+                "tools_used": [],
+                "user_profile": None,
+            }
+
+            # Store state reference
+            self.user_states[user_id] = state
 
             from cogency.state.mutations import add_message
 

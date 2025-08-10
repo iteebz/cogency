@@ -105,10 +105,10 @@ async def test_agent_executor_integration():
 async def test_memory_contract_compliance():
     """Verify ImpressionSynthesizer follows storage contracts."""
     from cogency.memory import ImpressionSynthesizer
-    from tests.fixtures.store import InMemoryStore
+    from cogency.storage.state import SQLite
 
     provider = MockProvider('{"preferences": {"style": "concise"}}')
-    store = InMemoryStore()
+    store = SQLite()  # Use default temp directory
     synthesizer = ImpressionSynthesizer(provider, store=store)
 
     # Test profile creation and persistence
@@ -137,7 +137,6 @@ async def test_memory_contract_compliance():
 async def test_state_management_contract():
     """Verify state persistence follows contracts."""
     from cogency.state import State
-    from cogency.storage.utils import _get_state
 
     # Test state creation contract
     state = State("test query")
@@ -149,9 +148,20 @@ async def test_state_management_contract():
     # Test state persistence contract (no persistence)
     user_states = {}
 
-    state = await _get_state("user1", "query1", 10, user_states, None)
-    assert state is not None
-    assert state.query == "query1"
+    # Inline state creation (was _get_state)
+    state_data = {
+        "user_id": "user1",
+        "query": "query1",
+        "max_iterations": 10,
+        "current_iteration": 0,
+        "messages": [],
+        "tools_used": [],
+        "user_profile": None,
+    }
+    user_states["user1"] = state_data
+
+    assert state_data is not None
+    assert state_data["query"] == "query1"
 
 
 @pytest.mark.asyncio

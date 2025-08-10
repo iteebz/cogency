@@ -7,8 +7,8 @@ from typing import Any, Dict
 import pytest
 from jsonschema import ValidationError, validate
 
+from cogency.storage.state import SQLite
 from tests.fixtures.provider import MockProvider, RealisticMockProvider
-from tests.fixtures.store import InMemoryStore
 
 
 def validate_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> bool:
@@ -46,28 +46,24 @@ async def test_response_schema_validation(validation_schemas):
 
 
 @pytest.mark.asyncio
-async def test_store_data_validation(in_memory_store, validation_schemas):
+async def test_store_data_validation(validation_schemas):
     """Validate store operations use correct data formats."""
-    store = in_memory_store
-    schema = validation_schemas["memory_entry"]
+    from cogency.state.agent import UserProfile
+    from cogency.storage.state import SQLite
 
-    # Valid memory entry
-    memory_data = {
-        "content": "Test memory content",
-        "timestamp": datetime.now().isoformat(),
-        "user_id": "test_user",
-        "human": True,
-    }
+    store = SQLite()  # Use default temp directory
 
-    assert validate_schema(memory_data, schema)
+    # Valid memory entry for profile
+    profile = UserProfile(user_id="test_user")
+    profile.preferences = {"theme": "dark"}
 
-    # Test store operations - store methods return boolean, not Result objects
-    result = await store.save("memory_1", memory_data)
+    # Test canonical store operations
+    result = await store.save_user_profile("test_user:default", profile)
     assert result is True
 
-    loaded_result = await store.load("memory_1")
+    loaded_result = await store.load_user_profile("test_user:default")
     assert loaded_result is not None
-    assert validate_schema(loaded_result, schema)
+    assert loaded_result.user_id == "test_user"
 
 
 @pytest.mark.asyncio

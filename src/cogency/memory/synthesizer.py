@@ -1,6 +1,5 @@
 """LLM-driven user understanding synthesis."""
 
-from dataclasses import asdict
 from datetime import datetime
 from typing import Any, Dict
 
@@ -37,38 +36,22 @@ class ImpressionSynthesizer:
         return profile
 
     async def _load_profile(self, user_id: str) -> UserProfile:
-        """Load or create user profile."""
+        """Load or create user profile using canonical StateStore methods."""
         if self.store:
-            key = f"profile:{user_id}"
-            try:
-                result = await self.store.load(key)
-            except AttributeError:
-                # Fallback if store doesn't have load method
-                return UserProfile(user_id=user_id)
-
-            # Handle Result vs direct data response
-            if hasattr(result, "success") and result.success:
-                data = result.data
-            elif isinstance(result, dict):
-                data = result
-            else:
-                data = None
-
-            if data and "state" in data:
-                return UserProfile(**data["state"])
-            elif data:
-                return UserProfile(**data)
-                # Direct profile data format
+            state_key = f"{user_id}:default"
+            profile = await self.store.load_user_profile(state_key)
+            if profile:
+                return profile
 
         return UserProfile(user_id=user_id)
 
     async def _save_profile(self, profile: UserProfile) -> None:
-        """Save profile to storage."""
+        """Save profile to storage using canonical StateStore methods."""
         if not self.store:
             return
 
-        key = f"profile:{profile.user_id}"
-        await self.store.save(key, asdict(profile))
+        state_key = f"{profile.user_id}:default"
+        await self.store.save_user_profile(state_key, profile)
 
     async def load(self, user_id: str = None) -> None:
         """Load memory state for the current user."""

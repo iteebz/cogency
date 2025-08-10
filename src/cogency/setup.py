@@ -7,7 +7,7 @@ from cogency.memory import ImpressionSynthesizer
 from cogency.providers.setup import _setup_llm
 
 # Simplified observability - no complex metrics handlers needed
-from cogency.storage.backends.base import _setup_persist
+from cogency.storage.state import _setup_persist
 from cogency.tools.registry import _setup_tools
 
 

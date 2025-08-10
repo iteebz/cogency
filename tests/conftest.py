@@ -11,7 +11,6 @@ from cogency.state import State
 # Import all fixtures from decomposed modules
 from .fixtures import (
     base_agent,
-    in_memory_store,
     mock_provider,
     mock_tool,
     realistic_provider,

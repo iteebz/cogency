@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent, MemoryConfig
-from cogency.storage.backends.sqlite import SQLite
+from cogency.storage.state import SQLite
 from tests.fixtures.provider import MockProvider
 
 
@@ -22,101 +22,117 @@ def create_memory_agent(name="test", **kwargs):
 async def test_memory_session_continuity():
     """Test ImpressionSynthesizer persists user profiles across sessions."""
     with patch("cogency.events.core._bus", None):  # Disable event system
+        import tempfile
+        from pathlib import Path
+
         from cogency.memory import ImpressionSynthesizer
-        from tests.fixtures.store import InMemoryStore
 
-        # Setup shared store and synthesizer
-        store = InMemoryStore()
-        provider = MockProvider(
-            response='{"preferences": {"language": "TypeScript"}, "goals": ["React development"], "expertise": ["frontend"]}'
-        )
-        synthesizer = ImpressionSynthesizer(provider, store=store)
-        synthesizer.synthesis_threshold = 1  # Synthesize every interaction
+        # Use temporary file database for true isolation
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+            db_path = tmp.name
 
-        user_id = "test_user_continuity"
+        try:
+            store = SQLite(db_path)
+            provider = MockProvider(
+                response='{"preferences": {"language": "TypeScript"}, "goals": ["React development"], "expertise": ["frontend"]}'
+            )
+            synthesizer = ImpressionSynthesizer(provider, store=store)
+            synthesizer.synthesis_threshold = 1  # Synthesize every interaction
 
-        # Session 1: Process user preferences
-        interaction1 = {
-            "query": "I prefer TypeScript over JavaScript",
-            "response": "I'll help with TypeScript",
-            "success": True,
-        }
-        profile1 = await synthesizer.update_impression(user_id, interaction1)
+            user_id = "test_user_continuity"
 
-        # Verify profile was created and synthesized
-        assert profile1.user_id == user_id
-        assert profile1.interaction_count == 1
+            # Session 1: Process user preferences
+            interaction1 = {
+                "query": "I prefer TypeScript over JavaScript",
+                "response": "I'll help with TypeScript",
+                "success": True,
+            }
+            profile1 = await synthesizer.update_impression(user_id, interaction1)
 
-        # Session 2: Load existing profile and add new interaction
-        interaction2 = {
-            "query": "I'm working on a React project",
-            "response": "Great! I can help with React",
-            "success": True,
-        }
-        profile2 = await synthesizer.update_impression(user_id, interaction2)
+            # Verify profile was created and synthesized
+            assert profile1.user_id == user_id
+            assert profile1.interaction_count == 1
 
-        # Verify continuity - same user_id should load existing profile
-        assert profile2.user_id == user_id
-        assert profile2.interaction_count == 2  # Incremented from first session
+            # Session 2: Load existing profile and add new interaction
+            interaction2 = {
+                "query": "I'm working on a React project",
+                "response": "Great! I can help with React",
+                "success": True,
+            }
+            profile2 = await synthesizer.update_impression(user_id, interaction2)
 
-        # Session 3: Verify profile contains accumulated understanding
-        profile3 = await synthesizer._load_profile(user_id)
+            # Verify continuity - same user_id should load existing profile
+            assert profile2.user_id == user_id
+            assert profile2.interaction_count == 2  # Incremented from first session
 
-        # Should contain interaction count from both sessions
-        assert profile3.interaction_count >= 2
-        assert profile3.user_id == user_id  # Profile persisted correctly
+            # Session 3: Verify profile contains accumulated understanding
+            profile3 = await synthesizer._load_profile(user_id)
+
+            # Should contain interaction count from both sessions
+            assert profile3.interaction_count >= 2
+            assert profile3.user_id == user_id  # Profile persisted correctly
+        finally:
+            Path(db_path).unlink(missing_ok=True)
 
 
 @pytest.mark.asyncio
 async def test_memory_multi_user_isolation():
     """Test ImpressionSynthesizer isolates profiles between users."""
     with patch("cogency.events.core._bus", None):  # Disable event system
+        import tempfile
+        from pathlib import Path
+
         from cogency.memory import ImpressionSynthesizer
-        from tests.fixtures.store import InMemoryStore
 
-        # Shared store and synthesizer
-        store = InMemoryStore()
-        provider = MockProvider(
-            response='{"preferences": {"language": "Python"}, "expertise": ["backend"]}'
-        )
-        synthesizer = ImpressionSynthesizer(provider, store=store)
+        # Use temporary file database for true isolation
+        with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as tmp:
+            db_path = tmp.name
 
-        # User 1 interaction
-        user1_interaction = {
-            "query": "I prefer Python for backend development",
-            "response": "I'll help with Python",
-            "success": True,
-        }
-        profile1 = await synthesizer.update_impression("user_1", user1_interaction)
+        try:
+            store = SQLite(db_path)
+            provider = MockProvider(
+                response='{"preferences": {"language": "Python"}, "expertise": ["backend"]}'
+            )
+            synthesizer = ImpressionSynthesizer(provider, store=store)
 
-        # User 2 interaction with different provider response
-        provider_2 = MockProvider(
-            response='{"preferences": {"language": "Go"}, "expertise": ["systems"]}'
-        )
-        synthesizer2 = ImpressionSynthesizer(provider_2, store=store)
+            # User 1 interaction
+            user1_interaction = {
+                "query": "I prefer Python for backend development",
+                "response": "I'll help with Python",
+                "success": True,
+            }
+            profile1 = await synthesizer.update_impression("user_1", user1_interaction)
 
-        user2_interaction = {
-            "query": "I prefer Go for systems programming",
-            "response": "I'll help with Go",
-            "success": True,
-        }
-        profile2 = await synthesizer2.update_impression("user_2", user2_interaction)
+            # User 2 interaction with different provider response
+            provider_2 = MockProvider(
+                response='{"preferences": {"language": "Go"}, "expertise": ["systems"]}'
+            )
+            synthesizer2 = ImpressionSynthesizer(provider_2, store=store)
 
-        # Verify isolation
-        assert profile1.user_id == "user_1"
-        assert profile2.user_id == "user_2"
+            user2_interaction = {
+                "query": "I prefer Go for systems programming",
+                "response": "I'll help with Go",
+                "success": True,
+            }
+            profile2 = await synthesizer2.update_impression("user_2", user2_interaction)
 
-        # Reload profiles to verify persistence isolation
-        reloaded_profile1 = await synthesizer._load_profile("user_1")
-        reloaded_profile2 = await synthesizer._load_profile("user_2")
+            # Verify isolation
+            assert profile1.user_id == "user_1"
+            assert profile2.user_id == "user_2"
 
-        assert reloaded_profile1.user_id == "user_1"
-        assert reloaded_profile2.user_id == "user_2"
+            # Reload profiles to verify persistence isolation
+            reloaded_profile1 = await synthesizer._load_profile("user_1")
+            reloaded_profile2 = await synthesizer._load_profile("user_2")
 
-        # Verify profile isolation
-        assert reloaded_profile1.user_id != reloaded_profile2.user_id
-        assert reloaded_profile1.interaction_count == 1
-        assert reloaded_profile2.interaction_count == 1
+            assert reloaded_profile1.user_id == "user_1"
+            assert reloaded_profile2.user_id == "user_2"
+
+            # Verify profile isolation
+            assert reloaded_profile1.user_id != reloaded_profile2.user_id
+            assert reloaded_profile1.interaction_count == 1
+            assert reloaded_profile2.interaction_count == 1
+        finally:
+            Path(db_path).unlink(missing_ok=True)
 
 
 @pytest.mark.asyncio
@@ -158,10 +174,9 @@ async def test_synthesis_step_integration():
         from cogency.memory import ImpressionSynthesizer
         from cogency.state import State, UserProfile
         from cogency.steps.synthesize.core import synthesize
-        from tests.fixtures.store import InMemoryStore
 
         # Setup
-        store = InMemoryStore()
+        store = SQLite(":memory:")
         provider = MockProvider(
             response='{"preferences": {"framework": "React"}, "goals": ["Build web apps"]}'
         )
@@ -199,10 +214,9 @@ async def test_synthesis_lifecycle_complete():
         from cogency.memory import ImpressionSynthesizer
         from cogency.state import State, UserProfile
         from cogency.steps.synthesize.core import _should_synthesize, synthesize
-        from tests.fixtures.store import InMemoryStore
 
         # Setup components
-        store = InMemoryStore()
+        store = SQLite(":memory:")
         provider = MockProvider(response='{"synthesis": "complete"}')
         memory = ImpressionSynthesizer(provider, store=store)
 

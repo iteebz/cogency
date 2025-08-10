@@ -1,15 +1,15 @@
 """Supabase backend - CANONICAL Three-Horizon Split-State Model for production."""
 
 import os
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
     from cogency.state.agent import UserProfile, Workspace
 
-from .base import Store
+from . import StateStore
 
 
-class Supabase(Store):
+class Supabase(StateStore):
     """CANONICAL Supabase backend implementing Three-Horizon Split-State Model per docs/dev/state.md"""
 
     def __init__(
@@ -218,21 +218,3 @@ class Supabase(Store):
             return [row["task_id"] for row in response.data]
         except Exception:
             return []
-
-    # LEGACY COMPATIBILITY (Store interface)
-
-    async def save(self, state_key: str, data: Union[Dict[str, Any], Any]) -> bool:
-        """Store interface compatibility - delegates to canonical methods"""
-        return True
-
-    async def load(self, state_key: str) -> Optional[Dict[str, Any]]:
-        """Store interface compatibility - delegates to canonical methods"""
-        return None
-
-    async def delete(self, state_key: str) -> bool:
-        """Store interface compatibility - delegates to canonical methods"""
-        return await self.delete_user_profile(state_key)
-
-    async def list_states(self, user_id: str) -> List[str]:
-        """Store interface compatibility - delegates to canonical methods"""
-        return await self.list_user_workspaces(user_id)
