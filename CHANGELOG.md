@@ -1,44 +1,37 @@
 # Changelog
 
-## [1.2.1] - 2025-08-09
-**Provider Consolidation**
+## [1.2.2] - 2025-08-10
+- **Four-component state** - Added Conversation component for message persistence
+- **Stream buffer retry** - Automatic LLM streaming failure recovery
+- **File vector store** - Local semantic search
+- **Provider key rotation** - High-volume API key cycling
 
-- **Unified Provider ABC** - Single base class for LLM + embedding capabilities
-- **8 Production providers** - OpenAI, Anthropic, Mistral, Gemini, OpenRouter, Groq, Nomic, Ollama
-- **Semantic parameters** - `llm_model`/`embed_model` over generic `model`
+## [1.2.1] - 2025-08-09
+- **8 production providers** - Unified LLM + embedding base class
+- **Semantic parameters** - `llm_model`/`embed_model` naming
 
 ## [1.2.0] - 2025-08-09
-**Provider Ecosystem + RAG**
-
-- **OpenRouter & Groq LLM providers** - Cost-effective routing + high-performance inference
-- **Canonical Retrieval tool** - Semantic search, lazy indexing, multi-format support
-- **Configurable caching** - TTL/size parameters in provider base classes
-- **Data-driven defaults** - Model selection from 537B+ token usage statistics
-- **Provider status**: 7/7 LLM, 3/3 Embed working (100% coverage)
+- **OpenRouter + Groq** providers
+- **Retrieval tool** - Semantic search, lazy indexing
+- **Provider caching** - Configurable TTL/size
 
 ## [1.1.0] - 2025-08-08
-**Three-Horizon State Architecture**
-
 **BREAKING**: Complete state redesign
-- **Split-state model** - UserProfile (permanent) / Workspace (task) / ExecutionState (runtime)
-- **Database-as-state** - SQLite schema matches dataclass structure
-- **Mutation API** - `add_message()`, `learn_insight()` replace direct manipulation
-- **ACID transactions** - Task isolation with automatic cleanup
-- **Built-in observability** - `@observe` decorator on all core steps
+- **Three-component state** - Profile/Workspace/ExecutionState persistence layers
+- **Database-as-state** - SQLite schema matches dataclasses
+- **Mutation API** - `add_message()`, `learn_insight()` functions
 
 ## [1.0.1] - 2025-08-07
-- Fixed OpenAI rate limit retry method names
-- Added missing base class attributes for embedding providers
+- OpenAI rate limit fixes
+- Embedding provider base class fixes
 
 ## [1.0.0] - 2025-08-03
-**Production Release**
-
-**BREAKING**: Complete rewrite from v0.9.x
+**BREAKING**: Complete rewrite
 - **Security framework** - Multi-layered LLM threat detection
-- **API simplification** - `AgentBuilder` → direct `Agent()` construction
-- **Evaluation suite** - 379 tests across 15 suites
-- **Memory synthesis** - Compression and synthesis capabilities
-- **Ollama support** - Local model integration
+- **Direct Agent()** construction
+- **311 tests** - Full evaluation suite
+- **Memory synthesis** - Compression capabilities
+- **Ollama support** - Local models
 
 ---
 
@@ -64,4 +57,4 @@ Key architectural evolution:
 
 ---
 
-**Pace**: 16 releases in 1 month. 296 commits. 3 complete rewrites.
+**18 releases • 308 commits • 1 month**

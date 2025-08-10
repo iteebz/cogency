@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "cogency"
-version = "1.2.1"
+version = "1.2.2"
 description = "A reasoning engine for adaptive AI agents"
 authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
