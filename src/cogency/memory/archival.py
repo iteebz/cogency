@@ -320,6 +320,26 @@ Updated document:"""
         
         return dot_product / (magnitude1 * magnitude2)
     
+    async def _save_merged_topic(self, user_id: str, topic: str, merged_content: str) -> Result:
+        """Save merged topic content to existing document."""
+        try:
+            # Create artifact with merged content
+            artifact = TopicArtifact(topic, merged_content)
+            artifact.updated = datetime.now().isoformat()
+            
+            # Save to filesystem (will overwrite existing)
+            await self._save_topic(user_id, artifact)
+            
+            # Update embeddings for search
+            await self._update_embeddings(user_id, artifact)
+            
+            emit("memory", operation="merge_save", user_id=user_id, topic=topic, status="complete")
+            return Ok({"topic": topic, "merged": True})
+            
+        except Exception as e:
+            emit("memory", operation="merge_save", user_id=user_id, topic=topic, status="error", error=str(e))
+            return Err(f"Failed to save merged topic: {str(e)}")
+
     async def initialize(self, user_id: str) -> None:
         """Initialize memory system for user (load existing topics into cache)."""
         emit("memory", operation="initialize", user_id=user_id, status="start")
