@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, Mock
 
 import pytest
-from resilient_result import Ok, Err
+from resilient_result import Err, Ok
 
 from cogency.memory.archival import ArchivalMemory, TopicArtifact
 
@@ -37,7 +37,7 @@ List comprehensions are faster than for loops."""
     def test_to_markdown_format(self):
         artifact = TopicArtifact("Python", "Fast code", {"created": "2024-01-01"})
         markdown = artifact.to_markdown()
-        
+
         assert "---" in markdown
         assert "topic: Python" in markdown
         assert "Fast code" in markdown
@@ -75,7 +75,7 @@ class TestArchivalMemory:
         result = await archival_memory.store_insight(
             "user1", "Python", "List comprehensions are fast"
         )
-        
+
         assert result.success
         assert result.data["topic"] == "Python"
 

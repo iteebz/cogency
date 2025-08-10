@@ -1,4 +1,4 @@
-"""Memory and impression synthesis.
+"""Memory and contextual understanding.
 
 This module provides memory capabilities for agents to maintain context across
 interactions. Memory components are internal implementation details and should
@@ -8,12 +8,13 @@ For memory access: Use Agent.memory() method
 For memory configuration: Use MemoryConfig in Agent setup
 
 Internal components:
-- ImpressionSynthesizer: Core memory component for context synthesis
+- SituatedMemory: Core memory component for profile context injection
+- ArchivalMemory: Knowledge artifact storage and retrieval
 - compress, extract_insights: Memory processing utilities
 """
 
 # Internal memory components - not exported
-from .synthesizer import ImpressionSynthesizer  # noqa: F401
+from .situated import SituatedMemory  # noqa: F401
 
 # Internal functions not exported:
 # from .compression import compress

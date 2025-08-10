@@ -4,7 +4,9 @@ from cogency.events import emit
 from cogency.state import State
 
 
-async def execute_agent(state: State, triage_step, reason_step, act_step, synthesize_step) -> None:
+async def execute_agent(
+    state: State, triage_step, reason_step, act_step, situate_step, memory=None
+) -> None:
     """Early-return execution."""
     emit(
         "agent_start",
@@ -19,8 +21,10 @@ async def execute_agent(state: State, triage_step, reason_step, act_step, synthe
         emit("triage", state="complete", early_return=True)
         state.execution.response = response
         state.execution.response_source = "triage"
-        # Always call synthesize after response
-        await synthesize_step(state)
+        # Always call situate after response
+        await situate_step(state)
+        # Call finalize to trigger archive step
+        await state.finalize(memory)
         emit(
             "agent_complete",
             source="triage",
@@ -45,8 +49,8 @@ async def execute_agent(state: State, triage_step, reason_step, act_step, synthe
             emit("reason", state="complete", early_return=True)
             state.execution.response = response.data
             state.execution.response_source = "reason"
-            # Always call synthesize after response
-            await synthesize_step(state)
+            # Always call situate after response
+            await situate_step(state)
             emit(
                 "agent_complete",
                 source="reason",
@@ -58,8 +62,8 @@ async def execute_agent(state: State, triage_step, reason_step, act_step, synthe
             emit("reason", state="complete", early_return=True)
             state.execution.response = response
             state.execution.response_source = "reason"
-            # Always call synthesize after response
-            await synthesize_step(state)
+            # Always call situate after response
+            await situate_step(state)
             emit(
                 "agent_complete",
                 source="reason",
@@ -85,8 +89,8 @@ async def execute_agent(state: State, triage_step, reason_step, act_step, synthe
             if response.success and response.data:
                 state.execution.response = response.data
                 state.execution.response_source = "act"
-                # Always call synthesize after response
-                await synthesize_step(state)
+                # Always call situate after response
+                await situate_step(state)
                 emit(
                     "agent_complete",
                     source="act",
@@ -99,8 +103,8 @@ async def execute_agent(state: State, triage_step, reason_step, act_step, synthe
             emit("action", state="complete", early_return=True)
             state.execution.response = response
             state.execution.response_source = "act"
-            # Always call synthesize after response
-            await synthesize_step(state)
+            # Always call situate after response
+            await situate_step(state)
             emit(
                 "agent_complete",
                 source="act",
@@ -117,5 +121,7 @@ async def execute_agent(state: State, triage_step, reason_step, act_step, synthe
     if not state.execution.response:
         state.execution.response = "Task completed."
         state.execution.response_source = "natural"
-    await synthesize_step(state)
+    await situate_step(state)
+    # Call finalize to trigger archive step
+    await state.finalize()
     emit("agent_complete", source="natural", iterations=state.execution.iteration)

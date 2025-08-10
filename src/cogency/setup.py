@@ -3,7 +3,7 @@
 from cogency.config import MemoryConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
 from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, init_bus
-from cogency.memory import ImpressionSynthesizer
+from cogency.memory.situated import SituatedMemory
 from cogency.providers.setup import _setup_llm
 
 # Simplified observability - no complex metrics handlers needed
@@ -32,16 +32,17 @@ class AgentSetup:
             return None
 
         store = persist_config if persist_config else None
-        
+
         # Setup archival memory if enabled
         archival = None
         if memory_config.archival:
             from cogency.memory.archival import ArchivalMemory
             from cogency.providers.nomic import Nomic
+
             embed_provider = Nomic()  # Use Nomic for embeddings
             archival = ArchivalMemory(llm, embed_provider, base_path=memory_config.path)
-        
-        memory = ImpressionSynthesizer(llm, store=store, archival=archival)
+
+        memory = SituatedMemory(llm, store=store, archival=archival)
         memory.synthesis_threshold = memory_config.synthesis_threshold
         return memory
 

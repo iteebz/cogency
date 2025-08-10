@@ -2,10 +2,10 @@
 
 from typing import Optional
 
+from cogency.memory.situate import situate
 from cogency.steps.act import act
 from cogency.steps.execution import execute_agent
 from cogency.steps.reason import reason
-from cogency.steps.synthesize import synthesize
 from cogency.steps.triage import triage
 from cogency.utils.validation import validate_query
 
@@ -35,7 +35,7 @@ class AgentExecutor:
         self.output_schema = output_schema
 
         # Steps are just functions - no setup needed
-        self.steps = {"triage": triage, "reason": reason, "act": act, "synthesize": synthesize}
+        self.steps = {"triage": triage, "reason": reason, "act": act, "situate": situate}
 
         # Runtime state
         self.user_states = {}
@@ -77,16 +77,16 @@ class AgentExecutor:
             if self.memory:
                 await self.memory.load(user_id)
                 await self.memory.remember(query, human=True)
-                
+
                 # Initialize archival memory if available
-                if hasattr(self.memory, 'archival') and self.memory.archival:
+                if hasattr(self.memory, "archival") and self.memory.archival:
                     await self.memory.archival.initialize(user_id)
-                    
+
                     # Setup Recall context if tools include recall
                     for tool in self.tools:
-                        if hasattr(tool, 'name') and tool.name == 'recall':
+                        if hasattr(tool, "name") and tool.name == "recall":
                             tool.set_context(user_id, self.memory.archival)
-                
+
                 # Connect memory to state
                 user_profile = await self.memory._load_profile(user_id)
                 if user_profile:
@@ -117,7 +117,8 @@ class AgentExecutor:
                     self.output_schema,
                 ),
                 lambda s: act(s, self.llm, self.tools),
-                lambda s: synthesize(s, self.memory),
+                lambda s: situate(s, self.memory),
+                self.memory,
             )
 
             self.last_state = state
@@ -176,14 +177,14 @@ class AgentExecutor:
             if self.memory:
                 await self.memory.load(user_id)
                 await self.memory.remember(query, human=True)
-                
+
                 # Initialize archival memory for streaming if available
-                if hasattr(self.memory, 'archival') and self.memory.archival:
+                if hasattr(self.memory, "archival") and self.memory.archival:
                     await self.memory.archival.initialize(user_id)
-                    
+
                     # Setup Recall context if tools include recall
                     for tool in self.tools:
-                        if hasattr(tool, 'name') and tool.name == 'recall':
+                        if hasattr(tool, "name") and tool.name == "recall":
                             tool.set_context(user_id, self.memory.archival)
 
             emit("start", query=query)
@@ -201,7 +202,8 @@ class AgentExecutor:
                     self.output_schema,
                 ),
                 lambda s: act(s, self.llm, self.tools),
-                lambda s: synthesize(s, self.memory),
+                lambda s: situate(s, self.memory),
+                self.memory,
             )
 
             self.last_state = state

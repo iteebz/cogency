@@ -1,8 +1,9 @@
 """Unit tests for RecallTool."""
 
-import pytest
 from unittest.mock import AsyncMock, Mock
-from resilient_result import Ok, Err
+
+import pytest
+from resilient_result import Err, Ok
 
 from cogency.tools.recall import Recall
 
@@ -16,7 +17,7 @@ class TestRecall:
                 "topic": "Python",
                 "content": "List comprehensions are faster than for loops",
                 "similarity": 0.85,
-                "updated": "2024-01-01T00:00:00"
+                "updated": "2024-01-01T00:00:00",
             }
         ]
         return archival
@@ -30,57 +31,52 @@ class TestRecall:
     @pytest.mark.asyncio
     async def test_successful_recall(self, recall_tool, mock_archival):
         result = await recall_tool.run(query="python performance", min_similarity=0.7)
-        
+
         assert result.success
         assert result.data["count"] == 1
         assert "Python" in result.data["response"]
         mock_archival.search_topics.assert_called_once_with(
-            "user1", "python performance", limit=3, min_similarity=0.7
+            user_id="user1", query="python performance", limit=3, min_similarity=0.7
         )
 
     @pytest.mark.asyncio
     async def test_no_results_found(self, recall_tool, mock_archival):
         mock_archival.search_topics.return_value = []
-        
+
         result = await recall_tool.run(query="nonexistent topic")
-        
+
         assert result.success
         assert result.data["count"] == 0
-        assert "No relevant memories found" in result.data["response"]
+        assert "No relevant knowledge found" in result.data["response"]
 
     @pytest.mark.asyncio
-    async def test_missing_context(self):
-        tool = Recall(AsyncMock())
-        # Don't set context
-        
+    async def test_missing_archival_memory(self):
+        tool = Recall(None)  # No archival memory provided
+
         result = await tool.run(query="test")
-        
+
         assert not result.success
-        assert "Context not set" in str(result.error)
+        assert "Archival memory not initialized" in str(result.error)
 
     def test_format_results_single_topic(self, recall_tool):
         results = [
-            {
-                "topic": "Python",
-                "content": "List comprehensions are fast",
-                "similarity": 0.85
-            }
+            {"topic": "Python", "content": "List comprehensions are fast", "similarity": 0.85}
         ]
-        
-        formatted = recall_tool._format_results(results)
-        
-        assert "## Python" in formatted
+
+        formatted = recall_tool._format_results(results, "test query")
+
+        assert "1. Python" in formatted
         assert "List comprehensions are fast" in formatted
-        assert "Similarity: 85%" in formatted
+        assert "similarity: 0.85" in formatted
 
     def test_format_results_multiple_topics(self, recall_tool):
         results = [
             {"topic": "Python", "content": "Fast code", "similarity": 0.9},
-            {"topic": "JavaScript", "content": "Async patterns", "similarity": 0.8}
+            {"topic": "JavaScript", "content": "Async patterns", "similarity": 0.8},
         ]
-        
-        formatted = recall_tool._format_results(results)
-        
-        assert "## Python" in formatted
-        assert "## JavaScript" in formatted
-        assert formatted.count("Similarity:") == 2
+
+        formatted = recall_tool._format_results(results, "test query")
+
+        assert "1. Python" in formatted
+        assert "2. JavaScript" in formatted
+        assert formatted.count("similarity:") == 2

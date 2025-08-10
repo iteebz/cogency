@@ -16,12 +16,16 @@ def _setup_tools(tools, memory):
         )
 
     if isinstance(tools, str):
-        raise ValueError(f"Invalid tools value '{tools}'; use [] or [Tool(), ...] with explicit instances")
+        raise ValueError(
+            f"Invalid tools value '{tools}'; use [] or [Tool(), ...] with explicit instances"
+        )
     elif isinstance(tools, list):
         # Validate all items are Tool instances
         for tool in tools:
             if not isinstance(tool, Tool):
-                raise ValueError(f"Invalid tool type: {type(tool)}. Use Tool() instances, not strings or classes")
+                raise ValueError(
+                    f"Invalid tool type: {type(tool)}. Use Tool() instances, not strings or classes"
+                )
         return tools
 
     return tools

@@ -58,7 +58,7 @@ class MemoryConfig:
 
     # User identification
     user_id: str = "default"
-    
+
     # Archival memory path
     path: Optional[str] = None  # Custom path for memory storage
 

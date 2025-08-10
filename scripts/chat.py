@@ -5,7 +5,7 @@ import asyncio
 import time
 
 from cogency import Agent
-from cogency.tools import Files, Shell, Search, Scrape
+from cogency.tools import Files, Scrape, Search, Shell
 from cogency.tools.recall import Recall
 
 
@@ -16,7 +16,12 @@ async def main():
     print("Type 'quit' to exit\n")
 
     # Zero-config: automatic beautiful notifications
-    agent = Agent("test-agent", tools=[Files(), Shell(), Search(), Scrape(), Recall()], memory=True, debug=True)
+    agent = Agent(
+        "test-agent",
+        tools=[Files(), Shell(), Search(), Scrape(), Recall()],
+        memory=True,
+        debug=True,
+    )
 
     session_start = time.time()
     interaction_count = 0

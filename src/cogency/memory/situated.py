@@ -1,13 +1,13 @@
-"""LLM-driven user understanding synthesis."""
+"""User profile context injection and situated understanding."""
 
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 from cogency.state import Profile
 
 
-class ImpressionSynthesizer:
-    """LLM-driven user understanding synthesis with archival memory integration."""
+class SituatedMemory:
+    """User profile context injection and situated understanding."""
 
     def __init__(self, provider, store=None, archival=None):
         self.provider = provider
@@ -120,20 +120,11 @@ class ImpressionSynthesizer:
                 error=str(e),
             )
             raise
-    # Legacy Archival Memory Methods (DEPRECATED - now handled by synthesis step)
-    # 
-    # These methods have been replaced by LLM-based archival processing in the synthesis step:
-    # - _should_archive() -> Quality filtering now in synthesis prompt
-    # - _extract_topic() -> LLM-based topic extraction in synthesis  
-    # - _create_insight() -> Structured insight extraction in synthesis
-    # - _process_archival_memory() -> Procedural pipeline in synthesize/core.py
-    #
-    # Keeping methods commented for reference during transition period
 
     async def load_archival(self, user_id: str = None) -> None:
         """Load archival memory for the current user."""
         if not self.archival:
             return
-            
+
         target_user = user_id or self.current_user_id
         await self.archival.initialize(target_user)

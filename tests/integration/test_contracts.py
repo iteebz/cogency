@@ -103,13 +103,13 @@ async def test_agent_executor_integration():
 
 @pytest.mark.asyncio
 async def test_memory_contract_compliance():
-    """Verify ImpressionSynthesizer follows storage contracts."""
-    from cogency.memory import ImpressionSynthesizer
+    """Verify SituatedMemory follows storage contracts."""
+    from cogency.memory.situated import SituatedMemory
     from cogency.storage.state import SQLite
 
     provider = MockProvider('{"preferences": {"style": "concise"}}')
     store = SQLite()  # Use default temp directory
-    synthesizer = ImpressionSynthesizer(provider, store=store)
+    situated = SituatedMemory(provider, store=store)
 
     # Test profile creation and persistence
     interaction = {
@@ -118,12 +118,12 @@ async def test_memory_contract_compliance():
         "success": True,
     }
 
-    profile = await synthesizer.update_impression("test_user", interaction)
+    profile = await situated.update_impression("test_user", interaction)
     assert profile.user_id == "test_user"
     assert profile.interaction_count == 1
 
     # Test profile loading
-    loaded_profile = await synthesizer._load_profile("test_user")
+    loaded_profile = await situated._load_profile("test_user")
     assert loaded_profile.user_id == "test_user"
 
     # Test profile context generation

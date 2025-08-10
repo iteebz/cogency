@@ -62,7 +62,7 @@ DEEP_REASONING_STEPS = """REASONING STEPS:
 🎯 EXECUTE: Run planned tools sequentially when they address different aspects
 
 COMPLETION FOCUS:
-- If 2+ tools succeeded, synthesize results and complete
+- If 2+ tools succeeded, integrate results and complete
 - Don't endlessly analyze - use what you have
 - Gaps in information are OK - respond with available data
 - Progress > Perfection
@@ -70,7 +70,7 @@ COMPLETION FOCUS:
 RECOVERY ACTIONS:
 - Tool argument errors → Check required vs optional args in schema
 - No results from tools → Try different args or alternative approaches
-- Information conflicts → Use additional tools to verify or synthesize  
+- Information conflicts → Use additional tools to verify or integrate  
 - Use the DETAILED action history to understand what actually happened, not just success/failure
 - Avoid repeating successful tool calls - check action history first"""
 

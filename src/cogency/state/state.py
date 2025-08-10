@@ -123,11 +123,17 @@ class State:
             execution=execution,
         )
 
-    async def complete_task(self) -> None:
+    async def finalize(self, memory=None) -> None:
         """Finalize task and cleanup workspace."""
         from ..storage.state import SQLite
 
         store = SQLite()
+
+        # FIRST: Archive knowledge from conversation before cleanup
+        if memory:
+            from ..memory.archive import archive
+
+            await archive(self, memory)
 
         # Save final profile updates
         state_key = f"{self.user_id}:default"
