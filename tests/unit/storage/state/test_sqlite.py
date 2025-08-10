@@ -5,8 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from cogency.state import State
-from cogency.state.agent import UserProfile
+from cogency.state import Profile, State
 from cogency.storage.state import SQLite
 
 
@@ -60,7 +59,7 @@ async def test_with_user_profile():
         store = SQLite(str(db_path))
 
         # Create profile
-        profile = UserProfile(user_id="test_user")
+        profile = Profile(user_id="test_user")
         profile.preferences = {"language": "Python", "style": "concise"}
         profile.communication_style = "technical"
 
@@ -93,9 +92,9 @@ async def test_profile_operations():
         store = SQLite(str(db_path))
 
         # Create profile using canonical structure
-        from cogency.state.agent import UserProfile
+        from cogency.state import Profile
 
-        profile = UserProfile(user_id="profile_user")
+        profile = Profile(user_id="profile_user")
         profile.preferences = {"theme": "dark"}
         profile.communication_style = "casual"
 

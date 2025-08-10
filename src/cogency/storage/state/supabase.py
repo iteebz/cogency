@@ -1,16 +1,16 @@
-"""Supabase backend - CANONICAL Three-Horizon Split-State Model for production."""
+"""Supabase backend - CANONICAL Four-Horizon Split-State Model for production."""
 
 import os
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
-    from cogency.state.agent import UserProfile, Workspace
+    from cogency.state import Conversation, Profile, Workspace
 
 from . import StateStore
 
 
 class Supabase(StateStore):
-    """CANONICAL Supabase backend implementing Three-Horizon Split-State Model per docs/dev/state.md"""
+    """CANONICAL Supabase backend implementing Four-Horizon Split-State Model."""
 
     def __init__(
         self,
@@ -37,23 +37,24 @@ class Supabase(StateStore):
 
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
 
-        # CANONICAL: Three-Horizon table names
+        # CANONICAL: Four-Horizon table names
         self.user_profiles_table = f"{table_prefix}user_profiles"
+        self.conversations_table = f"{table_prefix}conversations"
         self.task_workspaces_table = f"{table_prefix}task_workspaces"
 
         # Ensure canonical schema exists
         self._ensure_canonical_schema()
 
     def _ensure_canonical_schema(self):
-        """Ensure CANONICAL Three-Horizon schema exists - matches docs/dev/state.md exactly."""
+        """Ensure CANONICAL Four-Horizon schema exists."""
         # Note: In production Supabase, schema should be created via migration files
         # This is just for development/testing
         pass
 
-    # CANONICAL: Horizon 1 Operations (UserProfile)
+    # CANONICAL: Horizon 1 Operations (Profile)
 
-    async def save_user_profile(self, state_key: str, profile: "UserProfile") -> bool:
-        """CANONICAL: Save Horizon 1 - UserProfile to user_profiles table"""
+    async def save_user_profile(self, state_key: str, profile: "Profile") -> bool:
+        """CANONICAL: Save Horizon 1 - Profile to user_profiles table"""
         try:
             from dataclasses import asdict
 
@@ -80,13 +81,13 @@ class Supabase(StateStore):
         except Exception:
             return False
 
-    async def load_user_profile(self, state_key: str) -> Optional["UserProfile"]:
-        """CANONICAL: Load Horizon 1 - UserProfile from user_profiles table"""
+    async def load_user_profile(self, state_key: str) -> Optional["Profile"]:
+        """CANONICAL: Load Horizon 1 - Profile from user_profiles table"""
         try:
             from dataclasses import fields
             from datetime import datetime
 
-            from cogency.state.agent import UserProfile
+            from cogency.state import Profile
 
             user_id = state_key.split(":")[0]
 
@@ -102,9 +103,9 @@ class Supabase(StateStore):
 
             profile_data = response.data[0]["profile_data"]
 
-            # Reconstruct UserProfile with datetime deserialization
+            # Reconstruct Profile with datetime deserialization
             profile_kwargs = {}
-            for field in fields(UserProfile):
+            for field in fields(Profile):
                 if field.name in profile_data:
                     value = profile_data[field.name]
                     # Handle datetime deserialization
@@ -112,7 +113,7 @@ class Supabase(StateStore):
                         value = datetime.fromisoformat(value)
                     profile_kwargs[field.name] = value
 
-            return UserProfile(**profile_kwargs)
+            return Profile(**profile_kwargs)
 
         except Exception:
             return None
@@ -133,10 +134,91 @@ class Supabase(StateStore):
         except Exception:
             return False
 
-    # CANONICAL: Horizon 2 Operations (Workspace)
+    # CANONICAL: Horizon 2 Operations (Conversation)
+
+    async def save_conversation(self, conversation: "Conversation") -> bool:
+        """CANONICAL: Save Horizon 2 - Conversation to conversations table"""
+        try:
+            from dataclasses import asdict
+
+            conversation_dict = asdict(conversation)
+
+            # Handle datetime serialization
+            conversation_dict["last_updated"] = conversation.last_updated.isoformat()
+
+            response = (
+                self.client.table(self.conversations_table)
+                .upsert(
+                    {
+                        "conversation_id": conversation.conversation_id,
+                        "user_id": conversation.user_id,
+                        "conversation_data": conversation_dict,
+                    }
+                )
+                .execute()
+            )
+
+            return len(response.data) > 0
+
+        except Exception:
+            return False
+
+    async def load_conversation(
+        self, conversation_id: str, user_id: str
+    ) -> Optional["Conversation"]:
+        """CANONICAL: Load Horizon 2 - Conversation from conversations table"""
+        try:
+            from dataclasses import fields
+            from datetime import datetime
+
+            from cogency.state import Conversation
+
+            response = (
+                self.client.table(self.conversations_table)
+                .select("conversation_data")
+                .eq("conversation_id", conversation_id)
+                .eq("user_id", user_id)
+                .execute()
+            )
+
+            if not response.data:
+                return None
+
+            conversation_data = response.data[0]["conversation_data"]
+
+            # Reconstruct Conversation with datetime deserialization
+            conversation_kwargs = {}
+            for field in fields(Conversation):
+                if field.name in conversation_data:
+                    value = conversation_data[field.name]
+                    # Handle datetime deserialization
+                    if field.name == "last_updated" and isinstance(value, str):
+                        value = datetime.fromisoformat(value)
+                    conversation_kwargs[field.name] = value
+
+            return Conversation(**conversation_kwargs)
+
+        except Exception:
+            return None
+
+    async def delete_conversation(self, conversation_id: str) -> bool:
+        """CANONICAL: Delete conversation permanently"""
+        try:
+            response = (
+                self.client.table(self.conversations_table)
+                .delete()
+                .eq("conversation_id", conversation_id)
+                .execute()
+            )
+            return len(response.data) > 0
+
+        except Exception:
+            return False
+
+    # CANONICAL: Horizon 3 Operations (Workspace)
 
     async def save_task_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
-        """CANONICAL: Save Horizon 2 - Workspace to task_workspaces table by task_id"""
+        """CANONICAL: Save Horizon 3 - Workspace to task_workspaces table by task_id"""
         try:
             from dataclasses import asdict
 
@@ -160,11 +242,11 @@ class Supabase(StateStore):
             return False
 
     async def load_task_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
-        """CANONICAL: Load Horizon 2 - Workspace from task_workspaces table by task_id"""
+        """CANONICAL: Load Horizon 3 - Workspace from task_workspaces table by task_id"""
         try:
             from dataclasses import fields
 
-            from cogency.state.agent import Workspace
+            from cogency.state import Workspace
 
             response = (
                 self.client.table(self.task_workspaces_table)
@@ -191,7 +273,7 @@ class Supabase(StateStore):
             return None
 
     async def delete_task_workspace(self, task_id: str) -> bool:
-        """CANONICAL: Delete Horizon 2 - Workspace on task completion"""
+        """CANONICAL: Delete Horizon 3 - Workspace on task completion"""
         try:
             response = (
                 self.client.table(self.task_workspaces_table)

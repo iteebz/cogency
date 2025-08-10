@@ -1,9 +1,9 @@
 """Profile compression utilities for context injection."""
 
-from cogency.state.agent import UserProfile
+from cogency.state import Profile
 
 
-def compress(profile: UserProfile, max_tokens: int = 800) -> str:
+def compress(profile: Profile, max_tokens: int = 800) -> str:
     """Generate compressed context from user profile for agent initialization.
 
     Args:

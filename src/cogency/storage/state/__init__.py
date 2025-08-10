@@ -28,22 +28,22 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
-    from cogency.state.agent import UserProfile, Workspace
+    from cogency.state import Conversation, Profile, Workspace
 
 
 class StateStore(ABC):
-    """CANONICAL StateStore interface implementing Three-Horizon Split-State Model."""
+    """State storage interface for agent persistence."""
 
-    # CANONICAL: Horizon 1 Operations (UserProfile - persistent across sessions)
+    # Profile Operations (permanent user identity)
 
     @abstractmethod
-    async def save_user_profile(self, state_key: str, profile: "UserProfile") -> bool:
-        """Save Horizon 1 - UserProfile to user_profiles table"""
+    async def save_user_profile(self, state_key: str, profile: "Profile") -> bool:
+        """Save user profile to storage"""
         pass
 
     @abstractmethod
-    async def load_user_profile(self, state_key: str) -> Optional["UserProfile"]:
-        """Load Horizon 1 - UserProfile from user_profiles table"""
+    async def load_user_profile(self, state_key: str) -> Optional["Profile"]:
+        """Load user profile from storage"""
         pass
 
     @abstractmethod
@@ -51,24 +51,43 @@ class StateStore(ABC):
         """Delete user profile permanently"""
         pass
 
-    # CANONICAL: Horizon 2 Operations (Workspace - task-scoped persistence)
+    # Conversation Operations (persistent message history)
+
+    @abstractmethod
+    async def save_conversation(self, conversation: "Conversation") -> bool:
+        """Save conversation to storage"""
+        pass
+
+    @abstractmethod
+    async def load_conversation(
+        self, conversation_id: str, user_id: str
+    ) -> Optional["Conversation"]:
+        """Load conversation from storage"""
+        pass
+
+    @abstractmethod
+    async def delete_conversation(self, conversation_id: str) -> bool:
+        """Delete conversation permanently"""
+        pass
+
+    # Workspace Operations (task-scoped context)
 
     @abstractmethod
     async def save_task_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
-        """Save Horizon 2 - Workspace to task_workspaces table by task_id"""
+        """Save task workspace to storage"""
         pass
 
     @abstractmethod
     async def load_task_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
-        """Load Horizon 2 - Workspace from task_workspaces table by task_id"""
+        """Load task workspace from storage"""
         pass
 
     @abstractmethod
     async def delete_task_workspace(self, task_id: str) -> bool:
-        """Delete Horizon 2 - Workspace on task completion"""
+        """Delete task workspace on completion"""
         pass
 
-    # CANONICAL: Utility Operations
+    # Utility Operations
 
     @abstractmethod
     async def list_user_workspaces(self, user_id: str) -> List[str]:

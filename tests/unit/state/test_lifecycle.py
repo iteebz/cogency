@@ -1,4 +1,4 @@
-"""Unit tests for Three-Horizon Split-State Model."""
+"""Tests for state persistence across task lifecycles."""
 
 from datetime import datetime
 from unittest.mock import AsyncMock, MagicMock
@@ -15,17 +15,18 @@ class MockStore(StateStore):
     def __init__(self):
         self.states = {}
         self.profiles = {}
+        self.conversations = {}
         self.workspaces = {}
         self.process_id = "mock_process"
 
-    # CANONICAL Three-Horizon Store implementation
+    # Mock store implementation
     async def save_user_profile(self, state_key: str, profile) -> bool:
-        """Save Horizon 1 - UserProfile"""
+        """Save user profile"""
         self.profiles[state_key] = profile
         return True
 
     async def load_user_profile(self, state_key: str):
-        """Load Horizon 1 - UserProfile"""
+        """Load user profile"""
         return self.profiles.get(state_key)
 
     async def delete_user_profile(self, state_key: str) -> bool:
@@ -35,19 +36,37 @@ class MockStore(StateStore):
             return True
         return False
 
+    # Conversation operations
+    async def save_conversation(self, conversation) -> bool:
+        """Save conversation"""
+        self.conversations[conversation.conversation_id] = conversation
+        return True
+
+    async def load_conversation(self, conversation_id: str, user_id: str):
+        """Load conversation"""
+        return self.conversations.get(conversation_id)
+
+    async def delete_conversation(self, conversation_id: str) -> bool:
+        """Delete conversation"""
+        if conversation_id in self.conversations:
+            del self.conversations[conversation_id]
+            return True
+        return False
+
+    # Workspace operations
     async def save_task_workspace(self, task_id: str, user_id: str, workspace) -> bool:
-        """Save Horizon 2 - Workspace"""
+        """Save task workspace"""
         key = f"{task_id}:{user_id}"
         self.workspaces[key] = workspace
         return True
 
     async def load_task_workspace(self, task_id: str, user_id: str):
-        """Load Horizon 2 - Workspace"""
+        """Load task workspace"""
         key = f"{task_id}:{user_id}"
         return self.workspaces.get(key)
 
     async def delete_task_workspace(self, task_id: str) -> bool:
-        """Delete Horizon 2 - Workspace"""
+        """Delete task workspace"""
         keys_to_delete = [k for k in self.workspaces if k.startswith(f"{task_id}:")]
         for key in keys_to_delete:
             del self.workspaces[key]
@@ -129,17 +148,18 @@ def sample_state():
 
 @pytest.mark.asyncio
 async def test_start_task(mock_state_store):
-    """Test State.start_task creates proper Three-Horizon structure."""
+    """Test State.start_task creates proper state structure."""
     state = await State.start_task("test query", "test_user")
 
     assert state.query == "test query"
     assert state.user_id == "test_user"
     assert state.task_id is not None
 
-    # Verify Three Horizons exist
-    assert state.profile is not None  # Horizon 1
-    assert state.workspace is not None  # Horizon 2
-    assert state.execution is not None  # Horizon 3
+    # Verify state components exist
+    assert state.profile is not None
+    assert state.conversation is not None
+    assert state.workspace is not None
+    assert state.execution is not None
 
     # Verify workspace was saved to store
     workspace = await mock_state_store.load_task_workspace(state.task_id, "test_user")
@@ -170,7 +190,7 @@ async def test_continue_task(mock_state_store):
     assert continued_state.workspace.objective == "modified objective"
     assert "test insight" in continued_state.workspace.insights
 
-    # ExecutionState should be fresh (Horizon 3 never persists)
+    # Execution should be fresh (Horizon 3 never persists)
     assert continued_state.execution.iteration == 0
 
 
@@ -246,7 +266,7 @@ async def test_three_horizon_persistence(mock_state_store):
     # Continue task (simulates loading from persistence)
     continued_state = await State.continue_task(state.task_id, "test_user")
 
-    # Verify Horizon 1 (UserProfile) - PERSISTED
+    # Verify Horizon 1 (Profile) - PERSISTED
     assert continued_state.profile is not None
     assert continued_state.profile.preferences["style"] == "detailed"
     assert "Learn programming" in continued_state.profile.goals
@@ -255,7 +275,7 @@ async def test_three_horizon_persistence(mock_state_store):
     assert "Important insight" in continued_state.workspace.insights
     assert len(continued_state.workspace.thoughts) > 0
 
-    # Verify Horizon 3 (ExecutionState) - NOT PERSISTED (always fresh runtime state)
+    # Verify Horizon 3 (Execution) - NOT PERSISTED (always fresh runtime state)
     assert continued_state.execution.iteration == 0  # Fresh execution state
     assert continued_state.execution.stop_reason is None  # Fresh execution state
     assert len(continued_state.execution.pending_calls) == 0  # Fresh execution state

@@ -1,18 +1,18 @@
-"""ExecutionState tests - Pure execution tracking."""
+"""Execution tests - Pure execution tracking."""
 
-from cogency.state.agent import ExecutionState
+from cogency.state import Execution
 
 
 def test_create():
-    """Test creating an ExecutionState instance."""
-    state = ExecutionState()
+    """Test creating an Execution instance."""
+    state = Execution()
     assert state.iteration == 0
     assert state.max_iterations == 10
 
 
 def test_defaults():
     """Test that default values are properly set."""
-    state = ExecutionState()
+    state = Execution()
 
     assert state.iteration == 0
     assert state.max_iterations == 10
@@ -64,7 +64,7 @@ def test_tool_calls():
 
 def test_should_continue():
     """Test continue logic."""
-    state = ExecutionState()
+    state = Execution()
 
     # Basic continue checks - execution state has no continue logic
     assert state.iteration == 0
@@ -85,7 +85,7 @@ def test_should_continue():
 
 def test_advance_iteration():
     """Test iteration advancement."""
-    state = ExecutionState()
+    state = Execution()
 
     assert state.iteration == 0
     state.iteration += 1

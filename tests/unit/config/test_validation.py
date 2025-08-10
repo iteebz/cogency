@@ -48,13 +48,13 @@ async def test_response_schema_validation(validation_schemas):
 @pytest.mark.asyncio
 async def test_store_data_validation(validation_schemas):
     """Validate store operations use correct data formats."""
-    from cogency.state.agent import UserProfile
+    from cogency.state import Profile
     from cogency.storage.state import SQLite
 
     store = SQLite()  # Use default temp directory
 
     # Valid memory entry for profile
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
     profile.preferences = {"theme": "dark"}
 
     # Test canonical store operations

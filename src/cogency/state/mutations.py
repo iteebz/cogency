@@ -1,26 +1,30 @@
-"""State mutations - CANONICAL Three-Horizon Split-State Model pure functions."""
+"""State mutation functions."""
 
 from datetime import datetime
 from typing import Any, Dict, List
 
 from resilient_result import unwrap
 
-from .agent import State
 from .autosave import autosave
-
-# CANONICAL: Horizon 3 Operations (ExecutionState - runtime-only, never persisted)
+from .state import State
 
 
 def add_message(state: State, role: str, content: str) -> None:
-    """Add message to Horizon 3 - ExecutionState (runtime-only)."""
-    state.execution.messages.append(
-        {"role": role, "content": content, "timestamp": datetime.now().isoformat()}
-    )
-    autosave(state)  # Saves Horizon 1 + 2, NOT Horizon 3
+    """Add message to conversation and execution state."""
+    message = {"role": role, "content": content, "timestamp": datetime.now().isoformat()}
+
+    # Add to conversation (persisted)
+    state.conversation.messages.append(message)
+    state.conversation.last_updated = datetime.now()
+
+    # Add to execution state (runtime-only)
+    state.execution.messages.append(message)
+
+    autosave(state)  # Saves profile, conversation, and workspace
 
 
 def set_tool_calls(state: State, calls: List[Dict[str, Any]]) -> None:
-    """Set pending tool calls in Horizon 3 - ExecutionState (runtime-only)."""
+    """Set pending tool calls in execution state."""
     validated_calls = []
     for call in calls:
         if isinstance(call, dict) and "name" in call:
@@ -31,11 +35,11 @@ def set_tool_calls(state: State, calls: List[Dict[str, Any]]) -> None:
 
     if state.execution.pending_calls != validated_calls:
         state.execution.pending_calls = validated_calls
-        autosave(state)  # Saves Horizon 1 + 2, NOT Horizon 3
+        autosave(state)  # Saves profile, conversation, and workspace
 
 
 def finish_tools(state: State, results: List[Dict[str, Any]]) -> None:
-    """Process completed tool results in Horizon 3 - ExecutionState (runtime-only)."""
+    """Process completed tool results in execution state."""
     state.execution.completed_calls.extend(results)
     state.execution.pending_calls.clear()
     state.execution.iterations_without_tools = 0
@@ -72,13 +76,13 @@ def finish_tools(state: State, results: List[Dict[str, Any]]) -> None:
 
 
 def advance_iteration(state: State) -> None:
-    """Advance Horizon 3 - ExecutionState iteration (runtime-only)."""
+    """Advance execution iteration (runtime-only)."""
     state.execution.iteration += 1
-    autosave(state)  # Saves Horizon 1 + 2, NOT Horizon 3
+    autosave(state)  # Saves profile + conversation + workspace, NOT execution
 
 
 def should_continue(state: State) -> bool:
-    """Check if execution should continue - Horizon 3 logic."""
+    """Check if execution should continue."""
     return (
         state.execution.iteration < state.execution.max_iterations
         and not state.execution.response
@@ -87,11 +91,11 @@ def should_continue(state: State) -> bool:
     )
 
 
-# CANONICAL: Horizon 2 Operations (Workspace - task-scoped persistence)
+# Workspace Operations (task-scoped persistence)
 
 
 def learn_insight(state: State, insight: str) -> None:
-    """Add insight to Horizon 2 - Workspace (task-scoped, persisted)."""
+    """Add insight to workspace (task-scoped, persisted)."""
     if insight and insight.strip() and insight not in state.workspace.insights:
         state.workspace.insights.append(insight.strip())
         # Bounded growth prevention
@@ -100,8 +104,8 @@ def learn_insight(state: State, insight: str) -> None:
         autosave(state)
 
 
-def update_workspace_facts(state: State, key: str, value: Any) -> None:
-    """Update structured knowledge in Horizon 2 - Workspace (task-scoped, persisted)."""
+def learn_fact(state: State, key: str, value: Any) -> None:
+    """Update structured knowledge in workspace (task-scoped, persisted)."""
     if key and key.strip():
         old_value = state.workspace.facts.get(key)
         if old_value != value:
@@ -114,8 +118,8 @@ def update_workspace_facts(state: State, key: str, value: Any) -> None:
             autosave(state)
 
 
-def record_thinking(state: State, thinking: str, tool_calls: List[Dict[str, Any]]) -> None:
-    """Record reasoning step in Horizon 2 - Workspace (task-scoped, persisted)."""
+def record_thought(state: State, thinking: str, tool_calls: List[Dict[str, Any]]) -> None:
+    """Record reasoning step in workspace (task-scoped, persisted)."""
     thought = {
         "thinking": thinking,
         "tool_calls": tool_calls,
@@ -128,22 +132,22 @@ def record_thinking(state: State, thinking: str, tool_calls: List[Dict[str, Any]
     autosave(state)
 
 
-def update_workspace_assessment(state: State, assessment: str) -> None:
-    """Update task assessment in Horizon 2 - Workspace (task-scoped, persisted)."""
+def set_assessment(state: State, assessment: str) -> None:
+    """Update task assessment in workspace (task-scoped, persisted)."""
     if assessment and state.workspace.assessment != assessment:
         state.workspace.assessment = assessment
         autosave(state)
 
 
-def update_workspace_approach(state: State, approach: str) -> None:
-    """Update task approach in Horizon 2 - Workspace (task-scoped, persisted)."""
+def set_approach(state: State, approach: str) -> None:
+    """Update task approach in workspace (task-scoped, persisted)."""
     if approach and state.workspace.approach != approach:
         state.workspace.approach = approach
         autosave(state)
 
 
 def add_observation(state: State, observation: str) -> None:
-    """Add observation to Horizon 2 - Workspace (task-scoped, persisted)."""
+    """Add observation to workspace (task-scoped, persisted)."""
     if observation and observation.strip() and observation not in state.workspace.observations:
         state.workspace.observations.append(observation.strip())
         # Bounded growth prevention
@@ -152,11 +156,11 @@ def add_observation(state: State, observation: str) -> None:
         autosave(state)
 
 
-# CANONICAL: Horizon 1 Operations (UserProfile - persistent across sessions)
+# Profile Operations (persistent across sessions)
 
 
-def update_user_preference(state: State, key: str, value: Any) -> None:
-    """Update user preference in Horizon 1 - UserProfile (permanent, persisted)."""
+def set_preference(state: State, key: str, value: Any) -> None:
+    """Update user preference in profile (permanent, persisted)."""
     if key and key.strip():
         old_value = state.profile.preferences.get(key)
         if old_value != value:
@@ -165,8 +169,8 @@ def update_user_preference(state: State, key: str, value: Any) -> None:
             autosave(state)
 
 
-def add_user_goal(state: State, goal: str) -> None:
-    """Add goal to Horizon 1 - UserProfile (permanent, persisted)."""
+def add_goal(state: State, goal: str) -> None:
+    """Add goal to profile (permanent, persisted)."""
     if goal and goal.strip() and goal not in state.profile.goals:
         state.profile.goals.append(goal.strip())
         # Bounded growth prevention
@@ -176,8 +180,8 @@ def add_user_goal(state: State, goal: str) -> None:
         autosave(state)
 
 
-def add_user_expertise(state: State, expertise: str) -> None:
-    """Add expertise to Horizon 1 - UserProfile (permanent, persisted)."""
+def add_expertise(state: State, expertise: str) -> None:
+    """Add expertise to profile (permanent, persisted)."""
     if expertise and expertise.strip() and expertise not in state.profile.expertise_areas:
         state.profile.expertise_areas.append(expertise.strip())
         # Bounded growth prevention
@@ -187,16 +191,16 @@ def add_user_expertise(state: State, expertise: str) -> None:
         autosave(state)
 
 
-def update_communication_style(state: State, style: str) -> None:
-    """Update communication style in Horizon 1 - UserProfile (permanent, persisted)."""
+def set_style(state: State, style: str) -> None:
+    """Update communication style in profile (permanent, persisted)."""
     if style and state.profile.communication_style != style:
         state.profile.communication_style = style
         state.profile.last_updated = datetime.now()
         autosave(state)
 
 
-def update_user_project(state: State, project_name: str, description: str) -> None:
-    """Update project in Horizon 1 - UserProfile (permanent, persisted)."""
+def set_project(state: State, project_name: str, description: str) -> None:
+    """Update project in profile (permanent, persisted)."""
     if project_name and project_name.strip():
         old_desc = state.profile.projects.get(project_name)
         if old_desc != description:
@@ -210,39 +214,39 @@ def update_user_project(state: State, project_name: str, description: str) -> No
             autosave(state)
 
 
-# CANONICAL: Cross-Horizon Operations
+# Cross-Component Operations
 
 
 def update_from_reasoning(state: State, reasoning_data: Dict[str, Any]) -> None:
-    """Update state from LLM reasoning response - dispatches to appropriate horizons."""
+    """Update state from LLM reasoning response - dispatches to appropriate components."""
     if isinstance(reasoning_data, list):
         if reasoning_data and isinstance(reasoning_data[0], dict):
             reasoning_data = reasoning_data[0]
         else:
             return
 
-    # Record thinking in Horizon 2 (Workspace)
+    # Record thinking in workspace
     thinking = reasoning_data.get("thinking", "")
     tool_calls = reasoning_data.get("tool_calls", [])
     if thinking:
-        record_thinking(state, thinking, tool_calls)
+        record_thought(state, thinking, tool_calls)
 
-    # Set tool calls in Horizon 3 (ExecutionState)
+    # Set tool calls in execution state
     if tool_calls:
         set_tool_calls(state, tool_calls)
 
     changed = False
 
-    # Update workspace from reasoning (Horizon 2)
+    # Update workspace from reasoning
     workspace_updates = reasoning_data.get("workspace_update", {})
     if workspace_updates and "objective" in workspace_updates:
         if state.workspace.objective != workspace_updates["objective"]:
             state.workspace.objective = workspace_updates["objective"]
             changed = True
         if "assessment" in workspace_updates:
-            update_workspace_assessment(state, workspace_updates["assessment"])
+            set_assessment(state, workspace_updates["assessment"])
         if "approach" in workspace_updates:
-            update_workspace_approach(state, workspace_updates["approach"])
+            set_approach(state, workspace_updates["approach"])
         if "insights" in workspace_updates and isinstance(workspace_updates["insights"], list):
             for insight in workspace_updates["insights"]:
                 learn_insight(state, insight)
@@ -262,7 +266,7 @@ def update_from_reasoning(state: State, reasoning_data: Dict[str, Any]) -> None:
         for insight in context_updates["insights"]:
             learn_insight(state, insight)
 
-    # Handle response in Horizon 3 (ExecutionState)
+    # Handle response in execution state
     if "response" in reasoning_data:
         response_content = reasoning_data["response"]
         if (
@@ -271,7 +275,7 @@ def update_from_reasoning(state: State, reasoning_data: Dict[str, Any]) -> None:
             state.execution.response = response_content
             changed = True
 
-    # Handle mode switching in Horizon 3 (ExecutionState)
+    # Handle mode switching in execution state
     mode_field = reasoning_data.get("switch_mode") or reasoning_data.get("switch_to")
     switch_why = reasoning_data.get("switch_why", "")
     if mode_field and switch_why:
@@ -304,7 +308,7 @@ def update_from_reasoning(state: State, reasoning_data: Dict[str, Any]) -> None:
 
 
 def get_situated_context(state: State) -> str:
-    """Get user context from Horizon 1 - UserProfile for prompt injection."""
+    """Get user context from profile for prompt injection."""
     profile = state.profile
     if not profile or not any([profile.preferences, profile.goals, profile.expertise_areas]):
         return ""
@@ -326,7 +330,7 @@ def get_situated_context(state: State) -> str:
 
 
 def compress_for_context(state: State, max_tokens: int = 1000) -> str:
-    """Compress workspace from Horizon 2 for LLM context."""
+    """Compress workspace for LLM context."""
     sections = []
     workspace = state.workspace
 

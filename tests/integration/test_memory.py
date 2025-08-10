@@ -137,8 +137,8 @@ async def test_memory_multi_user_isolation():
 
 @pytest.mark.asyncio
 async def test_memory_config_integration():
-    """Test State integration with UserProfile."""
-    from cogency.state import State, UserProfile
+    """Test State integration with Profile."""
+    from cogency.state import Profile, State
 
     # Test State without user profile
     state_no_profile = State(query="test query", user_id="test_user")
@@ -146,7 +146,7 @@ async def test_memory_config_integration():
     assert context_no_profile == ""  # No profile means no context
 
     # Test State with user profile
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
     profile.preferences = {"language": "Python"}
     profile.goals = ["Learn backend development"]
     profile.communication_style = "concise"
@@ -172,7 +172,7 @@ async def test_synthesis_step_integration():
     """Test synthesis step integration with full pipeline."""
     with patch("cogency.events.core._bus", None):  # Disable event system
         from cogency.memory import ImpressionSynthesizer
-        from cogency.state import State, UserProfile
+        from cogency.state import Profile, State
         from cogency.steps.synthesize.core import synthesize
 
         # Setup
@@ -183,7 +183,7 @@ async def test_synthesis_step_integration():
         memory = ImpressionSynthesizer(provider, store=store)
 
         # Create user profile with synthesis triggers
-        user_profile = UserProfile(user_id="integration_test")
+        user_profile = Profile(user_id="integration_test")
         user_profile.interaction_count = 6  # Above threshold
         user_profile.synthesis_threshold = 5
         user_profile.last_synthesis_count = 0
@@ -212,7 +212,7 @@ async def test_synthesis_lifecycle_complete():
         from datetime import datetime, timedelta
 
         from cogency.memory import ImpressionSynthesizer
-        from cogency.state import State, UserProfile
+        from cogency.state import Profile, State
         from cogency.steps.synthesize.core import _should_synthesize, synthesize
 
         # Setup components
@@ -221,7 +221,7 @@ async def test_synthesis_lifecycle_complete():
         memory = ImpressionSynthesizer(provider, store=store)
 
         # Test Case 1: Threshold trigger
-        profile_threshold = UserProfile(user_id="threshold_user")
+        profile_threshold = Profile(user_id="threshold_user")
         profile_threshold.interaction_count = 10
         profile_threshold.synthesis_threshold = 5
         profile_threshold.last_synthesis_count = 0
@@ -236,7 +236,7 @@ async def test_synthesis_lifecycle_complete():
         await synthesize(state_threshold, memory)
 
         # Test Case 2: Session end trigger
-        profile_session = UserProfile(user_id="session_user")
+        profile_session = Profile(user_id="session_user")
         profile_session.interaction_count = 2
         profile_session.synthesis_threshold = 5
         profile_session.last_synthesis_count = 0
@@ -253,7 +253,7 @@ async def test_synthesis_lifecycle_complete():
         await synthesize(state_session, memory)
 
         # Test Case 3: High value trigger
-        profile_high_value = UserProfile(user_id="high_value_user")
+        profile_high_value = Profile(user_id="high_value_user")
         profile_high_value.interaction_count = 2
         profile_high_value.synthesis_threshold = 5
         profile_high_value.last_synthesis_count = 0

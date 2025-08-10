@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.state import ExecutionState, State, UserProfile
+from cogency.state import Execution, Profile, State
 from cogency.steps.synthesize.core import (
     _check_high_value_interaction,
     _check_session_end,
@@ -21,7 +21,7 @@ class MockMemory:
     def __init__(self):
         self.update_impression = AsyncMock()
         self._load_profile = AsyncMock()
-        self.user = UserProfile(user_id="test_user")
+        self.user = Profile(user_id="test_user")
 
     async def _load_profile(self, user_id: str):
         return self.user
@@ -42,7 +42,7 @@ def agent_state():
 
 @pytest.fixture
 def user_profile():
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
     profile.interaction_count = 5
     profile.synthesis_threshold = 5
     profile.last_synthesis_count = 0

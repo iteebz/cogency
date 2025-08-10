@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Any, Dict
 
-from cogency.state.agent import UserProfile
+from cogency.state import Profile
 
 
 class ImpressionSynthesizer:
@@ -15,9 +15,7 @@ class ImpressionSynthesizer:
         self.synthesis_threshold = 3  # Synthesize every N interactions
         self.current_user_id = "default"  # Track current user for load/remember
 
-    async def update_impression(
-        self, user_id: str, interaction_data: Dict[str, Any]
-    ) -> UserProfile:
+    async def update_impression(self, user_id: str, interaction_data: Dict[str, Any]) -> Profile:
         """Update user impression from interaction."""
 
         # Load existing profile
@@ -35,7 +33,7 @@ class ImpressionSynthesizer:
 
         return profile
 
-    async def _load_profile(self, user_id: str) -> UserProfile:
+    async def _load_profile(self, user_id: str) -> Profile:
         """Load or create user profile using canonical StateStore methods."""
         if self.store:
             state_key = f"{user_id}:default"
@@ -43,9 +41,9 @@ class ImpressionSynthesizer:
             if profile:
                 return profile
 
-        return UserProfile(user_id=user_id)
+        return Profile(user_id=user_id)
 
-    async def _save_profile(self, profile: UserProfile) -> None:
+    async def _save_profile(self, profile: Profile) -> None:
         """Save profile to storage using canonical StateStore methods."""
         if not self.store:
             return

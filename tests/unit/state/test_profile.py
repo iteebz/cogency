@@ -1,14 +1,14 @@
-"""Test UserProfile functionality."""
+"""Test Profile functionality."""
 
 from datetime import datetime
 
 from cogency.memory.compression import compress
-from cogency.state.agent import UserProfile
+from cogency.state import Profile
 
 
 def test_constructor():
-    """Test UserProfile constructor."""
-    profile = UserProfile(user_id="test_user")
+    """Test Profile constructor."""
+    profile = Profile(user_id="test_user")
 
     assert profile.user_id == "test_user"
     assert profile.preferences == {}
@@ -22,7 +22,7 @@ def test_constructor():
 
 def test_compress_empty():
     """Test compression with empty profile."""
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
 
     result = compress(profile)
     assert result == ""
@@ -30,7 +30,7 @@ def test_compress_empty():
 
 def test_compress_populated():
     """Test compression with populated profile."""
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
     profile.communication_style = "concise"
     profile.goals = ["goal1", "goal2", "goal3"]
     profile.preferences = {"format": "json", "detail": "high"}
@@ -51,7 +51,7 @@ def test_compress_populated():
 
 def test_compress_truncation():
     """Test compression respects max_tokens limit."""
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
     profile.communication_style = "very detailed and comprehensive style"
     profile.goals = ["very long goal description"] * 10
 
@@ -61,7 +61,7 @@ def test_compress_truncation():
 
 def test_compress_recent():
     """Test compression shows most recent items."""
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
 
     # Add many goals to test recent selection
     profile.goals = [f"goal_{i}" for i in range(10)]
@@ -76,8 +76,8 @@ def test_compress_recent():
 
 
 def test_profile_mutability():
-    """Test UserProfile fields can be modified."""
-    profile = UserProfile(user_id="test_user")
+    """Test Profile fields can be modified."""
+    profile = Profile(user_id="test_user")
 
     # Update preferences
     profile.preferences["theme"] = "dark"
@@ -107,9 +107,9 @@ def test_profile_mutability():
 
 
 def test_profile_independence():
-    """Test that different UserProfile instances are independent."""
-    profile1 = UserProfile(user_id="user1")
-    profile2 = UserProfile(user_id="user2")
+    """Test that different Profile instances are independent."""
+    profile1 = Profile(user_id="user1")
+    profile2 = Profile(user_id="user2")
 
     # Modify profile1
     profile1.preferences["theme"] = "dark"
@@ -125,7 +125,7 @@ def test_profile_independence():
 
 def test_timestamps():
     """Test timestamp behavior."""
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
 
     # Timestamps should be set
     assert profile.created_at is not None

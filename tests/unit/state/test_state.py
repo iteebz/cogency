@@ -1,7 +1,6 @@
 """State tests - Split-State Model architecture."""
 
-from cogency.state import State
-from cogency.state.agent import ExecutionState, UserProfile, Workspace
+from cogency.state import Execution, Profile, State, Workspace
 
 
 def test_constructor():
@@ -26,7 +25,7 @@ def test_with_user_id():
 
 def test_with_profile():
     """Test State constructor with user profile."""
-    profile = UserProfile(user_id="test_user")
+    profile = Profile(user_id="test_user")
     state = State(query="test query", profile=profile)
 
     assert state.query == "test query"
@@ -44,9 +43,9 @@ def test_split_state_composition():
     assert hasattr(state, "execution")  # Runtime-only mechanics
 
     # Components are properly typed
-    assert isinstance(state.profile, UserProfile)
+    assert isinstance(state.profile, Profile)
     assert isinstance(state.workspace, Workspace)
-    assert isinstance(state.execution, ExecutionState)
+    assert isinstance(state.execution, Execution)
 
     # Components are independent
     assert state.profile is not state.workspace
@@ -55,7 +54,7 @@ def test_split_state_composition():
 
 
 def test_profile_layer():
-    """Test UserProfile layer - persistent across sessions."""
+    """Test Profile layer - persistent across sessions."""
     state = State(query="test query")
 
     # Profile is initialized with user_id
@@ -77,7 +76,7 @@ def test_workspace_layer():
 
 
 def test_execution_layer():
-    """Test ExecutionState layer - runtime-only mechanics."""
+    """Test Execution layer - runtime-only mechanics."""
     state = State(query="test query")
 
     # Execution state is properly initialized
@@ -113,7 +112,7 @@ def test_post_init_behavior():
     assert state.execution is not None
 
     # Test with existing profile
-    profile = UserProfile(user_id="bob")
+    profile = Profile(user_id="bob")
     state = State(query="another query", profile=profile)
     assert state.profile is profile
     assert state.profile.user_id == "bob"
