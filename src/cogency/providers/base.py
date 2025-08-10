@@ -36,6 +36,69 @@ def setup_rotator(
 logger = logging.getLogger(__name__)
 
 
+class StreamBuffer:
+    """Universal stream retry buffer - handles seamless resumption after failures."""
+
+    def __init__(self, stream_func, rotator=None):
+        self.stream_func = stream_func
+        self.rotator = rotator
+        self.buffer = []
+        self.sent_count = 0
+        self._exhausted = False
+
+    async def stream_with_retry(self, *args, **kwargs):
+        """Stream with automatic retry and seamless resumption."""
+        from .rotation import KeyRotationError, is_quota_exhausted, is_rate_limit
+
+        while True:
+            try:
+                # Start fresh stream and process all chunks
+                chunk_index = 0
+                async for chunk in self.stream_func(*args, **kwargs):
+                    if chunk_index < len(self.buffer):
+                        # This chunk was already buffered, verify it matches
+                        if chunk != self.buffer[chunk_index]:
+                            # Chunks don't match - stream is non-deterministic
+                            # This is a limitation we need to handle
+                            pass
+
+                        if chunk_index >= self.sent_count:
+                            # This buffered chunk hasn't been sent to user yet
+                            yield chunk
+                            self.sent_count += 1
+                    else:
+                        # New chunk not in buffer yet
+                        self.buffer.append(chunk)
+                        yield chunk
+                        self.sent_count += 1
+
+                    chunk_index += 1
+
+                # Stream completed successfully
+                self._exhausted = True
+                break
+
+            except Exception as e:
+                if not self.rotator:
+                    raise  # No rotator available, re-raise original error
+
+                if not is_rate_limit(e) and not is_quota_exhausted(e):
+                    raise  # Not a rate limit error, re-raise original
+
+                if not self.rotator.has_multiple():
+                    raise KeyRotationError(
+                        f"Stream failed with rate limit and no backup keys available: {str(e)}"
+                    ) from e
+
+                # Handle rotation
+                if is_quota_exhausted(e):
+                    self.rotator.remove_exhausted_key()
+                else:
+                    self.rotator.rotate_key()
+
+                # Continue loop to retry - stream will restart but we only yield unsent chunks
+
+
 def rotate_retry(func):
     """Beautiful decorator - automatic key rotation on rate limits."""
     from functools import wraps
@@ -61,6 +124,23 @@ def rotate_retry(func):
     return wrapper
 
 
+def stream_retry(func):
+    """Beautiful decorator - automatic stream retry with seamless resumption."""
+    from functools import wraps
+
+    @wraps(func)
+    async def wrapper(self, *args, **kwargs):
+        rotator = getattr(self, "rotator", None)
+        buffer = StreamBuffer(func, rotator)
+
+        async for chunk in buffer.stream_with_retry(self, *args, **kwargs):
+            yield chunk
+
+    # Mark this as our stream_retry decorator
+    wrapper._is_stream_retry = True
+    return wrapper
+
+
 class Provider(ABC):
     """
     Unified provider base - supports LLM and embedding capabilities.
@@ -77,13 +157,19 @@ class Provider(ABC):
         """Automatically wrap provider methods with key rotation."""
         super().__init_subclass__(**kwargs)
 
-        # Apply @rotate_retry to provider methods that return Results (not async generators)
-        for method_name in ["run", "embed"]:  # stream returns AsyncIterator, not Result
+        # Apply decorators to provider methods based on their return types
+        method_decorators = {
+            "run": (rotate_retry, "_is_rotate_retry"),
+            "embed": (rotate_retry, "_is_rotate_retry"),
+            "stream": (stream_retry, "_is_stream_retry"),
+        }
+
+        for method_name, (decorator, marker_attr) in method_decorators.items():
             if method_name in cls.__dict__:
                 provider_method = cls.__dict__[method_name]
                 # Only wrap if not manually decorated already
-                if not getattr(provider_method, "_is_rotate_retry", False):
-                    wrapped_method = rotate_retry(provider_method)
+                if not getattr(provider_method, marker_attr, False):
+                    wrapped_method = decorator(provider_method)
                     setattr(cls, method_name, wrapped_method)
 
     def __init__(

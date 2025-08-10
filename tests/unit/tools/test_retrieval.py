@@ -58,12 +58,15 @@ async def test_run_no_documents():
 async def test_run_successful_search(mock_get_embedder, temp_docs_dir):
     """Test successful end-to-end search."""
     mock_embedder = Mock()
-    mock_embedder.embed = Mock(
-        side_effect=[
-            Result.ok([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]]),  # Doc embeddings
-            Result.ok([[0.1, 0.2, 0.3]]),  # Query embedding (matches first doc)
-        ]
-    )
+
+    # Create async mock that returns Result objects
+    async def mock_embed(texts):
+        if len(texts) == 3:  # Doc embeddings
+            return Result.ok([[0.1, 0.2, 0.3], [0.4, 0.5, 0.6], [0.7, 0.8, 0.9]])
+        else:  # Query embedding
+            return Result.ok([[0.1, 0.2, 0.3]])
+
+    mock_embedder.embed = mock_embed
     mock_get_embedder.return_value = mock_embedder
 
     tool = Retrieval(path=str(temp_docs_dir))
@@ -111,9 +114,11 @@ async def test_index_management(temp_docs_dir):
 
 
 @pytest.mark.asyncio
-async def test_search_functionality():
+@patch("cogency.tools.retrieval.Retrieval._get_embedder")
+async def test_search_functionality(mock_get_embedder):
     """Test semantic search with mock data."""
     tool = Retrieval()
+    # Use consistent 3D embeddings to match the test expectations
     tool._index = {
         "chunks": [
             {"content": "authentication system", "source": "auth.md", "start": 0, "end": 20},
@@ -121,13 +126,19 @@ async def test_search_functionality():
         ],
         "embeddings": np.array(
             [
-                [0.9, 0.1],  # High similarity to query
-                [0.1, 0.9],  # Low similarity to query
+                [0.9, 0.1, 0.0],  # High similarity to query
+                [0.1, 0.9, 0.0],  # Low similarity to query
             ]
         ),
     }
-    tool._embedder = Mock()
-    tool._embedder.embed = Mock(return_value=Result.ok([[1.0, 0.0]]))  # Perfect match to first
+
+    # Create async mock embedder that matches our 3D mock data
+    async def mock_embed(texts):
+        return Result.ok([[1.0, 0.0, 0.0]])  # Perfect match to first
+
+    mock_embedder = Mock()
+    mock_embedder.embed = mock_embed
+    mock_get_embedder.return_value = mock_embedder
 
     results = await tool._search("auth", 1)
 
