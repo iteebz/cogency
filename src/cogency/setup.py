@@ -26,13 +26,22 @@ class AgentSetup:
 
     @staticmethod
     def memory(config, llm, persist_config=None):
-        """Setup memory system."""
+        """Setup memory system with archival memory integration."""
         memory_config = _setup_config(MemoryConfig, config)
         if not memory_config:
             return None
 
-        store = persist_config.store if persist_config else None
-        memory = ImpressionSynthesizer(llm, store=store)
+        store = persist_config if persist_config else None
+        
+        # Setup archival memory if enabled
+        archival = None
+        if memory_config.archival:
+            from cogency.memory.archival import ArchivalMemory
+            from cogency.providers.nomic import Nomic
+            embed_provider = Nomic()  # Use Nomic for embeddings
+            archival = ArchivalMemory(llm, embed_provider, base_path=memory_config.path)
+        
+        memory = ImpressionSynthesizer(llm, store=store, archival=archival)
         memory.synthesis_threshold = memory_config.synthesis_threshold
         return memory
 

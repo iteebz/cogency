@@ -101,7 +101,7 @@ def list_tools():
         print(f"  {emoji} {name:<10} - {desc}")
 
     print(f"\nTotal: {len(core_tools)} core tools available")
-    print("\nUsage: Agent('assistant', tools=['files', 'shell'])")
+    print("\nUsage: Agent('assistant', tools=[Files(), Shell()])")
     print("Docs: https://github.com/iteebz/cogency/docs/tools.md")
 
 
@@ -118,11 +118,12 @@ def init_project(name: str):
 
     # Create main.py
     main_py = """from cogency import Agent
+from cogency.tools import Files, Shell
 
 # Create your agent (works out-of-box with Ollama)
 agent = Agent(
     name="assistant",
-    tools=["files", "shell"],
+    tools=[Files(), Shell()],
     identity="You are a helpful AI assistant."
 )
 

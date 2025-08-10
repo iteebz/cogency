@@ -68,12 +68,14 @@ def _get_tool(name: str) -> Tool:
     from cogency.tools.scrape import Scrape
     from cogency.tools.search import Search
     from cogency.tools.shell import Shell
+    from cogency.tools.recall import Recall
 
     tool_map = {
         "files": Files,
         "scrape": Scrape,
         "search": Search,
         "shell": Shell,
+        "recall": Recall,
     }
 
     emit("tool", operation="load", name=name, status="start")

@@ -47,6 +47,7 @@ class MemoryConfig:
     # Core toggles
     enabled: bool = True
     persist: bool = True
+    archival: bool = True  # Enable archival memory system
 
     # Synthesis thresholds
     synthesis_threshold: int = 16000  # Character limit for recent interactions
@@ -57,6 +58,9 @@ class MemoryConfig:
 
     # User identification
     user_id: str = "default"
+    
+    # Archival memory path
+    path: Optional[str] = None  # Custom path for memory storage
 
     def __post_init__(self):
         if self.recall_steps is None:

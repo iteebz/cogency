@@ -77,6 +77,16 @@ class AgentExecutor:
             if self.memory:
                 await self.memory.load(user_id)
                 await self.memory.remember(query, human=True)
+                
+                # Initialize archival memory if available
+                if hasattr(self.memory, 'archival') and self.memory.archival:
+                    await self.memory.archival.initialize(user_id)
+                    
+                    # Setup Recall context if tools include recall
+                    for tool in self.tools:
+                        if hasattr(tool, 'name') and tool.name == 'recall':
+                            tool.set_context(user_id, self.memory.archival)
+                
                 # Connect memory to state
                 user_profile = await self.memory._load_profile(user_id)
                 if user_profile:
@@ -166,6 +176,15 @@ class AgentExecutor:
             if self.memory:
                 await self.memory.load(user_id)
                 await self.memory.remember(query, human=True)
+                
+                # Initialize archival memory for streaming if available
+                if hasattr(self.memory, 'archival') and self.memory.archival:
+                    await self.memory.archival.initialize(user_id)
+                    
+                    # Setup Recall context if tools include recall
+                    for tool in self.tools:
+                        if hasattr(tool, 'name') and tool.name == 'recall':
+                            tool.set_context(user_id, self.memory.archival)
 
             emit("start", query=query)
 
