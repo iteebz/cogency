@@ -39,7 +39,7 @@ Example:
     agent = Agent(
         "research_assistant",
         memory=MemoryConfig(),
-        tools="all"
+        tools=[Files(), Shell(), Calculator()]
     )
     ```
 """

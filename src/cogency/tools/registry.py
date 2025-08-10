@@ -1,7 +1,7 @@
 """Tool registry."""
 
 import logging
-from typing import List, Type, Union
+from typing import List, Type
 
 from cogency.tools.base import Tool
 
@@ -12,93 +12,19 @@ def _setup_tools(tools, memory):
     """Setup tools with explicit configuration."""
     if tools is None:
         raise ValueError(
-            "tools must be explicitly specified; use [] for no tools or 'all' for full access"
+            "tools must be explicitly specified; use [] for no tools or [Tool(), ...] for specific tools"
         )
 
-    if tools == "all":
-        return ToolRegistry.get_tools()
-    elif isinstance(tools, str):
-        raise ValueError(f"Invalid tools value '{tools}'; use 'all' or a list of tools")
+    if isinstance(tools, str):
+        raise ValueError(f"Invalid tools value '{tools}'; use [] or [Tool(), ...] with explicit instances")
     elif isinstance(tools, list):
-        resolved = _resolve_tool_list(tools)
-
-        # Developer hint when no tools configured but tools are registered
-        if not resolved and ToolRegistry._tools:
-            from cogency.events import emit
-
-            registered_count = len(ToolRegistry._tools)
-            emit(
-                "agent",
-                operation="setup",
-                status="no_tools_configured",
-                message=f"Agent initialized with no tools, but {registered_count} tools are registered. Use tools='all' to enable them.",
-                registered_tools=[cls.__name__ for cls in ToolRegistry._tools],
-            )
-
-        return resolved
+        # Validate all items are Tool instances
+        for tool in tools:
+            if not isinstance(tool, Tool):
+                raise ValueError(f"Invalid tool type: {type(tool)}. Use Tool() instances, not strings or classes")
+        return tools
 
     return tools
-
-
-def _resolve_tool_list(tools: List[Union[str, Tool]]) -> List[Tool]:
-    """Resolve list of tool instances."""
-    resolved = []
-
-    for tool in tools:
-        if isinstance(tool, str):
-            tool_instance = _get_tool(tool)
-            if tool_instance:
-                resolved.append(tool_instance)
-            else:
-                logger.warning(f"Unknown tool name: {tool}")
-        elif isinstance(tool, Tool):
-            resolved.append(tool)
-        else:
-            logger.warning(f"Invalid tool type: {type(tool)}")
-
-    return resolved
-
-
-def _get_tool(name: str) -> Tool:
-    """Get tool instance by name."""
-    from cogency.events import emit
-
-    # Import here to avoid circular imports
-    from cogency.tools.files import Files
-    from cogency.tools.scrape import Scrape
-    from cogency.tools.search import Search
-    from cogency.tools.shell import Shell
-    from cogency.tools.recall import Recall
-
-    tool_map = {
-        "files": Files,
-        "scrape": Scrape,
-        "search": Search,
-        "shell": Shell,
-        "recall": Recall,
-    }
-
-    emit("tool", operation="load", name=name, status="start")
-
-    tool_class = tool_map.get(name.lower())
-    if tool_class:
-        try:
-            tool_instance = tool_class()
-            emit(
-                "tool",
-                operation="load",
-                name=name,
-                status="complete",
-                class_name=tool_class.__name__,
-            )
-            return tool_instance
-        except Exception as e:
-            emit("tool", operation="load", name=name, status="error", error=str(e))
-            logger.debug(f"Failed to instantiate {name}: {e}")
-            return None
-
-    emit("tool", operation="load", name=name, status="not_found")
-    return None
 
 
 class ToolRegistry:
@@ -115,7 +41,7 @@ class ToolRegistry:
 
     @classmethod
     def get_tools(cls, **kwargs) -> List[Tool]:
-        """Get all registered tool instances - zero ceremony instantiation."""
+        """Get all registered tool instances - internal use only."""
         from cogency.events import emit
 
         emit("tool", operation="registry", status="start", count=len(cls._tools))
@@ -159,7 +85,7 @@ def tool(cls):
 
 
 def get_tools(**kwargs) -> List[Tool]:
-    """Get all registered tool instances.
+    """Get all registered tool instances - internal use only.
 
     Args:
         **kwargs: Optional arguments passed to tool constructors

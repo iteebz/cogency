@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from cogency import Agent
+from cogency.tools import Shell
 from tests.fixtures.provider import MockProvider
 
 
@@ -24,7 +25,7 @@ async def test_agent_defaults():
         mock_runtime.executor = mock_executor
         mock_configure.return_value = mock_runtime
 
-        agent = Agent(name="test_agent", tools="all")
+        agent = Agent(name="test_agent", tools=[Shell()])
 
         # Trigger executor creation
         runtime = agent._executor or await agent._get_executor()
@@ -51,7 +52,7 @@ async def test_memory_disabled():
         mock_runtime.executor = mock_executor
         mock_configure.return_value = mock_runtime
 
-        agent = Agent(name="test", tools="all")
+        agent = Agent(name="test", tools=[Shell()])
 
         # Trigger executor creation
         runtime = agent._executor or await agent._get_executor()
@@ -110,7 +111,7 @@ async def test_run():
         mock_runtime.run = AsyncMock(return_value="Final Answer")
         mock_configure.return_value = mock_runtime
 
-        agent = Agent(name="test", tools="all")
+        agent = Agent(name="test", tools=[Shell()])
         result = await agent.run_async("test query")
 
         assert result == "Final Answer"
