@@ -185,4 +185,4 @@ agent.run("Fix this bug: [code snippet]")
 
 ---
 
-*Adaptive reasoning architecture for Cogency v1.0.0*
+*Adaptive reasoning architecture for Cogency v1.3.0*

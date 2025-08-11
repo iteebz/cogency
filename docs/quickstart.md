@@ -2,7 +2,7 @@
 
 Get up and running with Cogency in 5 minutes.
 
-> 🎯 **v1.0.0**: Production ready with canonical 5-tool architecture
+> 🎯 **v1.3.0**: Production ready with built-in tool system
 
 ## Installation
 
@@ -80,8 +80,8 @@ agent.run("Summarize this article: https://example.com/post")
 # Uses files tool for data persistence
 agent.run("Save this data to results.json")
 
-# Uses http tool for API calls
-agent.run("Get my GitHub profile via API")
+# Uses recall tool for memory
+agent.run("What did I tell you about my preferences earlier?")
 ```
 
 Tools automatically selected based on task requirements.
@@ -147,7 +147,7 @@ agent = Agent(
 
 - **[API Reference](api.md)** - Complete Agent class documentation
 - **[Tools](tools.md)** - Built-in tools and custom tool creation  
-- **[Examples](examples.md)** - Detailed code examples
+- **[Examples](../examples/)** - Working applications
 - **[Memory](memory.md)** - Memory backends and configuration
 - **[Reasoning](reasoning.md)** - Understanding adaptive reasoning modes
 
@@ -166,7 +166,7 @@ result = agent.run("Find and analyze the latest quantum computing research paper
 ```python
 from cogency import Agent
 
-# Built-in tools: Files, Shell, HTTP, Search, Scrape
+# Built-in tools: Files, Shell, Search, Scrape, Retrieval, Recall
 agent = Agent("coder")
 result = agent.run("Create a FastAPI app with database models and run tests")
 ```
@@ -182,4 +182,4 @@ result = agent.run("Process sales.csv, calculate trends, and POST to dashboard A
 
 ---
 
-*Ready to build? Check out the [examples](examples.md) for more detailed walkthroughs.*
+*Ready to build? Check out the [examples](../examples/) for working applications.*

@@ -1,121 +1,86 @@
 # Configuration
 
-Cogency uses a **progressive disclosure** API design: simple boolean flags for beginners, detailed configuration objects for experts.
+Zero ceremony configuration with sensible defaults.
 
-## Basic Configuration
+## Agent Configuration
 
 ```python
-from cogency import Agent, Files, Shell
+from cogency import Agent
 
-# Simple: boolean flags enable defaults
-agent = Agent("assistant", memory=True, robust=True, observe=True)
+# Zero ceremony - all defaults
+agent = Agent("assistant")
 
-# Advanced: specific configuration objects  
+# Common configuration
 agent = Agent(
     "assistant",
-    mode="deep",                  # "fast" | "deep" | "adapt" 
-    max_iterations=10,                     # Max reasoning iterations
-    debug=True,                   # Detailed tracing
-    notify=True,                  # Progress notifications
-    tools=[Files(), Shell()],     # Specific tools
+    tools=[Files(), Shell()],     # Specific tools (default: none)
+    memory=True,                  # Enable memory (default: False)
+    mode="deep",                  # Reasoning mode: "fast", "deep", "adapt" (default: "adapt")
+    max_iterations=15,            # Max reasoning loops (default: 10)
+    notify=False,                 # Disable progress display (default: True)
     identity="You are..."         # Custom system prompt
 )
 ```
 
-## Memory Configuration
+## Parameters
+
+### Core Parameters
+- **`name`**: Agent identifier (default: "cogency")
+- **`tools`**: List of Tool instances (default: `[]`)
+- **`memory`**: Enable memory - `True` or `SituatedMemory` instance (default: `False`)
+- **`handlers`**: Custom event handlers for streaming/websockets
+
+### Behavior Parameters  
+- **`identity`**: Custom system prompt for personality
+- **`mode`**: Reasoning mode - `"adapt"`, `"fast"`, or `"deep"` (default: `"adapt"`)
+- **`max_iterations`**: Max reasoning iterations (default: `10`)
+- **`notify`**: Enable progress notifications (default: `True`)
+
+## Memory Persistence
+
+Memory automatically persists to SQLite:
 
 ```python
-from cogency import Agent, MemoryConfig
-
-# Simple: enable with defaults
+# Memory automatically persists across sessions
 agent = Agent("assistant", memory=True)
-
-# Advanced: custom settings
-agent = Agent(
-    "assistant",
-    memory=True  # Enable with defaults
-)
 ```
 
-## Robustness Configuration
+## Provider Configuration
 
 ```python
-from cogency import Agent, RobustConfig
+from cogency import Agent
+from cogency.providers import OpenAI, Anthropic
 
-# Simple: enable with defaults
-agent = Agent("assistant", robust=True)
+# Auto-detect from environment
+agent = Agent("assistant")  # Uses OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.
 
-# Advanced: custom retry/timeout settings
-agent = Agent(
-    "assistant", 
-    robust=RobustConfig(
-        retry=True,
-        attempts=5,
-        timeout=120.0,
-        rate_limit_rps=2.0
-    )
-)
+# Explicit provider
+agent = Agent("assistant", llm=OpenAI(model="gpt-4o"))
+agent = Agent("assistant", llm=Anthropic(model="claude-3-5-sonnet-20241022"))
 ```
-
-## Observability Configuration
-
-```python
-from cogency import Agent, ObserveConfig
-
-# Simple: enable with defaults
-agent = Agent("assistant", observe=True)
-
-# Advanced: custom monitoring
-agent = Agent(
-    "assistant",
-    observe=ObserveConfig(
-        metrics=True,
-        export_format="prometheus",
-        steps=["reason", "act"]
-    )
-)
-```
-
-## Progressive Disclosure Principle
-
-This Union pattern serves different user intents:
-
-- **Beginners**: Use boolean flags (`memory=True`) for quick starts
-- **Experts**: Use config objects (`memory=MemoryConfig(...)`) for precision
-
-Both patterns are validated to prevent conflicting configurations.
 
 ## Environment Variables
 
-```bash
-# LLM Providers
-export OPENAI_API_KEY=sk-...
-export ANTHROPIC_API_KEY=sk-ant-...  
-export GEMINI_API_KEY=your-key
+Cogency auto-detects providers from environment:
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`  
+- `GEMINI_API_KEY`
+- `MISTRAL_API_KEY`
+- `GROQ_API_KEY`
+- `NOMIC_API_KEY`
+
+## Directory Structure
+
+Cogency stores data in `.cogency/` by default:
+```
+.cogency/
+├── state/     # Agent state persistence
+├── memory/    # User profiles and memory
+└── logs/      # Execution traces
 ```
 
-## Performance Profiles
-
-**Fastest:**
-```python
-agent = Agent(mode="fast", max_iterations=3, notify=False, robust=False)
-```
-
-**Most accurate:**
-```python  
-agent = Agent(mode="deep", max_iterations=25, memory=True, robust=True)
-```
-
-**Production:**
-```python
-agent = Agent(
-    mode="adapt", 
-    memory=True, 
-    robust=RobustConfig(attempts=5, timeout=120.0),
-    observe=True
-)
-```
+Override with `COGENCY_BASE_DIR` environment variable.
 
 ---
 
-*Production-ready configuration for Cogency v1.0.0*
+*Production-ready configuration for Cogency v1.3.0*

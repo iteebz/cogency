@@ -9,12 +9,12 @@ Cogency provides production-ready AI agents with adaptive reasoning, built-in to
 - **[Quick Start](quickstart.md)** - Get running in 5 minutes
 - **[API Reference](api.md)** - Complete Agent class documentation
 - **[Tools](tools.md)** - Built-in tools and custom tool creation
-- **[Examples](examples.md)** - Detailed code examples and walkthroughs
+- **[Examples](../examples/)** - Working applications and demos
 
 ## Core Features
 
 - **Adaptive Reasoning** - Automatically switches between fast and deep thinking modes
-- **Built-in Tools** - Files, shell, HTTP, scrape, search
+- **Built-in Tools** - Files, Shell, Search, Scrape, Retrieval, Recall
 - **Situated Memory** - Learns about users and provides contextual understanding
 - **Streaming Execution** - Watch agents think in real-time
 - **Zero Configuration** - Auto-detects LLM providers and sensible defaults
@@ -50,7 +50,7 @@ async for chunk in agent.stream("Plan a Tokyo trip with $2000 budget"):
 
 ### Getting Started
 - **[Quick Start](quickstart.md)** - Installation and first steps
-- **[Examples](examples.md)** - Working code examples
+- **[Examples](../examples/)** - Working applications
 
 ### API Reference  
 - **[Agent API](api.md)** - Complete constructor and method documentation
@@ -64,4 +64,4 @@ async for chunk in agent.stream("Plan a Tokyo trip with $2000 budget"):
 
 ---
 
-*Cogency v1.0.0 - Production-ready AI agents with adaptive reasoning*
+*Cogency v1.3.0 - Production-ready AI agents with adaptive reasoning*

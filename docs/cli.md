@@ -1,62 +1,51 @@
 # CLI
 
-*Note: A command-line interface is planned for future release. Currently, Cogency is a Python library.*
+Zero ceremony command line interface.
 
-## Quick Start
-
-```python
-from cogency import Agent
-
-agent = Agent("assistant")
-result = agent.run("What's 2+2?")
-print(result)  # "4"
-```
-
-## Provider Configuration
-
-### Zero Ceremony (Default)
-Works immediately with Ollama:
+## Installation
 
 ```bash
 pip install cogency
-# Uses OpenAI client → connects to Ollama automatically
+export OPENAI_API_KEY=sk-...  # or ANTHROPIC_API_KEY, etc.
 ```
 
-### Production Providers
-Install extras for advanced providers:
+## Usage
 
+### Interactive Mode
 ```bash
-pip install cogency[gemini]     # Google Gemini
-pip install cogency[anthropic]  # Claude
-pip install cogency[mistral]    # Mistral AI
+cogency
+# or
+cogency --interactive
 ```
 
-### Local Development
-Configure Ollama endpoint:
-
+### Single Commands  
 ```bash
-export OPENAI_BASE_URL="http://localhost:11434/v1"
-export OPENAI_API_KEY="ollama"
+cogency "What's 2+2?"
+cogency "Build a FastAPI app"
+cogency "Analyze the logs in /var/log/"
 ```
 
-## Interactive Example
+## Tools
 
-```python
-from cogency import Agent, Files, Shell
+Built-in tools auto-load:
+- **Files** - Local filesystem operations
+- **Shell** - System command execution  
+- **Search** - Web search
+- **Scrape** - Web content extraction
+- **Recall** - Memory retrieval
 
-agent = Agent(
-    "assistant",
-    tools=[Files(), Shell()],
-    identity="You are a helpful AI assistant."
-)
-
-# Interactive mode
-if __name__ == "__main__":
-    while True:
-        query = input("\n> ")
-        if query.lower() in ["exit", "quit"]:
-            break
-        
-        response = agent.run(query)
-        print(f"🤖 {response}")
+### Document Retrieval
+Enable semantic document search:
+```bash
+export COGENCY_RETRIEVAL_PATH="/path/to/embeddings"
+cogency "Find documentation about authentication"
 ```
+
+## Configuration
+
+The CLI uses default Agent settings:
+- Memory enabled
+- All 6 built-in tools  
+- Auto-detects LLM provider from API keys
+
+For advanced configuration, use the Python API.

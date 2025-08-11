@@ -47,8 +47,8 @@ Example:
 # Public: Core agent class for creating intelligent assistants
 from .agent import Agent
 
-# Public: Configuration classes for customizing agent behavior
-from .config import PersistConfig
+# Internal: Configuration classes (not for public use)
+# from .config import PersistConfig
 
 # Public: Provider classes for explicit configuration
 from .providers import Anthropic, Gemini, Mistral, Nomic, Ollama, OpenAI, Provider
@@ -58,7 +58,6 @@ from .tools import Files, Retrieval, Scrape, Search, Shell, Tool, tool
 
 __all__ = [
     "Agent",
-    "PersistConfig",
     "Files",
     "Retrieval",
     "Scrape",

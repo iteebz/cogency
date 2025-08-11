@@ -1,8 +1,8 @@
-# Cogency v1.0.0 Benchmark Specification
+# Cogency v1.3.0 Benchmark Specification
 
 ## Overview
 
-Production-ready benchmark suite to validate Cogency's runtime performance claims before v1.0.0 release. Mandatory benchmarks prove agent orchestration, tool integration, and resilience under real-world load.
+Production-ready benchmark suite to validate Cogency's runtime performance claims before v1.3.0 release. Mandatory benchmarks prove agent orchestration, tool integration, and resilience under real-world load.
 
 ## Critical Benchmarks (MANDATORY)
 
@@ -145,7 +145,7 @@ poetry run python evals/long_horizon/stress_test.py --scenarios 10
 poetry run python evals/generate_report.py --format html,json
 ```
 
-## Success Gates for v1.0.0 Release
+## Success Gates for v1.3.0 Release
 
 ### PASS Requirements (ALL must pass)
 - [ ] SWE-bench: ≥15% completion rate
@@ -186,7 +186,7 @@ poetry run python evals/generate_report.py --format html,json
 
 ## Post-Benchmark Actions
 
-**PASS**: Tag v1.0.0, update README with benchmark results, publish release
+**PASS**: Tag v1.3.0, update README with benchmark results, publish release
 **FAIL**: Fix critical issues, re-run affected benchmarks, delay release
 
-No exceptions. No shortcuts. Earn v1.0.0 with evidence.
+No exceptions. No shortcuts. Earn v1.3.0 with evidence.

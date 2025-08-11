@@ -11,19 +11,22 @@ result = agent.run("What's 2+2?")
 agent = Agent(
     "researcher",
     max_iterations=10,             # Max reasoning iterations
-    identity="You are...", # Custom system prompt
-    memory=True,          # Enable memory
-    debug=True            # Detailed logging
+    identity="You are...",         # Custom system prompt
+    memory=True,                   # Enable memory
+    mode="deep",                   # Reasoning mode
+    notify=False                   # Disable notifications
 )
 ```
 
 ## Parameters
 
-- **`max_iterations`**: Max reasoning iterations (default: 10)
+- **`name`**: Agent identifier (default "cogency")
+- **`tools`**: List of tool names, Tool objects, or string (default None)
+- **`memory`**: Enable memory - bool or SituatedMemory instance (default False)
+- **`handlers`**: Custom event handlers for streaming, websockets, etc
 - **`identity`**: Custom system prompt for personality
-- **`memory`**: Enable memory (bool or MemoryConfig)
-- **`debug`**: Detailed execution tracing
-- **`tools`**: List of tools or "all" for full access
+- **`mode`**: Reasoning mode - "adapt", "fast", or "deep" (default "adapt")
+- **`max_iterations`**: Max reasoning iterations (default: 10)
 - **`notify`**: Enable notifications (default True)
 
 ## Methods
@@ -36,10 +39,10 @@ result = agent.run("What's 2+2?", user_id="alice")
 async for chunk in agent.stream("Research quantum computing"):
     print(chunk, end="", flush=True)
 
-# Get execution traces (debug mode only)
-agent = Agent(debug=True)
+# Get execution traces (see observability docs)
+agent = Agent("assistant", handlers=[log_handler])
 agent.run("Calculate something")
-logs = agent.logs(mode="debug")  # List of execution details
+# Traces captured via handlers or logging
 ```
 
 ## Memory Configuration

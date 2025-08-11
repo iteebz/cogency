@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.3.0] - 2025-08-11
+- **Archival memory system** - Topic-based semantic compression + retrieval
+- **Direct agent orchestration** - Eliminated proxy layers
+- **Archaeological cleanup** - Fossil elimination, verbose naming purge
+- **Documentation v1.3.0** - Source-of-truth alignment, 6-tool architecture
+
 ## [1.2.2] - 2025-08-10
 - **Four-component state** - Added Conversation component for message persistence
 - **Stream buffer retry** - Automatic LLM streaming failure recovery
@@ -57,4 +63,4 @@ Key architectural evolution:
 
 ---
 
-**18 releases • 308 commits • 1 month**
+**19 releases • 320 commits • 1 month**

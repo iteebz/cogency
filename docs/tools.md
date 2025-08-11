@@ -4,7 +4,7 @@ Built-in tools auto-register and route intelligently. Create custom tools with z
 
 ## Core Tools
 
-Cogency ships with 4 core tools that provide complete primitive coverage:
+Cogency ships with 6 built-in tools that provide complete primitive coverage:
 
 ### 📁 **Files** - Local Filesystem I/O
 ```python
@@ -33,12 +33,23 @@ scrape(url='https://example.com/article')  # Returns clean text content
 search(query='latest AI developments 2024', max_results=5)
 ```
 
+### 🧠 **Recall** - Archival Memory Retrieval
+```python
+recall(query='user preferences', layer='topics', limit=3)
+```
+
+### 📚 **Retrieval** - Document Semantic Search
+```python
+retrieval(query='API documentation', top_k=5, threshold=0.7)
+```
+
 ## Tool Coverage
 
-These 4 tools compose to handle any reasonable AI agent task:
+These 6 tools compose to handle any reasonable AI agent task:
 - **Local system**: Files + Shell
 - **Network/Web**: Scrape + Search  
-- **Information gathering**: Search + Scrape
+- **Information gathering**: Search + Scrape + Retrieval
+- **Memory systems**: Recall + Retrieval
 - **Execution**: Shell
 - **Data persistence**: Files
 
