@@ -107,16 +107,16 @@ class AgentExecutor:
 
             await execute_agent(
                 state,
-                lambda s: triage(s, self.llm, self.tools, self.memory),
+                lambda s: triage(s, llm=self.llm, tools=self.tools, memory=self.memory),
                 lambda s: reason(
                     s,
-                    self.llm,
-                    self.tools,
-                    self.memory,
-                    identity or self.identity,
-                    self.output_schema,
+                    llm=self.llm,
+                    tools=self.tools,
+                    memory=self.memory,
+                    identity=identity or self.identity,
+                    output_schema=self.output_schema,
                 ),
-                lambda s: act(s, self.llm, self.tools),
+                lambda s: act(s, llm=self.llm, tools=self.tools),
                 lambda s: situate(s, self.memory),
                 self.memory,
             )
@@ -192,16 +192,16 @@ class AgentExecutor:
             # Execute with streaming via event handlers
             await execute_agent(
                 state,
-                lambda s: triage(s, self.llm, self.tools, self.memory),
+                lambda s: triage(s, llm=self.llm, tools=self.tools, memory=self.memory),
                 lambda s: reason(
                     s,
-                    self.llm,
-                    self.tools,
-                    self.memory,
-                    identity or self.identity,
-                    self.output_schema,
+                    llm=self.llm,
+                    tools=self.tools,
+                    memory=self.memory,
+                    identity=identity or self.identity,
+                    output_schema=self.output_schema,
                 ),
-                lambda s: act(s, self.llm, self.tools),
+                lambda s: act(s, llm=self.llm, tools=self.tools),
                 lambda s: situate(s, self.memory),
                 self.memory,
             )

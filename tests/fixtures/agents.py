@@ -7,8 +7,9 @@ from resilient_result import Result
 class BaseAgent:
     """Minimal agent for smoke test validation."""
 
-    def __init__(self, provider=None, tools=None, max_iterations=10):
-        self.provider = provider
+    def __init__(self, llm=None, embed=None, tools=None, max_iterations=10):
+        self.llm = llm
+        self.embed = embed
         self.tools = tools or []
         self.max_iterations = max_iterations
         self.messages = []
@@ -17,7 +18,7 @@ class BaseAgent:
         """Run agent with basic tool calling logic."""
         self.messages = [{"role": "user", "content": prompt}]
         for _iteration in range(self.max_iterations):
-            result = await self.provider.run(self.messages)
+            result = await self.llm.run(self.messages)
             if not result.success:
                 return Result.fail(f"Provider failed: {result.error}")
             response = result.data

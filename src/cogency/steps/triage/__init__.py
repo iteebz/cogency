@@ -17,7 +17,7 @@ from .core import filter_tools, notify_tool_selection, triage_prompt
 
 async def triage(
     state: State,
-    provider: Provider,
+    llm: Provider,
     tools: List[Tool],
     memory,  # Impression instance or None
     identity: str = None,
@@ -29,7 +29,7 @@ async def triage(
 
     query = state.query  # CANONICAL: query is at top level in Three-Horizon model
     user_context = get_situated_context(state)
-    result = await triage_prompt(provider, query, tools, user_context, identity)
+    result = await triage_prompt(llm, query, tools, user_context, identity)
 
     # Handle direct response (early return)
     if result.direct_response:

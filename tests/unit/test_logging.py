@@ -7,7 +7,7 @@ import pytest
 from cogency import Agent
 from cogency.events import MessageBus, get_logs, init_bus
 from cogency.events.handlers import LoggerHandler
-from tests.fixtures.provider import MockProvider
+from tests.fixtures.provider import MockLLM
 
 
 @pytest.fixture(autouse=True)
@@ -27,7 +27,7 @@ def test_logs_after_execution():
     """Test that logs method works and captures events."""
     from cogency.events import emit
 
-    agent = Agent("test", provider=MockProvider(), tools=[])
+    agent = Agent("test", llm=MockLLM(), tools=[])
 
     # Emit some test events to verify logging works
     emit("test", message="test log message")
@@ -51,7 +51,7 @@ def test_logs_after_execution():
 @pytest.mark.asyncio
 async def test_logs_work_without_debug():
     """Test that logs work regardless of debug setting."""
-    agent = Agent("test", provider=MockProvider(), tools=[], debug=False)
+    agent = Agent("test", llm=MockLLM(), tools=[], debug=False)
 
     # Logs should still work even with debug=False
     logs = agent.logs()
@@ -60,7 +60,7 @@ async def test_logs_work_without_debug():
 
 def test_logs_with_fresh_agent():
     """Test that fresh agent has setup events."""
-    agent = Agent("test", provider=MockProvider(), tools=[])
+    agent = Agent("test", llm=MockLLM(), tools=[])
     logs = agent.logs()
 
     # New event bus architecture emits setup events during agent creation
@@ -72,7 +72,7 @@ def test_logs_multiple_executions():
     """Test that logs accumulate across multiple events."""
     from cogency.events import emit
 
-    agent = Agent("test", provider=MockProvider(), tools=[])
+    agent = Agent("test", llm=MockLLM(), tools=[])
 
     # First batch of events
     emit("execution", query="query 1", step="start")

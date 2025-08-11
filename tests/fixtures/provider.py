@@ -10,6 +10,7 @@ from cogency.providers import Provider
 from cogency.providers.base import setup_rotator
 
 
+# Base mock that can do both LLM and embedding
 class MockProvider(Provider):
     """Mock provider for testing."""
 
@@ -95,6 +96,16 @@ def mock_provider(response: str, **kwargs):
     return MockProvider(response=response, **kwargs)
 
 
+def mock_llm_factory(response: str = "Mock LLM response", **kwargs):
+    """Create a mock LLM provider with specified response."""
+    return MockLLM(response=response, **kwargs)
+
+
+def mock_embed_factory(**kwargs):
+    """Create a mock embedding provider."""
+    return MockEmbed(**kwargs)
+
+
 class RealisticMockProvider(Provider):
     """Mock provider with realistic response patterns for integration tests."""
 
@@ -170,6 +181,29 @@ class RealisticMockProvider(Provider):
 def mock_provider():
     """Mock provider instance."""
     return MockProvider()
+
+
+# Specific aliases for clarity in tests
+class MockLLM(MockProvider):
+    """Mock LLM provider - same as MockProvider but clearer intent."""
+    pass
+
+
+class MockEmbed(MockProvider):
+    """Mock embedding provider - same as MockProvider but clearer intent."""
+    pass
+
+
+@pytest.fixture
+def mock_llm():
+    """Mock LLM provider instance."""
+    return MockLLM()
+
+
+@pytest.fixture
+def mock_embed():
+    """Mock embedding provider instance."""
+    return MockEmbed()
 
 
 @pytest.fixture

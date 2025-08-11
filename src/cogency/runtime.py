@@ -19,9 +19,10 @@ class AgentRuntime:
         # Setup components explicitly
         agent_config = AgentSetup.config(config)
         llm = AgentSetup.llm(config.llm)
+        embed = AgentSetup.embed(config.embed)
         tools = AgentSetup.tools(config.tools)
         persistence = AgentSetup.persistence(True)
-        memory = AgentSetup.memory(config.memory, llm, persistence)
+        memory = AgentSetup.memory(config.memory, llm, persistence, embed)
 
         # Create executor with explicit dependencies
         self.executor = AgentExecutor(

@@ -53,7 +53,7 @@ def filter_tools(tools: List[Tool], selected_names: List[str]) -> List[Tool]:
 
 
 async def check_early_return(
-    provider: Provider, query: str, selected_tools: List[Tool]
+    llm: Provider, query: str, selected_tools: List[Tool]
 ) -> Optional[str]:
     """Check if query can be answered directly without ReAct."""
     query_str = query if isinstance(query, str) else str(query)
@@ -63,7 +63,7 @@ async def check_early_return(
 
 
 async def _early_check(
-    provider: Provider, query: str, available_tools: List[Tool]
+    llm: Provider, query: str, available_tools: List[Tool]
 ) -> Optional[str]:
     """Use LLM to intelligently determine if query needs full pipeline."""
     tool_names = [tool.name for tool in available_tools] if available_tools else []
@@ -85,7 +85,7 @@ Examples:
 - "Search for Python tutorials" → "TOOLS"
 """
 
-    result = await provider.run([{"role": "user", "content": prompt}])
+    result = await llm.run([{"role": "user", "content": prompt}])
     response = unwrap(result).strip()
 
     # Parse response
@@ -95,16 +95,16 @@ Examples:
     return None
 
 
-async def _direct_response(provider: Provider, query: str) -> str:
+async def _direct_response(llm: Provider, query: str) -> str:
     """Generate direct LLM response."""
     prompt = f"Answer this simple question directly: {query}"
-    result = await provider.run([{"role": "user", "content": prompt}])
+    result = await llm.run([{"role": "user", "content": prompt}])
     response = unwrap(result)
     return response.strip()
 
 
 async def select_tools(
-    provider: Provider, query: str, available_tools: List[Tool]
+    llm: Provider, query: str, available_tools: List[Tool]
 ) -> SelectionResult:
     """Select tools needed for query execution."""
     if not available_tools:
@@ -131,7 +131,7 @@ SELECTION RULES:
 - Consider query intent and tool capabilities
 - Prefer minimal tool sets that accomplish the goal"""
 
-    result = await provider.run([{"role": "user", "content": prompt}])
+    result = await llm.run([{"role": "user", "content": prompt}])
     response = unwrap(result)
     parsed = unwrap(_parse_json(response))
 
@@ -161,7 +161,7 @@ async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) ->
 
 
 async def triage_prompt(
-    provider: Provider,
+    llm: Provider,
     query: str,
     available_tools: List[Tool],
     user_context: str = "",
@@ -178,7 +178,7 @@ async def triage_prompt(
     prompt = build_triage_prompt(query, registry_lite, user_context, identity)
 
     emit("triage", level="debug", state="provider_call")
-    result = await provider.run([{"role": "user", "content": prompt}])
+    result = await llm.run([{"role": "user", "content": prompt}])
     response = unwrap(result)
     parsed = unwrap(_parse_json(response))
 

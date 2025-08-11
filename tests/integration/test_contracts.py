@@ -10,7 +10,7 @@ from resilient_result import Result
 from cogency import Agent
 from cogency.providers import Provider
 from cogency.tools.base import Tool
-from tests.fixtures.provider import MockProvider
+from tests.fixtures.provider import MockLLM
 
 
 class ContractValidatingTool(Tool):
@@ -73,7 +73,7 @@ async def test_agent_executor_integration():
     """Test Agent integration with mocked execution."""
     from unittest.mock import AsyncMock, patch
 
-    provider = MockProvider(
+    llm = MockLLM(
         response="I understand your request and will help you test the contract validation."
     )
 
@@ -85,7 +85,7 @@ async def test_agent_executor_integration():
 
         agent = Agent(
             name="contract_test",
-            provider=provider,
+            llm=llm,
             tools=[],
             memory=False,
             notify=False,
@@ -107,9 +107,9 @@ async def test_memory_contract_compliance():
     from cogency.memory.situated import SituatedMemory
     from cogency.storage.state import SQLite
 
-    provider = MockProvider('{"preferences": {"style": "concise"}}')
+    llm = MockLLM('{"preferences": {"style": "concise"}}')
     store = SQLite()  # Use default temp directory
-    situated = SituatedMemory(provider, store=store)
+    situated = SituatedMemory(llm, store=store)
 
     # Test profile creation and persistence
     interaction = {
@@ -169,13 +169,13 @@ async def test_error_propagation_contract():
     """Verify errors propagate correctly through the stack."""
     from unittest.mock import AsyncMock, patch
 
-    provider = MockProvider()
+    llm = MockLLM()
 
     # Mock agent run_async to raise an exception
     with patch("cogency.Agent.run_async", new_callable=AsyncMock) as mock_run:
         mock_run.side_effect = Exception("Deliberate test failure")
 
-        agent = Agent(name="error_test", provider=provider, tools=[], notify=False)
+        agent = Agent(name="error_test", llm=llm, tools=[], notify=False)
 
         # Verify exception propagation (we unwrap at boundaries)
         with pytest.raises(Exception) as exc_info:
@@ -190,11 +190,11 @@ async def test_concurrent_agent_isolation():
     """Verify concurrent agents don't interfere with each other."""
     from unittest.mock import AsyncMock, patch
 
-    provider1 = MockProvider(response="Response from agent 1")
-    provider2 = MockProvider(response="Response from agent 2")
+    llm1 = MockLLM(response="Response from agent 1")
+    llm2 = MockLLM(response="Response from agent 2")
 
-    agent1 = Agent("agent1", provider=provider1, tools=[], notify=False, mode="fast")
-    agent2 = Agent("agent2", provider=provider2, tools=[], notify=False, mode="fast")
+    agent1 = Agent("agent1", llm=llm1, tools=[], notify=False, mode="fast")
+    agent2 = Agent("agent2", llm=llm2, tools=[], notify=False, mode="fast")
 
     # Mock agent execution to avoid slow pipeline
     with patch("cogency.Agent.run_async", new_callable=AsyncMock) as mock_run:

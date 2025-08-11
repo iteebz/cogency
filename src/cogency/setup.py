@@ -4,7 +4,7 @@ from cogency.config import MemoryConfig, PersistConfig, RobustConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
 from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, init_bus
 from cogency.memory.situated import SituatedMemory
-from cogency.providers.setup import _setup_llm
+from cogency.providers.setup import _setup_llm, _setup_embed
 
 # Simplified observability - no complex metrics handlers needed
 from cogency.storage.state import _setup_persist
@@ -20,12 +20,17 @@ class AgentSetup:
         return _setup_llm(config)
 
     @staticmethod
+    def embed(config):
+        """Setup embedding provider."""
+        return _setup_embed(config)
+
+    @staticmethod
     def tools(config):
         """Setup tool registry."""
         return _setup_tools(config or [], None)
 
     @staticmethod
-    def memory(config, llm, persist_config=None):
+    def memory(config, llm, persist_config=None, embed_provider=None):
         """Setup memory system with archival memory integration."""
         memory_config = _setup_config(MemoryConfig, config)
         if not memory_config:
@@ -37,9 +42,12 @@ class AgentSetup:
         archival = None
         if memory_config.archival:
             from cogency.memory.archival import ArchivalMemory
-            from cogency.providers.nomic import Nomic
-
-            embed_provider = Nomic()  # Use Nomic for embeddings
+            
+            # Use provided embed provider or default to Nomic
+            if not embed_provider:
+                from cogency.providers.nomic import Nomic
+                embed_provider = Nomic()
+            
             archival = ArchivalMemory(llm, embed_provider, base_path=memory_config.path)
 
         memory = SituatedMemory(llm, store=store, archival=archival)

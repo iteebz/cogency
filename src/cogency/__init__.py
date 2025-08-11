@@ -53,10 +53,13 @@ from .config import MemoryConfig, PersistConfig, RobustConfig
 # Public: Tool classes and system for explicit imports
 from .tools import Files, Retrieval, Scrape, Search, Shell, Tool, tool
 
+# Public: Provider classes for explicit configuration
+from .providers import OpenAI, Anthropic, Gemini, Mistral, Nomic, Ollama, Provider
+
 __all__ = [
     "Agent",
     "MemoryConfig",
-    "PersistConfig",
+    "PersistConfig", 
     "RobustConfig",
     "Files",
     "Retrieval",
@@ -65,4 +68,11 @@ __all__ = [
     "Shell",
     "Tool",
     "tool",
+    "OpenAI",
+    "Anthropic", 
+    "Gemini",
+    "Mistral",
+    "Nomic",
+    "Ollama",
+    "Provider",
 ]
