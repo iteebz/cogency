@@ -32,7 +32,7 @@ def test_needs_network_retry():
     assert needs_network_retry([{"error": "invalid input"}]) is False
 
 
-def test_query_needs_tools():
+def test_needs_tools():
     tools = ["search", "code"]
     no_tools = []
 

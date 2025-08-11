@@ -21,7 +21,7 @@ def reset_event_bus():
     # handler.events.clear()  # Let events persist until the fixture runs again
 
 
-def test_logs_after_execution():
+def test_after_execution():
     """Test that logs method works and captures events."""
     from cogency.events import emit
 
@@ -45,7 +45,7 @@ def test_logs_after_execution():
 
 
 @pytest.mark.asyncio
-async def test_logs_work_without_debug():
+async def test_work_without_debug():
     """Test that logs work regardless of debug setting."""
     agent = Agent("test", llm=MockLLM(), tools=[])
 
@@ -54,7 +54,7 @@ async def test_logs_work_without_debug():
     assert isinstance(logs, list)  # Should return list even if empty or with setup events
 
 
-def test_logs_with_fresh_agent():
+def test_fresh_agent():
     """Test that fresh agent has setup events."""
     agent = Agent("test", llm=MockLLM(), tools=[])
     logs = agent.logs()
@@ -64,7 +64,7 @@ def test_logs_with_fresh_agent():
     assert isinstance(logs, list)
 
 
-def test_logs_multiple_executions():
+def test_multiple_executions():
     """Test that logs accumulate across multiple events."""
     from cogency.events import emit
 
@@ -88,7 +88,7 @@ def test_logs_multiple_executions():
     ), f"Expected more execution events: {len(first_execution_events)} -> {len(second_execution_events)}"
 
 
-def test_get_logs_function():
+def test_get_function():
     """Test that get_logs() function works independently."""
     # Should return list (may be empty or have setup events)
     logs = get_logs()

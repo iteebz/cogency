@@ -64,7 +64,7 @@ async def test_embed_multi():
     assert len(result.data) == 3
 
 
-def test_embed_capability_providers():
+def test_embedding_capability():
     """Test that embedding-capable providers implement embed method."""
 
     from cogency.providers import Mistral, Ollama, OpenAI

@@ -21,7 +21,7 @@ def sample_conversation():
     return conv
 
 
-def test_conversation_creation():
+def test_creation():
     """Test conversation creates with unique ID and user mapping."""
     conv1 = Conversation(user_id="user1")
     conv2 = Conversation(user_id="user1")
@@ -59,14 +59,14 @@ def test_message_threading():
     assert "syntax" in conv_messages[2]["content"]
 
 
-def test_conversation_persistence_across_tasks():
+def test_persistence_across_tasks():
     """Test conversation persists when starting new tasks."""
     # This test shows the key feature: conversation continuity
     pass  # Will implement after storage is working
 
 
 @pytest.mark.asyncio
-async def test_conversation_storage_operations():
+async def test_storage_operations():
     """Test conversation CRUD operations in storage."""
     import tempfile
     from pathlib import Path
@@ -102,7 +102,7 @@ async def test_conversation_storage_operations():
 
 
 @pytest.mark.asyncio
-async def test_conversation_continues_across_tasks():
+async def test_continues_across_tasks():
     """Test conversation history is maintained across multiple tasks."""
     user_id = "test_user"
 
@@ -139,7 +139,7 @@ async def test_conversation_continues_across_tasks():
     await state2.archive_conversation()
 
 
-def test_conversation_isolation_between_users():
+def test_isolation_between_users():
     """Test conversations are properly isolated between users."""
     conv1 = Conversation(user_id="user1")
     conv2 = Conversation(user_id="user2")
@@ -153,7 +153,7 @@ def test_conversation_isolation_between_users():
     assert conv2.messages[0]["content"] == "User 2 message"
 
 
-def test_conversation_timestamp_updates():
+def test_timestamp_updates():
     """Test conversation timestamps update correctly."""
     conv = Conversation(user_id="test_user")
     original_time = conv.last_updated

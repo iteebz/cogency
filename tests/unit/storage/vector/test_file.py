@@ -48,7 +48,7 @@ def embeddings_file(sample_embeddings):
 
 
 @pytest.mark.asyncio
-async def test_file_store_search_basic(embeddings_file):
+async def test_search_basic(embeddings_file):
     """Test basic search functionality."""
     store = FileStore(embeddings_file)
 
@@ -70,7 +70,7 @@ async def test_file_store_search_basic(embeddings_file):
 
 
 @pytest.mark.asyncio
-async def test_file_store_search_with_filters(embeddings_file):
+async def test_search_with_filters(embeddings_file):
     """Test search with metadata filters."""
     store = FileStore(embeddings_file)
 
@@ -86,7 +86,7 @@ async def test_file_store_search_with_filters(embeddings_file):
 
 
 @pytest.mark.asyncio
-async def test_file_store_search_with_threshold(embeddings_file):
+async def test_search_with_threshold(embeddings_file):
     """Test search with similarity threshold."""
     store = FileStore(embeddings_file)
 
@@ -101,7 +101,7 @@ async def test_file_store_search_with_threshold(embeddings_file):
 
 
 @pytest.mark.asyncio
-async def test_file_store_nonexistent_file():
+async def test_nonexistent_file():
     """Test handling of nonexistent file."""
     store = FileStore("nonexistent.json")
 
@@ -110,7 +110,7 @@ async def test_file_store_nonexistent_file():
 
 
 @pytest.mark.asyncio
-async def test_file_store_add_not_implemented(embeddings_file):
+async def test_add_not_implemented(embeddings_file):
     """Test that add operations are not implemented (read-only)."""
     store = FileStore(embeddings_file)
 
@@ -119,7 +119,7 @@ async def test_file_store_add_not_implemented(embeddings_file):
 
 
 @pytest.mark.asyncio
-async def test_file_store_delete_not_implemented(embeddings_file):
+async def test_delete_not_implemented(embeddings_file):
     """Test that delete operations are not implemented (read-only)."""
     store = FileStore(embeddings_file)
 
@@ -127,7 +127,7 @@ async def test_file_store_delete_not_implemented(embeddings_file):
         await store.delete(["doc1"])
 
 
-def test_file_store_invalid_format():
+def test_invalid_format():
     """Test handling of invalid embeddings file format."""
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump({"invalid": "format"}, f)

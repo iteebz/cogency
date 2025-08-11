@@ -75,7 +75,7 @@ def test_compress_recent():
     assert "goal_0" not in result
 
 
-def test_profile_mutability():
+def test_mutability():
     """Test Profile fields can be modified."""
     profile = Profile(user_id="test_user")
 
@@ -106,7 +106,7 @@ def test_profile_mutability():
     assert profile.projects["project1"] == "description1"
 
 
-def test_profile_independence():
+def test_independence():
     """Test that different Profile instances are independent."""
     profile1 = Profile(user_id="user1")
     profile2 = Profile(user_id="user2")

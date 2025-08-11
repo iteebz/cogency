@@ -3,7 +3,7 @@
 from cogency.state import Workspace
 
 
-def test_workspace_creation():
+def test_creation():
     """Test workspace creates with proper defaults."""
     ws = Workspace()
 
@@ -16,7 +16,7 @@ def test_workspace_creation():
     assert ws.thoughts == []
 
 
-def test_workspace_with_objective():
+def test_with_objective():
     """Test workspace initialization with objective."""
     ws = Workspace(objective="Solve the problem")
 
@@ -25,7 +25,7 @@ def test_workspace_with_objective():
     assert ws.observations == []
 
 
-def test_workspace_data_accumulation():
+def test_data_accumulation():
     """Test workspace accumulates task context."""
     ws = Workspace(objective="Research topic")
 
@@ -47,7 +47,7 @@ def test_workspace_data_accumulation():
     assert "research_paper.pdf" in ws.facts["source"]
 
 
-def test_workspace_independence():
+def test_independence():
     """Test workspaces are independent instances."""
     ws1 = Workspace(objective="Task 1")
     ws2 = Workspace(objective="Task 2")

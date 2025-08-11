@@ -33,7 +33,7 @@ def test_with_profile():
     assert state.profile.user_id == "test_user"
 
 
-def test_split_state_composition():
+def test_split_composition():
     """Test that State properly implements Split-State Model."""
     state = State(query="test query")
 
@@ -53,7 +53,7 @@ def test_split_state_composition():
     assert state.execution is not state.profile
 
 
-def test_profile_layer():
+def test_layer_profile():
     """Test Profile layer - persistent across sessions."""
     state = State(query="test query")
 
@@ -64,7 +64,7 @@ def test_profile_layer():
     assert isinstance(state.profile.expertise_areas, list)
 
 
-def test_workspace_layer():
+def test_layer_workspace():
     """Test Workspace layer - ephemeral task state."""
     state = State(query="test query")
 
@@ -75,7 +75,7 @@ def test_workspace_layer():
     assert isinstance(state.workspace.facts, dict)
 
 
-def test_execution_layer():
+def test_layer_execution():
     """Test Execution layer - runtime-only mechanics."""
     state = State(query="test query")
 
@@ -86,7 +86,7 @@ def test_execution_layer():
     assert isinstance(state.execution.pending_calls, list)
 
 
-def test_state_independence():
+def test_independence():
     """Test that different State instances are independent."""
     state1 = State(query="query 1")
     state2 = State(query="query 2")

@@ -19,7 +19,7 @@ def validate_schema(data: dict[str, Any], schema: dict[str, Any]) -> bool:
 
 
 @pytest.mark.asyncio
-async def test_response_schema_validation():
+async def test_response_schema():
     """Validate LLM responses conform to expected schema."""
     provider = RealisticMockProvider()
     schema = {
@@ -52,7 +52,7 @@ async def test_response_schema_validation():
 
 
 @pytest.mark.asyncio
-async def test_store_data_validation():
+async def test_store_data():
     """Validate store operations use correct data formats."""
     from cogency.state import Profile
 
@@ -72,7 +72,7 @@ async def test_store_data_validation():
 
 
 @pytest.mark.asyncio
-async def test_tool_response_schema_validation(mock_tools):
+async def test_tool_response_schema(mock_tools):
     """Validate tool responses follow Result interface."""
     tool = mock_tools[0]
     schema = {
@@ -123,7 +123,7 @@ def test_invalid_schema_rejection():
 
 
 @pytest.mark.asyncio
-async def test_embedding_provider_schema():
+async def test_embedding_schema():
     """Test embedding provider response validation."""
     # Mock embedding response schema
     embedding_schema = {
@@ -159,7 +159,7 @@ async def test_embedding_provider_schema():
 
 
 @pytest.mark.asyncio
-async def test_state_persistence_schema():
+async def test_state_schema():
     """Test state persistence data follows schema."""
     state_schema = {
         "type": "object",
@@ -205,7 +205,7 @@ async def test_state_persistence_schema():
 
 
 @pytest.mark.asyncio
-async def test_config_schema_validation():
+async def test_config_schema():
     """Test configuration objects follow expected schemas."""
     config_schema = {
         "type": "object",

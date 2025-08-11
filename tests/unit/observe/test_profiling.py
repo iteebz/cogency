@@ -38,7 +38,7 @@ async def test_context(profiler):
             assert call_args[1]["duration"] > 0
 
 
-def test_profiler_enabled_state(profiler):
+def test_enabled_state(profiler):
     # Test that profiler respects psutil availability
     assert profiler.enabled == profiler.enabled  # Should be consistent
     assert profiler.sample_interval == 0.1

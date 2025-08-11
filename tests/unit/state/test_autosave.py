@@ -15,7 +15,7 @@ def mock_store():
     return store
 
 
-def test_agent_state_auto_creates_store():
+def test_state_auto_creates_store():
     """Test State is properly initialized."""
     state = State("test query")
 
@@ -24,7 +24,7 @@ def test_agent_state_auto_creates_store():
     assert state.workspace is not None
 
 
-def test_execution_add_message_writes_through(mock_store):
+def test_add_message_through(mock_store):
     """Test add_message works correctly with mutations."""
     from cogency.state.mutations import add_message
 
@@ -38,7 +38,7 @@ def test_execution_add_message_writes_through(mock_store):
     assert state.execution.messages[0]["content"] == "hello"
 
 
-def test_reasoning_learn_writes_through(mock_store):
+def test_learn_through(mock_store):
     """Test learn_insight works correctly with mutations."""
     from cogency.state.mutations import learn_insight
 
@@ -51,7 +51,7 @@ def test_reasoning_learn_writes_through(mock_store):
     assert "New insight" in state.workspace.insights
 
 
-def test_finish_tools_writes_through(mock_store):
+def test_finish_tools_through(mock_store):
     """Test finish_tools works correctly with mutations."""
     from cogency.state.mutations import finish_tools
 
@@ -66,7 +66,7 @@ def test_finish_tools_writes_through(mock_store):
     assert state.execution.completed_calls[0]["name"] == "search"
 
 
-def test_persist_serializes_complete_state():
+def test_persist_complete_state():
     """Test Three-Horizon state structure."""
     from cogency.state.mutations import add_message, learn_insight
 
