@@ -150,9 +150,7 @@ async def test_with_failures(base_agent):
             else:
                 return Result.ok("Analysis complete using alternative methods.")
 
-    agent = base_agent(
-        llm=RecoveryProvider(), tools=[SometimesFailingBash()], max_iterations=6
-    )
+    agent = base_agent(llm=RecoveryProvider(), tools=[SometimesFailingBash()], max_iterations=6)
 
     result = await agent.run_async("Analyze system configuration files")
 

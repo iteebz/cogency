@@ -88,15 +88,15 @@ class ArchivalMemory:
         safe_topic = safe_topic.replace(" ", "-").lower()
         return user_path / f"{safe_topic}.md"
 
-    async def store_insight(
+    async def store_knowledge(
         self, user_id: str, topic: str, content: str, conversation_id: str = None
     ) -> Result:
-        """Store new insight as topic document (merging handled by archive step).
+        """Store new knowledge as topic document (merging handled by archive step).
 
         Args:
             user_id: User identifier
             topic: Topic name for categorization
-            content: Insight content to store
+            content: Knowledge content to store
             conversation_id: Optional conversation reference
 
         Returns:
@@ -133,7 +133,7 @@ class ArchivalMemory:
                 status="error",
                 error=str(e),
             )
-            return Err(f"Failed to store insight: {str(e)}")
+            return Err(f"Failed to store knowledge: {str(e)}")
 
     async def _load_topic(self, user_id: str, topic: str) -> Optional[TopicArtifact]:
         """Load existing topic artifact."""

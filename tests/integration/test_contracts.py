@@ -108,7 +108,7 @@ async def test_memory_contract_compliance():
     from cogency.storage.state import SQLite
 
     llm = MockLLM('{"preferences": {"style": "concise"}}')
-    store = SQLite()  # Use default temp directory
+    store = SQLite(db_path=":memory:")  # Use in-memory database for test isolation
     situated = SituatedMemory(llm, store=store)
 
     # Test profile creation and persistence

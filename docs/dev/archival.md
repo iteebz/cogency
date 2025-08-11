@@ -12,27 +12,26 @@ Topic-based archival memory system for accumulating knowledge artifacts across c
 
 **Infrastructure over Intelligence**: Archival consolidation is a data processing pipeline, not a reasoning task. Uses deterministic stages with explicit error handling rather than fractal agents.
 
-**Single LLM Consolidation**: Extends existing synthesis step to extract both profile updates and archival insights in one call, eliminating duplicate LLM costs.
+**Single LLM Consolidation**: Archive step extracts knowledge artifacts from conversation history at finalization, separate from profile updates.
 
-**Conservative Thresholds**: 0.8+ similarity for document merging, 0.7+ confidence for insight acceptance - prioritizes precision over recall.
+**Conservative Thresholds**: 0.8+ similarity for document merging, 0.7+ confidence for knowledge acceptance - prioritizes precision over recall.
 
 ## Implementation Flow
 
-### 1. Synthesis Trigger
-**Location**: `synthesize/core.py:synthesize()`  
-**Trigger**: Every 3 interactions or session end  
-**Input**: Agent execution state with 8-message window  
+### 1. Archive Trigger
+**Location**: `state/state.py:finalize()`  
+**Trigger**: Conversation end via finalize() lifecycle hook  
+**Input**: Full conversation history from state  
 
-### 2. LLM Extraction  
-**Location**: `synthesize/prompt.py:SYNTHESIS_SYSTEM_PROMPT`  
+### 2. Knowledge Extraction  
+**Location**: `memory/archive/prompt.py:EXTRACTION_SYSTEM_PROMPT`  
 **Output**: 
 ```json
 {
-  "profile": {...},
-  "archival": [
+  "knowledge": [
     {
       "topic": "Python Optimization",
-      "insight": "List comprehensions are 2-3x faster than for loops",
+      "knowledge": "List comprehensions are 2-3x faster than for loops",
       "confidence": 0.9,
       "context": "performance discussion"
     }
@@ -40,18 +39,18 @@ Topic-based archival memory system for accumulating knowledge artifacts across c
 }
 ```
 
-### 3. Archival Processing
-**Location**: `synthesize/archival.py:process_archival_insights()`  
-**Pipeline**: For each insight extracted:
+### 3. Knowledge Processing
+**Location**: `memory/archive/core.py:_process_knowledge()`  
+**Pipeline**: For each knowledge item extracted:
 
 #### Stage 1: Quality Validation
 ```python
-def _meets_quality_threshold(insight: Dict) -> bool:
+def _meets_quality_threshold(knowledge: Dict) -> bool:
     return (
-        len(insight.get("insight", "")) > 20 and
-        insight.get("confidence", 0) > 0.7 and
-        insight.get("topic", "").strip() != "" and
-        insight.get("topic", "").lower() not in ["general", "misc", "other", "unknown"]
+        len(knowledge.get("knowledge", "")) > 20 and
+        knowledge.get("confidence", 0) > 0.7 and
+        knowledge.get("topic", "").strip() != "" and
+        knowledge.get("topic", "").lower() not in ["general", "misc", "other", "unknown"]
     )
 ```
 
@@ -70,18 +69,18 @@ similar_docs = await archival.search_topics(
 if similar_docs:
     # Always merge with highest similarity document
     target_doc = max(similar_docs, key=lambda doc: doc["similarity"])
-    await _merge_with_target(insight, target_doc, archival, user_id)
+    await _merge_with_existing(knowledge, target_doc, archival, user_id)
 else:
     # Create new document
-    await archival.store_insight(user_id, topic, insight_content)
+    await archival.store_knowledge(user_id, topic, knowledge_content)
 ```
 
 ### 4. Document Merging
-**Location**: `synthesize/archival.py:_merge_with_target()`  
+**Location**: `memory/archive/core.py:_merge_with_existing()`  
 **Strategy**: One LLM call per document merge with specialized prompt  
 
 ```
-Existing Document + New Insight → Specialized Merge Prompt → Updated Document
+Existing Document + New Knowledge → Specialized Merge Prompt → Updated Document
 ```
 
 **Merge Instructions**:
@@ -105,14 +104,14 @@ class ConsolidationError(Exception):
 ```
 
 ### Failure Modes
-- **Quality validation fails** → Skip insight, continue with others
+- **Quality validation fails** → Skip knowledge item, continue with others
 - **Semantic search fails** → Create new document instead of merging
 - **Document merge fails** → Fallback to new document creation
 - **Entire consolidation fails** → Graceful degradation, user experience unaffected
 
 ### Observable Pipeline
 ```python
-emit("archival", operation="insight_processing", 
+emit("archival", operation="knowledge_processing", 
      user_id=user_id, topic=topic, stage="validated")
 emit("archival", operation="document_merge",
      user_id=user_id, stage="complete", merged_length=len(content))
@@ -122,12 +121,13 @@ emit("archival", operation="document_merge",
 
 ```
 src/cogency/
-├── steps/synthesize/
-│   ├── core.py          # Main orchestrator (81 lines)
-│   ├── archival.py      # Consolidation pipeline (120 lines)  
-│   ├── profile.py       # Profile updates (41 lines)
-│   ├── triggers.py      # Synthesis triggers (53 lines)
-│   └── prompt.py        # Extended synthesis prompt
+├── memory/situate/      # Profile update step
+│   ├── core.py         # Situate step logic
+│   ├── profile.py      # Profile synthesis utilities
+│   └── prompt.py       # Profile update prompts
+├── memory/archive/      # Knowledge extraction step
+│   ├── core.py         # Archive step logic
+│   └── prompt.py       # Knowledge extraction prompts
 └── memory/
     ├── archival.py      # Topic artifact storage & search
     └── synthesizer.py   # Integration point (archival methods deprecated)
@@ -135,18 +135,18 @@ src/cogency/
 
 ## Key Functions
 
-### Synthesis Integration
-- `synthesize/core.py:synthesize()` - Main entry point
-- `synthesize/archival.py:process_archival_insights()` - Pipeline orchestrator
+### Archive Integration
+- `memory/archive/core.py:archive()` - Main entry point
+- `memory/archive/core.py:_extract_knowledge()` - Knowledge extraction
 
 ### Quality Control  
-- `synthesize/archival.py:_meets_quality_threshold()` - Insight validation
-- `synthesize/archival.py:_process_single_insight()` - Per-insight pipeline
+- `memory/archive/core.py:_meets_quality_threshold()` - Knowledge validation
+- `memory/archive/core.py:_process_knowledge()` - Per-knowledge pipeline
 
 ### Document Operations
 - `memory/archival.py:search_topics()` - Semantic similarity search
 - `memory/archival.py:_save_merged_topic()` - Filesystem persistence
-- `memory/archival.py:store_insight()` - New document creation
+- `memory/archival.py:store_knowledge()` - New document creation
 
 ## Storage Schema
 
@@ -181,7 +181,7 @@ source_conversations: ["conv-123", "conv-456"]
 
 ### Thresholds
 ```python
-QUALITY_MIN_LENGTH = 20          # Minimum insight character length
+QUALITY_MIN_LENGTH = 20          # Minimum knowledge character length
 QUALITY_MIN_CONFIDENCE = 0.7     # Minimum confidence score
 SEMANTIC_MIN_SIMILARITY = 0.8    # Document merge threshold
 SYNTHESIS_TRIGGER_COUNT = 3      # Interactions between synthesis
@@ -198,18 +198,18 @@ TOPIC_FILE = "{USER_PATH}/{sanitized-topic-name}.md"
 
 ### Quality Gates
 ```python
-# Valid insight
+# Valid knowledge
 {
   "topic": "Python Performance",
-  "insight": "List comprehensions outperform for loops by 2-3x for simple iterations",
+  "knowledge": "List comprehensions outperform for loops by 2-3x for simple iterations",
   "confidence": 0.9,
   "context": "optimization discussion"
 }
 
-# Invalid insight (filtered out)
+# Invalid knowledge (filtered out)
 {
   "topic": "general",           # Generic topic
-  "insight": "Short",          # Below 20 chars  
+  "knowledge": "Short",          # Below 20 chars  
   "confidence": 0.6,           # Below 0.7 threshold
   "context": "brief mention"
 }
@@ -219,7 +219,7 @@ TOPIC_FILE = "{USER_PATH}/{sanitized-topic-name}.md"
 ```bash
 poetry run python -c "
 from cogency.steps.synthesize.archival import _meets_quality_threshold
-result = _meets_quality_threshold({'insight': 'Valid insight content', 'confidence': 0.8, 'topic': 'Python'})
+result = _meets_quality_threshold({'knowledge': 'Valid knowledge content', 'confidence': 0.8, 'topic': 'Python'})
 print(f'Quality check: {result}')  # Should be True
 "
 ```

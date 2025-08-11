@@ -22,7 +22,7 @@ class SituatedMemory:
         # Load existing profile
         profile = await self._load_profile(user_id)
 
-        # Update interaction count only - insights extracted async post-response
+        # Update interaction count only - impressions extracted async post-response
         profile.interaction_count += 1
         profile.last_updated = datetime.now()
 

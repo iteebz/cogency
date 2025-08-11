@@ -71,8 +71,8 @@ class TestArchivalMemory:
         assert path.name == "python-performance--tips.md"
 
     @pytest.mark.asyncio
-    async def test_store_new_insight(self, archival_memory):
-        result = await archival_memory.store_insight(
+    async def test_store_new_knowledge(self, archival_memory):
+        result = await archival_memory.store_knowledge(
             "user1", "Python", "List comprehensions are fast"
         )
 

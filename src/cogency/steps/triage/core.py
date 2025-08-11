@@ -59,12 +59,10 @@ async def check_early_return(
     query_str = query if isinstance(query, str) else str(query)
 
     # Use LLM to determine if this query needs tools
-    return await _early_check(provider, query_str, selected_tools)
+    return await _early_check(llm, query_str, selected_tools)
 
 
-async def _early_check(
-    llm: Provider, query: str, available_tools: List[Tool]
-) -> Optional[str]:
+async def _early_check(llm: Provider, query: str, available_tools: List[Tool]) -> Optional[str]:
     """Use LLM to intelligently determine if query needs full pipeline."""
     tool_names = [tool.name for tool in available_tools] if available_tools else []
 
@@ -103,9 +101,7 @@ async def _direct_response(llm: Provider, query: str) -> str:
     return response.strip()
 
 
-async def select_tools(
-    llm: Provider, query: str, available_tools: List[Tool]
-) -> SelectionResult:
+async def select_tools(llm: Provider, query: str, available_tools: List[Tool]) -> SelectionResult:
     """Select tools needed for query execution."""
     if not available_tools:
         return SelectionResult(selected_tools=[], reasoning="No tools available")

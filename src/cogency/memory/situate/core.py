@@ -8,7 +8,7 @@ from cogency.state import State
 
 
 async def situate(state: State, memory) -> None:
-    """Update user profile with conversation insights."""
+    """Update user profile with conversation impressions."""
     if not memory:
         return
 
@@ -113,7 +113,7 @@ async def _situate_with_llm(
                 "situate",
                 state="llm_complete",
                 user_id=user_id,
-                profile_insights_count=len(synthesis_data),
+                profile_impressions_count=len(synthesis_data),
             )
         else:
             emit("situate", state="llm_parse_error", user_id=user_id)

@@ -4,12 +4,12 @@ from cogency.state import State
 
 from ...steps.common import JSON_FORMAT_CORE
 
-EXTRACTION_SYSTEM_PROMPT = f"""Extract valuable technical insights from conversation history.
+EXTRACTION_SYSTEM_PROMPT = f"""Extract valuable technical knowledge from conversation history.
 
 {JSON_FORMAT_CORE}
 
 Focus on extracting:
-- Technical insights, best practices, lessons learned
+- Technical knowledge, best practices, lessons learned
 - Domain knowledge worth preserving long-term
 - Problem-solving patterns and solutions
 - Implementation details and trade-offs
@@ -21,17 +21,17 @@ EXCLUSION CRITERIA:
 - Conversational pleasantries or meta-discussion
 
 QUALITY STANDARDS:
-- Minimum insight length: 20 characters
+- Minimum knowledge length: 20 characters
 - Confidence threshold: 0.7 or higher
 - Clear, transferable knowledge
 - Specific and actionable
 
 RESPONSE FORMAT:
 {{
-  "insights": [
+  "knowledge": [
     {{
       "topic": "Python Performance", 
-      "insight": "List comprehensions are 2-3x faster than equivalent for loops for simple operations due to reduced function call overhead",
+      "knowledge": "List comprehensions are 2-3x faster than equivalent for loops for simple operations due to reduced function call overhead",
       "confidence": 0.9,
       "context": "performance optimization discussion"
     }}
@@ -70,32 +70,32 @@ CONVERSATION HISTORY:
 
 {context}
 
-Extract valuable knowledge insights as JSON:"""
+Extract valuable knowledge as JSON:"""
 
 
-MERGE_SYSTEM_PROMPT = """Merge new insights into existing topic documents.
+MERGE_SYSTEM_PROMPT = """Merge new knowledge into existing topic documents.
 
 MERGE PRINCIPLES:
-- Integrate new insights naturally into existing structure
-- Avoid duplication - if insight already exists, don't repeat it
+- Integrate new knowledge naturally into existing structure
+- Avoid duplication - if knowledge already exists, don't repeat it
 - Organize information logically with clear sections
 - Maintain markdown formatting and readability
 - Keep tone consistent and concise
-- If new insight contradicts existing info, note both perspectives with context
+- If new knowledge contradicts existing info, note both perspectives with context
 - Update any "Last Updated" timestamps
 
 Return the complete updated document."""
 
 
-def build_merge_prompt(existing_content: str, new_insight: str) -> str:
-    """Build merge prompt for integrating insight with existing document."""
+def build_merge_prompt(existing_content: str, new_knowledge: str) -> str:
+    """Build merge prompt for integrating knowledge with existing document."""
 
     return f"""{MERGE_SYSTEM_PROMPT}
 
 EXISTING DOCUMENT:
 {existing_content}
 
-NEW INSIGHT:
-{new_insight}
+NEW KNOWLEDGE:
+{new_knowledge}
 
 Updated document:"""

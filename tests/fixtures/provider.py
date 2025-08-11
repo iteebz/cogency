@@ -186,11 +186,13 @@ def mock_provider():
 # Specific aliases for clarity in tests
 class MockLLM(MockProvider):
     """Mock LLM provider - same as MockProvider but clearer intent."""
+
     pass
 
 
 class MockEmbed(MockProvider):
     """Mock embedding provider - same as MockProvider but clearer intent."""
+
     pass
 
 

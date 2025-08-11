@@ -29,7 +29,7 @@ Goals: {current_goals}
 Expertise: {current_expertise}
 Communication Style: {current_style}"""
 
-    system_prompt = f"""Analyze interactions to update user profile insights.
+    system_prompt = f"""Analyze interactions to update user profile impressions.
 
 {JSON_FORMAT_CORE}
 

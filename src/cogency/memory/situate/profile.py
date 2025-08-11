@@ -27,7 +27,7 @@ def parse_synthesis_response(response: str) -> Optional[Dict[str, Any]]:
 
 
 def apply_synthesis_to_profile(user_profile, synthesis_data: Dict[str, Any]):
-    """Apply synthesis insights to user profile."""
+    """Apply synthesis impressions to user profile."""
     # Update preferences
     if "preferences" in synthesis_data:
         user_profile.preferences = {

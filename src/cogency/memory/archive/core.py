@@ -22,24 +22,24 @@ async def archive(state: State, memory) -> None:
     emit("archive", state="start", user_id=state.user_id)
 
     try:
-        # Extract insights from conversation history
-        insights = await _extract_insights(state, memory)
+        # Extract knowledge from conversation history
+        knowledge_items = await _extract_knowledge(state, memory)
 
-        if not insights:
-            emit("archive", state="skipped", reason="no_insights", user_id=state.user_id)
+        if not knowledge_items:
+            emit("archive", state="skipped", reason="no_knowledge", user_id=state.user_id)
             return
 
-        # Process each insight through consolidation pipeline
+        # Process each knowledge item through consolidation pipeline
         consolidation_results = []
-        for insight in insights:
+        for knowledge in knowledge_items:
             try:
-                result = await _process_insight(insight, memory.archival, state.user_id)
+                result = await _process_knowledge(knowledge, memory.archival, state.user_id)
                 consolidation_results.append(result)
             except ArchivalError as e:
                 emit(
                     "archive",
-                    operation="insight_failed",
-                    insight_topic=insight.get("topic"),
+                    operation="knowledge_failed",
+                    knowledge_topic=knowledge.get("topic"),
                     error=str(e),
                     stage=e.stage,
                     user_id=state.user_id,
@@ -51,7 +51,7 @@ async def archive(state: State, memory) -> None:
             "archive",
             state="complete",
             user_id=state.user_id,
-            total_insights=len(insights),
+            total_knowledge_items=len(knowledge_items),
             successful_consolidations=successful_consolidations,
         )
 
@@ -60,8 +60,8 @@ async def archive(state: State, memory) -> None:
         # Archival failures don't affect user experience
 
 
-async def _extract_insights(state: State, memory) -> List[Dict]:
-    """Extract knowledge insights from conversation history."""
+async def _extract_knowledge(state: State, memory) -> List[Dict]:
+    """Extract knowledge from conversation history."""
     from resilient_result import unwrap
 
     from .prompt import build_extraction_prompt
@@ -78,27 +78,27 @@ async def _extract_insights(state: State, memory) -> List[Dict]:
 
     try:
         data = json.loads(response)
-        insights = data.get("insights", [])
+        knowledge_items = data.get("knowledge", [])
 
         # Quality filter
-        valid_insights = []
-        for insight in insights:
-            if _meets_quality_threshold(insight):
-                valid_insights.append(insight)
+        valid_knowledge = []
+        for knowledge in knowledge_items:
+            if _meets_quality_threshold(knowledge):
+                valid_knowledge.append(knowledge)
 
-        return valid_insights
+        return valid_knowledge
 
     except json.JSONDecodeError:
         emit("archive", operation="extraction_parse_error", user_id=state.user_id)
         return []
 
 
-async def _process_insight(insight: Dict, archival, user_id: str):
-    """Process single insight through consolidation pipeline."""
-    topic = insight["topic"]
-    insight_content = insight["insight"]
+async def _process_knowledge(knowledge: Dict, archival, user_id: str):
+    """Process single knowledge item through consolidation pipeline."""
+    topic = knowledge["topic"]
+    knowledge_content = knowledge["knowledge"]
 
-    emit("archive", operation="insight_processing", user_id=user_id, topic=topic, stage="start")
+    emit("archive", operation="knowledge_processing", user_id=user_id, topic=topic, stage="start")
 
     # Search for similar existing documents
     similar_docs = await archival.search_topics(
@@ -111,25 +111,25 @@ async def _process_insight(insight: Dict, archival, user_id: str):
     if similar_docs:
         # Merge with highest similarity document
         target_doc = max(similar_docs, key=lambda doc: doc["similarity"])
-        return await _merge_with_existing(insight, target_doc, archival, user_id)
+        return await _merge_with_existing(knowledge, target_doc, archival, user_id)
     else:
         # Create new document
-        return await archival.store_insight(user_id, topic, insight_content)
+        return await archival.store_knowledge(user_id, topic, knowledge_content)
 
 
-async def _merge_with_existing(insight: Dict, target_doc: Dict, archival, user_id: str):
-    """Merge insight with existing document using specialized prompt."""
+async def _merge_with_existing(knowledge: Dict, target_doc: Dict, archival, user_id: str):
+    """Merge knowledge with existing document using specialized prompt."""
     from resilient_result import unwrap
 
     from .prompt import build_merge_prompt
 
-    topic = insight["topic"]
-    new_insight = insight["insight"]
+    topic = knowledge["topic"]
+    new_knowledge = knowledge["knowledge"]
     target_topic = target_doc["topic"]
     existing_content = target_doc["content"]
 
     # Build merge prompt
-    prompt = build_merge_prompt(existing_content, new_insight)
+    prompt = build_merge_prompt(existing_content, new_knowledge)
 
     try:
         # Single LLM call for merge
@@ -154,17 +154,17 @@ async def _merge_with_existing(insight: Dict, target_doc: Dict, archival, user_i
     except Exception as e:
         # Fallback: create new document
         emit("archive", operation="merge_fallback", user_id=user_id, topic=topic, error=str(e))
-        return await archival.store_insight(user_id, topic, new_insight)
+        return await archival.store_knowledge(user_id, topic, new_knowledge)
 
 
-def _meets_quality_threshold(insight: Dict) -> bool:
-    """Quality validation for extracted insights."""
-    insight_text = insight.get("insight", "")
-    confidence = insight.get("confidence", 0)
-    topic = insight.get("topic", "").strip()
+def _meets_quality_threshold(knowledge: Dict) -> bool:
+    """Quality validation for extracted knowledge."""
+    knowledge_text = knowledge.get("knowledge", "")
+    confidence = knowledge.get("confidence", 0)
+    topic = knowledge.get("topic", "").strip()
 
     return (
-        len(insight_text) > 20
+        len(knowledge_text) > 20
         and confidence > 0.7
         and topic != ""
         and topic.lower() not in ["general", "misc", "other", "unknown"]

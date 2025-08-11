@@ -1,24 +1,24 @@
-"""Interaction insight extraction utilities."""
+"""Interaction impression extraction utilities."""
 
 from typing import Any, Dict
 
 from cogency.utils.parsing import _parse_json
 
 
-async def extract_insights(provider, interaction_data: Dict[str, Any]) -> Dict[str, Any]:
-    """Extract insights from single interaction."""
+async def extract_impressions(provider, interaction_data: Dict[str, Any]) -> Dict[str, Any]:
+    """Extract impressions from single interaction."""
 
     query = interaction_data.get("query", "")
     response = interaction_data.get("response", "")
     success = interaction_data.get("success", True)
 
-    prompt = f"""Extract user insights from this interaction:
+    prompt = f"""Extract user impressions from this interaction:
 
 User Query: {query}
 Agent Response: {response}
 Success: {success}
 
-Extract specific insights:
+Extract specific impressions:
 - Preferences: Key-value pairs of user preferences
 - Goals: What is the user trying to build/achieve?
 - Expertise: Areas of knowledge and skill

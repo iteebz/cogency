@@ -132,7 +132,7 @@ async def test_reason_direct(state):
         return_value=Result.ok('{"reasoning": "I can answer this directly: 2 + 2 = 4"}')
     )
 
-    await reason(state, llm=provider, tools=[], memory=None)
+    await reason(state, llm=llm, tools=[], memory=None)
 
     # Should have no tool calls for direct answer
     assert not state.execution.pending_calls
@@ -150,7 +150,7 @@ async def test_reason_tools(state):
         )
     )
 
-    await reason(state, llm=provider, tools=[Shell()], memory=None)
+    await reason(state, llm=llm, tools=[Shell()], memory=None)
 
     # Should have tool calls
     assert state.execution.pending_calls
@@ -188,7 +188,7 @@ async def test_reason_formats_response(state):
         )
     )
 
-    result = await reason(state, llm=provider, tools=[], memory=None)
+    result = await reason(state, llm=llm, tools=[], memory=None)
 
     # Unwrap result like production code does
     response = unwrap(result)
@@ -209,7 +209,7 @@ async def test_full_cycle(state):
                 '{"thinking": "I need to calculate 2 + 2.", "tool_calls": [{"name": "code", "args": {"code": "2 + 2"}}], "response": ""}'
             )
         )
-        await reason(state, llm=provider, tools=tools, memory=None)
+        await reason(state, llm=llm, tools=tools, memory=None)
         assert state.execution.pending_calls
         assert len(state.workspace.thoughts) >= 0  # workspace thoughts are recorded
 
@@ -224,7 +224,7 @@ async def test_full_cycle(state):
                 '{"thinking": "The code tool shows 2 + 2 = 4. I can now respond.", "tool_calls": [], "response": "The answer is 4."}'
             )
         )
-        result = await reason(state, llm=provider, tools=tools, memory=None)
+        result = await reason(state, llm=llm, tools=tools, memory=None)
         response = unwrap(result)
         assert response == "The answer is 4."
         assert state.execution.response == "The answer is 4."
@@ -242,7 +242,7 @@ async def test_no_tools_flow(state):
     )
 
     # 1. Reason (no tools needed, provides direct response)
-    result = await reason(state, llm=provider, tools=[], memory=None)
+    result = await reason(state, llm=llm, tools=[], memory=None)
     response = unwrap(result)
     assert not state.execution.pending_calls
     assert response == "Hello! I'm doing well, thank you for asking."

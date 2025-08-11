@@ -127,7 +127,7 @@ class Recall(Tool):
 
         response_parts = [
             f"## 🧠 Knowledge Recall: '{query}'\n",
-            f"Found {len(results)} relevant insights:\n",
+            f"Found {len(results)} relevant knowledge items:\n",
         ]
 
         for i, result in enumerate(results, 1):
@@ -186,7 +186,7 @@ class Recall(Tool):
 
     # Override formatting for cleaner tool display
     human_template = "🧠 Searching: '{query}'"
-    agent_template = "Found {count} relevant insights"
+    agent_template = "Found {count} relevant knowledge items"
     arg_key = "query"
 
 
