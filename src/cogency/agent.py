@@ -1,6 +1,6 @@
 """Cognitive agent with zero ceremony."""
 
-from typing import Any, List, Union
+from typing import Any, Union
 
 from cogency.config.validation import validate_config_keys
 from cogency.runtime import AgentRuntime
@@ -33,9 +33,9 @@ class Agent:
         self,
         name: str = "cogency",
         *,
-        tools: Union[List[str], List[Tool], str] = None,
+        tools: Union[list[str], list[Tool], str] = None,
         memory: Union[bool, Any] = False,
-        handlers: List[Any] = None,
+        handlers: list[Any] = None,
         **config,
     ):
         from cogency.config.dataclasses import AgentConfig

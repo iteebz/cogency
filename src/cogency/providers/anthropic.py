@@ -1,6 +1,7 @@
 """Anthropic Claude provider - streaming chat with tool calling and key rotation."""
 
-from typing import AsyncIterator, Dict, List, Union
+from collections.abc import AsyncIterator
+from typing import Union
 
 import anthropic
 from resilient_result import Ok, Result
@@ -14,7 +15,7 @@ from .base import Provider, setup_rotator
 class Anthropic(Provider):
     def __init__(
         self,
-        api_keys: Union[str, List[str]] = None,
+        api_keys: Union[str, list[str]] = None,
         llm_model: str = "claude-3-5-haiku-20241022",
         temperature: float = 0.7,
         max_tokens: int = 16384,
@@ -42,7 +43,7 @@ class Anthropic(Provider):
             max_retries=self.max_retries,
         )
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
 
@@ -80,7 +81,7 @@ class Anthropic(Provider):
 
         return Ok(response)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
         async with client.messages.stream(

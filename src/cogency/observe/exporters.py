@@ -2,7 +2,6 @@
 
 import json
 import time
-from typing import Dict, List
 
 
 class Prometheus:
@@ -87,7 +86,7 @@ class OpenTelemetry:
             self.metrics_handler = metrics_handler
         self.service_name = service_name
 
-    def export(self) -> Dict:
+    def export(self) -> dict:
         """Export all metrics as OpenTelemetry JSON format."""
         if not self.metrics_handler:
             return {"resourceMetrics": []}
@@ -112,7 +111,7 @@ class OpenTelemetry:
 
         return {"resourceMetrics": [resource_metrics]}
 
-    def _export_metrics(self, stats: Dict, timestamp_ns: int) -> List[Dict]:
+    def _export_metrics(self, stats: dict, timestamp_ns: int) -> list[dict]:
         """Export all metric types from MetricsHandler stats."""
         metrics = []
 

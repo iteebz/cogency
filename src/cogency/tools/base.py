@@ -1,7 +1,7 @@
 """Base tool interface - standardized execution, validation, and formatting."""
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Optional
 
 from resilient_result import Result
 
@@ -25,9 +25,9 @@ class Tool(ABC):
         description: str,
         schema: str,
         emoji: str = "🛠️",
-        args: Optional[Type] = None,
-        examples: Optional[List[str]] = None,
-        rules: Optional[List[str]] = None,
+        args: Optional[type] = None,
+        examples: Optional[list[str]] = None,
+        rules: Optional[list[str]] = None,
     ):
         """Initialize tool with metadata and LLM guidance.
 
@@ -126,7 +126,7 @@ class Tool(ABC):
             )
             return Result.fail(f"Tool execution failed: {str(e)}")
 
-    def _normalize_args(self, args: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_args(self, args: dict[str, Any]) -> dict[str, Any]:
         """Basic argument normalization."""
         return args
 
@@ -145,7 +145,7 @@ class Tool(ABC):
     arg_key: Optional[str] = None  # Primary argument for display
 
     def format_human(
-        self, args: Dict[str, Any], results: Optional[Result] = None
+        self, args: dict[str, Any], results: Optional[Result] = None
     ) -> tuple[str, str]:
         """Format tool execution for human display."""
         arg_str = self._format_args(args)
@@ -167,7 +167,7 @@ class Tool(ABC):
 
         return arg_str, result_str
 
-    def format_agent(self, result_data: Dict[str, Any]) -> str:
+    def format_agent(self, result_data: dict[str, Any]) -> str:
         """Format tool results for agent action history."""
         if not result_data:
             return "No result"
@@ -181,7 +181,7 @@ class Tool(ABC):
         else:
             return self._format_result(result_data)
 
-    def _format_args(self, args: Dict[str, Any]) -> str:
+    def _format_args(self, args: dict[str, Any]) -> str:
         """Format arguments for display."""
         if not args:
             return ""
@@ -200,7 +200,7 @@ class Tool(ABC):
 
         return ""
 
-    def _format_result(self, data: Dict[str, Any]) -> str:
+    def _format_result(self, data: dict[str, Any]) -> str:
         """Format result data."""
         if not data:
             return "Completed"

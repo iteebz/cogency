@@ -30,7 +30,7 @@ RESPONSE FORMAT:
 {{
   "knowledge": [
     {{
-      "topic": "Python Performance", 
+      "topic": "Python Performance",
       "knowledge": "List comprehensions are 2-3x faster than equivalent for loops for simple operations due to reduced function call overhead",
       "confidence": 0.9,
       "context": "performance optimization discussion"

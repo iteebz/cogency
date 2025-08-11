@@ -7,7 +7,7 @@ The reason step handles core cognitive processing:
 """
 
 import asyncio
-from typing import List, Optional
+from typing import Optional
 
 from resilient_result import unwrap
 
@@ -31,7 +31,7 @@ from .core import (
 async def reason(
     state: State,
     llm: Provider,
-    tools: List[Tool],
+    tools: list[Tool],
     memory,  # Impression instance or None
     identity: str = None,
 ) -> Optional[str]:

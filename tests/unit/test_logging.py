@@ -1,7 +1,5 @@
 """Test event bus logging via agent.logs()."""
 
-import contextlib
-
 import pytest
 
 from cogency import Agent

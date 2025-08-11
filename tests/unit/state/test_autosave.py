@@ -1,7 +1,6 @@
 """Tests for autosave persistence - Database as State."""
 
-import asyncio
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
 

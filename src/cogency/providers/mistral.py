@@ -1,6 +1,7 @@
 """Mistral provider - LLM and embedding with streaming, key rotation."""
 
-from typing import AsyncIterator, Dict, List, Union
+from collections.abc import AsyncIterator
+from typing import Union
 
 import numpy as np
 from mistralai import Mistral as MistralClient
@@ -41,7 +42,7 @@ class Mistral(Provider):
     def _get_client(self):
         return MistralClient(api_key=self.next_key())
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
 
@@ -78,7 +79,7 @@ class Mistral(Provider):
 
         return Ok(response)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
         stream = await client.chat.stream_async(
@@ -93,7 +94,7 @@ class Mistral(Provider):
             if chunk.data.choices[0].delta.content:
                 yield chunk.data.choices[0].delta.content
 
-    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+    async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings using Mistral embedding API."""
         # Check cache first
         if self._cache:

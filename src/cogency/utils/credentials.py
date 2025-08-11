@@ -2,7 +2,6 @@
 
 import os
 from pathlib import Path
-from typing import Dict, List
 
 # Auto-load .env file for seamless credential detection
 try:
@@ -21,7 +20,7 @@ class Credentials:
     """Universal credential detection - works for any service."""
 
     @staticmethod
-    def detect(service: str) -> Dict[str, str]:
+    def detect(service: str) -> dict[str, str]:
         """Detect API keys for any service using standard naming conventions.
 
         Args:
@@ -44,7 +43,7 @@ class Credentials:
         return {"api_key": keys[0] if len(keys) == 1 else keys}
 
     @staticmethod
-    def for_supabase() -> Dict[str, str]:
+    def for_supabase() -> dict[str, str]:
         """Supabase-specific credential detection.
 
         Returns:
@@ -57,7 +56,7 @@ class Credentials:
         return {"url": os.getenv("SUPABASE_URL"), "service_key": os.getenv("SUPABASE_SERVICE_KEY")}
 
     @staticmethod
-    def for_database(service: str) -> Dict[str, str]:
+    def for_database(service: str) -> dict[str, str]:
         """Database-style services with multiple connection components.
 
         Args:
@@ -78,7 +77,7 @@ class Credentials:
         }
 
     @staticmethod
-    def _detect_from_env(service: str) -> List[str]:
+    def _detect_from_env(service: str) -> list[str]:
         """Auto-detect API keys from environment variables for any service.
 
         Checks for keys in this order:

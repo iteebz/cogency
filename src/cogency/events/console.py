@@ -26,7 +26,7 @@ class ConsoleHandler:
             return
 
         # Thinking states - show with proper symbols
-        elif event_type == "reason":
+        if event_type == "reason":
             content = data.get("content", "").strip()
 
             if content and not content.startswith("✻ Thinking"):
@@ -192,15 +192,14 @@ class ConsoleHandler:
 
                         if action == "create":
                             return f"Create({path})"
-                        elif action == "read":
+                        if action == "read":
                             return f"Read({path})"
-                        elif action == "edit":
+                        if action == "edit":
                             return f"Update({path})"
-                        elif action == "list":
+                        if action == "list":
                             return f"List({path})" if path else "List(.)"
-                        else:
-                            return f"{action.title()}({path})"
-                    elif len(parts) == 1:
+                        return f"{action.title()}({path})"
+                    if len(parts) == 1:
                         # Single argument - Files tool uses path as primary arg
                         path = parts[0]
                         # Since we can't determine action from format_human output,
@@ -225,13 +224,13 @@ class ConsoleHandler:
 
                     if action == "create" and path:
                         return f"Create({path})"
-                    elif action == "read" and path:
+                    if action == "read" and path:
                         return f"Read({path})"
-                    elif action == "edit" and path:
+                    if action == "edit" and path:
                         return f"Update({path})"
-                    elif action == "list":
+                    if action == "list":
                         return f"List({path})" if path else "List(.)"
-                    elif action and path:
+                    if action and path:
                         return f"{action.title()}({path})"
 
             # Handle dict format
@@ -247,13 +246,13 @@ class ConsoleHandler:
 
                 if action == "create" and path:
                     return f"Create({path})"
-                elif action == "read" and path:
+                if action == "read" and path:
                     return f"Read({path})"
-                elif action == "edit" and path:
+                if action == "edit" and path:
                     return f"Update({path})"
-                elif action == "list":
+                if action == "list":
                     return f"List({path})" if path else "List(.)"
-                elif action and path:
+                if action and path:
                     return f"{action.title()}({path})"
         except Exception:
             pass
@@ -264,7 +263,7 @@ class ConsoleHandler:
         try:
             if isinstance(input_text, dict):
                 return input_text.get("url", "")
-            elif isinstance(input_text, str):
+            if isinstance(input_text, str):
                 # Handle format like "(https://example.com)"
                 import re
 
@@ -272,7 +271,7 @@ class ConsoleHandler:
                 if url_match:
                     return url_match.group(1)
                 # Handle JSON format
-                elif "url" in input_text:
+                if "url" in input_text:
                     match = re.search(r'"url":\s*"([^"]+)"', input_text)
                     if match:
                         return match.group(1)
@@ -285,7 +284,7 @@ class ConsoleHandler:
         try:
             if isinstance(input_text, dict):
                 return input_text.get("query", "")
-            elif isinstance(input_text, str):
+            if isinstance(input_text, str):
                 # Handle parentheses format like (search query)
                 import re
 
@@ -293,7 +292,7 @@ class ConsoleHandler:
                 if match:
                     return match.group(1).strip()
                 # Handle JSON format
-                elif "query" in input_text:
+                if "query" in input_text:
                     match = re.search(r'"query":\s*"([^"]+)"', input_text)
                     if match:
                         return match.group(1)
@@ -341,16 +340,15 @@ class ConsoleHandler:
                 packages = first_line.split("Successfully installed")[1].strip()
                 package_count = packages.count(" ") + 1
                 return f"{package_count} packages installed"
-            elif "failed" in first_line.lower() and "passed" in first_line.lower():
+            if "failed" in first_line.lower() and "passed" in first_line.lower():
                 return first_line
-            elif "exit code:" in first_line.lower():
+            if "exit code:" in first_line.lower():
                 return "Command completed"
-            elif len(output_lines) == 1:
+            if len(output_lines) == 1:
                 return first_line[:50] + "..." if len(first_line) > 50 else first_line
-            else:
-                return f"Command completed ({len(output_lines)} lines)"
+            return f"Command completed ({len(output_lines)} lines)"
 
-        elif tool_name == "files":
+        if tool_name == "files":
             if "Created file:" in result or "File created" in result:
                 # Extract filename from result
                 import re
@@ -360,21 +358,20 @@ class ConsoleHandler:
                     filename = filename_match.group(1).strip()
                     return f"File created ({filename})"
                 return "File created"
-            elif "Read file:" in result:
+            if "Read file:" in result:
                 lines = result.count("\n")
                 return f"File read ({lines} lines)" if lines > 0 else "File read"
-            elif "Edited" in result or "Replaced" in result:
+            if "Edited" in result or "Replaced" in result:
                 return "File updated"
-            else:
-                return (
-                    result.split("\n")[0][:50] + "..."
-                    if result and len(result.split("\n")[0]) > 50
-                    else result.split("\n")[0]
-                    if result
-                    else "Operation completed"
-                )
+            return (
+                result.split("\n")[0][:50] + "..."
+                if result and len(result.split("\n")[0]) > 50
+                else result.split("\n")[0]
+                if result
+                else "Operation completed"
+            )
 
-        elif tool_name == "search":
+        if tool_name == "search":
             if "Found" in result and "results" in result:
                 import re
 
@@ -384,7 +381,7 @@ class ConsoleHandler:
                     return f"{count} search results found"
             return "Search completed"
 
-        elif tool_name == "scrape":
+        if tool_name == "scrape":
             if "content" in result.lower():
                 return "Content scraped successfully"
             return "Scrape completed"

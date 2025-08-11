@@ -7,15 +7,12 @@ import pytest
 
 from cogency import Agent
 from cogency.config import PersistConfig
-from cogency.state import State
 from cogency.storage.state import SQLite
 
 
 @pytest.mark.asyncio
 async def test_agent_setup():
     """Test that Agent properly sets up persistence components."""
-    from cogency import Agent
-    from cogency.config import PersistConfig
 
     with tempfile.TemporaryDirectory() as temp_dir:
         store = SQLite(f"{temp_dir}/test.db")

@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 import trafilatura
 from resilient_result import Result
@@ -46,7 +46,7 @@ class Scrape(Tool):
         self.human_template = "Scraped '{title}'"
         self.agent_template = "scrape {url} → {title}"
 
-    async def run(self, url: str, **kwargs) -> Dict[str, Any]:
+    async def run(self, url: str, **kwargs) -> dict[str, Any]:
         """Extract content from a web page."""
         try:
             # Fetch URL content
@@ -68,8 +68,7 @@ class Scrape(Tool):
                         "url": url,
                     }
                 )
-            else:
-                return Result.fail(f"Could not extract content from {url}")
+            return Result.fail(f"Could not extract content from {url}")
         except Exception as e:
             logger.error(f"Error scraping {url}: {e}")
             return Result.fail(f"Scraping failed: {str(e)}")

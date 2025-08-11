@@ -25,7 +25,7 @@ Example:
 """
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from cogency.state import Conversation, Profile, Workspace
@@ -90,7 +90,7 @@ class StateStore(ABC):
     # Utility Operations
 
     @abstractmethod
-    async def list_user_workspaces(self, user_id: str) -> List[str]:
+    async def list_user_workspaces(self, user_id: str) -> list[str]:
         """List all task_ids for user's active workspaces"""
         pass
 
@@ -126,7 +126,7 @@ def _setup_persist(config):
     if backend == "sqlite":
         path = config.get("persistence", {}).get("path", "agent_state.db")
         return SQLite(path)
-    elif backend == "supabase":
+    if backend == "supabase":
         url = config.get("persistence", {}).get("url")
         key = config.get("persistence", {}).get("key")
         return Supabase(url, key)

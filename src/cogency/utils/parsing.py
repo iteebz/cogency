@@ -2,23 +2,23 @@
 
 import json
 import re
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Optional
 
 from resilient_result import Result
 
 
-def _normalize_reasoning(val: Any) -> List[str]:
+def _normalize_reasoning(val: Any) -> list[str]:
     """Normalize reasoning field into list of strings."""
     if isinstance(val, str):
         return [val]
-    elif isinstance(val, dict):
+    if isinstance(val, dict):
         # Assuming a common case where dict might have a 'thought' or 'message' key
         if "thought" in val:
             return [val["thought"]]
-        elif "message" in val:
+        if "message" in val:
             return [val["message"]]
         return [str(val)]  # Fallback for unexpected dict structure
-    elif isinstance(val, list):
+    if isinstance(val, list):
         # Flatten list, ensuring all elements are strings
         normalized_list = []
         for item in val:
@@ -181,7 +181,7 @@ def _extract_patterns(text: str) -> Optional[str]:
     return None
 
 
-def _parse_tool_calls(json_data: Dict[str, Any]) -> Optional[List[Dict[str, Any]]]:
+def _parse_tool_calls(json_data: dict[str, Any]) -> Optional[list[dict[str, Any]]]:
     """Extract tool calls from parsed JSON."""
     if not json_data:
         return None

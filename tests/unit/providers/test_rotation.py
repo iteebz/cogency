@@ -3,10 +3,9 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from resilient_result import Err, Ok
+from resilient_result import Ok
 
 from cogency.providers.base import Provider, rotate_retry, setup_rotator
-from cogency.providers.rotation import ApiKeyRotator, KeyRotationError
 
 
 class MockProvider(Provider):

@@ -77,7 +77,7 @@ lint:
 
 # Fix linting issues
 fix:
-    @poetry run ruff check . --fix
+    @poetry run ruff check . --fix --unsafe-fixes
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 📦 DISTRIBUTION

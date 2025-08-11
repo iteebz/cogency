@@ -1,6 +1,7 @@
 """Ollama provider - local LLM and embedding with OpenAI-compatible API."""
 
-from typing import AsyncIterator, Dict, List, Union
+from collections.abc import AsyncIterator
+from typing import Union
 
 import numpy as np
 import openai
@@ -48,7 +49,7 @@ class Ollama(Provider):
             max_retries=self.max_retries,
         )
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
 
@@ -84,7 +85,7 @@ class Ollama(Provider):
 
         return Ok(response)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
         stream = await client.chat.completions.create(
@@ -99,7 +100,7 @@ class Ollama(Provider):
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
-    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+    async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings using Ollama embedding API."""
         # Check cache first
         if self._cache:

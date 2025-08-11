@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from resilient_result import Result
 
@@ -18,7 +18,7 @@ class RetrievalArgs:
     query: str
     top_k: int = 5
     threshold: Optional[float] = None
-    filters: Optional[Dict[str, Any]] = None
+    filters: Optional[dict[str, Any]] = None
 
 
 @tool
@@ -74,9 +74,9 @@ class Retrieval(Tool):
         query: str,
         top_k: int = None,
         threshold: Optional[float] = None,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[dict[str, Any]] = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Search documents using vector store backend."""
         if not query or not query.strip():
             return Result.fail("Search query cannot be empty")
@@ -164,5 +164,4 @@ class Retrieval(Tool):
         # For Nomic, use search_query task type
         if self.embed_model == "nomic":
             return embed_class(task_type="search_query")
-        else:
-            return embed_class()
+        return embed_class()

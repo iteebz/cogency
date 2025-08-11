@@ -3,7 +3,7 @@
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from resilient_result import Result
 
@@ -100,7 +100,7 @@ class Files(Tool):
         line: int = None,
         start: int = None,
         end: int = None,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute file operations."""
         try:
             if action == "create":
@@ -127,7 +127,7 @@ class Files(Tool):
                     }
                 )
 
-            elif action == "read":
+            if action == "read":
                 path = self._safe_path(path)
                 if not path.exists():
                     return Result.fail(f"File not found: {path}")
@@ -141,7 +141,7 @@ class Files(Tool):
                     }
                 )
 
-            elif action == "edit":
+            if action == "edit":
                 path = self._safe_path(path)
                 if not path.exists():
                     return Result.fail(f"File not found: {path}")
@@ -193,7 +193,7 @@ class Files(Tool):
                     }
                 )
 
-            elif action == "list":
+            if action == "list":
                 path = self._safe_path(path if path else ".")
                 items = []
                 for item in sorted(path.iterdir()):
@@ -206,8 +206,7 @@ class Files(Tool):
                     )
                 return Result.ok({"result": f"Listed {len(items)} items", "items": items})
 
-            else:
-                return Result.fail(f"Unknown action: {action}")
+            return Result.fail(f"Unknown action: {action}")
 
         except Exception as e:
             logger.error(f"File operation failed: {e}")

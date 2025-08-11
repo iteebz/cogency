@@ -1,7 +1,6 @@
 """Tests for conversation persistence and threading."""
 
 from datetime import datetime
-from uuid import uuid4
 
 import pytest
 

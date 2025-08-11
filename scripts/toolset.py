@@ -2,7 +2,8 @@
 """
 Cogency Toolset Inspector
 
-Purpose: Diagnostic utility for the canonical 5-tool architecture (Files, Shell, Search, Scrape, HTTP)
+Purpose: Diagnostic utility for the canonical 5-tool architecture
+         (Files, Shell, Search, Scrape, HTTP)
 Scope: Tool validation, testing, and performance analysis during development
 Created: Tool sharpening step for v1.0.0 launch
 

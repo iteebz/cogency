@@ -15,7 +15,7 @@ async def main():
     # Full infrastructure automation
     await devops.run_async("""
     Set up complete CI/CD pipeline for a Python web service:
-    
+
     - Create GitHub Actions workflow (test, build, deploy)
     - Generate Dockerfile with multi-stage build
     - Add docker-compose.yml for local development
@@ -23,7 +23,7 @@ async def main():
     - Set up monitoring with health checks
     - Add security scanning and dependency checks
     - Include deployment rollback strategy
-    
+
     Make it production-ready with best practices.
     """)
 

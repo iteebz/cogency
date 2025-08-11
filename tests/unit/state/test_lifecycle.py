@@ -1,7 +1,6 @@
 """Tests for state persistence across task lifecycles."""
 
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -230,7 +229,7 @@ async def test_continue_task_error(monkeypatch):
     monkeypatch.setattr("cogency.storage.state.sqlite.SQLite", mock_sqlite)
 
     # Should raise controlled exception for missing data
-    with pytest.raises(Exception):
+    with pytest.raises(ValueError):
         await State.continue_task("fake-task-id", "test_user")
 
 

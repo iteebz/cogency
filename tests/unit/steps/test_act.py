@@ -1,7 +1,5 @@
 """Test Act node - tool execution logic."""
 
-from unittest.mock import AsyncMock
-
 import pytest
 from resilient_result import Result
 

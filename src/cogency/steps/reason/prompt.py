@@ -1,6 +1,6 @@
 """Prompt building for reasoning - mode-specific prompt generation."""
 
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 from cogency.state import State
 
@@ -70,7 +70,7 @@ COMPLETION FOCUS:
 RECOVERY ACTIONS:
 - Tool argument errors → Check required vs optional args in schema
 - No results from tools → Try different args or alternative approaches
-- Information conflicts → Use additional tools to verify or integrate  
+- Information conflicts → Use additional tools to verify or integrate
 - Use the DETAILED action history to understand what actually happened, not just success/failure
 - Avoid repeating successful tool calls - check action history first"""
 
@@ -82,7 +82,7 @@ FAST_REASONING_STEPS = """GUIDANCE:
 
 ESCALATE to DEEP if encountering:
 - Tool results conflict and need synthesis
-- Multi-step reasoning chains required  
+- Multi-step reasoning chains required
 - Ambiguous requirements need breakdown
 - Complex analysis beyond direct execution
 
@@ -113,7 +113,7 @@ STOP OVERTHINKING:
 RESPONSE GUIDELINES:
 - "thinking": Brief process explanation (user sees this)
 - "response": Clean, direct answer only (user's final result)
-- Keep thinking concise - avoid repeating response content  
+- Keep thinking concise - avoid repeating response content
 - For simple queries, thinking should be brief decision, response should be the actual answer
 - IDENTITY: When providing "response", adopt the personality and tone described in the system prompt above
 
@@ -126,7 +126,7 @@ class Prompt:
     def build(
         self,
         state: State,
-        tools: List[Any],
+        tools: list[Any],
         mode: Optional[str] = None,
         identity: Optional[str] = None,
     ) -> str:
@@ -164,7 +164,7 @@ class Prompt:
         if mode_value == "deep":
             instructions = f"""DEEP MODE: Structured reasoning required
 - REFLECT: What have I learned? What worked/failed? What gaps remain?
-- ANALYZE: What are the core problems or strategic considerations?  
+- ANALYZE: What are the core problems or strategic considerations?
 - STRATEGIZE: What's my multi-step plan? What tools will I use and why?
 - WORKSPACE: Update goal, strategy, and insights for structured reflection
 
@@ -187,7 +187,7 @@ class Prompt:
         # Build complete prompt
         identity_header = identity or "You are a helpful AI assistant."
 
-        prompt = f"""{identity_header}
+        return f"""{identity_header}
 
 {user_context}REASONING CONTEXT:
 {reasoning_context}
@@ -209,5 +209,3 @@ Iteration {state.execution.iteration}/{state.execution.max_iterations}
 JSON Response Format:
 {_build_json_format_section(mode_value)}
 """
-
-        return prompt

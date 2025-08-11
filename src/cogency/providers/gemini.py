@@ -1,6 +1,7 @@
 """Google Gemini provider - LLM and embedding with streaming, key rotation."""
 
-from typing import AsyncIterator, Dict, List, Union
+from collections.abc import AsyncIterator
+from typing import Union
 
 import google.genai as genai
 import numpy as np
@@ -15,7 +16,7 @@ from .base import Provider, setup_rotator
 class Gemini(Provider):
     def __init__(
         self,
-        api_keys: Union[str, List[str]] = None,
+        api_keys: Union[str, list[str]] = None,
         llm_model: str = "gemini-2.0-flash-exp",
         embed_model: str = "gemini-embedding-001",
         dimensionality: int = 768,
@@ -43,7 +44,7 @@ class Gemini(Provider):
     def _get_client(self):
         return genai.Client(api_key=self.next_key())
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
 
@@ -86,7 +87,7 @@ class Gemini(Provider):
 
         return Ok(response_text)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
         formatted_messages = self._format(messages)
@@ -106,7 +107,7 @@ class Gemini(Provider):
             if chunk.text:
                 yield chunk.text
 
-    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+    async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings using Gemini embedding API."""
         # Check cache first
         if self._cache:

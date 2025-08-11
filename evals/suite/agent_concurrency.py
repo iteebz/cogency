@@ -42,6 +42,7 @@ class AgentConcurrency(Eval):
                         if attempt == max_retries:
                             return e
                         await asyncio.sleep(1)  # Brief delay before retry
+                return None
 
             results = await asyncio.gather(
                 run_with_retry(agents[0], tasks[0]),

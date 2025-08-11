@@ -15,7 +15,7 @@ async def main():
     # End-to-end ML workflow
     await data_scientist.run_async("""
     Build a complete machine learning pipeline for customer churn prediction:
-    
+
     - Research best practices for churn prediction models
     - Generate realistic customer dataset with proper features
     - Create data preprocessing and feature engineering pipeline
@@ -25,7 +25,7 @@ async def main():
     - Build prediction API with FastAPI and model serving
     - Add comprehensive tests and model monitoring
     - Generate performance report with visualizations
-    
+
     Deliver production-ready ML system with proper MLOps practices.
     """)
 

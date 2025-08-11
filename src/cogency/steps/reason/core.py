@@ -1,6 +1,6 @@
 """Core reasoning functions - consolidated business logic."""
 
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from cogency.state import State
 from cogency.tools import Tool
@@ -8,7 +8,7 @@ from cogency.utils.parsing import _parse_json
 
 
 def build_reasoning_prompt(
-    state: State, tools: List[Tool], memory=None, identity: str = None
+    state: State, tools: list[Tool], memory=None, identity: str = None
 ) -> str:
     """Build reasoning prompt from current context."""
     from .prompt import Prompt
@@ -17,7 +17,7 @@ def build_reasoning_prompt(
     return prompt_builder.build(state, tools, identity=identity)
 
 
-def build_messages(prompt: str, state: State) -> List[Dict[str, str]]:
+def build_messages(prompt: str, state: State) -> list[dict[str, str]]:
     """Build message array for LLM."""
     messages = [{"role": "system", "content": prompt}]
     messages.extend(
@@ -26,7 +26,7 @@ def build_messages(prompt: str, state: State) -> List[Dict[str, str]]:
     return messages
 
 
-def parse_reasoning_response(raw_response: str) -> Tuple[bool, Optional[Dict[str, Any]]]:
+def parse_reasoning_response(raw_response: str) -> tuple[bool, Optional[dict[str, Any]]]:
     """Parse LLM response into structured data."""
     parsed = _parse_json(raw_response)
     return parsed.success, parsed.data if parsed.success else None

@@ -1,6 +1,7 @@
 """OpenAI provider - LLM and embedding with streaming, caching, key rotation."""
 
-from typing import AsyncIterator, Dict, List, Union
+from collections.abc import AsyncIterator
+from typing import Union
 
 import numpy as np
 import openai
@@ -15,7 +16,7 @@ from .base import Provider, setup_rotator
 class OpenAI(Provider):
     def __init__(
         self,
-        api_keys: Union[str, List[str]] = None,
+        api_keys: Union[str, list[str]] = None,
         llm_model: str = "gpt-4o-mini",
         embed_model: str = "text-embedding-3-small",
         dimensionality: int = 1536,
@@ -49,7 +50,7 @@ class OpenAI(Provider):
             max_retries=self.max_retries,
         )
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
 
@@ -88,7 +89,7 @@ class OpenAI(Provider):
 
         return Ok(response)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
         stream = await client.chat.completions.create(
@@ -106,7 +107,7 @@ class OpenAI(Provider):
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
-    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+    async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings using OpenAI embedding API."""
         # Check cache first
         if self._cache:

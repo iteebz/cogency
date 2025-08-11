@@ -58,7 +58,7 @@ async def execute_agent(
                 response=state.execution.response,
             )
             return
-        elif response and not isinstance(response, Result):
+        if response and not isinstance(response, Result):
             emit("reason", state="complete", early_return=True)
             state.execution.response = response
             state.execution.response_source = "reason"

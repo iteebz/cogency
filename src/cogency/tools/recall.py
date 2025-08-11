@@ -1,7 +1,7 @@
 """Recall tool for semantic memory retrieval."""
 
 from dataclasses import dataclass
-from typing import Any, Dict, List
+from typing import Any
 
 from resilient_result import Result
 
@@ -120,7 +120,7 @@ class Recall(Tool):
             emit("tool", operation="recall", query=query, status="error", error=str(e))
             return Err(f"Memory recall failed: {str(e)}")
 
-    def _format_results(self, results: List[Dict[str, Any]], query: str) -> str:
+    def _format_results(self, results: list[dict[str, Any]], query: str) -> str:
         """Format search results for agent consumption."""
         if not results:
             return self._format_no_results(query)

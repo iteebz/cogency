@@ -6,7 +6,6 @@ import time
 from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List
 
 from cogency import Agent
 from cogency.config import PathsConfig
@@ -19,7 +18,7 @@ class Eval(ABC):
     description: str = "No description"
 
     @abstractmethod
-    async def run(self) -> Dict:
+    async def run(self) -> dict:
         """Execute the evaluation."""
         pass
 
@@ -31,7 +30,7 @@ class Eval(ABC):
         kwargs.setdefault("max_iterations", 30)
         return Agent(role, **kwargs)
 
-    async def test(self, cases, validator, role="tester", **kwargs) -> Dict:
+    async def test(self, cases, validator, role="tester", **kwargs) -> dict:
         """Run test cases with validation."""
         passed_count = 0
         traces = []
@@ -78,7 +77,7 @@ class Eval(ABC):
             "metadata": {"test_cases": len(cases), "passed": passed_count},
         }
 
-    async def security(self, cases: List[str]) -> Dict:
+    async def security(self, cases: list[str]) -> dict:
         """Run security test cases expecting rejection."""
         from cogency.tools import Shell
 
@@ -139,7 +138,7 @@ class Eval(ABC):
 
         return await self.test(cases, security_validator, "security_tester", tools=[Shell()])
 
-    async def execute(self) -> Dict:
+    async def execute(self) -> dict:
         """Execute eval with timing and error handling."""
         start_time = time.time()
         try:
@@ -156,7 +155,7 @@ class Eval(ABC):
             }
 
 
-async def run_suite(eval_classes: List[type[Eval]], sequential: bool = False) -> dict:
+async def run_suite(eval_classes: list[type[Eval]], sequential: bool = False) -> dict:
     """Run evaluation suite."""
     if not eval_classes:
         return {"results": [], "passed": 0, "total": 0, "score": 0.0, "duration": 0.0}
@@ -198,7 +197,7 @@ async def run_suite(eval_classes: List[type[Eval]], sequential: bool = False) ->
     return report
 
 
-async def _sequential(evals: List[Eval]) -> List[Dict]:
+async def _sequential(evals: list[Eval]) -> list[dict]:
     """Run evaluations sequentially."""
     results = []
     for i, eval_instance in enumerate(evals, 1):
@@ -210,7 +209,7 @@ async def _sequential(evals: List[Eval]) -> List[Dict]:
     return results
 
 
-async def _parallel(evals: List[Eval]) -> List[Dict]:
+async def _parallel(evals: list[Eval]) -> list[dict]:
     """Run evaluations in parallel."""
     return await asyncio.gather(*[e.execute() for e in evals])
 

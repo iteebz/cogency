@@ -5,7 +5,7 @@ Pure data + pure functions = beautiful state management.
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 from uuid import uuid4
 
 from .modes import AgentMode  # noqa: F401
@@ -17,11 +17,11 @@ class Profile:
     """Persistent user context across sessions."""
 
     user_id: str
-    preferences: Dict[str, Any] = field(default_factory=dict)
-    goals: List[str] = field(default_factory=list)
-    expertise_areas: List[str] = field(default_factory=list)
+    preferences: dict[str, Any] = field(default_factory=dict)
+    goals: list[str] = field(default_factory=list)
+    expertise_areas: list[str] = field(default_factory=list)
     communication_style: str = ""
-    projects: Dict[str, str] = field(default_factory=dict)
+    projects: dict[str, str] = field(default_factory=dict)
     interaction_count: int = 0  # LEGACY: For memory tests
 
     created_at: datetime = field(default=None)
@@ -37,12 +37,12 @@ class Profile:
                 self.last_updated = now
 
     @property
-    def expertise(self) -> List[str]:
+    def expertise(self) -> list[str]:
         """Backward compatibility alias for expertise_areas."""
         return self.expertise_areas
 
     @expertise.setter
-    def expertise(self, value: List[str]) -> None:
+    def expertise(self, value: list[str]) -> None:
         """Backward compatibility setter for expertise_areas."""
         self.expertise_areas = value
 
@@ -54,10 +54,10 @@ class Workspace:
     objective: str = ""
     assessment: str = ""
     approach: str = ""
-    observations: List[str] = field(default_factory=list)
-    insights: List[str] = field(default_factory=list)
-    facts: Dict[str, Any] = field(default_factory=dict)
-    thoughts: List[Dict[str, Any]] = field(default_factory=list)
+    observations: list[str] = field(default_factory=list)
+    insights: list[str] = field(default_factory=list)
+    facts: dict[str, Any] = field(default_factory=dict)
+    thoughts: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -66,7 +66,7 @@ class Conversation:
 
     conversation_id: str = field(default_factory=lambda: str(uuid4()))
     user_id: str = ""
-    messages: List[Dict[str, Any]] = field(default_factory=list)
+    messages: list[dict[str, Any]] = field(default_factory=list)
     last_updated: datetime = field(default_factory=datetime.now)
 
 
@@ -79,13 +79,13 @@ class Execution:
     mode: str = "adapt"
     stop_reason: str | None = None
 
-    messages: List[Dict[str, Any]] = field(default_factory=list)
+    messages: list[dict[str, Any]] = field(default_factory=list)
     response: str | None = None
 
-    pending_calls: List[Dict[str, Any]] = field(default_factory=list)
-    completed_calls: List[Dict[str, Any]] = field(default_factory=list)
+    pending_calls: list[dict[str, Any]] = field(default_factory=list)
+    completed_calls: list[dict[str, Any]] = field(default_factory=list)
     iterations_without_tools: int = 0
-    tool_results: Dict[str, Any] = field(default_factory=dict)
+    tool_results: dict[str, Any] = field(default_factory=dict)
 
 
 # Compatibility aliases

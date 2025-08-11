@@ -1,7 +1,7 @@
 """Observability handlers - unified metrics collection."""
 
 from collections import deque
-from typing import Any, Dict
+from typing import Any
 
 
 class MetricsHandler:
@@ -63,7 +63,7 @@ class MetricsHandler:
             self.sessions.append(self.current_session.copy())
             self.current_session = None
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         """Return clean metrics - no decorator pollution."""
         recent_sessions = list(self.sessions)[-10:]  # Last 10 sessions
         avg_duration = (
@@ -83,7 +83,7 @@ class MetricsHandler:
             },
         }
 
-    def tool_stats(self) -> Dict[str, Any]:
+    def tool_stats(self) -> dict[str, Any]:
         """Specific tool performance metrics."""
         tool_data = {}
         for perf in self.performance:

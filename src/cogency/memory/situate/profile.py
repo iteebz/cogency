@@ -2,12 +2,12 @@
 
 import json
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from cogency.events import emit
 
 
-def parse_synthesis_response(response: str) -> Optional[Dict[str, Any]]:
+def parse_synthesis_response(response: str) -> Optional[dict[str, Any]]:
     """Parse LLM synthesis response into structured data."""
     try:
         # Clean the response - remove any markdown formatting
@@ -18,15 +18,14 @@ def parse_synthesis_response(response: str) -> Optional[Dict[str, Any]]:
             clean_response = clean_response[:-3]
 
         # Parse JSON
-        synthesis_data = json.loads(clean_response.strip())
-        return synthesis_data
+        return json.loads(clean_response.strip())
 
     except (json.JSONDecodeError, ValueError) as e:
         emit("synthesis_parse_error", error=str(e), response_preview=response[:200])
         return None
 
 
-def apply_synthesis_to_profile(user_profile, synthesis_data: Dict[str, Any]):
+def apply_synthesis_to_profile(user_profile, synthesis_data: dict[str, Any]):
     """Apply synthesis impressions to user profile."""
     # Update preferences
     if "preferences" in synthesis_data:

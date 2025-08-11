@@ -1,12 +1,11 @@
 """Profiling tests - resource monitoring logic."""
 
 import asyncio
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import patch
 
 import pytest
 
 from cogency.observe.profiler import (
-    Profiler,
     get_profiler,
     profile_async,
     profile_sync,

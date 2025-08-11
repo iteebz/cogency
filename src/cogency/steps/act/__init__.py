@@ -1,6 +1,6 @@
 """Tool execution."""
 
-from typing import List, Optional
+from typing import Optional
 
 from cogency.observe import observe
 from cogency.resilience import resilience
@@ -12,7 +12,7 @@ from .execute import execute_tools
 
 @observe
 @resilience
-async def act(state: State, llm=None, tools: List[Tool] = None) -> Optional[str]:
+async def act(state: State, llm=None, tools: list[Tool] = None) -> Optional[str]:
     """Act: execute tools based on reasoning decision."""
 
     # Check pending calls

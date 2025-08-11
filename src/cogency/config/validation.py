@@ -1,9 +1,9 @@
 """Configuration validation for Union patterns per council ruling."""
 
-from typing import Any, Dict
+from typing import Any
 
 
-def validate_config_keys(**config) -> Dict[str, Any]:
+def validate_config_keys(**config) -> dict[str, Any]:
     """Validate configuration keys to prevent typos.
 
     Args:

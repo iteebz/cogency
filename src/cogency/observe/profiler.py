@@ -3,8 +3,8 @@
 import threading
 import time
 from collections import defaultdict
-from contextlib import asynccontextmanager
-from typing import Any, AsyncContextManager, Dict, Optional
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
+from typing import Any, Optional
 
 try:
     import psutil
@@ -19,7 +19,7 @@ class Profiler:
 
     def __init__(self, sample_interval: float = 0.1):
         self.sample_interval = sample_interval
-        self.active_profiles: Dict[str, Dict[str, Any]] = {}
+        self.active_profiles: dict[str, dict[str, Any]] = {}
         self._monitoring_thread = None
         self._monitoring_stop = threading.Event()
         self._memory_samples = defaultdict(list)
@@ -28,8 +28,8 @@ class Profiler:
 
     @asynccontextmanager
     async def profile(
-        self, operation_name: str, metadata: Optional[Dict[str, Any]] = None
-    ) -> AsyncContextManager:
+        self, operation_name: str, metadata: Optional[dict[str, Any]] = None
+    ) -> AbstractAsyncContextManager:
         """Context manager for profiling operations with system metrics."""
         start_time = time.time()
         memory_before = 0.0
@@ -155,8 +155,7 @@ def profile_sync(operation_name: str, func, *args, **kwargs):
     start_time = time.time()
 
     try:
-        result = func(*args, **kwargs)
-        return result
+        return func(*args, **kwargs)
     finally:
         duration = time.time() - start_time
         from cogency.events import emit

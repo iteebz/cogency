@@ -2,7 +2,7 @@
 
 import logging
 from dataclasses import dataclass
-from typing import Any, Dict
+from typing import Any
 
 from ddgs import DDGS
 from resilient_result import Result
@@ -43,7 +43,7 @@ class Search(Tool):
         self.human_template = "{message}:\n{results_summary}"
         self.agent_template = "{message}\n{results_summary}"
 
-    async def run(self, query: str, max_results: int = 5, **kwargs) -> Dict[str, Any]:
+    async def run(self, query: str, max_results: int = 5, **kwargs) -> dict[str, Any]:
         # Schema validation handles required args and basic types
         # Validate query is not empty or just whitespace
         if not query or not query.strip():

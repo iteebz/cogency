@@ -1,9 +1,6 @@
 """Unit tests for core event emission infrastructure."""
 
-import time
 from unittest.mock import MagicMock
-
-import pytest
 
 from cogency.events.core import MessageBus, emit, init_bus
 

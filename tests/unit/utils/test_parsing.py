@@ -1,7 +1,5 @@
 """Test parsing utilities for LLM response extraction."""
 
-from unittest.mock import AsyncMock
-
 import pytest
 
 from cogency.utils.parsing import (

@@ -1,6 +1,6 @@
 """Comprehensive step tests - integration and unit testing."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from resilient_result import Result, unwrap
@@ -11,7 +11,6 @@ from cogency.steps.act.core import execute_single_tool
 from cogency.steps.reason import reason
 from cogency.tools.base import Tool
 from cogency.tools.shell import Shell
-from cogency.utils.parsing import _parse_tool_calls as parse_tool_calls
 from tests.fixtures.provider import MockLLM
 
 

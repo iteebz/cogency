@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import numpy as np
 
@@ -29,7 +29,7 @@ class FileStore(VectorStore):
         self.file_path = Path(file_path)
         self._data = None
 
-    async def _load_data(self) -> Dict[str, Any]:
+    async def _load_data(self) -> dict[str, Any]:
         """Load embeddings data from file."""
         if self._data is not None:
             return self._data
@@ -49,11 +49,11 @@ class FileStore(VectorStore):
 
     async def search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[dict[str, Any]] = None,
         threshold: Optional[float] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search for similar documents using cosine similarity."""
         data = await self._load_data()
 
@@ -112,7 +112,7 @@ class FileStore(VectorStore):
 
         return results
 
-    def _matches_filters(self, metadata: Dict[str, Any], filters: Dict[str, Any]) -> bool:
+    def _matches_filters(self, metadata: dict[str, Any], filters: dict[str, Any]) -> bool:
         """Check if document metadata matches all filters."""
         for key, value in filters.items():
             if key not in metadata or metadata[key] != value:
@@ -121,13 +121,13 @@ class FileStore(VectorStore):
 
     async def add(
         self,
-        embeddings: List[List[float]],
-        documents: List[Dict[str, Any]],
-        ids: Optional[List[str]] = None,
+        embeddings: list[list[float]],
+        documents: list[dict[str, Any]],
+        ids: Optional[list[str]] = None,
     ) -> bool:
         """Add new embeddings to the file (not implemented for read-only use case)."""
         raise NotImplementedError("FileStore is read-only. Use embedding script to generate files.")
 
-    async def delete(self, ids: List[str]) -> bool:
+    async def delete(self, ids: list[str]) -> bool:
         """Delete embeddings (not implemented for read-only use case)."""
         raise NotImplementedError("FileStore is read-only. Use embedding script to generate files.")

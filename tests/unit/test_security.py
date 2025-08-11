@@ -1,9 +1,5 @@
 """Pure semantic security tests."""
 
-from unittest.mock import AsyncMock, MagicMock
-
-import pytest
-
 from cogency.security import (
     SecurityAction,
     SecurityResult,

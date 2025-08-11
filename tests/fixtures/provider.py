@@ -1,6 +1,7 @@
 """Provider mock fixtures for testing."""
 
-from typing import Any, AsyncIterator, Dict, List, Union
+from collections.abc import AsyncIterator
+from typing import Union
 
 import numpy as np
 import pytest
@@ -58,7 +59,7 @@ class MockProvider(Provider):
         for char in self.response:
             yield char
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Mock run method."""
         if self.should_fail:
             return Err(Exception("Mock provider failure"))
@@ -68,7 +69,7 @@ class MockProvider(Provider):
             response = self.response
         return Ok(response)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Mock stream method - yields realistic word chunks."""
         words = self.response.split()
         for i, word in enumerate(words):
@@ -77,7 +78,7 @@ class MockProvider(Provider):
             else:
                 yield word
 
-    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+    async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Mock embed method - handles both string and list[str]."""
         if self.should_fail:
             return Err(Exception("Mock embed failure"))
@@ -109,7 +110,7 @@ def mock_embed_factory(**kwargs):
 class RealisticMockProvider(Provider):
     """Mock provider with realistic response patterns for integration tests."""
 
-    def __init__(self, responses: List[str] = None, **kwargs):
+    def __init__(self, responses: list[str] = None, **kwargs):
         self.responses = responses or [
             "I understand your request. Let me help you with that.",
             "Based on the information provided, here's my analysis:",
@@ -152,19 +153,19 @@ class RealisticMockProvider(Provider):
                 yield " "
             yield word
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Realistic mock run method."""
         from resilient_result import Ok
 
         response = await self._run_impl(messages, **kwargs)
         return Ok(response)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Realistic mock stream method."""
         async for chunk in self._stream_impl(messages, **kwargs):
             yield chunk
 
-    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+    async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Realistic mock embed method."""
         from resilient_result import Ok
 
@@ -175,12 +176,6 @@ class RealisticMockProvider(Provider):
         if isinstance(text, str):
             return Ok([np.array(mock_embedding)])
         return Ok([np.array(mock_embedding) for _ in text])
-
-
-@pytest.fixture
-def mock_provider():
-    """Mock provider instance."""
-    return MockProvider()
 
 
 # Specific aliases for clarity in tests

@@ -1,12 +1,11 @@
 """Unit tests for ArchivalMemory system."""
 
-import asyncio
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
-from resilient_result import Err, Ok
+from resilient_result import Ok
 
 from cogency.memory.archival import ArchivalMemory, TopicArtifact
 

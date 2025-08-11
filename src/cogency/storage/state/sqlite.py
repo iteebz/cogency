@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 import aiosqlite
 
@@ -340,7 +340,7 @@ class SQLite(StateStore):
         except Exception:
             return False
 
-    async def list_user_workspaces(self, user_id: str) -> List[str]:
+    async def list_user_workspaces(self, user_id: str) -> list[str]:
         """List all task_ids for user's active workspaces."""
         await self._ensure_schema()
 

@@ -9,14 +9,6 @@ import pytest
 from cogency.state import State
 
 # Import all fixtures from decomposed modules
-from .fixtures import (
-    base_agent,
-    mock_provider,
-    mock_tool,
-    realistic_provider,
-    tools,
-    validation_schemas,
-)
 
 
 @pytest.fixture

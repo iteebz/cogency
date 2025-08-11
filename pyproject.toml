@@ -99,24 +99,17 @@ select = [
     "B",    # flake8-bugbear (common bugs)
     "C4",   # flake8-comprehensions
     "SIM",  # flake8-simplify
+    "RET",  # flake8-return (cleaner returns)
 ]
 ignore = [
-    "W291",   # Trailing whitespace (handled by Black)
-    "W293",   # Blank line contains whitespace (handled by Black)
-    "UP006",  # non-pep585-annotation (allow typing.List vs list for compatibility)
-    "UP035",  # deprecated-import (allow typing imports for compatibility)
     "SIM108", # if-else-block-instead-of-if-exp (ternary not always clearer)
     "SIM117", # combine-multiple-isinstance (sometimes separate is clearer)
-    "E501",   # line-too-long (pragmatic choice for readable code)
+    "E501",   # line-too-long (prompts and test data often legitimately long)
 ]
 
 # Allow specific patterns that are common in this codebase
 
 [tool.ruff.lint.per-file-ignores]
-"**/llm/__init__.py" = ["F401"]  # Allow conditional imports for optional dependencies
-"**/embed/__init__.py" = ["F401"]  # Allow conditional imports for optional dependencies
-"tests/**" = ["F401", "F811", "B017"]  # Allow test-specific patterns
-"website/**" = ["B007"]  # Allow unused loop variables in documentation scripts
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

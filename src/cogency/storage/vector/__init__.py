@@ -12,7 +12,7 @@ Example:
 """
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 class VectorStore(ABC):
@@ -21,11 +21,11 @@ class VectorStore(ABC):
     @abstractmethod
     async def search(
         self,
-        query_embedding: List[float],
+        query_embedding: list[float],
         top_k: int = 5,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[dict[str, Any]] = None,
         threshold: Optional[float] = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search for similar vectors.
 
         Args:
@@ -42,9 +42,9 @@ class VectorStore(ABC):
     @abstractmethod
     async def add(
         self,
-        embeddings: List[List[float]],
-        documents: List[Dict[str, Any]],
-        ids: Optional[List[str]] = None,
+        embeddings: list[list[float]],
+        documents: list[dict[str, Any]],
+        ids: Optional[list[str]] = None,
     ) -> bool:
         """Add vectors to the store.
 
@@ -59,7 +59,7 @@ class VectorStore(ABC):
         pass
 
     @abstractmethod
-    async def delete(self, ids: List[str]) -> bool:
+    async def delete(self, ids: list[str]) -> bool:
         """Delete vectors by ID.
 
         Args:

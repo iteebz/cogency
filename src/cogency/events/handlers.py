@@ -5,7 +5,7 @@ import logging
 import os
 from collections import deque
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 
 class EventBuffer:
@@ -24,7 +24,7 @@ class EventBuffer:
         type: str = None,
         errors_only: bool = False,
         last: int = None,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Return filtered events for debugging."""
         events = list(self.events)
 

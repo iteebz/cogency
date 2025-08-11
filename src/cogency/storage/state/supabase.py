@@ -1,7 +1,7 @@
 """Supabase backend - CANONICAL Four-Horizon Split-State Model for production."""
 
 import os
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from cogency.state import Conversation, Profile, Workspace
@@ -288,7 +288,7 @@ class Supabase(StateStore):
 
     # CANONICAL: Utility Operations
 
-    async def list_user_workspaces(self, user_id: str) -> List[str]:
+    async def list_user_workspaces(self, user_id: str) -> list[str]:
         """CANONICAL: List all task_ids for user's active workspaces"""
         try:
             response = (

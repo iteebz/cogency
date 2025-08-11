@@ -18,7 +18,7 @@ VALID:
 TOOL_RESPONSE_LOGIC = """DECISION LOGIC:
 
 MORE WORK NEEDED:
-- tool_calls: [...] (tools to use)  
+- tool_calls: [...] (tools to use)
 - response: "" (empty)
 
 TASK FINISHED:

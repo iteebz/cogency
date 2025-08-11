@@ -14,7 +14,7 @@ async def session_1():
     agent = Agent("assistant", memory=True, persist=True)
 
     await agent.run_async("""
-    I'm the CTO of a fintech startup building a mobile banking app. 
+    I'm the CTO of a fintech startup building a mobile banking app.
     Our stack is React Native, Node.js, PostgreSQL, and we're deployed on AWS.
     We have 50K users and are processing $2M in transactions monthly.
     My biggest concerns are security, scalability, and regulatory compliance.
@@ -33,7 +33,7 @@ async def session_2():
     agent = Agent("assistant", memory=True, persist=True)
 
     response = await agent.run_async("""
-    We're seeing 15% latency increase during peak hours. 
+    We're seeing 15% latency increase during peak hours.
     What architectural changes should we prioritize?
     """)
 

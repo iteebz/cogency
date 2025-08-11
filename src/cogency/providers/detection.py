@@ -1,6 +1,6 @@
 """Provider detection based on available API keys."""
 
-from typing import Dict, Optional
+from typing import Optional
 
 from cogency.utils.credentials import Credentials
 
@@ -35,7 +35,7 @@ def _detect_llm():
     raise ValueError("No LLM providers available")
 
 
-def _detect_provider(providers: Dict[str, str], fallback: Optional[str] = None) -> str:
+def _detect_provider(providers: dict[str, str], fallback: Optional[str] = None) -> str:
     """Generic provider detection based on available API keys.
 
     Args:

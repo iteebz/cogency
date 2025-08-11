@@ -6,7 +6,7 @@ The triage step handles initial request processing:
 - Tool selection and filtering
 """
 
-from typing import List, Optional
+from typing import Optional
 
 from cogency.providers import Provider
 from cogency.state import State
@@ -18,7 +18,7 @@ from .core import filter_tools, notify_tool_selection, triage_prompt
 async def triage(
     state: State,
     llm: Provider,
-    tools: List[Tool],
+    tools: list[Tool],
     memory,  # Impression instance or None
     identity: str = None,
 ) -> Optional[str]:

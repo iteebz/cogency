@@ -35,7 +35,7 @@ Communication Style: {current_style}"""
 
 Focus on extracting:
 - User preferences and working styles
-- Professional goals and interests  
+- Professional goals and interests
 - Technical expertise and knowledge areas
 - Communication preferences
 
@@ -43,7 +43,7 @@ RESPONSE FORMAT:
 {{
   "preferences": {{"key": "value"}},
   "goals": ["goal1", "goal2"],
-  "expertise": ["skill1", "skill2"], 
+  "expertise": ["skill1", "skill2"],
   "communication_style": "description"
 }}
 

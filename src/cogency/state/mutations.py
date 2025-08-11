@@ -1,7 +1,7 @@
 """State mutation functions."""
 
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any
 
 from resilient_result import unwrap
 
@@ -23,7 +23,7 @@ def add_message(state: State, role: str, content: str) -> None:
     autosave(state)  # Saves profile, conversation, and workspace
 
 
-def set_tool_calls(state: State, calls: List[Dict[str, Any]]) -> None:
+def set_tool_calls(state: State, calls: list[dict[str, Any]]) -> None:
     """Set pending tool calls in execution state."""
     validated_calls = []
     for call in calls:
@@ -38,7 +38,7 @@ def set_tool_calls(state: State, calls: List[Dict[str, Any]]) -> None:
         autosave(state)  # Saves profile, conversation, and workspace
 
 
-def finish_tools(state: State, results: List[Dict[str, Any]]) -> None:
+def finish_tools(state: State, results: list[dict[str, Any]]) -> None:
     """Process completed tool results in execution state."""
     state.execution.completed_calls.extend(results)
     state.execution.pending_calls.clear()
@@ -118,7 +118,7 @@ def learn_fact(state: State, key: str, value: Any) -> None:
             autosave(state)
 
 
-def record_thought(state: State, thinking: str, tool_calls: List[Dict[str, Any]]) -> None:
+def record_thought(state: State, thinking: str, tool_calls: list[dict[str, Any]]) -> None:
     """Record reasoning step in workspace (task-scoped, persisted)."""
     thought = {
         "thinking": thinking,
@@ -217,7 +217,7 @@ def set_project(state: State, project_name: str, description: str) -> None:
 # Cross-Component Operations
 
 
-def update_from_reasoning(state: State, reasoning_data: Dict[str, Any]) -> None:
+def update_from_reasoning(state: State, reasoning_data: dict[str, Any]) -> None:
     """Update state from LLM reasoning response - dispatches to appropriate components."""
     if isinstance(reasoning_data, list):
         if reasoning_data and isinstance(reasoning_data[0], dict):

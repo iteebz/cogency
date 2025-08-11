@@ -1,7 +1,7 @@
 """Reasoning type definitions - structured thought processes and decision making."""
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 from cogency.utils.parsing import _normalize_reasoning
 
@@ -9,17 +9,17 @@ from cogency.utils.parsing import _normalize_reasoning
 @dataclass
 class Reasoning:
     thinking: Optional[str] = None
-    tool_calls: List[Dict[str, Any]] = field(default_factory=list)
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
     response: Optional[str] = None
     switch_to: Optional[str] = None
-    reasoning: List[str] = field(default_factory=list)
+    reasoning: list[str] = field(default_factory=list)
     reflect: Optional[str] = None
     plan: Optional[str] = None
     # Cognitive workspace updates - the canonical solution
-    updates: Optional[Dict[str, str]] = None
+    updates: Optional[dict[str, str]] = None
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Reasoning":
+    def from_dict(cls, data: dict[str, Any]) -> "Reasoning":
         # Handle case where LLM returns array instead of object
         if isinstance(data, list):
             data = data[0] if data else {}

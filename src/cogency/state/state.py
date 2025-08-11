@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, Dict
+from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 if TYPE_CHECKING:
@@ -165,7 +165,7 @@ class State:
         if self.execution is None:
             self.execution = Execution()
 
-    def update_from_reasoning(self, reasoning_data: Dict[str, Any]) -> None:
+    def update_from_reasoning(self, reasoning_data: dict[str, Any]) -> None:
         """Update state from LLM reasoning response - delegates to mutations."""
         from .mutations import update_from_reasoning
 

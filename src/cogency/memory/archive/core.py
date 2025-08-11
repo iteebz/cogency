@@ -1,7 +1,5 @@
 """Core archival memory logic - knowledge artifact extraction."""
 
-from typing import Dict, List
-
 from cogency.events import emit
 from cogency.state import State
 
@@ -60,7 +58,7 @@ async def archive(state: State, memory) -> None:
         # Archival failures don't affect user experience
 
 
-async def _extract_knowledge(state: State, memory) -> List[Dict]:
+async def _extract_knowledge(state: State, memory) -> list[dict]:
     """Extract knowledge from conversation history."""
     from resilient_result import unwrap
 
@@ -93,7 +91,7 @@ async def _extract_knowledge(state: State, memory) -> List[Dict]:
         return []
 
 
-async def _process_knowledge(knowledge: Dict, archival, user_id: str):
+async def _process_knowledge(knowledge: dict, archival, user_id: str):
     """Process single knowledge item through consolidation pipeline."""
     topic = knowledge["topic"]
     knowledge_content = knowledge["knowledge"]
@@ -112,12 +110,11 @@ async def _process_knowledge(knowledge: Dict, archival, user_id: str):
         # Merge with highest similarity document
         target_doc = max(similar_docs, key=lambda doc: doc["similarity"])
         return await _merge_with_existing(knowledge, target_doc, archival, user_id)
-    else:
-        # Create new document
-        return await archival.store_knowledge(user_id, topic, knowledge_content)
+    # Create new document
+    return await archival.store_knowledge(user_id, topic, knowledge_content)
 
 
-async def _merge_with_existing(knowledge: Dict, target_doc: Dict, archival, user_id: str):
+async def _merge_with_existing(knowledge: dict, target_doc: dict, archival, user_id: str):
     """Merge knowledge with existing document using specialized prompt."""
     from resilient_result import unwrap
 
@@ -157,7 +154,7 @@ async def _merge_with_existing(knowledge: Dict, target_doc: Dict, archival, user
         return await archival.store_knowledge(user_id, topic, new_knowledge)
 
 
-def _meets_quality_threshold(knowledge: Dict) -> bool:
+def _meets_quality_threshold(knowledge: dict) -> bool:
     """Quality validation for extracted knowledge."""
     knowledge_text = knowledge.get("knowledge", "")
     confidence = knowledge.get("confidence", 0)

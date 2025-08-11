@@ -2,7 +2,6 @@
 
 import tempfile
 from pathlib import Path
-from typing import Dict
 
 from cogency.config import MemoryConfig, PersistConfig
 from cogency.storage.store.filesystem import Filesystem
@@ -16,7 +15,7 @@ class SessionMemory(Eval):
     name = "session_memory"
     description = "Test long-term memory persistence across agent restarts"
 
-    async def run(self) -> Dict:
+    async def run(self) -> dict:
         # Use temporary directory for isolated testing
         with tempfile.TemporaryDirectory() as temp_dir:
             db_path = Path(temp_dir) / "test_memory.db"
@@ -33,9 +32,9 @@ class SessionMemory(Eval):
 
             learning_query = """Remember these three important facts about me:
             1. My favorite programming language is Rust
-            2. I work at a company called TechCorp 
+            2. I work at a company called TechCorp
             3. My project codename is 'Phoenix'
-            
+
             Confirm you've stored this information."""
 
             session_1_result = await agent_session_1.run_async(learning_query, user_id="test_user")

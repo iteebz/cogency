@@ -1,7 +1,6 @@
 """Smoke test: Multi-step reasoning with Result pattern."""
 
 import asyncio
-from unittest.mock import AsyncMock
 
 import pytest
 from resilient_result import Result
@@ -23,37 +22,36 @@ class MockMultiStepProvider:
                 "I need to analyze the system first. Let me check the current directory structure: ls -la"
             )
 
-        elif self.step == 2 and "total" in last_msg:
+        if self.step == 2 and "total" in last_msg:
             # Got directory listing, now check processes
             return Result.ok(
                 "Good, I can see the directory structure. Now let me check running processes: ps aux | head -10"
             )
 
-        elif self.step == 3 and ("pid" in last_msg or "user" in last_msg):
+        if self.step == 3 and ("pid" in last_msg or "user" in last_msg):
             # Got process info, now check disk usage
             return Result.ok(
                 "I can see the processes. Now let me check disk usage to complete the analysis: df -h"
             )
 
-        elif self.step >= 4 and (
+        if self.step >= 4 and (
             "filesystem" in last_msg or "available" in last_msg or "size" in last_msg
         ):
             # Final synthesis
             return Result.ok(
                 """Based on my multi-step analysis:
 1. Directory structure shows active development environment
-2. Process list indicates normal system operation  
+2. Process list indicates normal system operation
 3. Disk usage is within acceptable limits
 Analysis complete - system is healthy."""
             )
 
-        elif self.step >= 4:
+        if self.step >= 4:
             # Force completion after 4 steps
             return Result.ok("Analysis complete based on available information.")
 
-        else:
-            # Fallback - continue analysis
-            return Result.ok("Continuing analysis. Let me check the disk usage: df -h")
+        # Fallback - continue analysis
+        return Result.ok("Continuing analysis. Let me check the disk usage: df -h")
 
 
 class MockBashTool:
@@ -70,7 +68,7 @@ drwxr-xr-x   6 user  staff   192 Jul 24 15:20 ..
 drwxr-xr-x   8 user  staff   256 Jul 25 09:45 src"""
             )
 
-        elif command.startswith("ps"):
+        if command.startswith("ps"):
             return Result.ok(
                 """USER       PID  %CPU %MEM      VSZ    RSS   TT  STAT STARTED      TIME COMMAND
 user      1234   2.1  1.5  4567890  12345   ??  S    10:30AM   0:00.45 python
@@ -78,7 +76,7 @@ user      5678   0.8  0.3  2345678   5432   ??  S    10:31AM   0:00.12 bash
 user      9999   0.0  0.1   987654   1234   ??  S    10:32AM   0:00.01 ls"""
             )
 
-        elif command.startswith("df"):
+        if command.startswith("df"):
             return Result.ok(
                 """Filesystem      Size  Used Avail Use% Mounted on
 /dev/disk1      500G  250G  245G  51% /
@@ -86,8 +84,7 @@ user      9999   0.0  0.1   987654   1234   ??  S    10:32AM   0:00.01 ls"""
 tmpfs           8.0G  1.2G  6.8G  15% /tmp"""
             )
 
-        else:
-            return Result.fail(f"Unknown command: {command}")
+        return Result.fail(f"Unknown command: {command}")
 
 
 @pytest.mark.asyncio
@@ -128,8 +125,7 @@ async def test_with_failures(base_agent):
 
             if self.call_count == 2:  # Second call fails
                 return Result.fail("Permission denied")
-            else:
-                return Result.ok(f"Command output for: {command}")
+            return Result.ok(f"Command output for: {command}")
 
     class RecoveryProvider:
         def __init__(self):
@@ -143,12 +139,11 @@ async def test_with_failures(base_agent):
                 return Result.ok(
                     "I see there was a permission error. Let me try a different approach: echo 'alternative method'"
                 )
-            elif self.step == 1:
+            if self.step == 1:
                 return Result.ok("First, let me run: cat /etc/passwd")
-            elif self.step == 2:
+            if self.step == 2:
                 return Result.ok("Now let me try: sudo cat /root/secret")  # This will fail
-            else:
-                return Result.ok("Analysis complete using alternative methods.")
+            return Result.ok("Analysis complete using alternative methods.")
 
     agent = base_agent(llm=RecoveryProvider(), tools=[SometimesFailingBash()], max_iterations=6)
 

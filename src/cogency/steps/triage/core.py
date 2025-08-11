@@ -1,7 +1,7 @@
 """Core triage functions - consolidated business logic."""
 
 from dataclasses import dataclass
-from typing import Dict, List, Optional
+from typing import Optional
 
 from resilient_result import unwrap
 
@@ -23,7 +23,7 @@ class TriageResult:
     direct_response: Optional[str] = None
 
     # Tool selection
-    selected_tools: List[str] = None
+    selected_tools: list[str] = None
 
     # Mode classification
     mode: str = "fast"
@@ -32,7 +32,7 @@ class TriageResult:
     reasoning: str = ""
 
     # Memory semantic flags
-    memory_flags: Dict = None
+    memory_flags: dict = None
 
     def __post_init__(self):
         if self.selected_tools is None:
@@ -41,7 +41,7 @@ class TriageResult:
             self.memory_flags = {}
 
 
-def _queue_memory_updates(query: str, memory_flags: Dict) -> None:
+def _queue_memory_updates(query: str, memory_flags: dict) -> None:
     """Queue async memory updates based on semantic triggers."""
     if memory_flags.get("situated"):
         emit(
@@ -57,7 +57,7 @@ def _queue_memory_updates(query: str, memory_flags: Dict) -> None:
         # TODO: Implement archival memory queueing when archival system is ready
 
 
-def filter_tools(tools: List[Tool], selected_names: List[str]) -> List[Tool]:
+def filter_tools(tools: list[Tool], selected_names: list[str]) -> list[Tool]:
     """Filter tools based on selection."""
     if not selected_names:
         return []
@@ -67,7 +67,7 @@ def filter_tools(tools: List[Tool], selected_names: List[str]) -> List[Tool]:
     return [tool for tool in filtered if tool.name != "memorize"]
 
 
-async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) -> None:
+async def notify_tool_selection(filtered_tools: list[Tool], total_tools: int) -> None:
     """Send appropriate notifications about tool selection."""
     if not filtered_tools:
         return
@@ -90,7 +90,7 @@ async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) ->
 async def triage_prompt(
     llm: Provider,
     query: str,
-    available_tools: List[Tool],
+    available_tools: list[Tool],
     user_context: str = "",
     identity: str = None,
 ) -> TriageResult:

@@ -2,7 +2,6 @@
 
 import asyncio
 from pathlib import Path
-from typing import Dict
 
 from cogency.tools.files import Files
 
@@ -15,7 +14,7 @@ class WorkspaceIsolation(Eval):
     name = "workspace_isolation"
     description = "Test that agents maintain isolated workspaces and don't interfere"
 
-    async def run(self) -> Dict:
+    async def run(self) -> dict:
         # Create agents with isolated sandbox directories
         import tempfile
 

@@ -2,7 +2,8 @@
 
 import itertools
 import random
-from typing import Awaitable, Callable, List, Optional, TypeVar
+from collections.abc import Awaitable
+from typing import Callable, Optional, TypeVar
 
 from cogency.events import emit
 
@@ -44,7 +45,7 @@ class KeyRotationError(Exception):
 class KeyRotator:
     """Key rotator for API rate limit avoidance."""
 
-    def __init__(self, keys: List[str]):
+    def __init__(self, keys: list[str]):
         self.keys = list(keys)
         # Start with random key
         random.shuffle(self.keys)
@@ -86,7 +87,7 @@ class KeyRotator:
 class ApiKeyRotator:
     """API key rotation manager - handles rate limits with intelligent retry."""
 
-    def __init__(self, api_keys: List[str]):
+    def __init__(self, api_keys: list[str]):
         if not api_keys:
             raise ValueError("ApiKeyRotator requires at least one API key")
 

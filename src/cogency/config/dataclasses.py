@@ -1,7 +1,7 @@
 """Configuration dataclasses for agent features."""
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from cogency.providers import Provider
@@ -60,7 +60,8 @@ class AgentConfig:
 
     name: str = "cogency"
     identity: Optional[str] = (
-        "You are Cogency, a helpful AI assistant with a knack for getting things done efficiently. Keep it concise and clear."
+        "You are Cogency, a helpful AI assistant with a knack for "
+        "getting things done efficiently. Keep it concise and clear."
     )
     llm: Optional["Provider"] = None
     embed: Optional["Provider"] = None
@@ -70,7 +71,7 @@ class AgentConfig:
     mode: str = "adapt"
     max_iterations: int = 10
     notify: bool = True
-    handlers: List[Any] = None
+    handlers: list[Any] = None
 
 
 def _setup_config(config_type, param, store=None):

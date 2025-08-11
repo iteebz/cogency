@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Optional
 
 import aiosqlite
 
@@ -22,15 +22,15 @@ class StateAnalyzer:
         else:
             self.db_path = Path(db_path)
 
-    async def recent_conversations(self, user_id: str = "default", limit: int = 10) -> List[Dict]:
+    async def recent_conversations(self, user_id: str = "default", limit: int = 10) -> list[dict]:
         """Get recent conversation history."""
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 """
-                SELECT conversation_id, conversation_data, updated_at 
-                FROM conversations 
-                WHERE user_id = ? 
-                ORDER BY updated_at DESC 
+                SELECT conversation_id, conversation_data, updated_at
+                FROM conversations
+                WHERE user_id = ?
+                ORDER BY updated_at DESC
                 LIMIT ?
                 """,
                 (user_id, limit),
@@ -48,15 +48,15 @@ class StateAnalyzer:
                 )
             return results
 
-    async def workspace_analysis(self, user_id: str = "default", limit: int = 5) -> List[Dict]:
+    async def workspace_analysis(self, user_id: str = "default", limit: int = 5) -> list[dict]:
         """Analyze recent task workspaces."""
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
                 """
-                SELECT task_id, workspace_data, updated_at 
-                FROM task_workspaces 
-                WHERE user_id = ? 
-                ORDER BY updated_at DESC 
+                SELECT task_id, workspace_data, updated_at
+                FROM task_workspaces
+                WHERE user_id = ?
+                ORDER BY updated_at DESC
                 LIMIT ?
                 """,
                 (user_id, limit),
@@ -76,7 +76,7 @@ class StateAnalyzer:
                 )
             return results
 
-    async def user_profile_evolution(self, user_id: str = "default") -> Optional[Dict]:
+    async def user_profile_evolution(self, user_id: str = "default") -> Optional[dict]:
         """Get user profile with evolution tracking."""
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(
@@ -88,7 +88,7 @@ class StateAnalyzer:
             return None
 
     def format_analysis(
-        self, conversations: List[Dict], workspaces: List[Dict], profile: Dict
+        self, conversations: list[dict], workspaces: list[dict], profile: dict
     ) -> str:
         """Format analysis for readable output."""
         output = []

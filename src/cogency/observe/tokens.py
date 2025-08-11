@@ -1,7 +1,5 @@
 """Token counting and cost estimation - emits token events."""
 
-from typing import Dict, List
-
 import tiktoken
 
 # Current pricing ($/1K tokens) - updated Jan 2025
@@ -23,7 +21,7 @@ COSTS = {
 }
 
 
-def count(msgs: List[Dict[str, str]], model: str = "gpt-4o") -> int:
+def count(msgs: list[dict[str, str]], model: str = "gpt-4o") -> int:
     """Count tokens in messages."""
     try:
         enc = tiktoken.encoding_for_model(model)

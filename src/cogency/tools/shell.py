@@ -6,7 +6,7 @@ import os
 import shlex
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from resilient_result import Result
 
@@ -21,7 +21,7 @@ class ShellArgs:
     command: str
     timeout: int = 30
     working_dir: Optional[str] = None
-    env: Optional[Dict[str, str]] = None
+    env: Optional[dict[str, str]] = None
 
 
 @tool
@@ -74,9 +74,9 @@ class Shell(Tool):
         command: str,
         timeout: int = 30,
         working_dir: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
+        env: Optional[dict[str, str]] = None,
         **kwargs,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Execute shell command with safety checks.
 
         Args:

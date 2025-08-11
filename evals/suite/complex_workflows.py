@@ -1,7 +1,6 @@
 """Complex debugging workflows evaluation."""
 
 import os
-from typing import Dict
 
 from cogency.tools.files import Files
 from cogency.tools.search import Search
@@ -16,7 +15,7 @@ class ComplexWorkflows(Eval):
     name = "complex_workflows"
     description = "Test complex debugging and problem-solving workflows"
 
-    async def run(self) -> Dict:
+    async def run(self) -> dict:
         agent = self.agent(
             "workflow_tester",
             tools=[Files(), Search(), Shell()],
@@ -25,25 +24,25 @@ class ComplexWorkflows(Eval):
 
         # Create a complex debugging scenario
         query = """You need to debug a Python script issue. Follow this workflow:
-        
+
         1. Create a test script 'debug_test.py' with this buggy code:
            ```python
            def calculate_average(numbers):
                total = sum(numbers)
                return total / len(numbers)
-           
+
            data = []  # Empty list will cause division by zero
            result = calculate_average(data)
            print(f"Average: {result}")
            ```
-        
+
         2. Run the script to see if there are any issues
         3. If there are issues, search online for 'Python division by zero handling'
         4. Fix the bug by adding proper error handling
         5. Test the fixed script with both valid data and empty list
         6. Create a summary file 'debug_summary.txt' explaining what was wrong and how you fixed it
         7. Clean up by removing both files
-        
+
         Document each step and explain your debugging process."""
 
         result = await agent.run_async(query)

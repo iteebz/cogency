@@ -18,8 +18,6 @@ FORBIDDEN:
 All heuristics must justify their existence as structural guardrails, not semantic understanding.
 """
 
-from typing import Dict, List
-
 
 def is_simple_query(query: str) -> bool:
     """Check if query is simple enough to suggest fast mode.
@@ -31,7 +29,7 @@ def is_simple_query(query: str) -> bool:
     return len(words) <= 2 and not any(char in query for char in "?!")
 
 
-def needs_network_retry(errors: List[Dict]) -> bool:
+def needs_network_retry(errors: list[dict]) -> bool:
     """Check if errors indicate network issues that warrant retry.
 
     Structural heuristic: Detect transient network failures that benefit from
@@ -56,7 +54,7 @@ def needs_network_retry(errors: List[Dict]) -> bool:
     )
 
 
-def query_needs_tools(query: str, available_tools: List) -> bool:
+def query_needs_tools(query: str, available_tools: list) -> bool:
     """Check if query needs tools but none are available.
 
     Structural heuristic: Prevent ReAct dead-ends when user explicitly asks
@@ -67,9 +65,7 @@ def query_needs_tools(query: str, available_tools: List) -> bool:
 
     # Keywords that clearly indicate tool usage needed
     tool_keywords = ["search", "find", "look up", "scrape", "get", "fetch"]
-    needs_tools = any(keyword in query.lower() for keyword in tool_keywords)
-
-    return needs_tools
+    return any(keyword in query.lower() for keyword in tool_keywords)
 
 
 def calc_backoff(retry_count: int, base_delay: float = 1.0) -> float:

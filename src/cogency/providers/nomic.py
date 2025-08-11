@@ -1,7 +1,7 @@
 """Nomic embedding provider - text vectorization with key rotation."""
 
 import logging
-from typing import List, Optional, Union
+from typing import Optional, Union
 
 import numpy as np
 from resilient_result import Err, Ok, Result
@@ -16,7 +16,7 @@ class Nomic(Provider):
 
     def __init__(
         self,
-        api_keys: Union[str, List[str]] = None,
+        api_keys: Union[str, list[str]] = None,
         embed_model: str = "nomic-embed-text-v1.5",
         dimensionality: int = 768,
         batch_size: int = 3,
@@ -74,7 +74,7 @@ class Nomic(Provider):
                 ) from None
 
     async def embed(
-        self, text: Union[str, List[str]], batch_size: Optional[int] = None, **kwargs
+        self, text: Union[str, list[str]], batch_size: Optional[int] = None, **kwargs
     ) -> Result:
         """Embed text(s) - handles both single strings and lists."""
         # Check cache first
@@ -123,25 +123,24 @@ class Nomic(Provider):
                     )
 
                 return Ok(result)
-            else:
-                # Single batch
-                result = embed.text(
-                    texts=texts,
-                    model=self.model,
-                    dimensionality=self.dimensionality,
-                    task_type=self._task_type,
-                    **kwargs,
+            # Single batch
+            result = embed.text(
+                texts=texts,
+                model=self.model,
+                dimensionality=self.dimensionality,
+                task_type=self._task_type,
+                **kwargs,
+            )
+            logger.info(f"Successfully embedded {len(texts)} texts")
+            result_embeddings = [np.array(emb) for emb in result["embeddings"]]
+
+            # Cache result
+            if self._cache:
+                await self._cache.set(
+                    text, result_embeddings, cache_type="embed", model=self.model, **kwargs
                 )
-                logger.info(f"Successfully embedded {len(texts)} texts")
-                result_embeddings = [np.array(emb) for emb in result["embeddings"]]
 
-                # Cache result
-                if self._cache:
-                    await self._cache.set(
-                        text, result_embeddings, cache_type="embed", model=self.model, **kwargs
-                    )
-
-                return Ok(result_embeddings)
+            return Ok(result_embeddings)
 
         except Exception as e:
             logger.error(f"Embedding failed: {e}")

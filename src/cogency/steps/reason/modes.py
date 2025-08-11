@@ -1,7 +1,7 @@
 """Mode switching controller - centralized decision logic."""
 
 import logging
-from typing import Optional, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ Examples:
 switch_to: "fast", switch_why: "Analysis complete, simple execution remains"
 switch_to: "fast", switch_why: "Approaching max_iterations limit, need direct action\""""
 
-        elif current_mode == "fast":
+        if current_mode == "fast":
             return """ESCALATE to DEEP if:
 - Tool results conflict and need synthesis
 - Multi-step reasoning chains required
@@ -99,8 +99,8 @@ Examples:
 switch_to: "deep", switch_why: "Search results contradict, need analysis"
 switch_to: "deep", switch_why: "Multi-step reasoning required\""""
 
-        else:  # adapt mode
-            return """ADAPT MODE: Dynamic reasoning
+        # adapt mode
+        return """ADAPT MODE: Dynamic reasoning
 - ESCALATE to deep when complexity emerges
 - DOWNSHIFT to fast when analysis complete
 - Choose mode based on task requirements
@@ -109,7 +109,7 @@ ESCALATE to DEEP: Tool conflicts, multi-step reasoning, complex analysis
 DOWNSHIFT to FAST: Analysis complete, simple execution remains"""
 
     @staticmethod
-    def parse_switch_request(raw_response: str) -> Tuple[Optional[str], Optional[str]]:
+    def parse_switch_request(raw_response: str) -> tuple[Optional[str], Optional[str]]:
         """Extract mode switching directives from LLM response."""
         from cogency.utils.parsing import _parse_json
 
@@ -125,8 +125,7 @@ DOWNSHIFT to FAST: Analysis complete, simple execution remains"""
                 # Extract switch fields
                 if isinstance(data, dict):
                     return data.get("switch_to"), data.get("switch_why")
-                else:
-                    logger.warning(f"Switch parse: unexpected data type {type(data)}")
+                logger.warning(f"Switch parse: unexpected data type {type(data)}")
             else:
                 logger.warning("Switch parse: JSON parsing failed")
         except Exception as e:

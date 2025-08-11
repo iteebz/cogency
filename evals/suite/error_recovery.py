@@ -1,7 +1,6 @@
 """Error recovery evaluation."""
 
 import os
-from typing import Dict
 
 from cogency.tools.files import Files
 from cogency.tools.shell import Shell
@@ -15,7 +14,7 @@ class ErrorRecovery(Eval):
     name = "error_recovery"
     description = "Test error handling patterns and recovery strategies"
 
-    async def run(self) -> Dict:
+    async def run(self) -> dict:
         agent = self.agent(
             "recovery_tester",
             tools=[Files(), Shell()],
@@ -24,14 +23,14 @@ class ErrorRecovery(Eval):
 
         # Design a task that will encounter errors but can be recovered from
         query = """You must complete this exact multi-step error recovery task. Execute each step in order:
-        
+
         Step 1: Use files tool to read 'nonexistent.txt' (this will fail - that's expected)
         Step 2: When step 1 fails, use files tool to create 'nonexistent.txt' with content 'Recovery test'
         Step 3: Use files tool to read the file you just created to verify the content
-        Step 4: Use shell tool to run 'invalid-command-xyz' (this will fail - that's expected)  
+        Step 4: Use shell tool to run 'invalid-command-xyz' (this will fail - that's expected)
         Step 5: When step 4 fails, use shell tool to run 'echo Successfully recovered'
         Step 6: Use shell tool to run 'rm nonexistent.txt' to clean up
-        
+
         Execute all 6 steps. Report what happens at each step and how you handle failures."""
 
         result = await agent.run_async(query)

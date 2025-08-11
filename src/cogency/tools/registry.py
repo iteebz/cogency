@@ -1,7 +1,6 @@
 """Tool registry."""
 
 import logging
-from typing import List, Type
 
 from cogency.tools.base import Tool
 
@@ -19,7 +18,7 @@ def _setup_tools(tools, memory):
         raise ValueError(
             f"Invalid tools value '{tools}'; use [] or [Tool(), ...] with explicit instances"
         )
-    elif isinstance(tools, list):
+    if isinstance(tools, list):
         # Validate all items are Tool instances
         for tool in tools:
             if not isinstance(tool, Tool):
@@ -34,17 +33,17 @@ def _setup_tools(tools, memory):
 class ToolRegistry:
     """Registry for tools."""
 
-    _tools: List[Type[Tool]] = []
+    _tools: list[type[Tool]] = []
 
     @classmethod
-    def add(cls, tool_class: Type[Tool]):
+    def add(cls, tool_class: type[Tool]):
         """Register a tool class."""
         if tool_class not in cls._tools:
             cls._tools.append(tool_class)
         return tool_class
 
     @classmethod
-    def get_tools(cls, **kwargs) -> List[Tool]:
+    def get_tools(cls, **kwargs) -> list[Tool]:
         """Get all registered tool instances - internal use only."""
         from cogency.events import emit
 
@@ -88,7 +87,7 @@ def tool(cls):
     return ToolRegistry.add(cls)
 
 
-def get_tools(**kwargs) -> List[Tool]:
+def get_tools(**kwargs) -> list[Tool]:
     """Get all registered tool instances - internal use only.
 
     Args:
@@ -100,7 +99,7 @@ def get_tools(**kwargs) -> List[Tool]:
     return ToolRegistry.get_tools(**kwargs)
 
 
-def build_tool_descriptions(tools: List[Tool]) -> str:
+def build_tool_descriptions(tools: list[Tool]) -> str:
     """Build brief tool descriptions for triage/overview contexts."""
     if not tools:
         return "no tools"
@@ -111,7 +110,7 @@ def build_tool_descriptions(tools: List[Tool]) -> str:
     return "\n".join(entries)
 
 
-def build_tool_schemas(tools: List[Tool]) -> str:
+def build_tool_schemas(tools: list[Tool]) -> str:
     """Build tool schemas with examples and rules - no JSON conversion."""
     if not tools:
         return "no tools"

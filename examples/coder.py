@@ -15,15 +15,15 @@ async def main():
     # Single command → complete application
     await coder.run_async("""
     Build a production-ready task management API:
-    
+
     - FastAPI with async endpoints
-    - SQLAlchemy models with proper relationships  
+    - SQLAlchemy models with proper relationships
     - CRUD operations for users and tasks
     - JWT authentication and middleware
     - Comprehensive test suite with pytest
     - Docker containerization
     - Run tests to verify everything works
-    
+
     Create a complete, deployable application.
     """)
 

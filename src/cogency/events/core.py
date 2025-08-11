@@ -2,7 +2,7 @@
 
 import functools
 import time
-from typing import Any, List, Optional
+from typing import Any, Optional
 
 # Global bus instance
 _bus: Optional["MessageBus"] = None
@@ -12,7 +12,7 @@ class MessageBus:
     """Core event bus - minimal and fast."""
 
     def __init__(self):
-        self.handlers: List[Any] = []
+        self.handlers: list[Any] = []
 
     def subscribe(self, handler):
         """Add event handler."""
@@ -42,7 +42,7 @@ def get_logs(
     type: str = None,
     errors_only: bool = False,
     last: int = None,
-) -> List[dict]:
+) -> list[dict]:
     """Get events from global event buffer with optional filtering."""
     if not _bus:
         return []

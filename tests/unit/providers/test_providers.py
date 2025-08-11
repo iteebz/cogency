@@ -66,7 +66,6 @@ async def test_embed_multi():
 
 def test_embed_capability_providers():
     """Test that embedding-capable providers implement embed method."""
-    import inspect
 
     from cogency.providers import Mistral, Ollama, OpenAI
 

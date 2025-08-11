@@ -2,7 +2,6 @@
 
 import pytest
 
-from cogency.tools.base import Tool
 from cogency.tools.files import Files
 from cogency.tools.registry import _setup_tools
 

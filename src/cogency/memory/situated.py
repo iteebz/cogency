@@ -1,7 +1,7 @@
 """User profile context injection and situated understanding."""
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from cogency.state import Profile
 
@@ -15,7 +15,7 @@ class SituatedMemory:
         self.archival = archival  # ArchivalMemory instance for topic storage
         self.current_user_id = "default"  # Track current user for load/remember
 
-    async def update_impression(self, user_id: str, interaction_data: Dict[str, Any]) -> Profile:
+    async def update_impression(self, user_id: str, interaction_data: dict[str, Any]) -> Profile:
         """Update user impression from interaction with archival memory integration."""
 
         # Load existing profile

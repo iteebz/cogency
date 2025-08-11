@@ -27,7 +27,7 @@ class ToolEdges(Eval):
 
         query = f"""Test these tool edge cases and report what happens:
         {chr(10).join(f"{i + 1}. {case}" for i, case in enumerate(edge_cases))}
-        
+
         For each case, try the operation and report whether it succeeded or failed gracefully."""
 
         # Retry logic for 503 errors

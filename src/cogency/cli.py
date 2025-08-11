@@ -54,7 +54,7 @@ def main():
     if args.tools:
         list_tools()
         return
-    elif args.init:
+    if args.init:
         init_project(args.init)
         return
 
@@ -81,7 +81,10 @@ def main():
             "assistant",
             tools=tools,
             memory=True,
-            identity="You are Cogency, a helpful AI assistant with a knack for getting things done efficiently. Keep responses concise and clear.",
+            identity=(
+                "You are Cogency, a helpful AI assistant with a knack for "
+                "getting things done efficiently. Keep responses concise and clear."
+            ),
         )
     except Exception as e:
         print(f"✗ Error: {e}")
@@ -155,16 +158,16 @@ agent = Agent(
 # Interactive mode
 if __name__ == "__main__":
     import asyncio
-    
+
     async def main():
         while True:
             query = input("\\n> ")
             if query.lower() in ["exit", "quit"]:
                 break
-            
+
             response = await agent.run_async(query)
             print(f"🤖 {response}")
-    
+
     asyncio.run(main())
 """
 

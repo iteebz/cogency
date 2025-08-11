@@ -23,11 +23,11 @@ class ToolChains(Eval):
         )
 
         query = """Complete this workflow step by step:
-        1. Create a file called 'search_results.txt' 
+        1. Create a file called 'search_results.txt'
         2. Search for 'Python async programming best practices'
         3. Write the top 3 results to the file
         4. Use shell to count the lines in the file
-        
+
         Execute each step and confirm completion before moving to the next."""
 
         result = await agent.run_async(query)

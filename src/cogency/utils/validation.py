@@ -1,6 +1,6 @@
 """Input validation utilities."""
 
-from typing import Any, Dict, Type, TypeVar
+from typing import Any, TypeVar
 
 MAX_QUERY_LENGTH = 10000
 
@@ -25,7 +25,7 @@ def validate_query(query: str) -> str | None:
     return None
 
 
-def validate(args: Dict[str, Any], schema: Type[T]) -> T:
+def validate(args: dict[str, Any], schema: type[T]) -> T:
     """Validate arguments against dataclass schema.
 
     Args:

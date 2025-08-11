@@ -1,7 +1,6 @@
 """Network resilience evaluation."""
 
 import asyncio
-from typing import Dict
 
 from cogency.tools.http import HTTP
 from cogency.tools.scrape import Scrape
@@ -16,7 +15,7 @@ class NetworkResilience(Eval):
     name = "network_resilience"
     description = "Test handling of API failures, rate limits, and timeouts"
 
-    async def run(self) -> Dict:
+    async def run(self) -> dict:
         agent = self.agent(
             "resilience_tester",
             tools=[Search(), HTTP(), Scrape()],
@@ -30,7 +29,7 @@ class NetworkResilience(Eval):
         3. Making an HTTP request to nonexistent-domain-xyz-12345.com (DNS failure)
         4. Scraping content from httpbin.org/html (this should work)
         5. Searching for 'network resilience testing' (this should work)
-        
+
         Execute ALL 5 tests and report what happened with each one and how you handled the failures gracefully."""
 
         start_time = asyncio.get_event_loop().time()

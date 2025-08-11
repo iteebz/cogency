@@ -1,14 +1,12 @@
 """API contract validation tests - ensure v1.0.0 compliance."""
 
 import asyncio
-from typing import Any, Dict, List
 from unittest.mock import AsyncMock
 
 import pytest
 from resilient_result import Result
 
 from cogency import Agent
-from cogency.providers import Provider
 from cogency.tools.base import Tool
 from tests.fixtures.provider import MockLLM
 
@@ -71,7 +69,7 @@ async def test_provider_interface_contract(mock_provider):
 @pytest.mark.asyncio
 async def test_agent_executor_integration():
     """Test Agent integration with mocked execution."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     llm = MockLLM(
         response="I understand your request and will help you test the contract validation."
@@ -167,7 +165,7 @@ async def test_state_management_contract():
 @pytest.mark.asyncio
 async def test_error_propagation_contract():
     """Verify errors propagate correctly through the stack."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     llm = MockLLM()
 
@@ -188,7 +186,7 @@ async def test_error_propagation_contract():
 @pytest.mark.asyncio
 async def test_concurrent_agent_isolation():
     """Verify concurrent agents don't interfere with each other."""
-    from unittest.mock import AsyncMock, patch
+    from unittest.mock import patch
 
     llm1 = MockLLM(response="Response from agent 1")
     llm2 = MockLLM(response="Response from agent 2")
@@ -208,8 +206,7 @@ async def test_concurrent_agent_isolation():
             # First call returns agent1 response, second returns agent2 response
             if mock_response.call_count == 1:
                 return "Response from agent 1"
-            else:
-                return "Response from agent 2"
+            return "Response from agent 2"
 
         mock_run.side_effect = mock_response
 

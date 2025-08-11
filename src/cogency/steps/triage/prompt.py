@@ -18,7 +18,7 @@ DIRECT_RESPONSE = """2. DIRECT RESPONSE:
    - Basic facts: "What color is the sky?" → "Blue"
    - Greetings: "Hello" → "Hello! How can I help?"
    - Identity: "Who are you?" → "I'm an AI assistant"
-   
+
    NEVER use direct_response for:
    - Creating files, writing code, running commands
    - Tasks that say "create", "build", "run", "execute"
@@ -41,7 +41,7 @@ Detect semantic signals for intelligent profile/knowledge updates:
 
 SITUATED MEMORY (user profile) - Flag when user reveals:
 - Explicit preferences: "I prefer...", "I like...", "I hate..."
-- Identity/role: "I am a developer", "I work in finance"  
+- Identity/role: "I am a developer", "I work in finance"
 - Corrections: "Actually, I meant...", "No, that's wrong..."
 - Communication style: requests for bullets, brevity, detail level
 - Personal context: skill level, work domain, recurring patterns
@@ -56,7 +56,7 @@ Set memory_flags accordingly with brief reasoning."""
 
 DECISION_PRINCIPLES = """LOGIC:
 - Simple question with known answer → direct_response
-- Any action, creation, execution needed → select tools + mode  
+- Any action, creation, execution needed → select tools + mode
 - Security violation → BLOCK
 - Semantic memory signals → flag for async processing
 

@@ -1,17 +1,15 @@
 """Schema validation tests for provider responses and data structures."""
 
-import json
-from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 import pytest
 from jsonschema import ValidationError, validate
 
 from cogency.storage.state import SQLite
-from tests.fixtures.provider import MockProvider, RealisticMockProvider
+from tests.fixtures.provider import RealisticMockProvider
 
 
-def validate_schema(data: Dict[str, Any], schema: Dict[str, Any]) -> bool:
+def validate_schema(data: dict[str, Any], schema: dict[str, Any]) -> bool:
     """Validate data against JSON schema."""
     try:
         validate(instance=data, schema=schema)
@@ -49,7 +47,6 @@ async def test_response_schema_validation(validation_schemas):
 async def test_store_data_validation(validation_schemas):
     """Validate store operations use correct data formats."""
     from cogency.state import Profile
-    from cogency.storage.state import SQLite
 
     store = SQLite()  # Use default temp directory
 

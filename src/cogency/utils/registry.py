@@ -1,6 +1,6 @@
 """Generic registry pattern for service management with singleton pattern."""
 
-from typing import Callable, Dict, Optional, Type, TypeVar, Union
+from typing import Callable, Optional, TypeVar, Union
 
 T = TypeVar("T")
 
@@ -10,7 +10,7 @@ class Provider:
 
     def __init__(
         self,
-        providers: Union[Dict[str, Type[T]], Callable[[], Dict[str, Type[T]]]],
+        providers: Union[dict[str, type[T]], Callable[[], dict[str, type[T]]]],
         detect_fn: Optional[Callable[[], str]] = None,
         default: Optional[str] = None,
     ):
@@ -18,10 +18,10 @@ class Provider:
         self._providers_cache = None
         self.detect_fn = detect_fn
         self.default = default
-        self._instances: Dict[str, T] = {}
+        self._instances: dict[str, T] = {}
 
     @property
-    def providers(self) -> Dict[str, Type[T]]:
+    def providers(self) -> dict[str, type[T]]:
         """Get providers dict, loading lazily if needed."""
         if self._providers_cache is None:
             if callable(self._providers_source):
@@ -30,7 +30,7 @@ class Provider:
                 self._providers_cache = self._providers_source
         return self._providers_cache
 
-    def get(self, provider: Optional[str] = None) -> Type[T]:
+    def get(self, provider: Optional[str] = None) -> type[T]:
         """Get provider class (not instance)."""
         if provider is None:
             if self.detect_fn:
@@ -68,6 +68,6 @@ class Provider:
 
         return self._instances[cache_key]
 
-    def all_classes(self) -> Dict[str, Type[T]]:
+    def all_classes(self) -> dict[str, type[T]]:
         """Get all provider classes for export."""
         return self.providers.copy()

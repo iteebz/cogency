@@ -1,7 +1,5 @@
 """Test adaptive routing behavior - fast_react vs deep_react."""
 
-from unittest.mock import AsyncMock, Mock
-
 import pytest
 
 from cogency.state import State

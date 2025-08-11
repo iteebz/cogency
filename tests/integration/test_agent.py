@@ -11,7 +11,7 @@ from tests.fixtures.provider import MockLLM
 
 @pytest.mark.asyncio
 async def test_agent_defaults():
-    from unittest.mock import AsyncMock, Mock
+    from unittest.mock import Mock
 
     with patch("cogency.runtime.AgentRuntime.configure", new_callable=AsyncMock) as mock_configure:
         # Mock runtime with executor
@@ -39,7 +39,7 @@ async def test_agent_defaults():
 
 @pytest.mark.asyncio
 async def test_memory_disabled():
-    from unittest.mock import AsyncMock, Mock
+    from unittest.mock import Mock
 
     with patch("cogency.runtime.AgentRuntime.configure", new_callable=AsyncMock) as mock_configure:
         # Mock runtime with executor
@@ -72,7 +72,7 @@ async def test_memory_disabled():
 )
 @pytest.mark.asyncio
 async def test_custom_tools(memory_enabled, expected_tools):
-    from unittest.mock import AsyncMock, Mock
+    from unittest.mock import Mock
 
     from cogency.tools.shell import Shell
 
@@ -103,7 +103,7 @@ async def test_custom_tools(memory_enabled, expected_tools):
 
 @pytest.mark.asyncio
 async def test_run():
-    from unittest.mock import AsyncMock, Mock
+    from unittest.mock import Mock
 
     with patch("cogency.runtime.AgentRuntime.configure", new_callable=AsyncMock) as mock_configure:
         # Mock runtime with run method

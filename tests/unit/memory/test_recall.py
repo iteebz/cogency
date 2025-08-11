@@ -1,9 +1,8 @@
 """Unit tests for RecallTool."""
 
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock
 
 import pytest
-from resilient_result import Err, Ok
 
 from cogency.tools.recall import Recall
 

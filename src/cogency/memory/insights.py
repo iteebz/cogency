@@ -1,11 +1,11 @@
 """Interaction impression extraction utilities."""
 
-from typing import Any, Dict
+from typing import Any
 
 from cogency.utils.parsing import _parse_json
 
 
-async def extract_impressions(provider, interaction_data: Dict[str, Any]) -> Dict[str, Any]:
+async def extract_impressions(provider, interaction_data: dict[str, Any]) -> dict[str, Any]:
     """Extract impressions from single interaction."""
 
     query = interaction_data.get("query", "")

@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import yaml
 from resilient_result import Err, Ok, Result
@@ -14,7 +14,7 @@ from cogency.events import emit
 class TopicArtifact:
     """Topic artifact with metadata and content."""
 
-    def __init__(self, topic: str, content: str, metadata: Optional[Dict] = None):
+    def __init__(self, topic: str, content: str, metadata: Optional[dict] = None):
         self.topic = topic
         self.content = content
         self.metadata = metadata or {}
@@ -223,7 +223,7 @@ class ArchivalMemory:
 
     async def search_topics(
         self, user_id: str, query: str, limit: int = 3, min_similarity: float = 0.7
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Search topics using semantic similarity.
 
         Args:
@@ -296,7 +296,7 @@ class ArchivalMemory:
             )
             return []
 
-    async def load_user_topics(self, user_id: str) -> List[str]:
+    async def load_user_topics(self, user_id: str) -> list[str]:
         """Load all topic names for a user."""
         user_path = self._get_user_path(user_id)
 
@@ -311,7 +311,7 @@ class ArchivalMemory:
         return sorted(topics)
 
     @staticmethod
-    def _cosine_similarity(vec1: List[float], vec2: List[float]) -> float:
+    def _cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
         """Calculate cosine similarity between two vectors."""
         import math
 

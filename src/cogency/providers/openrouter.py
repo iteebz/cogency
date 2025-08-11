@@ -1,6 +1,6 @@
 """OpenRouter provider - cost-effective model routing with OpenAI compatibility."""
 
-from typing import AsyncIterator, Dict, List
+from collections.abc import AsyncIterator
 
 import openai
 from resilient_result import Ok, Result
@@ -45,7 +45,7 @@ class OpenRouter(Provider):
             max_retries=self.max_retries,
         )
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
 
@@ -84,7 +84,7 @@ class OpenRouter(Provider):
 
         return Ok(response)
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
         stream = await client.chat.completions.create(

@@ -1,6 +1,6 @@
 """Tool execution utilities."""
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from resilient_result import Result
 
@@ -13,10 +13,10 @@ from .core import (
 
 
 async def execute_tools(
-    tool_calls: List[Tuple[str, Dict]],
-    tools: List[Tool],
+    tool_calls: list[tuple[str, dict]],
+    tools: list[Tool],
     state,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Execute tools with error isolation."""
     if not tool_calls:
         return Result.ok(
@@ -115,7 +115,7 @@ async def execute_tools(
         summary_parts.append(f"{len(failures)} tools failed")
     summary = "; ".join(summary_parts) if summary_parts else "No tools executed"
 
-    final_result = Result.ok(
+    return Result.ok(
         {
             "results": successes,
             "errors": failures,
@@ -125,4 +125,3 @@ async def execute_tools(
             "failed_count": len(failures),
         }
     )
-    return final_result

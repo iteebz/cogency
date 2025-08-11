@@ -1,10 +1,6 @@
 """Unit tests for event handlers."""
 
-from collections import deque
-from io import StringIO
 from unittest.mock import patch
-
-import pytest
 
 from cogency.events.console import ConsoleHandler
 from cogency.events.handlers import EventBuffer

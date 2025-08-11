@@ -1,7 +1,8 @@
 """Unified provider base - LLM and embedding capabilities in single ABC."""
 
 from abc import ABC, abstractmethod
-from typing import AsyncIterator, Dict, List, Optional, Union
+from collections.abc import AsyncIterator
+from typing import Optional, Union
 
 from resilient_result import Err, Ok, Result
 
@@ -24,12 +25,10 @@ def setup_rotator(
     if api_keys:
         if isinstance(api_keys, str):
             return ApiKeyRotator([api_keys])
-        else:
-            return ApiKeyRotator(api_keys)
-    elif required:
+        return ApiKeyRotator(api_keys)
+    if required:
         raise ValueError(f"{provider_name.title()} requires API keys")
-    else:
-        return None
+    return None
 
 
 class StreamBuffer:
@@ -229,20 +228,20 @@ class Provider(ABC):
         """Get client instance with current API key."""
         pass
 
-    async def run(self, messages: List[Dict[str, str]], **kwargs) -> Result:
+    async def run(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response - override if provider supports LLM."""
         raise NotImplementedError(f"{self.provider_name} doesn't support LLM")
 
-    async def stream(self, messages: List[Dict[str, str]], **kwargs) -> AsyncIterator[str]:
+    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response - override if provider supports streaming."""
         raise NotImplementedError(f"{self.provider_name} doesn't support streaming")
         # This never executes, but makes it an async generator
         yield  # pragma: no cover
 
-    async def embed(self, text: Union[str, List[str]], **kwargs) -> Result:
+    async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings - override if provider supports embeddings."""
         raise NotImplementedError(f"{self.provider_name} doesn't support embeddings")
 
-    def _format(self, msgs: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    def _format(self, msgs: list[dict[str, str]]) -> list[dict[str, str]]:
         """Convert to provider format (standard role/content structure)."""
         return [{"role": m["role"], "content": m["content"]} for m in msgs]

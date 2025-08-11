@@ -1,7 +1,5 @@
 """Tests for workspace functionality."""
 
-import pytest
-
 from cogency.state import Workspace
 
 

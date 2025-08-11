@@ -1,6 +1,6 @@
 """Core action functions - consolidated business logic."""
 
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from resilient_result import Result
 
@@ -8,11 +8,11 @@ from cogency.tools.base import Tool
 
 
 async def execute_single_tool(
-    tool_name: str, tool_args: dict, tools: List[Tool]
-) -> Tuple[str, Dict, Any]:
+    tool_name: str, tool_args: dict, tools: list[Tool]
+) -> tuple[str, dict, Any]:
     """Execute a tool with built-in capability restrictions."""
 
-    async def _execute() -> Tuple[str, Dict, Any]:
+    async def _execute() -> tuple[str, dict, Any]:
         for tool in tools:
             if tool.name == tool_name:
                 try:

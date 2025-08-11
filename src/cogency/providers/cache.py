@@ -5,7 +5,7 @@ import hashlib
 import logging
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ class Cache:
         ttl_seconds: int = 3600,  # 1 hour default
         enable_stats: bool = True,
     ):
-        self._cache: Dict[str, CacheEntry] = {}
+        self._cache: dict[str, CacheEntry] = {}
         self._max_size = max_size
         self._ttl_seconds = ttl_seconds
         self._enable_stats = enable_stats
@@ -52,7 +52,7 @@ class Cache:
         """Rough token/dimension estimation."""
         if cache_type == "llm":
             return len(str(response)) // 4  # 4 chars per token average
-        elif cache_type == "embed":
+        if cache_type == "embed":
             # For embeddings, count total dimensions across all vectors
             if hasattr(response, "__len__"):
                 return sum(len(emb) if hasattr(emb, "__len__") else 1 for emb in response)
@@ -179,7 +179,7 @@ class Cache:
             emit("cache", level="debug", operation="clear", status="complete", cleared=cache_size)
             logger.info("Provider cache cleared")
 
-    def get_stats(self) -> Dict[str, Any]:
+    def get_stats(self) -> dict[str, Any]:
         """Get cache performance statistics."""
         total_requests = self._stats["hits"] + self._stats["misses"]
         hit_rate = self._stats["hits"] / total_requests if total_requests > 0 else 0

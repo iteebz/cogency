@@ -1,7 +1,7 @@
 """Core situated memory logic - profile updates and context injection."""
 
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from cogency.events import emit
 from cogency.state import State
@@ -93,7 +93,7 @@ async def _execute_situate(memory, user_id: str, user_profile, state: State):
 
 
 async def _situate_with_llm(
-    memory, user_id: str, user_profile, interaction_data: Dict[str, Any], state: State
+    memory, user_id: str, user_profile, interaction_data: dict[str, Any], state: State
 ):
     """Perform LLM-powered synthesis of user understanding."""
     from .profile import apply_synthesis_to_profile, parse_synthesis_response

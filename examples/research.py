@@ -15,13 +15,13 @@ async def main():
     # Multi-source analysis with strategic insights
     response = await analyst.run_async("""
     Analyze the AI coding assistant market landscape:
-    
+
     - Research major players (GitHub Copilot, Cursor, Claude, etc.)
     - Compare technical approaches and capabilities
     - Identify market gaps and opportunities
     - Assess competitive positioning for a new entrant
     - Recommend go-to-market strategy
-    
+
     Provide strategic insights backed by data.
     """)
 

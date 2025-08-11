@@ -3,7 +3,6 @@
 from unittest.mock import patch
 
 import pytest
-from resilient_result import Ok
 
 from cogency.providers.base import Provider, setup_rotator
 from cogency.providers.rotation import KeyRotationError
