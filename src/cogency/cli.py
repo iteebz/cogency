@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 
-
 async def interactive_mode(agent) -> None:
     """Interactive chat mode with clean console output."""
     print("Cogency Agent")
@@ -24,8 +23,8 @@ async def interactive_mode(agent) -> None:
             if not message:
                 continue
 
-            # Agent handles output via events, but need response for interactive mode
-            response = await agent.run_async(message)
+            # Agent handles output via events
+            await agent.run_async(message)
             # Response will be shown via agent_complete event
 
         except KeyboardInterrupt:
@@ -62,16 +61,18 @@ def main():
     # Default agent behavior
     import os
     from pathlib import Path
+
     from cogency import Agent
-    from cogency.tools import Files, Scrape, Search, Shell, Recall
+    from cogency.tools import Files, Recall, Scrape, Search, Shell
 
     # Build tool list
     tools = [Files(), Shell(), Search(), Scrape(), Recall()]
-    
+
     # Add Retrieval tool if path specified
     retrieval_path = os.getenv("COGENCY_RETRIEVAL_PATH")
     if retrieval_path:
         from cogency.tools import Retrieval
+
         embeddings_file = Path(retrieval_path).expanduser() / "embeddings.json"
         tools.append(Retrieval(embeddings_path=str(embeddings_file)))
 

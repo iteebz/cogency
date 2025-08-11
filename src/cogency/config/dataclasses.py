@@ -1,38 +1,13 @@
 """Configuration dataclasses for agent features."""
 
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional
+
+if TYPE_CHECKING:
+    from cogency.providers import Provider
 
 # Runtime limits
 MAX_TOOL_CALLS = 3  # Limit to prevent JSON parsing issues
-
-
-
-@dataclass
-class MemoryConfig:
-    """Memory configuration."""
-
-    # Core toggles
-    enabled: bool = True
-    persist: bool = True
-    archival: bool = True  # Enable archival memory system
-
-    # Synthesis thresholds
-    synthesis_threshold: int = 16000  # Character limit for recent interactions
-    max_impressions: int = 50  # Prune oldest impressions past this limit
-
-    # Context injection policy
-    recall_steps: List[str] = None  # ["reason"] or None for reason-only
-
-    # User identification
-    user_id: str = "default"
-
-    # Archival memory path
-    path: Optional[str] = None  # Custom path for memory storage
-
-    def __post_init__(self):
-        if self.recall_steps is None:
-            self.recall_steps = ["reason"]  # Default: reason-only
 
 
 @dataclass
@@ -50,12 +25,12 @@ class PathsConfig:
     def __post_init__(self):
         """Set defaults under .cogency/ with environment variable override."""
         import os
-        
+
         # Allow .env override of base directory
         env_base_dir = os.getenv("COGENCY_BASE_DIR")
         if env_base_dir:
             self.base_dir = os.path.expanduser(env_base_dir)
-        
+
         if self.sandbox is None:
             self.sandbox = f"{self.base_dir}/sandbox"
         if self.state is None:
@@ -91,6 +66,7 @@ class AgentConfig:
     embed: Optional["Provider"] = None
     tools: Optional[Any] = None
     memory: Optional[Any] = None
+    persist: Optional[Any] = None
     mode: str = "adapt"
     max_iterations: int = 10
     notify: bool = True

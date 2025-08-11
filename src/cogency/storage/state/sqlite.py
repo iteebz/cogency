@@ -17,9 +17,10 @@ class SQLite(StateStore):
 
     def __init__(self, db_path: str = None):
         if db_path is None:
-            from cogency.config.dataclasses import PathsConfig
             import os
-            
+
+            from cogency.config.dataclasses import PathsConfig
+
             paths = PathsConfig()
             base_path = Path(os.path.expanduser(paths.base_dir))
             base_path.mkdir(exist_ok=True)

@@ -7,7 +7,6 @@ from cogency.tools import Tool
 from cogency.utils.parsing import _parse_json
 
 
-
 def build_reasoning_prompt(
     state: State, tools: List[Tool], memory=None, identity: str = None
 ) -> str:

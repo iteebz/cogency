@@ -10,7 +10,6 @@ from cogency.tools import Tool
 from .execute import execute_tools
 
 
-
 @observe
 @resilience
 async def act(state: State, llm=None, tools: List[Tool] = None) -> Optional[str]:

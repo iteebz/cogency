@@ -7,7 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from cogency.events.console import ConsoleHandler
-from cogency.events.handlers import LoggerHandler
+from cogency.events.handlers import EventBuffer
 
 
 class TestConsoleHandler:
@@ -79,189 +79,56 @@ class TestConsoleHandler:
             mock_print.assert_not_called()
 
 
-class TestLoggerHandler:
-    """Test LoggerHandler event storage and filtering."""
+class TestEventBuffer:
+    """Test EventBuffer event storage and filtering."""
 
-    def test_stores_events_in_structured_format(self):
-        handler = LoggerHandler(max_size=10, structured=True)
-
-        handler.handle({"type": "start", "data": {"query": "test"}, "timestamp": 123.45})
-
-        logs = handler.logs()
-        assert len(logs) == 1
-        assert logs[0] == {"timestamp": 123.45, "type": "start", "query": "test"}
-
-    def test_stores_raw_events_when_structured_false(self):
-        handler = LoggerHandler(max_size=10, structured=False)
+    def test_stores_events(self):
+        buffer = EventBuffer(max_size=10)
 
         event = {"type": "start", "data": {"query": "test"}, "timestamp": 123.45}
-        handler.handle(event)
+        buffer.handle(event)
 
-        logs = handler.logs()
+        logs = buffer.logs()
         assert len(logs) == 1
         assert logs[0] == event
 
-    def test_filters_config_load_noise(self):
-        handler = LoggerHandler(max_size=10, structured=True)
-        handler.config["filter_noise"] = True
-
-        # Should be filtered
-        handler.handle({"type": "config_load", "data": {"status": "loading"}, "timestamp": 123})
-        handler.handle({"type": "config_load", "data": {"status": "complete"}, "timestamp": 124})
-
-        # Should not be filtered
-        handler.handle({"type": "config_load", "data": {"status": "error"}, "timestamp": 125})
-        handler.handle({"type": "start", "data": {"query": "test"}, "timestamp": 126})
-
-        logs = handler.logs()
-        assert len(logs) == 2
-        assert logs[0]["type"] == "config_load"
-        assert logs[0]["status"] == "error"
-        assert logs[1]["type"] == "start"
-
-    def test_max_size_rolling_buffer(self):
-        handler = LoggerHandler(max_size=2, structured=True)
-
-        handler.handle({"type": "event1", "data": {}, "timestamp": 1})
-        handler.handle({"type": "event2", "data": {}, "timestamp": 2})
-        handler.handle({"type": "event3", "data": {}, "timestamp": 3})
-
-        logs = handler.logs()
-        assert len(logs) == 2
-        assert logs[0]["type"] == "event2"
-        assert logs[1]["type"] == "event3"
-
-    def test_configuration_update(self):
-        handler = LoggerHandler()
-
-        handler.configure(filter_noise=False, max_size=500)
-
-        assert handler.config["filter_noise"] is False
-        assert handler.config["max_size"] == 500
-
-    def test_logs_type_filtering(self):
-        handler = LoggerHandler(max_size=10, structured=True)
+    def test_filters_by_type(self):
+        buffer = EventBuffer(max_size=10)
 
         # Add different event types
-        handler.handle({"type": "start", "data": {"query": "test"}, "timestamp": 123})
-        handler.handle({"type": "tool", "data": {"name": "search"}, "timestamp": 124})
-        handler.handle({"type": "error", "data": {"message": "failed"}, "timestamp": 125})
-        handler.handle({"type": "tool", "data": {"name": "http"}, "timestamp": 126})
+        buffer.handle({"type": "start", "data": {"query": "test"}, "timestamp": 123})
+        buffer.handle({"type": "tool", "data": {"name": "search"}, "timestamp": 124})
+        buffer.handle({"type": "error", "data": {"message": "failed"}, "timestamp": 125})
+        buffer.handle({"type": "tool", "data": {"name": "http"}, "timestamp": 126})
 
         # Filter by type
-        tool_logs = handler.logs(type="tool")
+        tool_logs = buffer.logs(type="tool")
         assert len(tool_logs) == 2
         assert all(log["type"] == "tool" for log in tool_logs)
 
-        error_logs = handler.logs(type="error")
+        error_logs = buffer.logs(type="error")
         assert len(error_logs) == 1
         assert error_logs[0]["type"] == "error"
 
-    def test_logs_step_filtering(self):
-        handler = LoggerHandler(max_size=10, structured=True)
-
-        # Add step events
-        handler.handle({"type": "triage", "data": {"state": "complete"}, "timestamp": 123})
-        handler.handle({"type": "reason", "data": {"state": "planning"}, "timestamp": 124})
-        handler.handle({"type": "action", "data": {"tool": "search"}, "timestamp": 125})
-        handler.handle({"type": "respond", "data": {"state": "complete"}, "timestamp": 126})
-
-        # Filter by step
-        reason_logs = handler.logs(step="reason")
-        assert len(reason_logs) == 1
-        assert reason_logs[0]["type"] == "reason"
-
-    def test_logs_errors_only_filtering(self):
-        handler = LoggerHandler(max_size=10, structured=True)
+    def test_errors_only_filtering(self):
+        buffer = EventBuffer(max_size=10)
 
         # Add mixed events
-        handler.handle({"type": "start", "data": {"query": "test"}, "timestamp": 123})
-        handler.handle({"type": "error", "data": {"message": "first error"}, "timestamp": 124})
-        handler.handle({"type": "tool", "data": {"name": "search"}, "timestamp": 125})
-        handler.handle({"type": "error", "data": {"message": "second error"}, "timestamp": 126})
+        buffer.handle({"type": "start", "data": {"query": "test"}, "timestamp": 123})
+        buffer.handle({"type": "error", "data": {"message": "fail"}, "timestamp": 124})
+        buffer.handle({"type": "tool", "status": "error", "timestamp": 125})
 
-        # Filter errors only
-        error_logs = handler.logs(errors_only=True)
+        error_logs = buffer.logs(errors_only=True)
         assert len(error_logs) == 2
-        assert all(log["type"] == "error" for log in error_logs)
 
-    def test_logs_last_n_filtering(self):
-        handler = LoggerHandler(max_size=10, structured=True)
+    def test_max_size_rolling_buffer(self):
+        buffer = EventBuffer(max_size=2)
 
-        # Add multiple events
-        for i in range(5):
-            handler.handle({"type": f"event{i}", "data": {}, "timestamp": 123 + i})
+        buffer.handle({"type": "event1", "timestamp": 1})
+        buffer.handle({"type": "event2", "timestamp": 2})
+        buffer.handle({"type": "event3", "timestamp": 3})
 
-        # Get last 3 events
-        recent_logs = handler.logs(last=3)
-        assert len(recent_logs) == 3
-        assert recent_logs[0]["type"] == "event2"
-        assert recent_logs[1]["type"] == "event3"
-        assert recent_logs[2]["type"] == "event4"
-
-    def test_logs_summary_mode(self):
-        handler = LoggerHandler(max_size=20, structured=True)
-
-        # Add execution events
-        handler.handle({"type": "start", "data": {"query": "test query"}, "timestamp": 100})
-        handler.handle(
-            {
-                "type": "triage",
-                "data": {"state": "complete", "early_return": False},
-                "timestamp": 101,
-            }
-        )
-        handler.handle({"type": "reason", "data": {"state": "complete"}, "timestamp": 102})
-        handler.handle(
-            {"type": "action", "data": {"status": "complete", "tool_count": 2}, "timestamp": 103}
-        )
-        handler.handle(
-            {
-                "type": "agent_complete",
-                "data": {"source": "reason", "iterations": 3},
-                "timestamp": 104,
-            }
-        )
-
-        # Get summary - should have 6 meaningful milestones
-        summary = handler.logs(summary=True)
-        assert len(summary) == 5
-
-        # Check key milestones are included in order
-        steps = [event["step"] for event in summary]
-        assert steps == ["start", "triage", "reason", "action", "complete"]
-
-        # Verify meaningful content
-        assert summary[0]["query"] == "test query"
-        assert summary[1]["mode"] == "react"
-        assert summary[2]["step"] == "reason"
-        assert summary[3]["tool_count"] == 2
-        assert summary[4]["iterations"] == 3
-
-    def test_logs_combined_filters(self):
-        handler = LoggerHandler(max_size=20, structured=True)
-
-        # Add many events
-        for i in range(10):
-            handler.handle({"type": "tool", "data": {"name": f"tool{i}"}, "timestamp": 100 + i})
-
-        # Combine type and last filters
-        recent_tools = handler.logs(type="tool", last=3)
-        assert len(recent_tools) == 3
-        assert all(log["type"] == "tool" for log in recent_tools)
-        assert recent_tools[0]["name"] == "tool7"
-        assert recent_tools[1]["name"] == "tool8"
-        assert recent_tools[2]["name"] == "tool9"
-
-    def test_logs_empty_result(self):
-        handler = LoggerHandler(max_size=10, structured=True)
-
-        # No events
-        assert handler.logs() == []
-        assert handler.logs(type="nonexistent") == []
-        assert handler.logs(errors_only=True) == []
-
-        # Add non-matching events
-        handler.handle({"type": "start", "data": {}, "timestamp": 123})
-        assert handler.logs(type="error") == []
-        assert handler.logs(errors_only=True) == []
+        logs = buffer.logs()
+        assert len(logs) == 2
+        assert logs[0]["type"] == "event2"
+        assert logs[1]["type"] == "event3"

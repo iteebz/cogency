@@ -109,6 +109,3 @@ async def reason(
         return state.execution.response
 
     return None
-
-
-

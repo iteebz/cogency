@@ -45,15 +45,10 @@ logs = agent.logs(mode="debug")  # List of execution details
 ## Memory Configuration
 
 ```python
-from cogency import Agent, MemoryConfig
+from cogency import Agent
 
-# Custom memory config
-memory_config = MemoryConfig(
-    synthesis_threshold=8000,
-    user_id="specific_user"
-)
-
-agent = Agent("assistant", memory=memory_config)
+# Memory is automatically configured
+agent = Agent("assistant", memory=True)
 ```
 
 ## Custom Tools

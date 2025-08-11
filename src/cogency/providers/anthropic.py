@@ -11,7 +11,6 @@ from cogency.observe.tokens import cost, count
 from .base import Provider, setup_rotator
 
 
-
 class Anthropic(Provider):
     def __init__(
         self,

@@ -2,7 +2,6 @@
 
 from typing import Any, List, Union
 
-from cogency.config import MemoryConfig
 from cogency.config.validation import validate_config_keys
 from cogency.runtime import AgentRuntime
 from cogency.tools import Tool
@@ -14,7 +13,7 @@ class Agent:
     Args:
         name: Agent identifier (default "cogency")
         tools: Tools to enable - list of names, Tool objects, or single string
-        memory: Enable memory - True for defaults or MemoryConfig for custom
+        memory: Enable memory - True for defaults or SituatedMemory instance for custom
         handlers: Custom event handlers for streaming, websockets, etc
 
     Advanced config (**kwargs):
@@ -27,7 +26,7 @@ class Agent:
         Basic: Agent("assistant")
         Production: Agent("assistant", notify=False)
         With events: Agent("assistant", handlers=[websocket_handler])
-        Advanced: Agent("assistant", memory=MemoryConfig(threshold=8000))
+        Advanced: Agent("assistant", memory=SituatedMemory(provider, store))
     """
 
     def __init__(
@@ -35,7 +34,7 @@ class Agent:
         name: str = "cogency",
         *,
         tools: Union[List[str], List[Tool], str] = None,
-        memory: Union[bool, MemoryConfig] = False,
+        memory: Union[bool, Any] = False,
         handlers: List[Any] = None,
         **config,
     ):
@@ -57,7 +56,7 @@ class Agent:
             tools=tools,
             memory=memory,
             handlers=self._handlers,
-            **config  # Apply user overrides
+            **config,  # Apply user overrides
         )
 
     async def _get_executor(self) -> AgentRuntime:

@@ -104,6 +104,10 @@ def _setup_persist(config):
     Returns:
         StateStore instance or None
     """
+    # Handle None config
+    if config is None:
+        return None
+
     # Handle PersistConfig objects
     if hasattr(config, "enabled"):
         if not config.enabled:

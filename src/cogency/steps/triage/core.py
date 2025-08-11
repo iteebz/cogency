@@ -1,7 +1,7 @@
 """Core triage functions - consolidated business logic."""
 
 from dataclasses import dataclass
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from resilient_result import unwrap
 
@@ -13,7 +13,6 @@ from cogency.tools.registry import build_tool_descriptions
 from cogency.utils.parsing import _parse_json
 
 from .prompt import build_triage_prompt
-
 
 
 @dataclass
@@ -32,9 +31,30 @@ class TriageResult:
     # Reasoning explanation
     reasoning: str = ""
 
+    # Memory semantic flags
+    memory_flags: Dict = None
+
     def __post_init__(self):
         if self.selected_tools is None:
             self.selected_tools = []
+        if self.memory_flags is None:
+            self.memory_flags = {}
+
+
+def _queue_memory_updates(query: str, memory_flags: Dict) -> None:
+    """Queue async memory updates based on semantic triggers."""
+    if memory_flags.get("situated"):
+        emit(
+            "memory", level="debug", action="queue_situated", reason=memory_flags.get("reason", "")
+        )
+        # Set flag that situate core can check
+        # This will be picked up by the main execution loop
+
+    if memory_flags.get("archival"):
+        emit(
+            "memory", level="debug", action="queue_archival", reason=memory_flags.get("reason", "")
+        )
+        # TODO: Implement archival memory queueing when archival system is ready
 
 
 def filter_tools(tools: List[Tool], selected_names: List[str]) -> List[Tool]:
@@ -45,14 +65,6 @@ def filter_tools(tools: List[Tool], selected_names: List[str]) -> List[Tool]:
     selected_set = set(selected_names)
     filtered = [tool for tool in tools if tool.name in selected_set]
     return [tool for tool in filtered if tool.name != "memorize"]
-
-
-
-
-
-
-
-
 
 
 async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) -> None:
@@ -118,6 +130,11 @@ async def triage_prompt(
     # Extract response fields
     selected_tools = parsed.get("selected_tools", [])
     direct_response = parsed.get("direct_response")
+    memory_flags = parsed.get("memory_flags", {})
+
+    # Queue async memory updates if semantic triggers detected
+    if memory_flags.get("situated") or memory_flags.get("archival"):
+        _queue_memory_updates(query, memory_flags)
 
     # Emit completion events
     if direct_response:
@@ -127,9 +144,13 @@ async def triage_prompt(
     else:
         emit("triage", level="debug", state="no_tools")
 
+    if memory_flags.get("situated") or memory_flags.get("archival"):
+        emit("triage", level="debug", state="memory_flagged", flags=memory_flags)
+
     return TriageResult(
         direct_response=direct_response,
         selected_tools=selected_tools,
         mode=parsed.get("mode", "fast"),
         reasoning=parsed.get("reasoning", ""),
+        memory_flags=memory_flags,
     )

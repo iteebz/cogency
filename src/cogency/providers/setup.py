@@ -11,42 +11,48 @@ if TYPE_CHECKING:
 def _detect_llm_provider():
     """Auto-detect available LLM provider based on credentials."""
     from cogency.utils.credentials import Credentials
-    
+
     # Check for Gemini keys first (preferred for rotation)
     gemini_creds = Credentials.detect("gemini")
     if gemini_creds:
         from .gemini import Gemini
+
         return Gemini()
-    
+
     # Fall back to OpenAI
     openai_creds = Credentials.detect("openai")
     if openai_creds:
         from .openai import OpenAI
+
         return OpenAI()
-    
+
     # Default to OpenAI (will fail with helpful error)
     from .openai import OpenAI
+
     return OpenAI()
 
 
 def _detect_embed_provider():
     """Auto-detect available embedding provider based on credentials."""
     from cogency.utils.credentials import Credentials
-    
+
     # Check for Nomic first (preferred for embeddings)
     nomic_creds = Credentials.detect("nomic")
     if nomic_creds:
         from .nomic import Nomic
+
         return Nomic()
-    
+
     # Fall back to OpenAI
     openai_creds = Credentials.detect("openai")
     if openai_creds:
         from .openai import OpenAI
+
         return OpenAI()
-    
+
     # Default to OpenAI (will fail with helpful error)
     from .openai import OpenAI
+
     return OpenAI()
 
 

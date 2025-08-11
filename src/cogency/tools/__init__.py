@@ -36,6 +36,9 @@ from .base import Tool
 # Public: Built-in file operations tool
 from .files import Files
 
+# Public: Built-in memory recall tool
+from .recall import Recall
+
 # Public: Core tool system functions for registration and LLM integration
 from .registry import (
     build_tool_descriptions,  # Public: Brief tool descriptions for triage/overview
@@ -55,9 +58,6 @@ from .search import Search
 
 # Public: Built-in shell command tool
 from .shell import Shell
-
-# Public: Built-in memory recall tool
-from .recall import Recall
 
 __all__ = [
     # Public tool APIs

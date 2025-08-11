@@ -13,7 +13,6 @@ class SituatedMemory:
         self.provider = provider
         self.store = store
         self.archival = archival  # ArchivalMemory instance for topic storage
-        self.synthesis_threshold = 3  # Synthesize every N interactions
         self.current_user_id = "default"  # Track current user for load/remember
 
     async def update_impression(self, user_id: str, interaction_data: Dict[str, Any]) -> Profile:

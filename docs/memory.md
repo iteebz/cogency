@@ -121,14 +121,15 @@ Memory learns *about* the user across sessions. Reasoning tracks *current* task 
 ## Advanced Configuration
 
 ```python
-from cogency.config import MemoryConfig
+# Memory is enabled by default with memory=True
+agent = Agent("assistant", memory=True)
 
-config = MemoryConfig(
-    synthesis_threshold=8000,  # Trigger synthesis earlier
-    user_id="specific_user"    # Multi-user memory isolation
-)
+# Custom memory setup with explicit dependencies
+from cogency.memory import SituatedMemory
+from cogency.providers import OpenAI
 
-agent = Agent("assistant", memory=config)
+memory = SituatedMemory(provider=OpenAI(), store=my_store)
+agent = Agent("assistant", memory=memory)
 ```
 
 ## Technical Details

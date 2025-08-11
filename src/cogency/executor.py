@@ -49,7 +49,7 @@ class AgentExecutor:
 
             # Setup execution state
             from cogency.state import State
-            
+
             state = State(query=query, user_id=user_id)
 
             # Store state reference
@@ -144,7 +144,7 @@ class AgentExecutor:
 
             # Setup execution state
             from cogency.state import State
-            
+
             state = State(query=query, user_id=user_id)
 
             # Store state reference

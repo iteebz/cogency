@@ -27,7 +27,7 @@ Example:
     With configuration and tools:
 
     ```python
-    from cogency import Agent, MemoryConfig, Tool, tool
+    from cogency import Agent, Tool, tool
 
     @tool
     class Calculator(Tool):
@@ -38,7 +38,7 @@ Example:
 
     agent = Agent(
         "research_assistant",
-        memory=MemoryConfig(),
+        memory=True,
         tools=[Files(), Shell(), Calculator()]
     )
     ```
@@ -48,7 +48,7 @@ Example:
 from .agent import Agent
 
 # Public: Configuration classes for customizing agent behavior
-from .config import MemoryConfig, PersistConfig
+from .config import PersistConfig
 
 # Public: Provider classes for explicit configuration
 from .providers import Anthropic, Gemini, Mistral, Nomic, Ollama, OpenAI, Provider
@@ -58,7 +58,6 @@ from .tools import Files, Retrieval, Scrape, Search, Shell, Tool, tool
 
 __all__ = [
     "Agent",
-    "MemoryConfig",
     "PersistConfig",
     "Files",
     "Retrieval",

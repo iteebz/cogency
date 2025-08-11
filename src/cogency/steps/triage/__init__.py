@@ -48,6 +48,14 @@ async def triage(
     state.execution.mode = result.mode
     state.execution.iteration = 0
 
+    # Handle memory flags - set queue flags for situate step
+    if result.memory_flags and result.memory_flags.get("situated"):
+        state._situate_queued = True
+
+    # TODO: Handle archival memory flags when archival system ready
+    if result.memory_flags and result.memory_flags.get("archival"):
+        pass  # Placeholder for future archival memory integration
+
     # Notify results
     await notify_tool_selection(filtered_tools, len(tools))
 

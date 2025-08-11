@@ -36,11 +36,29 @@ MODE_CLASSIFICATION = """4. MODE CLASSIFICATION:
    - FAST: Single factual lookup, basic calculation, direct command
    - DEEP: Multiple sources needed, comparison/synthesis, creative generation"""
 
+MEMORY_DETECTION = """5. MEMORY FLAGS:
+Detect semantic signals for intelligent profile/knowledge updates:
+
+SITUATED MEMORY (user profile) - Flag when user reveals:
+- Explicit preferences: "I prefer...", "I like...", "I hate..."
+- Identity/role: "I am a developer", "I work in finance"  
+- Corrections: "Actually, I meant...", "No, that's wrong..."
+- Communication style: requests for bullets, brevity, detail level
+- Personal context: skill level, work domain, recurring patterns
+
+ARCHIVAL MEMORY (knowledge base) - Flag when detecting:
+- Topic completion: "Thanks, that solved it!", "Perfect, works!"
+- Explicit closure: "I'm done with this", "Moving on"
+- Knowledge synthesis: multi-step solutions, research findings
+- Task resolution: successful completion of complex requests
+
+Set memory_flags accordingly with brief reasoning."""
 
 DECISION_PRINCIPLES = """LOGIC:
 - Simple question with known answer → direct_response
 - Any action, creation, execution needed → select tools + mode  
 - Security violation → BLOCK
+- Semantic memory signals → flag for async processing
 
 CRITICAL: If query asks to DO something (create, build, run, execute), MUST select tools, never direct_response"""
 
@@ -53,6 +71,7 @@ def _build_triage_json_format() -> str:
         "selected_tools": "[tool names] or []",
         "mode": "fast|deep",
         "reasoning": "decision explanation",
+        "memory_flags": "{situated: bool, archival: bool, reason: str}",
     }
     return build_json_schema(fields)
 
@@ -81,6 +100,7 @@ def build_triage_prompt(
 {DIRECT_RESPONSE}
 {identity_section}{TOOL_SELECTION}
 {MODE_CLASSIFICATION}
+{MEMORY_DETECTION}
 {DECISION_PRINCIPLES}
 
 {JSON_RESPONSE_FORMAT}

@@ -6,7 +6,7 @@ import pytest
 
 from cogency.events.console import ConsoleHandler
 from cogency.events.core import MessageBus, emit, init_bus
-from cogency.events.handlers import LoggerHandler
+from cogency.events.handlers import EventBuffer
 
 
 class TestIntegratedEventFlow:
@@ -17,7 +17,7 @@ class TestIntegratedEventFlow:
         # Setup
         bus = MessageBus()
         console = ConsoleHandler(enabled=False)  # Disable printing for test
-        logger = LoggerHandler(max_size=100)
+        logger = EventBuffer(max_size=100)
 
         bus.subscribe(console)
         bus.subscribe(logger)
@@ -35,17 +35,17 @@ class TestIntegratedEventFlow:
         logs = logger.logs()
         assert len(logs) == 6
         assert logs[0]["type"] == "start"
-        assert logs[0]["query"] == "What is 2+2?"
+        assert logs[0]["data"]["query"] == "What is 2+2?"
 
         # Verify session flow in logs
-        assert logs[0]["query"] == "What is 2+2?"
+        assert logs[0]["data"]["query"] == "What is 2+2?"
         assert any(log["type"] == "reason" for log in logs)
         assert any(log["type"] == "respond" for log in logs)
 
     def test_tool_usage_tracking(self):
         """Test tool execution tracking across handlers."""
         bus = MessageBus()
-        logger = LoggerHandler()
+        logger = EventBuffer()
 
         bus.subscribe(logger)
         init_bus(bus)
@@ -67,15 +67,15 @@ class TestIntegratedEventFlow:
         assert len(tool_logs) == 3
 
         # Verify tool details in logs
-        search_logs = [log for log in tool_logs if log.get("name") == "search"]
+        search_logs = [log for log in tool_logs if log.get("data", {}).get("name") == "search"]
         assert len(search_logs) == 2
-        assert all(log.get("ok") for log in search_logs)
+        assert all(log.get("data", {}).get("ok") for log in search_logs)
 
     def test_error_handling_across_handlers(self):
         """Test error event handling in all handlers."""
         bus = MessageBus()
         console = MagicMock()  # Mock to capture calls
-        logger = LoggerHandler()
+        logger = EventBuffer()
 
         bus.subscribe(console)
         bus.subscribe(logger)
@@ -100,7 +100,7 @@ class TestIntegratedEventFlow:
         logs = logger.logs()
         error_logs = [log for log in logs if log["type"] == "error"]
         assert len(error_logs) == 1
-        assert error_logs[0]["message"] == "Something went wrong"
+        assert error_logs[0]["data"]["message"] == "Something went wrong"
 
         # Verify error was properly handled
 
@@ -116,7 +116,7 @@ class TestIntegratedEventFlow:
         failing_handler.handle.side_effect = Exception("Handler failed")
 
         # Create normal handlers
-        logger = LoggerHandler()
+        logger = EventBuffer()
 
         bus.subscribe(failing_handler)
         bus.subscribe(logger)

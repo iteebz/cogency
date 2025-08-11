@@ -33,11 +33,7 @@ agent = Agent("assistant", memory=True)
 # Advanced: custom settings
 agent = Agent(
     "assistant",
-    memory=MemoryConfig(
-        persist=True,
-        synthesis_threshold=8000,
-        user_id="alice"
-    )
+    memory=True  # Enable with defaults
 )
 ```
 

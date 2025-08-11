@@ -45,8 +45,19 @@ async def situate(state: State, memory) -> None:
 
 def _should_situate(user_profile, state: State) -> bool:
     """Check if profile update should trigger."""
-    # Trigger every N interactions
-    return (user_profile.interaction_count % 5) == 0
+    # Semantic trigger from triage (queued async)
+    if hasattr(state, "_situate_queued"):
+        return True
+
+    # Fallback: 24-hour ceiling or emergency high threshold
+    from datetime import datetime, timedelta
+
+    last_update = getattr(user_profile, "last_updated", None)
+    if last_update and (datetime.now() - last_update) > timedelta(hours=24):
+        return True
+
+    # Emergency fallback: very high interaction threshold
+    return (user_profile.interaction_count % 50) == 0
 
 
 def _situate_in_progress(user_profile) -> bool:

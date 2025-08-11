@@ -44,7 +44,6 @@ class TestSituatedMemory:
         store.save_user_profile = AsyncMock()
 
         memory = SituatedMemory(provider, store)
-        memory.synthesis_threshold = 1  # Force synthesis every time
 
         interaction = {"query": "Test", "response": "Response", "success": True}
 

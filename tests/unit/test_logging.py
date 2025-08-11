@@ -49,7 +49,7 @@ def test_logs_after_execution():
 @pytest.mark.asyncio
 async def test_logs_work_without_debug():
     """Test that logs work regardless of debug setting."""
-    agent = Agent("test", llm=MockLLM(), tools=[], debug=False)
+    agent = Agent("test", llm=MockLLM(), tools=[])
 
     # Logs should still work even with debug=False
     logs = agent.logs()

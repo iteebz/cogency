@@ -20,7 +20,7 @@ class AgentRuntime:
         llm = AgentSetup.llm(config.llm)
         embed = AgentSetup.embed(config.embed)
         tools = AgentSetup.tools(config.tools)
-        persistence = AgentSetup.persistence(True)
+        persistence = AgentSetup.persistence(config.persist)
         memory = AgentSetup.memory(config.memory, llm, persistence, embed)
 
         # Pure explicit dependency injection - no config abstraction

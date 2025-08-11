@@ -1,8 +1,8 @@
 """Modular agent configuration setup - zero duplication."""
 
-from cogency.config import MemoryConfig, PersistConfig
-from cogency.config.dataclasses import AgentConfig, _setup_config
-from cogency.events import ConsoleHandler, EventLogger, EventBuffer, MessageBus, init_bus
+from cogency.config import PersistConfig
+from cogency.config.dataclasses import _setup_config
+from cogency.events import ConsoleHandler, EventBuffer, EventLogger, MessageBus, init_bus
 from cogency.events.handlers import LoggingBridge
 from cogency.memory.situated import SituatedMemory
 from cogency.providers.setup import _setup_embed, _setup_llm
@@ -32,29 +32,36 @@ class AgentSetup:
 
     @staticmethod
     def memory(config, llm, persist_config=None, embed_provider=None):
-        """Setup memory system with archival memory integration."""
-        memory_config = _setup_config(MemoryConfig, config)
-        if not memory_config:
+        """Setup memory system with direct dependency injection."""
+        # Handle different memory config patterns
+        if config is False or config is None:
             return None
 
-        store = persist_config if persist_config else None
+        # If already a memory instance, pass through
+        if hasattr(config, "update_impression"):  # Duck typing for memory instance
+            return config
 
-        # Setup archival memory if enabled
-        archival = None
-        if memory_config.archival:
+        # Default case: config=True → create default situated memory
+        if config is True:
+            store = persist_config if persist_config else None
+
+            # Default archival memory setup
+            archival = None
             from cogency.memory.archival import ArchivalMemory
 
-            # Use provided embed provider or default to Nomic
             if not embed_provider:
                 from cogency.providers.nomic import Nomic
 
                 embed_provider = Nomic()
 
-            archival = ArchivalMemory(llm, embed_provider, base_path=memory_config.path)
+            archival = ArchivalMemory(llm, embed_provider)
 
-        memory = SituatedMemory(llm, store=store, archival=archival)
-        memory.synthesis_threshold = memory_config.synthesis_threshold
-        return memory
+            return SituatedMemory(llm, store=store, archival=archival)
+
+        # Invalid config
+        raise ValueError(
+            f"Invalid memory config: {config}. Use True, False, or SituatedMemory instance."
+        )
 
     @staticmethod
     def persistence(config):
@@ -73,9 +80,10 @@ class AgentSetup:
 
         bus.subscribe(EventBuffer())
         bus.subscribe(EventLogger())
-        
+
         # Configure standard logging to flow through events
         import logging
+
         root_logger = logging.getLogger("cogency")
         root_logger.setLevel(logging.INFO)
         # Clear any existing handlers to avoid duplication
@@ -100,4 +108,3 @@ class AgentSetup:
 
         init_bus(bus)
         return bus
-

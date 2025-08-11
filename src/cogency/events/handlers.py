@@ -27,14 +27,14 @@ class EventBuffer:
     ) -> List[Dict[str, Any]]:
         """Return filtered events for debugging."""
         events = list(self.events)
-        
+
         if errors_only:
             events = [e for e in events if e.get("type") == "error" or e.get("status") == "error"]
         if type:
             events = [e for e in events if e.get("type") == type]
         if last:
             events = events[-last:]
-            
+
         return events
 
 
@@ -44,6 +44,7 @@ class EventLogger:
     def __init__(self, log_path: str = None):
         if log_path is None:
             from cogency.config.dataclasses import PathsConfig
+
             paths = PathsConfig()
             self.log_dir = Path(os.path.expanduser(paths.logs))
             self.log_dir.mkdir(parents=True, exist_ok=True)
@@ -51,14 +52,15 @@ class EventLogger:
         else:
             self.log_path = Path(log_path)
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
-    
+
     def _get_daily_log_path(self):
         """Get today's log file path."""
         if self.log_path is not None:
             return self.log_path
-        
+
         from datetime import datetime
-        today = datetime.now().strftime('%Y%m%d')
+
+        today = datetime.now().strftime("%Y%m%d")
         return self.log_dir / f"{today}.jsonl"
 
     def handle(self, event):
@@ -67,23 +69,27 @@ class EventLogger:
         event_type = event.get("type")
         if event_type in ["config_load"]:
             return
-            
+
         # Create clean log entry
         log_entry = {
             "timestamp": event.get("timestamp"),
             "type": event_type,
-            "level": event.get("level", "info")
+            "level": event.get("level", "info"),
         }
-        
+
         # Add relevant data without nesting
         data = event.get("data", {})
         for key, value in data.items():
             # Skip overly verbose fields
-            if key in ["messages", "full_response"] and isinstance(value, (str, list)) and len(str(value)) > 200:
+            if (
+                key in ["messages", "full_response"]
+                and isinstance(value, (str, list))
+                and len(str(value)) > 200
+            ):
                 log_entry[key] = f"[{len(str(value))} chars]"
             else:
                 log_entry[key] = value
-        
+
         # Append to daily JSONL file
         try:
             daily_log_path = self._get_daily_log_path()
@@ -96,20 +102,20 @@ class EventLogger:
 
 class LoggingBridge(logging.Handler):
     """Bridge standard Python logging into event system."""
-    
+
     def emit(self, record):
         """Convert log record to event emission."""
         from .core import emit
-        
+
         # Convert logging level to event level
         level_mapping = {
             logging.DEBUG: "debug",
-            logging.INFO: "info", 
+            logging.INFO: "info",
             logging.WARNING: "warning",
             logging.ERROR: "error",
-            logging.CRITICAL: "error"
+            logging.CRITICAL: "error",
         }
-        
+
         emit(
             "log",
             level=level_mapping.get(record.levelno, "info"),
@@ -117,5 +123,5 @@ class LoggingBridge(logging.Handler):
             message=record.getMessage(),
             module=record.module,
             function=record.funcName,
-            line=record.lineno
+            line=record.lineno,
         )
