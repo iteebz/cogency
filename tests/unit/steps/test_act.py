@@ -16,34 +16,34 @@ def state():
 
 
 @pytest.mark.asyncio
-async def test_none(state, tools):
+async def test_none(state, mock_tools):
     """Test act node when no tool calls are present."""
     state.execution.pending_calls = []
-    await act(state, tools=tools)
+    await act(state, tools=mock_tools)
     assert len(state.execution.completed_calls) == 0
 
 
 @pytest.mark.asyncio
-async def test_empty(state, tools):
+async def test_empty(state, mock_tools):
     """Test act node with empty tool call list."""
     state.execution.pending_calls = []
-    await act(state, tools=tools)
+    await act(state, tools=mock_tools)
     assert len(state.execution.completed_calls) == 0
 
 
 @pytest.mark.asyncio
-async def test_invalid(state, tools):
+async def test_invalid(state, mock_tools):
     """Test act node with invalid tool calls format (not a list)."""
     state.execution.pending_calls = []
-    await act(state, tools=tools)
+    await act(state, tools=mock_tools)
     assert len(state.execution.completed_calls) == 0
 
 
 @pytest.mark.asyncio
-async def test_success(state, tools):
+async def test_success(state, mock_tools):
     """Test successful tool execution."""
     set_tool_calls(state, [{"name": "mock_tool", "args": {"x": 5}}])
-    await act(state, tools=tools)
+    await act(state, tools=mock_tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -55,17 +55,17 @@ async def test_success(state, tools):
 
 
 @pytest.mark.asyncio
-async def test_failure(state, mock_tool):
+async def test_failure(state, mock_tools):
     """Test handling of failed tool execution."""
 
     # Mock the tool to fail
     async def failing_run(**kwargs):
         return Result.fail("Tool failed")
 
-    mock_tool.run = failing_run
+    mock_tools[0].run = failing_run
     set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
-    await act(state, tools=[mock_tool])
+    await act(state, tools=mock_tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -73,7 +73,7 @@ async def test_failure(state, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_multi(state, tools):
+async def test_multi(state, mock_tools):
     """Test execution of multiple tools in sequence."""
     # Use single tool multiple times for simplicity
     set_tool_calls(
@@ -85,23 +85,23 @@ async def test_multi(state, tools):
         ],
     )
 
-    await act(state, tools=tools)
+    await act(state, tools=mock_tools)
 
     assert len(state.execution.completed_calls) == 3
     assert all(result["name"] == "mock_tool" for result in state.execution.completed_calls)
 
 
 @pytest.mark.asyncio
-async def test_returns_non_result(state, mock_tool):
+async def test_returns_non_result(state, mock_tools):
     """Test handling when tool returns raw string instead of Result object."""
 
     async def non_result_run(**kwargs):
         return "raw string response"  # Not a Result object
 
-    mock_tool.run = non_result_run
+    mock_tools[0].run = non_result_run
     set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
-    await act(state, tools=[mock_tool])
+    await act(state, tools=mock_tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -110,16 +110,16 @@ async def test_returns_non_result(state, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_tool_raises_exception(state, mock_tool):
+async def test_tool_raises_exception(state, mock_tools):
     """Test handling when tool raises standard Python exception."""
 
     async def exception_run(**kwargs):
         raise ValueError("Unexpected error in tool")
 
-    mock_tool.run = exception_run
+    mock_tools[0].run = exception_run
     set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
-    await act(state, tools=[mock_tool])
+    await act(state, tools=mock_tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -128,16 +128,16 @@ async def test_tool_raises_exception(state, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_returns_none(state, mock_tool):
+async def test_returns_none(state, mock_tools):
     """Test handling when tool returns Result.ok(None)."""
 
     async def none_success_run(**kwargs):
         return Result.ok(None)
 
-    mock_tool.run = none_success_run
+    mock_tools[0].run = none_success_run
     set_tool_calls(state, [{"name": "mock_tool", "args": {}}])
 
-    await act(state, tools=[mock_tool])
+    await act(state, tools=mock_tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]
@@ -146,11 +146,11 @@ async def test_returns_none(state, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_unknown_tool_call(state, tools):
+async def test_unknown_tool_call(state, mock_tools):
     """Test handling when LLM requests non-existent tool."""
     set_tool_calls(state, [{"name": "nonexistent_tool", "args": {}}])
 
-    await act(state, tools=tools)
+    await act(state, tools=mock_tools)
 
     assert len(state.execution.completed_calls) == 1
     result = state.execution.completed_calls[0]

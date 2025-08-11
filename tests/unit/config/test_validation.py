@@ -19,10 +19,18 @@ def validate_schema(data: dict[str, Any], schema: dict[str, Any]) -> bool:
 
 
 @pytest.mark.asyncio
-async def test_response_schema_validation(validation_schemas):
+async def test_response_schema_validation():
     """Validate LLM responses conform to expected schema."""
     provider = RealisticMockProvider()
-    schema = validation_schemas["response"]
+    schema = {
+        "type": "object",
+        "properties": {
+            "content": {"type": "string"},
+            "tokens": {"type": "integer", "minimum": 0},
+            "model": {"type": "string"},
+        },
+        "required": ["content", "tokens", "model"],
+    }
 
     # Test basic response
     messages = [{"role": "user", "content": "test query"}]
@@ -44,7 +52,7 @@ async def test_response_schema_validation(validation_schemas):
 
 
 @pytest.mark.asyncio
-async def test_store_data_validation(validation_schemas):
+async def test_store_data_validation():
     """Validate store operations use correct data formats."""
     from cogency.state import Profile
 
@@ -64,10 +72,14 @@ async def test_store_data_validation(validation_schemas):
 
 
 @pytest.mark.asyncio
-async def test_tool_response_schema_validation(validation_schemas, mock_tool):
+async def test_tool_response_schema_validation(mock_tools):
     """Validate tool responses follow Result interface."""
-    tool = mock_tool
-    schema = validation_schemas["tool_call"]
+    tool = mock_tools[0]
+    schema = {
+        "type": "object",
+        "properties": {"tool_name": {"type": "string"}, "args": {"type": "object"}, "result": {}},
+        "required": ["tool_name", "args", "result"],
+    }
 
     # Valid tool call
     result = await tool.run(arg="test_value")
@@ -83,9 +95,17 @@ async def test_tool_response_schema_validation(validation_schemas, mock_tool):
     assert result.success  # Tool should return successful Result
 
 
-def test_invalid_schema_rejection(validation_schemas):
+def test_invalid_schema_rejection():
     """Verify invalid data is properly rejected."""
-    schema = validation_schemas["response"]
+    schema = {
+        "type": "object",
+        "properties": {
+            "content": {"type": "string"},
+            "tokens": {"type": "integer", "minimum": 0},
+            "model": {"type": "string"},
+        },
+        "required": ["content", "tokens", "model"],
+    }
 
     # Missing required field
     invalid_data = {

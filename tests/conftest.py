@@ -9,6 +9,8 @@ import pytest
 from cogency.state import State
 
 # Import all fixtures from decomposed modules
+from tests.fixtures.provider import MockProvider
+from tests.fixtures.tools import MockTool
 
 
 @pytest.fixture
@@ -51,3 +53,15 @@ def mock_embedder():
     embedder = Mock()
     embedder.embed = AsyncMock()
     return embedder
+
+
+@pytest.fixture
+def mock_provider():
+    """Mock provider for testing."""
+    return MockProvider()
+
+
+@pytest.fixture
+def mock_tools():
+    """Mock tools list for testing - BEAUTIFUL SIMPLICITY."""
+    return [MockTool()]
