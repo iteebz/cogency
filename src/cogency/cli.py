@@ -26,10 +26,15 @@ async def interactive_mode(agent) -> None:
             if not message:
                 continue
 
-            # Agent will handle output automatically
-            await agent.run_async(message)
+            # Agent handles output via events, but need response for interactive mode
+            response = await agent.run_async(message)
+            # Response will be shown via agent_complete event
 
         except KeyboardInterrupt:
+            print("\nGoodbye!")
+            break
+        except EOFError:
+            # Handle EOF gracefully (e.g., from piped input or Ctrl+D)
             print("\nGoodbye!")
             break
         except Exception as e:
@@ -57,13 +62,25 @@ def main():
         return
 
     # Default agent behavior
+    import os
+    from pathlib import Path
     from cogency import Agent
-    from cogency.tools import Files, Scrape, Search, Shell
+    from cogency.tools import Files, Scrape, Search, Shell, Recall
+
+    # Build tool list
+    tools = [Files(), Shell(), Search(), Scrape(), Recall()]
+    
+    # Add Retrieval tool if path specified
+    retrieval_path = os.getenv("COGENCY_RETRIEVAL_PATH")
+    if retrieval_path:
+        from cogency.tools import Retrieval
+        embeddings_file = Path(retrieval_path).expanduser() / "embeddings.json"
+        tools.append(Retrieval(embeddings_path=str(embeddings_file)))
 
     try:
         agent = Agent(
             "assistant",
-            tools=[Files(), Shell(), Search(), Scrape()],
+            tools=tools,
             memory=True,
             identity="You are Cogency, a helpful AI assistant with a knack for getting things done efficiently. Keep responses concise and clear.",
         )

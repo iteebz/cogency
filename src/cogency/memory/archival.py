@@ -72,7 +72,13 @@ class ArchivalMemory:
     def __init__(self, llm_provider, embed_provider, base_path: str = None):
         self.llm = llm_provider
         self.embed = embed_provider
-        self.base_path = Path(base_path or os.path.expanduser("~/.cogency/memory"))
+        
+        if base_path is None:
+            from cogency.config.dataclasses import PathsConfig
+            paths = PathsConfig()
+            base_path = os.path.expanduser(paths.memory)
+        
+        self.base_path = Path(base_path)
         self._topic_cache = {}  # Cache for loaded topics
         self._embedding_cache = {}  # Cache for topic embeddings
 

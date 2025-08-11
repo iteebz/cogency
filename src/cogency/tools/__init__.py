@@ -56,10 +56,14 @@ from .search import Search
 # Public: Built-in shell command tool
 from .shell import Shell
 
+# Public: Built-in memory recall tool
+from .recall import Recall
+
 __all__ = [
     # Public tool APIs
     "Tool",  # Base class for custom tools
     "Files",  # Built-in file operations
+    "Recall",  # Built-in memory recall
     "Retrieval",  # Built-in document retrieval
     "Scrape",  # Built-in web scraping
     "Search",  # Built-in web search

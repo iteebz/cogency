@@ -25,6 +25,9 @@ classifiers = [
 ]
 packages = [{ include = "cogency", from = "src" }]
 
+[tool.poetry.scripts]
+cogency = "cogency.cli:main"
+
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 

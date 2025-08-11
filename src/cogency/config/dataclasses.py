@@ -80,7 +80,14 @@ class PathsConfig:
     evals: Optional[str] = None
 
     def __post_init__(self):
-        """Set defaults under .cogency/"""
+        """Set defaults under .cogency/ with environment variable override."""
+        import os
+        
+        # Allow .env override of base directory
+        env_base_dir = os.getenv("COGENCY_BASE_DIR")
+        if env_base_dir:
+            self.base_dir = os.path.expanduser(env_base_dir)
+        
         if self.checkpoints is None:
             self.checkpoints = f"{self.base_dir}/checkpoints"
         if self.sandbox is None:

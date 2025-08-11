@@ -17,9 +17,13 @@ class SQLite(StateStore):
 
     def __init__(self, db_path: str = None):
         if db_path is None:
-            cogency_dir = Path.home() / ".cogency"
-            cogency_dir.mkdir(exist_ok=True)
-            db_path = cogency_dir / "store.db"
+            from cogency.config.dataclasses import PathsConfig
+            import os
+            
+            paths = PathsConfig()
+            base_path = Path(os.path.expanduser(paths.base_dir))
+            base_path.mkdir(exist_ok=True)
+            db_path = base_path / "store.db"
 
         # Don't resolve :memory: paths - keep them as-is
         if db_path == ":memory:" or str(db_path).startswith(":memory:"):

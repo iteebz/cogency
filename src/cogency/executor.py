@@ -54,15 +54,9 @@ class AgentExecutor:
                 raise ValueError(error)
 
             # Setup execution state
-            state = {
-                "user_id": user_id,
-                "query": query,
-                "max_iterations": self.max_iterations,
-                "current_iteration": 0,
-                "messages": [],
-                "tools_used": [],
-                "user_profile": None,
-            }
+            from cogency.state import State
+            
+            state = State(query=query, user_id=user_id)
 
             # Store state reference
             self.user_states[user_id] = state
@@ -156,15 +150,9 @@ class AgentExecutor:
                 return
 
             # Setup execution state
-            state = {
-                "user_id": user_id,
-                "query": query,
-                "max_iterations": self.max_iterations,
-                "current_iteration": 0,
-                "messages": [],
-                "tools_used": [],
-                "user_profile": None,
-            }
+            from cogency.state import State
+            
+            state = State(query=query, user_id=user_id)
 
             # Store state reference
             self.user_states[user_id] = state
