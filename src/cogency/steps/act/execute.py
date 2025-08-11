@@ -7,7 +7,7 @@ from resilient_result import Result
 from cogency.events import emit
 from cogency.tools.base import Tool
 
-from .core import (
+from .execution import (
     execute_single_tool,
 )
 

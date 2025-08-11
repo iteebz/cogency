@@ -4,7 +4,7 @@ from cogency.config import PersistConfig
 from cogency.config.dataclasses import _setup_config
 from cogency.events import ConsoleHandler, EventBuffer, EventLogger, MessageBus, init_bus
 from cogency.events.handlers import LoggingBridge
-from cogency.memory.situated import SituatedMemory
+from cogency.memory.situate import SituatedMemory
 from cogency.providers.setup import _setup_embed, _setup_llm
 
 # Simplified observability - no complex metrics handlers needed

@@ -12,7 +12,7 @@ from cogency.providers import Provider
 from cogency.state import State
 from cogency.tools import Tool
 
-from .core import filter_tools, notify_tool_selection, triage_prompt
+from .logic import filter_tools, notify_tool_selection, triage_prompt
 
 
 async def triage(

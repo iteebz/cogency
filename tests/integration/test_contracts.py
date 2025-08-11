@@ -102,7 +102,7 @@ async def test_agent_executor_integration():
 @pytest.mark.asyncio
 async def test_memory_contract_compliance():
     """Verify SituatedMemory follows storage contracts."""
-    from cogency.memory.situated import SituatedMemory
+    from cogency.memory.situate import SituatedMemory
     from cogency.storage.state import SQLite
 
     llm = MockLLM('{"preferences": {"style": "concise"}}')
@@ -125,7 +125,7 @@ async def test_memory_contract_compliance():
     assert loaded_profile.user_id == "test_user"
 
     # Test profile context generation
-    from cogency.memory.compression import compress
+    from cogency.memory.situate.compression import compress
 
     context = compress(loaded_profile)
     assert isinstance(context, str)

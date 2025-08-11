@@ -93,15 +93,19 @@ async def _extract_knowledge(state: State, memory) -> list[dict]:
 
 async def _process_knowledge(knowledge: dict, archival, user_id: str):
     """Process single knowledge item through consolidation pipeline."""
+    from . import search, storage
+
     topic = knowledge["topic"]
     knowledge_content = knowledge["knowledge"]
 
     emit("archive", operation="knowledge_processing", user_id=user_id, topic=topic, stage="start")
 
     # Search for similar existing documents
-    similar_docs = await archival.search_topics(
+    similar_docs = await search.search_topics(
+        archival.embed,
         user_id=user_id,
         query=topic,
+        embedding_cache=archival._embedding_cache,
         limit=3,
         min_similarity=0.8,  # Conservative threshold
     )
@@ -111,14 +115,18 @@ async def _process_knowledge(knowledge: dict, archival, user_id: str):
         target_doc = max(similar_docs, key=lambda doc: doc["similarity"])
         return await _merge_with_existing(knowledge, target_doc, archival, user_id)
     # Create new document
-    return await archival.store_knowledge(user_id, topic, knowledge_content)
+    return await storage.store_knowledge(user_id, topic, knowledge_content)
 
 
 async def _merge_with_existing(knowledge: dict, target_doc: dict, archival, user_id: str):
     """Merge knowledge with existing document using specialized prompt."""
+    from datetime import datetime
+
     from resilient_result import unwrap
 
+    from . import storage
     from .prompt import build_merge_prompt
+    from .types import TopicArtifact
 
     topic = knowledge["topic"]
     new_knowledge = knowledge["knowledge"]
@@ -134,7 +142,9 @@ async def _merge_with_existing(knowledge: dict, target_doc: dict, archival, user
         merged_content = unwrap(merge_result)
 
         # Save merged document
-        result = await archival._save_merged_topic(user_id, target_topic, merged_content)
+        merged_artifact = TopicArtifact(target_topic, merged_content)
+        merged_artifact.updated = datetime.now().isoformat()
+        await storage.save_topic(user_id, merged_artifact)
 
         emit(
             "archive",
@@ -146,12 +156,12 @@ async def _merge_with_existing(knowledge: dict, target_doc: dict, archival, user
             merged_length=len(merged_content),
         )
 
-        return result
+        return merged_artifact
 
     except Exception as e:
         # Fallback: create new document
         emit("archive", operation="merge_fallback", user_id=user_id, topic=topic, error=str(e))
-        return await archival.store_knowledge(user_id, topic, new_knowledge)
+        return await storage.store_knowledge(user_id, topic, new_knowledge)
 
 
 def _meets_quality_threshold(knowledge: dict) -> bool:

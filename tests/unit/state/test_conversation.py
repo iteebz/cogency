@@ -115,6 +115,7 @@ async def test_conversation_continues_across_tasks():
 
     # Manually save conversation since autosave is disabled in tests
     from cogency.storage.state import SQLite
+
     store = SQLite()
     await store.save_conversation(state1.conversation)
 

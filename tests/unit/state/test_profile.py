@@ -2,7 +2,7 @@
 
 from datetime import datetime
 
-from cogency.memory.compression import compress
+from cogency.memory.situate.compression import compress
 from cogency.state import Profile
 
 

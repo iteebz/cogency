@@ -6,6 +6,7 @@ Handles user profile updates and context injection:
 - Provide situated context for LLM prompts
 """
 
-from .core import situate
+from .classes import SituatedMemory
+from .update import situate
 
-__all__ = ["situate"]
+__all__ = ["situate", "SituatedMemory"]

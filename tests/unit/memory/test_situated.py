@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.memory.situated import SituatedMemory
+from cogency.memory.situate import SituatedMemory
 
 
 class TestSituatedMemory:

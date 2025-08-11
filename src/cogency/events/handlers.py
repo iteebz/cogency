@@ -103,7 +103,7 @@ class LoggingBridge(logging.Handler):
 
     def emit(self, record):
         """Convert log record to event emission."""
-        from .core import emit
+        from .bus import emit
 
         # Convert logging level to event level
         level_mapping = {

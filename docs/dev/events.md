@@ -107,7 +107,7 @@ def my_handler(event): pass
 agent = Agent("assistant", handlers=[my_handler])
 
 # INTERNAL: Don't import these  
-from cogency.events.core import MessageBus, emit  # Internal only
+from cogency.events.bus import MessageBus, emit  # Internal only
 from cogency.events.handlers import LoggerHandler  # Internal only
 ```
 
@@ -122,7 +122,7 @@ Events can be disabled in tests:
 
 ```python
 # Unit tests - focus on business logic
-with patch("cogency.events.core._bus", None):
+with patch("cogency.events.bus._bus", None):
     result = await execute_single_tool("search", {}, tools)
 ```
 

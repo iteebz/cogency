@@ -6,6 +6,9 @@ Handles knowledge distillation from conversations:
 - Store refined knowledge artifacts for future retrieval
 """
 
-from .core import archive
+from . import search, storage
+from .extract import archive
+from .types import TopicArtifact
 
-__all__ = ["archive"]
+# Simplified interface - no more big classes
+__all__ = ["archive", "TopicArtifact", "storage", "search"]

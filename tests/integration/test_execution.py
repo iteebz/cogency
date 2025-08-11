@@ -7,7 +7,7 @@ from resilient_result import Result, unwrap
 
 from cogency.state import State
 from cogency.steps.act import act
-from cogency.steps.act.core import execute_single_tool
+from cogency.steps.act.execution import execute_single_tool
 from cogency.steps.reason import reason
 from cogency.tools.base import Tool
 from cogency.tools.shell import Shell
@@ -44,7 +44,7 @@ class MockTool(Tool):
 @pytest.mark.asyncio
 async def test_execution_errors():
     """Test tool execution error handling."""
-    with patch("cogency.events.core._bus", None):  # Disable event system
+    with patch("cogency.events.bus._bus", None):  # Disable event system
         failing_tool = MockTool("fail", should_fail=True)
         working_tool = MockTool("work", should_fail=False)
         tools = [failing_tool, working_tool]
@@ -198,7 +198,7 @@ async def test_reason_formats_response(state):
 @pytest.mark.asyncio
 async def test_full_cycle(state):
     """Test full reasoning cycle: reason -> act -> reason (with final response)."""
-    with patch("cogency.events.core._bus", None):  # Disable event system
+    with patch("cogency.events.bus._bus", None):  # Disable event system
         tools = [Shell()]
         llm = MockLLM()
 

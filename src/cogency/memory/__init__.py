@@ -9,16 +9,16 @@ For memory configuration: Use MemoryConfig in Agent setup
 
 Internal components:
 - SituatedMemory: Core memory component for profile context injection
-- ArchivalMemory: Knowledge artifact storage and retrieval
+- Archive storage: Pure functions for knowledge artifact storage and retrieval
 - compress, extract_impressions: Memory processing utilities
 """
 
 # Internal memory components - not exported
-from .situated import SituatedMemory  # noqa: F401
+from .situate import SituatedMemory  # noqa: F401
 
 # Internal functions not exported:
-# from .compression import compress
-# from .insights import extract_impressions
+# from .situate.compression import compress
+# from .situate.impressions import extract_impressions
 
 # No public exports - use Agent.memory() instead
 __all__ = []

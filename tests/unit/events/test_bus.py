@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock
 
-from cogency.events.core import MessageBus, emit, init_bus
+from cogency.events.bus import MessageBus, emit, init_bus
 
 
 class TestMessageBus:

@@ -88,7 +88,7 @@ tmpfs           8.0G  1.2G  6.8G  15% /tmp"""
 
 
 # Mock agent that uses the real BaseAgent pattern but without fixture dependency
-class TestAgent:
+class MockAgent:
     """Test agent for integration tests - no fixture dependencies."""
 
     def __init__(self, llm=None, tools=None, max_iterations=10):
@@ -154,7 +154,7 @@ async def test_multi_step():
     mock_bash = MockBashTool()
 
     # Create agent
-    agent = TestAgent(llm=mock_provider, tools=[mock_bash], max_iterations=8)
+    agent = MockAgent(llm=mock_provider, tools=[mock_bash], max_iterations=8)
 
     # Run complex analysis task
     result = await agent.run_async(
@@ -203,7 +203,7 @@ async def test_with_failures():
                 return Result.ok("Now let me try: sudo cat /root/secret")  # This will fail
             return Result.ok("Analysis complete using alternative methods.")
 
-    agent = TestAgent(llm=RecoveryProvider(), tools=[SometimesFailingBash()], max_iterations=6)
+    agent = MockAgent(llm=RecoveryProvider(), tools=[SometimesFailingBash()], max_iterations=6)
 
     result = await agent.run_async("Analyze system configuration files")
 

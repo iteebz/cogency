@@ -4,8 +4,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from cogency.events.bus import MessageBus, emit, init_bus
 from cogency.events.console import ConsoleHandler
-from cogency.events.core import MessageBus, emit, init_bus
 from cogency.events.handlers import EventBuffer
 
 
@@ -107,7 +107,7 @@ class TestIntegratedEventFlow:
     def test_handler_independence(self):
         """Test that handler failures don't affect other handlers."""
         # Save original bus to restore later
-        from cogency.events.core import _bus as original_bus
+        from cogency.events.bus import _bus as original_bus
 
         bus = MessageBus()
 

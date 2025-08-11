@@ -175,9 +175,7 @@ async def test_continue_task(mock_state_store):
     # Modify the workspace
     original_state.workspace.objective = "modified objective"
     original_state.workspace.insights = ["test insight"]
-    await mock_state_store.save_workspace(
-        original_task_id, "test_user", original_state.workspace
-    )
+    await mock_state_store.save_workspace(original_task_id, "test_user", original_state.workspace)
 
     # Make sure user profile exists (start_task would have created it)
     await mock_state_store.save_profile("test_user:default", original_state.profile)

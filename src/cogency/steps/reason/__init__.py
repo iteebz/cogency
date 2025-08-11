@@ -18,7 +18,7 @@ from cogency.resilience import resilience
 from cogency.state import State
 from cogency.tools import Tool
 
-from .core import (
+from .template import (
     _switch_mode,
     build_messages,
     build_reasoning_prompt,
