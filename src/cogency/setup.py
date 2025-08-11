@@ -45,18 +45,9 @@ class AgentSetup:
         if config is True:
             store = persist_config if persist_config else None
 
-            # Default archival memory setup
-            archival = None
-            from cogency.memory.archival import ArchivalMemory
+            # Archival memory setup handled by RecallTool (orthogonal design)
 
-            if not embed_provider:
-                from cogency.providers.nomic import Nomic
-
-                embed_provider = Nomic()
-
-            archival = ArchivalMemory(llm, embed_provider)
-
-            return SituatedMemory(llm, store=store, archival=archival)
+            return SituatedMemory(llm, store=store)
 
         # Invalid config
         raise ValueError(

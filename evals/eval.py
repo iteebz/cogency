@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from cogency import Agent
-from cogency.config import PathsConfig
+from cogency.config.paths import paths
 
 
 class Eval(ABC):
@@ -161,7 +161,6 @@ async def run_suite(eval_classes: list[type[Eval]], sequential: bool = False) ->
         return {"results": [], "passed": 0, "total": 0, "score": 0.0, "duration": 0.0}
 
     # Create run directory
-    paths = PathsConfig()
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_dir = Path(paths.evals) / f"run_{timestamp}"
     run_dir.mkdir(parents=True, exist_ok=True)

@@ -1,6 +1,5 @@
 """Archival memory system with write-time intelligence."""
 
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
@@ -8,6 +7,7 @@ from typing import Any, Optional
 import yaml
 from resilient_result import Err, Ok, Result
 
+from cogency.config.paths import paths
 from cogency.events import emit
 
 
@@ -74,10 +74,7 @@ class ArchivalMemory:
         self.embed = embed_provider
 
         if base_path is None:
-            from cogency.config.dataclasses import PathsConfig
-
-            paths = PathsConfig()
-            base_path = os.path.expanduser(paths.memory)
+            base_path = paths.memory
 
         self.base_path = Path(base_path)
         self._topic_cache = {}  # Cache for loaded topics

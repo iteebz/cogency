@@ -28,10 +28,10 @@ class Files(Tool):
     """File operations within a safe base directory."""
 
     def __init__(self, base_dir: str = None):
-        from ..config import PathsConfig
+        from cogency.config.paths import paths
 
         if base_dir is None:
-            base_dir = PathsConfig().sandbox
+            base_dir = paths.sandbox
         super().__init__(
             name="files",
             description="Create, read, edit and manage complete code files with full implementations.",

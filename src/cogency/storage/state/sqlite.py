@@ -9,6 +9,8 @@ import aiosqlite
 if TYPE_CHECKING:
     from cogency.state import Conversation, Profile, Workspace
 
+from cogency.config.paths import paths
+
 from . import StateStore
 
 
@@ -17,12 +19,7 @@ class SQLite(StateStore):
 
     def __init__(self, db_path: str = None):
         if db_path is None:
-            import os
-
-            from cogency.config.dataclasses import PathsConfig
-
-            paths = PathsConfig()
-            base_path = Path(os.path.expanduser(paths.base_dir))
+            base_path = Path(paths.base_dir)
             base_path.mkdir(exist_ok=True)
             db_path = base_path / "store.db"
 

@@ -6,18 +6,15 @@ from typing import Optional
 
 import aiosqlite
 
+from cogency.config.paths import paths
+
 
 class StateAnalyzer:
     """Query state database for execution analysis."""
 
     def __init__(self, db_path: str = None):
         if db_path is None:
-            import os
-
-            from cogency.config.dataclasses import PathsConfig
-
-            paths = PathsConfig()
-            base_path = Path(os.path.expanduser(paths.base_dir))
+            base_path = Path(paths.base_dir)
             self.db_path = base_path / "store.db"
         else:
             self.db_path = Path(db_path)

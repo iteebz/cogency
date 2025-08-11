@@ -29,10 +29,10 @@ class Shell(Tool):
     """Execute system commands safely with timeout and basic sandboxing."""
 
     def __init__(self, default_working_dir: str = None):
-        from ..config import PathsConfig
+        from cogency.config.paths import paths
 
         if default_working_dir is None:
-            default_working_dir = PathsConfig().sandbox
+            default_working_dir = paths.sandbox
         super().__init__(
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",

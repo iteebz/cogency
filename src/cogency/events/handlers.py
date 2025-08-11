@@ -2,10 +2,11 @@
 
 import json
 import logging
-import os
 from collections import deque
 from pathlib import Path
 from typing import Any
+
+from cogency.config.paths import paths
 
 
 class EventBuffer:
@@ -43,10 +44,7 @@ class EventLogger:
 
     def __init__(self, log_path: str = None):
         if log_path is None:
-            from cogency.config.dataclasses import PathsConfig
-
-            paths = PathsConfig()
-            self.log_dir = Path(os.path.expanduser(paths.logs))
+            self.log_dir = Path(paths.logs)
             self.log_dir.mkdir(parents=True, exist_ok=True)
             self.log_path = None  # Will be set dynamically
         else:

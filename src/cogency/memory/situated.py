@@ -9,10 +9,9 @@ from cogency.state import Profile
 class SituatedMemory:
     """User profile context injection and situated understanding."""
 
-    def __init__(self, provider, store=None, archival=None):
+    def __init__(self, provider, store=None):
         self.provider = provider
         self.store = store
-        self.archival = archival  # ArchivalMemory instance for topic storage
         self.current_user_id = "default"  # Track current user for load/remember
 
     async def update_impression(self, user_id: str, interaction_data: dict[str, Any]) -> Profile:
@@ -25,8 +24,7 @@ class SituatedMemory:
         profile.interaction_count += 1
         profile.last_updated = datetime.now()
 
-        # NOTE: Archival memory processing now handled by synthesis step
-        # This reduces LLM calls and uses LLM-based topic extraction instead of heuristics
+        # NOTE: Topic processing handled by separate ArchivalMemory system (orthogonal design)
 
         # Save updated profile
         if self.store:
@@ -119,11 +117,3 @@ class SituatedMemory:
                 error=str(e),
             )
             raise
-
-    async def load_archival(self, user_id: str = None) -> None:
-        """Load archival memory for the current user."""
-        if not self.archival:
-            return
-
-        target_user = user_id or self.current_user_id
-        await self.archival.initialize(target_user)
