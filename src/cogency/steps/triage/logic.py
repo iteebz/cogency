@@ -130,7 +130,17 @@ async def triage_prompt(
     # Extract response fields
     selected_tools = parsed.get("selected_tools", [])
     direct_response = parsed.get("direct_response")
-    memory_flags = parsed.get("memory_flags", {})
+    memory_flags_raw = parsed.get("memory_flags", {})
+
+    # Handle memory_flags - ensure it's a dict, not a string
+    if isinstance(memory_flags_raw, str):
+        # LLM returned string instead of dict - default to empty dict
+        memory_flags = {}
+        emit("triage", level="debug", state="memory_flags_string_fallback", raw=memory_flags_raw)
+    elif isinstance(memory_flags_raw, dict):
+        memory_flags = memory_flags_raw
+    else:
+        memory_flags = {}
 
     # Queue async memory updates if semantic triggers detected
     if memory_flags.get("situated") or memory_flags.get("archival"):

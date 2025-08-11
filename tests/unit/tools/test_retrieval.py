@@ -1,6 +1,6 @@
 """Unit tests for Retrieval tool."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 from resilient_result import Result
@@ -31,39 +31,37 @@ def test_retrieval_init():
     # Defaults (FileStore)
     tool = Retrieval()
     assert tool.name == "retrieval"
-    assert tool.embed_model == "openai"
     assert tool.default_top_k == 5
 
-    # Custom vector store
-    mock_store = MockVectorStore()
-    tool = Retrieval(vector_store=mock_store, embed_model="nomic", top_k=10)
-    assert tool.vector_store is mock_store
-    assert tool.embed_model == "nomic"
+    # Custom config
+    tool = Retrieval(embeddings_path="custom.json", top_k=10)
     assert tool.default_top_k == 10
 
 
 @pytest.mark.asyncio
 async def test_run_validation():
     """Test input validation."""
-    mock_store = MockVectorStore()
-    tool = Retrieval(vector_store=mock_store)
+    tool = Retrieval()
 
     # Empty query
     result = await tool.run("")
     assert result.failure
     assert "empty" in result.error.lower()
 
-    # Invalid top_k
-    result = await tool.run("test", top_k=-1)
+    # No embedder configured - should fail before validation
+    result = await tool.run("test")
     assert result.failure
-    assert "positive" in result.error.lower()
+    assert "embedder" in result.error.lower()
 
 
 @pytest.mark.asyncio
 async def test_run_no_results():
     """Test with empty search results."""
+    tool = Retrieval()
+
+    # Mock the vector store
     mock_store = MockVectorStore(mock_results=[])
-    tool = Retrieval(vector_store=mock_store)
+    tool.vector_store = mock_store
 
     # Mock embedder
     mock_embedder = AsyncMock()
@@ -95,8 +93,11 @@ async def test_run_successful_search():
         },
     ]
 
+    tool = Retrieval()
+
+    # Mock the vector store
     mock_store = MockVectorStore(mock_results)
-    tool = Retrieval(vector_store=mock_store)
+    tool.vector_store = mock_store
 
     # Mock embedder
     mock_embedder = AsyncMock()
@@ -132,8 +133,11 @@ async def test_run_with_filters_and_threshold():
         }
     ]
 
+    tool = Retrieval()
+
+    # Mock the vector store
     mock_store = MockVectorStore(mock_results)
-    tool = Retrieval(vector_store=mock_store)
+    tool.vector_store = mock_store
 
     # Mock embedder
     mock_embedder = AsyncMock()
@@ -153,8 +157,11 @@ async def test_run_with_filters_and_threshold():
 @pytest.mark.asyncio
 async def test_embedding_failure():
     """Test graceful handling of embedding failures."""
+    tool = Retrieval()
+
+    # Mock the vector store
     mock_store = MockVectorStore([])
-    tool = Retrieval(vector_store=mock_store)
+    tool.vector_store = mock_store
 
     # Mock embedder that fails
     mock_embedder = AsyncMock()
@@ -170,8 +177,11 @@ async def test_embedding_failure():
 @pytest.mark.asyncio
 async def test_top_k_capping():
     """Test top_k is capped at reasonable limits."""
+    tool = Retrieval()
+
+    # Mock the vector store
     mock_store = MockVectorStore([])
-    tool = Retrieval(vector_store=mock_store)
+    tool.vector_store = mock_store
 
     # Mock embedder
     mock_embedder = AsyncMock()
@@ -182,33 +192,3 @@ async def test_top_k_capping():
 
     assert result.success
     # Should be capped at 50 (our new limit)
-
-
-@pytest.mark.asyncio
-async def test_get_embedder_openai():
-    """Test embedder setup for OpenAI."""
-    tool = Retrieval(embed_model="openai")
-
-    with patch("cogency.providers.setup._setup_embed") as mock_setup:
-        mock_embed_class = Mock()
-        mock_setup.return_value = mock_embed_class
-
-        await tool._get_embedder()
-
-        mock_setup.assert_called_once_with("openai")
-        mock_embed_class.assert_called_once_with()
-
-
-@pytest.mark.asyncio
-async def test_get_embedder_nomic():
-    """Test embedder setup for Nomic with task_type."""
-    tool = Retrieval(embed_model="nomic")
-
-    with patch("cogency.providers.setup._setup_embed") as mock_setup:
-        mock_embed_class = Mock()
-        mock_setup.return_value = mock_embed_class
-
-        await tool._get_embedder()
-
-        mock_setup.assert_called_once_with("nomic")
-        mock_embed_class.assert_called_once_with(task_type="search_query")

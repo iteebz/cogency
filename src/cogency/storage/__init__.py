@@ -1,19 +1,13 @@
-"""Storage interfaces for agent persistence and retrieval.
+"""Storage interfaces for agent persistence.
 
-This module provides clean storage interfaces for different domains:
+This module provides clean storage interfaces:
 
 State Storage (Agent Persistence):
 - StateStore: Base interface for agent state persistence
-- SQLite: Local file-based state storage
+- SQLite: Local file-based state storage with vector support
 - Supabase: Cloud-based state storage
 
-Vector Storage (Document Retrieval):
-- VectorStore: Base interface for semantic search
-- FileStore: Local embeddings from JSON files
-
 Example:
-    State storage:
-
     ```python
     from cogency.storage.state import SQLite
 
@@ -21,28 +15,14 @@ Example:
     await store.save_profile(user_id, profile)
     ```
 
-    Vector storage:
-
-    ```python
-    from cogency.storage.vector import FileStore
-
-    store = FileStore("embeddings.json")
-    results = await store.search(query_embedding, top_k=5)
-    ```
+Vector operations are handled by cogency.semantic module.
 """
 
 # Import state storage domain
 from .state import SQLite, StateStore, Supabase
 
-# Import vector storage domain
-from .vector import FileStore, VectorStore
-
 __all__ = [
-    # State storage
     "StateStore",
-    "SQLite",
+    "SQLite", 
     "Supabase",
-    # Vector storage
-    "VectorStore",
-    "FileStore",
 ]

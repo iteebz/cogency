@@ -75,6 +75,20 @@ class SQLite(StateStore):
                 )
             """)
 
+            # Knowledge vectors table - semantic memory for Recall tool
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS knowledge_vectors (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    metadata TEXT,
+                    embedding TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES user_profiles(user_id)
+                )
+            """)
+
             # Indexes for lookups and analytics
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id)"
@@ -84,6 +98,9 @@ class SQLite(StateStore):
             )
             await db.execute(
                 "CREATE INDEX IF NOT EXISTS idx_workspace_updated ON task_workspaces(updated_at)"
+            )
+            await db.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_user ON knowledge_vectors(user_id)"
             )
 
             # Remove legacy agent_states table (migration to canonical model)

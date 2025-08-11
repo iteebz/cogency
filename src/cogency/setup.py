@@ -26,12 +26,12 @@ class AgentSetup:
         return _setup_embed(config)
 
     @staticmethod
-    def tools(config):
+    def tools(config, embedder=None):
         """Setup tool registry."""
-        return _setup_tools(config or [], None)
+        return _setup_tools(config or [], embedder)
 
     @staticmethod
-    def memory(config, llm, persist_config=None, embed_provider=None):
+    def memory(config, llm, persist_config=None, embedder=None):
         """Setup memory system with direct dependency injection."""
         # Handle different memory config patterns
         if config is False or config is None:
@@ -45,9 +45,10 @@ class AgentSetup:
         if config is True:
             store = persist_config if persist_config else None
 
-            # Archival memory setup handled by RecallTool (orthogonal design)
-
-            return SituatedMemory(llm, store=store)
+            # CANONICAL: Pass embedder for knowledge extraction
+            memory = SituatedMemory(llm, store=store)
+            memory._embedder = embedder  # Inject embedder for knowledge extraction
+            return memory
 
         # Invalid config
         raise ValueError(

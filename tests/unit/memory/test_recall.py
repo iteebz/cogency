@@ -1,6 +1,6 @@
 """Unit tests for RecallTool."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -23,42 +23,47 @@ def mock_archival():
 
 @pytest.fixture
 def recall_tool(mock_archival):
-    tool = Recall(mock_archival)
-    tool.set_context("user1", mock_archival)
-    return tool
+    return Recall()
 
 
 @pytest.mark.asyncio
-async def test_successful_recall(recall_tool, mock_archival):
-    result = await recall_tool.run(query="python performance", min_similarity=0.7)
+@patch("cogency.memory.archive.archive")
+async def test_successful_recall(mock_archive):
+    # Mock the async method properly
+    mock_archive.search_topics = AsyncMock(
+        return_value=[
+            {
+                "content": "Python performance optimization techniques",
+                "topic": "Python Performance",
+                "updated": "2024-01-01T00:00:00",
+                "similarity": 0.85,
+            }
+        ]
+    )
+
+    tool = Recall()
+    result = await tool.run(query="python performance", user_id="user1")
 
     assert result.success
     assert result.data["count"] == 1
     assert "Python" in result.data["response"]
-    mock_archival.search_topics.assert_called_once_with(
+    mock_archive.search_topics.assert_called_once_with(
         user_id="user1", query="python performance", limit=3, min_similarity=0.7
     )
 
 
 @pytest.mark.asyncio
-async def test_no_results_found(recall_tool, mock_archival):
-    mock_archival.search_topics.return_value = []
+@patch("cogency.memory.archive.archive")
+async def test_no_results_found(mock_archive):
+    # Mock the async method properly
+    mock_archive.search_topics = AsyncMock(return_value=[])
 
-    result = await recall_tool.run(query="nonexistent topic")
+    tool = Recall()
+    result = await tool.run(query="nonexistent topic", user_id="user1")
 
     assert result.success
     assert result.data["count"] == 0
     assert "No relevant knowledge found" in result.data["response"]
-
-
-@pytest.mark.asyncio
-async def test_missing_archival_memory():
-    tool = Recall(None)  # No archival memory provided
-
-    result = await tool.run(query="test")
-
-    assert not result.success
-    assert "Archival memory not initialized" in str(result.error)
 
 
 def test_single_topic(recall_tool):

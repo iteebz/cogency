@@ -28,11 +28,11 @@ class ShellArgs:
 class Shell(Tool):
     """Execute system commands safely with timeout and basic sandboxing."""
 
-    def __init__(self, default_working_dir: str = None):
+    def __init__(self, base_dir: str = None):
         from cogency.config.paths import paths
 
-        if default_working_dir is None:
-            default_working_dir = paths.sandbox
+        if base_dir is None:
+            base_dir = paths.sandbox
         super().__init__(
             name="shell",
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
@@ -66,8 +66,8 @@ class Shell(Tool):
         self.agent_template = "{command} → {exit_code}"
 
         # Coordinate with file tool sandbox
-        self.default_working_dir = Path(default_working_dir).resolve()
-        self.default_working_dir.mkdir(parents=True, exist_ok=True)
+        self.base_dir = Path(base_dir).resolve()
+        self.base_dir.mkdir(parents=True, exist_ok=True)
 
     async def run(
         self,
@@ -147,7 +147,7 @@ class Shell(Tool):
                     process_env[key] = value
 
         # Execute command with coordinated working directory
-        actual_working_dir = working_dir or str(self.default_working_dir)
+        actual_working_dir = working_dir or str(self.base_dir)
         try:
             process = await asyncio.create_subprocess_shell(
                 command,

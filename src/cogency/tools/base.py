@@ -66,6 +66,14 @@ class Tool(ABC):
             # Normalize and validate arguments
             normalized_args = self._normalize_args(kwargs)
 
+            # Inject user_id for tools that need it
+            if self.name == "recall":
+                from cogency.state import get_current_state
+
+                current_state = get_current_state()
+                if current_state:
+                    normalized_args["user_id"] = current_state.user_id
+
             # Validate args using dataclass schema if provided
             if self.args:
                 validated_args = validate(normalized_args, self.args)

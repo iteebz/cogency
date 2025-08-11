@@ -7,7 +7,7 @@ from cogency.tools.base import Tool
 logger = logging.getLogger(__name__)
 
 
-def _setup_tools(tools, memory):
+def _setup_tools(tools, embedder=None):
     """Setup tools with explicit configuration."""
     if tools is None:
         raise ValueError(
@@ -19,13 +19,20 @@ def _setup_tools(tools, memory):
             f"Invalid tools value '{tools}'; use [] or [Tool(), ...] with explicit instances"
         )
     if isinstance(tools, list):
-        # Validate all items are Tool instances
+        # Validate all items are Tool instances and inject dependencies
+        configured_tools = []
         for tool in tools:
             if not isinstance(tool, Tool):
                 raise ValueError(
                     f"Invalid tool type: {type(tool)}. Use Tool() instances, not strings or classes"
                 )
-        return tools
+
+            # CANONICAL: Inject embedder into ALL semantic tools uniformly
+            if embedder is not None and hasattr(tool, '_embedder'):
+                tool._embedder = embedder
+
+            configured_tools.append(tool)
+        return configured_tools
 
     return tools
 

@@ -1,157 +1,140 @@
-"""Recall tool for semantic memory retrieval."""
+"""CANONICAL Recall tool - semantic search over dynamic agent memory."""
 
 from dataclasses import dataclass
-from typing import Any
 
 from resilient_result import Result
 
+from cogency.semantic import semantic_search
+from cogency.storage.state import SQLite
 from cogency.tools.base import Tool
 from cogency.tools.registry import tool
 
 
 @dataclass
 class RecallArgs:
-    """Arguments for Recall tool."""
-
     query: str
-    layer: str = "topics"  # Currently only "topics" for Phase 1
-    limit: int = 3
-    min_similarity: float = 0.7
+    top_k: int = 5
+    threshold: float = 0.7
 
 
 @tool
 class Recall(Tool):
-    """Tool for retrieving knowledge from archival memory.
-
-    Searches accumulated topic artifacts using semantic similarity.
-    Provides agents with access to cross-conversation learning.
+    """Semantic search over accumulated conversation knowledge.
+    
+    Searches agent's memory using SQLite vector storage.
+    Knowledge is automatically extracted and stored from conversations.
     """
 
-    def __init__(self, archival_memory=None):
+    def __init__(self, top_k: int = 3, min_similarity: float = 0.7, embedder=None):
         super().__init__(
             name="recall",
             description="Search accumulated knowledge from previous conversations",
-            schema="recall(query='python optimization', layer='topics', limit=3)",
+            schema="recall(query: str, top_k: int = 5, threshold: float = 0.7)",
             emoji="🧠",
             args=RecallArgs,
             examples=[
                 "recall(query='python performance tips')",
-                "recall(query='database optimization techniques', limit=5)",
-                "recall(query='react best practices', min_similarity=0.6)",
+                "recall(query='database optimization techniques', top_k=5)",
+                "recall(query='react best practices', threshold=0.8)",
             ],
             rules=[
                 "Use specific, descriptive queries for better results",
-                "Lower min_similarity (0.6) for broader results",
-                "Higher min_similarity (0.8) for more precise results",
-                "Layer 'topics' is the only available option in Phase 1",
+                "Lower threshold (0.6) for broader results",
+                "Higher threshold (0.8) for more precise results",
+                "Searches only user's own conversation history",
             ],
         )
-        self.archival = archival_memory
-        self.user_id = "default"  # Will be set by agent context
-
-    def set_context(self, user_id: str, archival_memory) -> None:
-        """Set user context and archival memory reference."""
-        self.user_id = user_id
-        self.archival = archival_memory
+        
+        self.default_top_k = top_k
+        self.min_similarity = min_similarity
+        
+        # CANONICAL: Injected embedder from agent
+        self._embedder = embedder
 
     async def run(
         self,
         query: str,
-        layer: str = "topics",
-        limit: int = 3,
-        min_similarity: float = 0.7,
+        user_id: str = "default",
+        top_k: int = None,
+        threshold: float = None,
         **kwargs,
     ) -> Result:
-        """Search archival memory for relevant knowledge.
+        """Search agent's memory for relevant knowledge."""
+        if not query or not query.strip():
+            return Result.fail("Search query cannot be empty")
 
-        Args:
-            query: Search query describing what to recall
-            layer: Memory layer to search ("topics" only in Phase 1)
-            limit: Maximum number of results to return
-            min_similarity: Minimum similarity threshold (0.0-1.0)
+        if not self._embedder:
+            return Result.fail("No embedder configured - must be injected from agent")
 
-        Returns:
-            Result containing formatted search results
-        """
-        from resilient_result import Err, Ok
+        # Use defaults if not specified
+        top_k = top_k or self.default_top_k
+        threshold = threshold if threshold is not None else self.min_similarity
 
-        from cogency.events import emit
+        # Get SQLite connection
+        store = SQLite()
+        await store._ensure_schema()
 
-        if not self.archival:
-            return Err("Archival memory not initialized")
-
-        if layer != "topics":
-            return Err(f"Layer '{layer}' not supported in Phase 1. Use 'topics'.")
-
-        try:
-            emit("tool", operation="recall", query=query, layer=layer, status="start")
-
-            # Search archival memory
-            results = await self.archival.search_topics(
-                user_id=self.user_id, query=query, limit=limit, min_similarity=min_similarity
+        # CANONICAL semantic search using SQLite
+        import aiosqlite
+        async with aiosqlite.connect(store.db_path) as db:
+            search_result = await semantic_search(
+                embedder=self._embedder,
+                query=query.strip(),
+                db_connection=db,
+                user_id=user_id,
+                top_k=top_k,
+                threshold=threshold,
             )
 
-            if not results:
-                formatted_response = self._format_no_results(query)
-                emit("tool", operation="recall", query=query, status="no_results")
-                return Ok({"response": formatted_response, "count": 0})
+        if search_result.failure:
+            return Result.fail(f"Memory search failed: {search_result.error}")
 
-            # Format results for agent consumption
-            formatted_response = self._format_results(results, query)
+        results = search_result.data
 
-            emit(
-                "tool",
-                operation="recall",
-                query=query,
-                status="complete",
-                results_found=len(results),
-            )
-
-            return Ok(
-                {
-                    "response": formatted_response,
-                    "count": len(results),
-                    "topics": [r["topic"] for r in results],
-                    "similarities": [r["similarity"] for r in results],
-                }
-            )
-
-        except Exception as e:
-            emit("tool", operation="recall", query=query, status="error", error=str(e))
-            return Err(f"Memory recall failed: {str(e)}")
-
-    def _format_results(self, results: list[dict[str, Any]], query: str) -> str:
-        """Format search results for agent consumption."""
         if not results:
-            return self._format_no_results(query)
+            return Result.ok({
+                "response": self._format_no_results(query),
+                "count": 0,
+                "results": [],
+            })
 
+        # Format for agent consumption
+        formatted_response = self._format_results(results, query)
+
+        return Result.ok({
+            "response": formatted_response,
+            "count": len(results),
+            "results": results,
+            "topics": [r["metadata"].get("topic", "Unknown") for r in results],
+            "similarities": [r["similarity"] for r in results],
+        })
+
+    def _format_results(self, results: list[dict], query: str) -> str:
+        """Format search results for agent consumption."""
         response_parts = [
-            f"## 🧠 Knowledge Recall: '{query}'\n",
+            f"## 🧠 Memory Recall: '{query}'\n",
             f"Found {len(results)} relevant knowledge items:\n",
         ]
 
         for i, result in enumerate(results, 1):
-            topic = result.get("topic", "Unknown Topic")
-            content = result.get("content", "")
-            similarity = result.get("similarity", 0)
-            updated = result.get("updated", "")
-
+            content = result["content"]
+            similarity = result["similarity"]
+            topic = result["metadata"].get("topic", "Unknown Topic")
+            
             # Extract preview from content
-            content_preview = self._extract_preview(content)
-
+            preview = self._extract_preview(content)
+            
             response_parts.append(
-                f"### {i}. {topic} (similarity: {similarity:.2f})\n" f"{content_preview}\n"
+                f"### {i}. {topic} (similarity: {similarity:.2f})\n"
+                f"{preview}\n"
             )
-
-            if updated:
-                response_parts.append(f"*Last updated: {updated[:10]}*\n")
 
         return "\n".join(response_parts)
 
     def _format_no_results(self, query: str) -> str:
         """Format response when no results found."""
         return (
-            f"## 🧠 Knowledge Recall: '{query}'\n\n"
+            f"## 🧠 Memory Recall: '{query}'\n\n"
             "No relevant knowledge found in memory. This might be a new topic "
             "or the query might need to be more specific.\n\n"
             "Try:\n"
@@ -174,8 +157,8 @@ class Recall(Tool):
         # Try to break at sentence boundary
         preview = content[:max_length]
         last_sentence = preview.rfind(".")
-        if last_sentence > max_length * 0.7:  # If we can break at a reasonable sentence
-            return preview[: last_sentence + 1]
+        if last_sentence > max_length * 0.7:
+            return preview[:last_sentence + 1]
 
         # Otherwise break at word boundary
         last_space = preview.rfind(" ")
@@ -184,11 +167,7 @@ class Recall(Tool):
 
         return preview + "..."
 
-    # Override formatting for cleaner tool display
-    human_template = "🧠 Searching: '{query}'"
-    agent_template = "Found {count} relevant knowledge items"
+    # Tool display formatting
+    human_template = "🧠 Searching memory: '{query}'"
+    agent_template = "Found {count} relevant memories"
     arg_key = "query"
-
-
-# Export for tool registration
-__all__ = ["Recall"]

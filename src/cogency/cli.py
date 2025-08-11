@@ -41,8 +41,10 @@ def main():
 
     # Add Retrieval if configured
     import os
+
     if retrieval_path := os.getenv("COGENCY_RETRIEVAL_PATH"):
         from cogency.tools import Retrieval
+
         embeddings_file = Path(retrieval_path).expanduser() / "embeddings.json"
         tools.append(Retrieval(embeddings_path=str(embeddings_file)))
 

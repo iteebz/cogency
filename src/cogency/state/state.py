@@ -124,12 +124,27 @@ class State:
         )
 
     async def archive_conversation(self, memory=None) -> None:
-        """Archive knowledge from completed conversation - Option A+ cleanup."""
-        # ONLY knowledge archival - persistence happens immediately during mutations
-        if memory:
-            from ..memory.archive import archive
+        """Extract and store knowledge from completed conversation - CANONICAL approach."""
+        # ONLY knowledge extraction - persistence happens immediately during mutations
+        if memory and self.execution and self.execution.messages:
+            from ..memory.knowledge import extract_and_store_knowledge
 
-            await archive(self, memory)
+            # Extract knowledge using CANONICAL approach
+            result = await extract_and_store_knowledge(
+                user_id=self.user_id,
+                conversation_messages=self.execution.messages,
+                llm=memory.provider,
+                embedder=memory._embedder if hasattr(memory, '_embedder') else None
+            )
+            
+            # Log extraction results
+            if result.success:
+                from ..events import emit
+                emit("knowledge", 
+                     operation="conversation_archive", 
+                     user_id=self.user_id,
+                     extracted=result.data.get("extracted", 0),
+                     stored=result.data.get("stored", 0))
 
         # Delete workspace - task finished (immediate cleanup)
         from ..storage.state import SQLite

@@ -70,7 +70,9 @@ class Agent:
         # Setup components directly - no Runtime/Executor ceremony
         self.llm = AgentSetup.llm(agent_config.llm)
         self.embed = AgentSetup.embed(agent_config.embed)
-        self.tools = AgentSetup.tools(agent_config.tools)
+
+        # CANONICAL: Direct dependency injection - no global state mutations
+        self.tools = AgentSetup.tools(agent_config.tools, self.embed)
         persistence = AgentSetup.persistence(agent_config.persist)
         self.memory = AgentSetup.memory(agent_config.memory, self.llm, persistence, self.embed)
         self.max_iterations = agent_config.max_iterations
@@ -130,14 +132,8 @@ class Agent:
                 await self.memory.load(user_id)
                 await self.memory.remember(query, human=True)
 
-                # Initialize archival memory if available
-                if hasattr(self.memory, "archival") and self.memory.archival:
-                    await self.memory.archival.initialize(user_id)
-
-                    # Setup Recall context if tools include recall
-                    for tool in self.tools:
-                        if hasattr(tool, "name") and tool.name == "recall":
-                            tool.set_context(user_id, self.memory.archival)
+                # Initialize archival memory (singleton handles this)
+                # No ceremony - archive singleton is already configured
 
                 # Connect memory to state
                 user_profile = await self.memory._load_profile(user_id)

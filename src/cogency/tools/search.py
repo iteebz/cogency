@@ -21,20 +21,21 @@ class SearchArgs:
 
 @tool
 class Search(Tool):
-    def __init__(self):
+    def __init__(self, max_results: int = 5):
+        self.max_results = max_results
         super().__init__(
             name="search",
             description="Search the web for current information, recent events, or specific data not available in training knowledge.",
-            schema="search(query: str, max_results: int = 5)",
+            schema=f"search(query: str, max_results: int = {max_results})",
             emoji="🔍",
             args=SearchArgs,
             examples=[
                 '{"name": "search", "args": {"query": "latest AI developments January 2025"}}',
-                '{"name": "search", "args": {"query": "current stock price AAPL", "max_results": 3}}',
+                f'{{"name": "search", "args": {{"query": "current stock price AAPL", "max_results": {max_results}}}}}',
                 '{"name": "search", "args": {"query": "weather forecast New York today"}}',
             ],
             rules=[
-                'CRITICAL: Use JSON format: {"name": "search", "args": {"query": "...", "max_results": 5}}. Never use function-call syntax.',
+                f'CRITICAL: Use JSON format: {{"name": "search", "args": {{"query": "...", "max_results": {max_results}}}}}. Never use function-call syntax.',
                 "Use specific queries, avoid repetitive searches",
             ],
         )

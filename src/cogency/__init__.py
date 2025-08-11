@@ -49,7 +49,6 @@ from .agent import Agent
 
 # Internal: Configuration classes (not for public use)
 # from .config import PersistConfig
-
 # Public: Provider classes for explicit configuration
 from .providers import Anthropic, Gemini, Mistral, Nomic, Ollama, OpenAI, Provider
 
