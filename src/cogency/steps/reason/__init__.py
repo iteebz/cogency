@@ -34,7 +34,6 @@ async def reason(
     tools: List[Tool],
     memory,  # Impression instance or None
     identity: str = None,
-    output_schema: Optional[str] = None,
 ) -> Optional[str]:
     """Reason: focused reasoning and decision making."""
 
@@ -105,70 +104,12 @@ async def reason(
 
     # Handle direct response only if no tool calls
     if state.execution.response:
-        # Apply output schema and identity if needed
-        final_response = await _finalize_response(state, llm, identity, output_schema)
-        emit("reason", state="direct_response", content=final_response[:100])
-        return final_response
+        # Return response directly - identity already injected in reasoning
+        emit("reason", state="direct_response", content=state.execution.response[:100])
+        return state.execution.response
 
     return None
 
-
-async def _finalize_response(
-    state: State,
-    llm: Provider,
-    identity: Optional[str],
-    output_schema: Optional[str],
-) -> str:
-    """Finalize response with identity and output schema formatting."""
-    from resilient_result import unwrap
-
-    from cogency.security import secure_response
-
-    response = state.execution.response
-
-    # If no identity or schema needed, return as-is
-    if not identity and not output_schema:
-        return response
-
-    # Collect tool results for context
-    tool_results = _collect_tool_results(state)
-    failures = _collect_failures(state)
-
-    # Build finalization prompt
-    sanitized_query = _get_sanitized_query(state)
-
-    # Create prompt for response finalization
-    prompt_parts = []
-
-    if identity:
-        prompt_parts.append(f"IDENTITY: {identity}")
-
-    if output_schema:
-        prompt_parts.append(f"OUTPUT SCHEMA: {output_schema}")
-
-    if tool_results:
-        prompt_parts.append(f"TOOL RESULTS:\n{tool_results}")
-
-    if failures:
-        failure_text = "\n".join([f"• {name}: {error}" for name, error in failures.items()])
-        prompt_parts.append(f"TOOL FAILURES:\n{failure_text}")
-
-    prompt_parts.append(
-        "Apply the identity and format according to the schema if provided. Keep the core response content but adjust tone and format as needed."
-    )
-
-    system_prompt = "\n\n".join(prompt_parts)
-
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": sanitized_query},
-        {"role": "assistant", "content": response},
-    ]
-
-    llm_result = await llm.run(messages)
-    final_response = unwrap(llm_result)
-
-    return secure_response(final_response)
 
 
 def _collect_tool_results(state: State) -> Optional[str]:

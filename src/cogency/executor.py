@@ -18,21 +18,15 @@ class AgentExecutor:
         llm,
         tools,
         memory,
-        config,
-        max_iterations=10,
-        identity="",
-        output_schema=None,
-        persistence=None,
+        max_iterations: int,
+        identity: str,
     ):
-        """Explicit dependency injection - no hiding."""
+        """Pure explicit dependency injection - zero config abstraction."""
         self.llm = llm
         self.tools = tools
         self.memory = memory
-        self.config = config
-        self.persistence = persistence
         self.max_iterations = max_iterations
         self.identity = identity
-        self.output_schema = output_schema
 
         # Steps are just functions - no setup needed
         self.steps = {"triage": triage, "reason": reason, "act": act, "situate": situate}
@@ -108,7 +102,6 @@ class AgentExecutor:
                     tools=self.tools,
                     memory=self.memory,
                     identity=identity or self.identity,
-                    output_schema=self.output_schema,
                 ),
                 lambda s: act(s, llm=self.llm, tools=self.tools),
                 lambda s: situate(s, self.memory),
@@ -187,7 +180,6 @@ class AgentExecutor:
                     tools=self.tools,
                     memory=self.memory,
                     identity=identity or self.identity,
-                    output_schema=self.output_schema,
                 ),
                 lambda s: act(s, llm=self.llm, tools=self.tools),
                 lambda s: situate(s, self.memory),

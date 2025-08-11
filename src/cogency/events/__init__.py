@@ -11,11 +11,11 @@ Example:
 
 Internal components:
 - MessageBus, emit, init_bus: Core event infrastructure
-- ConsoleHandler, LoggerHandler: Built-in handlers
+- ConsoleHandler, EventBuffer: Built-in handlers
 """
 
 from .console import ConsoleHandler  # noqa: F401
 from .core import MessageBus, component, emit, get_logs, init_bus  # noqa: F401
-from .handlers import LoggerHandler  # noqa: F401
+from .handlers import EventLogger, EventBuffer  # noqa: F401
 
 __all__ = []  # All internal - use bare functions for custom handlers

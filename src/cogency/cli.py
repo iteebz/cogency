@@ -2,11 +2,9 @@
 
 import argparse
 import asyncio
-import logging
 import sys
 from pathlib import Path
 
-logger = logging.getLogger(__name__)
 
 
 async def interactive_mode(agent) -> None:

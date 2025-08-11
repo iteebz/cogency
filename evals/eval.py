@@ -10,7 +10,6 @@ from typing import Dict, List
 
 from cogency import Agent
 from cogency.config import PathsConfig
-from cogency.config.dataclasses import RobustConfig
 
 
 class Eval(ABC):
@@ -26,17 +25,7 @@ class Eval(ABC):
 
     def agent(self, role: str, **kwargs) -> Agent:
         """Create agent for evaluation."""
-        robust_config = RobustConfig(
-            retry=True,
-            circuit=True,
-            checkpoint=True,
-            attempts=5,
-            timeout=60.0,
-            backoff="exponential",
-            backoff_delay=0.5,
-            backoff_max=10.0,
-        )
-        kwargs.setdefault("robust", robust_config)
+        # Using hardcoded resilience from cogency.resilience - no config needed
         kwargs.setdefault("memory", False)
         kwargs.setdefault("notify", True)
         kwargs.setdefault("max_iterations", 30)

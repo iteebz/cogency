@@ -1,6 +1,5 @@
 """Tool execution."""
 
-import logging
 from typing import List, Optional
 
 from cogency.observe import observe
@@ -10,7 +9,6 @@ from cogency.tools import Tool
 
 from .execute import execute_tools
 
-logger = logging.getLogger(__name__)
 
 
 @observe

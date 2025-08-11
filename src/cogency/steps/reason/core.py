@@ -1,13 +1,11 @@
 """Core reasoning functions - consolidated business logic."""
 
-import logging
 from typing import Any, Dict, List, Optional, Tuple
 
 from cogency.state import State
 from cogency.tools import Tool
 from cogency.utils.parsing import _parse_json
 
-logger = logging.getLogger(__name__)
 
 
 def build_reasoning_prompt(

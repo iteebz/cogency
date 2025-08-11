@@ -17,23 +17,19 @@ class AgentRuntime:
         AgentSetup.events(config)
 
         # Setup components explicitly
-        agent_config = AgentSetup.config(config)
         llm = AgentSetup.llm(config.llm)
         embed = AgentSetup.embed(config.embed)
         tools = AgentSetup.tools(config.tools)
         persistence = AgentSetup.persistence(True)
         memory = AgentSetup.memory(config.memory, llm, persistence, embed)
 
-        # Create executor with explicit dependencies
+        # Pure explicit dependency injection - no config abstraction
         self.executor = AgentExecutor(
             llm=llm,
             tools=tools,
             memory=memory,
-            config=agent_config,
             max_iterations=config.max_iterations,
             identity=config.identity or "",
-            output_schema=config.output_schema,
-            persistence=persistence,
         )
 
     async def cleanup(self):

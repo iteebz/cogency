@@ -1,6 +1,5 @@
 """Unified provider base - LLM and embedding capabilities in single ABC."""
 
-import logging
 from abc import ABC, abstractmethod
 from typing import AsyncIterator, Dict, List, Optional, Union
 
@@ -33,7 +32,6 @@ def setup_rotator(
         return None
 
 
-logger = logging.getLogger(__name__)
 
 
 class StreamBuffer:

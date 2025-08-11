@@ -3,7 +3,7 @@
 from typing import Any, List, Union
 
 from cogency.config import MemoryConfig
-from cogency.config.validation import _init_advanced_config, validate_unions
+from cogency.config.validation import validate_config_keys
 from cogency.runtime import AgentRuntime
 from cogency.tools import Tool
 
@@ -22,8 +22,6 @@ class Agent:
         mode: Reasoning mode - "adapt", "fast", or "deep" (default "adapt")
         max_iterations: Max reasoning iterations (default 10)
         notify: Enable progress notifications (default True)
-        debug: Enable debug mode (default False)
-        robust: Enable robustness - True for defaults or RobustConfig
 
     Examples:
         Basic: Agent("assistant")
@@ -50,20 +48,17 @@ class Agent:
         if tools is None:
             tools = []
 
-        # Initialize advanced config
-        advanced = _init_advanced_config(**config)
+        # Validate config keys (prevent typos)
+        validate_config_keys(**config)
 
-        self._config = AgentConfig()
-        self._config.name = name
-        self._config.tools = tools
-        self._config.memory = memory
-        self._config.handlers = self._handlers
-
-        # Apply advanced config
-        for key, value in advanced.items():
-            setattr(self._config, key, value)
-
-        validate_unions(self._config)
+        # Create config with dataclass defaults
+        self._config = AgentConfig(
+            name=name,
+            tools=tools,
+            memory=memory,
+            handlers=self._handlers,
+            **config  # Apply user overrides
+        )
 
     async def _get_executor(self) -> AgentRuntime:
         """Get or create executor."""
@@ -123,56 +118,30 @@ class Agent:
     def logs(
         self,
         *,
-        mode: str = "summary",
         type: str = None,
-        step: str = None,
-        raw: bool = None,  # Deprecated, use mode="debug"
         errors_only: bool = False,
         last: int = None,
     ) -> list[dict[str, Any]]:
         """Get execution logs with optional filtering.
 
         Args:
-            mode: Log mode - "summary" (default), "performance", "errors", "debug"
-            type: Filter by event type (only for debug mode)
-            step: Filter by execution step (only for debug mode)
-            raw: Deprecated, use mode="debug" instead
-            errors_only: Return only error events (deprecated, use mode="errors")
+            type: Filter by event type
+            errors_only: Return only error events
             last: Return only the last N events
 
         Returns:
-            List of log events. Empty list if no logs match filters.
-            By default returns developer-friendly execution summaries.
+            List of raw log events for debugging.
 
         Examples:
             Basic usage:
-            >>> agent.logs()  # Execution summaries (default)
-            >>> agent.logs(mode="performance")  # Performance analysis
-            >>> agent.logs(mode="errors")  # Error analysis
-            >>> agent.logs(mode="debug")  # Raw events
-
-            Filtering:
-            >>> agent.logs(mode="debug", type='tool')  # Tool events only
-            >>> agent.logs(mode="debug", step='reason')  # Reasoning steps only
-            >>> agent.logs(last=5)  # Recent 5 summaries
+            >>> agent.logs()  # All events
+            >>> agent.logs(type='tool')  # Tool events only
+            >>> agent.logs(errors_only=True)  # Errors only
+            >>> agent.logs(last=10)  # Recent 10 events
         """
         from cogency.events import get_logs
 
-        # If mode is explicitly provided, use it directly without summary override
-        if mode is not None:
-            return get_logs(mode=mode, type=type, step=step, errors_only=errors_only, last=last)
-
-        # Handle deprecated parameters and determine summary mode for backward compatibility
-        if raw is True or errors_only:
-            summary = False
-        else:
-            # Default behavior - use summary mode unless specific filters are applied
-            if type is not None or step is not None:
-                summary = False
-            else:
-                summary = True
-
-        return get_logs(type=type, step=step, summary=summary, errors_only=errors_only, last=last)
+        return get_logs(type=type, errors_only=errors_only, last=last)
 
 
 __all__ = ["Agent"]

@@ -4,7 +4,6 @@ This module provides configuration dataclasses for customizing agent behavior:
 
 - MemoryConfig: Configure memory and impression synthesis
 - PersistConfig: Configure state persistence
-- RobustConfig: Configure retry and resilience behavior
 - PathsConfig: Configure file paths (advanced usage)
 - MAX_TOOL_CALLS: Maximum tool calls per reasoning cycle
 
@@ -24,7 +23,6 @@ from .dataclasses import (
     MemoryConfig,
     PathsConfig,
     PersistConfig,
-    RobustConfig,
 )
 
 __all__ = [
@@ -32,5 +30,4 @@ __all__ = [
     "MemoryConfig",
     "PathsConfig",
     "PersistConfig",
-    "RobustConfig",
 ]

@@ -39,32 +39,18 @@ def emit(event_type: str, level: str = "info", **data) -> None:
 
 def get_logs(
     *,
-    mode: str = None,
     type: str = None,
-    step: str = None,
-    summary: bool = None,
     errors_only: bool = False,
     last: int = None,
 ) -> List[dict]:
-    """Get events from global logger handler with optional filtering."""
+    """Get events from global event buffer with optional filtering."""
     if not _bus:
         return []
 
-    # Handle backward compatibility - if mode is not provided, use summary parameter
-    if mode is None:
-        if summary is True:
-            mode = "summary"
-        elif errors_only:
-            mode = "errors"
-        else:
-            mode = "debug"
-
-    # Find the LoggerHandler in the bus
+    # Find the EventBuffer in the bus
     for handler in _bus.handlers:
         if hasattr(handler, "logs"):
-            return handler.logs(
-                mode=mode, type=type, step=step, summary=summary, errors_only=errors_only, last=last
-            )
+            return handler.logs(type=type, errors_only=errors_only, last=last)
     return []
 
 

@@ -1,6 +1,5 @@
 """Anthropic Claude provider - streaming chat with tool calling and key rotation."""
 
-import logging
 from typing import AsyncIterator, Dict, List, Union
 
 import anthropic
@@ -11,7 +10,6 @@ from cogency.observe.tokens import cost, count
 
 from .base import Provider, setup_rotator
 
-logger = logging.getLogger(__name__)
 
 
 class Anthropic(Provider):

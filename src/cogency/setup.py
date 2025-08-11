@@ -1,8 +1,9 @@
 """Modular agent configuration setup - zero duplication."""
 
-from cogency.config import MemoryConfig, PersistConfig, RobustConfig
+from cogency.config import MemoryConfig, PersistConfig
 from cogency.config.dataclasses import AgentConfig, _setup_config
-from cogency.events import ConsoleHandler, LoggerHandler, MessageBus, init_bus
+from cogency.events import ConsoleHandler, EventLogger, EventBuffer, MessageBus, init_bus
+from cogency.events.handlers import LoggingBridge
 from cogency.memory.situated import SituatedMemory
 from cogency.providers.setup import _setup_embed, _setup_llm
 
@@ -70,7 +71,16 @@ class AgentSetup:
         if config.notify:
             bus.subscribe(ConsoleHandler())
 
-        bus.subscribe(LoggerHandler())
+        bus.subscribe(EventBuffer())
+        bus.subscribe(EventLogger())
+        
+        # Configure standard logging to flow through events
+        import logging
+        root_logger = logging.getLogger("cogency")
+        root_logger.setLevel(logging.INFO)
+        # Clear any existing handlers to avoid duplication
+        root_logger.handlers.clear()
+        root_logger.addHandler(LoggingBridge())
 
         # Add custom handlers
         if config.handlers:
@@ -91,11 +101,3 @@ class AgentSetup:
         init_bus(bus)
         return bus
 
-    @staticmethod
-    def config(config):
-        """Setup unified agent config."""
-        agent_config = AgentConfig()
-        agent_config.robust = _setup_config(RobustConfig, config.robust)
-        agent_config.memory = _setup_config(MemoryConfig, config.memory)
-
-        return agent_config

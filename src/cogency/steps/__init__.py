@@ -10,8 +10,8 @@ requests. The steps are:
 - situate: User profile updates and context injection
 
 Note: Step functions are typically used via Agent.run() rather than directly.
-The _setup_steps function handles production composition with observability,
-resilience, and checkpointing capabilities.
+The _setup_steps function handles production composition with observability
+and resilience capabilities.
 """
 
 # Internal only - no public exports

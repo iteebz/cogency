@@ -6,7 +6,7 @@ import pytest
 
 from cogency import Agent
 from cogency.events import MessageBus, get_logs, init_bus
-from cogency.events.handlers import LoggerHandler
+from cogency.events.handlers import EventBuffer
 from tests.fixtures.provider import MockLLM
 
 
@@ -15,7 +15,7 @@ def reset_event_bus():
     """Reset event bus before each test."""
     # Create fresh bus with logger handler
     bus = MessageBus()
-    handler = LoggerHandler()
+    handler = EventBuffer()
     bus.subscribe(handler)
     init_bus(bus)
     yield
@@ -33,19 +33,17 @@ def test_logs_after_execution():
     emit("test", message="test log message")
     emit("agent", action="test_action", status="complete")
 
-    # Test both raw debug logs and summary logs
-    debug_logs = agent.logs(mode="debug")
-    summary_logs = agent.logs(mode="summary")
+    # Test logs method
+    logs = agent.logs()
 
-    assert isinstance(debug_logs, list)
-    assert isinstance(summary_logs, list)
+    assert isinstance(logs, list)
 
-    # Check that events were actually emitted in debug mode
-    test_events = [log for log in debug_logs if log.get("type") == "test"]
-    agent_events = [log for log in debug_logs if log.get("type") == "agent"]
+    # Check that events were actually emitted
+    test_events = [log for log in logs if log.get("type") == "test"]
+    agent_events = [log for log in logs if log.get("type") == "agent"]
 
-    assert len(test_events) >= 1, f"Should have test events in debug logs, got: {debug_logs}"
-    assert len(agent_events) >= 1, f"Should have agent events in debug logs, got: {debug_logs}"
+    assert len(test_events) >= 1, f"Should have test events in logs, got: {logs}"
+    assert len(agent_events) >= 1, f"Should have agent events in logs, got: {logs}"
 
 
 @pytest.mark.asyncio
@@ -77,13 +75,13 @@ def test_logs_multiple_executions():
     # First batch of events
     emit("execution", query="query 1", step="start")
     emit("execution", query="query 1", step="complete")
-    logs_after_first = agent.logs(mode="debug")
+    logs_after_first = agent.logs()
     first_execution_events = [log for log in logs_after_first if log.get("type") == "execution"]
 
     # Second batch of events
     emit("execution", query="query 2", step="start")
     emit("execution", query="query 2", step="complete")
-    logs_after_second = agent.logs(mode="debug")
+    logs_after_second = agent.logs()
     second_execution_events = [log for log in logs_after_second if log.get("type") == "execution"]
 
     # Should have more execution events after second batch
