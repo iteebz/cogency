@@ -18,8 +18,8 @@ class TestSituatedMemory:
 
         # Create a profile that persists across calls
         profile = Profile(user_id="user")
-        store.load_user_profile = AsyncMock(return_value=profile)
-        store.save_user_profile = AsyncMock()
+        store.load_profile = AsyncMock(return_value=profile)
+        store.save_profile = AsyncMock()
 
         memory = SituatedMemory(provider, store)
         interaction = {"query": "Test", "response": "Response", "success": True}
@@ -40,8 +40,8 @@ class TestSituatedMemory:
         provider = Mock()
         provider.run = AsyncMock(side_effect=Exception("LLM Error"))
         store = Mock()
-        store.load_user_profile = AsyncMock(return_value=None)
-        store.save_user_profile = AsyncMock()
+        store.load_profile = AsyncMock(return_value=None)
+        store.save_profile = AsyncMock()
 
         memory = SituatedMemory(provider, store)
 

@@ -51,7 +51,7 @@ class State:
 
         store = SQLite()
         state_key = f"{user_id}:default"
-        profile = await store.load_user_profile(state_key)
+        profile = await store.load_profile(state_key)
         if profile is None:
             profile = Profile(user_id=user_id)
 
@@ -83,7 +83,7 @@ class State:
         )
 
         # Save new workspace
-        await store.save_task_workspace(state.task_id, state.user_id, state.workspace)
+        await store.save_workspace(state.task_id, state.user_id, state.workspace)
 
         return state
 
@@ -97,12 +97,12 @@ class State:
 
         # Load user profile
         state_key = f"{user_id}:default"
-        profile = await store.load_user_profile(state_key)
+        profile = await store.load_profile(state_key)
         if profile is None:
             raise ValueError(f"No user profile found for user_id: {user_id}")
 
         # Load existing task workspace
-        workspace_data = await store.load_task_workspace(task_id, user_id)
+        workspace_data = await store.load_workspace(task_id, user_id)
         if workspace_data is None:
             raise ValueError(f"No workspace found for task_id: {task_id}")
 
@@ -123,29 +123,19 @@ class State:
             execution=execution,
         )
 
-    async def finalize(self, memory=None) -> None:
-        """Finalize task and cleanup workspace."""
-        from ..storage.state import SQLite
-
-        store = SQLite()
-
-        # FIRST: Archive knowledge from conversation before cleanup
+    async def archive_conversation(self, memory=None) -> None:
+        """Archive knowledge from completed conversation - Option A+ cleanup."""
+        # ONLY knowledge archival - persistence happens immediately during mutations
         if memory:
             from ..memory.archive import archive
 
             await archive(self, memory)
 
-        # Save final profile updates
-        state_key = f"{self.user_id}:default"
-        await store.save_user_profile(state_key, self.profile)
+        # Delete workspace - task finished (immediate cleanup)
+        from ..storage.state import SQLite
 
-        # Save final conversation updates
-        await store.save_conversation(self.conversation)
-
-        # Delete workspace - task finished
-        await store.delete_task_workspace(self.task_id)
-
-        # Execution state discarded automatically
+        store = SQLite()
+        await store.clear_workspace(self.task_id)
 
     def __post_init__(self):
         """Initialize components for direct construction fallback."""

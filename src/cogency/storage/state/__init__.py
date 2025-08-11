@@ -11,7 +11,7 @@ Example:
     from cogency.storage.state import SQLite
 
     store = SQLite("agent_state.db")
-    await store.save_user_profile(user_id, profile)
+    await store.save_profile(user_id, profile)
     ```
 
     Using with Supabase:
@@ -20,7 +20,7 @@ Example:
     from cogency.storage.state import Supabase
 
     store = Supabase(url=url, key=key)
-    profile = await store.load_user_profile(user_id)
+    profile = await store.load_profile(user_id)
     ```
 """
 
@@ -37,17 +37,17 @@ class StateStore(ABC):
     # Profile Operations (permanent user identity)
 
     @abstractmethod
-    async def save_user_profile(self, state_key: str, profile: "Profile") -> bool:
+    async def save_profile(self, state_key: str, profile: "Profile") -> bool:
         """Save user profile to storage"""
         pass
 
     @abstractmethod
-    async def load_user_profile(self, state_key: str) -> Optional["Profile"]:
+    async def load_profile(self, state_key: str) -> Optional["Profile"]:
         """Load user profile from storage"""
         pass
 
     @abstractmethod
-    async def delete_user_profile(self, state_key: str) -> bool:
+    async def delete_profile(self, state_key: str) -> bool:
         """Delete user profile permanently"""
         pass
 
@@ -73,24 +73,24 @@ class StateStore(ABC):
     # Workspace Operations (task-scoped context)
 
     @abstractmethod
-    async def save_task_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
+    async def save_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
         """Save task workspace to storage"""
         pass
 
     @abstractmethod
-    async def load_task_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
+    async def load_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
         """Load task workspace from storage"""
         pass
 
     @abstractmethod
-    async def delete_task_workspace(self, task_id: str) -> bool:
+    async def clear_workspace(self, task_id: str) -> bool:
         """Delete task workspace on completion"""
         pass
 
     # Utility Operations
 
     @abstractmethod
-    async def list_user_workspaces(self, user_id: str) -> list[str]:
+    async def list_workspaces(self, user_id: str) -> list[str]:
         """List all task_ids for user's active workspaces"""
         pass
 

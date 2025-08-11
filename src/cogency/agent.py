@@ -3,8 +3,14 @@
 from typing import Any, Union
 
 from cogency.config.validation import validate_config_keys
-from cogency.runtime import AgentRuntime
+from cogency.memory.situate import situate
+from cogency.setup import AgentSetup
+from cogency.steps.act import act
+from cogency.steps.execution import execute_agent
+from cogency.steps.reason import reason
+from cogency.steps.triage import triage
 from cogency.tools import Tool
+from cogency.utils.validation import validate_query
 
 
 class Agent:
@@ -41,7 +47,6 @@ class Agent:
         from cogency.config.dataclasses import AgentConfig
 
         self.name = name
-        self._executor = None
         self._handlers = handlers or []
 
         if tools is None:
@@ -51,7 +56,7 @@ class Agent:
         validate_config_keys(**config)
 
         # Create config with dataclass defaults
-        self._config = AgentConfig(
+        agent_config = AgentConfig(
             name=name,
             tools=tools,
             memory=memory,
@@ -59,16 +64,21 @@ class Agent:
             **config,  # Apply user overrides
         )
 
-    async def _get_executor(self) -> AgentRuntime:
-        """Get or create executor."""
-        if not self._executor:
-            self._executor = await AgentRuntime.configure(self._config)
-        return self._executor
+        # Setup events system
+        AgentSetup.events(agent_config)
 
-    async def memory(self):
+        # Setup components directly - no Runtime/Executor ceremony
+        self.llm = AgentSetup.llm(agent_config.llm)
+        self.embed = AgentSetup.embed(agent_config.embed)
+        self.tools = AgentSetup.tools(agent_config.tools)
+        persistence = AgentSetup.persistence(agent_config.persist)
+        self.memory = AgentSetup.memory(agent_config.memory, self.llm, persistence, self.embed)
+        self.max_iterations = agent_config.max_iterations
+        self.identity = agent_config.identity or ""
+
+    def get_memory(self):
         """Access memory component."""
-        executor = await self._get_executor()
-        return getattr(executor, "memory", None)
+        return self.memory
 
     def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
         """Execute agent query synchronously.
@@ -96,8 +106,91 @@ class Agent:
         Returns:
             Agent response string
         """
-        executor = await self._get_executor()
-        return await executor.run(query, user_id, identity)
+        from resilient_result import Result
+
+        from cogency.events import emit
+        from cogency.state import State
+        from cogency.state.mutations import add_message
+
+        try:
+            # Input validation
+            error = validate_query(query)
+            if error:
+                raise ValueError(error)
+
+            # Setup execution state - Option A+: immediate persistence
+            state = State(query=query, user_id=user_id)
+
+            # Prepare query
+            wrapped_query = f"[user]\n{query.strip()}\n[/user]"
+            add_message(state, "user", wrapped_query)
+
+            # Memory operations
+            if self.memory:
+                await self.memory.load(user_id)
+                await self.memory.remember(query, human=True)
+
+                # Initialize archival memory if available
+                if hasattr(self.memory, "archival") and self.memory.archival:
+                    await self.memory.archival.initialize(user_id)
+
+                    # Setup Recall context if tools include recall
+                    for tool in self.tools:
+                        if hasattr(tool, "name") and tool.name == "recall":
+                            tool.set_context(user_id, self.memory.archival)
+
+                # Connect memory to state
+                user_profile = await self.memory._load_profile(user_id)
+                if user_profile:
+                    # Copy user profile data into state
+                    state.preferences = user_profile.preferences
+                    state.goals = user_profile.goals
+                    state.expertise = user_profile.expertise
+                    state.communication_style = user_profile.communication_style
+                    state.projects = user_profile.projects
+
+            # Set agent mode
+            state.mode = "adapt"
+
+            # Execute - direct functional composition, no Executor ceremony
+            emit("start", query=query)
+
+            await execute_agent(
+                state,
+                lambda s: triage(s, llm=self.llm, tools=self.tools, memory=self.memory),
+                lambda s: reason(
+                    s,
+                    llm=self.llm,
+                    tools=self.tools,
+                    memory=self.memory,
+                    identity=identity or self.identity,
+                ),
+                lambda s: act(s, llm=self.llm, tools=self.tools),
+                lambda s: situate(s, self.memory),
+                self.memory,
+            )
+
+            # Extract response
+            response = state.execution.response
+
+            # Unwrap Result objects
+            if isinstance(response, Result):
+                response = response.data if response.success else None
+
+            # Learn from response
+            if self.memory and response:
+                await self.memory.remember(response, human=False)
+
+            return response or "No response generated"
+
+        except ValueError as e:
+            return str(e)
+        except Exception as e:
+            import traceback
+
+            error_msg = f"Flow execution failed: {e}\n{traceback.format_exc()}"
+            emit("error", message=error_msg)
+            raise e
 
     async def stream(self, query: str, user_id: str = "default", identity: str = None):
         """Stream agent response asynchronously.
@@ -110,9 +203,9 @@ class Agent:
         Yields:
             Agent response chunks
         """
-        executor = await self._get_executor()
-        async for chunk in executor.stream(query, user_id, identity):
-            yield chunk
+        # For now, just return the full response - streaming can be enhanced later
+        response = await self.run_async(query, user_id, identity)
+        yield response
 
     def logs(
         self,

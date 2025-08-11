@@ -36,7 +36,7 @@ class SituatedMemory:
         """Load or create user profile using canonical StateStore methods."""
         if self.store:
             state_key = f"{user_id}:default"
-            profile = await self.store.load_user_profile(state_key)
+            profile = await self.store.load_profile(state_key)
             if profile:
                 return profile
 
@@ -48,7 +48,7 @@ class SituatedMemory:
             return
 
         state_key = f"{profile.user_id}:default"
-        await self.store.save_user_profile(state_key, profile)
+        await self.store.save_profile(state_key, profile)
 
     async def load(self, user_id: str = None) -> None:
         """Load memory state for the current user."""

@@ -23,8 +23,8 @@ async def execute_agent(
         state.execution.response_source = "triage"
         # Always call situate after response
         await situate_step(state)
-        # Call finalize to trigger archive step
-        await state.finalize(memory)
+        # Archive conversation knowledge
+        await state.archive_conversation(memory)
         emit(
             "agent_complete",
             source="triage",
@@ -122,6 +122,6 @@ async def execute_agent(
         state.execution.response = "Task completed."
         state.execution.response_source = "natural"
     await situate_step(state)
-    # Call finalize to trigger archive step
-    await state.finalize()
+    # Archive conversation knowledge
+    await state.archive_conversation()
     emit("agent_complete", source="natural", iterations=state.execution.iteration)

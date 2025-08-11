@@ -113,7 +113,12 @@ async def test_conversation_continues_across_tasks():
     add_message(state1, "user", "What is AI?")
     add_message(state1, "assistant", "AI is artificial intelligence")
 
-    await state1.finalize()
+    # Manually save conversation since autosave is disabled in tests
+    from cogency.storage.state import SQLite
+    store = SQLite()
+    await store.save_conversation(state1.conversation)
+
+    await state1.archive_conversation()
 
     # Task 2: Continue same conversation
     state2 = await State.start_task("Tell me more", user_id, conversation_id=conv_id)
@@ -130,7 +135,7 @@ async def test_conversation_continues_across_tasks():
 
     # Verify total conversation
     assert len(state2.conversation.messages) == 4
-    await state2.finalize()
+    await state2.archive_conversation()
 
 
 def test_conversation_isolation_between_users():

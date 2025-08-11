@@ -63,10 +63,10 @@ async def test_store_data_validation():
     profile.preferences = {"theme": "dark"}
 
     # Test canonical store operations
-    result = await store.save_user_profile("test_user:default", profile)
+    result = await store.save_profile("test_user:default", profile)
     assert result is True
 
-    loaded_result = await store.load_user_profile("test_user:default")
+    loaded_result = await store.load_profile("test_user:default")
     assert loaded_result is not None
     assert loaded_result.user_id == "test_user"
 

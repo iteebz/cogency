@@ -53,7 +53,7 @@ class Supabase(StateStore):
 
     # CANONICAL: Horizon 1 Operations (Profile)
 
-    async def save_user_profile(self, state_key: str, profile: "Profile") -> bool:
+    async def save_profile(self, state_key: str, profile: "Profile") -> bool:
         """CANONICAL: Save Horizon 1 - Profile to user_profiles table"""
         try:
             from dataclasses import asdict
@@ -81,7 +81,7 @@ class Supabase(StateStore):
         except Exception:
             return False
 
-    async def load_user_profile(self, state_key: str) -> Optional["Profile"]:
+    async def load_profile(self, state_key: str) -> Optional["Profile"]:
         """CANONICAL: Load Horizon 1 - Profile from user_profiles table"""
         try:
             from dataclasses import fields
@@ -118,7 +118,7 @@ class Supabase(StateStore):
         except Exception:
             return None
 
-    async def delete_user_profile(self, state_key: str) -> bool:
+    async def delete_profile(self, state_key: str) -> bool:
         """CANONICAL: Delete user profile permanently"""
         try:
             user_id = state_key.split(":")[0]
@@ -217,7 +217,7 @@ class Supabase(StateStore):
 
     # CANONICAL: Horizon 3 Operations (Workspace)
 
-    async def save_task_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
+    async def save_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
         """CANONICAL: Save Horizon 3 - Workspace to task_workspaces table by task_id"""
         try:
             from dataclasses import asdict
@@ -241,7 +241,7 @@ class Supabase(StateStore):
         except Exception:
             return False
 
-    async def load_task_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
+    async def load_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
         """CANONICAL: Load Horizon 3 - Workspace from task_workspaces table by task_id"""
         try:
             from dataclasses import fields
@@ -272,7 +272,7 @@ class Supabase(StateStore):
         except Exception:
             return None
 
-    async def delete_task_workspace(self, task_id: str) -> bool:
+    async def clear_workspace(self, task_id: str) -> bool:
         """CANONICAL: Delete Horizon 3 - Workspace on task completion"""
         try:
             response = (
@@ -288,7 +288,7 @@ class Supabase(StateStore):
 
     # CANONICAL: Utility Operations
 
-    async def list_user_workspaces(self, user_id: str) -> list[str]:
+    async def list_workspaces(self, user_id: str) -> list[str]:
         """CANONICAL: List all task_ids for user's active workspaces"""
         try:
             response = (

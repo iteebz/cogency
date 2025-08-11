@@ -93,7 +93,7 @@ class SQLite(StateStore):
 
     # Profile Operations
 
-    async def save_user_profile(self, state_key: str, profile: "Profile") -> bool:
+    async def save_profile(self, state_key: str, profile: "Profile") -> bool:
         """Save user profile to storage."""
         await self._ensure_schema()
 
@@ -122,7 +122,7 @@ class SQLite(StateStore):
         except Exception:
             return False
 
-    async def load_user_profile(self, state_key: str) -> Optional["Profile"]:
+    async def load_profile(self, state_key: str) -> Optional["Profile"]:
         """Load user profile from storage."""
         await self._ensure_schema()
 
@@ -249,7 +249,7 @@ class SQLite(StateStore):
 
     # Workspace Operations
 
-    async def save_task_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
+    async def save_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
         """Save task workspace to storage."""
         await self._ensure_schema()
 
@@ -273,7 +273,7 @@ class SQLite(StateStore):
         except Exception:
             return False
 
-    async def load_task_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
+    async def load_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
         """Load task workspace from storage."""
         await self._ensure_schema()
 
@@ -305,7 +305,7 @@ class SQLite(StateStore):
         except Exception:
             return None
 
-    async def delete_task_workspace(self, task_id: str) -> bool:
+    async def clear_workspace(self, task_id: str) -> bool:
         """Delete task workspace on completion."""
         await self._ensure_schema()
 
@@ -322,7 +322,7 @@ class SQLite(StateStore):
 
     # Utility Operations
 
-    async def delete_user_profile(self, state_key: str) -> bool:
+    async def delete_profile(self, state_key: str) -> bool:
         """Delete user profile permanently."""
         await self._ensure_schema()
 
@@ -337,7 +337,7 @@ class SQLite(StateStore):
         except Exception:
             return False
 
-    async def list_user_workspaces(self, user_id: str) -> list[str]:
+    async def list_workspaces(self, user_id: str) -> list[str]:
         """List all task_ids for user's active workspaces."""
         await self._ensure_schema()
 

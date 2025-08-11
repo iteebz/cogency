@@ -19,16 +19,16 @@ class MockStore(StateStore):
         self.process_id = "mock_process"
 
     # Mock store implementation
-    async def save_user_profile(self, state_key: str, profile) -> bool:
+    async def save_profile(self, state_key: str, profile) -> bool:
         """Save user profile"""
         self.profiles[state_key] = profile
         return True
 
-    async def load_user_profile(self, state_key: str):
+    async def load_profile(self, state_key: str):
         """Load user profile"""
         return self.profiles.get(state_key)
 
-    async def delete_user_profile(self, state_key: str) -> bool:
+    async def delete_profile(self, state_key: str) -> bool:
         """Delete user profile"""
         if state_key in self.profiles:
             del self.profiles[state_key]
@@ -53,25 +53,25 @@ class MockStore(StateStore):
         return False
 
     # Workspace operations
-    async def save_task_workspace(self, task_id: str, user_id: str, workspace) -> bool:
+    async def save_workspace(self, task_id: str, user_id: str, workspace) -> bool:
         """Save task workspace"""
         key = f"{task_id}:{user_id}"
         self.workspaces[key] = workspace
         return True
 
-    async def load_task_workspace(self, task_id: str, user_id: str):
+    async def load_workspace(self, task_id: str, user_id: str):
         """Load task workspace"""
         key = f"{task_id}:{user_id}"
         return self.workspaces.get(key)
 
-    async def delete_task_workspace(self, task_id: str) -> bool:
+    async def clear_workspace(self, task_id: str) -> bool:
         """Delete task workspace"""
         keys_to_delete = [k for k in self.workspaces if k.startswith(f"{task_id}:")]
         for key in keys_to_delete:
             del self.workspaces[key]
         return len(keys_to_delete) > 0
 
-    async def list_user_workspaces(self, user_id: str):
+    async def list_workspaces(self, user_id: str):
         """List all task_ids for user's active workspaces"""
         return [k.split(":")[0] for k in self.workspaces if k.endswith(f":{user_id}")]
 
@@ -161,7 +161,7 @@ async def test_start_task(mock_state_store):
     assert state.execution is not None
 
     # Verify workspace was saved to store
-    workspace = await mock_state_store.load_task_workspace(state.task_id, "test_user")
+    workspace = await mock_state_store.load_workspace(state.task_id, "test_user")
     assert workspace is not None
 
 
@@ -175,12 +175,12 @@ async def test_continue_task(mock_state_store):
     # Modify the workspace
     original_state.workspace.objective = "modified objective"
     original_state.workspace.insights = ["test insight"]
-    await mock_state_store.save_task_workspace(
+    await mock_state_store.save_workspace(
         original_task_id, "test_user", original_state.workspace
     )
 
     # Make sure user profile exists (start_task would have created it)
-    await mock_state_store.save_user_profile("test_user:default", original_state.profile)
+    await mock_state_store.save_profile("test_user:default", original_state.profile)
 
     # Continue the task
     continued_state = await State.continue_task(original_task_id, "test_user")
@@ -197,9 +197,9 @@ async def test_continue_task(mock_state_store):
 async def test_start_task_error(monkeypatch):
     """Test graceful degradation when storage fails during start_task."""
     failing_store = AsyncMock()
-    failing_store.save_user_profile.side_effect = Exception("Save failed")
-    failing_store.save_task_workspace.side_effect = Exception("Save failed")
-    failing_store.load_user_profile.return_value = None
+    failing_store.save_profile.side_effect = Exception("Save failed")
+    failing_store.save_workspace.side_effect = Exception("Save failed")
+    failing_store.load_profile.return_value = None
 
     def mock_sqlite(*args, **kwargs):
         return failing_store
@@ -220,8 +220,8 @@ async def test_start_task_error(monkeypatch):
 async def test_continue_task_error(monkeypatch):
     """Test graceful degradation when load fails during continue_task."""
     failing_store = AsyncMock()
-    failing_store.load_user_profile.side_effect = Exception("Load failed")
-    failing_store.load_task_workspace.side_effect = Exception("Load failed")
+    failing_store.load_profile.side_effect = Exception("Load failed")
+    failing_store.load_workspace.side_effect = Exception("Load failed")
 
     def mock_sqlite(*args, **kwargs):
         return failing_store
@@ -259,8 +259,8 @@ async def test_three_horizon_persistence(mock_state_store):
     learn_insight(state, "Important insight")
 
     # Save user profile manually (would be done by framework)
-    await mock_state_store.save_user_profile("test_user:default", state.profile)
-    await mock_state_store.save_task_workspace(state.task_id, "test_user", state.workspace)
+    await mock_state_store.save_profile("test_user:default", state.profile)
+    await mock_state_store.save_workspace(state.task_id, "test_user", state.workspace)
 
     # Continue task (simulates loading from persistence)
     continued_state = await State.continue_task(state.task_id, "test_user")

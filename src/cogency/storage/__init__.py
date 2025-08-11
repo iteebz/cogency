@@ -18,7 +18,7 @@ Example:
     from cogency.storage.state import SQLite
 
     store = SQLite("agent_state.db")
-    await store.save_user_profile(user_id, profile)
+    await store.save_profile(user_id, profile)
     ```
 
     Vector storage:

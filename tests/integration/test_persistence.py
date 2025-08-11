@@ -21,8 +21,10 @@ async def test_agent_setup():
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             persist_config = PersistConfig(enabled=True, store=store)
             agent = Agent("test_agent", tools=[], persist=persist_config)
-            await agent._get_executor()
+            # Agent now sets up components directly in __init__, no _get_executor needed
+            assert agent.llm is not None
 
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
             agent = Agent("test_agent", tools=[])
-            await agent._get_executor()
+            # Agent now sets up components directly in __init__
+            assert agent.llm is not None
