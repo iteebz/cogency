@@ -15,11 +15,6 @@ from cogency.utils.parsing import _parse_json
 from .prompt import build_triage_prompt
 
 
-@dataclass
-class SelectionResult:
-    selected_tools: List[str]
-    reasoning: str
-
 
 @dataclass
 class TriageResult:
@@ -52,88 +47,12 @@ def filter_tools(tools: List[Tool], selected_names: List[str]) -> List[Tool]:
     return [tool for tool in filtered if tool.name != "memorize"]
 
 
-async def check_early_return(
-    llm: Provider, query: str, selected_tools: List[Tool]
-) -> Optional[str]:
-    """Check if query can be answered directly without ReAct."""
-    query_str = query if isinstance(query, str) else str(query)
-
-    # Use LLM to determine if this query needs tools
-    return await _early_check(llm, query_str, selected_tools)
 
 
-async def _early_check(llm: Provider, query: str, available_tools: List[Tool]) -> Optional[str]:
-    """Use LLM to intelligently determine if query needs full pipeline."""
-    tool_names = [tool.name for tool in available_tools] if available_tools else []
-
-    # Quick classification prompt
-    prompt = f"""Query: "{query}"
-Available tools: {tool_names}
-
-Can this query be answered with ONLY the information I currently have? Answer with:
-- "DIRECT: [answer]" if I have all the specific data/context needed
-- "TOOLS" if I need to gather information, execute commands, or access external data
-
-Examples:
-- "What does pwd do?" → "DIRECT: Shows current directory"
-- "Use pwd to show current directory" → "TOOLS"
-- "What is 5+5?" → "DIRECT: 10"
-- "Hello, who are you?" → "DIRECT: I'm an AI assistant"
-- "What's the weather in NYC?" → "TOOLS"
-- "Search for Python tutorials" → "TOOLS"
-"""
-
-    result = await llm.run([{"role": "user", "content": prompt}])
-    response = unwrap(result).strip()
-
-    # Parse response
-    if response.startswith("DIRECT:"):
-        return response[7:].strip()
-
-    return None
 
 
-async def _direct_response(llm: Provider, query: str) -> str:
-    """Generate direct LLM response."""
-    prompt = f"Answer this simple question directly: {query}"
-    result = await llm.run([{"role": "user", "content": prompt}])
-    response = unwrap(result)
-    return response.strip()
 
 
-async def select_tools(llm: Provider, query: str, available_tools: List[Tool]) -> SelectionResult:
-    """Select tools needed for query execution."""
-    if not available_tools:
-        return SelectionResult(selected_tools=[], reasoning="No tools available")
-
-    registry_lite = build_tool_descriptions(available_tools)
-
-    prompt = f"""Select tools needed for this query:
-
-Query: "{query}"
-
-Available Tools:
-{registry_lite}
-
-JSON Response:
-{{
-  "selected_tools": ["tool1", "tool2"] | [],
-  "reasoning": "brief justification of tool choices"
-}}
-
-SELECTION RULES:
-- Select only tools directly needed for execution
-- Empty list means no tools needed (direct LLM response)
-- Consider query intent and tool capabilities
-- Prefer minimal tool sets that accomplish the goal"""
-
-    result = await llm.run([{"role": "user", "content": prompt}])
-    response = unwrap(result)
-    parsed = unwrap(_parse_json(response))
-
-    return SelectionResult(
-        selected_tools=parsed.get("selected_tools", []), reasoning=parsed.get("reasoning", "")
-    )
 
 
 async def notify_tool_selection(filtered_tools: List[Tool], total_tools: int) -> None:
