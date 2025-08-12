@@ -3,7 +3,7 @@
 from typing import Any, Union
 
 from cogency.config.validation import validate_config_keys
-from cogency.memory import Memories
+from cogency.memory import Memory
 from cogency.providers import detect_embed, detect_llm
 from cogency.state import State
 
@@ -24,9 +24,10 @@ class Agent:
 
     Examples:
         Basic: Agent("assistant")
+        With memory: Agent("assistant", memory=True)
         Production: Agent("assistant", notify=False)
         With events: Agent("assistant", handlers=[websocket_handler])
-        Advanced: Agent("assistant", memory=Memory(provider, store))
+        Custom memory: Agent("assistant", memory=Memory())
     """
 
     def __init__(
@@ -62,11 +63,9 @@ class Agent:
         self.llm = detect_llm()
         self.embed = detect_embed()
 
-        # Setup memory with canonical Profile system
+        # Setup memory with canonical universal system
         if memory is True:
-            from cogency.storage import SQLite
-
-            self.memory = Memories(self.llm, SQLite())
+            self.memory = Memory()
         elif memory:
             self.memory = memory
         else:
@@ -134,17 +133,32 @@ class Agent:
             # Create execution state
             state = await State.start_task(query, user_id)
 
-            # Memory operations
+            # Memory operations - runtime user context
             if self.memory:
                 await self.memory.load(user_id)
-                await self.memory.remember(query, human=True)
+                await self.memory.remember(user_id, query, human=True)
 
             # Agent reasoning and execution loop
             for iteration in range(self.max_iterations):
                 emit("agent", state="iteration", iteration=iteration)
 
+                # Inject memory context into state for reasoning
+                if self.memory:
+                    # Temporarily enhance state with memory context
+                    memory_context = await self.memory.activate(user_id)
+                    original_context = state.context
+
+                    def enhanced_context(mc=memory_context, oc=original_context):
+                        return f"{mc}\n\n{oc()}" if mc else oc()
+
+                    state.context = enhanced_context
+
                 # Reason: What should I do next?
                 reasoning = await reason(state, self.llm, self.tools, identity or self.identity)
+
+                # Restore original context method
+                if self.memory:
+                    state.context = original_context
 
                 if reasoning.get("response"):
                     # Direct response - we're done
@@ -168,11 +182,11 @@ class Agent:
 
             # Learn from response
             if self.memory and response:
-                await self.memory.remember(response, human=False)
+                await self.memory.remember(user_id, response, human=False)
 
             # Domain-specific learning operations - canonical boundaries
             from cogency.knowledge import extract
-            from cogency.user import learn
+            from cogency.memory import learn
 
             if self.memory:
                 await learn(state, self.memory)  # Learn user patterns

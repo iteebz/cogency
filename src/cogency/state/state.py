@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
 from cogency.knowledge.extract import extract
+from cogency.memory import learn
 from cogency.storage.sqlite import SQLite
-from cogency.user import learn
 
 if TYPE_CHECKING:
     from . import Conversation, Execution, Workspace

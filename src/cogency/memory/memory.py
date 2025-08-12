@@ -1,6 +1,5 @@
 """Memory system - universal persistent context injection."""
 
-from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
@@ -8,27 +7,33 @@ from typing import Any
 from cogency.events import emit
 
 
-class Memory(ABC):
-    """Universal persistent context injection interface."""
+class Memory:
+    """Universal memory system - canonical agent interface."""
 
-    @abstractmethod
-    def load(self, context_id: str) -> None:
-        """Load persistent context from storage."""
-        pass
+    def __init__(self):
+        """Initialize memory system with zero ceremony."""
+        self._system = MemorySystem()
 
-    @abstractmethod
-    def context(self) -> str:
-        """Generate context string for agent injection."""
-        pass
+    async def activate(self, user_id: str, context: dict = None) -> str:
+        """Activate memory context for runtime user and context."""
+        return await self._system.activate(user_id, context)
 
-    @abstractmethod
-    def remember(self, content: str, metadata: dict = None) -> None:
-        """Update persistent context with new information."""
-        pass
+    async def remember(self, user_id: str, content: str, human: bool = True) -> None:
+        """Store interaction for learning."""
+        await self._system.remember(user_id, content, human)
+
+    # Legacy compatibility methods for existing Agent integration
+    async def load(self, user_id: str) -> None:
+        """Legacy load method - ensure profile exists."""
+        await self._system._load_profile(user_id)
+
+    def get_memory(self):
+        """Legacy accessor method."""
+        return self
 
 
 @dataclass
-class Profile(Memory):
+class Profile:
     """User identity and preferences memory primitive.
 
     Direct context injection of user profile data for consistent
@@ -76,118 +81,111 @@ class Profile(Memory):
         result = self.context()
         return result[:max_tokens] if len(result) > max_tokens else result
 
-    def load(self, context_id: str) -> None:
-        """Load profile context - basic implementation."""
-        # Profile instances are loaded by MemoryManager
-        pass
 
-    def remember(self, content: str, metadata: dict = None) -> None:
-        """Update profile with new information - basic implementation."""
-        # Profile updates handled by MemoryManager
-        self.last_updated = datetime.now()
+class MemorySystem:
+    """Intelligent runtime memory system - universal primitive management."""
 
+    def __init__(self):
+        # Internal primitive management - never exposed to users
+        self._profiles = {}  # Profile primitives by user_id
+        self._projects = {}  # Project memory primitives
+        self._domains = {}  # Domain expertise primitives
+        self._collaborative = {}  # Shared context primitives
 
-class Memories:
-    """Agent memory system - profile management and context injection."""
+    async def activate(self, user_id: str, context: dict = None) -> str:
+        """Smart runtime activation of relevant memory primitives."""
 
-    def __init__(self, provider, store=None):
-        self.provider = provider
-        self.store = store
-        self.current_user_id = "default"  # Track current user for load/remember
+        context = context or {}
+        parts = []
 
-    async def update(self, user_id: str, interaction_data: dict[str, Any]) -> Profile:
-        """Update user profile from interaction with knowledge system integration."""
+        # Always activate Profile primitive for user context
+        if user_id not in self._profiles:
+            self._profiles[user_id] = await self._load_profile(user_id)
 
-        # Load existing profile
-        profile = await self._load_profile(user_id)
+        profile_context = self._profiles[user_id].context()
+        if profile_context:
+            parts.append(f"USER CONTEXT:\n{profile_context}")
 
-        # Update interaction count and timestamp - profile learning handled async post-response
-        profile.last_updated = datetime.now()
+        # Future: Activate project memory if project_id in context
+        # if context.get('project_id'):
+        #     project_memory = await self._get_project_memory(context['project_id'])
+        #     parts.append(f"PROJECT CONTEXT:\n{project_memory.context()}")
 
-        # NOTE: Topic processing handled by separate Knowledge system (orthogonal design)
+        # Future: Activate domain memory if domain in context
+        # if context.get('domain'):
+        #     domain_memory = await self._get_domain_memory(context['domain'])
+        #     parts.append(f"DOMAIN EXPERTISE:\n{domain_memory.context()}")
 
-        # Save updated profile
-        if self.store:
-            await self._save_profile(profile)
+        return "\n\n".join(parts) if parts else ""
 
-        return profile
-
-    async def _load_profile(self, user_id: str) -> Profile:
-        """Load or create user profile using canonical StateStore methods."""
-        if self.store:
-            state_key = f"{user_id}:default"
-            profile = await self.store.load_profile(state_key)
-            if profile:
-                return profile
-
-        return Profile(user_id=user_id)
-
-    async def _save_profile(self, profile: Profile) -> None:
-        """Save profile to storage using canonical StateStore methods."""
-        if not self.store:
-            return
-
-        state_key = f"{profile.user_id}:default"
-        await self.store.save_profile(state_key, profile)
-
-    async def load(self, user_id: str = None) -> None:
-        """Load memory state for the current user."""
-        if user_id:
-            self.current_user_id = user_id
-
-        emit("memory", operation="load", user_id=self.current_user_id, status="start")
-
-        try:
-            # Load profile to validate memory system
-            await self._load_profile(self.current_user_id)
-            emit(
-                "memory",
-                operation="load",
-                user_id=self.current_user_id,
-                status="complete",
-            )
-        except Exception as e:
-            emit(
-                "memory",
-                operation="load",
-                user_id=self.current_user_id,
-                status="error",
-                error=str(e),
-            )
-            raise
-
-    async def remember(self, content: str, human: bool = True) -> None:
-        """Store interaction for future processing - no LLM calls."""
+    async def remember(self, user_id: str, content: str, human: bool = True) -> None:
+        """Store interaction for user profile learning."""
         emit(
             "memory",
             operation="remember",
-            user_id=self.current_user_id,
+            user_id=user_id,
             human=human,
             content_length=len(content),
             status="start",
         )
 
         try:
+            # Ensure profile exists
+            if user_id not in self._profiles:
+                self._profiles[user_id] = await self._load_profile(user_id)
+
+            # Update profile with interaction
             interaction_data = {
                 "query" if human else "response": content,
                 "success": True,
                 "human": human,
             }
-            # Pure data storage - no LLM processing
-            await self.update(self.current_user_id, interaction_data)
+            await self._update_profile(user_id, interaction_data)
 
             emit(
                 "memory",
                 operation="remember",
-                user_id=self.current_user_id,
+                user_id=user_id,
                 status="complete",
             )
         except Exception as e:
             emit(
                 "memory",
                 operation="remember",
-                user_id=self.current_user_id,
+                user_id=user_id,
                 status="error",
                 error=str(e),
             )
             raise
+
+    async def _load_profile(self, user_id: str) -> Profile:
+        """Load or create user profile primitive."""
+        from cogency.storage import SQLite
+
+        store = SQLite()
+        try:
+            state_key = f"{user_id}:default"
+            profile = await store.load_profile(state_key)
+            if profile:
+                return profile
+        except Exception:
+            # Fallback to new profile if storage fails
+            pass
+
+        return Profile(user_id=user_id)
+
+    async def _update_profile(self, user_id: str, interaction_data: dict[str, Any]) -> None:
+        """Update profile primitive with interaction data."""
+        profile = self._profiles[user_id]
+        profile.last_updated = datetime.now()
+
+        # Save updated profile
+        from cogency.storage import SQLite
+
+        store = SQLite()
+        try:
+            state_key = f"{user_id}:default"
+            await store.save_profile(state_key, profile)
+        except Exception:
+            # Ignore save errors - memory still works without persistence
+            pass
