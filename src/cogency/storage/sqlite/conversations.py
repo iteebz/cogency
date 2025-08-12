@@ -9,11 +9,13 @@ if TYPE_CHECKING:
     from cogency.state import Conversation
 
 from .base import SQLiteBase
+from ...events.orchestration import state_event, extract_conversation_data, extract_delete_data
 
 
 class ConversationOperations(SQLiteBase):
     """SQLite operations for conversation persistence."""
 
+    @state_event("conversation_saved", extract_conversation_data)
     async def save_conversation(self, conversation: "Conversation") -> bool:
         """Save conversation to storage."""
         await self._ensure_schema()
@@ -84,6 +86,7 @@ class ConversationOperations(SQLiteBase):
         except Exception:
             return None
 
+    @state_event("conversation_deleted", extract_delete_data)
     async def delete_conversation(self, conversation_id: str) -> bool:
         """Delete conversation permanently."""
         await self._ensure_schema()

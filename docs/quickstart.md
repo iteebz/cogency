@@ -49,6 +49,32 @@ async def main():
 asyncio.run(main())
 ```
 
+## Streaming
+
+Real-time thinking and tool execution:
+
+```python
+import asyncio
+
+async def main():
+    agent = Agent("assistant")
+    
+    async for event in agent.run_stream("Analyze this complex problem"):
+        if event.type == "thinking":
+            print(f"💭 {event.content}")
+        elif event.type == "tool_use":  
+            print(f"🔧 {event.content}")
+        elif event.type == "completion":
+            print(f"✅ Final: {event.content}")
+
+asyncio.run(main())
+```
+
+CLI streaming mode:
+```bash
+cogency --interactive --stream
+```
+
 ## Built-in Tools
 
 Auto-select relevant tools:

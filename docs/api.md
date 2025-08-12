@@ -33,8 +33,20 @@ agent = Agent(
 ## Methods
 
 ```python
+# Synchronous execution
 result = agent.run("What's 2+2?", user_id="alice")
+
+# Asynchronous execution
 result = await agent.run_async("Research quantum computing")
+
+# Streaming execution (real-time thinking + output)
+async for event in agent.run_stream("Complex research task"):
+    if event.type == "thinking":
+        print(f"💭 {event.content}")
+    elif event.type == "tool_use":
+        print(f"🔧 {event.content}")
+    elif event.type == "completion":
+        print(f"✅ {event.content}")
 
 # Execution traces
 agent = Agent("assistant", handlers=[log_handler])
@@ -63,3 +75,40 @@ class CustomTool(Tool):
 
 agent = Agent("assistant")  # Auto-registers
 ```
+
+## Streaming
+
+Real-time execution with intermediate thinking and tool usage updates:
+
+```python
+# Async streaming (recommended)
+async for event in agent.run_stream("Complex analysis task"):
+    print(f"{event.type}: {event.content}")
+
+# Event types:
+# - "thinking": Intermediate reasoning steps
+# - "tool_use": Tool execution progress  
+# - "completion": Final result
+# - "error": Error conditions
+
+# CLI streaming mode
+# cogency --interactive --stream
+```
+
+### Stream Event Structure
+
+```python
+@dataclass
+class StreamEvent:
+    type: str        # Event category
+    content: str     # Human-readable content
+    metadata: dict   # Additional event data
+```
+
+### Streaming Benefits
+
+- **Real-time feedback**: See reasoning progress as it happens
+- **Tool transparency**: Watch tool execution in real-time
+- **Better UX**: No waiting for long-running tasks
+- **Zero overhead**: Built on existing event system
+- **Interruptible**: Can handle cancellation gracefully

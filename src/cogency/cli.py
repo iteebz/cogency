@@ -34,10 +34,16 @@ async def interactive_mode(agent, stream=False, debug=False, timing=False) -> No
                 if debug:
                     print(f"\n--- Interaction {interaction_count} ---")
 
-                if stream and hasattr(agent, "stream"):
-                    async for chunk in agent.stream(message):
-                        print(chunk, end="", flush=True)
-                    print()  # New line after streaming
+                if stream:
+                    from cogency.events.streaming import format_stream_event
+                    
+                    async for event in agent.run_stream(message):
+                        formatted = format_stream_event(event)
+                        if event.type == "completion":
+                            print(f"\n{formatted}")
+                        else:
+                            print(formatted, flush=True)
+                    print()  # Final newline
                 else:
                     response = await agent.run_async(message)
                     print(f"\n{response}")
@@ -45,6 +51,10 @@ async def interactive_mode(agent, stream=False, debug=False, timing=False) -> No
                 if timing or debug:
                     interaction_time = time.time() - interaction_start
                     print(f"\n⏱️ Duration: {interaction_time:.2f}s")
+                    
+                    # Show telemetry in debug mode
+                    if debug:
+                        show_interaction_telemetry(agent)
 
         except (KeyboardInterrupt, EOFError):
             print("\nGoodbye!")
@@ -275,6 +285,167 @@ def find_tool(tools, name: str):
     return None
 
 
+async def telemetry_command(subcommand: str, filter_type: str = None, count: int = 20):
+    """Handle telemetry diagnostic commands."""
+    from cogency.events import MessageBus, init_bus
+    from cogency.events.telemetry import create_telemetry_bridge, format_telemetry_summary
+    from cogency.events.handlers import EventBuffer
+
+    print("🔍 Cogency Telemetry System")
+    print("=" * 50)
+
+    # Initialize minimal event system for telemetry
+    bus = MessageBus()
+    buffer = EventBuffer(max_size=1000)
+    bus.subscribe(buffer)
+    init_bus(bus)
+    
+    # Create telemetry bridge
+    bridge = create_telemetry_bridge(bus)
+
+    if subcommand == "summary":
+        show_telemetry_summary(bridge, format_telemetry_summary)
+    elif subcommand == "recent":
+        show_recent_events(bridge, count, filter_type)
+    elif subcommand == "events":
+        show_event_types(bridge)
+    elif subcommand == "live":
+        print("Live telemetry requires an active agent session.")
+        print("Use: cogency --interactive --stream --debug")
+        print("Then run queries to see live telemetry.")
+
+
+def show_telemetry_summary(bridge, formatter=None):
+    """Display telemetry summary."""
+    if formatter:
+        summary_text = formatter(bridge)
+    else:
+        # Fallback to basic summary
+        summary = bridge.get_summary()
+        summary_text = f"📊 Events: {summary.get('total_events', 0)}"
+    print(summary_text)
+
+
+def show_recent_events(bridge, count: int, filter_type: str = None):
+    """Display recent events with optional filtering."""
+    filters = {}
+    if filter_type:
+        if filter_type == "error":
+            filters["errors_only"] = True
+        else:
+            filters["type"] = filter_type
+    
+    events = bridge.get_recent(count, filters)
+    
+    if not events:
+        print("📭 No recent events found")
+        if filter_type:
+            print(f"(filtered by: {filter_type})")
+        return
+    
+    print(f"📋 Recent Events ({len(events)})")
+    if filter_type:
+        print(f"Filtered by: {filter_type}")
+    print("-" * 50)
+    
+    for event in events[-count:]:  # Show most recent
+        formatted = bridge.format_event(event, style="compact")
+        print(formatted)
+
+
+def show_event_types(bridge):
+    """Display available event types and their frequencies."""
+    summary = bridge.get_summary()
+    event_types = summary.get("event_types", {})
+    
+    if not event_types:
+        print("📭 No events recorded")
+        return
+    
+    print("📊 Event Types")
+    print("-" * 30)
+    
+    # Sort by frequency
+    for event_type, count in sorted(event_types.items(), key=lambda x: x[1], reverse=True):
+        emoji = bridge._get_event_emoji(event_type, "info", {})
+        percentage = (count / summary["total_events"]) * 100 if summary["total_events"] else 0
+        print(f"{emoji} {event_type:12} {count:4} ({percentage:4.1f}%)")
+
+
+def show_interaction_telemetry(agent):
+    """Show telemetry for the current interaction."""
+    try:
+        # Get recent events from agent's logs
+        logs = agent.logs(last=10)  # Last 10 events
+        
+        if not logs:
+            return
+        
+        # Show compact event summary
+        print("📊 Telemetry:")
+        
+        # Count events by type
+        event_counts = {}
+        tool_events = []
+        errors = []
+        
+        for event in logs:
+            event_type = event.get("type", "unknown")
+            event_counts[event_type] = event_counts.get(event_type, 0) + 1
+            
+            # Collect specific event types
+            data = event.get("data", {})
+            if event_type == "tool":
+                tool_name = data.get("name", "unknown")
+                status = data.get("status", "unknown")
+                tool_events.append(f"{tool_name}({status})")
+            elif event.get("level") == "error" or data.get("status") == "error":
+                errors.append(data.get("error", "unknown error"))
+        
+        # Display summary
+        summary_parts = []
+        for event_type, count in event_counts.items():
+            if event_type == "agent":
+                continue  # Skip verbose agent events
+            summary_parts.append(f"{event_type}:{count}")
+        
+        if summary_parts:
+            print(f"  Events: {', '.join(summary_parts)}")
+        
+        if tool_events:
+            tools_str = ', '.join(tool_events)
+            print(f"  Tools: {tools_str}")
+        
+        if errors:
+            print(f"  ❌ Errors: {len(errors)}")
+            for error in errors[:2]:  # Show first 2 errors
+                print(f"    • {error[:50]}...")
+    
+    except Exception:
+        # Fail silently - don't break interaction for telemetry issues
+        pass
+
+
+def show_live_telemetry_help():
+    """Show help for live telemetry mode."""
+    print("🔴 Live Telemetry Mode")
+    print("=" * 50)
+    print("To see live telemetry during agent execution:")
+    print("")
+    print("1. Start interactive mode with debug:")
+    print("   cogency --interactive --debug")
+    print("")
+    print("2. Start streaming mode:")
+    print("   cogency --interactive --stream")
+    print("")
+    print("3. Run queries and watch real-time events")
+    print("")
+    print("Available filters in debug mode:")
+    print("  --filter tool     # Show only tool events")
+    print("  --filter error    # Show only errors")
+    print("  --filter agent    # Show only agent events")
+
+
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(description="Cogency - Zero ceremony cognitive agents")
@@ -291,12 +462,24 @@ def main():
         help="Tool diagnostics",
     )
     parser.add_argument("--tool-name", help="Specific tool name (with --tools)")
+    parser.add_argument(
+        "--telemetry",
+        choices=["live", "recent", "summary", "events"],
+        help="Show telemetry data"
+    )
+    parser.add_argument("--filter", help="Filter telemetry by type (e.g., 'tool', 'error')")
+    parser.add_argument("--count", type=int, default=20, help="Number of recent events (with --telemetry recent)")
     parser.add_argument("--version", action="version", version="cogency 1.2.2")
     args = parser.parse_args()
 
     # Handle tool diagnostics
     if args.tools:
         asyncio.run(tools_command(args.tools, args.tool_name))
+        return
+    
+    # Handle telemetry commands
+    if args.telemetry:
+        asyncio.run(telemetry_command(args.telemetry, args.filter, args.count))
         return
 
     # Setup agent with canonical tools

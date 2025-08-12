@@ -9,11 +9,13 @@ if TYPE_CHECKING:
     from cogency.memory import Profile
 
 from .base import SQLiteBase
+from ...events.orchestration import state_event, extract_profile_data, extract_delete_data
 
 
 class ProfileOperations(SQLiteBase):
     """SQLite operations for user profile persistence."""
 
+    @state_event("profile_saved", extract_profile_data)
     async def save_profile(self, state_key: str, profile: "Profile") -> bool:
         """Save user profile to storage."""
         await self._ensure_schema()
@@ -81,6 +83,7 @@ class ProfileOperations(SQLiteBase):
         except Exception:
             return None
 
+    @state_event("profile_deleted", extract_delete_data)
     async def delete_profile(self, state_key: str) -> bool:
         """Delete user profile permanently."""
         await self._ensure_schema()

@@ -116,6 +116,32 @@ class Agent:
 
         return asyncio.run(self.run_async(query, user_id, identity))
 
+    def stream(self, query: str, user_id: str = "default", identity: str = None):
+        """Execute agent query with streaming (synchronous wrapper)."""
+        import asyncio
+
+        async def _stream():
+            async for event in self.run_stream(query, user_id, identity):
+                yield event
+
+        # Return sync generator that runs async generator
+        return asyncio.run(self._run_stream_sync(query, user_id, identity))
+
+    async def _run_stream_sync(self, query: str, user_id: str, identity: str):
+        """Helper for synchronous streaming."""
+        events = []
+        async for event in self.run_stream(query, user_id, identity):
+            events.append(event)
+        return events
+
+    async def run_stream(self, query: str, user_id: str = "default", identity: str = None):
+        """Execute agent query with real-time streaming of intermediate thinking and output."""
+        from cogency.events.streaming import StreamingCoordinator
+        
+        coordinator = StreamingCoordinator(self)
+        async for event in coordinator.stream_agent_run(query, user_id):
+            yield event
+
     async def run_async(self, query: str, user_id: str = "default", identity: str = None) -> str:
         """Execute agent query asynchronously."""
         from cogency.agents import act, reason

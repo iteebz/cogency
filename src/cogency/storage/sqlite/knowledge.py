@@ -8,11 +8,13 @@ if TYPE_CHECKING:
     from cogency.knowledge import KnowledgeArtifact
 
 from .base import SQLiteBase
+from ...events.orchestration import state_event, extract_knowledge_data, extract_delete_data
 
 
 class KnowledgeOperations(SQLiteBase):
     """SQLite operations for knowledge artifact persistence."""
 
+    @state_event("knowledge_saved", extract_knowledge_data)
     async def save_knowledge(self, artifact: "KnowledgeArtifact") -> bool:
         """Save knowledge artifact with semantic embedding storage."""
         await self._ensure_schema()
@@ -125,6 +127,7 @@ class KnowledgeOperations(SQLiteBase):
         artifacts = await self.search_knowledge(f"topic:{topic}", user_id, top_k=1, threshold=0.9)
         return artifacts[0] if artifacts else None
 
+    @state_event("knowledge_deleted", extract_delete_data)
     async def delete_knowledge(self, topic: str, user_id: str) -> bool:
         """Delete knowledge artifact by topic."""
         await self._ensure_schema()

@@ -9,11 +9,13 @@ if TYPE_CHECKING:
     from cogency.state import Workspace
 
 from .base import SQLiteBase
+from ...events.orchestration import state_event, extract_workspace_data, extract_delete_data
 
 
 class WorkspaceOperations(SQLiteBase):
     """SQLite operations for workspace persistence."""
 
+    @state_event("workspace_saved", extract_workspace_data)
     async def save_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
         """Save task workspace to storage."""
         await self._ensure_schema()
@@ -70,6 +72,7 @@ class WorkspaceOperations(SQLiteBase):
         except Exception:
             return None
 
+    @state_event("workspace_deleted", extract_delete_data)
     async def clear_workspace(self, task_id: str) -> bool:
         """Delete task workspace on completion."""
         await self._ensure_schema()
