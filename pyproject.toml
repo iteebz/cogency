@@ -131,6 +131,8 @@ addopts = [
 markers = [
     "unit: Unit tests (can run in parallel)",
     "integration: Integration tests (may need isolation)", 
+    "e2e: End-to-end tests (require real system)",
+    "system: System tests with real LLMs (minimal and expensive)",
     "contract: API contract validation tests",
     "schema: Schema validation tests",
     "slow: Slow tests that should run last"

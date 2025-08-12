@@ -1,1 +1,0 @@
-"""Tool system unit tests."""
