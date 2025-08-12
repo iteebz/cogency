@@ -1,11 +1,11 @@
 """Test event bus logging via agent.logs()."""
 
 import pytest
+from tests.fixtures.provider import MockLLM
 
 from cogency import Agent
 from cogency.events import MessageBus, get_logs, init_bus
 from cogency.events.handlers import EventBuffer
-from tests.fixtures.provider import MockLLM
 
 
 @pytest.fixture(autouse=True)

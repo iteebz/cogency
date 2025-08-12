@@ -4,10 +4,10 @@ from unittest.mock import AsyncMock
 
 import pytest
 from resilient_result import unwrap
+from tests.fixtures.provider import MockLLM
 
 from cogency.state import State
 from cogency.steps.reason import reason
-from tests.fixtures.provider import MockLLM
 
 
 @pytest.fixture

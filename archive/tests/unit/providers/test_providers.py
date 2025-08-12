@@ -1,9 +1,9 @@
 """Test Provider - essential functionality only."""
 
 import pytest
+from tests.fixtures.provider import MockProvider  # Testing unified provider behavior
 
 from cogency.providers import Provider
-from tests.fixtures.provider import MockProvider  # Testing unified provider behavior
 
 
 def test_abstract():

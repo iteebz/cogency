@@ -1,13 +1,13 @@
 """Test adaptive routing behavior - fast_react vs deep_react."""
 
 import pytest
+from tests.fixtures.provider import MockLLM
 
 from cogency.state import State
 
 # Import the triage function directly
 from cogency.steps.triage import triage
 from cogency.tools.base import Tool
-from tests.fixtures.provider import MockLLM
 
 
 class MockSearchTool(Tool):

@@ -4,9 +4,9 @@ from typing import Any
 
 import pytest
 from jsonschema import ValidationError, validate
+from tests.fixtures.provider import RealisticMockProvider
 
 from cogency.storage.state import SQLite
-from tests.fixtures.provider import RealisticMockProvider
 
 
 def validate_schema(data: dict[str, Any], schema: dict[str, Any]) -> bool:
