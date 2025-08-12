@@ -2,11 +2,11 @@
 
 Built-in tools auto-register and route intelligently. Create custom tools with zero ceremony.
 
-## Core Tools
+## Built-in Tools
 
-Cogency ships with 6 built-in tools that provide complete primitive coverage:
+6 tools provide complete primitive coverage:
 
-### 📁 **Files** - Local Filesystem I/O
+### 📁 **Files** - Filesystem I/O
 ```python
 files(action='create', path='app.py', content='print("Hello World")')
 files(action='read', path='config.json')
@@ -14,7 +14,7 @@ files(action='edit', path='app.py', line=1, content='print("Updated!")')
 files(action='list', path='src')
 ```
 
-### 💻 **Shell** - System Command Execution
+### 💻 **Shell** - Command Execution
 ```python
 shell(command='ls -la')
 shell(command='python app.py')
@@ -23,35 +23,59 @@ shell(command='git status', working_dir='/path/to/repo')
 
 
 
-### 📖 **Scrape** - Intelligent Web Content Extraction
+### 📖 **Scrape** - Web Content Extraction
 ```python
-scrape(url='https://example.com/article')  # Returns clean text content
+scrape(url='https://example.com/article')  # Clean text
 ```
 
-### 🔍 **Search** - Web Information Discovery
+### 🔍 **Search** - Web Search
 ```python
 search(query='latest AI developments 2024', max_results=5)
 ```
 
-### 🧠 **Recall** - Archival Memory Retrieval
+### 🧠 **Recall** - Agent Memory Search
 ```python
-recall(query='user preferences', layer='topics', limit=3)
+recall(query='user preferences', top_k=3, threshold=0.7)
 ```
 
-### 📚 **Retrieval** - Document Semantic Search
+### 📚 **Retrieve** - Document Search  
 ```python
-retrieval(query='API documentation', top_k=5, threshold=0.7)
+retrieve(query='API documentation', top_k=5, threshold=0.7)
 ```
 
-## Tool Coverage
+## Coverage
 
-These 6 tools compose to handle any reasonable AI agent task:
+6 tools handle any agent task:
 - **Local system**: Files + Shell
-- **Network/Web**: Scrape + Search  
-- **Information gathering**: Search + Scrape + Retrieval
-- **Memory systems**: Recall + Retrieval
+- **Web**: Scrape + Search  
+- **Information**: Search + Scrape + Retrieve  
+- **Memory**: Recall
 - **Execution**: Shell
-- **Data persistence**: Files
+- **Persistence**: Files
+
+## Composition Helpers
+
+Explicit helpers for common combinations:
+
+```python
+from cogency import Agent, devops_tools, research_tools, web_tools
+
+agent = Agent("devops", tools=devops_tools())        # Files + Shell + Search
+agent = Agent("researcher", tools=research_tools())  # Search + Scrape + Retrieve
+agent = Agent("web", tools=web_tools())              # Search + Scrape
+
+from cogency import filesystem_tools, analysis_tools, memory_tools
+agent = Agent("sysadmin", tools=filesystem_tools())  # Files + Shell
+agent = Agent("analyst", tools=analysis_tools())     # Files + Retrieve + Recall
+agent = Agent("librarian", tools=memory_tools())     # Retrieve + Recall
+```
+
+### Extensible
+
+```python
+agent = Agent("custom", tools=devops_tools() + [MyDatabaseTool()])  # Mix presets
+agent = Agent("full", tools=research_tools() + filesystem_tools())  # Combine
+```
 
 ## Custom Tools
 
@@ -78,22 +102,21 @@ class MyTool(Tool):
         )
     
     async def run(self, query: str, limit: int = 10) -> dict:
-        # Your logic here
         return {"result": f"Processed {query}"}
 
-# Tool auto-registers - zero ceremony
+# Auto-registers
 agent = Agent("assistant")
 agent.run("Use my_tool with hello")
 ```
 
 ### Key Points
-- **`@tool`** - Auto-registers with agent
-- **`args=dataclass`** - Auto-validates arguments  
-- **`schema`** - Explicit schema string for LLM
+- **`@tool`** - Auto-registers
+- **`args=dataclass`** - Auto-validates  
+- **`schema`** - Explicit schema for LLM
 - **`examples/rules`** - LLM guidance
 - **Return `Result.ok(data)` or `Result.fail(error)`**
 
-## Extension Patterns
+## Patterns
 
 ```python
 # Memory-aware tool

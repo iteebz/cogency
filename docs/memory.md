@@ -1,71 +1,69 @@
 # Memory
 
-**Situated memory that learns about users and provides contextual understanding.**
+**Learns about users and provides contextual understanding.**
 
 ```python
 from cogency import Agent
 
-# Enable memory with one parameter  
 agent = Agent("assistant", memory=True)
 
-# Memory learns automatically
+# Learns automatically
 agent.run("I prefer TypeScript over JavaScript")
 agent.run("What language should I use for my project?")
-# → Agent recalls your TypeScript preference and provides situated context
+# → Recalls preference and provides context
 ```
 
 ## How It Works
 
-Memory uses **situated memory architecture** - persistent user understanding that builds over time:
+Persistent user understanding that builds over time:
 
-1. **User Profile** - Persistent understanding of preferences, goals, expertise, and patterns
-2. **LLM Synthesis** - Automatic profile updates through intelligent interaction analysis  
-3. **Context Injection** - Seamless integration into agent reasoning
+1. **User Profile** - Preferences, goals, expertise, patterns
+2. **LLM Synthesis** - Auto-updates through interaction analysis  
+3. **Context Injection** - Seamless integration into reasoning
 
-The system automatically learns from interactions and synthesizes understanding without external dependencies.
+Learns from interactions and synthesizes understanding without external dependencies.
 
 ## Key Features
 
-- **Zero configuration** - Just set `memory=True`
-- **No external dependencies** - Pure LLM-based architecture  
-- **Human priority** - User statements override agent observations
-- **Automatic synthesis** - Compresses interactions intelligently
-- **Cross-session persistence** - Remembers between conversations
+- **Zero configuration** - Set `memory=True`
+- **No dependencies** - Pure LLM architecture  
+- **Human priority** - User statements override observations
+- **Auto-synthesis** - Compresses interactions intelligently
+- **Cross-session** - Remembers between conversations
 
 ## Basic Usage
 
 ```python
-# Simple memory activation
 agent = Agent("assistant", memory=True)
 
-# Memory learns from every interaction
+# Learns from every interaction
 agent.run("I work primarily with Python and React")
 agent.run("I prefer functional programming patterns")
 agent.run("Help me design an API")
-# → Agent uses your preferences to guide design recommendations
+# → Uses preferences to guide design recommendations
 ```
 
-## Memory API
+## What It Tracks
 
-Memory works automatically through agent interactions. The system tracks:
+Works automatically through interactions. Tracks:
 
 - **Preferences** - Language choices, communication style, technical preferences
-- **Goals** - Current objectives and long-term aspirations  
-- **Expertise** - Technical knowledge areas and skill levels
+- **Goals** - Objectives and aspirations  
+- **Expertise** - Knowledge areas and skill levels
 - **Projects** - Active work and context
-- **Patterns** - What works and what doesn't for the user
+- **Patterns** - What works and what doesn't
 
 ```python
-# Memory learns from natural conversation
+# Learns from natural conversation
 agent.run("I prefer functional programming patterns")
 agent.run("I'm working on a React app with TypeScript")
 agent.run("Help me design a clean API")
-# → Agent uses your preferences and project context automatically
+# → Uses preferences and project context automatically
 ```
 
 ## Persistence
 
-Memory automatically persists across sessions:
+Auto-persists across sessions:
 
 ```python
 agent = Agent("assistant", memory=True)
@@ -73,15 +71,15 @@ agent = Agent("assistant", memory=True)
 # First session
 agent.run("I'm working on a React app")
 
-# Later session (different process)
+# Later session
 agent = Agent("assistant", memory=True)  
 agent.run("Continue helping with my project")
-# → Agent remembers it's a React app
+# → Remembers it's a React app
 ```
 
-## Memory Synthesis
+## Synthesis
 
-Memory automatically refines understanding over time through LLM-driven synthesis:
+Auto-refines understanding over time:
 
 ```python
 # Initial interactions build understanding
@@ -89,56 +87,50 @@ agent.run("I prefer TypeScript over JavaScript")
 agent.run("I like functional programming")  
 agent.run("I'm working on a React project")
 
-# After several interactions, memory synthesizes
-# Consolidated understanding: 
+# After several interactions, synthesizes:
 # "Developer with TypeScript preference, functional programming style, 
-#  working on React applications with emphasis on type safety"
+#  working on React apps with emphasis on type safety"
 ```
 
 ## Best Practices
 
-**Let memory work automatically** - The system learns from natural conversation without manual intervention.
+**Let memory work automatically** - Learns from natural conversation.
 
-**Trust human priority** - User statements automatically override agent observations during synthesis.
+**Trust human priority** - User statements override observations.
 
-**Enable memory for continuity** - Use `memory=True` for cross-session learning.
+**Enable for continuity** - Use `memory=True` for cross-session learning.
 
 ```python
-# Recommended setup for persistent learning
-agent = Agent(
-    "assistant", 
-    memory=True
-)
+agent = Agent("assistant", memory=True)
 ```
 
-## Memory vs Reasoning State
+## Memory vs Reasoning
 
-- **Memory**: Persistent user understanding (preferences, goals, expertise, patterns)
-- **Reasoning**: Ephemeral task context (current objective, strategy, insights)
+- **Memory**: Persistent user understanding (preferences, goals, expertise)
+- **Reasoning**: Ephemeral task context (objective, strategy, insights)
 
-Memory learns *about* the user across sessions. Reasoning tracks *current* task progress.
+Memory learns *about* the user. Reasoning tracks *current* task progress.
 
-## Advanced Configuration
+## Advanced
 
 ```python
-# Memory is enabled by default with memory=True
-agent = Agent("assistant", memory=True)
+agent = Agent("assistant", memory=True)  # Default
 
-# Custom memory setup with explicit dependencies
-from cogency.memory import SituatedMemory
+# Custom setup
+from cogency.memory import Memory
 from cogency.providers import OpenAI
 
-memory = SituatedMemory(provider=OpenAI(), store=my_store)
+memory = Memory(provider=OpenAI(), store=my_store)
 agent = Agent("assistant", memory=memory)
 ```
 
-## Technical Details
+## Technical
 
-Memory is implemented as pure LLM reasoning without vector databases or embeddings:
+Pure LLM reasoning without vector databases or embeddings:
 
-- **Direct Context Injection** - Memory embedded directly in reasoning prompts
-- **LLM Attention Filtering** - Natural relevance determination during reasoning  
-- **Synthesis-based Compression** - LLM-driven compression preserves meaning
-- **Zero External Dependencies** - No additional infrastructure required
+- **Direct Context Injection** - Embedded in reasoning prompts
+- **LLM Attention Filtering** - Natural relevance determination  
+- **Synthesis Compression** - LLM-driven compression preserves meaning
+- **Zero Dependencies** - No additional infrastructure
 
-This approach eliminates retrieval latency and provides natural relevance filtering through LLM attention mechanisms.
+Eliminates retrieval latency and provides natural relevance filtering.

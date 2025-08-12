@@ -34,8 +34,7 @@ Built-in tools auto-load:
 - **Scrape** - Web content extraction
 - **Recall** - Memory retrieval
 
-### Document Retrieval
-Enable semantic document search:
+### Document Retrieve
 ```bash
 export COGENCY_RETRIEVAL_PATH="/path/to/embeddings"
 cogency "Find documentation about authentication"
@@ -43,9 +42,9 @@ cogency "Find documentation about authentication"
 
 ## Configuration
 
-The CLI uses default Agent settings:
+CLI uses default Agent settings:
 - Memory enabled
 - All 6 built-in tools  
-- Auto-detects LLM provider from API keys
+- Auto-detects LLM provider
 
 For advanced configuration, use the Python API.

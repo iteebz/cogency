@@ -13,7 +13,7 @@ pip install -v cogency
 ## API Keys
 
 ```bash
-# Set any supported provider
+# Set any provider
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
 export GEMINI_API_KEY=...
@@ -28,8 +28,8 @@ echo "OPENAI_API_KEY=sk-..." > .env
 ## Common Issues
 
 **"No API key found"**
-- Set environment variable for any supported provider
-- Cogency auto-detects available keys
+- Set environment variable for any provider
+- Auto-detects available keys
 
 **"Agent execution failed"**
 - Check API key validity
@@ -90,4 +90,4 @@ ls .cogency/logs/
 
 ---
 
-*Production troubleshooting for Cogency v1.3.0*
+*Troubleshooting for Cogency v1.2.2*

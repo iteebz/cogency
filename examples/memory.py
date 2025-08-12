@@ -8,10 +8,10 @@ from cogency import Agent
 
 async def session_1():
     """First conversation - establish context."""
-    print("📝 SESSION 1: Setting Context")
+    print("SESSION 1: Setting Context")
     print("=" * 40)
 
-    agent = Agent("assistant", memory=True, persist=True)
+    agent = Agent("assistant", memory=True)
 
     await agent.run_async("""
     I'm the CTO of a fintech startup building a mobile banking app.
@@ -26,11 +26,11 @@ async def session_1():
 
 async def session_2():
     """Second conversation - test memory recall."""
-    print("\n💭 SESSION 2: Memory Recall")
+    print("\nSESSION 2: Memory Recall")
     print("=" * 40)
 
     # Same user_id to access stored memory
-    agent = Agent("assistant", memory=True, persist=True)
+    agent = Agent("assistant", memory=True)
 
     response = await agent.run_async("""
     We're seeing 15% latency increase during peak hours.

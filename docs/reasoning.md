@@ -1,10 +1,10 @@
 # Adaptive Reasoning
 
-Cogency agents automatically adjust their thinking depth based on task complexity.
+Agents adjust thinking depth based on task complexity.
 
 ## Core Concept
 
-**Adaptive reasoning** means agents discover task complexity during execution and adjust their cognitive approach automatically.
+Agents discover task complexity during execution and adjust approach automatically.
 
 - **Fast mode**: Direct reasoning for simple queries
 - **Deep mode**: Reflection and planning for complex tasks  
@@ -16,7 +16,7 @@ Cogency agents automatically adjust their thinking depth based on task complexit
 ```python
 agent = Agent("assistant", mode="fast")
 agent.run("What's 2+2?")
-# � Direct response without deep reflection
+# Direct response
 ```
 
 **Characteristics:**
@@ -29,7 +29,7 @@ agent.run("What's 2+2?")
 ```python
 agent = Agent("assistant", mode="deep")
 agent.run("Analyze this codebase and suggest improvements")
-# � Multi-step analysis with reflection and planning
+# Multi-step analysis with reflection
 ```
 
 **Characteristics:**
@@ -42,42 +42,42 @@ agent.run("Analyze this codebase and suggest improvements")
 ```python
 agent = Agent("assistant", mode="adapt")  # or just Agent("assistant")
 agent.run("Any query")
-# � Automatically chooses appropriate depth
+# Auto-chooses depth
 ```
 
 **Characteristics:**
 - Task complexity analysis in triage step
 - Automatic mode selection
-- Zero configuration required
+- Zero configuration
 - Best for: general-purpose agents
 
 ## How It Works
 
 ### 4-Step Execution Loop
 
-1. **Triage**: Evaluates task complexity and selects reasoning mode
-2. **Reason**: Applies selected reasoning depth (fast or deep)
-3. **Act**: Executes tools with automatic retry
-4. **Respond**: Formats response with identity awareness
+1. **Triage**: Evaluates complexity, selects mode
+2. **Reason**: Applies reasoning depth (fast or deep)
+3. **Act**: Executes tools with retry
+4. **Respond**: Formats response
 
 ### Complexity Analysis
 
-The triage step analyzes:
+Triage analyzes:
 - Query structure and intent
-- Required tool orchestration
+- Tool orchestration needed
 - Context complexity
-- Domain expertise needed
+- Domain expertise required
 
 ### Mode Switching
 
 ```python
-# These queries trigger different modes automatically:
+# Auto-triggers different modes:
 
-# Simple � Fast mode
+# Simple → Fast mode
 agent.run("What's the weather?")
 
-# Complex � Deep mode  
-agent.run("Build a production API with authentication, database, and tests")
+# Complex → Deep mode  
+agent.run("Build a production API with auth, database, and tests")
 ```
 
 ## Configuration
@@ -86,8 +86,8 @@ agent.run("Build a production API with authentication, database, and tests")
 ```python
 agent = Agent(
     "assistant",
-    max_iterations=20,      # Max reasoning iterations
-    mode="deep"    # Force deep reasoning
+    max_iterations=20,      # Max iterations
+    mode="deep"    # Force deep
 )
 ```
 
@@ -96,7 +96,7 @@ agent = Agent(
 agent = Agent(
     "assistant", 
     max_iterations=3,       # Limited iterations
-    mode="fast"    # Prefer speed over thoroughness
+    mode="fast"    # Prefer speed
 )
 ```
 
@@ -109,7 +109,7 @@ async for chunk in agent.stream("Complex analysis task"):
     print(chunk, end="", flush=True)
 ```
 
-Output shows reasoning progression:
+Shows reasoning progression:
 ```
 =' triage: Complex task detected � escalating to deep mode
 >� reason: Analyzing requirements...
@@ -125,31 +125,25 @@ Output shows reasoning progression:
 
 ### Let Adaptive Mode Work
 ```python
-# Recommended - let agent choose
+# Let agent choose
 agent = Agent("assistant")  # mode="adapt" by default
 
-# Override only when needed
-agent = Agent("assistant", mode="fast")  # For speed-critical apps
-agent = Agent("assistant", mode="deep")  # For analysis-heavy tasks
+# Override when needed
+agent = Agent("assistant", mode="fast")  # Speed-critical apps
+agent = Agent("assistant", mode="deep")  # Analysis-heavy tasks
 ```
 
 ### Depth Configuration
 ```python
-# Production: balance quality and speed
-agent = Agent("assistant", max_iterations=10)
-
-# Development: faster iteration
-agent = Agent("assistant", max_iterations=5, mode="fast")
-
-# Research: thorough analysis
-agent = Agent("assistant", max_iterations=25, mode="deep")
+agent = Agent("assistant", max_iterations=10)  # Production: balance
+agent = Agent("assistant", max_iterations=5, mode="fast")  # Development
+agent = Agent("assistant", max_iterations=25, mode="deep")  # Research
 ```
 
 ### Memory Integration
 ```python
-# Memory enhances reasoning quality
 agent = Agent("assistant", memory=True)
-# Agent remembers context and preferences for better reasoning
+# Remembers context for better reasoning
 ```
 
 ## Performance Characteristics
@@ -165,24 +159,24 @@ agent = Agent("assistant", memory=True)
 ### Research Assistant
 ```python
 agent = Agent("researcher", mode="deep", max_iterations=20)
-agent.run("Research renewable energy trends and create a comprehensive report")
-# � Deep analysis with multiple reasoning passes
+agent.run("Research renewable energy trends and create report")
+# Deep analysis with multiple passes
 ```
 
 ### Chat Bot
 ```python
 agent = Agent("chatbot", mode="fast", max_iterations=3)
 agent.run("Hello, how are you?")
-# � Quick, friendly response
+# Quick, friendly response
 ```
 
 ### Code Assistant
 ```python
 agent = Agent("coder", mode="adapt")
 agent.run("Fix this bug: [code snippet]")
-# � Automatically chooses appropriate depth based on complexity
+# Auto-chooses depth based on complexity
 ```
 
 ---
 
-*Adaptive reasoning architecture for Cogency v1.3.0*
+*Adaptive reasoning for Cogency v1.2.2*

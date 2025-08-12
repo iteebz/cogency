@@ -1,24 +1,23 @@
 # Configuration
 
-Zero ceremony configuration with sensible defaults.
+Zero ceremony with sensible defaults.
 
 ## Agent Configuration
 
 ```python
 from cogency import Agent
 
-# Zero ceremony - all defaults
-agent = Agent("assistant")
+agent = Agent("assistant")  # All defaults
 
-# Common configuration
+# Common config
 agent = Agent(
     "assistant",
     tools=[Files(), Shell()],     # Specific tools (default: none)
-    memory=True,                  # Enable memory (default: False)
-    mode="deep",                  # Reasoning mode: "fast", "deep", "adapt" (default: "adapt")
-    max_iterations=15,            # Max reasoning loops (default: 10)
-    notify=False,                 # Disable progress display (default: True)
-    identity="You are..."         # Custom system prompt
+    memory=True,                  # Memory (default: False)
+    mode="deep",                  # Mode: "fast", "deep", "adapt" (default: "adapt")
+    max_iterations=15,            # Max loops (default: 10)
+    notify=False,                 # Progress display (default: True)
+    identity="You are..."         # Custom prompt
 )
 ```
 
@@ -30,19 +29,18 @@ agent = Agent(
 - **`memory`**: Enable memory - `True` or `SituatedMemory` instance (default: `False`)
 - **`handlers`**: Custom event handlers for streaming/websockets
 
-### Behavior Parameters  
-- **`identity`**: Custom system prompt for personality
-- **`mode`**: Reasoning mode - `"adapt"`, `"fast"`, or `"deep"` (default: `"adapt"`)
-- **`max_iterations`**: Max reasoning iterations (default: `10`)
-- **`notify`**: Enable progress notifications (default: `True`)
+### Behavior  
+- **`identity`**: Custom system prompt
+- **`mode`**: Reasoning mode - `"adapt"`, `"fast"`, `"deep"` (default: `"adapt"`)
+- **`max_iterations`**: Max iterations (default: `10`)
+- **`notify`**: Progress notifications (default: `True`)
 
 ## Memory Persistence
 
-Memory automatically persists to SQLite:
+Auto-persists to SQLite:
 
 ```python
-# Memory automatically persists across sessions
-agent = Agent("assistant", memory=True)
+agent = Agent("assistant", memory=True)  # Persists across sessions
 ```
 
 ## Provider Configuration
@@ -61,7 +59,7 @@ agent = Agent("assistant", llm=Anthropic(model="claude-3-5-sonnet-20241022"))
 
 ## Environment Variables
 
-Cogency auto-detects providers from environment:
+Auto-detects providers:
 - `OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`  
 - `GEMINI_API_KEY`
@@ -83,4 +81,4 @@ Override with `COGENCY_BASE_DIR` environment variable.
 
 ---
 
-*Production-ready configuration for Cogency v1.3.0*
+*Configuration for Cogency v1.2.2*

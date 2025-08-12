@@ -4,31 +4,30 @@
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-**A reasoning engine for adaptive AI agents.**
+**Adaptive AI agents that reason and act.**
 
 ```python
 from cogency import Agent
 agent = Agent("assistant")
 
-# Simple task → direct response
+# Simple → fast
 agent.run("What's 2+2?")
 
-# Complex task → adaptive reasoning
-agent.run("Analyze this codebase and suggest architectural improvements")
-# Automatically escalates reasoning depth and tool usage
+# Complex → deep reasoning + tools
+agent.run("Analyze this codebase and suggest improvements")
 ```
 
 ## Why Cogency?
 
-**Zero ceremony, maximum capability** - get production-ready agents from a single import.
+**Zero ceremony. Maximum capability.**
 
-- **🔒 Semantic security** - Built-in safety, blocks unsafe requests automatically
-- **⚡ Adaptive reasoning** - Thinks fast for simple queries, deep for complex tasks
-- **🛠️ Smart tooling** - Tools auto-register and route intelligently 
-- **🧠 Built-in memory** - Persistent context that actually learns about users
-- **🏗️ Production ready** - Resilience, tracing, and error recovery out of the box
+- **🔒 Semantic security** - Blocks unsafe requests automatically
+- **⚡ Adaptive reasoning** - Fast for simple, deep for complex
+- **🛠️ Smart tooling** - Auto-registers and routes intelligently
+- **🧠 Built-in memory** - Learns and remembers users
+- **🏗️ Production ready** - Resilience, tracing, error recovery
 
-## Get Started in 30 Seconds
+## Get Started
 
 ```bash
 pip install cogency
@@ -40,131 +39,103 @@ from cogency import Agent
 
 agent = Agent("assistant")
 result = agent.run("What's in the current directory?")
-print(result)
 ```
 
-**That's it.** No configuration, no setup, no tool registration. Just working agents.
+**That's it.** No configuration, no setup, just working agents.
 
 ## What Makes It Different
 
 **Semantic Security**
 ```python
-agent.run("rm -rf /")  # ❌ Blocked automatically
-agent.run("List files safely")  # ✅ Proceeds normally
+agent.run("rm -rf /")  # ❌ Blocked
+agent.run("List files safely")  # ✅ Allowed
 ```
 
 **Adaptive Intelligence**  
 ```python
-agent.run("What's 2+2?")  # Fast: Direct response
-agent.run("Analyze my codebase")  # Deep: Multi-step reasoning
+agent.run("What's 2+2?")  # Fast
+agent.run("Analyze my codebase")  # Deep reasoning
 ```
 
-**Memory That Actually Works**
+**Memory That Works**
 ```python
 agent = Agent("assistant", memory=True)
 agent.run("I prefer Python and work at Google")
 agent.run("What language should I use?")  # → "Python"
 ```
 
-## Built-in Capabilities
+## Built-in Tools
 
-**Tools that just work:**
-📁 **Files** - Read, write, edit any file  
+📁 **Files** - Read, write, edit  
 💻 **Shell** - Execute commands safely  
-🌐 **HTTP** - API calls and requests  
 📖 **Scrape** - Extract web content  
-🔍 **Search** - Web search via DuckDuckGo  
+🔍 **Search** - Web search  
+🧠 **Retrieve** - Document embeddings  
+🎯 **Recall** - Agent memory  
 
-**Plus add your own:**
+**Add custom tools:**
 ```python
 @tool
 class DatabaseTool(Tool):
     async def run(self, query: str):
         return await db.execute(query)
-
-# Automatically available to all agents
+# Auto-registers with all agents
 ```
 
-## Universal LLM Support
+## Any LLM
 
-Works with any LLM - just set the API key:
+Set any API key - Cogency auto-configures:
 
 ```bash
-# OpenAI
 export OPENAI_API_KEY=sk-...
-
-# Anthropic  
 export ANTHROPIC_API_KEY=sk-ant-...
-
-# Google Gemini
 export GEMINI_API_KEY=...
-
-# Mistral
 export MISTRAL_API_KEY=...
-
-# OpenRouter (cost-effective)
 export OPENROUTER_API_KEY=sk-or-v1-...
-
-# Groq (high-performance) 
 export GROQ_API_KEY=gsk_...
-
-# Ollama (local models)
-export OLLAMA_API_KEY=...
-```
-
-No configuration needed - Cogency detects and configures automatically.  
+# Ollama: first run `ollama serve`
+```  
 
 ## Production Features
 
-**Streaming responses:**
-```python
-async for chunk in agent.stream("Analyze this large codebase"):
-    print(chunk, end="")
-```
-
-**Full observability:**
+**Observability:**
 ```python
 result = agent.run("Deploy my app")
 logs = agent.logs()  # See exactly what happened
-print(logs)  # ["🔧 triage: selected 2 tools", "💻 shell: deploying...", ...]
 ```
 
-**Error resilience:**
+**Resilience:**
 ```python
-# Tool failures don't crash execution
-agent.run("List files in /nonexistent")  # → Graceful error handling
-# API timeouts auto-retry with backoff
-# Memory failures don't block responses
+agent.run("List files in /nonexistent")  # Graceful errors
+# Auto-retry timeouts, memory failures don't block
 ```
 
 ## Advanced Usage
 
 ```python
-# Full customization when needed
+from cogency import Agent, filesystem_tools
+
 agent = Agent(
     "assistant",
-    memory=True,              # Persistent user context
-    tools=["files", "shell"],  # Specific tools only  
-    max_iterations=20,        # Deep reasoning limit
-    debug=True               # Detailed execution logs
+    memory=True,                    # Persistent context
+    tools=filesystem_tools(),       # Specific tools
+    max_iterations=20,              # Reasoning depth
+    debug=True                     # Detailed logs
 )
 
-# Custom memory configuration
-from cogency.config import MemoryConfig
-agent = Agent("assistant", memory=MemoryConfig(threshold=8000))
-
-# Custom event handlers
+# Custom handlers
 agent = Agent("assistant", handlers=[websocket_handler])
 ```
 
 ## Documentation
 
-- **[Quick Start](docs/quickstart.md)** - Get running in 5 minutes
-- **[API Reference](docs/api.md)** - Complete Agent class documentation
-- **[Tools](docs/tools.md)** - Built-in tools and custom tool creation
-- **[Examples](docs/examples.md)** - Detailed code examples and walkthroughs
-- **[Memory](docs/memory.md)** - Memory system documentation
-- **[Reasoning](docs/reasoning.md)** - Adaptive reasoning modes
+- **[Quick Start](docs/quickstart.md)** - 5 minute setup
+- **[API Reference](docs/api.md)** - Complete documentation
+- **[Tools](docs/tools.md)** - Built-in and custom tools
+- **[Examples](examples/)** - Working applications
+- **[Deployment](docs/deployment.md)** - Production guide
+- **[Memory](docs/memory.md)** - Memory system
+- **[Reasoning](docs/reasoning.md)** - Adaptive modes
 
 ## License
 
@@ -175,4 +146,17 @@ Apache 2.0
 - **Issues**: [GitHub Issues](https://github.com/iteebz/cogency/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/iteebz/cogency/discussions)
 
-*Built for developers who want agents that just work.*
+## Tool Composition
+
+```python
+from cogency import Agent, devops_tools, research_tools, web_tools
+
+agent = Agent("devops", tools=devops_tools())  # Files + Shell + Search
+agent = Agent("researcher", tools=research_tools())  # Search + Scrape + Retrieval
+agent = Agent("web", tools=web_tools())  # Search + Scrape
+
+# Mix and match
+agent = Agent("custom", tools=devops_tools() + [MyCustomTool()])
+```
+
+*Agents that just work.*

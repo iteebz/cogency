@@ -43,7 +43,7 @@ agent.run("Use my_tool")  # → Automatically selects and uses CustomTool
 **Key Properties:**
 - **Auto-registration** - Tools register themselves on import
 - **Intelligent selection** - Triage step chooses relevant tools per query
-- **Built-in tools** - Files, Shell, Search, Scrape, Retrieval, Recall included
+- **Built-in tools** - Files, Shell, Search, Scrape, Retrieve, Recall included
 - **Zero configuration** - Works immediately without explicit tool lists
 
 ### 3. Adaptive Reasoning

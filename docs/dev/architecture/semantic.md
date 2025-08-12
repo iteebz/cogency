@@ -29,7 +29,7 @@
 
 2. **Inconsistent Injection Patterns**:
    ```python
-   # Retrieval: Direct constructor injection
+   # Retrieve: Direct constructor injection
    self._embedder = embedder
    
    # Recall: Global singleton mutation (temporal coupling)
@@ -42,7 +42,7 @@
    - Search result formatting scattered
 
 4. **Mixed Persistence**:
-   - Retrieval: JSON files
+   - Retrieve: JSON files
    - Archive: Markdown files + memory cache  
    - Recall: Broken bridge between the two
 
@@ -65,7 +65,7 @@
 1. **Single Source of Truth**: All semantic operations in `cogency/semantic.py`
 2. **Consistent Injection**: All tools receive embedder via identical pattern
 3. **Unified Storage**: SQLite for everything with proper schemas
-4. **Clear Separation**: Static corpus (Retrieval) vs Dynamic memory (Recall)
+4. **Clear Separation**: Static corpus (Retrieve) vs Dynamic memory (Recall)
 5. **Zero Temporal Coupling**: No global state mutations required
 
 ### Architecture Overview
@@ -100,7 +100,7 @@
 - Consistent error handling with `Result` types
 - No global state dependencies
 
-### 2. Retrieval Tool (Static Document Search)
+### 2. Retrieve Tool (Static Document Search)
 
 **Purpose**: Search pre-computed document embeddings.
 
@@ -111,7 +111,7 @@ User Documents → [Embedding Script] → JSON Index → Tool Search → Results
 
 **Configuration**:
 ```python
-retrieval = Retrieval(
+retrieve = Retrieve(
     embeddings_path="./docs.json",  # Path to JSON embeddings
     top_k=5,                        # Default result count
     min_similarity=0.0,             # Default threshold
@@ -319,7 +319,7 @@ async def archive_conversation(self, memory=None):
 
 ## API Specifications
 
-### Retrieval Tool API
+### Retrieve Tool API
 
 ```python
 # Search static documents
@@ -381,7 +381,7 @@ result = await semantic_search(
     embedder=agent.embed,
     query="search query",
     
-    # For static documents (Retrieval pattern)
+    # For static documents (Retrieve pattern)
     file_path="./embeddings.json",
     top_k=5,
     threshold=0.7,
@@ -403,9 +403,9 @@ result = await semantic_search(
 
 ```python
 async def test_end_to_end_retrieval():
-    """Test complete Retrieval flow with real embeddings."""
-    # Create agent with Retrieval tool
-    agent = Agent("test", tools=[Retrieval("test_docs.json")])
+    """Test complete Retrieve flow with real embeddings."""
+    # Create agent with Retrieve tool
+    agent = Agent("test", tools=[Retrieve("test_docs.json")])
     
     # Execute search
     result = await agent.run_async("find authentication docs", user_id="test_user")
@@ -454,7 +454,7 @@ async def test_user_isolation():
 
 ## Performance Characteristics
 
-### Retrieval Tool (Static Corpus)
+### Retrieve Tool (Static Corpus)
 - **Latency**: O(n) where n = corpus size (vectorized similarity)
 - **Memory**: Loads entire corpus into memory for fast search
 - **Storage**: JSON files, easily portable and versionable
@@ -540,11 +540,11 @@ if len(query_embedding) != expected_dimension:
 2. **Tool Instantiation**:
    ```python
    # OLD (manual injection)
-   retrieval = Retrieval()
+   retrieve = Retrieve()
    retrieval._embedder = agent.embed
    
    # NEW (automatic injection)
-   agent = Agent("name", tools=[Retrieval()])
+   agent = Agent("name", tools=[Retrieve()])
    ```
 
 3. **Search API**:
@@ -631,7 +631,7 @@ if len(query_embedding) != expected_dimension:
 ### ✅ Completed
 - [x] CANONICAL semantic foundation implemented
 - [x] SQLite vector storage schema created
-- [x] Retrieval tool rebuilt with new foundation
+- [x] Retrieve tool rebuilt with new foundation
 - [x] Recall tool rebuilt with SQLite backend  
 - [x] Knowledge extraction system implemented
 - [x] Consistent dependency injection patterns
@@ -661,7 +661,7 @@ if len(query_embedding) != expected_dimension:
 store = SQLite(db_path="~/.cogency/state.db")  # Default
 
 # JSON embeddings paths (per-tool configuration)
-retrieval = Retrieval(embeddings_path="./docs/embeddings.json")
+retrieve = Retrieve(embeddings_path="./docs/embeddings.json")
 ```
 
 ### Embedding Dimension Consistency

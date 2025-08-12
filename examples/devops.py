@@ -3,14 +3,14 @@
 
 import asyncio
 
-from cogency import Agent, Files, Shell
+from cogency import Agent, devops_tools
 
 
 async def main():
     print("⚙️  DEVOPS AUTOMATION")
     print("=" * 40)
 
-    devops = Agent("platform_engineer", tools=[Shell(), Files()])
+    devops = Agent("platform_engineer", tools=devops_tools())
 
     # Full infrastructure automation
     await devops.run_async("""

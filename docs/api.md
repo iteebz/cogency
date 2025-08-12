@@ -1,19 +1,21 @@
 # Agent API
 
 ```python
-from cogency import Agent
+from cogency import Agent, devops_tools
 
-# Zero ceremony
 agent = Agent("assistant")
 result = agent.run("What's 2+2?")
 
-# Full configuration
+# With tools
+agent = Agent("assistant", tools=devops_tools())
+
+# Full config
 agent = Agent(
     "researcher",
-    max_iterations=10,             # Max reasoning iterations
-    identity="You are...",         # Custom system prompt
+    tools=devops_tools(),          # Tool helpers
+    max_iterations=10,             # Reasoning limit
+    identity="You are...",         # Custom prompt
     memory=True,                   # Enable memory
-    mode="deep",                   # Reasoning mode
     notify=False                   # Disable notifications
 )
 ```
@@ -21,37 +23,29 @@ agent = Agent(
 ## Parameters
 
 - **`name`**: Agent identifier (default "cogency")
-- **`tools`**: List of tool names, Tool objects, or string (default None)
-- **`memory`**: Enable memory - bool or SituatedMemory instance (default False)
-- **`handlers`**: Custom event handlers for streaming, websockets, etc
-- **`identity`**: Custom system prompt for personality
-- **`mode`**: Reasoning mode - "adapt", "fast", or "deep" (default "adapt")
+- **`tools`**: Tool objects or helpers (default None)
+- **`memory`**: Enable memory - bool or ProfileManager (default False)
+- **`handlers`**: Event handlers for streaming, websockets, etc
+- **`identity`**: Custom system prompt
 - **`max_iterations`**: Max reasoning iterations (default: 10)
 - **`notify`**: Enable notifications (default True)
 
 ## Methods
 
 ```python
-# Execute and return complete response
 result = agent.run("What's 2+2?", user_id="alice")
+result = await agent.run_async("Research quantum computing")
 
-# Stream execution with real-time progress
-async for chunk in agent.stream("Research quantum computing"):
-    print(chunk, end="", flush=True)
-
-# Get execution traces (see observability docs)
+# Execution traces
 agent = Agent("assistant", handlers=[log_handler])
 agent.run("Calculate something")
-# Traces captured via handlers or logging
+# Traces via handlers or logging
 ```
 
-## Memory Configuration
+## Memory
 
 ```python
-from cogency import Agent
-
-# Memory is automatically configured
-agent = Agent("assistant", memory=True)
+agent = Agent("assistant", memory=True)  # Auto-configured
 ```
 
 ## Custom Tools
@@ -67,5 +61,5 @@ class CustomTool(Tool):
     async def run(self, args: str) -> dict:
         return {"result": f"Processed: {args}"}
 
-agent = Agent("assistant")  # Tool auto-registers
+agent = Agent("assistant")  # Auto-registers
 ```

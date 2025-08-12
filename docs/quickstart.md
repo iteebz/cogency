@@ -1,8 +1,8 @@
 # Quick Start
 
-Get up and running with Cogency in 5 minutes.
+5 minute setup.
 
-> 🎯 **v1.3.0**: Production ready with built-in tool system
+> **v1.2.2**: Production ready with built-in tools
 
 ## Installation
 
@@ -10,26 +10,18 @@ Get up and running with Cogency in 5 minutes.
 pip install cogency
 ```
 
-## API Key Setup
+## API Key
 
-Cogency auto-detects your LLM provider. Set any supported API key:
+Set any API key - Cogency auto-detects:
 
 ```bash
-# OpenAI
 export OPENAI_API_KEY=sk-...
-
-# Anthropic  
 export ANTHROPIC_API_KEY=sk-ant-...
-
-# Google Gemini
 export GEMINI_API_KEY=your-key-here
-
-
-# Mistral
 export MISTRAL_API_KEY=your-key-here
 ```
 
-Or create a `.env` file:
+Or use `.env` file:
 ```bash
 OPENAI_API_KEY=sk-...
 ```
@@ -39,56 +31,42 @@ OPENAI_API_KEY=sk-...
 ```python
 from cogency import Agent
 
-# Create an agent
 agent = Agent("assistant")
-
-# Simple query
 result = agent.run("What's 2 + 2?")
 print(result)  # "4"
 ```
 
-## Streaming Execution
-
-Watch your agent think in real-time:
+## Async
 
 ```python
-async for chunk in agent.stream("Find and summarize the latest AI research"):
-    print(chunk, end="", flush=True)
-```
+import asyncio
 
-Output:
-```
-🔍 search(query='latest AI research 2024') → 5 results
-📖 scrape(url='https://arxiv.org/recent') → Recent AI Papers
-Based on recent research, key developments include improved transformer architectures and multimodal AI advances.
+async def main():
+    agent = Agent("assistant")
+    result = await agent.run_async("Find and summarize the latest AI research")
+    print(result)
+
+asyncio.run(main())
 ```
 
 ## Built-in Tools
 
-Agents automatically use relevant tools:
+Auto-select relevant tools:
 
 ```python
-# Uses shell tool for computation
-agent.run("Calculate 15% of $1,250")
+agent.run("Calculate 15% of $1,250")  # Shell
+agent.run("Latest Python 3.12 features")  # Search  
+agent.run("Summarize this article: https://example.com/post")  # Scrape
+agent.run("Save this data to results.json")  # Files
 
-# Uses search tool for current information
-agent.run("Latest Python 3.12 features")
-
-# Uses scrape tool for content extraction
-agent.run("Summarize this article: https://example.com/post")
-
-# Uses files tool for data persistence
-agent.run("Save this data to results.json")
-
-# Uses recall tool for memory
+# Memory
+agent = Agent("assistant", memory=True)
 agent.run("What did I tell you about my preferences earlier?")
 ```
 
-Tools automatically selected based on task requirements.
+Tools auto-select based on task.
 
 ## Custom Tools
-
-Create tools with minimal code:
 
 ```python
 from cogency.tools import Tool, tool
@@ -101,85 +79,69 @@ class MyTool(Tool):
     async def run(self, args: str):
         return {"result": f"Processed: {args}"}
 
-# Tool auto-registers - just create your agent
+# Auto-registers
 agent = Agent("assistant")
 agent.run("Use my_tool with hello")
 ```
 
 ## Memory
 
-Agents remember conversations automatically:
+Auto-remember conversations:
 
 ```python
-# Agent saves important information
 agent.run("Remember I work at Google and prefer Python")
-
-# Later in the conversation
-agent.run("What programming language do I prefer?")
-# "You prefer Python"
+agent.run("What programming language do I prefer?")  # "Python"
 ```
 
 ## Adaptive Reasoning
 
-Agents automatically choose the right thinking mode:
+Auto-choose thinking mode:
 
 ```python
-# Simple query → fast mode
-agent.run("What's 2+2?")
-
-# Complex query → deep mode with reflection and planning
-agent.run("Analyze this codebase and suggest improvements")
+agent.run("What's 2+2?")  # Fast mode
+agent.run("Analyze this codebase and suggest improvements")  # Deep mode
 ```
 
 ## Configuration
 
 ```python
-# Custom configuration
 agent = Agent(
     "assistant",
-    notify=False,       # Disable progress notifications
-    debug=True,         # Enable detailed tracing
-    max_iterations=20   # Allow more reasoning iterations
+    notify=False,       # Disable notifications
+    debug=True,         # Detailed tracing
+    max_iterations=20   # Reasoning iterations
 )
 ```
 
 ## Next Steps
 
-- **[API Reference](api.md)** - Complete Agent class documentation
-- **[Tools](tools.md)** - Built-in tools and custom tool creation  
+- **[API Reference](api.md)** - Complete documentation
+- **[Tools](tools.md)** - Built-in and custom tools
 - **[Examples](../examples/)** - Working applications
-- **[Memory](memory.md)** - Memory backends and configuration
-- **[Reasoning](reasoning.md)** - Understanding adaptive reasoning modes
+- **[Deployment](deployment.md)** - Production guide
+- **[Memory](memory.md)** - Memory backends
+- **[Reasoning](reasoning.md)** - Adaptive modes
 
 ## Common Patterns
 
 ### Research Agent
 ```python
-from cogency import Agent
-
-# Tools auto-register - agents use what they need
 agent = Agent("researcher")
-result = agent.run("Find and analyze the latest quantum computing research papers")
+agent.run("Find and analyze quantum computing research papers")
 ```
 
 ### Coding Assistant
 ```python
-from cogency import Agent
-
-# Built-in tools: Files, Shell, Search, Scrape, Retrieval, Recall
 agent = Agent("coder")
-result = agent.run("Create a FastAPI app with database models and run tests")
+agent.run("Create a FastAPI app with database models and run tests")
 ```
 
 ### Data Analysis
 ```python
-from cogency import Agent
-
-# All tools available automatically
 agent = Agent("analyst")
-result = agent.run("Process sales.csv, calculate trends, and POST to dashboard API")
+agent.run("Process sales.csv, calculate trends, POST to dashboard")
 ```
 
 ---
 
-*Ready to build? Check out the [examples](../examples/) for working applications.*
+*Ready to build? See [examples](../examples/).*

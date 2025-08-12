@@ -1,8 +1,6 @@
-# Security ✅ UNIFIED & BEAUTIFUL
+# Security
 
-**One function. One way. Semantic reasoning with critical fallbacks.**
-
-🎯 **All security requirements addressed by our unified semantic security module**
+**Semantic reasoning with critical fallbacks.**
 
 ```python
 from cogency.security import assess

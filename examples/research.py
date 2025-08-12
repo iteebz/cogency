@@ -3,14 +3,14 @@
 
 import asyncio
 
-from cogency import Agent, Scrape, Search
+from cogency import Agent, research_tools
 
 
 async def main():
     print("🔍 INTELLIGENCE ANALYST")
     print("=" * 40)
 
-    analyst = Agent("intelligence_analyst", tools=[Search(), Scrape()], mode="deep")
+    analyst = Agent("intelligence_analyst", tools=research_tools(), max_iterations=15)
 
     # Multi-source analysis with strategic insights
     response = await analyst.run_async("""

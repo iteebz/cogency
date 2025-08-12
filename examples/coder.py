@@ -3,14 +3,14 @@
 
 import asyncio
 
-from cogency import Agent, Files, Shell
+from cogency import Agent, devops_tools
 
 
 async def main():
     print("🚀 AUTONOMOUS CODER")
     print("=" * 40)
 
-    coder = Agent("senior_engineer", tools=[Files(), Shell()])
+    coder = Agent("senior_engineer", tools=devops_tools())
 
     # Single command → complete application
     await coder.run_async("""

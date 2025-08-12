@@ -10,15 +10,15 @@ Cogency integrates memory directly into agent reasoning processes.
 
 ## Overview
 
-Dual-stream architecture: automatic context injection (state) operates orthogonally to intentional knowledge retrieval (archival). Agents maintain lean direct context while accessing accumulated learning on demand.
+Dual-stream architecture: automatic context injection (profile) operates orthogonally to intentional knowledge retrieval. Agents maintain lean direct context while accessing accumulated learning on demand.
 
 **Core Principle**: Memory and cognition are intertwined. Agents organize, synthesize, and evolve knowledge through reasoning processes rather than passive storage.
 
 ## Architecture Principles
 
 **Orthogonal Memory Systems:**
-- **State**: Automatic context injection (Profile, Conversation, Workspace, Execution)
-- **Archival**: Intentional retrieval via tools (Messages, Threads, Topics)
+- **Profile**: Automatic context injection (user identity, preferences, communication style)
+- **Knowledge**: Intentional memory recall via tools (accumulated expertise and learning)
 
 ## State Components (Direct Context Injection)
 
@@ -34,7 +34,7 @@ Task-scoped insights, facts, observations. Archived on task completion.
 ### Execution
 Runtime reasoning state. Never persisted.
 
-## Archival Memory (RAG-Style Retrieval)
+## Knowledge Domain (Intentional Memory Recall)
 
 Three-layer hierarchy:
 
@@ -76,9 +76,9 @@ direct_context = get_state_context(profile, conversation, workspace)
 if direct_context.sufficient_for(query):
     proceed_with_reasoning(direct_context)
 else:
-    # Archival retrieval needed
-    archival_context = recall_tool.search(query)
-    proceed_with_reasoning(direct_context + archival_context)
+    # Knowledge retrieval needed
+    knowledge_context = recall_tool.search(query)
+    proceed_with_reasoning(direct_context + knowledge_context)
 ```
 
 ### 2. Smart Layer Selection
@@ -88,7 +88,7 @@ else:
 - **Auto-detection** → Parse query intent to select appropriate layer(s)
 
 ### 3. Context Injection
-Retrieved archival content is injected alongside direct context, then discarded.
+Retrieved knowledge is injected alongside direct context, then discarded.
 
 ## Memory Daemon
 
@@ -149,10 +149,10 @@ memory/
 class RecallTool(Tool):
     async def run(self, query: str, layer: str = "auto", limit: int = 3) -> str:
         # Auto-detect layer: messages (specific references), threads (outcomes), topics (knowledge)
-        results = await self.archival.search(query, layer, limit, min_similarity=0.7)
+        results = await self.knowledge.search(query, layer, limit, min_similarity=0.7)
         return self.format_results(results)
 
-class ArchivalMemory:
+class Knowledge:
     async def search(self, query: str, layer: str, limit: int, min_similarity: float):
         # Layer-specific search with similarity threshold
         
@@ -231,7 +231,7 @@ class ArchivalMemory:
 ### Messages
 **Database Schema:**
 ```sql
-CREATE TABLE archival_messages (
+CREATE TABLE knowledge_messages (
     id UUID PRIMARY KEY,
     conversation_id UUID NOT NULL,
     role VARCHAR(20) NOT NULL,  -- user, assistant, system, tool
@@ -254,11 +254,11 @@ CREATE TABLE archival_messages (
 
 ## Performance Considerations
 
-Layer-specific indices, query caching, and bounded search results. Incremental indexing with background daemon processing. Smart summarization and context prioritization (recent > archival).
+Layer-specific indices, query caching, and bounded search results. Incremental indexing with background daemon processing. Smart summarization and context prioritization (recent > accumulated knowledge).
 
 ## Human Inspectability
 
-All archival memory is human-readable: markdown topic artifacts, JSON thread summaries, and queryable message records. Direct browsing, editing, and organization of agent knowledge.
+All accumulated knowledge is human-readable: markdown topic artifacts, JSON thread summaries, and queryable message records. Direct browsing, editing, and organization of agent knowledge.
 
 ## Future Considerations
 
