@@ -39,29 +39,42 @@ test-cov:
 # 🧪 EVALUATIONS
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Run fast eval suite (AGI lab validation - 6 evals, <30s)
-eval-fast:
-    @poetry run python -m evals.main fast
+# Run capability evaluation suite (current cogency features)
+eval-capability:
+    @poetry run python -m evals.runner capability
 
-# Run fast eval suite (sequential for rate limits)
-eval-fast-seq:
-    @poetry run python -m evals.main fast --sequential
+# Run memory benchmark suite (competitive differentiator)
+eval-memory:
+    @poetry run python -m evals.runner memory
 
-# Run fast eval suite (sequential + robust retry logic)
-eval-fast-robust:
-    @poetry run python -m evals.main fast --sequential --robust
+# Run security evaluation (injection resistance)
+eval-security:
+    @poetry run python -m evals.runner security
 
-# Run full eval suite (complete v1.0.0 - 15 evals)
-eval-full:
-    @poetry run python -m evals.main full
+# Run tool integration evaluation
+eval-tools:
+    @poetry run python -m evals.runner tools
 
-# Run full eval suite (sequential for rate limits)
-eval-full-seq:
-    @poetry run python -m evals.main full --sequential
+# Run individual memory benchmarks
+eval-cross-session:
+    @poetry run python -m evals.runner cross_session
 
-# Run full eval suite (sequential + robust retry logic)
-eval-full-robust:
-    @poetry run python -m evals.main full --sequential --robust
+eval-temporal:
+    @poetry run python -m evals.runner temporal
+
+eval-interference:
+    @poetry run python -m evals.runner interference
+
+# Run profile manager memory test (current system)
+eval-profile-memory:
+    @poetry run python -m evals.runner profile_memory
+
+# Run all evaluation benchmarks (comprehensive suite)
+eval-all:
+    @poetry run python -m evals.runner all
+
+# Run all evaluations (alias for eval-all)
+eval: eval-all
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🔍 CODE QUALITY
