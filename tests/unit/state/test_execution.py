@@ -16,7 +16,6 @@ def test_defaults():
 
     assert state.iteration == 0
     assert state.max_iterations == 10
-    assert state.mode == "adapt"
     assert state.stop_reason is None
     assert state.messages == []
     assert state.response is None

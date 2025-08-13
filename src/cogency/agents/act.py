@@ -9,7 +9,16 @@ async def act(tool_calls: list[dict], tools, state) -> dict[str, Any]:
     """Act on reasoning decisions - execute tool calls."""
 
     if not tool_calls:
-        return Result.ok({"results": [], "errors": [], "summary": "No tools to execute"})
+        return Result.ok(
+            {
+                "results": [],
+                "errors": [],
+                "summary": "No tools to execute",
+                "total_executed": 0,
+                "successful_count": 0,
+                "failed_count": 0,
+            }
+        )
 
     successes = []
     failures = []

@@ -19,6 +19,10 @@ from .console import ConsoleHandler  # noqa: F401
 from .handlers import EventBuffer, EventLogger  # noqa: F401
 from .orchestration import state_event  # noqa: F401
 from .streaming import StreamingCoordinator, format_stream_event  # noqa: F401
-from .telemetry import TelemetryBridge, create_telemetry_bridge, format_telemetry_summary  # noqa: F401
+from .telemetry import (  # noqa: F401
+    TelemetryBridge,
+    create_telemetry_bridge,
+    format_telemetry_summary,
+)
 
 __all__ = []  # All internal - use bare functions for custom handlers

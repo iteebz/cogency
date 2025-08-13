@@ -56,7 +56,7 @@ async def test_agent_file_creation():
 @pytest.mark.slow
 @pytest.mark.skipif(not has_api_keys, reason="Requires real API keys")
 @pytest.mark.asyncio
-async def test_agent_shell_execution():
+async def test_agent_shell():
     """Real LLM + Shell tool - validates Agent → LLM → Shell → Output flow."""
     agent = Agent("assistant", tools=["shell"])
 

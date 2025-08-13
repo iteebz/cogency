@@ -46,15 +46,6 @@ class PathsConfig:
 
 
 @dataclass
-class PersistConfig:
-    """Configuration for state persistence."""
-
-    enabled: bool = True
-    store: Optional[Any] = None  # This will hold the actual store instance (e.g., Filesystem)
-    # Add any other persistence-specific settings here
-
-
-@dataclass
 class AgentConfig:
     """Agent configuration container."""
 
@@ -67,20 +58,6 @@ class AgentConfig:
     embed: Optional["Provider"] = None
     tools: Optional[Any] = None
     memory: Optional[Any] = None
-    persist: Optional[Any] = None
     max_iterations: int = 10
     notify: bool = True
     handlers: list[Any] = None
-
-
-def _setup_config(config_type, param, store=None):
-    """Setup configuration object from parameter."""
-    if param is False:
-        return None
-    if isinstance(param, config_type):
-        return param
-    if param is True:
-        return config_type()
-    if store:
-        return config_type(store=store)
-    return None

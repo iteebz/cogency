@@ -14,6 +14,8 @@ async def test_reason_direct_response():
     mock_state = Mock()
     mock_state.execution = Mock()
     mock_state.execution.iteration = 0
+    mock_state.execution.max_iterations = 10
+    mock_state.execution.max_iterations = 10
     mock_state.query = "What is 2+2?"
     mock_state.context.return_value = "test context"
     mock_state.workspace = Mock()
@@ -48,13 +50,20 @@ async def test_reason_with_actions():
     mock_state = Mock()
     mock_state.execution = Mock()
     mock_state.execution.iteration = 0
+    mock_state.execution.max_iterations = 10
     mock_state.query = "Create a file"
     mock_state.context.return_value = "test context"
     mock_state.workspace = Mock()
     mock_state.workspace.thoughts = []
     mock_state.last_updated = "2024-01-01"
 
-    tools = [Mock()]
+    # Properly configured mock tool
+    mock_tool = Mock()
+    mock_tool.name = "files"
+    mock_tool.description = "File operations tool"
+    mock_tool.examples = []
+    mock_tool.rules = []
+    tools = [mock_tool]
 
     with patch("cogency.agents.reason._analyze_query") as mock_analyze:
         with patch("cogency.events.emit"):
@@ -132,6 +141,7 @@ async def test_reason_no_actions_fallback():
     mock_state = Mock()
     mock_state.execution = Mock()
     mock_state.execution.iteration = 0
+    mock_state.execution.max_iterations = 10
     mock_state.query = "Test query"
     mock_state.context.return_value = "test context"
     mock_state.workspace = Mock()
@@ -162,6 +172,7 @@ async def test_reason_error_handling():
     mock_state = Mock()
     mock_state.execution = Mock()
     mock_state.execution.iteration = 0
+    mock_state.execution.max_iterations = 10
 
     tools = []
 
@@ -186,8 +197,12 @@ async def test_reason_error_handling():
 @pytest.mark.asyncio
 async def test_analyze_query_success():
     """Test _analyze_query parsing successful LLM response."""
+    from resilient_result import Result
+
     mock_llm = AsyncMock()
-    mock_llm.generate.return_value = '{"reasoning": "test", "response": "answer", "actions": []}'
+    mock_llm.generate.return_value = Result.ok(
+        '{"reasoning": "test", "response": "answer", "actions": []}'
+    )
 
     with patch("cogency.events.emit"):
         result = await _analyze_query(mock_llm, "test query", "tools", "context", 1, 10)
@@ -206,9 +221,13 @@ async def test_analyze_query_success():
 @pytest.mark.asyncio
 async def test_analyze_query_json_extraction():
     """Test _analyze_query extracting JSON from mixed response."""
+    from resilient_result import Result
+
     mock_llm = AsyncMock()
     # LLM returns text with embedded JSON
-    mock_llm.generate.return_value = 'Here is my analysis:\n{"reasoning": "extracted", "response": null, "actions": [{"name": "test"}]}\nEnd of response.'
+    mock_llm.generate.return_value = Result.ok(
+        'Here is my analysis:\n{"reasoning": "extracted", "response": null, "actions": [{"name": "test"}]}\nEnd of response.'
+    )
 
     result = await _analyze_query(mock_llm, "test", "tools", "context", 1, 10)
 
@@ -221,8 +240,10 @@ async def test_analyze_query_json_extraction():
 @pytest.mark.asyncio
 async def test_analyze_query_json_error():
     """Test _analyze_query handling JSON parse errors."""
+    from resilient_result import Result
+
     mock_llm = AsyncMock()
-    mock_llm.generate.return_value = "Invalid JSON response that cannot be parsed"
+    mock_llm.generate.return_value = Result.ok("Invalid JSON response that cannot be parsed")
 
     with patch("cogency.events.emit") as mock_emit:
         result = await _analyze_query(mock_llm, "test", "tools", "context", 1, 10)
@@ -240,12 +261,14 @@ async def test_analyze_query_json_error():
         assert len(json_error_calls) >= 1
 
 
-def test_build_context():
+async def test_build_context():
     """Test _build_context delegates to state."""
     mock_state = Mock()
     mock_state.context.return_value = "test context string"
 
-    result = _build_context(mock_state)
+    with patch("cogency.agents.reason._get_relevant_knowledge") as mock_knowledge:
+        mock_knowledge.return_value = ""  # No relevant knowledge
+        result = await _build_context(mock_state, "test query", "test_user")
 
     assert result == "test context string"
     mock_state.context.assert_called_once()
@@ -300,7 +323,10 @@ def test_build_tool_registry_missing_attributes():
     tool = Mock()
     tool.name = "minimal_tool"
     tool.description = "Minimal tool"
-    # Missing schema, examples, rules attributes
+    # Configure missing attributes to avoid Mock objects that can't be iterated
+    del tool.schema  # Remove so getattr returns 'No schema'
+    tool.examples = []
+    tool.rules = []
 
     result = _build_tool_registry([tool])
 
@@ -315,6 +341,7 @@ async def test_reason_workspace_thoughts_update():
     mock_state = Mock()
     mock_state.execution = Mock()
     mock_state.execution.iteration = 0
+    mock_state.execution.max_iterations = 10
     mock_state.query = "Test query"
     mock_state.context.return_value = "context"
     mock_state.workspace = Mock()

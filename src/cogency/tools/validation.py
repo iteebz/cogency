@@ -21,7 +21,11 @@ def validate(args: dict[str, Any], schema: type[T]) -> T:
     if not hasattr(schema, "__dataclass_fields__"):
         raise ValueError(f"Schema {schema} is not a dataclass")
 
+    # Filter args to only include fields defined in the dataclass
+    valid_fields = set(schema.__dataclass_fields__.keys())
+    filtered_args = {k: v for k, v in args.items() if k in valid_fields}
+
     try:
-        return schema(**args)
+        return schema(**filtered_args)
     except TypeError as e:
         raise ValueError(f"Argument validation failed: {str(e)}") from e

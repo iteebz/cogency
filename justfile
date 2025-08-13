@@ -26,14 +26,19 @@ example name="hello":
 # 🧪 TESTING
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Run all tests
+# Run fast tests (unit + integration, skip system)
 test:
-    @echo "Running all tests..."
+    @echo "Running fast tests (unit + integration)..."
+    @poetry run pytest tests -v -m "not system"
+
+# Run all tests including expensive system tests
+test-all:
+    @echo "Running all tests including system tests..."
     @poetry run pytest tests -v
 
 # Run tests with coverage
 test-cov:
-    @poetry run pytest --cov=src/cogency tests/
+    @poetry run pytest --cov=src/cogency tests/ -m "not system"
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🧪 EVALUATIONS
@@ -120,5 +125,5 @@ clean:
 commits:
     @git --no-pager log --pretty=format:"%ar %s"
 
-# Run CI checks locally
+# Run CI checks locally (fast for development)
 ci: format fix test build

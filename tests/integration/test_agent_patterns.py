@@ -9,7 +9,7 @@ from cogency.tools import Shell
 
 
 @pytest.mark.asyncio
-async def test_agent_initialization_auto_detection():
+async def test_initialization_auto_detection():
     """Test agent auto-detects LLM provider and sets up components."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
         agent = Agent("test_agent", tools=[Shell()])
@@ -22,7 +22,7 @@ async def test_agent_initialization_auto_detection():
 
 
 @pytest.mark.asyncio
-async def test_agent_memory_disabled_pattern():
+async def test_memory_disabled_pattern():
     """Test agent with memory explicitly disabled."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
         agent = Agent("test_agent", memory=False, tools=[Shell()])
@@ -33,7 +33,7 @@ async def test_agent_memory_disabled_pattern():
 
 
 @pytest.mark.asyncio
-async def test_agent_memory_enabled_pattern():
+async def test_memory_enabled_pattern():
     """Test agent with memory enabled initializes memory system."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
         agent = Agent("test_agent", memory=True, tools=[])
@@ -43,7 +43,7 @@ async def test_agent_memory_enabled_pattern():
 
 
 @pytest.mark.asyncio
-async def test_agent_custom_tool_configuration():
+async def test_custom_tool_configuration():
     """Test agent handles different tool configurations."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
         # No tools
@@ -56,7 +56,7 @@ async def test_agent_custom_tool_configuration():
 
 
 @pytest.mark.asyncio
-async def test_agent_execution_contract():
+async def test_execution_contract():
     """Test agent execution returns string response."""
     from unittest.mock import AsyncMock
 
@@ -73,7 +73,7 @@ async def test_agent_execution_contract():
 
 
 @pytest.mark.asyncio
-async def test_agent_component_isolation():
+async def test_component_isolation():
     """Test agent components don't interfere across instances."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
         agent1 = Agent("agent1", tools=[Shell()], memory=False)
@@ -88,7 +88,7 @@ async def test_agent_component_isolation():
 
 
 @pytest.mark.asyncio
-async def test_agent_minimal_configuration():
+async def test_minimal_configuration():
     """Test agent works with minimal configuration."""
     with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
         agent = Agent("minimal", tools=[], memory=False, notify=False)
@@ -100,9 +100,14 @@ async def test_agent_minimal_configuration():
 
 
 @pytest.mark.asyncio
-async def test_agent_provider_dependency():
+async def test_provider_dependency():
     """Test agent fails gracefully without provider credentials."""
-    with patch.dict("os.environ", {}, clear=True):
-        # Should raise exception when no provider available
-        with pytest.raises((ValueError, RuntimeError)):
-            Agent("test", tools=[])
+    with patch("cogency.providers.detection._detect_llm_provider") as mock_llm:
+        with patch("cogency.providers.detection._detect_embed_provider") as mock_embed:
+            # Make both provider detection functions raise ValueError
+            mock_llm.side_effect = ValueError("No LLM API keys found")
+            mock_embed.side_effect = ValueError("No embedding API keys found")
+
+            # Should raise exception when no provider available
+            with pytest.raises(ValueError):
+                Agent("test", tools=[])

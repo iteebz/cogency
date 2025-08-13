@@ -8,8 +8,8 @@ import aiosqlite
 if TYPE_CHECKING:
     from cogency.state import Conversation
 
+from ...events.orchestration import extract_conversation_data, extract_delete_data, state_event
 from .base import SQLiteBase
-from ...events.orchestration import state_event, extract_conversation_data, extract_delete_data
 
 
 class ConversationOperations(SQLiteBase):

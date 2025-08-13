@@ -24,12 +24,10 @@ def test_with_user_id():
 def test_auto_initialization():
     state = State(query="test query")
 
-    assert state.profile is not None
     assert state.conversation is not None
     assert state.workspace is not None
     assert state.execution is not None
 
-    assert state.profile.user_id == "default"
     assert state.conversation.user_id == "default"
     assert state.workspace.objective == "test query"
 

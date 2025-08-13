@@ -7,8 +7,8 @@ import aiosqlite
 if TYPE_CHECKING:
     from cogency.knowledge import KnowledgeArtifact
 
+from ...events.orchestration import extract_delete_data, extract_knowledge_data, state_event
 from .base import SQLiteBase
-from ...events.orchestration import state_event, extract_knowledge_data, extract_delete_data
 
 
 class KnowledgeOperations(SQLiteBase):

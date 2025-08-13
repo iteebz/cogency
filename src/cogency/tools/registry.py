@@ -50,6 +50,11 @@ class ToolRegistry:
         return tool_class
 
     @classmethod
+    def get_tools(cls):
+        """Get all registered tool instances."""
+        return [tool_class() for tool_class in cls._tools]
+
+    @classmethod
     def clear(cls):
         """Clear registry (mainly for testing)."""
         cls._tools.clear()

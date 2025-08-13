@@ -10,8 +10,93 @@ from cogency.agent import Agent
 from cogency.state import State
 
 # Import all fixtures from decomposed modules
-from tests.fixtures.provider import MockProvider
+from tests.fixtures.provider import MockEmbed, MockLLM, MockProvider
 from tests.fixtures.tools import MockTool
+
+
+@pytest.fixture
+def mock_llm():
+    """Fast mock LLM provider."""
+    return MockLLM()
+
+
+@pytest.fixture
+def mock_embed():
+    """Fast mock embedding provider."""
+    return MockEmbed()
+
+
+@pytest.fixture(autouse=True)
+def fast_providers(mock_llm, mock_embed):
+    """Canonical fast provider setup - zero ceremony testing."""
+    with (
+        patch("cogency.utils.credentials.Credentials.detect", return_value=None),
+        patch("cogency.providers.detection._detect_llm_provider", return_value=mock_llm),
+        patch("cogency.providers.detection._detect_embed_provider", return_value=mock_embed),
+    ):
+        yield {"llm": mock_llm, "embed": mock_embed}
+
+
+@pytest.fixture(autouse=True)
+def mock_storage():
+    """Auto-mock storage operations to use in-memory instead of real databases."""
+    with patch("cogency.storage.sqlite.SQLite") as mock_sqlite:
+        # Return mock that doesn't actually create files
+        mock_instance = Mock()
+        mock_instance._ensure_schema = AsyncMock()
+        mock_instance.save_knowledge = AsyncMock()
+        mock_instance.save_profile = AsyncMock()
+        mock_instance.init = AsyncMock()
+        mock_instance.close = AsyncMock()
+        mock_sqlite.return_value = mock_instance
+
+        yield mock_instance
+
+
+@pytest.fixture(autouse=True)
+def mock_agent_execution():
+    """Auto-mock slow agent execution components for fast tests."""
+    with (
+        patch("cogency.agents.reason") as mock_reason,
+        patch("cogency.agents.act") as mock_act,
+        patch("cogency.memory.Memory") as mock_memory_class,
+        patch("cogency.state.State.start_task") as mock_start_task,
+    ):
+        # Fast mock responses
+        mock_reason.return_value = {
+            "reasoning": "Mock reasoning",
+            "response": "Mock response from fast mocked agent",
+            "actions": [],
+        }
+
+        # Mock act to return proper Result structure
+        from resilient_result import Result
+
+        mock_act.return_value = Result.ok(
+            {
+                "results": [],
+                "errors": [],
+                "summary": "Mock tool execution",
+                "total_executed": 0,
+                "successful_count": 0,
+                "failed_count": 0,
+            }
+        )
+
+        # Mock state creation to avoid database operations
+        mock_state = Mock()
+        mock_state.context = lambda: "Mock context"
+        mock_start_task.return_value = mock_state
+
+        # Mock Memory class to avoid real persistence
+        mock_memory = Mock()
+        mock_memory.load = AsyncMock(return_value={})
+        mock_memory.remember = AsyncMock()
+        mock_memory.update = AsyncMock()
+        mock_memory.activate = AsyncMock(return_value="Mock memory context")
+        mock_memory_class.return_value = mock_memory
+
+        yield
 
 
 @pytest.fixture
@@ -23,8 +108,12 @@ def temp_dir():
 
 @pytest.fixture
 def agent():
-    """Basic agent instance."""
-    return Agent("test-agent")
+    """Basic agent instance with fast mocks."""
+    agent = Agent("test-agent")
+    # Ensure providers are properly mocked for speed
+    agent.llm = MockLLM(response='{"reasoning": "test", "response": "Fast mock response"}')
+    agent.embed = MockEmbed()
+    return agent
 
 
 @pytest.fixture
@@ -42,7 +131,9 @@ def agent_with_memory():
 @pytest.fixture
 def agent_with_tools():
     """Agent with Files and Shell tools."""
-    return Agent("test-agent", tools=["files", "shell"])
+    from cogency.tools import Files, Shell
+
+    return Agent("test-agent", tools=[Files(), Shell()])
 
 
 @pytest.fixture
@@ -134,7 +225,9 @@ def agent_basic():
 @pytest.fixture
 def agent_full():
     """Full-featured agent for integration tests."""
-    return Agent("test-full", tools=["files", "shell"], memory=True)
+    from cogency.tools import Files, Shell
+
+    return Agent("test-full", tools=[Files(), Shell()], memory=True)
 
 
 @pytest.fixture

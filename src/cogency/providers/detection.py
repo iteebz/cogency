@@ -23,8 +23,12 @@ def _detect_llm_provider():
     if openai_creds:
         return OpenAI()
 
-    # Default to OpenAI (will fail with helpful error)
-    return OpenAI()
+    # No credentials found - raise helpful error
+    raise ValueError(
+        "No LLM API keys found. "
+        "Set GEMINI_API_KEY or OPENAI_API_KEY environment variable. "
+        "See https://github.com/iteebz/cogency#installation for setup instructions."
+    )
 
 
 def _detect_embed_provider():
@@ -42,8 +46,12 @@ def _detect_embed_provider():
     if openai_creds:
         return OpenAI()
 
-    # Default fallback
-    return OpenAI()
+    # No credentials found - raise helpful error
+    raise ValueError(
+        "No embedding API keys found. "
+        "Set NOMIC_API_KEY or OPENAI_API_KEY environment variable. "
+        "See https://github.com/iteebz/cogency#installation for setup instructions."
+    )
 
 
 def detect_llm(provider=None):

@@ -111,13 +111,19 @@ class Agent:
         return self.memory
 
     def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
-        """Execute agent query synchronously."""
+        """Execute agent query synchronously.
+
+        Memory and data are isolated per user_id.
+        """
         import asyncio
 
         return asyncio.run(self.run_async(query, user_id, identity))
 
     def stream(self, query: str, user_id: str = "default", identity: str = None):
-        """Execute agent query with streaming (synchronous wrapper)."""
+        """Execute agent query with streaming.
+
+        Memory and data are isolated per user_id.
+        """
         import asyncio
 
         async def _stream():
@@ -135,15 +141,21 @@ class Agent:
         return events
 
     async def run_stream(self, query: str, user_id: str = "default", identity: str = None):
-        """Execute agent query with real-time streaming of intermediate thinking and output."""
+        """Execute agent query with real-time streaming.
+
+        Memory and data are isolated per user_id.
+        """
         from cogency.events.streaming import StreamingCoordinator
-        
+
         coordinator = StreamingCoordinator(self)
         async for event in coordinator.stream_agent_run(query, user_id):
             yield event
 
     async def run_async(self, query: str, user_id: str = "default", identity: str = None) -> str:
-        """Execute agent query asynchronously."""
+        """Execute agent query asynchronously.
+
+        Memory and data are isolated per user_id.
+        """
         from cogency.agents import act, reason
         from cogency.events import emit
 

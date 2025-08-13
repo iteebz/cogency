@@ -48,18 +48,13 @@ def test_detect_llm_provider_openai_fallback(mock_detect):
 
 @patch("cogency.providers.detection.Credentials.detect")
 def test_detect_llm_provider_default_openai(mock_detect):
-    """Test LLM detection defaults to OpenAI when no credentials."""
+    """Test LLM detection raises error when no credentials found."""
     # Mock no credentials found
     mock_detect.return_value = None
 
-    with patch("cogency.providers.detection.OpenAI") as mock_openai_class:
-        mock_openai_instance = Mock()
-        mock_openai_class.return_value = mock_openai_instance
-
-        result = _detect_llm_provider()
-
-        assert result is mock_openai_instance
-        mock_openai_class.assert_called_once()
+    # Should raise ValueError when no credentials are available
+    with pytest.raises(ValueError, match="No LLM API keys found"):
+        _detect_llm_provider()
 
 
 @patch("cogency.providers.detection.Credentials.detect")
@@ -114,7 +109,7 @@ def test_detect_llm_with_provider():
     """Test detect_llm with explicit provider."""
     mock_provider = Mock(spec=Provider)
 
-    with patch("cogency.events.emit") as mock_emit:
+    with patch("cogency.providers.detection.emit") as mock_emit:
         result = detect_llm(mock_provider)
 
         assert result is mock_provider
@@ -146,7 +141,7 @@ def test_detect_embed_with_provider():
     """Test detect_embed with explicit provider."""
     mock_provider = Mock(spec=Provider)
 
-    with patch("cogency.events.emit") as mock_emit:
+    with patch("cogency.providers.detection.emit") as mock_emit:
         result = detect_embed(mock_provider)
 
         assert result is mock_provider

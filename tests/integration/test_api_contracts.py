@@ -168,13 +168,12 @@ async def test_state_persistence_contract():
 @pytest.mark.asyncio
 async def test_memory_storage_contract():
     """Verify memory system follows storage contracts."""
-    from cogency.memory import MemoryManager
-    from tests.fixtures.provider import MockLLM
+    from cogency.memory import Memory
 
-    llm = MockLLM('{"preferences": {"style": "concise"}}')
-    memory = MemoryManager(llm)
+    memory = Memory()
 
-    # Contract: MemoryManager existence and basic functionality
+    # Contract: Memory existence and basic functionality
     assert memory is not None
-    assert hasattr(memory, "provider")
-    assert memory.provider == llm
+    assert hasattr(memory, "activate")
+    assert hasattr(memory, "remember")
+    assert hasattr(memory, "_system")

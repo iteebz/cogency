@@ -149,13 +149,13 @@ def test_main_with_retrieval_env():
         with patch.dict("os.environ", {"COGENCY_RETRIEVAL_PATH": "/test/path"}):
             with patch("cogency.Agent") as mock_agent_class:
                 with patch("asyncio.run"):
-                    with patch("cogency.tools.Retrieval") as mock_retrieval:
+                    with patch("cogency.tools.Retrieve") as mock_retrieval:
                         mock_agent = MagicMock()
                         mock_agent_class.return_value = mock_agent
 
                         main()
 
-                        # Should create Retrieval tool
+                        # Should create Retrieve tool
                         mock_retrieval.assert_called_once()
 
                         # Should include Retrieval in tools
@@ -166,10 +166,14 @@ def test_main_with_retrieval_env():
 def test_main_agent_creation_error():
     """Test CLI handles agent creation errors."""
     with patch("sys.argv", ["cogency", "test"]):
-        with patch("cogency.cli.Agent", side_effect=Exception("Agent creation failed")):
+        with patch("cogency.Agent", side_effect=Exception("Agent creation failed")):
             with patch("builtins.print") as mock_print:
                 with patch("sys.exit") as mock_exit:
-                    main()
+                    # Mock sys.exit to actually raise SystemExit instead of continuing
+                    mock_exit.side_effect = SystemExit(1)
+
+                    with pytest.raises(SystemExit):
+                        main()
 
                     # Should print error and exit
                     mock_exit.assert_called_once_with(1)

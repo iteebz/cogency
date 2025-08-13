@@ -62,4 +62,21 @@ def update_from_reasoning(state: "State", reasoning_data: dict[str, Any]) -> Non
         )
 
 
-__all__ = ["add_message", "update_from_reasoning"]
+def set_tool_calls(state: "State", calls: list[dict[str, Any]]) -> None:
+    """Set pending tool calls in execution state."""
+    state.execution.pending_calls = calls
+
+
+def finish_tools(state: "State", results: list[dict[str, Any]]) -> None:
+    """Move pending calls to completed and store results."""
+    from datetime import datetime
+
+    # Move pending calls to completed with results
+    state.execution.completed_calls.extend(results)
+    state.execution.pending_calls = []
+
+    # Update metadata
+    state.last_updated = datetime.now()
+
+
+__all__ = ["add_message", "update_from_reasoning", "set_tool_calls", "finish_tools"]

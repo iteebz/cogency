@@ -39,13 +39,14 @@ def test_after_execution():
 
     assert len(test_events) >= 1
     assert len(agent_events) >= 1
-    assert test_events[0]["message"] == "test message"
+    assert test_events[0]["data"]["message"] == "test message"
 
 
 @pytest.mark.asyncio
 async def test_logging_during_run():
     """Test that events are logged during agent.run execution."""
-    agent = Agent("test", llm=MockLLM(), tools=[])
+    agent = Agent("test", tools=[])
+    # Agent constructor uses detect_llm() which is auto-mocked by conftest.py
 
     # Run agent - this should generate events
     await agent.run_async("test query")
@@ -79,8 +80,8 @@ def test_log_filtering():
 
     assert len(debug_events) >= 1
     assert len(error_events) >= 1
-    assert debug_events[0]["message"] == "debug info"
-    assert error_events[0]["message"] == "error occurred"
+    assert debug_events[0]["data"]["message"] == "debug info"
+    assert error_events[0]["data"]["message"] == "error occurred"
 
 
 def test_empty_logs():

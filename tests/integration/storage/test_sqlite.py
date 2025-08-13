@@ -17,15 +17,19 @@ async def test_basic_operations():
         db_path = Path(temp_dir) / "test.db"
         store = SQLite(str(db_path))
 
-        # Create test state
+        # Create test state and profile
+        from cogency.memory.memory import Profile
         from cogency.state.mutations import add_message
 
         state = State(query="test query", user_id="test_user")
         add_message(state, "user", "Hello")
         state.execution.iteration = 3
 
+        # Create profile separately (profiles come from memory system, not state)
+        profile = Profile(user_id="test_user")
+
         # Save using canonical methods
-        await store.save_profile("test_user:default", state.profile)
+        await store.save_profile("test_user:default", profile)
 
         # Load using canonical methods
         loaded_profile = await store.load_profile("test_user:default")
@@ -49,19 +53,18 @@ async def test_with_user_profile():
         db_path = Path(temp_dir) / "test.db"
         store = SQLite(str(db_path))
 
-        # Create profile
+        # Create profile (profiles are separate from state now)
+        from cogency.state.mutations import add_message
+
         profile = Profile(user_id="test_user")
         profile.preferences = {"language": "Python", "style": "concise"}
 
-        # Create state with profile
-        from cogency.state.mutations import add_message
-
+        # Create state (no profile attached)
         state = State(query="test query", user_id="test_user")
-        state.profile = profile
         add_message(state, "assistant", "Response")
 
         # Save and load using canonical methods
-        await store.save_profile("test_user:default", state.profile)
+        await store.save_profile("test_user:default", profile)
 
         loaded_profile = await store.load_profile("test_user:default")
 

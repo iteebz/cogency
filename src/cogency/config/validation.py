@@ -13,7 +13,7 @@ def validate_config_keys(**config) -> dict[str, Any]:
         Original config dict (no modification)
     """
     # Known configuration keys (no defaults - dataclass handles that)
-    known_keys = {"identity", "llm", "embed", "mode", "max_iterations", "notify", "persist"}
+    known_keys = {"identity", "llm", "embed", "mode", "max_iterations", "notify"}
 
     # Validate keys (no filtering needed)
     unknown_keys = set(config.keys()) - known_keys

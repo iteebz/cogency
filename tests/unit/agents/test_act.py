@@ -30,27 +30,26 @@ async def test_successful_execution():
 
     tools = [mock_tool]
     state = Mock()
-    state.execution = Mock()
+    # Create execution as a simple object that doesn't have completed_calls initially
+    state.execution = type("Execution", (), {})()  # Simple object without completed_calls
 
     tool_calls = [{"name": "test_tool", "args": {"param": "value"}}]
 
-    with patch("cogency.events.emit") as mock_emit:
-        result = await act(tool_calls, tools, state)
+    result = await act(tool_calls, tools, state)
 
-        assert result.success
-        assert result.data["successful_count"] == 1
-        assert result.data["failed_count"] == 0
-        assert "1 tools executed successfully" in result.data["summary"]
+    assert result.success
+    assert result.data["successful_count"] == 1
+    assert result.data["failed_count"] == 0
+    assert "1 tools executed successfully" in result.data["summary"]
 
-        # Verify tool was called correctly
-        mock_tool.execute.assert_called_once_with(param="value")
+    # Verify tool was called correctly
+    mock_tool.execute.assert_called_once_with(param="value")
 
-        # Verify events were emitted
-        mock_emit.assert_called()
-
-        # Verify state was updated
-        assert hasattr(state.execution, "completed_calls")
-        assert len(state.execution.completed_calls) == 1
+    # Verify state was updated - act() creates completed_calls as a list
+    assert hasattr(state.execution, "completed_calls")
+    calls = state.execution.completed_calls
+    assert isinstance(calls, list)
+    assert len(calls) == 1
 
 
 @pytest.mark.asyncio
@@ -82,17 +81,12 @@ async def test_execution_failure():
 
     tool_calls = [{"name": "failing_tool", "args": {}}]
 
-    with patch("cogency.events.emit") as mock_emit:
-        result = await act(tool_calls, tools, state)
+    result = await act(tool_calls, tools, state)
 
-        assert result.success  # act() succeeds even if tools fail
-        assert result.data["successful_count"] == 0
-        assert result.data["failed_count"] == 1
-        assert "Tool failed" in result.data["errors"][0]["error"]
-
-        # Verify failure event was emitted
-        failure_calls = [call for call in mock_emit.call_args_list if "ok=False" in str(call)]
-        assert len(failure_calls) > 0
+    assert result.success  # act() succeeds even if tools fail
+    assert result.data["successful_count"] == 0
+    assert result.data["failed_count"] == 1
+    assert "Tool failed" in result.data["errors"][0]["error"]
 
 
 @pytest.mark.asyncio
@@ -169,14 +163,17 @@ async def test_state_tracking():
 
     # State with execution but no completed_calls
     state_with_exec = Mock()
-    state_with_exec.execution = Mock()
+    state_with_exec.execution = type("Execution", (), {})()
 
     result = await act(tool_calls, tools, state_with_exec)
     assert result.success
     assert hasattr(state_with_exec.execution, "completed_calls")
-    assert len(state_with_exec.execution.completed_calls) == 1
+    # completed_calls should be a list with one item
+    calls = state_with_exec.execution.completed_calls
+    assert isinstance(calls, list)
+    assert len(calls) == 1
 
-    completed_call = state_with_exec.execution.completed_calls[0]
+    completed_call = calls[0]
     assert completed_call["tool"] == "state_tool"
     assert completed_call["args"] == {"test": "value"}
     assert completed_call["success"] is True
@@ -237,58 +234,42 @@ def test_find_tool():
 
 
 @pytest.mark.asyncio
-async def test_event_emissions():
-    """Test proper event emissions during execution."""
+async def test_basic_execution():
+    """Test basic tool execution without events."""
     mock_tool = Mock()
-    mock_tool.name = "event_tool"
+    mock_tool.name = "basic_tool"
     mock_tool.execute = AsyncMock(return_value=Result.ok({"data": "test_data"}))
 
     tools = [mock_tool]
     state = Mock()
-    tool_calls = [{"name": "event_tool", "args": {}}]
+    tool_calls = [{"name": "basic_tool", "args": {}}]
 
-    with patch("cogency.events.emit") as mock_emit:
-        await act(tool_calls, tools, state)
+    result = await act(tool_calls, tools, state)
 
-        # Should emit action start and tool success events
-        emit_calls = mock_emit.call_args_list
-
-        # Check for action execution event
-        action_calls = [call for call in emit_calls if call[0][0] == "action"]
-        assert len(action_calls) >= 1
-        assert action_calls[0][1]["state"] == "executing"
-        assert action_calls[0][1]["tool"] == "event_tool"
-
-        # Check for tool success event
-        tool_calls = [call for call in emit_calls if call[0][0] == "tool"]
-        assert len(tool_calls) >= 1
-        assert tool_calls[0][1]["name"] == "event_tool"
-        assert tool_calls[0][1]["ok"] is True
+    assert result.success
+    assert result.data["successful_count"] == 1
+    assert result.data["failed_count"] == 0
+    assert "basic_tool" in result.data["results"][0]["name"]
 
 
 @pytest.mark.asyncio
-async def test_data_truncation():
-    """Test result data truncation in events."""
-    long_data = "x" * 300  # Longer than 200 char limit
+async def test_large_result_handling():
+    """Test handling of large result data."""
+    long_data = "x" * 1000  # Large data
 
     mock_tool = Mock()
-    mock_tool.name = "long_tool"
-    mock_tool.execute = AsyncMock(return_value=Result.ok(long_data))
+    mock_tool.name = "large_tool"
+    mock_tool.execute = AsyncMock(return_value=Result.ok({"large_data": long_data}))
 
     tools = [mock_tool]
     state = Mock()
-    tool_calls = [{"name": "long_tool", "args": {}}]
+    tool_calls = [{"name": "large_tool", "args": {}}]
 
-    with patch("cogency.events.emit") as mock_emit:
-        await act(tool_calls, tools, state)
+    result = await act(tool_calls, tools, state)
 
-        # Find tool success event
-        tool_events = [
-            call
-            for call in mock_emit.call_args_list
-            if len(call[0]) > 0 and call[0][0] == "tool" and call[1].get("ok")
-        ]
-
-        assert len(tool_events) >= 1
-        result_str = tool_events[0][1]["result"]
-        assert len(result_str) <= 200  # Should be truncated
+    assert result.success
+    assert result.data["successful_count"] == 1
+    # Verify result contains the tool execution result
+    tool_result = result.data["results"][0]["result"]
+    assert tool_result.success
+    assert len(tool_result.data["large_data"]) == 1000

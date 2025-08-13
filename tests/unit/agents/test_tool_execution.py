@@ -8,14 +8,16 @@ from cogency.agent import Agent
 from cogency.resilience import resilience, smart_handler
 
 
-def test_tool_configuration(agent_with_tools):
+def test_configuration(agent_with_tools):
     """Test agent with tools configuration."""
-    # Tool strings don't auto-resolve yet, so tools will be empty
-    assert agent_with_tools.tools == []
+    # Agent should have Files and Shell tool instances
+    assert len(agent_with_tools.tools) == 2
+    assert any(tool.__class__.__name__ == "Files" for tool in agent_with_tools.tools)
+    assert any(tool.__class__.__name__ == "Shell" for tool in agent_with_tools.tools)
 
 
 @pytest.mark.asyncio
-async def test_tool_execution(agent_with_tools):
+async def test_execution(agent_with_tools):
     """Test tool execution in agent workflow."""
     # Mock the actual execution path
     with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
@@ -59,7 +61,7 @@ async def test_resilience_decorator():
 
 
 @pytest.mark.asyncio
-async def test_tool_error_recovery(agent_with_tools):
+async def test_error_recovery(agent_with_tools):
     """Test agent recovery from tool errors."""
     # Mock a tool that fails initially then succeeds
     with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
@@ -74,22 +76,22 @@ async def test_tool_error_recovery(agent_with_tools):
                 assert isinstance(result, str)
 
 
-def test_tool_validation():
+def test_validation():
     """Test tool validation during agent setup."""
     # Empty tools should work
     agent = Agent("test", tools=[])
     assert agent.tools == []
 
-    # String tool names aren't resolved yet but don't error
-    agent = Agent("test", tools=["files"])
-    assert agent.tools == []
+    # String tool names should now raise error (API change)
+    with pytest.raises(ValueError, match="Invalid tool type.*Use Tool.*instances"):
+        Agent("test", tools=["files"])
 
 
 @pytest.mark.asyncio
-async def test_multiple_tool_execution(agent_with_tools):
+async def test_multiple_execution(agent_with_tools):
     """Test execution with multiple tools."""
     # Test that agent can handle multiple tools
-    assert agent_with_tools.tools == []  # String tools not resolved yet
+    assert len(agent_with_tools.tools) == 2  # Files and Shell tools
 
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
@@ -100,17 +102,17 @@ async def test_multiple_tool_execution(agent_with_tools):
             assert result == "Used multiple tools"
 
 
-def test_tool_registry_access(agent_with_tools):
+def test_registry_access(agent_with_tools):
     """Test tool registry functionality."""
     # Agent should have tools attribute
     assert hasattr(agent_with_tools, "tools")
 
-    # Tools should be empty list (string tools not resolved yet)
-    assert agent_with_tools.tools == []
+    # Tools should be Files and Shell instances
+    assert len(agent_with_tools.tools) == 2
 
 
 @pytest.mark.asyncio
-async def test_tool_isolation(temp_workspace):
+async def test_isolation(temp_workspace):
     """Test tool execution in isolated workspace."""
     agent = Agent("test", tools=[])
 
