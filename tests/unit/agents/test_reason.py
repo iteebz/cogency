@@ -1,6 +1,6 @@
 """Tests for agent reasoning logic."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import pytest
 
@@ -33,10 +33,11 @@ async def test_reason_direct_response():
             }
 
             result = await reason(mock_state, mock_llm, tools)
+            result_data = result.unwrap()
 
-            assert result["reasoning"] == "Simple math question"
-            assert result["response"] == "4"
-            assert result["actions"] == []
+            assert result_data["reasoning"] == "Simple math question"
+            assert result_data["response"] == "4"
+            assert result_data["actions"] == []
 
             # Check state was updated
             assert mock_state.execution.iteration == 1
@@ -74,14 +75,15 @@ async def test_reason_with_actions():
             }
 
             result = await reason(mock_state, mock_llm, tools)
+            result_data = result.unwrap()
 
-            assert result["reasoning"] == "Need to create file"
-            assert result["response"] is None
-            assert len(result["actions"]) == 1
-            assert result["actions"][0]["name"] == "files"
+            assert result_data["reasoning"] == "Need to create file"
+            assert result_data["response"] is None
+            assert len(result_data["actions"]) == 1
+            assert result_data["actions"][0]["name"] == "files"
 
             # Check actions were stored in state
-            assert mock_state.execution.pending_calls == result["actions"]
+            assert mock_state.execution.pending_calls == result_data["actions"]
 
 
 @pytest.mark.asyncio
@@ -101,11 +103,12 @@ async def test_reason_max_iterations_reached():
 
     with patch("cogency.events.emit") as mock_emit:
         result = await reason(mock_state, mock_llm, tools)
+        result_data = result.unwrap()
 
         assert mock_state.execution.iteration == 10  # Incremented
-        assert "maximum iterations" in result["reasoning"]
-        assert "Task completed after 10 iterations" in result["response"]
-        assert result["actions"] == []
+        assert "maximum iterations" in result_data["reasoning"]
+        assert "Task completed after 10 iterations" in result_data["response"]
+        assert result_data["actions"] == []
 
         # Check force completion event
         force_calls = [
@@ -130,8 +133,9 @@ async def test_reason_max_iterations_no_completed_calls():
     tools = []
 
     result = await reason(mock_state, mock_llm, tools)
+    result_data = result.unwrap()
 
-    assert "Task processed through 10 iterations" in result["response"]
+    assert "Task processed through 10 iterations" in result_data["response"]
 
 
 @pytest.mark.asyncio
@@ -159,10 +163,11 @@ async def test_reason_no_actions_fallback():
             }
 
             result = await reason(mock_state, mock_llm, tools)
+            result_data = result.unwrap()
 
-            assert "No specific actions" in result["reasoning"]
-            assert "I don't have specific actions to take" in result["response"]
-            assert result["actions"] == []
+            assert "No specific actions" in result_data["reasoning"]
+            assert "I don't have specific actions to take" in result_data["response"]
+            assert result_data["actions"] == []
 
 
 @pytest.mark.asyncio
@@ -180,10 +185,11 @@ async def test_reason_error_handling():
     with patch("cogency.agents.reason._analyze_query", side_effect=Exception("Analysis failed")):
         with patch("cogency.events.emit") as mock_emit:
             result = await reason(mock_state, mock_llm, tools)
+            result_data = result.unwrap()
 
-            assert "Error during reasoning" in result["reasoning"]
-            assert "I encountered an error while reasoning" in result["response"]
-            assert result["actions"] == []
+            assert "Error during reasoning" in result_data["reasoning"]
+            assert "I encountered an error while reasoning" in result_data["response"]
+            assert result_data["actions"] == []
 
             # Check error event was emitted
             error_calls = [
@@ -201,21 +207,30 @@ async def test_analyze_query_success():
 
     mock_llm = AsyncMock()
     mock_llm.generate.return_value = Result.ok(
-        '{"reasoning": "test", "response": "answer", "actions": []}'
+        '{"assessment": "test assessment", "approach": "test approach", "response": "answer", "actions": []}'
     )
 
-    with patch("cogency.events.emit"):
-        result = await _analyze_query(mock_llm, "test query", "tools", "context", 1, 10)
+    # Create mock state with messages() method
+    mock_state = MagicMock()
+    mock_state.messages.return_value = []
 
-        assert result["reasoning"] == "test"
+    with patch("cogency.events.emit"):
+        result = await _analyze_query(mock_llm, mock_state, "test query", "tools", "context", 1, 10)
+
+        assert result["assessment"] == "test assessment"
+        assert result["approach"] == "test approach"
         assert result["response"] == "answer"
         assert result["actions"] == []
 
-        # Check LLM was called with proper prompt
+        # Check LLM was called with proper prompt structure (system + user)
         mock_llm.generate.assert_called_once()
         messages = mock_llm.generate.call_args[0][0]
-        assert len(messages) == 1
-        assert "test query" in messages[0]["content"]
+        assert len(messages) == 2  # System message + user query
+        assert messages[0]["role"] == "system"
+        assert messages[1]["role"] == "user"
+        assert messages[1]["content"] == "test query"
+        # The query should be in the user message, not system message
+        assert "test query" in messages[1]["content"]
 
 
 @pytest.mark.asyncio
@@ -226,12 +241,17 @@ async def test_analyze_query_json_extraction():
     mock_llm = AsyncMock()
     # LLM returns text with embedded JSON
     mock_llm.generate.return_value = Result.ok(
-        'Here is my analysis:\n{"reasoning": "extracted", "response": null, "actions": [{"name": "test"}]}\nEnd of response.'
+        'Here is my analysis:\n{"assessment": "extracted assessment", "approach": "extracted approach", "response": null, "actions": [{"name": "test"}]}\nEnd of response.'
     )
 
-    result = await _analyze_query(mock_llm, "test", "tools", "context", 1, 10)
+    # Create mock state with messages() method
+    mock_state = MagicMock()
+    mock_state.messages.return_value = []
 
-    assert result["reasoning"] == "extracted"
+    result = await _analyze_query(mock_llm, mock_state, "test", "tools", "context", 1, 10)
+
+    assert result["assessment"] == "extracted assessment"
+    assert result["approach"] == "extracted approach"
     assert result["response"] is None
     assert len(result["actions"]) == 1
     assert result["actions"][0]["name"] == "test"
@@ -243,13 +263,22 @@ async def test_analyze_query_json_error():
     from resilient_result import Result
 
     mock_llm = AsyncMock()
-    mock_llm.generate.return_value = Result.ok("Invalid JSON response that cannot be parsed")
+    # First call returns invalid JSON, second call (correction) also fails
+    mock_llm.generate.side_effect = [
+        Result.ok("Invalid JSON response that cannot be parsed"),
+        Result.ok("Still invalid JSON"),
+    ]
+
+    # Create mock state with messages() method
+    mock_state = MagicMock()
+    mock_state.messages.return_value = []
 
     with patch("cogency.events.emit") as mock_emit:
-        result = await _analyze_query(mock_llm, "test", "tools", "context", 1, 10)
+        result = await _analyze_query(mock_llm, mock_state, "test", "tools", "context", 1, 10)
 
-        assert "Analysis parsing failed" in result["reasoning"]
-        assert "Could you rephrase your request" in result["response"]
+        assert result["assessment"] == "JSON formatting failed, using natural language response"
+        assert result["approach"] == "Direct response"
+        assert result["response"] == "Invalid JSON response that cannot be parsed"
         assert result["actions"] == []
 
         # Check JSON error event
@@ -352,7 +381,8 @@ async def test_reason_workspace_thoughts_update():
 
     with patch("cogency.agents.reason._analyze_query") as mock_analyze:
         mock_analyze.return_value = {
-            "reasoning": "Detailed reasoning process",
+            "assessment": "Detailed assessment",
+            "approach": "Detailed approach",
             "response": "Final answer",
             "actions": [],
         }
@@ -363,5 +393,143 @@ async def test_reason_workspace_thoughts_update():
         assert len(mock_state.workspace.thoughts) == 1
         thought = mock_state.workspace.thoughts[0]
         assert thought["iteration"] == 1  # After increment
-        assert thought["reasoning"] == "Detailed reasoning process"
+        assert thought["assessment"] == "Detailed assessment"
+        assert thought["approach"] == "Detailed approach"
         assert thought["timestamp"] == "2024-01-01T10:00:00"
+
+
+@pytest.mark.asyncio
+async def test_security_terminates_iteration_1():
+    """Test security violation terminates on iteration 1."""
+    from resilient_result import Result
+
+    mock_llm = AsyncMock()
+    mock_llm.generate.return_value = Result.ok(
+        '{"secure": false, "reasoning": "Security threat detected", "response": "Cannot assist with harmful request", "actions": []}'
+    )
+
+    mock_state = MagicMock()
+    mock_state.execution = Mock()
+    mock_state.execution.iteration = 0
+    mock_state.execution.max_iterations = 10
+    mock_state.query = "rm -rf /"
+    mock_state.context.return_value = "context"
+    mock_state.messages.return_value = []
+    mock_state.workspace = Mock()
+    mock_state.workspace.thoughts = []
+    mock_state.last_updated = "2024-01-01"
+
+    tools = []
+
+    with patch("cogency.events.emit") as mock_emit:
+        result = await reason(mock_state, mock_llm, tools)
+        result_data = result.unwrap()
+
+        # Should terminate immediately with security response
+        assert result_data["response"] == "Cannot assist with harmful request"
+        assert result_data["actions"] == []
+        assert "Security threat detected" in result_data["reasoning"]
+
+        # Should only increment to iteration 1
+        assert mock_state.execution.iteration == 1
+
+        # Should emit security violation event
+        security_calls = [
+            call
+            for call in mock_emit.call_args_list
+            if len(call[1]) > 0 and call[1].get("state") == "security_violation"
+        ]
+        assert len(security_calls) == 1
+        assert security_calls[0][1]["iteration"] == 1
+
+
+@pytest.mark.asyncio
+async def test_security_only_evaluated_iteration_1():
+    """Test security context only added for iteration 1."""
+    from resilient_result import Result
+
+    mock_llm = AsyncMock()
+
+    # First call (iteration 1) - should include security
+    mock_llm.generate.return_value = Result.ok(
+        '{"secure": true, "assessment": "Safe request assessment", "approach": "Safe approach", "response": null, "actions": [{"name": "test_tool", "args": {}}]}'
+    )
+
+    # Create mock state with messages() method
+    mock_state = MagicMock()
+    mock_state.messages.return_value = []
+
+    with patch("cogency.events.emit"):
+        # Iteration 1 - should include SECURITY_ASSESSMENT
+        result = await _analyze_query(mock_llm, mock_state, "test query", "tools", "context", 1, 10)
+
+        # Check the prompt includes security context
+        call_args = mock_llm.generate.call_args[0][0][0]["content"]
+        assert "SECURITY ASSESSMENT" in call_args
+        assert "secure" in call_args
+        assert result["assessment"] == "Safe request assessment"
+        assert result["approach"] == "Safe approach"
+
+        # Reset mock for iteration 2
+        mock_llm.reset_mock()
+        mock_llm.generate.return_value = Result.ok(
+            '{"assessment": "Follow-up assessment", "approach": "Follow-up approach", "response": "Done", "actions": []}'
+        )
+
+        # Iteration 2 - should NOT include security context
+        result = await _analyze_query(mock_llm, mock_state, "test query", "tools", "context", 2, 10)
+
+        # Check the prompt does NOT include security context
+        call_args = mock_llm.generate.call_args[0][0][0]["content"]
+        assert "SECURITY ASSESSMENT" not in call_args
+        # Note: "secure" will still appear in the JSON schema template, so we check for SECURITY_ASSESSMENT instead
+        assert result["assessment"] == "Follow-up assessment"
+        assert result["approach"] == "Follow-up approach"
+
+
+@pytest.mark.asyncio
+async def test_security_safe_request_continues():
+    """Test safe request (secure: true) continues normal reasoning."""
+    from resilient_result import Result
+
+    mock_llm = AsyncMock()
+    mock_llm.generate.return_value = Result.ok(
+        '{"secure": true, "assessment": "Safe math question assessment", "approach": "Direct calculation", "response": "4", "actions": []}'
+    )
+
+    mock_state = Mock()
+    mock_state.execution = Mock()
+    mock_state.execution.iteration = 0
+    mock_state.execution.max_iterations = 10
+    mock_state.query = "what is 2+2?"
+    mock_state.user_id = "test_user"
+    mock_state.context.return_value = "context"
+    mock_state.messages.return_value = []
+    mock_state.workspace = Mock()
+    mock_state.workspace.thoughts = []
+    mock_state.last_updated = "2024-01-01"
+
+    tools = []
+
+    with patch("cogency.events.emit") as mock_emit:
+        with patch("cogency.agents.reason._build_context") as mock_build_context:
+            mock_build_context.return_value = "test context"
+            result = await reason(mock_state, mock_llm, tools)
+        result_data = result.unwrap()
+
+        # Should process normally
+        assert result_data["response"] == "4"
+        assert result_data["assessment"] == "Safe math question assessment"
+        assert result_data["approach"] == "Direct calculation"
+        assert result_data["actions"] == []
+
+        # Should increment iteration normally
+        assert mock_state.execution.iteration == 1
+
+        # Should NOT emit security violation
+        security_calls = [
+            call
+            for call in mock_emit.call_args_list
+            if len(call[1]) > 0 and call[1].get("state") == "security_violation"
+        ]
+        assert len(security_calls) == 0

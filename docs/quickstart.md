@@ -29,24 +29,25 @@ OPENAI_API_KEY=sk-...
 ## Hello World
 
 ```python
-from cogency import Agent
-
-agent = Agent("assistant")
-result = agent.run("What's 2 + 2?")
-print(result)  # "4"
-```
-
-## Async
-
-```python
 import asyncio
+from cogency import Agent
 
 async def main():
     agent = Agent("assistant")
-    result = await agent.run_async("Find and summarize the latest AI research")
-    print(result)
+    result = await agent.run("What's 2 + 2?")
+    print(result)  # "4"
 
 asyncio.run(main())
+```
+
+## Sync (for scripts/testing)
+
+```python
+from cogency import Agent
+
+agent = Agent("assistant")
+result = agent.run_sync("What's 2 + 2?")
+print(result)  # "4"
 ```
 
 ## Streaming

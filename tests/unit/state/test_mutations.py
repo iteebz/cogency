@@ -15,7 +15,6 @@ def test_add_message_basic():
     message = state.conversation.messages[0]
     assert message["role"] == "user"
     assert message["content"] == "hello world"
-    assert "timestamp" in message
 
     assert isinstance(state.conversation.last_updated, datetime)
 
@@ -58,18 +57,20 @@ def test_add_message_preserves():
 
 
 def test_add_message_timestamps():
+    """Test that conversation-level timestamps are still tracked."""
     state = State(query="test query")
 
     add_message(state, "user", "test message")
 
+    # Message objects no longer have timestamps - clean OpenAI format
     message = state.conversation.messages[0]
-    timestamp_str = message["timestamp"]
+    assert "timestamp" not in message
+    assert message["role"] == "user"
+    assert message["content"] == "test message"
 
-    timestamp = datetime.fromisoformat(timestamp_str)
-    assert isinstance(timestamp, datetime)
-
-    now = datetime.now()
-    assert (now - timestamp).seconds < 1
+    # But conversation-level timestamps are still maintained
+    assert isinstance(state.conversation.last_updated, datetime)
+    assert isinstance(state.last_updated, datetime)
 
 
 def test_update_from_reasoning_response():

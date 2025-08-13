@@ -14,11 +14,11 @@ async def test_create_read():
 
         result = await tool.run(action="create", path="test.txt", content="hello")
         assert result.success
-        assert "Created file" in result.data["result"]
+        assert "Created file" in result.unwrap()["result"]
 
         result = await tool.run(action="read", path="test.txt")
         assert result.success
-        assert result.data["content"] == "hello"
+        assert result.unwrap()["content"] == "hello"
 
 
 @pytest.mark.asyncio
@@ -29,7 +29,7 @@ async def test_list():
 
         result = await tool.run(action="list")
         assert result.success
-        assert any(item["name"] == "test.txt" for item in result.data["items"])
+        assert any(item["name"] == "test.txt" for item in result.unwrap()["items"])
 
 
 @pytest.mark.asyncio
@@ -42,7 +42,7 @@ async def test_edit_single():
         assert result.success
 
         result = await tool.run(action="read", path="test.txt")
-        assert "EDITED" in result.data["content"]
+        assert "EDITED" in result.unwrap()["content"]
 
 
 @pytest.mark.asyncio
@@ -57,7 +57,7 @@ async def test_edit_range():
         assert result.success
 
         result = await tool.run(action="read", path="test.txt")
-        content = result.data["content"]
+        content = result.unwrap()["content"]
         assert "line1" in content
         assert "NEW" in content
         assert "LINES" in content
@@ -74,7 +74,7 @@ async def test_edit_full():
         assert result.success
 
         result = await tool.run(action="read", path="test.txt")
-        assert result.data["content"] == "new content"
+        assert result.unwrap()["content"] == "new content"
 
 
 @pytest.mark.asyncio

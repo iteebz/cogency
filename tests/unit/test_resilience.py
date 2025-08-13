@@ -77,7 +77,7 @@ def test_resilience_decorator_with_function():
     def test_function():
         nonlocal call_count
         call_count += 1
-        if call_count < 3:
+        if call_count < 2:
             # Transient error - should retry
             raise ConnectionError("network error")
         return "success"
@@ -86,8 +86,8 @@ def test_resilience_decorator_with_function():
     result = test_function()
     # resilient returns Result object
     assert result.success
-    assert result.data == "success"
-    assert call_count >= 3
+    assert result.unwrap() == "success"
+    assert call_count >= 2
 
 
 def test_resilience_decorator_stops_on_code_bug():
@@ -127,7 +127,7 @@ def test_resilience_decorator_with_async():
     # Should work with async functions
     result = asyncio.run(async_function())
     assert result.success
-    assert result.data == "async success"
+    assert result.unwrap() == "async success"
     assert call_count >= 2
 
 

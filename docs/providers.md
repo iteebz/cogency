@@ -11,7 +11,7 @@ from cogency.providers import OpenAI, Anthropic, Mistral, Gemini, Ollama, OpenRo
 llm = OpenAI()  # gpt-4o-mini
 llm = Anthropic()  # claude-3-5-haiku
 llm = Mistral()  # mistral-small-latest
-llm = Gemini()  # gemini-2.0-flash-exp
+llm = Gemini()  # gemini-2.5-flash-lite
 llm = OpenRouter()  # anthropic/claude-3.5-haiku
 llm = Groq()  # llama-3.3-70b-versatile
 llm = Ollama()  # llama3.3
@@ -139,11 +139,11 @@ async for chunk in llm.stream(messages):
 
 # Embedding (single text)
 result = await embed.embed("Hello world")
-vectors = result.data  # List of numpy arrays
+vectors = result.unwrap()  # List of numpy arrays
 
 # Embedding (multiple texts)
 result = await embed.embed(["Hello", "world"])
-vectors = result.data  # List of numpy arrays
+vectors = result.unwrap()  # List of numpy arrays
 ```
 
 ## Error Handling
@@ -153,7 +153,7 @@ Providers use `resilient_result.Result`:
 ```python
 result = await llm.run(messages)
 if result.success:
-    print(result.data)
+    print(result.unwrap())
 else:
     print(f"Error: {result.error}")
 ```

@@ -1,8 +1,8 @@
 """Memory benchmarks showcasing cross-session capabilities."""
 
 from .base import MemoryBenchmark
-from .cross_session import CrossSessionMemory
 from .interference import MemoryInterference
-from .temporal_ordering import TemporalOrdering
+from .ordering import MemoryOrdering
+from .session import SessionMemory
 
-__all__ = ["MemoryBenchmark", "CrossSessionMemory", "TemporalOrdering", "MemoryInterference"]
+__all__ = ["MemoryBenchmark", "SessionMemory", "MemoryOrdering", "MemoryInterference"]

@@ -109,13 +109,8 @@ def test_detect_llm_with_provider():
     """Test detect_llm with explicit provider."""
     mock_provider = Mock(spec=Provider)
 
-    with patch("cogency.providers.detection.emit") as mock_emit:
-        result = detect_llm(mock_provider)
-
-        assert result is mock_provider
-        mock_emit.assert_called_once()
-        assert mock_emit.call_args[1]["type"] == "llm"
-        assert mock_emit.call_args[1]["operation"] == "setup"
+    result = detect_llm(mock_provider)
+    assert result is mock_provider
 
 
 def test_detect_llm_invalid_provider():
@@ -141,12 +136,8 @@ def test_detect_embed_with_provider():
     """Test detect_embed with explicit provider."""
     mock_provider = Mock(spec=Provider)
 
-    with patch("cogency.providers.detection.emit") as mock_emit:
-        result = detect_embed(mock_provider)
-
-        assert result is mock_provider
-        mock_emit.assert_called_once()
-        assert mock_emit.call_args[1]["type"] == "embed"
+    result = detect_embed(mock_provider)
+    assert result is mock_provider
 
 
 def test_detect_embed_invalid_provider():

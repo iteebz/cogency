@@ -1,7 +1,6 @@
 """Event storage and log processing."""
 
 import json
-import logging
 from collections import deque
 from pathlib import Path
 from typing import Any
@@ -75,9 +74,11 @@ class EventLogger:
             "level": event.get("level", "info"),
         }
 
-        # Add relevant data without nesting
-        data = event.get("data", {})
-        for key, value in data.items():
+        # Add relevant data without nesting - now flattened in event
+        for key, value in event.items():
+            # Skip core event fields
+            if key in ["timestamp", "type", "level"]:
+                continue
             # Skip overly verbose fields
             if (
                 key in ["messages", "full_response"]
@@ -96,30 +97,3 @@ class EventLogger:
         except Exception:
             # Fail silently - don't break execution for logging issues
             pass
-
-
-class LoggingBridge(logging.Handler):
-    """Bridge standard Python logging into event system."""
-
-    def emit(self, record):
-        """Convert log record to event emission."""
-        from .bus import emit
-
-        # Convert logging level to event level
-        level_mapping = {
-            logging.DEBUG: "debug",
-            logging.INFO: "info",
-            logging.WARNING: "warning",
-            logging.ERROR: "error",
-            logging.CRITICAL: "error",
-        }
-
-        emit(
-            "log",
-            level=level_mapping.get(record.levelno, "info"),
-            logger=record.name,
-            message=record.getMessage(),
-            module=record.module,
-            function=record.funcName,
-            line=record.lineno,
-        )

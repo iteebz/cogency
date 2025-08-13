@@ -4,7 +4,7 @@
 from cogency import Agent, devops_tools
 
 agent = Agent("assistant")
-result = agent.run("What's 2+2?")
+result = await agent.run("What's 2+2?")
 
 # With tools
 agent = Agent("assistant", tools=devops_tools())
@@ -33,11 +33,11 @@ agent = Agent(
 ## Methods
 
 ```python
-# Synchronous execution
-result = agent.run("What's 2+2?", user_id="alice")
+# Asynchronous execution (recommended)
+result = await agent.run("Research quantum computing", user_id="alice")
 
-# Asynchronous execution
-result = await agent.run_async("Research quantum computing")
+# Synchronous execution (for scripts/testing)
+result = agent.run_sync("What's 2+2?", user_id="alice")
 
 # Streaming execution (real-time thinking + output)
 async for event in agent.run_stream("Complex research task"):

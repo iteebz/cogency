@@ -6,10 +6,10 @@ from typing import Union
 import anthropic
 from resilient_result import Ok, Result
 
-from cogency.events import emit
+from cogency.events import emit, lifecycle
 from cogency.providers.tokens import cost, count
 
-from .base import Provider, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator
 
 
 class Anthropic(Provider):
@@ -43,6 +43,8 @@ class Anthropic(Provider):
             max_retries=self.max_retries,
         )
 
+    @lifecycle("llm", operation="generate")
+    @rotate_retry
     async def generate(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
@@ -68,6 +70,7 @@ class Anthropic(Provider):
         tout = count([{"role": "assistant", "content": response}], self.model)
         emit(
             "provider",
+            level="debug",
             provider=self.provider_name,
             model=self.model,
             tin=tin,
@@ -81,6 +84,7 @@ class Anthropic(Provider):
 
         return Ok(response)
 
+    @lifecycle("llm", operation="stream")
     async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()

@@ -14,10 +14,10 @@ async def test_empty_calls():
     result = await act([], [], Mock())
 
     assert result.success
-    assert result.data["summary"] == "No tools to execute"
-    assert result.data["results"] == []
-    assert result.data["errors"] == []
-    assert result.data["total_executed"] == 0
+    assert result.unwrap()["summary"] == "No tools to execute"
+    assert result.unwrap()["results"] == []
+    assert result.unwrap()["errors"] == []
+    assert result.unwrap()["total_executed"] == 0
 
 
 @pytest.mark.asyncio
@@ -38,9 +38,9 @@ async def test_successful_execution():
     result = await act(tool_calls, tools, state)
 
     assert result.success
-    assert result.data["successful_count"] == 1
-    assert result.data["failed_count"] == 0
-    assert "1 tools executed successfully" in result.data["summary"]
+    assert result.unwrap()["successful_count"] == 1
+    assert result.unwrap()["failed_count"] == 0
+    assert "1 tools executed successfully" in result.unwrap()["summary"]
 
     # Verify tool was called correctly
     mock_tool.execute.assert_called_once_with(param="value")
@@ -63,9 +63,9 @@ async def test_tool_not_found():
     result = await act(tool_calls, tools, state)
 
     assert result.success
-    assert result.data["successful_count"] == 0
-    assert result.data["failed_count"] == 1
-    assert "Tool 'nonexistent_tool' not found" in result.data["errors"][0]["error"]
+    assert result.unwrap()["successful_count"] == 0
+    assert result.unwrap()["failed_count"] == 1
+    assert "Tool 'nonexistent_tool' not found" in result.unwrap()["errors"][0]["error"]
 
 
 @pytest.mark.asyncio
@@ -84,9 +84,9 @@ async def test_execution_failure():
     result = await act(tool_calls, tools, state)
 
     assert result.success  # act() succeeds even if tools fail
-    assert result.data["successful_count"] == 0
-    assert result.data["failed_count"] == 1
-    assert "Tool failed" in result.data["errors"][0]["error"]
+    assert result.unwrap()["successful_count"] == 0
+    assert result.unwrap()["failed_count"] == 1
+    assert "Tool failed" in result.unwrap()["errors"][0]["error"]
 
 
 @pytest.mark.asyncio
@@ -106,12 +106,12 @@ async def test_execution_exception():
         result = await act(tool_calls, tools, state)
 
         assert result.success
-        assert result.data["successful_count"] == 0
-        assert result.data["failed_count"] == 1
-        assert "Execution error" in result.data["errors"][0]["error"]
+        assert result.unwrap()["successful_count"] == 0
+        assert result.unwrap()["failed_count"] == 1
+        assert "Execution error" in result.unwrap()["errors"][0]["error"]
 
         # Verify error result was created
-        error_result = result.data["errors"][0]["result"]
+        error_result = result.unwrap()["errors"][0]["result"]
         assert error_result.failure
 
 
@@ -140,9 +140,9 @@ async def test_mixed_results():
     result = await act(tool_calls, tools, state)
 
     assert result.success
-    assert result.data["successful_count"] == 1
-    assert result.data["failed_count"] == 1
-    assert "1 tools executed successfully; 1 tools failed" in result.data["summary"]
+    assert result.unwrap()["successful_count"] == 1
+    assert result.unwrap()["failed_count"] == 1
+    assert "1 tools executed successfully; 1 tools failed" in result.unwrap()["summary"]
 
 
 @pytest.mark.asyncio
@@ -247,9 +247,9 @@ async def test_basic_execution():
     result = await act(tool_calls, tools, state)
 
     assert result.success
-    assert result.data["successful_count"] == 1
-    assert result.data["failed_count"] == 0
-    assert "basic_tool" in result.data["results"][0]["name"]
+    assert result.unwrap()["successful_count"] == 1
+    assert result.unwrap()["failed_count"] == 0
+    assert "basic_tool" in result.unwrap()["results"][0]["name"]
 
 
 @pytest.mark.asyncio
@@ -268,8 +268,8 @@ async def test_large_result_handling():
     result = await act(tool_calls, tools, state)
 
     assert result.success
-    assert result.data["successful_count"] == 1
+    assert result.unwrap()["successful_count"] == 1
     # Verify result contains the tool execution result
-    tool_result = result.data["results"][0]["result"]
+    tool_result = result.unwrap()["results"][0]["result"]
     assert tool_result.success
-    assert len(tool_result.data["large_data"]) == 1000
+    assert len(tool_result.unwrap()["large_data"]) == 1000

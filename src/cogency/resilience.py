@@ -1,4 +1,6 @@
-"""Agent resilience - smart error classification."""
+"""Agent resilience - always-on with smart error classification."""
+
+import os
 
 from resilient_result import resilient
 
@@ -38,5 +40,20 @@ def smart_handler(error):
     return None
 
 
-# Canonical agent resilience decorator
-resilience = resilient(handler=smart_handler)
+def configurable_resilience(enabled_env: str = "COGENCY_RESILIENCE_ENABLED"):
+    """Environment-controlled resilience - always on by default."""
+    enabled = os.getenv(enabled_env, "true").lower() == "true"
+
+    def decorator(func=None, **kwargs):
+        if not enabled:
+            return func if func else lambda f: f
+
+        # Apply smart resilience
+        base_resilient = resilient(handler=smart_handler, **kwargs)
+        return base_resilient(func) if func else base_resilient
+
+    return decorator
+
+
+# Canonical agent resilience decorator - always on by default
+resilience = configurable_resilience()

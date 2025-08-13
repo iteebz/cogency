@@ -1,6 +1,6 @@
 # Cogency Examples
 
-**Agents that just work.** 5-line demos to complete applications.
+**Minimal, working examples.** Real agents that demonstrate core capabilities.
 
 ## Quick Start
 
@@ -8,43 +8,48 @@
 python hello.py
 ```
 
-## Showcases
+## Examples
 
-**Autonomous Coder** - Apps from single commands:
+**Hello World** - Pure intelligence:
 ```bash
-python coder.py    # → Task API with auth, tests, Docker
+python hello.py    # → Beautiful console feedback, zero ceremony
 ```
 
-**Intelligence Analyst** - Multi-source research:
-```bash  
-python research.py # → Market analysis with recommendations
-```
-
-**DevOps Automation** - Self-configuring infrastructure:
+**Tools** - Watch agent use tools:
 ```bash
-python devops.py   # → CI/CD pipeline with K8s manifests
+python tools.py    # → Files + Shell with real-time feedback
 ```
 
-**ML Pipeline** - Data to deployed model:
+**Memory** - Persistent context:
 ```bash
-python ml.py       # → Churn prediction with MLOps
+python memory.py   # → Context across conversations
 ```
 
-**Persistent Memory** - Cross-conversation context:
+**Research** - Web search:
 ```bash
-python memory.py   # → Remembers role, stack, constraints
+python research.py # → Live search with console output
 ```
 
-**Tool Composition** - Mix and match capabilities:
+**Coder** - Code generation:
 ```bash
-python tool_composition.py  # → DevOps, research, web, custom tools
+python coder.py    # → File creation with feedback
 ```
 
-## What Makes These Special
+**DevOps** - Infrastructure:
+```bash
+python devops.py   # → Dockerfile creation with feedback
+```
 
-- **Adaptive Intelligence**: Fast for simple, deep reasoning for complex
-- **Zero Configuration**: No prompts, no setup - just natural language
-- **Production Ready**: Working code with tests, error handling, best practices
-- **Memory Enabled**: Context across sessions
+**ML** - Machine learning:
+```bash
+python ml.py       # → Model creation with feedback
+```
 
-**Intelligence that scales automatically** from trivial to transformative tasks.
+## What Makes These Work
+
+- **Console Feedback**: Beautiful real-time progress with `→ Task completed`
+- **Minimal Code**: 3-5 lines per example, zero ceremony
+- **Real Tools**: Files, Shell, Search with actual execution
+- **Graceful Failures**: Work even when APIs unavailable
+
+**Minimal examples that deliver exactly what they promise.**

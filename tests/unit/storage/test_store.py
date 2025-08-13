@@ -28,6 +28,9 @@ class MockStore:
     async def delete_conversation(self, conversation_id: str) -> bool:
         return True
 
+    async def list_conversations(self, user_id: str, limit: int = 50) -> list[dict[str, str]]:
+        return []
+
     async def save_workspace(self, workspace) -> bool:
         return True
 
@@ -98,6 +101,9 @@ def test_store_protocol_method_signatures():
     assert hasattr(mock_store, "delete_conversation")
     assert callable(mock_store.delete_conversation)
 
+    assert hasattr(mock_store, "list_conversations")
+    assert callable(mock_store.list_conversations)
+
     assert hasattr(mock_store, "save_workspace")
     assert callable(mock_store.save_workspace)
 
@@ -152,6 +158,9 @@ async def test_store_conversation_operations():
 
     result = await mock_store.delete_conversation("conv_id")
     assert result is True
+
+    result = await mock_store.list_conversations("user_id")
+    assert result == []
 
 
 @pytest.mark.asyncio
@@ -250,6 +259,7 @@ async def test_store_protocol_async_nature():
         "save_conversation",
         "load_conversation",
         "delete_conversation",
+        "list_conversations",
         "save_workspace",
         "load_workspace",
         "delete_workspace",
@@ -275,6 +285,7 @@ def test_store_protocol_type_annotations():
         "save_conversation",
         "load_conversation",
         "delete_conversation",
+        "list_conversations",
         "save_workspace",
         "load_workspace",
         "delete_workspace",
@@ -303,6 +314,7 @@ class AsyncMockStore:
         self.save_conversation = AsyncMock(return_value=True)
         self.load_conversation = AsyncMock(return_value=None)
         self.delete_conversation = AsyncMock(return_value=True)
+        self.list_conversations = AsyncMock(return_value=[])
 
         # Workspace operations
         self.save_workspace = AsyncMock(return_value=True)

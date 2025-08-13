@@ -9,9 +9,10 @@ from typing import Any
 
 from cogency import Agent
 
-from ...judges.claude_judge import ClaudeJudge
+from ...config import get_max_iterations
+from ...eval_logging import EvalLogger
+from ...judges.judge import Judge
 from ...judges.scoring import JudgeResult
-from ...logging import EvalLogger
 
 
 @dataclass
@@ -33,7 +34,7 @@ class MemoryBenchmark(ABC):
     description: str = "Base memory benchmark"
 
     def __init__(self):
-        self.judge = ClaudeJudge()
+        self.judge = Judge()
         self.logger = EvalLogger()
         self.temp_dir = None
         self.sessions: list[MemorySession] = []
@@ -54,7 +55,7 @@ class MemoryBenchmark(ABC):
         """Create agent with persistent memory in isolated environment."""
         # Force new agent instance with isolated memory store
         return Agent(
-            role=f"memory_test_agent_{session_id}", memory=True, observe=True, max_iterations=8
+            f"memory_test_agent_{session_id}", memory=True, max_iterations=get_max_iterations()
         )
 
     async def execute_session(
@@ -72,7 +73,7 @@ class MemoryBenchmark(ABC):
                 # Create fresh agent instance to simulate new session
                 agent = self.create_agent(f"{session_id}_{len(responses)}", user_id)
 
-            response = await agent.run_async(action, user_id=user_id)
+            response, conversation_id = await agent.run(action, user_id=user_id)
             responses.append(response)
 
         session = MemorySession(

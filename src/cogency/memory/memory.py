@@ -53,6 +53,10 @@ class Profile:
         """Generate user context for agent injection."""
         sections = []
 
+        # Include user's name if mentioned
+        if self.preferences.get("name"):
+            sections.append(f"USER: {self.preferences['name']}")
+
         if self.communication_style:
             sections.append(f"COMMUNICATION: {self.communication_style}")
 
@@ -61,9 +65,11 @@ class Profile:
             sections.append(f"CURRENT GOALS: {goals_str}")
 
         if self.preferences:
-            prefs_items = list(self.preferences.items())[-5:]
-            prefs_str = ", ".join(f"{k}: {v}" for k, v in prefs_items)
-            sections.append(f"PREFERENCES: {prefs_str}")
+            # Filter out name since it's handled separately
+            prefs_items = [(k, v) for k, v in self.preferences.items() if k != "name"][-5:]
+            if prefs_items:
+                prefs_str = ", ".join(f"{k}: {v}" for k, v in prefs_items)
+                sections.append(f"PREFERENCES: {prefs_str}")
 
         if self.projects:
             projects_items = list(self.projects.items())[-3:]
@@ -175,9 +181,13 @@ class MemorySystem:
         return Profile(user_id=user_id)
 
     async def _update_profile(self, user_id: str, interaction_data: dict[str, Any]) -> None:
-        """Update profile primitive with interaction data."""
+        """Update profile primitive with interaction data and extract learnings."""
         profile = self._profiles[user_id]
         profile.last_updated = datetime.now()
+
+        # Extract learnings from interaction content
+        if interaction_data.get("query") and interaction_data.get("human"):
+            await self._extract_profile_insights(user_id, interaction_data["query"])
 
         # Save updated profile
         from cogency.storage import SQLite
@@ -189,3 +199,80 @@ class MemorySystem:
         except Exception:
             # Ignore save errors - memory still works without persistence
             pass
+
+    async def _extract_profile_insights(self, user_id: str, content: str) -> None:
+        """Extract profile insights from user content using LLM analysis."""
+        try:
+            import json
+
+            from cogency.providers import detect_llm
+
+            profile = self._profiles[user_id]
+
+            # Build learning prompt
+            prompt = f"""Extract user profile information from this message:
+
+MESSAGE: {content}
+
+CURRENT PROFILE:
+- Communication style: {profile.communication_style}
+- Preferences: {profile.preferences}
+- Goals: {profile.goals}
+- Expertise: {profile.expertise_areas}
+
+Extract any clear profile information. Return JSON (omit empty fields):
+{{
+  "name_mentioned": "name if explicitly stated",
+  "preferences": {{"key": "value"}},
+  "goals": ["goal1"],
+  "expertise_areas": ["skill1"],
+  "communication_style": "description"
+}}"""
+
+            llm = detect_llm()
+            result = await llm.generate([{"role": "user", "content": prompt}])
+
+            if result.success:
+                try:
+                    response = (
+                        result.value
+                        if hasattr(result, "value")
+                        else result.unwrap()
+                        if hasattr(result, "unwrap")
+                        else str(result)
+                    )
+
+                    # Clean JSON from markdown code blocks
+                    if "```json" in response:
+                        response = response.split("```json")[1].split("```")[0].strip()
+                    elif "```" in response:
+                        response = response.split("```")[1].strip()
+
+                    updates = json.loads(response)
+
+                    # Apply updates
+                    if "name_mentioned" in updates and updates["name_mentioned"]:
+                        profile.preferences["name"] = updates["name_mentioned"]
+
+                    if "preferences" in updates:
+                        profile.preferences.update(updates["preferences"])
+
+                    if "goals" in updates and updates["goals"]:
+                        for goal in updates["goals"]:
+                            if goal not in profile.goals:
+                                profile.goals.append(goal)
+                        profile.goals = profile.goals[-10:]
+
+                    if "expertise_areas" in updates and updates["expertise_areas"]:
+                        for area in updates["expertise_areas"]:
+                            if area not in profile.expertise_areas:
+                                profile.expertise_areas.append(area)
+
+                    if "communication_style" in updates and updates["communication_style"]:
+                        profile.communication_style = updates["communication_style"]
+
+                except json.JSONDecodeError:
+                    pass  # Ignore JSON parse errors
+
+        except Exception:
+            pass  # Ignore learning errors - don't break memory system

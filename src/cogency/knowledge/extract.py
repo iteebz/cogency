@@ -128,7 +128,7 @@ async def _extract_knowledge_artifacts(
 
     # Parse JSON response
     try:
-        data = json.loads(result.data)
+        data = json.loads(result.unwrap())
         knowledge_items = data.get("knowledge", [])
     except (json.JSONDecodeError, AttributeError):
         emit("knowledge", state="parse_error", error="JSON parse failed")
@@ -184,7 +184,7 @@ async def _merge_with_existing_knowledge(
             emit("knowledge", state="merge_llm_error", error="LLM merge call failed")
             return None
 
-        merged_content = result.data.strip()
+        merged_content = result.unwrap().strip()
 
         # Validate merge quality before creating artifact
         if not _validate_merge_quality(

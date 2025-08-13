@@ -1,10 +1,12 @@
 # Changelog
 
-## [1.3.0] - 2025-08-11
-- **Archival memory system** - Topic-based semantic compression + retrieval
-- **Direct agent orchestration** - Eliminated proxy layers
-- **Archaeological cleanup** - Fossil elimination, verbose naming purge
-- **Documentation v1.3.0** - Source-of-truth alignment, 6-tool architecture
+## [1.3.0] - 2025-08-13
+- **State-driven event telemetry** - Comprehensive observability with streaming/orchestration events
+- **Context-injected memory primitives** - Enhanced learning and recall architecture
+- **Canonical namespace rearchitecture** - Complete module organization overhaul
+- **AGI Lab evaluation suite** - GAIA/SWE-bench benchmarks, 66 test files
+- **Archaeological cleanup** - 856KB+ technical debt elimination
+- **CLI telemetry integration** - Enhanced observability and error handling
 
 ## [1.2.2] - 2025-08-10
 - **Four-component state** - Added Conversation component for message persistence

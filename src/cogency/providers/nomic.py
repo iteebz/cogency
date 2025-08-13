@@ -6,7 +6,9 @@ from typing import Optional, Union
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from .base import Provider, setup_rotator
+from cogency.events import lifecycle
+
+from .base import Provider, rotate_retry, setup_rotator
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +75,8 @@ class Nomic(Provider):
                     "nomic package required. Install with: pip install nomic"
                 ) from None
 
+    @lifecycle("embedding", operation="embed")
+    @rotate_retry
     async def embed(
         self, text: Union[str, list[str]], batch_size: Optional[int] = None, **kwargs
     ) -> Result:

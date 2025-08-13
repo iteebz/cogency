@@ -7,10 +7,10 @@ import numpy as np
 from mistralai import Mistral as MistralClient
 from resilient_result import Err, Ok, Result
 
-from cogency.events import emit
+from cogency.events import emit, lifecycle
 from cogency.providers.tokens import cost, count
 
-from .base import Provider, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator
 
 
 class Mistral(Provider):
@@ -42,6 +42,8 @@ class Mistral(Provider):
     def _get_client(self):
         return MistralClient(api_key=self.next_key())
 
+    @lifecycle("llm", operation="generate")
+    @rotate_retry
     async def generate(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
@@ -66,6 +68,7 @@ class Mistral(Provider):
         tout = count([{"role": "assistant", "content": response}], self.model)
         emit(
             "provider",
+            level="debug",
             provider=self.provider_name,
             model=self.model,
             tin=tin,
@@ -79,6 +82,7 @@ class Mistral(Provider):
 
         return Ok(response)
 
+    @lifecycle("llm", operation="stream")
     async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
@@ -94,6 +98,7 @@ class Mistral(Provider):
             if chunk.data.choices[0].delta.content:
                 yield chunk.data.choices[0].delta.content
 
+    @rotate_retry
     async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings using Mistral embedding API."""
         # Check cache first

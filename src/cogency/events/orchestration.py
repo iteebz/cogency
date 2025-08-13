@@ -31,10 +31,10 @@ def state_event(
                     event_data = extract_data(args, kwargs, result)
 
                 # Canonical event emission tied to state change
-                emit(event_type, success=True, **event_data)
+                emit(event_type, level="debug", success=True, **event_data)
             else:
                 # Emit failure event for observability
-                emit(event_type, success=False)
+                emit(event_type, level="debug", success=False)
 
             return result
 

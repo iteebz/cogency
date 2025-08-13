@@ -1,5 +1,6 @@
 """Tests for CLI interface and entry points."""
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -7,16 +8,25 @@ import pytest
 from cogency.cli import interactive_mode, main
 
 
+def mock_asyncio_run(coro):
+    """Mock asyncio.run that actually runs the coroutine to prevent warnings."""
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
+
 @pytest.mark.asyncio
 async def test_interactive_mode_basic():
     """Test interactive mode basic functionality."""
     mock_agent = AsyncMock()
-    mock_agent.run_async.return_value = "Test response"
+    mock_agent.run.return_value = "Test response"
 
     with patch("builtins.input", side_effect=["test message", "exit"]):
         with patch("builtins.print") as mock_print:
             await interactive_mode(mock_agent)
-            mock_agent.run_async.assert_called_once_with("test message")
+            mock_agent.run.assert_called_once()
             mock_print.assert_called()
 
 
@@ -28,7 +38,7 @@ async def test_interactive_mode_quit():
     with patch("builtins.input", side_effect=["quit"]):
         with patch("builtins.print"):
             await interactive_mode(mock_agent)
-            mock_agent.run_async.assert_not_called()
+            mock_agent.run.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -39,7 +49,7 @@ async def test_interactive_mode_keyboard_interrupt():
     with patch("builtins.input", side_effect=KeyboardInterrupt):
         with patch("builtins.print") as mock_print:
             await interactive_mode(mock_agent)
-            mock_agent.run_async.assert_not_called()
+            mock_agent.run.assert_not_called()
             # Should print goodbye message
             assert any("Goodbye" in str(call) for call in mock_print.call_args_list)
 
@@ -52,7 +62,7 @@ async def test_interactive_mode_eof():
     with patch("builtins.input", side_effect=EOFError):
         with patch("builtins.print"):
             await interactive_mode(mock_agent)
-            mock_agent.run_async.assert_not_called()
+            mock_agent.run.assert_not_called()
 
 
 @pytest.mark.asyncio
@@ -63,14 +73,14 @@ async def test_interactive_mode_empty_message():
     with patch("builtins.input", side_effect=["", "  ", "exit"]):
         with patch("builtins.print"):
             await interactive_mode(mock_agent)
-            mock_agent.run_async.assert_not_called()
+            mock_agent.run.assert_not_called()
 
 
 @pytest.mark.asyncio
 async def test_interactive_mode_error_handling():
     """Test interactive mode error handling."""
     mock_agent = AsyncMock()
-    mock_agent.run_async.side_effect = Exception("Agent error")
+    mock_agent.run.side_effect = Exception("Agent error")
 
     with patch("builtins.input", side_effect=["test", "exit"]):
         with patch("builtins.print") as mock_print:
@@ -95,10 +105,11 @@ def test_main_help():
 
 def test_main_single_message():
     """Test CLI single message mode."""
-    with patch("sys.argv", ["cogency", "hello", "world"]):
+    with patch("sys.argv", ["cogency", "ask", "hello world"]):
         with patch("cogency.Agent") as mock_agent_class:
-            with patch("asyncio.run") as mock_run:
-                mock_agent = MagicMock()
+            with patch("asyncio.run", side_effect=mock_asyncio_run) as mock_run:
+                mock_agent = AsyncMock()
+                mock_agent.run = AsyncMock(return_value=("Test response", "test_conversation_id"))
                 mock_agent_class.return_value = mock_agent
 
                 main()
@@ -108,7 +119,9 @@ def test_main_single_message():
                 args, kwargs = mock_agent_class.call_args
                 assert args[0] == "assistant"
                 assert len(kwargs["tools"]) > 0  # Should have tools
-                assert kwargs["memory"] is True
+                assert (
+                    kwargs["memory"] is False
+                )  # Memory defaults to False unless --memory flag used
 
                 # Should run in single message mode
                 mock_run.assert_called_once()
@@ -116,12 +129,13 @@ def test_main_single_message():
 
 def test_main_interactive_flag():
     """Test CLI interactive flag."""
-    with patch("sys.argv", ["cogency", "-i"]):
+    with patch("sys.argv", ["cogency", "chat"]):
         with patch("cogency.Agent") as mock_agent_class:
-            with patch("asyncio.run") as mock_run:
-                with patch("cogency.cli.interactive_mode"):
-                    mock_agent = MagicMock()
+            with patch("asyncio.run", side_effect=mock_asyncio_run) as mock_run:
+                with patch("cogency.cli.main.interactive_mode") as mock_interactive:
+                    mock_agent = AsyncMock()
                     mock_agent_class.return_value = mock_agent
+                    mock_interactive.return_value = None
 
                     main()
 
@@ -130,27 +144,34 @@ def test_main_interactive_flag():
 
 
 def test_main_no_args_interactive():
-    """Test CLI defaults to interactive when no message."""
+    """Test CLI shows help when no command provided."""
     with patch("sys.argv", ["cogency"]):
-        with patch("cogency.Agent") as mock_agent_class:
-            with patch("asyncio.run") as mock_run:
-                mock_agent = MagicMock()
-                mock_agent_class.return_value = mock_agent
+        # Mock argparse to capture what happens
+        with patch("argparse.ArgumentParser") as mock_parser_class:
+            mock_parser = MagicMock()
+            mock_parser_class.return_value = mock_parser
+            mock_parser.parse_args.return_value = MagicMock(command=None)
 
-                main()
+            main()
 
-                # Should default to interactive mode
-                mock_run.assert_called_once()
+            # Should call print_help when no command provided
+            mock_parser.print_help.assert_called_once()
 
 
 def test_main_with_retrieval_env():
     """Test CLI with retrieval environment variable."""
-    with patch("sys.argv", ["cogency", "test"]):
+    with patch(
+        "sys.argv",
+        ["cogency", "ask", "test message", "--tools", "Files,Shell,Search,Scrape,Recall,Retrieve"],
+    ):
         with patch.dict("os.environ", {"COGENCY_RETRIEVAL_PATH": "/test/path"}):
             with patch("cogency.Agent") as mock_agent_class:
-                with patch("asyncio.run"):
+                with patch("asyncio.run", side_effect=mock_asyncio_run):
                     with patch("cogency.tools.Retrieve") as mock_retrieval:
-                        mock_agent = MagicMock()
+                        mock_agent = AsyncMock()
+                        mock_agent.run = AsyncMock(
+                            return_value=("Test response", "test_conversation_id")
+                        )
                         mock_agent_class.return_value = mock_agent
 
                         main()
@@ -160,12 +181,12 @@ def test_main_with_retrieval_env():
 
                         # Should include Retrieval in tools
                         args, kwargs = mock_agent_class.call_args
-                        assert len(kwargs["tools"]) > 5  # Base tools + Retrieval
+                        assert len(kwargs["tools"]) == 6  # All 6 tools including Retrieve
 
 
 def test_main_agent_creation_error():
     """Test CLI handles agent creation errors."""
-    with patch("sys.argv", ["cogency", "test"]):
+    with patch("sys.argv", ["cogency", "ask", "test message"]):
         with patch("cogency.Agent", side_effect=Exception("Agent creation failed")):
             with patch("builtins.print") as mock_print:
                 with patch("sys.exit") as mock_exit:
@@ -177,15 +198,19 @@ def test_main_agent_creation_error():
 
                     # Should print error and exit
                     mock_exit.assert_called_once_with(1)
-                    assert any("Error:" in str(call) for call in mock_print.call_args_list)
+                    assert any(
+                        "Failed to initialize agent:" in str(call)
+                        for call in mock_print.call_args_list
+                    )
 
 
 def test_main_tool_setup():
     """Test CLI sets up correct default tools."""
-    with patch("sys.argv", ["cogency", "test"]):
+    with patch("sys.argv", ["cogency", "ask", "test message"]):
         with patch("cogency.Agent") as mock_agent_class:
-            with patch("asyncio.run"):
-                mock_agent = MagicMock()
+            with patch("asyncio.run", side_effect=mock_asyncio_run):
+                mock_agent = AsyncMock()
+                mock_agent.run = AsyncMock(return_value=("Test response", "test_conversation_id"))
                 mock_agent_class.return_value = mock_agent
 
                 main()

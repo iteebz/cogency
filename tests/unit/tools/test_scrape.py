@@ -23,9 +23,9 @@ async def test_success(mock_metadata, mock_extract, mock_fetch):
 
     result = await tool.run(url="https://example.com")
     assert result.success
-    assert result.data["content"] == "Clean content"
-    assert result.data["title"] == "Test Title"
-    assert result.data["url"] == "https://example.com"
+    assert result.unwrap()["content"] == "Clean content"
+    assert result.unwrap()["title"] == "Test Title"
+    assert result.unwrap()["url"] == "https://example.com"
 
 
 @pytest.mark.asyncio
@@ -41,7 +41,7 @@ async def test_no_title(mock_metadata, mock_extract, mock_fetch):
 
     result = await tool.run(url="https://example.com")
     assert result.success
-    assert result.data["title"] == "Untitled"
+    assert result.unwrap()["title"] == "Untitled"
 
 
 @pytest.mark.asyncio

@@ -17,7 +17,7 @@ async def index(documents: list[dict], embedder, output_path: str) -> Result:
         if embed_result.failure:
             return Result.fail(f"Embedding generation failed: {embed_result.error}")
 
-        embeddings = embed_result.data
+        embeddings = embed_result.unwrap()
 
         # Create index structure
         index_data = {

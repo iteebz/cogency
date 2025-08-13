@@ -217,10 +217,10 @@ class Provider(ABC):
             else None
         )
 
-    def next_key(self) -> str:
-        """Get next API key - rotates automatically on every call."""
+    def current_key(self) -> str:
+        """Get current API key - stays on same key until rotation needed."""
         if self.rotator:
-            return self.rotator.get_next()
+            return self.rotator.current
         return self.api_key
 
     @abstractmethod
@@ -241,6 +241,13 @@ class Provider(ABC):
     async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings - override if provider supports embeddings."""
         raise NotImplementedError(f"{self.provider_name} doesn't support embeddings")
+
+    def next_key(self) -> Optional[str]:
+        """Get next API key in rotation (if rotator exists)."""
+        if self.rotator:
+            self.api_key = self.rotator.get_next()
+            return self.api_key
+        return self.api_key
 
     def _format(self, msgs: list[dict[str, str]]) -> list[dict[str, str]]:
         """Convert to provider format (standard role/content structure)."""

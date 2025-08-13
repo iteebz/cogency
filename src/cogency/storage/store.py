@@ -40,6 +40,10 @@ class Store(Protocol):
         """Delete conversation permanently"""
         ...
 
+    async def list_conversations(self, user_id: str, limit: int = 50) -> list[dict[str, str]]:
+        """List conversations for user with metadata"""
+        ...
+
     # Workspace Operations (temporary execution state)
 
     async def save_workspace(self, workspace: "Workspace") -> bool:

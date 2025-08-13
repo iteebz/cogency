@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from cogency.providers import Provider
+    from cogency.tools.base import Tool
 
 # Runtime limits
 MAX_TOOL_CALLS = 3  # Limit to prevent JSON parsing issues
@@ -49,15 +50,15 @@ class PathsConfig:
 class AgentConfig:
     """Agent configuration container."""
 
-    name: str = "cogency"
+    name: str
+    tools: Optional[list["Tool"]]
+    memory: Optional[Any]
+    max_iterations: int
+    handlers: list[Any]
     identity: Optional[str] = (
         "You are Cogency, a helpful AI assistant with a knack for "
         "getting things done efficiently. Keep it concise and clear."
     )
     llm: Optional["Provider"] = None
     embed: Optional["Provider"] = None
-    tools: Optional[Any] = None
-    memory: Optional[Any] = None
-    max_iterations: int = 10
     notify: bool = True
-    handlers: list[Any] = None

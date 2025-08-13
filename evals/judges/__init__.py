@@ -1,7 +1,6 @@
-"""Multi-model LLM judges for evaluation."""
+"""Configurable LLM judges for evaluation."""
 
-from .claude_judge import ClaudeJudge
-from .gemini_judge import GeminiJudge
+from .judge import Judge
 from .scoring import JudgeResult, Score
 
-__all__ = ["ClaudeJudge", "GeminiJudge", "Score", "JudgeResult"]
+__all__ = ["Judge", "Score", "JudgeResult"]

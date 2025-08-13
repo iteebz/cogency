@@ -7,14 +7,19 @@
 **Adaptive AI agents that reason and act.**
 
 ```python
+import asyncio
 from cogency import Agent
-agent = Agent("assistant")
 
-# Simple → fast
-agent.run("What's 2+2?")
-
-# Complex → deep reasoning + tools
-agent.run("Analyze this codebase and suggest improvements")
+async def main():
+    agent = Agent("assistant")
+    
+    # Simple → fast
+    result = await agent.run("What's 2+2?")
+    
+    # Complex → deep reasoning + tools
+    result = await agent.run("Analyze this codebase and suggest improvements")
+    
+asyncio.run(main())
 ```
 
 ## Why Cogency?
@@ -35,10 +40,15 @@ export OPENAI_API_KEY=...
 ```
 
 ```python
+import asyncio
 from cogency import Agent
 
-agent = Agent("assistant")
-result = agent.run("What's in the current directory?")
+async def main():
+    agent = Agent("assistant")
+    result = await agent.run("What's in the current directory?")
+    print(result)
+
+asyncio.run(main())
 ```
 
 **That's it.** No configuration, no setup, just working agents.
@@ -47,21 +57,22 @@ result = agent.run("What's in the current directory?")
 
 **Semantic Security**
 ```python
-agent.run("rm -rf /")  # ❌ Blocked
-agent.run("List files safely")  # ✅ Allowed
+# Semantic security protects automatically:
+await agent.run("rm -rf /")  # ❌ Blocked
+await agent.run("List files safely")  # ✅ Allowed
 ```
 
 **Adaptive Intelligence**  
 ```python
-agent.run("What's 2+2?")  # Fast
-agent.run("Analyze my codebase")  # Deep reasoning
+await agent.run("What's 2+2?")  # Fast
+await agent.run("Analyze my codebase")  # Deep reasoning
 ```
 
 **Memory That Works**
 ```python
 agent = Agent("assistant", memory=True)
-agent.run("I prefer Python and work at Google")
-agent.run("What language should I use?")  # → "Python"
+await agent.run("I prefer Python and work at Google")
+await agent.run("What language should I use?")  # → "Python"
 ```
 
 ## Built-in Tools
@@ -100,13 +111,13 @@ export GROQ_API_KEY=gsk_...
 
 **Observability:**
 ```python
-result = agent.run("Deploy my app")
+result = await agent.run("Deploy my app")
 logs = agent.logs()  # See exactly what happened
 ```
 
 **Resilience:**
 ```python
-agent.run("List files in /nonexistent")  # Graceful errors
+await agent.run("List files in /nonexistent")  # Graceful errors
 # Auto-retry timeouts, memory failures don't block
 ```
 

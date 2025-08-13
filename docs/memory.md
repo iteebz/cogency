@@ -8,8 +8,8 @@ from cogency import Agent
 agent = Agent("assistant", memory=True)
 
 # Learns automatically
-agent.run("I prefer TypeScript over JavaScript")
-agent.run("What language should I use for my project?")
+await agent.run("I prefer TypeScript over JavaScript")
+await agent.run("What language should I use for my project?")
 # → Recalls preference and provides context
 ```
 
@@ -37,9 +37,9 @@ Learns from interactions and synthesizes understanding without external dependen
 agent = Agent("assistant", memory=True)
 
 # Learns from every interaction
-agent.run("I work primarily with Python and React")
-agent.run("I prefer functional programming patterns")
-agent.run("Help me design an API")
+await agent.run("I work primarily with Python and React")
+await agent.run("I prefer functional programming patterns")
+await agent.run("Help me design an API")
 # → Uses preferences to guide design recommendations
 ```
 
@@ -55,9 +55,9 @@ Works automatically through interactions. Tracks:
 
 ```python
 # Learns from natural conversation
-agent.run("I prefer functional programming patterns")
-agent.run("I'm working on a React app with TypeScript")
-agent.run("Help me design a clean API")
+await agent.run("I prefer functional programming patterns")
+await agent.run("I'm working on a React app with TypeScript")
+await agent.run("Help me design a clean API")
 # → Uses preferences and project context automatically
 ```
 
@@ -69,11 +69,11 @@ Auto-persists across sessions:
 agent = Agent("assistant", memory=True)
 
 # First session
-agent.run("I'm working on a React app")
+await agent.run("I'm working on a React app")
 
 # Later session
 agent = Agent("assistant", memory=True)  
-agent.run("Continue helping with my project")
+await agent.run("Continue helping with my project")
 # → Remembers it's a React app
 ```
 
@@ -83,9 +83,9 @@ Auto-refines understanding over time:
 
 ```python
 # Initial interactions build understanding
-agent.run("I prefer TypeScript over JavaScript")
-agent.run("I like functional programming")  
-agent.run("I'm working on a React project")
+await agent.run("I prefer TypeScript over JavaScript")
+await agent.run("I like functional programming")  
+await agent.run("I'm working on a React project")
 
 # After several interactions, synthesizes:
 # "Developer with TypeScript preference, functional programming style, 

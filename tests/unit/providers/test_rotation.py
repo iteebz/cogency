@@ -54,7 +54,7 @@ async def test_decorator_success():
 
     result = await mock_method(mock_provider, "test", arg2="value")
     assert result.success
-    assert result.data == "success-test-value"
+    assert result.unwrap() == "success-test-value"
 
 
 @pytest.mark.asyncio
@@ -143,7 +143,7 @@ async def test_successful_no_rotation():
     result = await provider.embed("test text")
 
     assert result.success
-    assert result.data == [0.1, 0.2, 0.3]
+    assert result.unwrap() == [0.1, 0.2, 0.3]
     assert provider._call_count == 1
 
 

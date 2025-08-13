@@ -14,14 +14,14 @@ class BaseAgent:
         self.max_iterations = max_iterations
         self.messages = []
 
-    async def run(self, prompt: str) -> Result:
+    async def run_old_api(self, prompt: str) -> Result:
         """Run agent with basic tool calling logic."""
         self.messages = [{"role": "user", "content": prompt}]
         for _iteration in range(self.max_iterations):
             result = await self.llm.run(self.messages)
             if not result.success:
                 return Result.fail(f"Provider failed: {result.error}")
-            response = result.data
+            response = result.unwrap()
             self.messages.append({"role": "assistant", "content": response})
             if (
                 any(
@@ -34,7 +34,7 @@ class BaseAgent:
                     tool_result = await self.tools[0].call(command)
                     if tool_result.success:
                         self.messages.append(
-                            {"role": "user", "content": f"Tool output: {tool_result.data}"}
+                            {"role": "user", "content": f"Tool output: {tool_result.unwrap()}"}
                         )
                     else:
                         self.messages.append(
@@ -47,9 +47,12 @@ class BaseAgent:
             return Result.ok(response)
         return Result.fail("Max iterations reached")
 
-    async def run_async(self, prompt: str) -> Result:
-        """Async version of run method for compatibility."""
-        return await self.run(prompt)
+    async def run(self, prompt: str) -> tuple[str, str]:
+        """New agent API - returns (response, conversation_id)."""
+        result = await self.run_old_api(prompt)
+        if result.success:
+            return result.unwrap(), "test_conversation_id"
+        return f"Error: {result.error}", "test_conversation_id"
 
     def _extract_command(self, response: str) -> str:
         lines = response.split("\n")

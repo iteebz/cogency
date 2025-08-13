@@ -16,7 +16,7 @@ def test_json():
     # Basic JSON
     parse_result = _parse_json('{"action": "respond", "message": "Hello"}')
     assert parse_result.success
-    assert parse_result.data == {"action": "respond", "message": "Hello"}
+    assert parse_result.unwrap() == {"action": "respond", "message": "Hello"}
 
     # Markdown fenced JSON
     markdown_json = """```json
@@ -24,23 +24,23 @@ def test_json():
     ```"""
     parse_result = _parse_json(markdown_json)
     assert parse_result.success
-    assert parse_result.data == {"action": "use_tools", "reasoning": "Need to search"}
+    assert parse_result.unwrap() == {"action": "use_tools", "reasoning": "Need to search"}
 
     # Malformed JSON without fallback
     parse_result = _parse_json("invalid json")
     assert not parse_result.success
-    assert parse_result.data is None
+    assert parse_result.failure
     assert parse_result.error is not None
 
     # JSON embedded in text
     parse_result = _parse_json('Here is the JSON: {"action": "respond"} and extra text')
     assert parse_result.success
-    assert parse_result.data == {"action": "respond"}
+    assert parse_result.unwrap() == {"action": "respond"}
 
     # Invalid JSON without fallback
     parse_result = _parse_json("invalid json")
     assert not parse_result.success
-    assert parse_result.data is None
+    assert parse_result.failure
     assert parse_result.error is not None
 
 
@@ -98,14 +98,14 @@ async def test_llm():
     ```"""
     parse_result = _parse_json(response)
     assert parse_result.success
-    assert parse_result.data["action"] == "use_tools"
-    assert len(parse_result.data["tool_calls"]) == 1
+    assert parse_result.unwrap()["action"] == "use_tools"
+    assert len(parse_result.unwrap()["tool_calls"]) == 1
 
     # Test mixed content
     mixed_response = 'Here\'s my analysis: {"conclusion": "success"} and some extra text'
     parse_result = _parse_json(mixed_response)
     assert parse_result.success
-    assert parse_result.data["conclusion"] == "success"
+    assert parse_result.unwrap()["conclusion"] == "success"
 
 
 def test_multi():

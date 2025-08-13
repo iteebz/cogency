@@ -29,7 +29,7 @@ class KnowledgeOperations(SQLiteBase):
             if embed_result.failure:
                 return False
 
-            embedding = embed_result.data[0]
+            embedding = embed_result.unwrap()[0]
 
             # Store with semantic infrastructure
             async with aiosqlite.connect(self.db_path) as db:
@@ -84,7 +84,7 @@ class KnowledgeOperations(SQLiteBase):
 
             # Convert search results to KnowledgeArtifact objects
             artifacts = []
-            for result in search_result.data:
+            for result in search_result.unwrap():
                 metadata = result.get("metadata", {})
 
                 # Reconstruct artifact from metadata

@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "cogency"
-version = "1.2.2"
+version = "1.3.0"
 description = "A reasoning engine for adaptive AI agents"
 authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
@@ -35,7 +35,6 @@ python = ">=3.10,<4.0"
 pydantic = ">=2.0"
 typing-extensions = ">=4.0"
 python-dotenv = ">=1.0.0"
-resilient-result = "0.3.1"
 trafilatura = ">=2.0.0,<3.0.0"
 aiohttp = ">=3.12.15,<4.0.0"
 ddgs = ">=3.8.0"
@@ -56,6 +55,8 @@ aiosqlite = ">=0.20.0,<1.0.0"
 supabase = ">=2.0.0,<3.0.0"
 groq = "^0.31.0"
 ollama = "^0.5.3"
+datasets = "^4.0.0"
+resilient-result = "^0.4.1"
 
 
 [tool.poetry.extras]
@@ -124,15 +125,12 @@ filterwarnings = [
 addopts = [
     "--strict-markers",
     "--strict-config", 
-    "--disable-warnings",
     "-ra"  # Show short test summary for all except passed
 ]
 # Test markers for parallel execution
 markers = [
     "unit: Unit tests (can run in parallel)",
     "integration: Integration tests (may need isolation)", 
-    "e2e: End-to-end tests (require real system)",
-    "system: System tests with real LLMs (minimal and expensive)",
     "contract: API contract validation tests",
     "schema: Schema validation tests",
     "slow: Slow tests that should run last"

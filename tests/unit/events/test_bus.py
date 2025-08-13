@@ -29,7 +29,7 @@ def test_emit_calls_handlers():
     # Check event structure
     call_event = handler1.handle.call_args[0][0]
     assert call_event["type"] == "test_event"
-    assert call_event["data"] == {"key": "value"}
+    assert call_event["key"] == "value"
     assert "timestamp" in call_event
 
 
@@ -42,7 +42,7 @@ def test_emit_empty():
 
     call_event = handler.handle.call_args[0][0]
     assert call_event["type"] == "simple_event"
-    assert call_event["data"] == {}
+    assert "timestamp" in call_event
 
 
 def test_emit_no_bus():
@@ -66,7 +66,7 @@ def test_emit_forwards_to_bus():
     handler.handle.assert_called_once()
     call_event = handler.handle.call_args[0][0]
     assert call_event["type"] == "global_event"
-    assert call_event["data"] == {"key": "value"}
+    assert call_event["key"] == "value"
 
 
 def test_init_bus():

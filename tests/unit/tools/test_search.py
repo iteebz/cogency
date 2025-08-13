@@ -15,10 +15,10 @@ async def test_success(mock_search_engine):
 
     result = await tool.run(query="test query")
     assert result.success
-    assert result.data["total_found"] == 1
-    assert result.data["query"] == "test query"
-    assert len(result.data["results"]) == 1
-    assert result.data["results"][0]["title"] == "Test"
+    assert result.unwrap()["total_found"] == 1
+    assert result.unwrap()["query"] == "test query"
+    assert len(result.unwrap()["results"]) == 1
+    assert result.unwrap()["results"][0]["title"] == "Test"
 
 
 @pytest.mark.asyncio
@@ -30,8 +30,8 @@ async def test_no_results(mock_search_engine):
 
     result = await tool.run(query="no results")
     assert result.success
-    assert result.data["total_found"] == 0
-    assert result.data["results"] == []
+    assert result.unwrap()["total_found"] == 0
+    assert result.unwrap()["results"] == []
 
 
 @pytest.mark.asyncio

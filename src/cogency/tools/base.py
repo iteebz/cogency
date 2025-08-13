@@ -6,6 +6,8 @@ from typing import Any, Optional
 from resilient_result import Result
 
 # Metrics removed - agent observability handled by event system
+from cogency.resilience import resilience
+
 from .validation import validate
 
 
@@ -50,6 +52,7 @@ class Tool(ABC):
 
     # Schema is now explicit - no ceremony, just clean strings
 
+    @resilience()
     async def execute(self, **kwargs: Any) -> Result:
         """Execute tool with validation and error handling.
 
@@ -65,14 +68,6 @@ class Tool(ABC):
         try:
             # Normalize and validate arguments
             normalized_args = self._normalize_args(kwargs)
-
-            # Inject user_id for tools that need it
-            if self.name == "recall":
-                from cogency.state import get_current_state
-
-                current_state = get_current_state()
-                if current_state:
-                    normalized_args["user_id"] = current_state.user_id
 
             # Validate args using dataclass schema if provided
             if self.args:
@@ -167,11 +162,11 @@ class Tool(ABC):
         # Use template if provided, otherwise auto-generate
         if self.human_template:
             try:
-                result_str = self.human_template.format(**results.data)
+                result_str = self.human_template.format(**results.unwrap())
             except (KeyError, ValueError):
-                result_str = self._format_result(results.data)
+                result_str = self._format_result(results.unwrap())
         else:
-            result_str = self._format_result(results.data)
+            result_str = self._format_result(results.unwrap())
 
         return arg_str, result_str
 

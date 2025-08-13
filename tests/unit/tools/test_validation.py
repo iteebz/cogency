@@ -8,7 +8,7 @@ from cogency.tools.validation import validate
 
 
 @dataclass
-class TestSchema:
+class ValidationSchema:
     name: str
     age: int
     active: bool = True
@@ -25,9 +25,9 @@ def test_validate_success():
     """Test successful validation with valid arguments."""
     args = {"name": "John", "age": 30, "active": False}
 
-    result = validate(args, TestSchema)
+    result = validate(args, ValidationSchema)
 
-    assert isinstance(result, TestSchema)
+    assert isinstance(result, ValidationSchema)
     assert result.name == "John"
     assert result.age == 30
     assert result.active is False
@@ -37,7 +37,7 @@ def test_validate_with_defaults():
     """Test validation uses schema defaults for missing fields."""
     args = {"name": "Jane", "age": 25}
 
-    result = validate(args, TestSchema)
+    result = validate(args, ValidationSchema)
 
     assert result.name == "Jane"
     assert result.age == 25
@@ -49,14 +49,14 @@ def test_validate_missing_required_field():
     args = {"name": "John"}  # Missing required 'age'
 
     with pytest.raises(ValueError, match="Argument validation failed"):
-        validate(args, TestSchema)
+        validate(args, ValidationSchema)
 
 
 def test_validate_extra_arguments():
     """Test validation ignores extra arguments."""
     args = {"name": "John", "age": 30, "extra_field": "ignored"}
 
-    result = validate(args, TestSchema)
+    result = validate(args, ValidationSchema)
 
     assert result.name == "John"
     assert result.age == 30
@@ -68,7 +68,7 @@ def test_validate_wrong_type():
     args = {"name": "John", "age": "thirty"}  # String instead of int
 
     # Python dataclasses don't validate types by default, so this should succeed
-    result = validate(args, TestSchema)
+    result = validate(args, ValidationSchema)
     assert result.name == "John"
     assert result.age == "thirty"  # Type annotation is ignored by Python
 
@@ -90,7 +90,7 @@ def test_validate_empty_args():
     args = {}
 
     with pytest.raises(ValueError, match="Argument validation failed"):
-        validate(args, TestSchema)
+        validate(args, ValidationSchema)
 
 
 def test_validate_complex_schema():
@@ -120,6 +120,6 @@ def test_validate_preserves_original_args():
     args = {"name": "John", "age": 30}
     original_args = args.copy()
 
-    validate(args, TestSchema)
+    validate(args, ValidationSchema)
 
     assert args == original_args  # Original dict unchanged

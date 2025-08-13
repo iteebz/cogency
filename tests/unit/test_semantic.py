@@ -65,7 +65,7 @@ async def test_search_json_index_empty_embeddings():
 
         result = await search_json_index([0.1] * 384, f.name)
         assert result.success
-        assert result.data == []
+        assert result.unwrap() == []
 
 
 @pytest.mark.asyncio
@@ -106,9 +106,9 @@ async def test_search_json_index_success():
 
         result = await search_json_index(query_embedding, f.name, top_k=2, threshold=0.5)
         assert result.success
-        assert len(result.data) == 1
-        assert result.data[0]["content"] == "Perfect match"
-        assert result.data[0]["similarity"] > 0.9
+        assert len(result.unwrap()) == 1
+        assert result.unwrap()[0]["content"] == "Perfect match"
+        assert result.unwrap()[0]["similarity"] > 0.9
 
 
 @pytest.mark.asyncio
@@ -129,8 +129,8 @@ async def test_search_json_index_metadata_filters():
 
         result = await search_json_index([1.0, 0.0], f.name, filters={"type": "A"})
         assert result.success
-        assert len(result.data) == 1
-        assert result.data[0]["content"] == "Type A doc"
+        assert len(result.unwrap()) == 1
+        assert result.unwrap()[0]["content"] == "Type A doc"
 
 
 @pytest.mark.asyncio
@@ -138,12 +138,13 @@ async def test_search_sqlite_vectors_no_results():
     """Test SQLite search handles empty results."""
     mock_connection = Mock()
     mock_cursor = Mock()
-    mock_cursor.fetchall.return_value = []
-    mock_connection.cursor.return_value = mock_cursor
+    mock_cursor.fetchall = AsyncMock(return_value=[])
+    mock_cursor.execute = AsyncMock()
+    mock_connection.cursor = AsyncMock(return_value=mock_cursor)
 
     result = await search_sqlite_vectors([0.1] * 384, mock_connection, "user123")
     assert result.success
-    assert result.data == []
+    assert result.unwrap() == []
 
 
 @pytest.mark.asyncio
@@ -151,17 +152,20 @@ async def test_search_sqlite_vectors_success():
     """Test successful SQLite vector search."""
     mock_connection = Mock()
     mock_cursor = Mock()
-    mock_cursor.fetchall.return_value = [
-        ("content1", '{"type": "doc"}', "[1.0, 0.0]"),
-        ("content2", '{"type": "other"}', "[0.0, 1.0]"),
-    ]
-    mock_connection.cursor.return_value = mock_cursor
+    mock_cursor.fetchall = AsyncMock(
+        return_value=[
+            ("content1", '{"type": "doc"}', "[1.0, 0.0]"),
+            ("content2", '{"type": "other"}', "[0.0, 1.0]"),
+        ]
+    )
+    mock_cursor.execute = AsyncMock()
+    mock_connection.cursor = AsyncMock(return_value=mock_cursor)
 
     # Query embedding that matches first document
     result = await search_sqlite_vectors([1.0, 0.0], mock_connection, "user123", top_k=1)
     assert result.success
-    assert len(result.data) == 1
-    assert result.data[0]["content"] == "content1"
+    assert len(result.unwrap()) == 1
+    assert result.unwrap()[0]["content"] == "content1"
 
 
 @pytest.mark.asyncio
@@ -198,4 +202,4 @@ async def test_semantic_search_json_delegation():
 
         result = await semantic_search(mock_embedder, "test query", file_path=f.name, top_k=5)
         assert result.success
-        assert result.data == []
+        assert result.unwrap() == []

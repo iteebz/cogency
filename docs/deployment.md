@@ -142,9 +142,9 @@ async def main():
     agent = Agent("assistant")
     
     tasks = [
-        agent.run_async("Task 1"),
-        agent.run_async("Task 2"), 
-        agent.run_async("Task 3")
+        agent.run("Task 1"),
+        agent.run("Task 2"), 
+        agent.run("Task 3")
     ]
     
     return await asyncio.gather(*tasks)

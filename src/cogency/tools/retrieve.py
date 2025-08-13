@@ -98,7 +98,7 @@ class Retrieve(Tool):
         if search_result.failure:
             return Result.fail(f"Search failed: {search_result.error}")
 
-        results = search_result.data
+        results = search_result.unwrap()
 
         if not results:
             return Result.ok(

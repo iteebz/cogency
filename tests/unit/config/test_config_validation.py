@@ -40,7 +40,7 @@ async def test_response_schema():
 
     # Construct response data to validate
     response_data = {
-        "content": response.data,
+        "content": response.unwrap(),
         "tokens": 42,  # Mock token count
         "model": provider.default_model,
     }
@@ -72,9 +72,9 @@ async def test_store_data():
 
 
 @pytest.mark.asyncio
-async def test_tool_response_schema(mock_tools):
+async def test_tool_response_schema(tools):
     """Validate tool responses follow Result interface."""
-    tool = mock_tools[0]
+    tool = tools[0]
     schema = {
         "type": "object",
         "properties": {"tool_name": {"type": "string"}, "args": {"type": "object"}, "result": {}},
@@ -88,7 +88,7 @@ async def test_tool_response_schema(mock_tools):
     tool_call_data = {
         "tool_name": tool.name,
         "args": {"arg": "test_value"},
-        "result": result.data if result.success else result.error,
+        "result": result.unwrap() if result.success else result.error,
     }
 
     assert validate_schema(tool_call_data, schema)

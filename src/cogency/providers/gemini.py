@@ -7,17 +7,17 @@ import google.genai as genai
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-from cogency.events import emit
+from cogency.events import emit, lifecycle
 from cogency.providers.tokens import cost, count
 
-from .base import Provider, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator, stream_retry
 
 
 class Gemini(Provider):
     def __init__(
         self,
         api_keys: Union[str, list[str]] = None,
-        llm_model: str = "gemini-2.0-flash-exp",
+        llm_model: str = "gemini-2.5-flash-lite",
         embed_model: str = "gemini-embedding-001",
         dimensionality: int = 768,
         temperature: float = 0.7,
@@ -42,8 +42,10 @@ class Gemini(Provider):
         self.top_p = top_p
 
     def _get_client(self):
-        return genai.Client(api_key=self.next_key())
+        return genai.Client(api_key=self.current_key())
 
+    @lifecycle("llm", operation="generate")
+    @rotate_retry
     async def generate(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
@@ -74,6 +76,7 @@ class Gemini(Provider):
         tout = count([{"role": "assistant", "content": response_text}], self.model)
         emit(
             "provider",
+            level="debug",
             provider=self.provider_name,
             model=self.model,
             tin=tin,
@@ -87,6 +90,8 @@ class Gemini(Provider):
 
         return Ok(response_text)
 
+    @lifecycle("llm", operation="stream")
+    @stream_retry
     async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
@@ -107,6 +112,8 @@ class Gemini(Provider):
             if chunk.text:
                 yield chunk.text
 
+    @lifecycle("embedding", operation="embed")
+    @rotate_retry
     async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings using Gemini embedding API."""
         # Check cache first

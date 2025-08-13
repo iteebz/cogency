@@ -26,19 +26,14 @@ example name="hello":
 # 🧪 TESTING
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-# Run fast tests (unit + integration, skip system)
+# Run all tests (unit + integration)
 test:
-    @echo "Running fast tests (unit + integration)..."
-    @poetry run pytest tests -v -m "not system"
-
-# Run all tests including expensive system tests
-test-all:
-    @echo "Running all tests including system tests..."
+    @echo "Running all tests (unit + integration)..."
     @poetry run pytest tests -v
 
 # Run tests with coverage
 test-cov:
-    @poetry run pytest --cov=src/cogency tests/ -m "not system"
+    @poetry run pytest --cov=src/cogency tests/
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 # 🧪 EVALUATIONS

@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from resilient_result import Result
 
 from cogency.observe.exporters import BasicExporter
 
@@ -146,11 +147,11 @@ async def test_execution_events(agent):
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
             mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Test response"}
+            mock_reason.return_value = Result.ok({"response": "Test response"})
 
             initial_logs = len(agent.logs())
 
-            await agent.run_async("Test query")
+            await agent.run("Test query")
 
             # Should generate execution events
             final_logs = len(agent.logs())
@@ -269,10 +270,10 @@ async def test_tool_events(agent_with_tools):
         with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
             with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
                 mock_state.return_value = Mock()
-                mock_reason.return_value = {"actions": [{"tool": "files", "args": {}}]}
+                mock_reason.return_value = Result.ok({"actions": [{"tool": "files", "args": {}}]})
                 mock_act.return_value = "Tool result"
 
-                await agent_with_tools.run_async("Use tools")
+                await agent_with_tools.run("Use tools")
 
                 # Check for tool events
                 tool_logs = agent_with_tools.logs(type="tool")

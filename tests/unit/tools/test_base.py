@@ -77,8 +77,8 @@ async def test_valid_args():
 
     result = await tool.execute(query="test query", max_results=10)
     assert result.success
-    assert result.data["query"] == "test query"
-    assert result.data["max_results"] == 10
+    assert result.unwrap()["query"] == "test query"
+    assert result.unwrap()["max_results"] == 10
 
 
 class NoSchemaTool(Tool):
@@ -100,7 +100,7 @@ async def test_no_schema():
 
     result = await tool.execute(value="test_value")
     assert result.success
-    assert result.data["value"] == "test_value"
+    assert result.unwrap()["value"] == "test_value"
 
 
 class RawReturnTool(Tool):
@@ -122,7 +122,7 @@ async def test_result_wrapping():
 
     result = await tool.execute(data="test_data")
     assert result.success
-    assert result.data == "test_data"
+    assert result.unwrap() == "test_data"
 
 
 @pytest.mark.asyncio

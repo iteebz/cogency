@@ -6,6 +6,7 @@ from cogency.config.validation import validate_config_keys
 from cogency.memory import Memory
 from cogency.providers import detect_embed, detect_llm
 from cogency.state import State
+from cogency.tools.base import Tool
 
 
 class Agent:
@@ -13,13 +14,13 @@ class Agent:
 
     Args:
         name: Agent identifier (default "cogency")
-        tools: Tools to enable - list of names, Tool objects, or single string
+        tools: Tool instances to enable - list of Tool objects
         memory: Enable memory - True for defaults or Memory instance for custom
         handlers: Custom event handlers for streaming, websockets, etc
 
     Advanced config (**kwargs):
         identity: Agent persona/identity
-        max_iterations: Max reasoning iterations (default 10)
+        max_iterations: Max reasoning iterations (default 5)
         notify: Enable progress notifications (default True)
 
     Examples:
@@ -34,9 +35,10 @@ class Agent:
         self,
         name: str = "cogency",
         *,
-        tools: Union[list[str], list[Any], str] = None,
+        tools: list[Tool] = None,
         memory: Union[bool, Any] = False,
         handlers: list[Any] = None,
+        max_iterations: int = 5,
         **config,
     ):
         from cogency.config.dataclasses import AgentConfig
@@ -46,6 +48,8 @@ class Agent:
 
         if tools is None:
             tools = []
+        if handlers is None:
+            handlers = []
 
         # Validate config keys (prevent typos)
         validate_config_keys(**config)
@@ -55,7 +59,8 @@ class Agent:
             name=name,
             tools=tools,
             memory=memory,
-            handlers=self._handlers,
+            handlers=handlers,
+            max_iterations=max_iterations,
             **config,
         )
 
@@ -71,7 +76,7 @@ class Agent:
         else:
             self.memory = None
 
-        self.max_iterations = getattr(agent_config, "max_iterations", 10)
+        self.max_iterations = agent_config.max_iterations
         self.identity = getattr(agent_config, "identity", "")
 
         # Store tools for reasoning and execution
@@ -110,39 +115,33 @@ class Agent:
         """Access memory component."""
         return self.memory
 
-    def run(self, query: str, user_id: str = "default", identity: str = None) -> str:
+    def run_sync(
+        self,
+        query: str,
+        user_id: str = "default",
+        identity: str = None,
+        conversation_id: str = None,
+    ) -> tuple[str, str]:
         """Execute agent query synchronously.
 
-        Memory and data are isolated per user_id.
+        Sync wrapper around run() - canonical pattern.
+        Returns (response, conversation_id) for caller persistence.
         """
         import asyncio
 
-        return asyncio.run(self.run_async(query, user_id, identity))
+        try:
+            # Try to get running event loop
+            asyncio.get_running_loop()
+            # If we're in an event loop, raise error with helpful message
+            raise RuntimeError("Use run() when already in an event loop")
+        except RuntimeError:
+            # No event loop running, safe to create new one
+            return asyncio.run(self.run(query, user_id, identity, conversation_id))
 
-    def stream(self, query: str, user_id: str = "default", identity: str = None):
-        """Execute agent query with streaming.
+    async def stream(self, query: str, user_id: str = "default", identity: str = None):
+        """Execute agent query with async streaming.
 
-        Memory and data are isolated per user_id.
-        """
-        import asyncio
-
-        async def _stream():
-            async for event in self.run_stream(query, user_id, identity):
-                yield event
-
-        # Return sync generator that runs async generator
-        return asyncio.run(self._run_stream_sync(query, user_id, identity))
-
-    async def _run_stream_sync(self, query: str, user_id: str, identity: str):
-        """Helper for synchronous streaming."""
-        events = []
-        async for event in self.run_stream(query, user_id, identity):
-            events.append(event)
-        return events
-
-    async def run_stream(self, query: str, user_id: str = "default", identity: str = None):
-        """Execute agent query with real-time streaming.
-
+        Canonical async streaming API.
         Memory and data are isolated per user_id.
         """
         from cogency.events.streaming import StreamingCoordinator
@@ -151,25 +150,31 @@ class Agent:
         async for event in coordinator.stream_agent_run(query, user_id):
             yield event
 
-    async def run_async(self, query: str, user_id: str = "default", identity: str = None) -> str:
+    async def run(
+        self,
+        query: str,
+        user_id: str = "default",
+        identity: str = None,
+        conversation_id: str = None,
+    ) -> tuple[str, str]:
         """Execute agent query asynchronously.
 
-        Memory and data are isolated per user_id.
+        Canonical async API - returns (response, conversation_id) for persistence.
+        Universal pattern for all contexts - CLI, web apps, library usage.
         """
         from cogency.agents import act, reason
         from cogency.events import emit
 
+        # Create execution state with conversation continuity
+        state = await State.start_task(
+            query, user_id, conversation_id, max_iterations=self.max_iterations
+        )
+
         try:
-            # Security check once per task
-            from cogency.security.validation import validate_query
+            # Add user query to conversation history for proper LLM context
+            from cogency.state.mutations import add_message
 
-            security_error = validate_query(query)
-            if security_error:
-                emit("agent", state="security_violation", error=security_error)
-                return security_error
-
-            # Create execution state
-            state = await State.start_task(query, user_id)
+            add_message(state, "user", query)
 
             # Memory operations - runtime user context
             if self.memory:
@@ -178,7 +183,7 @@ class Agent:
 
             # Agent reasoning and execution loop
             for iteration in range(self.max_iterations):
-                emit("agent", state="iteration", iteration=iteration)
+                emit("agent", level="debug", state="iteration", iteration=iteration)
 
                 # Inject memory context into state for reasoning
                 if self.memory:
@@ -198,19 +203,94 @@ class Agent:
                 if self.memory:
                     state.context = original_context
 
-                if reasoning.get("response"):
-                    # Direct response - we're done
-                    response = reasoning["response"]
+                # Extract result data using clean .unwrap() pattern
+                reasoning_data = reasoning.unwrap()
+
+                # Don't add reasoning thoughts to conversation - only concrete actions and responses
+
+                if reasoning_data.get("response"):
+                    # Direct response - add to conversation and we're done
+                    response = reasoning_data["response"]
+                    add_message(state, "assistant", response)
                     break
 
-                actions = reasoning.get("actions", [])
+                actions = reasoning_data.get("actions", [])
                 if actions:
                     # Act on reasoning decisions
-                    await act(actions, self.tools, state)
+                    act_result = await act(actions, self.tools, state)
+                    act_data = (
+                        act_result.unwrap()
+                        if act_result.success
+                        else {"summary": f"Error: {act_result.error}"}
+                    )
 
-                    # Continue ReAct loop - let LLM decide if task is complete
-                    # Tool results are stored in state for next reasoning iteration
+                    # Add tool execution results to conversation history for LLM context
+                    from cogency.state.mutations import add_message
+
+                    # Create detailed tool result summary for LLM context
+                    tool_results = act_data.get("results", [])
+                    if tool_results and len(tool_results) == 1:
+                        # Single tool - show detailed result
+                        result = tool_results[0]
+                        tool_name = result.get("name", "tool")
+                        if result.get("success"):
+                            result_data = result.get("result", {})
+                            if hasattr(result_data, "unwrap"):
+                                result_content = result_data.unwrap()
+                            else:
+                                result_content = result_data
+
+                            if isinstance(result_content, dict):
+                                # Show key results for shell commands
+                                if tool_name == "shell":
+                                    stdout = result_content.get("stdout", "").strip()
+                                    stderr = result_content.get("stderr", "").strip()
+                                    exit_code = result_content.get("exit_code", "?")
+                                    if stdout:
+                                        add_message(
+                                            state,
+                                            "assistant",
+                                            f"Command executed successfully. Output: {stdout}",
+                                        )
+                                    elif stderr:
+                                        add_message(
+                                            state,
+                                            "assistant",
+                                            f"Command completed with exit code {exit_code}. Error output: {stderr}",
+                                        )
+                                    else:
+                                        add_message(
+                                            state,
+                                            "assistant",
+                                            f"Command executed successfully (exit code {exit_code})",
+                                        )
+                                else:
+                                    # Generic tool result
+                                    add_message(
+                                        state,
+                                        "assistant",
+                                        f"{tool_name} completed: {str(result_content)}",
+                                    )
+                            else:
+                                add_message(
+                                    state,
+                                    "assistant",
+                                    f"{tool_name} completed: {str(result_content)}",
+                                )
+                        else:
+                            add_message(
+                                state,
+                                "assistant",
+                                f"{tool_name} failed: {result.get('error', 'Unknown error')}",
+                            )
+                    else:
+                        # Multiple tools or generic summary
+                        tool_summary = act_data.get("summary", "Tools executed")
+                        add_message(state, "assistant", f"Tool execution: {tool_summary}")
+
+                    # Continue ReAct loop - LLM now has tool results in conversation context
                     continue
+
                 # No actions and no response - shouldn't happen with proper reasoning
                 response = "Unable to determine next steps for this request."
                 break
@@ -234,11 +314,13 @@ class Agent:
                     await extract(state, self.memory)  # Extract knowledge
 
             emit("agent", state="complete", response_length=len(response))
-            return response
+
+            # Return what caller needs for persistence
+            return response, state.conversation.conversation_id
 
         except Exception as e:
             emit("agent", state="error", error=str(e))
-            return f"Error: {str(e)}"
+            return f"Error: {str(e)}", state.conversation.conversation_id
 
     def _should_extract_knowledge(self, query: str, response: str, state) -> bool:
         """Determine if conversation is substantial enough for knowledge extraction."""
@@ -279,11 +361,24 @@ class Agent:
         type: str = None,
         errors_only: bool = False,
         last: int = None,
+        include_debug: bool = False,
     ) -> list[dict[str, Any]]:
         """Get execution logs with optional filtering."""
-        from cogency.events import get_logs
 
-        return get_logs(type=type, errors_only=errors_only, last=last)
+        # Create bridge to use debug filtering
+        from cogency.events.logs import create_logs_bridge
+
+        bridge = create_logs_bridge(None)
+
+        filters = {}
+        if type:
+            filters["type"] = type
+        if errors_only:
+            filters["errors_only"] = True
+
+        return bridge.get_recent(
+            count=last, filters=filters if filters else None, include_debug=include_debug
+        )
 
 
 __all__ = ["Agent"]

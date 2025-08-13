@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from resilient_result import Result
 
 from cogency.agent import Agent
 from cogency.resilience import resilience, smart_handler
@@ -23,13 +24,18 @@ async def test_execution(agent_with_tools):
     with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
         with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
             with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-                mock_state.return_value = Mock()
-                mock_reason.return_value = {"actions": [{"tool": "files", "args": {}}]}
+                mock_task = Mock()
+                mock_task.conversation.conversation_id = "test_conversation_id"
+                mock_state.return_value = mock_task
+                mock_reason.return_value = Result.ok({"actions": [{"tool": "files", "args": {}}]})
                 mock_act.return_value = "Tool executed successfully"
 
-                result = await agent_with_tools.run_async("List files in current directory")
+                response, conversation_id = await agent_with_tools.run(
+                    "List files in current directory"
+                )
                 # Response comes from the reasoning loop, not directly from tools
-                assert isinstance(result, str)
+                assert isinstance(response, str)
+                assert isinstance(conversation_id, str)
 
 
 def test_smart_error_handler():
@@ -56,8 +62,8 @@ async def test_resilience_decorator():
 
     # Resilience decorator returns a Result type, not raises
     result = await failing_function()
-    assert result.is_err()
-    assert "This is a code bug" in str(result.unwrap_err())
+    assert result.failure
+    assert "This is a code bug" in str(result.error)
 
 
 @pytest.mark.asyncio
@@ -67,13 +73,16 @@ async def test_error_recovery(agent_with_tools):
     with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
         with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
             with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-                mock_state.return_value = Mock()
+                mock_task = Mock()
+                mock_task.conversation.conversation_id = "test_conversation_id"
+                mock_state.return_value = mock_task
                 mock_act.side_effect = [Exception("Tool failed"), "Tool succeeded"]
-                mock_reason.return_value = {"actions": [{"tool": "files", "args": {}}]}
+                mock_reason.return_value = Result.ok({"actions": [{"tool": "files", "args": {}}]})
 
                 # Agent should handle tool errors gracefully
-                result = await agent_with_tools.run_async("Use tool that might fail")
-                assert isinstance(result, str)
+                response, conversation_id = await agent_with_tools.run("Use tool that might fail")
+                assert isinstance(response, str)
+                assert isinstance(conversation_id, str)
 
 
 def test_validation():
@@ -95,11 +104,16 @@ async def test_multiple_execution(agent_with_tools):
 
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Used multiple tools"}
+            mock_task = Mock()
+            mock_task.conversation.conversation_id = "test_conversation_id"
+            mock_state.return_value = mock_task
+            mock_reason.return_value = Result.ok({"response": "Used multiple tools"})
 
-            result = await agent_with_tools.run_async("List files and check system info")
-            assert result == "Used multiple tools"
+            response, conversation_id = await agent_with_tools.run(
+                "List files and check system info"
+            )
+            assert response == "Used multiple tools"
+            assert isinstance(conversation_id, str)
 
 
 def test_registry_access(agent_with_tools):
@@ -112,7 +126,7 @@ def test_registry_access(agent_with_tools):
 
 
 @pytest.mark.asyncio
-async def test_isolation(temp_workspace):
+async def test_isolation(workspace):
     """Test tool execution in isolated workspace."""
     agent = Agent("test", tools=[])
 
@@ -120,12 +134,15 @@ async def test_isolation(temp_workspace):
     with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
         with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
             with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-                mock_state.return_value = Mock()
-                mock_act.return_value = f"Files listed in {temp_workspace}"
-                mock_reason.return_value = {"actions": [{"tool": "files", "args": {}}]}
+                mock_task = Mock()
+                mock_task.conversation.conversation_id = "test_conversation_id"
+                mock_state.return_value = mock_task
+                mock_act.return_value = f"Files listed in {workspace}"
+                mock_reason.return_value = Result.ok({"actions": [{"tool": "files", "args": {}}]})
 
-                result = await agent.run_async("List workspace files")
-                assert isinstance(result, str)
+                response, conversation_id = await agent.run("List workspace files")
+                assert isinstance(response, str)
+                assert isinstance(conversation_id, str)
 
 
 def test_error_types_classification():

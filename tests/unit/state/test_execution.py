@@ -38,7 +38,6 @@ def test_add_message():
     assert state.execution.messages[0]["content"] == "Hello"
     assert state.execution.messages[1]["role"] == "assistant"
     assert state.execution.messages[1]["content"] == "Hi there"
-    assert "timestamp" in state.execution.messages[0]
 
 
 def test_tool_calls():

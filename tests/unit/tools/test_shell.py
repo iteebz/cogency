@@ -13,9 +13,9 @@ async def test_basic():
 
     result = await tool.run(command="echo hello")
     assert result.success
-    assert result.data["exit_code"] == 0
-    assert "hello" in result.data["stdout"]
-    assert result.data["stderr"] == ""
+    assert result.unwrap()["exit_code"] == 0
+    assert "hello" in result.unwrap()["stdout"]
+    assert result.unwrap()["stderr"] == ""
 
 
 @pytest.mark.asyncio
@@ -24,8 +24,8 @@ async def test_failure():
 
     result = await tool.run(command="exit 1")
     assert result.success  # Command executed successfully
-    assert result.data["exit_code"] == 1
-    assert not result.data["success"]
+    assert result.unwrap()["exit_code"] == 1
+    assert not result.unwrap()["success"]
 
 
 @pytest.mark.asyncio
@@ -55,7 +55,7 @@ async def test_working_dir():
 
         result = await tool.run(command="pwd", working_dir=temp_dir)
         assert result.success
-        assert temp_dir in result.data["stdout"]
+        assert temp_dir in result.unwrap()["stdout"]
 
 
 @pytest.mark.asyncio
@@ -64,7 +64,7 @@ async def test_env():
 
     result = await tool.run(command="echo $TEST_VAR", env={"TEST_VAR": "hello"})
     assert result.success
-    assert "hello" in result.data["stdout"]
+    assert "hello" in result.unwrap()["stdout"]
 
 
 @pytest.mark.asyncio

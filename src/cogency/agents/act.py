@@ -4,8 +4,10 @@ from typing import Any
 
 from resilient_result import Result
 
+from cogency.events import emit
 
-async def act(tool_calls: list[dict], tools, state) -> dict[str, Any]:
+
+async def act(tool_calls: list[dict], tools, state, user_id: str = "default") -> dict[str, Any]:
     """Act on reasoning decisions - execute tool calls."""
 
     if not tool_calls:
@@ -41,8 +43,24 @@ async def act(tool_calls: list[dict], tools, state) -> dict[str, Any]:
             continue
 
         try:
+            # Inject user_id for tools that need user context
+            if tool_name == "recall":
+                tool_args["user_id"] = user_id
+
+            # Emit tool execution start
+            emit("tool", name=tool_name, status="start", operation="execute")
+
             # Execute tool with unpacked args
             result = await tool_instance.execute(**tool_args)
+
+            # Emit tool execution complete
+            emit(
+                "tool",
+                name=tool_name,
+                status="complete",
+                operation="execute",
+                success=result.success,
+            )
 
             if result.success:
                 successes.append(
@@ -63,7 +81,7 @@ async def act(tool_calls: list[dict], tools, state) -> dict[str, Any]:
                         {
                             "tool": tool_name,
                             "args": tool_args,
-                            "result": result.data,
+                            "result": result.unwrap(),
                             "success": True,
                         }
                     )
@@ -79,16 +97,46 @@ async def act(tool_calls: list[dict], tools, state) -> dict[str, Any]:
                     }
                 )
 
+                # CRITICAL: Update state with failures too for constitutional reasoning
+                if state and hasattr(state, "execution"):
+                    if not hasattr(state.execution, "completed_calls"):
+                        state.execution.completed_calls = []
+                    state.execution.completed_calls.append(
+                        {
+                            "tool": tool_name,
+                            "args": tool_args,
+                            "result": result,  # Keep full Result object for error details
+                            "success": False,
+                        }
+                    )
+
         except Exception as e:
+            # Emit tool execution error
+            emit("tool", name=tool_name, status="error", operation="execute", error=str(e))
+
+            exception_result = Result.fail(str(e))
             failures.append(
                 {
                     "name": tool_name,
                     "args": tool_args,
                     "success": False,
-                    "result": Result.fail(str(e)),
+                    "result": exception_result,
                     "error": str(e),
                 }
             )
+
+            # CRITICAL: Update state with exceptions too for constitutional reasoning
+            if state and hasattr(state, "execution"):
+                if not hasattr(state.execution, "completed_calls"):
+                    state.execution.completed_calls = []
+                state.execution.completed_calls.append(
+                    {
+                        "tool": tool_name,
+                        "args": tool_args,
+                        "result": exception_result,
+                        "success": False,
+                    }
+                )
 
     # Generate summary
     summary_parts = []

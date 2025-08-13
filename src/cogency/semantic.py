@@ -89,10 +89,10 @@ async def search_sqlite_vectors(
 ) -> Result:
     """Search SQLite vector table - RECALL pattern."""
     try:
-        cursor = db_connection.cursor()
+        cursor = await db_connection.cursor()
 
         # Get all vectors for user
-        cursor.execute(
+        await cursor.execute(
             """
             SELECT content, metadata, embedding
             FROM knowledge_vectors
@@ -101,7 +101,7 @@ async def search_sqlite_vectors(
             (user_id,),
         )
 
-        rows = cursor.fetchall()
+        rows = await cursor.fetchall()
         if not rows:
             return Result.ok([])
 
@@ -132,9 +132,9 @@ async def add_sqlite_vector(
 ) -> Result:
     """Add vector to SQLite - RECALL pattern."""
     try:
-        cursor = db_connection.cursor()
+        cursor = await db_connection.cursor()
 
-        cursor.execute(
+        await cursor.execute(
             """
             INSERT INTO knowledge_vectors (user_id, content, metadata, embedding)
             VALUES (?, ?, ?, ?)
@@ -142,7 +142,7 @@ async def add_sqlite_vector(
             (user_id, content, json.dumps(metadata), json.dumps(embedding)),
         )
 
-        db_connection.commit()
+        await db_connection.commit()
         return Result.ok(True)
 
     except Exception as e:
@@ -157,7 +157,7 @@ async def semantic_search(embedder, query: str, **search_kwargs) -> Result:
         if embed_result.failure:
             return Result.fail(f"Query embedding failed: {embed_result.error}")
 
-        query_embedding = embed_result.data[0]
+        query_embedding = embed_result.unwrap()[0]
 
         # Delegate to appropriate search function based on kwargs
         if "file_path" in search_kwargs:

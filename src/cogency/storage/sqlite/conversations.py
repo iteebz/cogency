@@ -101,3 +101,66 @@ class ConversationOperations(SQLiteBase):
 
         except Exception:
             return False
+
+    async def list_conversations(self, user_id: str, limit: int = 50) -> list[dict[str, str]]:
+        """List conversations for user with metadata - canonical conversation management."""
+        await self._ensure_schema()
+
+        try:
+            async with aiosqlite.connect(self.db_path) as db:
+                cursor = await db.execute(
+                    """
+                    SELECT conversation_id, conversation_data, updated_at
+                    FROM conversations
+                    WHERE user_id = ?
+                    ORDER BY updated_at DESC
+                    LIMIT ?
+                    """,
+                    (user_id, limit),
+                )
+                rows = await cursor.fetchall()
+
+                conversations = []
+                for row in rows:
+                    conversation_id, conversation_data, updated_at = row
+
+                    # Extract title from conversation data
+                    data = json.loads(conversation_data)
+                    title = self._extract_conversation_title(data)
+
+                    conversations.append(
+                        {
+                            "conversation_id": conversation_id,
+                            "title": title,
+                            "updated_at": updated_at,
+                            "message_count": len(data.get("messages", [])),
+                        }
+                    )
+
+                return conversations
+
+        except Exception:
+            return []
+
+    def _extract_conversation_title(self, conversation_data: dict) -> str:
+        """Extract meaningful title from conversation data."""
+        messages = conversation_data.get("messages", [])
+        if not messages:
+            return "Empty conversation"
+
+        # Get first user message for title
+        first_user_msg = None
+        for msg in messages:
+            if msg.get("role") == "user" and msg.get("content"):
+                first_user_msg = msg["content"]
+                break
+
+        if not first_user_msg:
+            return "No user messages"
+
+        # Create title from first message
+        title = first_user_msg.strip()
+        if len(title) > 60:
+            title = title[:57] + "..."
+
+        return title

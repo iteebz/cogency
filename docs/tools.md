@@ -106,7 +106,7 @@ class MyTool(Tool):
 
 # Auto-registers
 agent = Agent("assistant")
-agent.run("Use my_tool with hello")
+await agent.run("Use my_tool with hello")
 ```
 
 ### Key Points

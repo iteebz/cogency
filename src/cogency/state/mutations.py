@@ -11,17 +11,12 @@ if TYPE_CHECKING:
 
 
 def add_message(state: "State", role: str, content: str) -> None:
-    """Add message to conversation history with automatic persistence.
-
-    This is the primary gap - conversation messages need structured persistence
-    for multi-turn dialogue support.
-    """
+    """Add message to conversation history with automatic persistence."""
     from datetime import datetime
 
     message = {
         "role": role,
         "content": content,
-        "timestamp": datetime.now().isoformat(),
     }
 
     # Add to persistent conversation

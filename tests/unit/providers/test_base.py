@@ -19,7 +19,7 @@ async def test_generate():
     messages = [{"role": "user", "content": "Hello"}]
 
     result = await provider.generate(messages)
-    assert result.success and result.data == "Mock response"
+    assert result.success and result.unwrap() == "Mock response"
 
 
 @pytest.mark.asyncio
@@ -54,8 +54,8 @@ async def test_embed_single():
     provider = mock_provider("Mock response")
     result = await provider.embed("test text")
     assert result.success
-    assert isinstance(result.data, list)
-    assert len(result.data) > 0
+    assert isinstance(result.unwrap(), list)
+    assert len(result.unwrap()) > 0
 
 
 @pytest.mark.asyncio
@@ -66,5 +66,5 @@ async def test_embed_batch():
 
     result = await provider.embed(texts)
     assert result.success
-    assert isinstance(result.data, list)
-    assert len(result.data) == len(texts)
+    assert isinstance(result.unwrap(), list)
+    assert len(result.unwrap()) == len(texts)

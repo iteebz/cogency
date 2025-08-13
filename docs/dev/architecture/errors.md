@@ -14,8 +14,8 @@ Layered error handling with strategic Result pattern usage.
 
 Results unwrapped at strategic points:
 
-- Runtime: `unwrap(llm_result)`
-- Response: `unwrap(llm_result)`
+- Runtime: `llm_result.unwrap()`
+- Response: `llm_result.unwrap()`
 - State: Primitives only
 
 Error observability via existing notification system (`debug=True`).

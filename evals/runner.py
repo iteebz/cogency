@@ -3,12 +3,25 @@
 import asyncio
 import sys
 import time
+
+# Constitutional fix: Ensure .env is loaded for eval processes
+from pathlib import Path
 from typing import Any
 
+try:
+    from dotenv import load_dotenv
+
+    env_path = Path(__file__).parent.parent / ".env"
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass
+
 from .internal.memory import CrossSessionMemory, MemoryInterference, TemporalOrdering
+from .internal.security import InjectionResistance
+from .internal.tools import ToolIntegration
 from .logging import EvalLogger
-from .security import InjectionResistance
-from .tools import ToolIntegration
+from .showcase import CogencyShowcase
 
 
 class EvaluationRunner:
@@ -24,6 +37,8 @@ class EvaluationRunner:
             # Core capability evaluations for current cogency
             "security": InjectionResistance,
             "tools": ToolIntegration,
+            # AGI Lab Demo Showcase
+            "showcase": CogencyShowcase,
         }
 
     async def run_benchmark(self, benchmark_name: str) -> dict[str, Any]:
@@ -204,11 +219,16 @@ async def main():
     runner = EvaluationRunner()
 
     if len(sys.argv) < 2:
-        print("Usage: python -m evals.runner [memory|capability|security|tools|all|benchmark_name]")
+        print(
+            "Usage: python -m evals.runner [memory|capability|showcase|security|tools|all|benchmark_name]"
+        )
         print()
         print("Test suites:")
         print("  memory: Advanced memory benchmarks (competitive differentiator)")
         print("  capability: Current cogency capability tests")
+        print(
+            "  showcase: Complete AGI lab demo (memory + orchestration + resilience + benchmarks)"
+        )
         print("  all: Complete evaluation suite")
         print()
         print("Individual benchmarks:")

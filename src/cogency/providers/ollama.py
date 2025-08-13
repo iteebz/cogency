@@ -7,10 +7,10 @@ import numpy as np
 import openai
 from resilient_result import Err, Ok, Result
 
-from cogency.events import emit
+from cogency.events import emit, lifecycle
 from cogency.providers.tokens import cost, count
 
-from .base import Provider, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator
 
 
 class Ollama(Provider):
@@ -49,6 +49,8 @@ class Ollama(Provider):
             max_retries=self.max_retries,
         )
 
+    @lifecycle("llm", operation="generate")
+    @rotate_retry
     async def generate(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
         tin = count(messages, self.model)
@@ -72,6 +74,7 @@ class Ollama(Provider):
         tout = count([{"role": "assistant", "content": response}], self.model)
         emit(
             "provider",
+            level="debug",
             provider=self.provider_name,
             model=self.model,
             tin=tin,
@@ -85,6 +88,7 @@ class Ollama(Provider):
 
         return Ok(response)
 
+    @lifecycle("llm", operation="stream")
     async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""
         client = self._get_client()
@@ -100,6 +104,8 @@ class Ollama(Provider):
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
+    @lifecycle("embedding", operation="embed")
+    @rotate_retry
     async def embed(self, text: Union[str, list[str]], **kwargs) -> Result:
         """Generate embeddings using Ollama embedding API."""
         # Check cache first

@@ -30,8 +30,19 @@ async def learn(state, memory) -> None:
         if hasattr(state, "execution") and hasattr(state.execution, "completed_calls"):
             # Try to get response from completed calls
             for call in state.execution.completed_calls:
-                if call.get("result", {}).get("result"):
-                    response_content = call["result"]["result"]
+                result = call.get("result", {})
+                # Handle both dict and Result objects safely
+                if hasattr(result, "get") and isinstance(result, dict) and result.get("result"):
+                    response_content = result["result"]
+                    break
+                if hasattr(result, "is_ok") and hasattr(result, "unwrap"):
+                    # Handle Result objects from resilient_result
+                    if result.is_ok():
+                        response_content = str(result.unwrap())
+                        break
+                elif isinstance(result, str):
+                    # Handle direct string results
+                    response_content = result
                     break
 
         # Fallback to checking workspace or other state locations
@@ -79,7 +90,7 @@ Return JSON (omit empty fields):
 
         # Parse JSON response
         try:
-            updates = json.loads(result.data)
+            updates = json.loads(result.unwrap())
         except (json.JSONDecodeError, AttributeError):
             emit("memory", operation="learn_error", error="JSON parse failed")
             return

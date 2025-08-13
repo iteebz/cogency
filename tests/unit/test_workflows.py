@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
+from resilient_result import Result
 
 from cogency.agent import Agent
 
@@ -22,9 +23,9 @@ async def test_complete_workflow(agent_with_tools, agent_with_memory):
             # Return a proper mock object that doesn't need awaiting
             mock_task = Mock()
             mock_state.return_value = mock_task
-            mock_reason.return_value = {"response": "Complete workflow response"}
+            mock_reason.return_value = Result.ok({"response": "Complete workflow response"})
 
-            result = await agent.run_async("Complex task requiring tools and memory")
+            result, conversation_id = await agent.run("Complex task requiring tools and memory")
 
             # Allow flexible response matching since mocking might affect the exact response
             assert isinstance(result, str)
@@ -44,21 +45,21 @@ async def test_react_loop():
             mock_state.return_value = Mock()
             # First call returns actions, second call returns response
             mock_reason.side_effect = [
-                {"actions": [{"tool": "files", "args": {}}]},
-                {"response": "Final answer"},
+                Result.ok({"actions": [{"tool": "files", "args": {}}]}),
+                Result.ok({"response": "Final answer"}),
             ]
 
             with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
-                mock_act.return_value = "Tool result"
+                mock_act.return_value = Result.ok({"results": []})
 
-                result = await agent.run_async("Multi-step reasoning task")
+                result, conversation_id = await agent.run("Multi-step reasoning task")
 
                 # Should complete with final answer
                 assert result == "Final answer"
 
 
 @pytest.mark.asyncio
-async def test_error_recovery_workflow(mock_llm_error):
+async def test_error_recovery_workflow():
     """Test complete workflow with error recovery."""
     agent = Agent("test")
 
@@ -68,7 +69,7 @@ async def test_error_recovery_workflow(mock_llm_error):
             mock_state.return_value = Mock()
             mock_reason.side_effect = Exception("Reasoning failed")
 
-            result = await agent.run_async("Task that fails")
+            result, conversation_id = await agent.run("Task that fails")
             assert "Error:" in result
 
 
@@ -80,7 +81,7 @@ async def test_streaming_workflow():
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
             mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Streaming response"}
+            mock_reason.return_value = Result.ok({"response": "Streaming response"})
 
             # Mock the streaming method to avoid asyncio.run() issues
             async def mock_stream_generator():
@@ -104,33 +105,40 @@ async def test_concurrent_execution():
 
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+            mock_task = Mock()
+            mock_task.conversation.conversation_id = "test_conversation_id"
+            mock_state.return_value = mock_task
             mock_reason.side_effect = ["Response 1", "Response 2", "Response 3"]
 
             # Execute multiple requests concurrently
             tasks = [
-                agent.run_async("Task 1"),
-                agent.run_async("Task 2"),
-                agent.run_async("Task 3"),
+                agent.run("Task 1"),
+                agent.run("Task 2"),
+                agent.run("Task 3"),
             ]
 
             results = await asyncio.gather(*tasks)
 
             assert len(results) == 3
-            assert all(isinstance(result, str) for result in results)
+            # Each result should be a tuple (response, conversation_id)
+            assert all(isinstance(result, tuple) and len(result) == 2 for result in results)
+            # Check that responses are strings and conversation_ids are strings
+            responses, conversation_ids = zip(*results)
+            assert all(isinstance(response, str) for response in responses)
+            assert all(isinstance(conv_id, str) for conv_id in conversation_ids)
 
 
 @pytest.mark.asyncio
-async def test_workspace_lifecycle(temp_workspace):
+async def test_workspace_lifecycle():
     """Test agent workflow with workspace lifecycle."""
     agent = Agent("test", tools=[])
 
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
             mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Workspace task completed"}
+            mock_reason.return_value = Result.ok({"response": "Workspace task completed"})
 
-            result = await agent.run_async("Work with files in workspace")
+            result, conversation_id = await agent.run("Work with files in workspace")
 
             assert "Workspace task completed" in result
 
@@ -144,9 +152,9 @@ async def test_mode_switching_workflow():
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
             mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Fast response"}
+            mock_reason.return_value = Result.ok({"response": "Fast response"})
 
-            result = await fast_agent.run_async("Simple task")
+            result, conversation_id = await fast_agent.run("Simple task")
             assert result == "Fast response"
 
     # Deep mode with more iterations
@@ -155,9 +163,9 @@ async def test_mode_switching_workflow():
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
             mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Deep response"}
+            mock_reason.return_value = Result.ok({"response": "Deep response"})
 
-            result = await deep_agent.run_async("Complex task")
+            result, conversation_id = await deep_agent.run("Complex task")
             assert result == "Deep response"
 
 
@@ -167,11 +175,11 @@ async def test_event_workflow_integration(agent):
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
             mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Response with events"}
+            mock_reason.return_value = Result.ok({"response": "Response with events"})
 
             initial_count = len(agent.logs())
 
-            await agent.run_async("Task generating events")
+            await agent.run("Task generating events")
 
             final_count = len(agent.logs())
 
@@ -193,10 +201,10 @@ async def test_full_production_workflow():
     with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
         with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
             mock_state.return_value = Mock()
-            mock_reason.return_value = {"response": "Production task completed"}
+            mock_reason.return_value = Result.ok({"response": "Production task completed"})
 
             # Simulate production workload
-            result = await agent.run_async("Complex production task")
+            result, conversation_id = await agent.run("Complex production task")
 
             assert result == "Production task completed"
 

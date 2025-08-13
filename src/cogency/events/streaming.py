@@ -44,10 +44,14 @@ class StreamingCoordinator:
         # Start agent execution in background
         async def run_agent():
             try:
-                result = await self.agent.run_async(query, user_id)
+                result, conversation_id = await self.agent.run(query, user_id)
                 # Signal completion with final result
                 await self._stream_queue.put(
-                    StreamEvent(type="completion", content=result, metadata={"final": True})
+                    StreamEvent(
+                        type="completion",
+                        content=result,
+                        metadata={"final": True, "conversation_id": conversation_id},
+                    )
                 )
             except Exception as e:
                 await self._stream_queue.put(

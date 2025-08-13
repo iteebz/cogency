@@ -43,7 +43,11 @@ class State:
 
     @classmethod
     async def start_task(
-        cls, query: str, user_id: str = "default", conversation_id: str = None
+        cls,
+        query: str,
+        user_id: str = "default",
+        conversation_id: str = None,
+        max_iterations: int = 10,
     ) -> State:
         """Create new task with fresh workspace."""
         store = SQLite()
@@ -61,7 +65,7 @@ class State:
         workspace = Workspace(objective=query)
 
         # Create runtime execution state
-        execution = Execution()
+        execution = Execution(max_iterations=max_iterations)
 
         # Load conversation history into execution for context
         execution.messages = conversation.messages.copy()
@@ -88,7 +92,9 @@ class State:
         await learn(self, memory)
 
     @classmethod
-    async def continue_task(cls, task_id: str, user_id: str = "default") -> State:
+    async def continue_task(
+        cls, task_id: str, user_id: str = "default", max_iterations: int = 10
+    ) -> State:
         """Resume existing task with preserved workspace."""
         store = SQLite()
 
@@ -102,7 +108,7 @@ class State:
         conversation = Conversation(user_id=user_id)
 
         # Create fresh runtime execution state
-        execution = Execution()
+        execution = Execution(max_iterations=max_iterations)
 
         return cls(
             query=workspace_data.objective,  # Extract original query from workspace
@@ -136,34 +142,79 @@ class State:
         """Build system context from workspace, execution - NO conversation or profile."""
         parts = []
 
-        # Workspace context
+        # Workspace context - FULL STATE VISIBILITY
         if self.workspace:
             if self.workspace.objective:
-                parts.append(f"Current objective: {self.workspace.objective}")
-            if self.workspace.insights:
-                parts.append(f"Key insights: {'; '.join(self.workspace.insights[-2:])}")
+                parts.append(f"OBJECTIVE: {self.workspace.objective}")
 
-        # Tool execution history - canonical feedback format
-        if self.execution and hasattr(self.execution, "completed_calls"):
+            if self.workspace.assessment:
+                parts.append(f"ASSESSMENT: {self.workspace.assessment}")
+
+            if self.workspace.approach:
+                parts.append(f"APPROACH: {self.workspace.approach}")
+
+            if self.workspace.observations:
+                parts.append(f"OBSERVATIONS: {'; '.join(self.workspace.observations[-3:])}")
+
+            if self.workspace.insights:
+                parts.append(f"INSIGHTS: {'; '.join(self.workspace.insights[-3:])}")
+
+            if self.workspace.thoughts:
+                recent_thoughts = self.workspace.thoughts[-2:]  # Last 2 reasoning iterations
+                for thought in recent_thoughts:
+                    iteration = thought.get("iteration", "?")
+                    assessment = thought.get("assessment", "")
+                    approach = thought.get("approach", "")
+                    if assessment or approach:
+                        parts.append(f"ITERATION {iteration}: {assessment} | {approach}")
+
+        # Tool execution history - canonical feedback format with failure analysis
+        if (
+            self.execution
+            and hasattr(self.execution, "completed_calls")
+            and self.execution.completed_calls
+        ):
             parts.append("TOOL EXECUTION HISTORY:")
             for call in self.execution.completed_calls[-3:]:  # Last 3 results
                 tool_name = call.get("tool", "unknown")
                 success = call.get("success", False)
                 result = call.get("result", {})
 
-                # Extract meaningful result summary
-                if isinstance(result, dict):
+                # Extract meaningful result summary - handle both dict and Result objects
+                summary = "completed"  # Default fallback
+                if hasattr(result, "get") and isinstance(result, dict):
                     if result.get("result"):
                         summary = result["result"]  # e.g., "Created file: hello.py"
                     elif result.get("message"):
                         summary = result["message"]
+                elif hasattr(result, "success") and hasattr(result, "unwrap"):
+                    # Handle Result objects from resilient_result
+                    if result.success:
+                        summary = str(result.unwrap())
                     else:
-                        summary = "completed"
-                else:
+                        # Extract failure reason for intelligence
+                        summary = str(result.error)
+                elif isinstance(result, str):
+                    summary = result
+                elif result:
                     summary = str(result)
 
                 status = "✅ SUCCESS" if success else "❌ FAILED"
                 parts.append(f"- {tool_name}: {status} - {summary}")
+
+                # Add conflict resolution hints for failures
+                if not success and "already exists" in summary.lower():
+                    parts.append(
+                        "  💡 HINT: File conflict detected - consider unique filename or overwrite"
+                    )
+                elif not success and "permission" in summary.lower():
+                    parts.append(
+                        "  💡 HINT: Permission issue - try alternative path or ask for clarification"
+                    )
+                elif not success and "not found" in summary.lower():
+                    parts.append(
+                        "  💡 HINT: Resource not found - verify path or create missing dependencies"
+                    )
 
         return "\n".join(parts) if parts else ""
 

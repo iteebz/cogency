@@ -408,7 +408,7 @@ async def test_end_to_end_retrieval():
     agent = Agent("test", tools=[Retrieve("test_docs.json")])
     
     # Execute search
-    result = await agent.run_async("find authentication docs", user_id="test_user")
+    result = await agent.run("find authentication docs", user_id="test_user")
     
     # Verify results contain expected content
     assert "authentication" in result.lower()
@@ -419,10 +419,10 @@ async def test_end_to_end_recall():
     agent = Agent("test", tools=[Recall()], memory=True)
     
     # Have conversation to generate knowledge
-    await agent.run_async("Python list comprehensions are faster than loops", user_id="test_user")
+    await agent.run("Python list comprehensions are faster than loops", user_id="test_user")
     
     # Search for that knowledge
-    result = await agent.run_async("recall python performance tips", user_id="test_user")
+    result = await agent.run("recall python performance tips", user_id="test_user")
     
     # Verify knowledge was stored and retrieved
     assert "comprehension" in result.lower()
@@ -432,10 +432,10 @@ async def test_user_isolation():
     agent = Agent("test", tools=[Recall()], memory=True)
     
     # Store knowledge for user1
-    await agent.run_async("Secret user1 knowledge", user_id="user1")
+    await agent.run("Secret user1 knowledge", user_id="user1")
     
     # Try to access as user2
-    result = await agent.run_async("recall secret knowledge", user_id="user2")
+    result = await agent.run("recall secret knowledge", user_id="user2")
     
     # Should find no results
     assert "no relevant knowledge found" in result.lower()

@@ -2,7 +2,6 @@
 
 from typing import Optional
 
-from cogency.events import emit
 from cogency.utils.credentials import Credentials
 
 from .base import Provider as ProviderBase
@@ -64,13 +63,6 @@ def detect_llm(provider=None):
             f"Expected Provider instance, got {type(provider)}. Use OpenAI(), Gemini(), etc."
         )
 
-    emit(
-        "provider",
-        type="llm",
-        operation="setup",
-        provider=provider.__class__.__name__,
-        status="complete",
-    )
     return provider
 
 
@@ -84,13 +76,6 @@ def detect_embed(provider=None):
             f"Expected Provider instance, got {type(provider)}. Use OpenAI(), Nomic(), etc."
         )
 
-    emit(
-        "provider",
-        type="embed",
-        operation="setup",
-        provider=provider.__class__.__name__,
-        status="complete",
-    )
     return provider
 
 
