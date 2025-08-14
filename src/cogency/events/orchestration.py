@@ -1,4 +1,4 @@
-"""State-driven event orchestration for canonical observability."""
+"""Domain-driven event orchestration for observability."""
 
 import functools
 from typing import Any, Callable, TypeVar
@@ -8,10 +8,10 @@ from .bus import emit
 F = TypeVar("F", bound=Callable[..., Any])
 
 
-def state_event(
+def domain_event(
     event_type: str, extract_data: Callable[..., dict] | None = None
 ) -> Callable[[F], F]:
-    """Decorator to emit events from state mutations canonically.
+    """Decorator to emit events from domain operations.
 
     Args:
         event_type: Type of event to emit (e.g., "conversation_saved")
@@ -21,16 +21,16 @@ def state_event(
     def decorator(func: F) -> F:
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            # Execute state mutation
+            # Execute domain operation
             result = await func(*args, **kwargs)
 
-            # Only emit event if mutation succeeded
+            # Only emit event if operation succeeded
             if result:
                 event_data = {}
                 if extract_data:
                     event_data = extract_data(args, kwargs, result)
 
-                # Canonical event emission tied to state change
+                # Domain event emission
                 emit(event_type, level="debug", success=True, **event_data)
             else:
                 # Emit failure event for observability
@@ -43,15 +43,34 @@ def state_event(
     return decorator
 
 
+# Backward compatibility alias - DEPRECATED
+state_event = domain_event
+
+
 def extract_conversation_data(args, kwargs, result) -> dict:
-    """Extract conversation event data from save_conversation args."""
+    """Extract conversation event data from domain operations."""
+    # Domain object signature: save_conversation(conversation) or save_conversation_data(conversation_id, user_id, messages)
     conversation = args[1] if len(args) > 1 else kwargs.get("conversation")
-    if conversation:
+    if conversation and hasattr(conversation, "conversation_id"):
+        # Domain object signature
         return {
             "conversation_id": conversation.conversation_id,
             "user_id": conversation.user_id,
             "message_count": len(conversation.messages),
         }
+
+    # Primitive data signature
+    conversation_id = args[1] if len(args) > 1 else kwargs.get("conversation_id")
+    user_id = args[2] if len(args) > 2 else kwargs.get("user_id")
+    messages = args[3] if len(args) > 3 else kwargs.get("messages", [])
+
+    if conversation_id and user_id:
+        return {
+            "conversation_id": conversation_id,
+            "user_id": user_id,
+            "message_count": len(messages) if messages else 0,
+        }
+
     return {}
 
 
@@ -68,19 +87,17 @@ def extract_profile_data(args, kwargs, result) -> dict:
 
 
 def extract_workspace_data(args, kwargs, result) -> dict:
-    """Extract workspace event data from save_workspace args."""
-    # save_workspace(self, task_id, user_id, workspace)
+    """Extract workspace event data from domain operations - DEPRECATED."""
+    # WorkingState operations should be in context.working domain, not storage
+    # This extractor exists only for legacy compatibility
     task_id = args[1] if len(args) > 1 else kwargs.get("task_id")
     user_id = args[2] if len(args) > 2 else kwargs.get("user_id")
-    workspace = args[3] if len(args) > 3 else kwargs.get("workspace")
 
     data = {}
     if task_id:
         data["task_id"] = task_id
     if user_id:
         data["user_id"] = user_id
-    if workspace and hasattr(workspace, "conversation_id"):
-        data["conversation_id"] = workspace.conversation_id
 
     return data
 

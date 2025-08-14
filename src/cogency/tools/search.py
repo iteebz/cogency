@@ -1,7 +1,6 @@
 """Web search tool - DuckDuckGo integration with rate limiting and result formatting."""
 
 import logging
-from dataclasses import dataclass
 from typing import Any
 
 from ddgs import DDGS
@@ -13,12 +12,6 @@ from cogency.tools.registry import tool
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class SearchArgs:
-    query: str
-    max_results: int = 5
-
-
 @tool
 class Search(Tool):
     def __init__(self, max_results: int = 5):
@@ -28,7 +21,6 @@ class Search(Tool):
             description="Search the web for current information, recent events, or specific data not available in training knowledge.",
             schema=f"search(query: str, max_results: int = {max_results})",
             emoji="🔍",
-            args=SearchArgs,
             examples=[
                 '{"name": "search", "args": {"query": "latest AI developments January 2025"}}',
                 f'{{"name": "search", "args": {{"query": "current stock price AAPL", "max_results": {max_results}}}}}',

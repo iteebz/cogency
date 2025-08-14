@@ -7,7 +7,7 @@ from resilient_result import Result
 from cogency.events import emit
 
 
-async def act(tool_calls: list[dict], tools, state, user_id: str = "default") -> dict[str, Any]:
+async def act(tool_calls: list[dict], tools, execution, user_id: str = "default") -> dict[str, Any]:
     """Act on reasoning decisions - execute tool calls."""
 
     if not tool_calls:
@@ -44,7 +44,7 @@ async def act(tool_calls: list[dict], tools, state, user_id: str = "default") ->
 
         try:
             import time
-            
+
             # Inject user_id for tools that need user context
             if tool_name == "recall":
                 tool_args["user_id"] = user_id
@@ -78,18 +78,17 @@ async def act(tool_calls: list[dict], tools, state, user_id: str = "default") ->
                     }
                 )
 
-                # Update state for LLM feedback
-                if state and hasattr(state, "execution"):
-                    if not hasattr(state.execution, "completed_calls"):
-                        state.execution.completed_calls = []
-                    state.execution.completed_calls.append(
-                        {
-                            "tool": tool_name,
-                            "args": tool_args,
-                            "result": result.unwrap(),
-                            "success": True,
-                        }
-                    )
+                # Track completed calls in execution domain
+                if not hasattr(execution, "completed_calls"):
+                    execution.completed_calls = []
+                execution.completed_calls.append(
+                    {
+                        "tool": tool_name,
+                        "args": tool_args,
+                        "result": result.unwrap(),
+                        "success": True,
+                    }
+                )
 
             else:
                 failures.append(
@@ -102,23 +101,29 @@ async def act(tool_calls: list[dict], tools, state, user_id: str = "default") ->
                     }
                 )
 
-                # CRITICAL: Update state with failures too for constitutional reasoning
-                if state and hasattr(state, "execution"):
-                    if not hasattr(state.execution, "completed_calls"):
-                        state.execution.completed_calls = []
-                    state.execution.completed_calls.append(
-                        {
-                            "tool": tool_name,
-                            "args": tool_args,
-                            "result": result,  # Keep full Result object for error details
-                            "success": False,
-                        }
-                    )
+                # CRITICAL: Track failures in execution domain for constitutional reasoning
+                if not hasattr(execution, "completed_calls"):
+                    execution.completed_calls = []
+                execution.completed_calls.append(
+                    {
+                        "tool": tool_name,
+                        "args": tool_args,
+                        "result": result,  # Keep full Result object for error details
+                        "success": False,
+                    }
+                )
 
         except Exception as e:
             # Emit tool execution error with duration
             duration = time.time() - start_time
-            emit("tool", name=tool_name, status="error", operation="execute", error=str(e), duration=duration)
+            emit(
+                "tool",
+                name=tool_name,
+                status="error",
+                operation="execute",
+                error=str(e),
+                duration=duration,
+            )
 
             exception_result = Result.fail(str(e))
             failures.append(
@@ -131,18 +136,17 @@ async def act(tool_calls: list[dict], tools, state, user_id: str = "default") ->
                 }
             )
 
-            # CRITICAL: Update state with exceptions too for constitutional reasoning
-            if state and hasattr(state, "execution"):
-                if not hasattr(state.execution, "completed_calls"):
-                    state.execution.completed_calls = []
-                state.execution.completed_calls.append(
-                    {
-                        "tool": tool_name,
-                        "args": tool_args,
-                        "result": exception_result,
-                        "success": False,
-                    }
-                )
+            # CRITICAL: Track exceptions in execution domain for constitutional reasoning
+            if not hasattr(execution, "completed_calls"):
+                execution.completed_calls = []
+            execution.completed_calls.append(
+                {
+                    "tool": tool_name,
+                    "args": tool_args,
+                    "result": exception_result,
+                    "success": False,
+                }
+            )
 
     # Generate summary
     summary_parts = []

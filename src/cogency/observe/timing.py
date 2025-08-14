@@ -1,34 +1,39 @@
-"""Simple timing utilities - pure event emission."""
+"""Pure timing utilities - stdlib time.perf_counter() instrumentation."""
 
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 
 
-class TimerContext:
-    """Timer context manager - emits timing events only."""
+@contextmanager
+def timer(label: str) -> Generator[tuple[str, float], None, None]:
+    """Timer context manager for measuring duration - pure instrumentation.
 
-    def __init__(self, label: str):
-        self.label = label
-        self.start_time = None
-
-    def __enter__(self):
-        self.start_time = time.time()
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.start_time:
-            duration = time.time() - self.start_time
-            from cogency.events import emit
-
-            emit("timing", label=self.label, duration=duration)
-
-    @property
-    def current_elapsed(self) -> float:
-        """Get current elapsed time (live during execution)."""
-        if self.start_time:
-            return time.time() - self.start_time
-        return 0.0
+    Returns:
+        tuple[str, float]: (label, start_time) for caller coordination
+    """
+    start = time.perf_counter()
+    try:
+        yield (label, start)
+    finally:
+        time.perf_counter() - start
+        # Pure instrumentation - caller handles timing data
 
 
-def timer(label: str):
-    """Timer context manager for measuring duration."""
-    return TimerContext(label)
+def measure(func_name: str = None):
+    """Simple function timing decorator - returns timing data."""
+
+    def decorator(func):
+        def wrapper(*args, **kwargs):
+            name = func_name or f"{func.__module__}.{func.__name__}"
+            start = time.perf_counter()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                duration = time.perf_counter() - start
+                # Store timing for potential emission elsewhere
+                wrapper._last_timing = (name, duration)
+
+        return wrapper
+
+    return decorator

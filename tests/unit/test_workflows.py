@@ -18,11 +18,25 @@ async def test_complete_workflow(agent_with_tools, agent_with_memory):
 
     agent = Agent("test", tools=[], memory=mock_memory)
 
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            # Return a proper mock object that doesn't need awaiting
-            mock_task = Mock()
-            mock_state.return_value = mock_task
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            # Return domain primitives tuple
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Complete workflow response"})
 
             result, conversation_id = await agent.run("Complex task requiring tools and memory")
@@ -40,16 +54,31 @@ async def test_react_loop():
     agent = Agent("test")
 
     # Mock multiple reasoning iterations
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             # First call returns actions, second call returns response
             mock_reason.side_effect = [
                 Result.ok({"actions": [{"tool": "files", "args": {}}]}),
                 Result.ok({"response": "Final answer"}),
             ]
 
-            with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
+            with patch("cogency.act.act", new_callable=AsyncMock) as mock_act:
                 mock_act.return_value = Result.ok({"results": []})
 
                 result, conversation_id = await agent.run("Multi-step reasoning task")
@@ -64,9 +93,24 @@ async def test_error_recovery_workflow():
     agent = Agent("test")
 
     # Mock an actual error in the reasoning process
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.side_effect = Exception("Reasoning failed")
 
             result, conversation_id = await agent.run("Task that fails")
@@ -78,9 +122,24 @@ async def test_streaming_workflow():
     """Test streaming response workflow."""
     agent = Agent("test")
 
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Streaming response"})
 
             # Mock the streaming method to avoid asyncio.run() issues
@@ -103,11 +162,26 @@ async def test_concurrent_execution():
 
     agent = Agent("test")
 
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_task = Mock()
-            mock_task.conversation.conversation_id = "test_conversation_id"
-            mock_state.return_value = mock_task
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(
+                conversation_id="test_conversation_id", user_id="test", messages=[]
+            )
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.side_effect = ["Response 1", "Response 2", "Response 3"]
 
             # Execute multiple requests concurrently
@@ -133,9 +207,24 @@ async def test_workspace_lifecycle():
     """Test agent workflow with workspace lifecycle."""
     agent = Agent("test", tools=[])
 
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Workspace task completed"})
 
             result, conversation_id = await agent.run("Work with files in workspace")
@@ -149,9 +238,24 @@ async def test_mode_switching_workflow():
     # Test with different configs - mode isn't directly exposed but configs work
     fast_agent = Agent("test", max_iterations=1)
 
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Fast response"})
 
             result, conversation_id = await fast_agent.run("Simple task")
@@ -160,9 +264,24 @@ async def test_mode_switching_workflow():
     # Deep mode with more iterations
     deep_agent = Agent("test", max_iterations=10)
 
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Deep response"})
 
             result, conversation_id = await deep_agent.run("Complex task")
@@ -172,9 +291,24 @@ async def test_mode_switching_workflow():
 @pytest.mark.asyncio
 async def test_event_workflow_integration(agent):
     """Test events are properly generated throughout workflow."""
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Response with events"})
 
             initial_count = len(agent.logs())
@@ -198,9 +332,24 @@ async def test_full_production_workflow():
         max_iterations=5,
     )
 
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Production task completed"})
 
             # Simulate production workload

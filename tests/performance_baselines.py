@@ -39,7 +39,7 @@ class PerformanceValidator:
         try:
             from cogency import Agent
 
-            # Basic instantiation
+            # Basic instantiation - domain-centric architecture
             Agent("test")
             instantiation_time = (time.perf_counter() - start_time) * 1000
 
@@ -184,22 +184,26 @@ class PerformanceValidator:
         print("-" * 40)
 
         try:
-            from cogency.agents import reason
+            from cogency.context.task import start_task
             from cogency.providers import detect_llm
-            from cogency.state import State
+            from cogency.reason import reason
 
             # Setup test components
             llm = detect_llm()
-            state = await State.start_task("test query", "test_user")
+            session, conversation, working_state, execution = await start_task(
+                "test query", "test_user", None, max_iterations=5
+            )
 
-            # Test reasoning call
+            # Test reasoning call with domain primitives
             start_time = time.perf_counter()
-            result = await reason(state, llm, [], "test assistant")
+            result = await reason(conversation, working_state, execution, llm, [], "test assistant")
             reasoning_time = (time.perf_counter() - start_time) * 1000
 
             print(f"✅ Reasoning call: {reasoning_time:.2f}ms")
             print(f"✅ Result type: {type(result)}")
-            print(f"✅ Has response: {'response' in result}")
+            print(
+                f"✅ Has response: {'response' in result if hasattr(result, '__contains__') else 'N/A'}"
+            )
 
             return {
                 "reasoning_time_ms": reasoning_time,

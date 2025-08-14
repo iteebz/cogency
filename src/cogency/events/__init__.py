@@ -14,7 +14,7 @@ Internal components:
 - ConsoleHandler, EventBuffer: Built-in handlers
 """
 
-from .bus import MessageBus, emit, get_logs, init_bus  # noqa: F401
+from .bus import MessageBus, emit, emit_timer, get_logs, init_bus  # noqa: F401
 from .console import ConsoleHandler  # noqa: F401
 from .handlers import EventBuffer, EventLogger  # noqa: F401
 from .lifecycle import lifecycle  # noqa: F401
@@ -23,7 +23,7 @@ from .logs import (  # noqa: F401
     create_logs_bridge,
     format_logs_summary,
 )
-from .orchestration import state_event  # noqa: F401
-from .streaming import StreamingCoordinator, format_stream_event  # noqa: F401
+from .orchestration import domain_event, state_event  # noqa: F401
+# Streaming removed - agents stream directly
 
 __all__ = []  # All internal - use bare functions for custom handlers

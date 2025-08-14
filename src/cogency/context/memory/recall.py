@@ -5,7 +5,6 @@ from dataclasses import dataclass
 from resilient_result import Result
 
 from cogency.semantic import semantic_search
-from cogency.storage import SQLite
 from cogency.tools.base import Tool
 from cogency.tools.registry import tool
 
@@ -70,14 +69,16 @@ class Recall(Tool):
         top_k = top_k or self.default_top_k
         threshold = threshold if threshold is not None else self.min_similarity
 
-        # Get SQLite connection
-        store = SQLite()
-        await store._ensure_schema()
+        # Functional operations handle schema automatically
+        from cogency.config import PathsConfig
+
+        paths = PathsConfig()
+        db_path = paths.get_data_path() / "memory.db"
 
         # CANONICAL semantic search using SQLite
         import aiosqlite
 
-        async with aiosqlite.connect(store.db_path) as db:
+        async with aiosqlite.connect(db_path) as db:
             search_result = await semantic_search(
                 embedder=self._embedder,
                 query=query.strip(),

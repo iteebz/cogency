@@ -5,7 +5,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from cogency.providers.base import Provider
-from cogency.providers.detection import (
+from cogency.providers.utils.detection import (
     _detect_embed_provider,
     _detect_llm_provider,
     _detect_provider,
@@ -14,13 +14,13 @@ from cogency.providers.detection import (
 )
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_llm_provider_gemini_first(mock_detect):
     """Test LLM detection prefers Gemini when available."""
     # Mock Gemini available
     mock_detect.side_effect = lambda provider: {"api_key": "test"} if provider == "gemini" else None
 
-    with patch("cogency.providers.detection.Gemini") as mock_gemini_class:
+    with patch("cogency.providers.utils.detection.Gemini") as mock_gemini_class:
         mock_gemini_instance = Mock()
         mock_gemini_class.return_value = mock_gemini_instance
 
@@ -30,13 +30,13 @@ def test_detect_llm_provider_gemini_first(mock_detect):
         mock_gemini_class.assert_called_once()
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_llm_provider_openai_fallback(mock_detect):
     """Test LLM detection falls back to OpenAI."""
     # Mock no Gemini, but OpenAI available
     mock_detect.side_effect = lambda provider: {"api_key": "test"} if provider == "openai" else None
 
-    with patch("cogency.providers.detection.OpenAI") as mock_openai_class:
+    with patch("cogency.providers.utils.detection.OpenAI") as mock_openai_class:
         mock_openai_instance = Mock()
         mock_openai_class.return_value = mock_openai_instance
 
@@ -46,7 +46,7 @@ def test_detect_llm_provider_openai_fallback(mock_detect):
         mock_openai_class.assert_called_once()
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_llm_provider_default_openai(mock_detect):
     """Test LLM detection raises error when no credentials found."""
     # Mock no credentials found
@@ -57,13 +57,13 @@ def test_detect_llm_provider_default_openai(mock_detect):
         _detect_llm_provider()
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_embed_provider_nomic_first(mock_detect):
     """Test embedding detection prefers Nomic when available."""
     # Mock Nomic available
     mock_detect.side_effect = lambda provider: {"api_key": "test"} if provider == "nomic" else None
 
-    with patch("cogency.providers.detection.Nomic") as mock_nomic_class:
+    with patch("cogency.providers.utils.detection.Nomic") as mock_nomic_class:
         mock_nomic_instance = Mock()
         mock_nomic_class.return_value = mock_nomic_instance
 
@@ -73,14 +73,16 @@ def test_detect_embed_provider_nomic_first(mock_detect):
         mock_nomic_class.assert_called_once()
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_embed_provider_nomic_import_error(mock_detect):
     """Test embedding detection handles Nomic import errors."""
     # Mock Nomic available but import fails
     mock_detect.side_effect = lambda provider: {"api_key": "test"} if provider == "openai" else None
 
-    with patch("cogency.providers.detection.Nomic", side_effect=ImportError("Module not found")):
-        with patch("cogency.providers.detection.OpenAI") as mock_openai_class:
+    with patch(
+        "cogency.providers.utils.detection.Nomic", side_effect=ImportError("Module not found")
+    ):
+        with patch("cogency.providers.utils.detection.OpenAI") as mock_openai_class:
             mock_openai_instance = Mock()
             mock_openai_class.return_value = mock_openai_instance
 
@@ -89,14 +91,14 @@ def test_detect_embed_provider_nomic_import_error(mock_detect):
             assert result is mock_openai_instance
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_embed_provider_openai_fallback(mock_detect):
     """Test embedding detection falls back to OpenAI."""
     # Mock no Nomic, but OpenAI available
     mock_detect.side_effect = lambda provider: {"api_key": "test"} if provider == "openai" else None
 
-    with patch("cogency.providers.detection.Nomic", side_effect=ImportError()):
-        with patch("cogency.providers.detection.OpenAI") as mock_openai_class:
+    with patch("cogency.providers.utils.detection.Nomic", side_effect=ImportError()):
+        with patch("cogency.providers.utils.detection.OpenAI") as mock_openai_class:
             mock_openai_instance = Mock()
             mock_openai_class.return_value = mock_openai_instance
 
@@ -119,7 +121,7 @@ def test_detect_llm_invalid_provider():
         detect_llm("invalid_provider")
 
 
-@patch("cogency.providers.detection._detect_llm_provider")
+@patch("cogency.providers.utils.detection._detect_llm_provider")
 def test_detect_llm_auto_detection(mock_detect_llm):
     """Test detect_llm auto-detection path."""
     mock_provider = Mock(spec=Provider)
@@ -146,7 +148,7 @@ def test_detect_embed_invalid_provider():
         detect_embed("invalid_provider")
 
 
-@patch("cogency.providers.detection._detect_embed_provider")
+@patch("cogency.providers.utils.detection._detect_embed_provider")
 def test_detect_embed_auto_detection(mock_detect_embed):
     """Test detect_embed auto-detection path."""
     mock_provider = Mock(spec=Provider)
@@ -159,7 +161,7 @@ def test_detect_embed_auto_detection(mock_detect_embed):
         mock_detect_embed.assert_called_once()
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_provider_first_available(mock_detect):
     """Test _detect_provider returns first available provider."""
     providers = {"openai": "OPENAI", "anthropic": "ANTHROPIC", "gemini": "GEMINI"}
@@ -174,7 +176,7 @@ def test_detect_provider_first_available(mock_detect):
     assert result == "anthropic"
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_provider_with_fallback(mock_detect):
     """Test _detect_provider uses fallback when no keys found."""
     providers = {"openai": "OPENAI", "anthropic": "ANTHROPIC"}
@@ -187,7 +189,7 @@ def test_detect_provider_with_fallback(mock_detect):
     assert result == "openai"
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_provider_no_keys_no_fallback(mock_detect):
     """Test _detect_provider raises error when no keys and no fallback."""
     providers = {"openai": "OPENAI", "anthropic": "ANTHROPIC"}
@@ -199,7 +201,7 @@ def test_detect_provider_no_keys_no_fallback(mock_detect):
         _detect_provider(providers)
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_provider_handles_exceptions(mock_detect):
     """Test _detect_provider handles credential detection exceptions."""
     providers = {"openai": "OPENAI", "anthropic": "ANTHROPIC"}
@@ -219,7 +221,7 @@ def test_detect_provider_handles_exceptions(mock_detect):
     assert result == "anthropic"
 
 
-@patch("cogency.providers.detection.Credentials.detect")
+@patch("cogency.providers.utils.detection.Credentials.detect")
 def test_detect_provider_empty_api_key(mock_detect):
     """Test _detect_provider skips providers with empty api_key."""
     providers = {"openai": "OPENAI", "anthropic": "ANTHROPIC"}
@@ -243,7 +245,7 @@ def test_detect_provider_error_message_format():
     """Test _detect_provider error message includes helpful information."""
     providers = {"openai": "OPENAI", "anthropic": "ANTHROPIC"}
 
-    with patch("cogency.providers.detection.Credentials.detect", return_value=None):
+    with patch("cogency.providers.utils.detection.Credentials.detect", return_value=None):
         with pytest.raises(ValueError) as exc_info:
             _detect_provider(providers)
 

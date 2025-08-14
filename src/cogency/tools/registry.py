@@ -1,4 +1,4 @@
-"""Tool registry."""
+"""Tool setup and schema generation for agent execution."""
 
 import logging
 
@@ -7,32 +7,24 @@ from cogency.tools.base import Tool
 logger = logging.getLogger(__name__)
 
 
-def _setup_tools(tools, embedder=None):
-    """Setup tools with explicit configuration."""
+def setup_tools(tools, embedder=None):
+    """Setup and validate tool instances with dependency injection."""
     if tools is None:
-        raise ValueError(
-            "tools must be explicitly specified; use [] for no tools or [Tool(), ...] for specific tools"
-        )
+        raise ValueError("tools must be explicit: [] for none or [Tool(), ...] for specific tools")
 
     if isinstance(tools, str):
-        raise ValueError(
-            f"Invalid tools value '{tools}'; use [] or [Tool(), ...] with explicit instances"
-        )
-    if isinstance(tools, list):
-        # Validate all items are Tool instances and inject dependencies
-        configured_tools = []
-        for tool in tools:
-            if not isinstance(tool, Tool):
-                raise ValueError(
-                    f"Invalid tool type: {type(tool)}. Use Tool() instances, not strings or classes"
-                )
+        raise ValueError(f"tools cannot be string '{tools}' - use Tool() instances")
+    if not isinstance(tools, list):
+        return tools
 
-            # CANONICAL: Inject embedder into ALL semantic tools uniformly
-            if embedder is not None and hasattr(tool, "_embedder"):
-                tool._embedder = embedder
+    # Validate and configure tools
+    for tool in tools:
+        if not isinstance(tool, Tool):
+            raise ValueError(f"Expected Tool instance, got {type(tool)}")
 
-            configured_tools.append(tool)
-        return configured_tools
+        # Inject embedder for semantic tools
+        if embedder and hasattr(tool, "_embedder"):
+            tool._embedder = embedder
 
     return tools
 

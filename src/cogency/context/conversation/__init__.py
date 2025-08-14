@@ -47,66 +47,44 @@ to enable natural, context-aware conversational AI.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from typing import Any, Optional
-from uuid import uuid4
-
-
-@dataclass
-class Conversation:
-    """Persistent conversation history across tasks."""
-
-    conversation_id: str = field(default_factory=lambda: str(uuid4()))
-    user_id: str = ""
-    messages: list[dict[str, Any]] = field(default_factory=list)
-    last_updated: datetime = field(default_factory=datetime.now)
-
-
-class ConversationContext:
-    """Conversation domain context - message history injection."""
-    
-    def __init__(self, conversation: Conversation):
-        self.conversation = conversation
-    
-    async def build(self) -> Optional[str]:
-        """Build conversation context from message history."""
-        if not self.conversation or not self.conversation.messages:
-            return None
-            
-        # Format recent messages for context
-        messages = self.conversation.messages[-10:]  # Last 10 messages
-        if not messages:
-            return None
-            
-        context_parts = ["CONVERSATION HISTORY:"]
-        for msg in messages:
-            role = msg.get("role", "unknown")
-            content = msg.get("content", "")
-            if content:
-                # Truncate long messages
-                truncated = content[:200] + "..." if len(content) > 200 else content
-                context_parts.append(f"{role.upper()}: {truncated}")
-        
-        return "\n".join(context_parts)
-
-
-# Import operations for single-import convenience
+# Import types and operations for single-import convenience
 from .operations import (
-    create_conversation,
-    load_conversation,
-    save_conversation,
     add_message,
+    create_conversation,
     get_messages_for_llm,
     get_recent_messages,
+    load_conversation,
+    save_conversation,
 )
+from .types import Conversation
+
+
+async def build_conversation_context(conversation: Conversation) -> str | None:
+    """Build conversation context from message history."""
+    if not conversation or not conversation.messages:
+        return None
+
+    messages = conversation.messages[-10:]
+    if not messages:
+        return None
+
+    context_parts = ["CONVERSATION HISTORY:"]
+    for msg in messages:
+        role = msg.get("role", "unknown")
+        content = msg.get("content", "")
+        if content:
+            truncated = content[:200] + "..." if len(content) > 200 else content
+            context_parts.append(f"{role.upper()}: {truncated}")
+
+    return "\n".join(context_parts)
+
 
 __all__ = [
-    "Conversation", 
-    "ConversationContext",
+    "Conversation",
+    "build_conversation_context",
     # Operations
     "create_conversation",
-    "load_conversation", 
+    "load_conversation",
     "save_conversation",
     "add_message",
     "get_messages_for_llm",

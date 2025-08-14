@@ -1,12 +1,26 @@
-"""CANONICAL semantic search - universal interface."""
+"""Semantic search - universal interface."""
 
 import json
+import math
 from pathlib import Path
 
 import numpy as np
 from resilient_result import Result
 
-from .utils.math import cosine
+
+def cosine(vec1: list[float], vec2: list[float]) -> float:
+    """Pure cosine similarity calculation."""
+    if len(vec1) != len(vec2):
+        return 0.0
+
+    dot_product = sum(a * b for a, b in zip(vec1, vec2))
+    magnitude1 = math.sqrt(sum(a * a for a in vec1))
+    magnitude2 = math.sqrt(sum(b * b for b in vec2))
+
+    if magnitude1 == 0 or magnitude2 == 0:
+        return 0.0
+
+    return dot_product / (magnitude1 * magnitude2)
 
 
 def rank(results: list[dict], top_k: int = 5, threshold: float = 0.0) -> list[dict]:
@@ -28,7 +42,7 @@ async def search_json_index(
     threshold: float = 0.0,
     filters: dict = None,
 ) -> Result:
-    """Search pre-computed JSON embeddings - RETRIEVAL pattern."""
+    """Search pre-computed JSON embeddings."""
     try:
         path = Path(file_path)
         if not path.exists():
@@ -87,7 +101,7 @@ async def search_sqlite_vectors(
     top_k: int = 5,
     threshold: float = 0.0,
 ) -> Result:
-    """Search SQLite vector table - RECALL pattern."""
+    """Search SQLite vector table."""
     try:
         cursor = await db_connection.cursor()
 
@@ -130,7 +144,7 @@ async def search_sqlite_vectors(
 async def add_sqlite_vector(
     db_connection, user_id: str, content: str, metadata: dict, embedding: list[float]
 ) -> Result:
-    """Add vector to SQLite - RECALL pattern."""
+    """Add vector to SQLite."""
     try:
         cursor = await db_connection.cursor()
 

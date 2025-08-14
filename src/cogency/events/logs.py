@@ -1,4 +1,4 @@
-"""Logs Bridge - unified event surfacing via existing infrastructure."""
+"""Event logs bridge for CLI access."""
 
 import time
 from typing import Any
@@ -8,7 +8,7 @@ from .handlers import EventBuffer
 
 
 class LogsBridge:
-    """Bridge events to CLI logs with zero ceremony."""
+    """Bridge events to CLI logs."""
 
     def __init__(self, bus: MessageBus = None):
         self.bus = bus
@@ -106,7 +106,7 @@ class LogsBridge:
         }
 
     def format_event(self, event: dict[str, Any], style: str = "compact") -> str:
-        """Format event for beautiful CLI display."""
+        """Format event for CLI display."""
         if style == "compact":
             return self._format_compact(event)
         if style == "detailed":
@@ -347,14 +347,13 @@ class LogsBridge:
             return []
 
 
-# Export canonical functions for CLI integration
 def create_logs_bridge(bus: MessageBus = None) -> LogsBridge:
-    """Create logs bridge with existing bus."""
+    """Create logs bridge with bus."""
     return LogsBridge(bus)
 
 
 def format_logs_summary(bridge: LogsBridge) -> str:
-    """Format beautiful logs summary for CLI display."""
+    """Format logs summary for CLI display."""
     summary = bridge.get_summary()
 
     if summary["total_events"] == 0:

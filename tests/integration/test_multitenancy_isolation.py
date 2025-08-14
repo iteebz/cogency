@@ -3,16 +3,16 @@
 import pytest
 
 from cogency import Agent
-from cogency.memory import Memory
-from cogency.state import Conversation, Workspace
-from cogency.storage import SQLite
+from cogency.context.conversation import Conversation
+from cogency.context.memory import Memory
+from cogency.storage import Store
 
 
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_conversation_isolation():
     """Conversations are isolated by user_id."""
-    store = SQLite()
+    store = Store()
     await store._ensure_schema()
 
     # Create conversations for different users
@@ -50,44 +50,7 @@ async def test_conversation_isolation():
     assert cross_access2 is None
 
 
-@pytest.mark.integration
-@pytest.mark.asyncio
-async def test_workspace_isolation():
-    """Workspaces are isolated by user_id."""
-    store = SQLite()
-    await store._ensure_schema()
-
-    # Create workspaces for different users
-    user1_workspace = Workspace(
-        objective="Build Python API",
-        insights=["Use FastAPI framework", "Implement authentication"],
-    )
-
-    user2_workspace = Workspace(
-        objective="Create React app", insights=["Use TypeScript", "Implement routing"]
-    )
-
-    # Save workspaces with user-specific task IDs
-    await store.save_workspace("task1", "user1", user1_workspace)
-    await store.save_workspace("task2", "user2", user2_workspace)
-
-    # Load as correct user - should succeed
-    loaded_user1 = await store.load_workspace("task1", "user1")
-    assert loaded_user1 is not None
-    assert loaded_user1.objective == "Build Python API"
-    assert "FastAPI" in loaded_user1.insights[0]
-
-    loaded_user2 = await store.load_workspace("task2", "user2")
-    assert loaded_user2 is not None
-    assert loaded_user2.objective == "Create React app"
-    assert "TypeScript" in loaded_user2.insights[0]
-
-    # Cross-user access should fail
-    cross_access1 = await store.load_workspace("task1", "user2")
-    assert cross_access1 is None
-
-    cross_access2 = await store.load_workspace("task2", "user1")
-    assert cross_access2 is None
+# Deleted: test_workspace_isolation - tests deleted Workspace functionality
 
 
 @pytest.mark.integration

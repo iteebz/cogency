@@ -7,13 +7,8 @@ import numpy as np
 import openai
 from resilient_result import Err, Ok, Result
 
-try:
-    from .tokens import cost, count
-
-    from .base import Provider, rotate_retry, setup_rotator
-except ImportError:
-    from tokens import cost, count
-    from base import Provider, rotate_retry, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator
+from .utils.tokens import cost, count
 
 
 class OpenAI(Provider):
@@ -82,14 +77,12 @@ class OpenAI(Provider):
         if self._cache:
             await self._cache.set(messages, response, cache_type="llm", **kwargs)
 
-        return Ok({
-            "content": response,
-            "tokens": {
-                "input": tin,
-                "output": tout,
-                "cost": cost(tin, tout, self.model)
+        return Ok(
+            {
+                "content": response,
+                "tokens": {"input": tin, "output": tout, "cost": cost(tin, tout, self.model)},
             }
-        })
+        )
 
     async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""

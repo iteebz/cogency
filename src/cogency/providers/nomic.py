@@ -6,8 +6,6 @@ from typing import Optional, Union
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-
-
 from .base import Provider, rotate_retry, setup_rotator
 
 logger = logging.getLogger(__name__)

@@ -4,9 +4,9 @@ import json
 from typing import Any
 
 from cogency.events import emit
-from .types import KnowledgeArtifact
 
 from .prompts import build_extraction_prompt
+from .types import KnowledgeArtifact
 
 
 async def extract(state, memory) -> None:
@@ -35,9 +35,7 @@ async def extract(state, memory) -> None:
             return
 
         # Store knowledge artifacts using SOPHISTICATED CONSOLIDATION logic
-        from cogency.storage import SQLite
-
-        store = SQLite()
+        from cogency.storage.sqlite.knowledge import save_knowledge_vector
 
         stored_count = 0
         merged_count = 0
@@ -45,7 +43,9 @@ async def extract(state, memory) -> None:
         for artifact in knowledge_items:
             try:
                 # CONSOLIDATION: Search for similar existing knowledge
-                similar_artifacts = await store.search_knowledge(
+                from cogency.storage.sqlite.knowledge import search_knowledge_vectors
+
+                similar_artifacts = await search_knowledge_vectors(
                     query=artifact.topic,
                     user_id=artifact.user_id,
                     top_k=3,
@@ -67,8 +67,8 @@ async def extract(state, memory) -> None:
 
                     if merged_artifact:
                         # Delete old and save merged
-                        await store.delete_knowledge(most_similar.topic, most_similar.user_id)
-                        success = await store.save_knowledge(merged_artifact)
+                        await memory.delete_knowledge(most_similar.topic, most_similar.user_id)
+                        success = await memory.save_knowledge(merged_artifact)
                         if success:
                             merged_count += 1
                             emit(
@@ -79,12 +79,12 @@ async def extract(state, memory) -> None:
                             )
                     else:
                         # Merge failed, store as new
-                        success = await store.save_knowledge(artifact)
+                        success = await save_knowledge_vector(artifact)
                         if success:
                             stored_count += 1
                 else:
                     # No similar knowledge found, store as new
-                    success = await store.save_knowledge(artifact)
+                    success = await save_knowledge_vector(artifact)
                     if success:
                         stored_count += 1
 
@@ -92,7 +92,7 @@ async def extract(state, memory) -> None:
                 emit("knowledge", state="consolidation_error", topic=artifact.topic, error=str(e))
                 # Fallback: try to store without consolidation
                 try:
-                    success = await store.save_knowledge(artifact)
+                    success = await memory.save_knowledge(artifact)
                     if success:
                         stored_count += 1
                 except Exception:
@@ -129,7 +129,11 @@ async def _extract_knowledge_artifacts(
     # Parse JSON response
     try:
         result_data = result.unwrap()
-        content = result_data["content"] if isinstance(result_data, dict) and "content" in result_data else result_data
+        content = (
+            result_data["content"]
+            if isinstance(result_data, dict) and "content" in result_data
+            else result_data
+        )
         data = json.loads(content)
         knowledge_items = data.get("knowledge", [])
     except (json.JSONDecodeError, AttributeError):
@@ -187,7 +191,11 @@ async def _merge_with_existing_knowledge(
             return None
 
         result_data = result.unwrap()
-        content = result_data["content"] if isinstance(result_data, dict) and "content" in result_data else result_data
+        content = (
+            result_data["content"]
+            if isinstance(result_data, dict) and "content" in result_data
+            else result_data
+        )
         merged_content = content.strip()
 
         # Validate merge quality before creating artifact

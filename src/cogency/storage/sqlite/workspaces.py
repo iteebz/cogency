@@ -1,104 +1,123 @@
-"""SQLite workspace operations - task-scoped state persistence."""
+"""SQLite workspace operations - primitive task-scoped data persistence."""
 
 import json
-from typing import TYPE_CHECKING, Optional
+from pathlib import Path
+from typing import Optional
 
 import aiosqlite
 
-if TYPE_CHECKING:
-    from cogency.state import Workspace
-
-from ...events.orchestration import extract_delete_data, extract_workspace_data, state_event
-from .base import SQLiteBase
+from ...events.orchestration import domain_event, extract_delete_data, extract_workspace_data
 
 
-class WorkspaceOperations(SQLiteBase):
-    """SQLite operations for workspace persistence."""
+async def _ensure_schema(db_path: str):
+    """Ensure workspace schema exists."""
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS task_workspaces (
+                task_id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                workspace_data TEXT NOT NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_workspace_user ON task_workspaces(user_id)"
+        )
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_workspace_updated ON task_workspaces(updated_at)"
+        )
+        await db.commit()
 
-    @state_event("workspace_saved", extract_workspace_data)
-    async def save_workspace(self, task_id: str, user_id: str, workspace: "Workspace") -> bool:
-        """Save task workspace to storage."""
-        await self._ensure_schema()
 
-        try:
-            from dataclasses import asdict
+def _get_db_path(db_path: str = None) -> str:
+    """Get database path with defaults."""
+    if db_path is None:
+        from cogency.config.paths import paths
 
-            workspace_dict = asdict(workspace)
+        base_path = Path(paths.base_dir)
+        base_path.mkdir(exist_ok=True)
+        db_path = base_path / "store.db"
 
-            async with aiosqlite.connect(self.db_path) as db:
-                await db.execute(
-                    """
-                    INSERT OR REPLACE INTO task_workspaces (task_id, user_id, workspace_data, updated_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                    """,
-                    (task_id, user_id, json.dumps(workspace_dict)),
-                )
-                await db.commit()
+    if db_path == ":memory:" or str(db_path).startswith(":memory:"):
+        return str(db_path)
+    return str(Path(db_path).expanduser().resolve())
 
-            return True
 
-        except Exception:
-            return False
+@domain_event("workspace_saved", extract_workspace_data)
+async def save_workspace_data(
+    task_id: str, user_id: str, workspace_data: dict, db_path: str = None
+) -> bool:
+    """Save task workspace to storage."""
+    db_path = _get_db_path(db_path)
+    await _ensure_schema(db_path)
 
-    async def load_workspace(self, task_id: str, user_id: str) -> Optional["Workspace"]:
-        """Load task workspace from storage."""
-        await self._ensure_schema()
+    try:
+        async with aiosqlite.connect(db_path) as db:
+            await db.execute(
+                """
+                INSERT OR REPLACE INTO task_workspaces (task_id, user_id, workspace_data, updated_at)
+                VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                """,
+                (task_id, user_id, json.dumps(workspace_data)),
+            )
+            await db.commit()
 
-        try:
-            from dataclasses import fields
+        return True
 
-            from cogency.state import Workspace
+    except Exception:
+        return False
 
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute(
-                    "SELECT workspace_data FROM task_workspaces WHERE task_id = ? AND user_id = ?",
-                    (task_id, user_id),
-                )
-                row = await cursor.fetchone()
 
-                if not row:
-                    return None
+async def load_workspace_data(task_id: str, user_id: str, db_path: str = None) -> Optional[dict]:
+    """Load task workspace data from storage - primitive data operation."""
+    db_path = _get_db_path(db_path)
+    await _ensure_schema(db_path)
 
-                workspace_data = json.loads(row[0])
+    try:
+        async with aiosqlite.connect(db_path) as db:
+            cursor = await db.execute(
+                "SELECT workspace_data FROM task_workspaces WHERE task_id = ? AND user_id = ?",
+                (task_id, user_id),
+            )
+            row = await cursor.fetchone()
 
-                # Reconstruct Workspace
-                workspace_kwargs = {}
-                for field in fields(Workspace):
-                    if field.name in workspace_data:
-                        workspace_kwargs[field.name] = workspace_data[field.name]
+            if not row:
+                return None
 
-                return Workspace(**workspace_kwargs)
+            return json.loads(row[0])
 
-        except Exception:
-            return None
+    except Exception:
+        return None
 
-    @state_event("workspace_deleted", extract_delete_data)
-    async def clear_workspace(self, task_id: str) -> bool:
-        """Delete task workspace on completion."""
-        await self._ensure_schema()
 
-        try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute(
-                    "DELETE FROM task_workspaces WHERE task_id = ?", (task_id,)
-                )
-                await db.commit()
-                return cursor.rowcount > 0
+@domain_event("workspace_deleted", extract_delete_data)
+async def clear_workspace(task_id: str, db_path: str = None) -> bool:
+    """Delete task workspace on completion."""
+    db_path = _get_db_path(db_path)
+    await _ensure_schema(db_path)
 
-        except Exception:
-            return False
+    try:
+        async with aiosqlite.connect(db_path) as db:
+            cursor = await db.execute("DELETE FROM task_workspaces WHERE task_id = ?", (task_id,))
+            await db.commit()
+            return cursor.rowcount > 0
 
-    async def list_workspaces(self, user_id: str) -> list[str]:
-        """List all task_ids for user's active workspaces."""
-        await self._ensure_schema()
+    except Exception:
+        return False
 
-        try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute(
-                    "SELECT task_id FROM task_workspaces WHERE user_id = ?", (user_id,)
-                )
-                rows = await cursor.fetchall()
 
-            return [row[0] for row in rows]
-        except Exception:
-            return []
+async def list_workspaces(user_id: str, db_path: str = None) -> list[str]:
+    """List all task_ids for user's active workspaces."""
+    db_path = _get_db_path(db_path)
+    await _ensure_schema(db_path)
+
+    try:
+        async with aiosqlite.connect(db_path) as db:
+            cursor = await db.execute(
+                "SELECT task_id FROM task_workspaces WHERE user_id = ?", (user_id,)
+            )
+            rows = await cursor.fetchall()
+
+        return [row[0] for row in rows]
+    except Exception:
+        return []

@@ -38,19 +38,19 @@ Example:
 """
 
 # Public: Core agent class for creating intelligent assistants
+from .act import act
 from .agent import Agent
 
-# Public: Core reasoning and action primitives
-from .reason import reason
-from .act import act
+# Public: Tool classes and system for explicit imports
+from .context.knowledge import Retrieve
 
 # Public: Provider classes for explicit configuration
 from .providers import Anthropic, Gemini, Mistral, Nomic, Ollama, OpenAI, Provider
 
-# Public: Tool classes and system for explicit imports
+# Public: Core reasoning and action primitives
+from .reason import reason
 from .tools import (
     Files,
-    Retrieve,
     Scrape,
     Search,
     Shell,

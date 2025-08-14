@@ -63,7 +63,7 @@ async def test_memory_persistence(clean_env, memory_session, event_monitor):
     agent1 = memory_session.create_agent(clean_env)
 
     # Mock the llm provider more comprehensively for memory agents
-    with patch("cogency.agents.reason") as mock_reason:
+    with patch("cogency.reason.reason") as mock_reason:
         mock_reason.return_value = Result.ok(
             {"response": "I'll remember that you like Python programming."}
         )
@@ -73,7 +73,7 @@ async def test_memory_persistence(clean_env, memory_session, event_monitor):
 
     agent2 = memory_session.create_agent(clean_env)
 
-    with patch("cogency.agents.reason") as mock_reason:
+    with patch("cogency.reason.reason") as mock_reason:
         mock_reason.return_value = Result.ok(
             {"response": "You mentioned you like Python programming."}
         )

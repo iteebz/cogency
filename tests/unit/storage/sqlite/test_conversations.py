@@ -6,8 +6,10 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.state import Conversation
-from cogency.storage.sqlite.conversations import ConversationOperations
+from cogency.context.conversation import Conversation
+from cogency.storage.sqlite.conversations import (
+    _ensure_schema,
+)
 
 
 @pytest.fixture
@@ -15,11 +17,10 @@ async def temp_conversation_store():
     """Temporary SQLite conversation store for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         db_path = Path(tmpdir) / "test_conversations.db"
-        store = ConversationOperations(str(db_path))
 
         # Initialize schema
-        await store._ensure_schema()
-        yield store
+        await _ensure_schema(str(db_path))
+        yield str(db_path)
 
 
 @pytest.fixture

@@ -7,8 +7,8 @@ from pathlib import Path
 try:
     from dotenv import load_dotenv
 
-    # Look for .env file in project root (where cogency is installed)
-    env_path = Path(__file__).parent.parent.parent.parent / ".env"
+    # Look for .env file in project root (go up from src/cogency/providers/utils/ to project root)
+    env_path = Path(__file__).parent.parent.parent.parent.parent / ".env"
     if env_path.exists():
         load_dotenv(env_path)
 except ImportError:

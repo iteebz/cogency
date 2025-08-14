@@ -144,9 +144,24 @@ def test_log_filtering(agent):
 @pytest.mark.asyncio
 async def test_execution_events(agent):
     """Test events generated during execution."""
-    with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-        with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-            mock_state.return_value = Mock()
+    with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+        with patch("cogency.context.task.start_task", new_callable=AsyncMock) as mock_start_task:
+            from cogency.context.conversation import Conversation
+            from cogency.context.execution import Execution
+            from cogency.context.session import TaskSession
+            from cogency.context.working import WorkingState
+
+            mock_session = TaskSession(query="test", user_id="test")
+            mock_conversation = Conversation(conversation_id="test-id", user_id="test", messages=[])
+            mock_working_state = WorkingState(objective="test")
+            mock_execution = Execution(max_iterations=5)
+
+            mock_start_task.return_value = (
+                mock_session,
+                mock_conversation,
+                mock_working_state,
+                mock_execution,
+            )
             mock_reason.return_value = Result.ok({"response": "Test response"})
 
             initial_logs = len(agent.logs())
@@ -266,12 +281,31 @@ def test_performance_summarization():
 async def test_tool_events(agent_with_tools):
     """Test tool execution generates proper events."""
     # Mock tool execution to avoid actual tool calls
-    with patch("cogency.agents.act", new_callable=AsyncMock) as mock_act:
-        with patch("cogency.agents.reason", new_callable=AsyncMock) as mock_reason:
-            with patch("cogency.state.State.start_task", new_callable=AsyncMock) as mock_state:
-                mock_state.return_value = Mock()
+    with patch("cogency.act.act", new_callable=AsyncMock) as mock_act:
+        with patch("cogency.reason.reason", new_callable=AsyncMock) as mock_reason:
+            with patch(
+                "cogency.context.task.start_task", new_callable=AsyncMock
+            ) as mock_start_task:
+                from cogency.context.conversation import Conversation
+                from cogency.context.execution import Execution
+                from cogency.context.session import TaskSession
+                from cogency.context.working import WorkingState
+
+                mock_session = TaskSession(query="test", user_id="test")
+                mock_conversation = Conversation(
+                    conversation_id="test-id", user_id="test", messages=[]
+                )
+                mock_working_state = WorkingState(objective="test")
+                mock_execution = Execution(max_iterations=5)
+
+                mock_start_task.return_value = (
+                    mock_session,
+                    mock_conversation,
+                    mock_working_state,
+                    mock_execution,
+                )
                 mock_reason.return_value = Result.ok({"actions": [{"tool": "files", "args": {}}]})
-                mock_act.return_value = "Tool result"
+                mock_act.return_value = Result.ok({"results": [], "summary": "Tool result"})
 
                 await agent_with_tools.run("Use tools")
 

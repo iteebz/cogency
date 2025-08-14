@@ -6,12 +6,8 @@ from typing import Union
 import anthropic
 from resilient_result import Ok, Result
 
-try:
-    from .tokens import cost, count
-    from .base import Provider, rotate_retry, setup_rotator
-except ImportError:
-    from tokens import cost, count
-    from base import Provider, rotate_retry, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator
+from .utils.tokens import cost, count
 
 
 class Anthropic(Provider):
@@ -54,14 +50,16 @@ class Anthropic(Provider):
         if self._cache:
             cached_response = await self._cache.get(messages, **kwargs)
             if cached_response:
-                return Ok({
-                    "content": cached_response,
-                    "tokens": {
-                        "input": tin,
-                        "output": 0,  # Cached, no output tokens charged
-                        "cost": 0.0
+                return Ok(
+                    {
+                        "content": cached_response,
+                        "tokens": {
+                            "input": tin,
+                            "output": 0,  # Cached, no output tokens charged
+                            "cost": 0.0,
+                        },
                     }
-                })
+                )
 
         client = self._get_client()
         res = await client.messages.create(
@@ -80,14 +78,12 @@ class Anthropic(Provider):
         if self._cache:
             await self._cache.set(messages, response, cache_type="llm", **kwargs)
 
-        return Ok({
-            "content": response,
-            "tokens": {
-                "input": tin,
-                "output": tout,
-                "cost": cost(tin, tout, self.model)
+        return Ok(
+            {
+                "content": response,
+                "tokens": {"input": tin, "output": tout, "cost": cost(tin, tout, self.model)},
             }
-        })
+        )
 
     async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
         """Generate streaming LLM response."""

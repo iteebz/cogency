@@ -8,7 +8,7 @@ between tasks.
 CURRENT IMPLEMENTATION:
 Clean 4-field design optimized for natural LLM reasoning flows:
 - objective: What we're trying to achieve
-- understanding: What we've learned and know  
+- understanding: What we've learned and know
 - approach: How we're tackling this systematically
 - discoveries: Key insights, patterns, breakthroughs
 
@@ -19,63 +19,37 @@ and designed for natural LLM thought processes without artificial constraints.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Optional
-
-
-@dataclass
-class WorkingState:
-    """Task-scoped cognitive working state for multi-step reasoning.
-    
-    Clean 4-field design following specification from state.md:
-    Provides clear semantic boundaries without fragmenting cognition.
-    """
-    
-    objective: str = ""      # "What we're trying to achieve"
-    understanding: str = ""  # "What we've learned and know"  
-    approach: str = ""       # "How we're tackling this systematically"
-    discoveries: str = ""    # "Key insights, patterns, breakthroughs"
-
-
-class WorkingContext:
-    """Working domain context - cognitive workspace for reasoning."""
-    
-    def __init__(self, working_state: WorkingState):
-        self.working_state = working_state
-    
-    async def build(self) -> Optional[str]:
-        """Build working context from 4-field working state."""
-        if not self.working_state:
-            return None
-            
-        parts = []
-        
-        if self.working_state.objective:
-            parts.append(f"OBJECTIVE: {self.working_state.objective}")
-            
-        if self.working_state.understanding:
-            parts.append(f"UNDERSTANDING: {self.working_state.understanding}")
-            
-        if self.working_state.approach:
-            parts.append(f"APPROACH: {self.working_state.approach}")
-            
-        if self.working_state.discoveries:
-            parts.append(f"DISCOVERIES: {self.working_state.discoveries}")
-        
-        return "\n".join(parts) if parts else None
-
-
-# Import operations for single-import convenience
+# Import types and operations for single-import convenience
 from .operations import (
     create_working_state,
-    save_working_state,
     load_working_state,
+    save_working_state,
     update_working_state,
 )
+from .types import WorkingState
+
+
+async def build_working_context(working_state: WorkingState) -> str | None:
+    """Build working context from 4-field working state."""
+    if not working_state:
+        return None
+
+    parts = []
+    if working_state.objective:
+        parts.append(f"OBJECTIVE: {working_state.objective}")
+    if working_state.understanding:
+        parts.append(f"UNDERSTANDING: {working_state.understanding}")
+    if working_state.approach:
+        parts.append(f"APPROACH: {working_state.approach}")
+    if working_state.discoveries:
+        parts.append(f"DISCOVERIES: {working_state.discoveries}")
+
+    return "\n".join(parts) if parts else None
+
 
 __all__ = [
-    "WorkingState", 
-    "WorkingContext",
+    "WorkingState",
+    "build_working_context",
     # Operations
     "create_working_state",
     "save_working_state",

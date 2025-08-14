@@ -1,4 +1,4 @@
-"""Unified provider base - LLM and embedding capabilities in single ABC."""
+"""Provider base class - unified LLM and embedding interface."""
 
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
@@ -6,28 +6,21 @@ from typing import Optional, Union
 
 from resilient_result import Err, Ok, Result
 
-try:
-    # When used as part of cogency package
-    from .rotation import ApiKeyRotator
-    from .utils.credentials import Credentials
-    from .cache import Cache
-except ImportError:
-    # When used standalone
-    from rotation import ApiKeyRotator
-    from utils.credentials import Credentials
-    from cache import Cache
+from .utils.cache import Cache
+from .utils.credentials import Credentials
+from .utils.rotation import ApiKeyRotator
 
 
 def setup_rotator(
     provider_name: str, api_keys=None, required: bool = True
 ) -> Optional[ApiKeyRotator]:
-    """Beautiful helper - handles credential detection and rotator setup."""
-    # Auto-detect if not provided
+    """Setup API key rotation with auto-detection and validation."""
+    # Auto-detect credentials if not provided
     if api_keys is None:
         detected = Credentials.detect(provider_name)
         api_keys = detected.get("api_key") if detected else None
 
-    # Set up rotation if we have keys
+    # Create rotator for available keys
     if api_keys:
         if isinstance(api_keys, str):
             return ApiKeyRotator([api_keys])
@@ -49,7 +42,7 @@ class StreamBuffer:
 
     async def stream_with_retry(self, *args, **kwargs):
         """Stream with automatic retry and seamless resumption."""
-        from .rotation import KeyRotationError, is_quota_exhausted, is_rate_limit
+        from .utils.rotation import KeyRotationError, is_quota_exhausted, is_rate_limit
 
         while True:
             try:

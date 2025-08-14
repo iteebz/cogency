@@ -18,8 +18,6 @@ Note: Provider instances are typically created automatically by Agent initializa
 # Concrete provider implementations
 from .anthropic import Anthropic
 from .base import Provider
-from .cache import Cache
-from .detection import detect_embed, detect_llm
 from .gemini import Gemini
 from .groq import Groq
 from .mistral import Mistral
@@ -27,6 +25,8 @@ from .nomic import Nomic
 from .ollama import Ollama
 from .openai import OpenAI
 from .openrouter import OpenRouter
+from .utils.cache import Cache
+from .utils.detection import detect_embed, detect_llm
 
 __all__ = [
     # Public provider base class for extensions

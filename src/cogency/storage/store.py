@@ -1,18 +1,20 @@
-"""Storage protocol for foundational persistence infrastructure."""
+"""Storage interface for agent data persistence."""
 
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from cogency.knowledge import KnowledgeArtifact
-    from cogency.memory import Profile
-    from cogency.state import Conversation, Workspace
+    # Domain objects now in context domains
+    from cogency.context.conversation import Conversation
+    from cogency.context.knowledge import KnowledgeArtifact
+    from cogency.context.memory import Profile
+    from cogency.context.workspace import Workspace
 
 
 @runtime_checkable
 class Store(Protocol):
-    """Store interface for agent state persistence."""
+    """Protocol for agent data persistence operations."""
 
-    # Profile Operations (permanent user identity)
+    # Profile Operations
 
     async def save_profile(self, state_key: str, profile: "Profile") -> bool:
         """Save user profile to storage"""

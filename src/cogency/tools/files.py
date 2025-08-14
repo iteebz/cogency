@@ -1,9 +1,8 @@
 """File operations tool - read, write, list files with validation and error handling."""
 
 import logging
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from resilient_result import Result
 
@@ -11,16 +10,6 @@ from cogency.tools.base import Tool
 from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class FilesArgs:
-    action: str
-    path: str = ""
-    content: Optional[str] = None
-    line: Optional[int] = None
-    start: Optional[int] = None
-    end: Optional[int] = None
 
 
 @tool
@@ -37,7 +26,6 @@ class Files(Tool):
             description="Create, read, edit and manage complete code files with full implementations.",
             schema="files(action: str, path: str = '', content: str = None, line: int = None, start: int = None, end: int = None)",
             emoji="📁",
-            args=FilesArgs,
             examples=[
                 '{"name": "files", "args": {"action": "create", "path": "app.py", "content": "from fastapi import FastAPI\\n\\napp = FastAPI()\\n\\n@app.get(\\"/\\")\\nasync def root():\\n    return {\\"message\\": \\"Hello World\\"}"}}',
                 '{"name": "files", "args": {"action": "create", "path": "models.py", "content": "from pydantic import BaseModel\\nfrom typing import List, Optional\\n\\nclass User(BaseModel):\\n    id: int\\n    name: str\\n    email: Optional[str] = None"}}',
@@ -111,7 +99,7 @@ class Files(Tool):
                     )
 
                 # Security: validate file content using centralized patterns
-                from cogency.security import secure_tool
+                from cogency.tools.security import secure_tool
 
                 security_result = secure_tool(content or "")
                 if not security_result.safe:
@@ -179,7 +167,7 @@ class Files(Tool):
 
                 # Security: validate edited content using centralized patterns
                 new_content = "\n".join(lines)
-                from cogency.security import secure_tool
+                from cogency.tools.security import secure_tool
 
                 security_result = secure_tool(new_content)
                 if not security_result.safe:

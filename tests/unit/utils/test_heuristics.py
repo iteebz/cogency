@@ -1,6 +1,6 @@
 """Heuristic utility tests."""
 
-from cogency.utils.heuristics import (
+from cogency.providers.utils.heuristics import (
     calc_backoff,
     needs_network_retry,
 )

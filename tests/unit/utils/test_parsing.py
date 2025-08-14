@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.utils.parsing import (
+from cogency.reason.parsing import (
     _clean_json,
     _extract_json,
     _extract_json_stream,

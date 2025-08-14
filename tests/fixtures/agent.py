@@ -54,10 +54,10 @@ def mock_agent_execution(request):
         return
 
     with (
-        patch("cogency.agents.reason") as mock_reason,
-        patch("cogency.agents.act") as mock_act,
-        patch("cogency.memory.Memory") as mock_memory_class,
-        patch("cogency.state.State.start_task") as mock_start_task,
+        patch("cogency.reason.reason") as mock_reason,
+        patch("cogency.act.act") as mock_act,
+        patch("cogency.context.memory.Memory") as mock_memory_class,
+        patch("cogency.context.task.start_task") as mock_start_task,
     ):
         from resilient_result import Result
 
@@ -81,13 +81,25 @@ def mock_agent_execution(request):
             }
         )
 
-        # Mock state with proper conversation
-        mock_state = Mock()
-        mock_state.context = lambda: "Mock context"
-        mock_conversation = Mock()
-        mock_conversation.conversation_id = "test-conversation-id"
-        mock_state.conversation = mock_conversation
-        mock_start_task.return_value = mock_state
+        # Mock domain primitives with proper conversation
+        from cogency.context.conversation import Conversation
+        from cogency.context.execution import Execution
+        from cogency.context.session import TaskSession
+        from cogency.context.working import WorkingState
+
+        mock_session = TaskSession(query="test query", user_id="test_user")
+        mock_conversation = Conversation(
+            conversation_id="test-conversation-id", user_id="test_user", messages=[]
+        )
+        mock_working_state = WorkingState(objective="test query")
+        mock_execution = Execution(max_iterations=5)
+
+        mock_start_task.return_value = (
+            mock_session,
+            mock_conversation,
+            mock_working_state,
+            mock_execution,
+        )
 
         mock_memory = Mock()
         mock_memory.load = AsyncMock(return_value={})

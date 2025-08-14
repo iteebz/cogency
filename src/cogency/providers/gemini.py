@@ -7,14 +7,8 @@ import google.genai as genai
 import numpy as np
 from resilient_result import Err, Ok, Result
 
-
-try:
-    from .tokens import cost, count
-
-    from .base import Provider, rotate_retry, setup_rotator, stream_retry
-except ImportError:
-    from tokens import cost, count
-    from base import Provider, rotate_retry, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator, stream_retry
+from .utils.tokens import cost, count
 
 
 class Gemini(Provider):
@@ -81,14 +75,12 @@ class Gemini(Provider):
         if self._cache:
             await self._cache.set(messages, response_text, cache_type="llm", **kwargs)
 
-        return Ok({
-            "content": response_text,
-            "tokens": {
-                "input": tin,
-                "output": tout,
-                "cost": cost(tin, tout, self.model)
+        return Ok(
+            {
+                "content": response_text,
+                "tokens": {"input": tin, "output": tout, "cost": cost(tin, tout, self.model)},
             }
-        })
+        )
 
     @stream_retry
     async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:

@@ -30,15 +30,16 @@ async def interactive_mode(agent, stream=False, debug=False, timing=False) -> No
                     print(f"\n--- Interaction {interaction_count} ---")
 
                 if stream:
-                    from cogency.events.streaming import format_stream_event
-
-                    async for event in agent.run_stream(message):
-                        formatted = format_stream_event(event)
-                        if event.type == "completion":
-                            print(f"\n{formatted}")
-                        else:
-                            print(formatted, flush=True)
-                    print()  # Final newline
+                    # Streaming mode - simplified without format_stream_event
+                    try:
+                        async for event in agent.run_stream(message):
+                            if hasattr(event, 'content') and event.content:
+                                print(event.content, end='', flush=True)
+                        print()  # Final newline
+                    except AttributeError:
+                        # Fallback if streaming not available
+                        response, conversation_id = await agent.run(message)
+                        print(f"\n{response}")
                 else:
                     # Interactive mode uses persistent conversation per session
                     # Use tuple return pattern for consistency

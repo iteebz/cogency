@@ -1,11 +1,11 @@
 """Pure semantic security tests."""
 
-from cogency.security import (
+from cogency.context.system.security import _create_security_result, SecurityAction as SystemSecurityAction
+from cogency.tools.security import (
     SecurityAction,
     SecurityResult,
     SecurityThreat,
     redact_secrets,
-    secure_semantic,
     secure_tool,
 )
 
@@ -30,16 +30,16 @@ def test_result_redact():
 
 def test_secure_semantic_safe():
     data = {"is_safe": True, "reasoning": "Safe request", "threats": []}
-    result = secure_semantic(data)
+    result = _create_security_result(data)
     assert result.safe
-    assert result.action == SecurityAction.ALLOW
+    assert result.action == SystemSecurityAction.ALLOW
 
 
 def test_secure_semantic_unsafe():
     data = {"is_safe": False, "reasoning": "Dangerous command", "threats": ["command_injection"]}
-    result = secure_semantic(data)
+    result = _create_security_result(data)
     assert not result.safe
-    assert result.action == SecurityAction.BLOCK
+    assert result.action == SystemSecurityAction.BLOCK
     assert "Dangerous command" in result.message
 
 

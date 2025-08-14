@@ -1,7 +1,6 @@
 """Web content extraction tool using trafilatura."""
 
 import logging
-from dataclasses import dataclass
 from typing import Any
 
 import trafilatura
@@ -11,11 +10,6 @@ from cogency.tools.base import Tool
 from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ScrapeArgs:
-    url: str
 
 
 @tool
@@ -28,7 +22,6 @@ class Scrape(Tool):
             description="Extract clean text content from web pages, removing ads, navigation, and formatting",
             schema="scrape(url: str)",
             emoji="📖",
-            args=ScrapeArgs,
             examples=[
                 '{"name": "scrape", "args": {"url": "https://example.com/article"}}',
                 '{"name": "scrape", "args": {"url": "https://news.site.com/story"}}',

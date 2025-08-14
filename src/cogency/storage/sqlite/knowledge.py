@@ -1,146 +1,181 @@
 """SQLite knowledge operations - semantic memory persistence."""
 
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import aiosqlite
 
 if TYPE_CHECKING:
-    from cogency.knowledge import KnowledgeArtifact
+    from cogency.context.knowledge import KnowledgeArtifact
 
-from ...events.orchestration import extract_delete_data, extract_knowledge_data, state_event
-from .base import SQLiteBase
+from ...events.orchestration import domain_event, extract_delete_data, extract_knowledge_data
 
 
-class KnowledgeOperations(SQLiteBase):
-    """SQLite operations for knowledge artifact persistence."""
+async def _ensure_schema(db_path: str):
+    """Ensure knowledge schema exists."""
+    async with aiosqlite.connect(db_path) as db:
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS knowledge_vectors (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT NOT NULL,
+                content TEXT NOT NULL,
+                metadata TEXT,
+                embedding TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_knowledge_user ON knowledge_vectors(user_id)"
+        )
+        await db.commit()
 
-    @state_event("knowledge_saved", extract_knowledge_data)
-    async def save_knowledge(self, artifact: "KnowledgeArtifact") -> bool:
-        """Save knowledge artifact with semantic embedding storage."""
-        await self._ensure_schema()
 
-        try:
-            from cogency.providers import detect_embed
-            from cogency.semantic import add_sqlite_vector
+def _get_db_path(db_path: str = None) -> str:
+    """Get database path with defaults."""
+    if db_path is None:
+        from cogency.config.paths import paths
 
-            # Generate embedding for semantic search
-            embedder = detect_embed()
-            embed_result = await embedder.embed([artifact.content])
-            if embed_result.failure:
-                return False
+        base_path = Path(paths.base_dir)
+        base_path.mkdir(exist_ok=True)
+        db_path = base_path / "store.db"
 
-            embedding = embed_result.unwrap()[0]
+    if db_path == ":memory:" or str(db_path).startswith(":memory:"):
+        return str(db_path)
+    return str(Path(db_path).expanduser().resolve())
 
-            # Store with semantic infrastructure
-            async with aiosqlite.connect(self.db_path) as db:
-                result = await add_sqlite_vector(
-                    db_connection=db,
-                    user_id=artifact.user_id,
-                    content=artifact.content,
-                    metadata={
-                        "topic": artifact.topic,
-                        "confidence": artifact.confidence,
-                        "context": artifact.context,
-                        "created_at": artifact.created_at.isoformat(),
-                        "updated_at": artifact.updated_at.isoformat(),
-                        "source_conversations": artifact.source_conversations,
-                        **artifact.metadata,
-                    },
-                    embedding=embedding,
-                )
 
-            return result.success
+@domain_event("knowledge_saved", extract_knowledge_data)
+async def save_knowledge_vector(artifact: "KnowledgeArtifact", db_path: str = None) -> bool:
+    """Save knowledge artifact with semantic embedding storage."""
+    db_path = _get_db_path(db_path)
+    await _ensure_schema(db_path)
 
-        except Exception:
+    try:
+        from cogency.providers import detect_embed
+        from cogency.semantic import add_sqlite_vector
+
+        # Generate embedding for semantic search
+        embedder = detect_embed()
+        embed_result = await embedder.embed([artifact.content])
+        if embed_result.failure:
             return False
 
-    async def search_knowledge(
-        self, query: str, user_id: str = "default", top_k: int = 5, threshold: float = 0.7
-    ) -> list["KnowledgeArtifact"]:
-        """Search knowledge artifacts using semantic similarity."""
-        await self._ensure_schema()
+        embedding = embed_result.unwrap()[0]
 
-        try:
-            from datetime import datetime
+        # Store with semantic infrastructure
+        async with aiosqlite.connect(db_path) as db:
+            result = await add_sqlite_vector(
+                db_connection=db,
+                user_id=artifact.user_id,
+                content=artifact.content,
+                metadata={
+                    "topic": artifact.topic,
+                    "confidence": artifact.confidence,
+                    "context": artifact.context,
+                    "created_at": artifact.created_at.isoformat(),
+                    "updated_at": artifact.updated_at.isoformat(),
+                    "source_conversations": artifact.source_conversations,
+                    **artifact.metadata,
+                },
+                embedding=embedding,
+            )
 
-            from cogency.knowledge import KnowledgeArtifact
-            from cogency.providers import detect_embed
-            from cogency.semantic import semantic_search
+        return result.success
 
-            embedder = detect_embed()
+    except Exception:
+        return False
 
-            async with aiosqlite.connect(self.db_path) as db:
-                search_result = await semantic_search(
-                    embedder=embedder,
-                    query=query,
-                    db_connection=db,
-                    user_id=user_id,
-                    top_k=top_k,
-                    threshold=threshold,
-                )
 
-            if search_result.failure:
-                return []
+async def search_knowledge_vectors(
+    query: str,
+    user_id: str = "default",
+    top_k: int = 5,
+    threshold: float = 0.7,
+    db_path: str = None,
+) -> list["KnowledgeArtifact"]:
+    """Search knowledge artifacts using semantic similarity."""
+    db_path = _get_db_path(db_path)
+    await _ensure_schema(db_path)
 
-            # Convert search results to KnowledgeArtifact objects
-            artifacts = []
-            for result in search_result.unwrap():
-                metadata = result.get("metadata", {})
+    try:
+        from datetime import datetime
 
-                # Reconstruct artifact from metadata
-                artifact = KnowledgeArtifact(
-                    topic=metadata.get("topic", "Unknown"),
-                    content=result["content"],
-                    confidence=metadata.get("confidence", 0.8),
-                    context=metadata.get("context", ""),
-                    user_id=user_id,
-                    created_at=datetime.fromisoformat(
-                        metadata.get("created_at", datetime.now().isoformat())
-                    ),
-                    updated_at=datetime.fromisoformat(
-                        metadata.get("updated_at", datetime.now().isoformat())
-                    ),
-                    source_conversations=metadata.get("source_conversations", []),
-                    metadata={
-                        k: v
-                        for k, v in metadata.items()
-                        if k
-                        not in [
-                            "topic",
-                            "confidence",
-                            "context",
-                            "created_at",
-                            "updated_at",
-                            "source_conversations",
-                        ]
-                    },
-                )
-                artifacts.append(artifact)
+        from cogency.context.knowledge import KnowledgeArtifact
+        from cogency.providers import detect_embed
+        from cogency.semantic import semantic_search
 
-            return artifacts
+        embedder = detect_embed()
 
-        except Exception:
+        async with aiosqlite.connect(db_path) as db:
+            search_result = await semantic_search(
+                embedder=embedder,
+                query=query,
+                db_connection=db,
+                user_id=user_id,
+                top_k=top_k,
+                threshold=threshold,
+            )
+
+        if search_result.failure:
             return []
 
-    async def load_knowledge(self, topic: str, user_id: str) -> "KnowledgeArtifact | None":
-        """Load specific knowledge artifact by topic."""
-        artifacts = await self.search_knowledge(f"topic:{topic}", user_id, top_k=1, threshold=0.9)
-        return artifacts[0] if artifacts else None
+        # Convert search results to KnowledgeArtifact objects
+        artifacts = []
+        for result in search_result.unwrap():
+            metadata = result.get("metadata", {})
 
-    @state_event("knowledge_deleted", extract_delete_data)
-    async def delete_knowledge(self, topic: str, user_id: str) -> bool:
-        """Delete knowledge artifact by topic."""
-        await self._ensure_schema()
+            # Reconstruct artifact from metadata
+            artifact = KnowledgeArtifact(
+                topic=metadata.get("topic", "Unknown"),
+                content=result["content"],
+                confidence=metadata.get("confidence", 0.8),
+                context=metadata.get("context", ""),
+                user_id=user_id,
+                created_at=datetime.fromisoformat(
+                    metadata.get("created_at", datetime.now().isoformat())
+                ),
+                updated_at=datetime.fromisoformat(
+                    metadata.get("updated_at", datetime.now().isoformat())
+                ),
+                source_conversations=metadata.get("source_conversations", []),
+                metadata={
+                    k: v
+                    for k, v in metadata.items()
+                    if k
+                    not in [
+                        "topic",
+                        "confidence",
+                        "context",
+                        "created_at",
+                        "updated_at",
+                        "source_conversations",
+                    ]
+                },
+            )
+            artifacts.append(artifact)
 
-        try:
-            async with aiosqlite.connect(self.db_path) as db:
-                cursor = await db.execute(
-                    """DELETE FROM knowledge_vectors
-                       WHERE user_id = ? AND json_extract(metadata, '$.topic') = ?""",
-                    (user_id, topic),
-                )
-                await db.commit()
-                return cursor.rowcount > 0
+        return artifacts
 
-        except Exception:
-            return False
+    except Exception:
+        return []
+
+
+@domain_event("knowledge_deleted", extract_delete_data)
+async def delete_knowledge_vector(topic: str, user_id: str, db_path: str = None) -> bool:
+    """Delete knowledge artifact by topic."""
+    db_path = _get_db_path(db_path)
+    await _ensure_schema(db_path)
+
+    try:
+        async with aiosqlite.connect(db_path) as db:
+            cursor = await db.execute(
+                """DELETE FROM knowledge_vectors
+                   WHERE user_id = ? AND json_extract(metadata, '$.topic') = ?""",
+                (user_id, topic),
+            )
+            await db.commit()
+            return cursor.rowcount > 0
+
+    except Exception:
+        return False

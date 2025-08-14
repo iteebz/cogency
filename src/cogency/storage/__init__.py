@@ -6,10 +6,15 @@ Storage is FOUNDATIONAL INFRASTRUCTURE consumed by all domains:
 - user/ uses storage for profile persistence
 
 Storage does NOT belong to any single domain - it's shared infrastructure.
+
+ARCHITECTURAL CHANGE: SQLite god-object eliminated. Use functional operations:
+from cogency.storage.sqlite.profiles import save_profile
+from cogency.storage.sqlite.conversations import create_conversation
 """
 
-from .sqlite import SQLite
+# Re-export SQLite functional operations for convenience
+from . import sqlite
 from .store import Store
 from .supabase import Supabase
 
-__all__ = ["Store", "SQLite", "Supabase"]
+__all__ = ["Store", "Supabase", "sqlite"]

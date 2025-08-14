@@ -1,20 +1,10 @@
 """Mistral provider - LLM and embedding with streaming, key rotation."""
 
-from collections.abc import AsyncIterator
-from typing import Union
-
-import numpy as np
 from mistralai import Mistral as MistralClient
-from resilient_result import Err, Ok, Result
+from resilient_result import Ok, Result
 
-
-try:
-    from .tokens import cost, count
-
-    from .base import Provider, rotate_retry, setup_rotator
-except ImportError:
-    from tokens import cost, count
-    from base import Provider, rotate_retry, setup_rotator
+from .base import Provider, rotate_retry, setup_rotator
+from .utils.tokens import count
 
 
 class Mistral(Provider):
@@ -49,7 +39,7 @@ class Mistral(Provider):
     @rotate_retry
     async def generate(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
-        tin = count(messages, self.model)
+        count(messages, self.model)
 
         # Check cache first
         if self._cache:
@@ -68,4 +58,9 @@ class Mistral(Provider):
         )
         response = res.choices[0].message.content
 
-        tout = count([{"role": "assistant", "content": response}], self.model)
+        count([{"role": "assistant", "content": response}], self.model)
+        # Cache the response
+        if self._cache:
+            await self._cache.set(messages, response, **kwargs)
+
+        return Ok(response)

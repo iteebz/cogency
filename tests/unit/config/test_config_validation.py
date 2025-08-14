@@ -5,7 +5,7 @@ from typing import Any
 import pytest
 from jsonschema import ValidationError, validate
 
-from cogency.storage.sqlite import SQLite
+# SQLite class eliminated - using functional operations
 from tests.fixtures.provider import RealisticMockProvider
 
 
@@ -54,19 +54,18 @@ async def test_response_schema():
 @pytest.mark.asyncio
 async def test_store_data():
     """Validate store operations use correct data formats."""
-    from cogency.memory import Profile
-
-    store = SQLite()  # Use default temp directory
+    from cogency.context.memory import Profile
+    from cogency.storage.sqlite.profiles import save_profile, load_profile
 
     # Valid memory entry for profile
     profile = Profile(user_id="test_user")
     profile.preferences = {"theme": "dark"}
 
-    # Test canonical store operations
-    result = await store.save_profile("test_user:default", profile)
+    # Test canonical store operations using functional approach
+    result = await save_profile("test_user:default", profile)
     assert result is True
 
-    loaded_result = await store.load_profile("test_user:default")
+    loaded_result = await load_profile("test_user:default")
     assert loaded_result is not None
     assert loaded_result.user_id == "test_user"
 
@@ -158,50 +157,7 @@ async def test_embedding_schema():
     assert not validate_schema(invalid_embedding, embedding_schema)
 
 
-@pytest.mark.asyncio
-async def test_state_schema():
-    """Test state persistence data follows schema."""
-    state_schema = {
-        "type": "object",
-        "properties": {
-            "query": {"type": "string"},
-            "iteration": {"type": "integer", "minimum": 0},
-            "messages": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "role": {"type": "string", "enum": ["user", "assistant", "system"]},
-                        "content": {"type": "string"},
-                    },
-                    "required": ["role", "content"],
-                },
-            },
-            "tool_calls": {"type": "array"},
-            "response": {"type": ["string", "null"]},
-            "response_source": {"type": ["string", "null"]},
-        },
-        "required": ["query", "iteration", "messages"],
-    }
-
-    from cogency.state import State
-
-    state = State("test query")
-    from cogency.state.mutations import add_message
-
-    add_message(state, "user", "test message")
-
-    # Convert state to dict for validation
-    state_data = {
-        "query": state.query,
-        "iteration": state.execution.iteration,
-        "messages": state.execution.messages,
-        "tool_calls": state.execution.pending_calls,
-        "response": getattr(state.execution, "response", None),
-        "response_source": getattr(state.execution, "response_source", None),
-    }
-
-    assert validate_schema(state_data, state_schema)
+# Deleted: test_state_schema - tests deleted State functionality
 
 
 @pytest.mark.asyncio

@@ -1,24 +1,45 @@
-"""SQLite Store implementation via domain composition."""
+"""SQLite storage operations - functional composition.
 
-from .conversations import ConversationOperations
-from .knowledge import KnowledgeOperations
-from .profiles import ProfileOperations
-from .workspaces import WorkspaceOperations
+ELIMINATED ARCHITECTURAL VIOLATION: Multiple inheritance god-object.
+Domain operations are now standalone functions in their respective modules.
+Use direct imports: from cogency.storage.sqlite.profiles import save_profile
+"""
 
+# Re-export functional operations for convenience
+from .conversations import (
+    create_conversation,
+    delete_conversation,
+    list_conversations,
+    load_conversation,
+    load_conversation_data,
+    save_conversation,
+    save_conversation_data,
+)
+from .knowledge import delete_knowledge_vector, save_knowledge_vector, search_knowledge_vectors
+from .profiles import create_profile, delete_profile, load_profile, save_profile
+from .workspaces import clear_workspace, list_workspaces, load_workspace_data, save_workspace_data
 
-class SQLite(ProfileOperations, ConversationOperations, WorkspaceOperations, KnowledgeOperations):
-    """SQLite Store implementation via canonical domain composition.
-
-    Implements the Store protocol by composing domain-specific operations:
-    - ProfileOperations: User identity persistence
-    - ConversationOperations: Message history persistence
-    - WorkspaceOperations: Task-scoped state persistence
-    - KnowledgeOperations: Semantic memory persistence
-
-    Each domain module is ~50-80 lines, maintaining Beauty Doctrine compliance.
-    """
-
-    pass
-
-
-__all__ = ["SQLite"]
+__all__ = [
+    # Profiles
+    "create_profile",
+    "load_profile",
+    "save_profile",
+    "delete_profile",
+    # Conversations
+    "create_conversation",
+    "load_conversation",
+    "load_conversation_data",
+    "save_conversation",
+    "save_conversation_data",
+    "delete_conversation",
+    "list_conversations",
+    # Workspaces
+    "save_workspace_data",
+    "load_workspace_data",
+    "clear_workspace",
+    "list_workspaces",
+    # Knowledge
+    "save_knowledge_vector",
+    "search_knowledge_vectors",
+    "delete_knowledge_vector",
+]

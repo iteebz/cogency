@@ -23,9 +23,13 @@ Example:
     from cogency.tools import tool
 
     @tool
-    def calculator(expression: str) -> float:
+    def calculator(a: float, b: float, operation: str) -> float:
         '''Simple calculator tool.'''
-        return eval(expression)
+        if operation == 'add':
+            return a + b
+        elif operation == 'multiply':
+            return a * b
+        # etc...
     ```
 """
 
@@ -36,9 +40,7 @@ from .base import Tool
 from .files import Files
 
 # Tool composition helpers removed - just use [Files(), Shell()] directly
-
 # Built-in memory recall tool moved to memory domain - use @tool decorator instead
-
 # Public: Core tool system functions for registration and LLM integration
 from .registry import (
     build_tool_descriptions,  # Public: Brief tool descriptions for triage/overview
@@ -46,19 +48,14 @@ from .registry import (
     tool,  # Public: Decorator for registering custom tool classes
 )
 
-# Public: Built-in document retrieval tool (moved to context/knowledge subdomain)  
-# Import deferred to avoid circular dependency
-def __getattr__(name):
-    if name == "Retrieve":
-        from cogency.context.knowledge import Retrieve
-        return Retrieve
-    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
-
 # Public: Built-in web scraping tool
 from .scrape import Scrape
 
 # Public: Built-in web search tool
 from .search import Search
+
+# Public: Tool security
+from .security import SecurityResult, secure_response, secure_tool
 
 # Public: Built-in shell command tool
 from .shell import Shell
@@ -66,11 +63,13 @@ from .shell import Shell
 # Public: Tool argument validation
 from .validation import validate
 
+# Note: Retrieve moved to cogency.context.knowledge - import directly from there
+
+
 __all__ = [
     # Public tool APIs
     "Tool",  # Base class for custom tools
     "Files",  # Built-in file operations
-    "Retrieve",  # Built-in document retrieval
     "Scrape",  # Built-in web scraping
     "Search",  # Built-in web search
     "Shell",  # Built-in shell commands
@@ -78,4 +77,7 @@ __all__ = [
     "build_tool_descriptions",  # Brief tool descriptions for triage/overview
     "build_tool_schemas",  # Complete schemas with examples for LLM execution
     "validate",  # Tool argument validation
+    "secure_tool",  # Tool security enforcement
+    "secure_response",  # Response security
+    "SecurityResult",  # Security result
 ]

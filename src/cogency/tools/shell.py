@@ -4,7 +4,6 @@ import asyncio
 import logging
 import os
 import shlex
-from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Optional
 
@@ -14,14 +13,6 @@ from cogency.tools.base import Tool
 from cogency.tools.registry import tool
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class ShellArgs:
-    command: str
-    timeout: int = 30
-    working_dir: Optional[str] = None
-    env: Optional[dict[str, str]] = None
 
 
 @tool
@@ -38,7 +29,6 @@ class Shell(Tool):
             description="Run shell commands and scripts - for executing files, running programs, terminal operations",
             schema="shell(command: str, timeout: int = 30, working_dir: str = None, env: dict = None)",
             emoji="💻",
-            args=ShellArgs,
             examples=[
                 '{"name": "shell", "args": {"command": "ls -la"}}',
                 '{"name": "shell", "args": {"command": "pwd"}}',
@@ -95,7 +85,7 @@ class Shell(Tool):
         timeout = min(max(timeout, 1), 300)  # 1-300 seconds
 
         # Security: validate command using centralized patterns
-        from cogency.security import secure_tool
+        from cogency.tools.security import secure_tool
 
         security_result = secure_tool(command)
         if not security_result.safe:

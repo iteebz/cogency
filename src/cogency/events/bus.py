@@ -1,6 +1,8 @@
 """Core event emission infrastructure - stable and minimal."""
 
 import time
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Any, Optional
 
 # Global bus instance
@@ -51,3 +53,14 @@ def get_logs(
         if hasattr(handler, "logs"):
             return handler.logs(type=type, errors_only=errors_only, last=last)
     return []
+
+
+@contextmanager
+def emit_timer(label: str) -> Generator[str, None, None]:
+    """Timer with automatic event emission - events domain coordination."""
+    start = time.perf_counter()
+    try:
+        yield label
+    finally:
+        duration = time.perf_counter() - start
+        emit("timing", label=label, duration=duration)

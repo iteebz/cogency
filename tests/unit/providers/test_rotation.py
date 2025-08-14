@@ -155,7 +155,7 @@ async def test_rate_limit_rotation():
     provider._fail_count = 1  # Fail on first call, succeed on second
 
     # Mock the heuristics to detect rate limit
-    with patch("cogency.providers.rotation.is_rate_limit", return_value=True):
+    with patch("cogency.providers.utils.rotation.is_rate_limit", return_value=True):
         result = await provider.embed("test text")
 
     # Should succeed after rotation
@@ -171,7 +171,7 @@ async def test_key_exhaustion():
     provider._fail_count = 10  # Always fail
 
     # Mock the heuristics and rotation to raise exhaustion
-    with patch("cogency.providers.rotation.is_rate_limit", return_value=True):
+    with patch("cogency.providers.utils.rotation.is_rate_limit", return_value=True):
         with patch.object(provider.rotator, "has_multiple", return_value=False):
             result = await provider.embed("test text")
 

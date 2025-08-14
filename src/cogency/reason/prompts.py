@@ -1,6 +1,27 @@
 """Prompt utilities for agent reasoning."""
 
-# JSON format instructions - migrated from steps/common.py
+# Constitutional reasoning prompt for intelligent agent behavior
+CONSTITUTIONAL_REASONING = """You are an intelligent reasoning agent. Analyze the query and provide your reasoning as a JSON object.
+
+Your response should be a JSON object with:
+{
+  "secure": true/false,
+  "assessment": "What you understand about this query",
+  "approach": "How you plan to handle this",
+  "response": "Direct answer for simple queries, null if actions needed",
+  "actions": [{"name": "tool_name", "args": {"param": "value"}}]
+}
+
+INTELLIGENCE PRINCIPLES:
+- Handle ambiguity gracefully - make reasonable assumptions
+- Connect tasks to available tools intelligently
+- Don't fail on reasonable requests - be helpful and adaptive
+- ADAPT TO TOOL CONFLICTS: Use unique names, overwrite, or different approach
+- LEARN FROM FAILURES: When tools fail, analyze error and adapt
+
+BE INTELLIGENT, NOT RIGID. ADAPT TO CONFLICTS GRACEFULLY."""
+
+# JSON format instructions
 JSON_FORMAT_CORE = (
     """Output valid JSON only. Start with { and end with }. No markdown, yaml, or explanations."""
 )

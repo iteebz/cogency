@@ -7,19 +7,19 @@ language context for LLM reasoning.
 Constitutional principle: Natural language context for LLM, organized assembly for developers.
 """
 
-from cogency.context.assembly import build_context, ContextError
-from cogency.context.conversation import ConversationContext
-from cogency.context.knowledge import KnowledgeContext  
-from cogency.context.memory import MemoryContext
-from cogency.context.system import SystemContext
-from cogency.context.working import WorkingContext
+from cogency.context.assembly import ContextError, build_context
+from cogency.context.conversation import build_conversation_context
+from cogency.context.knowledge import build_knowledge_context
+from cogency.context.memory import build_memory_context
+from cogency.context.system import build_system_context
+from cogency.context.working import build_working_context
 
 __all__ = [
-    "build_context", 
+    "build_context",
     "ContextError",
-    "ConversationContext",
-    "KnowledgeContext", 
-    "MemoryContext",
-    "SystemContext",
-    "WorkingContext"
+    "build_conversation_context",
+    "build_knowledge_context",
+    "build_memory_context",
+    "build_system_context",
+    "build_working_context",
 ]

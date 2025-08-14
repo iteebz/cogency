@@ -1,50 +1,34 @@
-"""Memory subdomain - user profile and learning systems.
+"""Memory subdomain - user profile and learning systems."""
 
-Consolidated memory implementations - context is the canonical location
-for all information retrieval and synthesis.
-"""
-
-from typing import Optional, Any
+from typing import Any, Optional
 
 from .learn import learn
 from .memory import Memory, Profile
 from .recall import Recall
 
 
-class MemoryContext:
-    """Memory domain context - profile injection."""
-    
-    def __init__(self, memory: Any, user_id: str):
-        """Initialize memory context.
-        
-        Args:
-            memory: Memory component instance
-            user_id: User identifier for profile retrieval
-        """
-        self.memory = memory
-        self.user_id = user_id
-    
-    async def build(self) -> Optional[str]:
-        """Build memory context using consolidated memory.activate() pattern.
-        
-        Preserves exact functionality from Agent.run():
-        memory_context = await memory.activate(user_id)
-        
-        Returns:
-            Profile context string or None
-        """
-        if not self.memory:
-            return None
-            
-        try:
-            # Canonical memory activation pattern - preserved exactly
-            profile_context = await self.memory.activate(self.user_id)
-            return profile_context if profile_context else None
-            
-        except Exception as e:
-            from cogency.events import emit
-            emit("context", domain="memory", status="error", error=str(e))
-            return None
+async def build_memory_context(memory: Any, user_id: str) -> Optional[str]:
+    """Build memory context - canonical domain function.
+
+    Args:
+        memory: Memory component instance
+        user_id: User identifier for profile retrieval
+
+    Returns:
+        Profile context string or None
+    """
+    if not memory:
+        return None
+
+    try:
+        profile_context = await memory.activate(user_id)
+        return profile_context if profile_context else None
+
+    except Exception as e:
+        from cogency.events import emit
+
+        emit("context", domain="memory", status="error", error=str(e))
+        return None
 
 
-__all__ = ["MemoryContext", "Memory", "Profile", "learn", "Recall"]
+__all__ = ["build_memory_context", "Memory", "Profile", "learn", "Recall"]
