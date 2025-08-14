@@ -35,18 +35,10 @@ from .base import Tool
 # Public: Built-in file operations tool
 from .files import Files
 
-# Public: Tool composition helpers
-from .presets import (
-    analysis_tools,
-    devops_tools,
-    filesystem_tools,
-    memory_tools,
-    research_tools,
-    web_tools,
-)
+# Tool composition helpers removed - just use [Files(), Shell()] directly
 
-# Public: Built-in memory recall tool
-from .recall import Recall
+# Public: Built-in memory recall tool (moved to memory domain)
+from cogency.memory import Recall
 
 # Public: Core tool system functions for registration and LLM integration
 from .registry import (
@@ -55,8 +47,8 @@ from .registry import (
     tool,  # Public: Decorator for registering custom tool classes
 )
 
-# Public: Built-in document retrieval tool
-from .retrieve import Retrieve
+# Public: Built-in document retrieval tool (moved to knowledge domain)
+from cogency.knowledge import Retrieve
 
 # Public: Built-in web scraping tool
 from .scrape import Scrape
@@ -83,11 +75,4 @@ __all__ = [
     "build_tool_descriptions",  # Brief tool descriptions for triage/overview
     "build_tool_schemas",  # Complete schemas with examples for LLM execution
     "validate",  # Tool argument validation
-    # Tool composition helpers
-    "devops_tools",
-    "research_tools",
-    "analysis_tools",
-    "web_tools",
-    "filesystem_tools",
-    "memory_tools",
 ]

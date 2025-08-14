@@ -43,23 +43,28 @@ async def act(tool_calls: list[dict], tools, state, user_id: str = "default") ->
             continue
 
         try:
+            import time
+            
             # Inject user_id for tools that need user context
             if tool_name == "recall":
                 tool_args["user_id"] = user_id
 
-            # Emit tool execution start
+            # Emit tool execution start with timing
+            start_time = time.time()
             emit("tool", name=tool_name, status="start", operation="execute")
 
             # Execute tool with unpacked args
             result = await tool_instance.execute(**tool_args)
 
-            # Emit tool execution complete
+            # Emit tool execution complete with duration
+            duration = time.time() - start_time
             emit(
                 "tool",
                 name=tool_name,
                 status="complete",
                 operation="execute",
                 success=result.success,
+                duration=duration,
             )
 
             if result.success:
@@ -111,8 +116,9 @@ async def act(tool_calls: list[dict], tools, state, user_id: str = "default") ->
                     )
 
         except Exception as e:
-            # Emit tool execution error
-            emit("tool", name=tool_name, status="error", operation="execute", error=str(e))
+            # Emit tool execution error with duration
+            duration = time.time() - start_time
+            emit("tool", name=tool_name, status="error", operation="execute", error=str(e), duration=duration)
 
             exception_result = Result.fail(str(e))
             failures.append(

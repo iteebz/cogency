@@ -58,13 +58,6 @@ class Tool(ABC):
 
         Use this method instead of run() directly.
         """
-        import time
-
-        from cogency.events import emit
-
-        start_time = time.time()
-        emit("tool", operation="execute", name=self.name, status="start")
-
         try:
             # Normalize and validate arguments
             normalized_args = self._normalize_args(kwargs)
@@ -81,52 +74,13 @@ class Tool(ABC):
             if not hasattr(result, "failure"):
                 result = Result.ok(result)
 
-            # Track events only - metrics handled by MetricsHandler
-            duration = time.time() - start_time
-            if result.failure:
-                emit(
-                    "tool",
-                    operation="execute",
-                    name=self.name,
-                    status="failed",
-                    error=result.error,
-                    duration=duration,
-                )
-            else:
-                emit(
-                    "tool",
-                    operation="execute",
-                    name=self.name,
-                    status="complete",
-                    success=True,
-                    duration=duration,
-                )
-
             return result
 
         except ValueError as e:
             # Schema validation errors
-            duration = time.time() - start_time
-            emit(
-                "tool",
-                operation="execute",
-                name=self.name,
-                status="validation_error",
-                error=str(e),
-                duration=duration,
-            )
             return Result.fail(f"Invalid arguments: {str(e)}")
         except Exception as e:
             # Critical execution errors
-            duration = time.time() - start_time
-            emit(
-                "tool",
-                operation="execute",
-                name=self.name,
-                status="execution_error",
-                error=str(e),
-                duration=duration,
-            )
             return Result.fail(f"Tool execution failed: {str(e)}")
 
     def _normalize_args(self, args: dict[str, Any]) -> dict[str, Any]:
