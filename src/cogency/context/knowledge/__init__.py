@@ -1,39 +1,14 @@
-"""Knowledge context namespace - automatic retrieval.
+"""Knowledge subdomain - extraction, synthesis and retrieval systems.
 
-Provides automatic knowledge retrieval for complex queries.
-This is ONE OF TWO knowledge retrieval patterns in Cogency:
-
-## DUAL KNOWLEDGE RETRIEVAL ARCHITECTURE
-
-### 1. Automatic Semantic Search (This Module)
-- **Purpose**: Background context enrichment
-- **Trigger**: Every query automatically  
-- **Threshold**: 0.75 (high precision for context)
-- **Results**: 2 items max, 200 chars truncated
-- **Format**: Context injection as "RELEVANT KNOWLEDGE:" section
-- **Location**: cogency.context.knowledge.KnowledgeContext
-
-### 2. Intentional Retrieval (Recall Tool) 
-- **Purpose**: Explicit knowledge exploration
-- **Trigger**: Agent explicitly calls recall() tool
-- **Threshold**: 0.7 (broader results)
-- **Results**: 5 items, full content with previews
-- **Format**: Formatted tool response with topics/similarities
-- **Location**: cogency.memory.recall.Recall
-
-## CURRENT STATUS
-- **Database**: .cogency/store.db exists with schema
-- **Knowledge vectors**: 0 entries (empty - populated post-conversation)
-- **Population**: Automatic via cogency.knowledge.extract after conversations
-
-## TODO: Future Architecture Considerations
-- Evaluate threshold differences (0.75 vs 0.7)
-- Consider result count optimization (2 vs 5)  
-- Review automatic vs intentional retrieval boundaries
-- Assess context injection vs tool response formatting efficiency
+Consolidated knowledge implementations - context is the canonical location
+for all information retrieval and synthesis.
 """
 
 from typing import Optional
+
+from .extract import extract
+from .retrieve import Retrieve
+from .types import KnowledgeArtifact
 
 
 class KnowledgeContext:
@@ -102,12 +77,12 @@ class KnowledgeContext:
                 content = result["content"][:200]  # Truncate for context efficiency
                 knowledge_items.append(f"- {topic}: {content}...")
 
-            emit("memory", operation="auto_retrieval", results=len(knowledge_items), query=self.query)
+            emit("knowledge", operation="auto_retrieval", results=len(knowledge_items), query=self.query)
             return "\n".join(knowledge_items)
 
         except Exception as e:
-            emit("memory", operation="auto_retrieval", status="error", error=str(e))
+            emit("knowledge", operation="auto_retrieval", status="error", error=str(e))
             return ""
-    
-# Removed _is_simple_query() - brittle heuristics deleted
-# Semantic search with threshold=0.75 handles relevance filtering
+
+
+__all__ = ["KnowledgeContext", "extract", "Retrieve", "KnowledgeArtifact"]

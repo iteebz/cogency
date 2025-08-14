@@ -4,7 +4,7 @@ import json
 from typing import Any
 
 from cogency.events import emit
-from cogency.knowledge.types import KnowledgeArtifact
+from .types import KnowledgeArtifact
 
 from .prompts import build_extraction_prompt
 

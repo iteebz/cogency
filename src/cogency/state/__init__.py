@@ -11,7 +11,7 @@ from datetime import datetime
 from typing import Any
 from uuid import uuid4
 
-from cogency.knowledge.extract import extract
+from cogency.context.knowledge import extract
 from cogency.memory import learn
 from cogency.storage.sqlite import SQLite
 

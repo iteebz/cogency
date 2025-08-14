@@ -93,4 +93,6 @@ src/cogency/
 - ✅ `agents/` → `reason/` + `act/` migration complete
 - ✅ Root-level `from cogency import reason, act` API working
 - ✅ Core architecture locked: `context/`, `state/`, `reason/`, `act/`, `tools/`, `providers/`
-- 🔄 **Phase 1**: Context consolidation - memory/ → context/memory/
+- ✅ **Phase 1**: Memory subdomain consolidation - memory/ → context/memory/
+- ✅ **Phase 2**: Knowledge subdomain consolidation - knowledge/ → context/knowledge/ 
+- 🔄 **Phase 3**: State minimization and reasoning quality validation

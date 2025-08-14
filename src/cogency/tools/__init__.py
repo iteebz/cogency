@@ -46,8 +46,13 @@ from .registry import (
     tool,  # Public: Decorator for registering custom tool classes
 )
 
-# Public: Built-in document retrieval tool (moved to knowledge domain)
-from cogency.knowledge import Retrieve
+# Public: Built-in document retrieval tool (moved to context/knowledge subdomain)  
+# Import deferred to avoid circular dependency
+def __getattr__(name):
+    if name == "Retrieve":
+        from cogency.context.knowledge import Retrieve
+        return Retrieve
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
 
 # Public: Built-in web scraping tool
 from .scrape import Scrape
