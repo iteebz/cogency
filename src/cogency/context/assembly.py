@@ -7,13 +7,13 @@ from .system import system
 from .working import working
 
 
-def inject_context(query: str, user_id: str, tool_results: list = None) -> str:
-    """Inject relevant context for query - pure function."""
+def context(query: str, user_id: str, tools: list = None) -> str:
+    """Assemble context for query."""
     contexts = [
         system(),
         conversation(user_id),
         knowledge(query, user_id),
         memory(user_id),
-        working(tool_results),
+        working(tools),
     ]
     return "\n\n".join(filter(None, contexts))
