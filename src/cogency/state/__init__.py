@@ -15,6 +15,14 @@ from cogency.context.knowledge import extract
 from cogency.memory import learn
 from cogency.storage.sqlite import SQLite
 
+# Backward compatibility import
+from cogency.context.conversation import (
+    Conversation, 
+    create_conversation, 
+    load_conversation,
+    get_messages_for_llm,
+)
+
 
 @dataclass
 class State:
@@ -54,12 +62,11 @@ class State:
 
         # Load or create conversation
         if conversation_id:
-            conversation = await store.load_conversation(conversation_id, user_id)
+            conversation = await load_conversation(conversation_id, user_id, store)
             if conversation is None:
                 raise ValueError(f"No conversation found for conversation_id: {conversation_id}")
         else:
-            conversation = Conversation(user_id=user_id)
-            await store.save_conversation(conversation)
+            conversation = await create_conversation(user_id, store)
 
         # Create fresh workspace for this task
         workspace = Workspace(objective=query)
@@ -68,7 +75,7 @@ class State:
         execution = Execution(max_iterations=max_iterations)
 
         # Load conversation history into execution for context
-        execution.messages = conversation.messages.copy()
+        execution.messages = get_messages_for_llm(conversation)
 
         state = cls(
             query=query,
@@ -220,9 +227,7 @@ class State:
 
     def messages(self) -> list[dict]:
         """Get conversation messages for LLM chat interface."""
-        if self.conversation and self.conversation.messages:
-            return self.conversation.messages.copy()
-        return []
+        return get_messages_for_llm(self.conversation)
 
 
 @dataclass
@@ -238,14 +243,6 @@ class Workspace:
     thoughts: list[dict[str, Any]] = field(default_factory=list)
 
 
-@dataclass
-class Conversation:
-    """Persistent conversation history across tasks."""
-
-    conversation_id: str = field(default_factory=lambda: str(uuid4()))
-    user_id: str = ""
-    messages: list[dict[str, Any]] = field(default_factory=list)
-    last_updated: datetime = field(default_factory=datetime.now)
 
 
 @dataclass

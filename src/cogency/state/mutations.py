@@ -1,10 +1,12 @@
 """State mutation functions - conversation message persistence.
 
-Canonical state mutations for message flow. Other state updates use direct
-attribute access (state.workspace.*, state.execution.*) following canonical patterns.
+State mutations for message flow. Other state updates use direct
+attribute access (state.workspace.*, state.execution.*).
 """
 
 from typing import TYPE_CHECKING, Any
+
+from cogency.context.conversation import add_message as add_conversation_message
 
 if TYPE_CHECKING:
     from . import State
@@ -13,18 +15,13 @@ if TYPE_CHECKING:
 def add_message(state: "State", role: str, content: str) -> None:
     """Add message to conversation history with automatic persistence."""
     from datetime import datetime
+    from cogency.context.conversation import get_messages_for_llm
 
-    message = {
-        "role": role,
-        "content": content,
-    }
-
-    # Add to persistent conversation
-    state.conversation.messages.append(message)
-    state.conversation.last_updated = datetime.now()
+    # Add to persistent conversation using domain operations
+    add_conversation_message(state.conversation, role, content)
 
     # Update execution context with latest message for LLM context
-    state.execution.messages = state.conversation.messages.copy()
+    state.execution.messages = get_messages_for_llm(state.conversation)
 
     # Update state metadata
     state.last_updated = datetime.now()

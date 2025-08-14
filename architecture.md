@@ -17,7 +17,8 @@ src/cogency/
 ├── reason/          # Think: context → decisions  
 ├── act/             # Do: decisions → results
 ├── tools/           # Tool definitions & execution (dual-role)
-└── providers/       # LLM & embedding providers (auto-detection)
+├── providers/       # LLM & embedding providers (auto-detection)
+└── storage/         # Foundational persistence infrastructure
 ```
 
 **Root-level primitives:**
@@ -70,10 +71,11 @@ src/cogency/
 ├── context/             # Context domain - all information implementations
 │   ├── memory/          # Memory subdomain: Memory, Profile, MemorySystem + MemoryContext
 │   ├── knowledge/       # Knowledge subdomain: extract, KnowledgeArtifact + KnowledgeContext  
-│   ├── conversation/    # Conversation subdomain
+│   ├── conversation/    # Conversation subdomain: Conversational intelligence & continuity
 │   ├── system/          # System subdomain
 │   ├── working/         # Working state subdomain
-│   └── assembly.py      # Context orchestration
+│   ├── utils/           # Context utilities (assembly, compaction, formatting)
+│   └── assembly.py      # Context orchestration (will move to utils/)
 ├── tools/               # Pure action executors (CLI interfaces to context subdomains)
 └── state/               # Minimal: IDs, timestamps, metadata only
 ```
@@ -81,6 +83,32 @@ src/cogency/
 **Terminology**: We use **domain/subdomain** (not namespace) moving forward.
 
 **Principle**: Information retrieval belongs where it's consumed - in context assembly.
+
+### Domain Vision Documentation
+
+**Conversation Subdomain Scope**:
+- **Current**: Basic message history formatting and single conversation persistence
+- **Vision**: Full conversational intelligence including historical search, summarization, message-level analysis, conversational memory, and cross-session continuity
+- **Principle**: Conversation context is conversational intelligence, not just message history
+
+### Storage Domain (LOCKED - Canonical)
+
+**Architecture**: Foundational persistence infrastructure consumed by all domains
+
+```
+src/cogency/storage/
+├── store.py         # Store protocol (interface)
+├── sqlite/          # SQLite implementation subdomain
+│   ├── base.py      # Database connection management
+│   ├── profiles.py  # ProfileOperations (user identity)
+│   ├── conversations.py # ConversationOperations (message history)
+│   ├── knowledge.py # KnowledgeOperations (semantic memory)
+│   └── workspaces.py # WorkspaceOperations (task state)
+├── sqlite.py → SQLite class via domain composition
+└── supabase.py      # Supabase implementation
+```
+
+**Decision**: Storage is **foundational infrastructure** - not owned by any single domain. Clean protocol-based design with domain composition pattern. Each operation module maintains Beauty Doctrine (50-80 lines).
 
 ### Migration Phases
 - **Phase 1**: Memory consolidation - move `memory/` → `context/memory/`
@@ -92,7 +120,7 @@ src/cogency/
 - ✅ Context namespace established and integrated
 - ✅ `agents/` → `reason/` + `act/` migration complete
 - ✅ Root-level `from cogency import reason, act` API working
-- ✅ Core architecture locked: `context/`, `state/`, `reason/`, `act/`, `tools/`, `providers/`
+- ✅ Core architecture locked: `context/`, `state/`, `reason/`, `act/`, `tools/`, `providers/`, `storage/`
 - ✅ **Phase 1**: Memory subdomain consolidation - memory/ → context/memory/
 - ✅ **Phase 2**: Knowledge subdomain consolidation - knowledge/ → context/knowledge/ 
 - 🔄 **Phase 3**: State minimization and reasoning quality validation

@@ -57,7 +57,7 @@ async def build_context(
         parts.append(system_content)
         
     # Conversation domain - Message history
-    conversation_context = ConversationContext(state)
+    conversation_context = ConversationContext(state.conversation)
     conversation_content = await conversation_context.build() 
     if conversation_content:
         parts.append(conversation_content)
