@@ -1,7 +1,36 @@
 """Knowledge context namespace - automatic retrieval.
 
 Provides automatic knowledge retrieval for complex queries.
-Preserves the _get_relevant_knowledge functionality from reasoning.py.
+This is ONE OF TWO knowledge retrieval patterns in Cogency:
+
+## DUAL KNOWLEDGE RETRIEVAL ARCHITECTURE
+
+### 1. Automatic Semantic Search (This Module)
+- **Purpose**: Background context enrichment
+- **Trigger**: Every query automatically  
+- **Threshold**: 0.75 (high precision for context)
+- **Results**: 2 items max, 200 chars truncated
+- **Format**: Context injection as "RELEVANT KNOWLEDGE:" section
+- **Location**: cogency.context.knowledge.KnowledgeContext
+
+### 2. Intentional Retrieval (Recall Tool) 
+- **Purpose**: Explicit knowledge exploration
+- **Trigger**: Agent explicitly calls recall() tool
+- **Threshold**: 0.7 (broader results)
+- **Results**: 5 items, full content with previews
+- **Format**: Formatted tool response with topics/similarities
+- **Location**: cogency.memory.recall.Recall
+
+## CURRENT STATUS
+- **Database**: .cogency/store.db exists with schema
+- **Knowledge vectors**: 0 entries (empty - populated post-conversation)
+- **Population**: Automatic via cogency.knowledge.extract after conversations
+
+## TODO: Future Architecture Considerations
+- Evaluate threshold differences (0.75 vs 0.7)
+- Consider result count optimization (2 vs 5)  
+- Review automatic vs intentional retrieval boundaries
+- Assess context injection vs tool response formatting efficiency
 """
 
 from typing import Optional

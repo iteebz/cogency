@@ -162,7 +162,8 @@ class Agent:
         Canonical async API - returns (response, conversation_id) for persistence.
         Universal pattern for all contexts - CLI, web apps, library usage.
         """
-        from cogency.agents import act, reason
+        from cogency.act import act
+        from cogency.reason import reason
         from cogency.events import emit
 
         # Create execution state with conversation continuity

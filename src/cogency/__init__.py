@@ -40,6 +40,10 @@ Example:
 # Public: Core agent class for creating intelligent assistants
 from .agent import Agent
 
+# Public: Core reasoning and action primitives
+from .reason import reason
+from .act import act
+
 # Public: Provider classes for explicit configuration
 from .providers import Anthropic, Gemini, Mistral, Nomic, Ollama, OpenAI, Provider
 
@@ -56,6 +60,8 @@ from .tools import (
 
 __all__ = [
     "Agent",
+    "reason",
+    "act",
     "Files",
     "Retrieve",
     "Scrape",
