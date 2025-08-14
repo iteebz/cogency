@@ -4,8 +4,8 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "cogency"
-version = "1.3.0"
-description = "A reasoning engine for adaptive AI agents"
+version = "2.0.0"
+description = "Stateless Context-Driven Agent Framework"
 authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
 license = "Apache-2.0"
@@ -25,48 +25,15 @@ classifiers = [
 ]
 packages = [{ include = "cogency", from = "src" }]
 
-[tool.poetry.scripts]
-cogency = "cogency.cli:main"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
 
 # Core dependencies
-pydantic = ">=2.0"
-typing-extensions = ">=4.0"
 python-dotenv = ">=1.0.0"
-trafilatura = ">=2.0.0,<3.0.0"
-aiohttp = ">=3.12.15,<4.0.0"
-ddgs = ">=3.8.0"
-psutil = ">=5.9.0"
-tiktoken = ">=0.8.0,<1.0.0"
-
-# LLM providers - all included for better DX
 openai = ">=1.59.0,<2.0.0"
-google-genai = ">=1.26.0,<2.0.0"
-anthropic = ">=0.42.0,<1.0.0"
-mistralai = ">=1.3.0,<2.0.0"
-
-# Embedding providers - all included for better DX
-nomic = ">=3.5.3,<4.0.0"
-
-# Persistence providers
-aiosqlite = ">=0.20.0,<1.0.0"
-supabase = ">=2.0.0,<3.0.0"
-groq = "^0.31.0"
-ollama = "^0.5.3"
-datasets = "^4.0.0"
-resilient-result = "^0.4.1"
 
 
-[tool.poetry.extras]
-# Legacy extras for backward compatibility - all dependencies now included by default
-gemini = []
-anthropic = []
-mistral = []
-nomic = []
-supabase = []
-all = []
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.0"

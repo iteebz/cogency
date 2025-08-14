@@ -1,23 +1,22 @@
-"""Knowledge: Semantic search results for queries."""
+"""Knowledge search."""
 
 from ..storage import search_documents
 
 
 def knowledge(query: str, user_id: str) -> str:
-    """Semantic search results for query."""
+    """Semantic search results."""
     try:
         results = search_documents(query, limit=3)
         if not results:
             return ""
 
-        # Format search results
-        formatted = []
-        for result in results:
-            content = result["content"][:150]  # Truncate
-            if len(result["content"]) > 150:
+        lines = []
+        for r in results:
+            content = r["content"][:150]
+            if len(r["content"]) > 150:
                 content += "..."
-            formatted.append(f"📄 {result['doc_id']}: {content}")
+            lines.append(f"📄 {r['doc_id']}: {content}")
 
-        return "Relevant knowledge:\n" + "\n\n".join(formatted)
+        return "Relevant knowledge:\n" + "\n\n".join(lines)
     except Exception:
-        return ""  # Graceful degradation
+        return ""

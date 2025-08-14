@@ -1,16 +1,15 @@
-"""Memory: User profile and preferences."""
+"""User profile."""
 
 from ..storage import load_profile
 
 
 def memory(user_id: str) -> str:
-    """User profile and preferences."""
+    """User profile context."""
     try:
         profile = load_profile(user_id)
         if not profile:
             return ""
 
-        # Format profile context
         parts = []
         if profile.get("name"):
             parts.append(f"User: {profile['name']}")
@@ -22,4 +21,4 @@ def memory(user_id: str) -> str:
 
         return "User profile:\n" + "\n".join(parts) if parts else ""
     except Exception:
-        return ""  # Graceful degradation
+        return ""

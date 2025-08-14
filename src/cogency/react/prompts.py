@@ -1,61 +1,42 @@
-"""Prompts: ReAct prompt building and formatting."""
+"""ReAct prompt building."""
 
-from ..context.assembly import inject_context
+from ..context.assembly import context
 
 
-def build_prompt(task: str, user_id: str, tool_results: list[dict], tools: dict) -> str:
-    """Build ReAct prompt with context, task, tools, and history."""
-    # Inject context for this user and task with working memory
-    context = inject_context(task, user_id, tool_results)
+def prompt(task: str, user_id: str, tool_results: list[dict], tools: dict) -> str:
+    """Build ReAct prompt."""
+    ctx = context(task, user_id, tool_results)
 
-    # Available tools
-    tool_descriptions = []
-    for tool in tools.values():
-        tool_descriptions.append(f"- {tool.name}: {tool.description}")
+    tools_text = "\n".join(f"- {t.name}: {t.description}" for t in tools.values())
 
-    tools_text = "\n".join(tool_descriptions)
-
-    # Recent tool results (last 3)
     if tool_results:
-        results_text = "PREVIOUS TOOL RESULTS:\n"
-        for result in tool_results[-3:]:
-            tool_name = result["tool"]
-            if "result" in result:
-                results_text += f"✅ {tool_name}: {str(result['result'])[:200]}...\n"
+        results_text = "PREVIOUS TOOLS:\n"
+        for r in tool_results[-3:]:
+            name = r["tool"]
+            if "result" in r:
+                results_text += f"✅ {name}: {str(r['result'])[:200]}...\n"
             else:
-                results_text += f"❌ {tool_name}: {str(result.get('error', 'Unknown error'))}\n"
+                results_text += f"❌ {name}: {str(r.get('error', 'Unknown error'))}\n"
     else:
-        results_text = "No previous tool results."
+        results_text = ""
 
-    # Build full prompt with context
-    prompt_parts = []
+    parts = []
+    if ctx.strip():
+        parts.append(ctx)
 
-    if context.strip():
-        prompt_parts.append(f"CONTEXT:\n{context}")
+    parts.append(f"TASK: {task}")
 
-    prompt_parts.extend([f"TASK: {task}", f"AVAILABLE TOOLS:\n{tools_text}", results_text])
+    if tools:
+        parts.append(f"TOOLS:\n{tools_text}")
 
-    full_context = "\n\n".join(prompt_parts)
+    if results_text:
+        parts.append(results_text)
 
-    return f"""{full_context}
+    prompt = "\n\n".join(parts)
 
-Your response MUST be valid JSON with this structure:
-{{
-  "reasoning": "Your step-by-step thinking about what to do next",
-  "action": {{
-    "type": "tool_call",
-    "name": "tool_name",
-    "args": {{"arg1": "value1", "arg2": "value2"}},
-    "rationale": "Why you're using this tool"
-  }}
-}}
+    return f"""{prompt}
 
-OR when the task is COMPLETE:
-{{
-  "reasoning": "Summary of what you accomplished and why the task is complete",
-  "final_answer": "Task completed successfully. [Brief summary of what was done]",
-  "action": {{"type": "final_answer"}}
-}}
+Think step by step. Use tools when needed by writing:
+USE: tool_name(arg1="value1", arg2="value2")
 
-IMPORTANT: When the task is fully completed, you MUST use the final_answer format.
-Respond with JSON only, no other text."""
+When complete, write your final answer."""
