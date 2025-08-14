@@ -90,7 +90,9 @@ Return JSON (omit empty fields):
 
         # Parse JSON response
         try:
-            updates = json.loads(result.unwrap())
+            result_data = result.unwrap()
+            content = result_data["content"] if isinstance(result_data, dict) and "content" in result_data else result_data
+            updates = json.loads(content)
         except (json.JSONDecodeError, AttributeError):
             emit("memory", operation="learn_error", error="JSON parse failed")
             return

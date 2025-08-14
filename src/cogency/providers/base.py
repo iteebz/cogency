@@ -6,10 +6,16 @@ from typing import Optional, Union
 
 from resilient_result import Err, Ok, Result
 
-from cogency.providers.rotation import ApiKeyRotator
-from cogency.utils.credentials import Credentials
-
-from .cache import Cache
+try:
+    # When used as part of cogency package
+    from .rotation import ApiKeyRotator
+    from .utils.credentials import Credentials
+    from .cache import Cache
+except ImportError:
+    # When used standalone
+    from rotation import ApiKeyRotator
+    from utils.credentials import Credentials
+    from cache import Cache
 
 
 def setup_rotator(

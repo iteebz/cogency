@@ -76,7 +76,8 @@ Respond with JSON only:
     try:
         messages = [{"role": "user", "content": security_prompt}]
         response = await llm.generate(messages)
-        result = response.unwrap()
+        result_data = response.unwrap()
+        result = result_data["content"] if isinstance(result_data, dict) and "content" in result_data else result_data
 
         # Parse JSON response
         import json

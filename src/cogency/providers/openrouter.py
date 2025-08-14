@@ -5,10 +5,14 @@ from collections.abc import AsyncIterator
 import openai
 from resilient_result import Ok, Result
 
-from cogency.events import emit, lifecycle
-from cogency.providers.tokens import cost, count
 
-from .base import Provider, rotate_retry, setup_rotator
+try:
+    from .tokens import cost, count
+
+    from .base import Provider, rotate_retry, setup_rotator
+except ImportError:
+    from tokens import cost, count
+    from base import Provider, rotate_retry, setup_rotator
 
 
 class OpenRouter(Provider):
@@ -45,7 +49,6 @@ class OpenRouter(Provider):
             max_retries=self.max_retries,
         )
 
-    @lifecycle("llm", operation="generate")
     @rotate_retry
     async def generate(self, messages: list[dict[str, str]], **kwargs) -> Result:
         """Generate LLM response with metrics and caching."""
@@ -71,37 +74,3 @@ class OpenRouter(Provider):
         response = res.choices[0].message.content
 
         tout = count([{"role": "assistant", "content": response}], self.model)
-        emit(
-            "provider",
-            level="debug",
-            provider=self.provider_name,
-            model=self.model,
-            tin=tin,
-            tout=tout,
-            cost=cost(tin, tout, self.model),
-        )
-
-        # Cache response
-        if self._cache:
-            await self._cache.set(messages, response, cache_type="llm", **kwargs)
-
-        return Ok(response)
-
-    @lifecycle("llm", operation="stream")
-    async def stream(self, messages: list[dict[str, str]], **kwargs) -> AsyncIterator[str]:
-        """Generate streaming LLM response."""
-        client = self._get_client()
-        stream = await client.chat.completions.create(
-            model=self.model,
-            messages=self._format(messages),
-            stream=True,
-            temperature=self.temperature,
-            max_tokens=self.max_tokens,
-            top_p=self.top_p,
-            frequency_penalty=self.frequency_penalty,
-            presence_penalty=self.presence_penalty,
-            **kwargs,
-        )
-        async for chunk in stream:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content

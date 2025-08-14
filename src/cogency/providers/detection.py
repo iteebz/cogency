@@ -2,12 +2,18 @@
 
 from typing import Optional
 
-from cogency.utils.credentials import Credentials
-
-from .base import Provider as ProviderBase
-from .gemini import Gemini
-from .nomic import Nomic
-from .openai import OpenAI
+try:
+    from .utils.credentials import Credentials
+    from .base import Provider as ProviderBase
+    from .gemini import Gemini
+    from .nomic import Nomic
+    from .openai import OpenAI
+except ImportError:
+    from utils.credentials import Credentials
+    from base import Provider as ProviderBase
+    from gemini import Gemini
+    from nomic import Nomic
+    from openai import OpenAI
 
 
 def _detect_llm_provider():

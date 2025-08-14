@@ -234,8 +234,9 @@ Extract any clear profile information. Return JSON (omit empty fields):
 
             if result.success:
                 try:
+                    result_data = result.value
                     response = (
-                        result.value
+                        result_data["content"] if isinstance(result_data, dict) and "content" in result_data else result_data
                         if hasattr(result, "value")
                         else result.unwrap()
                         if hasattr(result, "unwrap")

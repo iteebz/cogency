@@ -195,7 +195,17 @@ Iteration {iteration}/{max_iterations}"""
     # Add current user query
     messages.append({"role": "user", "content": query})
     result = await llm.generate(messages)
-    result = result.unwrap()  # resilient_result v0.4.0
+    result_data = result.unwrap()  # resilient_result v0.4.0
+    result = result_data["content"]  # Extract content from new format
+    
+    # Emit token usage for observability
+    if "tokens" in result_data:
+        emit(
+            "tokens",
+            provider=getattr(llm, "provider_name", "unknown"),
+            model=getattr(llm, "model", "unknown"),
+            **result_data["tokens"]
+        )
 
     # Debug: Log raw LLM response
     emit(
@@ -264,7 +274,8 @@ RESPOND WITH ONLY THE JSON OBJECT:"""
             ]
 
             correction_result = await llm.generate(correction_messages)
-            correction_result = correction_result.unwrap()
+            correction_data = correction_result.unwrap()
+            correction_result = correction_data["content"]  # Extract content from new format
 
             # Try to parse the corrected response
             corrected_json = json.loads(correction_result.strip())
