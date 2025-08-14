@@ -5,7 +5,6 @@ from typing import Any, Union
 from cogency.config.validation import validate_config_keys
 from cogency.memory import Memory
 from cogency.providers import detect_embed, detect_llm
-from cogency.state import State
 from cogency.tools.base import Tool
 
 
@@ -159,23 +158,24 @@ class Agent:
     ) -> tuple[str, str]:
         """Execute agent query asynchronously.
 
-        Canonical async API - returns (response, conversation_id) for persistence.
+        Domain-centric API - works with context domain primitives directly.
         Universal pattern for all contexts - CLI, web apps, library usage.
         """
         from cogency.act import act
         from cogency.reason import reason
         from cogency.events import emit
+        from cogency.context.task import start_task
+        from cogency.context.conversation import add_message
+        from cogency.context.assembly import build_context
 
-        # Create execution state with conversation continuity
-        state = await State.start_task(
+        # Start task with domain primitives
+        session, conversation, working_state, execution = await start_task(
             query, user_id, conversation_id, max_iterations=self.max_iterations
         )
 
         try:
             # Add user query to conversation history for proper LLM context
-            from cogency.state.mutations import add_message
-
-            add_message(state, "user", query)
+            add_message(conversation, "user", query)
 
             # Memory operations - runtime user context
             if self.memory:
@@ -185,24 +185,35 @@ class Agent:
             # Agent reasoning and execution loop
             for iteration in range(self.max_iterations):
                 emit("agent", level="debug", state="iteration", iteration=iteration)
+                execution.iteration = iteration + 1
 
-                # Inject memory context into state for reasoning
-                if self.memory:
-                    # Temporarily enhance state with memory context
-                    memory_context = await self.memory.activate(user_id)
-                    original_context = state.context
+                # Build context from domain primitives
+                context = await build_context(
+                    conversation=conversation,
+                    working_state=working_state,
+                    execution=execution,
+                    tools=self.tools,
+                    memory=self.memory,
+                    user_id=user_id,
+                    query=query,
+                    iteration=execution.iteration,
+                )
 
-                    def enhanced_context(mc=memory_context, oc=original_context):
-                        return f"{mc}\n\n{oc()}" if mc else oc()
+                # Reason with domain-assembled context
+                # TODO: Update reason() to accept context directly instead of state
+                # For now, create a minimal context holder with execution compatibility
+                class ContextHolder:
+                    def __init__(self, ctx, exec_state): 
+                        self._context = ctx
+                        self.execution = exec_state
+                    def context(self): return self._context
+                    @property 
+                    def messages(self): 
+                        from cogency.context.conversation import get_messages_for_llm
+                        return get_messages_for_llm(conversation)
 
-                    state.context = enhanced_context
-
-                # Reason: What should I do next?
-                reasoning = await reason(state, self.llm, self.tools, identity or self.identity)
-
-                # Restore original context method
-                if self.memory:
-                    state.context = original_context
+                context_holder = ContextHolder(context, execution)
+                reasoning = await reason(context_holder, self.llm, self.tools, identity or self.identity)
 
                 # Extract result data using clean .unwrap() pattern
                 reasoning_data = reasoning.unwrap()
@@ -212,21 +223,28 @@ class Agent:
                 if reasoning_data.get("response"):
                     # Direct response - add to conversation and we're done
                     response = reasoning_data["response"]
-                    add_message(state, "assistant", response)
+                    add_message(conversation, "assistant", response)
                     break
 
                 actions = reasoning_data.get("actions", [])
                 if actions:
+                    # Store tool calls in execution state
+                    from cogency.context.execution import set_tool_calls
+                    set_tool_calls(execution, actions)
+                    
                     # Act on reasoning decisions
-                    act_result = await act(actions, self.tools, state)
+                    # TODO: Update act() to work with execution domain instead of state
+                    act_result = await act(actions, self.tools, context_holder)
                     act_data = (
                         act_result.unwrap()
                         if act_result.success
                         else {"summary": f"Error: {act_result.error}"}
                     )
 
-                    # Add tool execution results to conversation history for LLM context
-                    from cogency.state.mutations import add_message
+                    # Store completed tool calls in execution state
+                    from cogency.context.execution import finish_tools
+                    if act_result.success:
+                        finish_tools(execution, act_data.get("results", []))
 
                     # Create detailed tool result summary for LLM context
                     tool_results = act_data.get("results", [])
@@ -249,45 +267,45 @@ class Agent:
                                     exit_code = result_content.get("exit_code", "?")
                                     if stdout:
                                         add_message(
-                                            state,
+                                            conversation,
                                             "assistant",
                                             f"Command executed successfully. Output: {stdout}",
                                         )
                                     elif stderr:
                                         add_message(
-                                            state,
+                                            conversation,
                                             "assistant",
                                             f"Command completed with exit code {exit_code}. Error output: {stderr}",
                                         )
                                     else:
                                         add_message(
-                                            state,
+                                            conversation,
                                             "assistant",
                                             f"Command executed successfully (exit code {exit_code})",
                                         )
                                 else:
                                     # Generic tool result
                                     add_message(
-                                        state,
+                                        conversation,
                                         "assistant",
                                         f"{tool_name} completed: {str(result_content)}",
                                     )
                             else:
                                 add_message(
-                                    state,
+                                    conversation,
                                     "assistant",
                                     f"{tool_name} completed: {str(result_content)}",
                                 )
                         else:
                             add_message(
-                                state,
+                                conversation,
                                 "assistant",
                                 f"{tool_name} failed: {result.get('error', 'Unknown error')}",
                             )
                     else:
                         # Multiple tools or generic summary
                         tool_summary = act_data.get("summary", "Tools executed")
-                        add_message(state, "assistant", f"Tool execution: {tool_summary}")
+                        add_message(conversation, "assistant", f"Tool execution: {tool_summary}")
 
                     # Continue ReAct loop - LLM now has tool results in conversation context
                     continue
@@ -303,25 +321,34 @@ class Agent:
             if self.memory and response:
                 await self.memory.remember(user_id, response, human=False)
 
-            # Domain-specific learning operations - canonical boundaries
+            # Domain-specific learning operations
             from cogency.knowledge import extract
             from cogency.memory import learn
 
             if self.memory:
-                await learn(state, self.memory)  # Learn user patterns
+                # TODO: Update learn() and extract() to work with domain primitives
+                # For now, create minimal compatibility object
+                class LearningAdapter:
+                    def __init__(self, conv, ws, user_id):
+                        self.conversation = conv
+                        self.working_state = ws
+                        self.user_id = user_id
+                
+                adapter = LearningAdapter(conversation, working_state, user_id)
+                await learn(adapter, self.memory)  # Learn user patterns
 
                 # Only extract knowledge from substantial conversations
-                if self._should_extract_knowledge(query, response, state):
-                    await extract(state, self.memory)  # Extract knowledge
+                if self._should_extract_knowledge(query, response, adapter):
+                    await extract(adapter, self.memory)  # Extract knowledge
 
             emit("agent", state="complete", response_length=len(response))
 
             # Return what caller needs for persistence
-            return response, state.conversation.conversation_id
+            return response, conversation.conversation_id
 
         except Exception as e:
             emit("agent", state="error", error=str(e))
-            return f"Error: {str(e)}", state.conversation.conversation_id
+            return f"Error: {str(e)}", conversation.conversation_id
 
     def _should_extract_knowledge(self, query: str, response: str, state) -> bool:
         """Determine if conversation is substantial enough for knowledge extraction."""

@@ -15,9 +15,9 @@ from cogency.context.knowledge import extract
 from cogency.memory import learn
 from cogency.storage.sqlite import SQLite
 
-# Backward compatibility imports
+# Backward compatibility imports  
 from cogency.context.conversation import (
-    Conversation, 
+    Conversation,
     create_conversation, 
     load_conversation,
     get_messages_for_llm,
@@ -122,12 +122,21 @@ class State:
         # Create fresh runtime execution state
         execution = Execution(max_iterations=max_iterations)
 
+        # Convert legacy workspace to working_state
+        from cogency.context.working import WorkingState
+        working_state = WorkingState(
+            objective=workspace_data.objective,
+            understanding=workspace_data.assessment,
+            approach=workspace_data.approach,
+            discoveries="; ".join(workspace_data.insights[-3:]) if workspace_data.insights else ""
+        )
+        
         return cls(
             query=workspace_data.objective,  # Extract original query from workspace
             user_id=user_id,
             task_id=task_id,
             conversation=conversation,
-            workspace=workspace_data,
+            working_state=working_state,
             execution=execution,
         )
 
@@ -150,121 +159,28 @@ class State:
         # For now, state updates happen through normal attribute access
         pass
 
-    def context(self) -> str:
-        """Build system context from workspace, execution - NO conversation or profile."""
-        parts = []
-
-        # Workspace context - FULL STATE VISIBILITY
-        if self.workspace:
-            if self.workspace.objective:
-                parts.append(f"OBJECTIVE: {self.workspace.objective}")
-
-            if self.workspace.assessment:
-                parts.append(f"ASSESSMENT: {self.workspace.assessment}")
-
-            if self.workspace.approach:
-                parts.append(f"APPROACH: {self.workspace.approach}")
-
-            if self.workspace.observations:
-                parts.append(f"OBSERVATIONS: {'; '.join(self.workspace.observations[-3:])}")
-
-            if self.workspace.insights:
-                parts.append(f"INSIGHTS: {'; '.join(self.workspace.insights[-3:])}")
-
-            if self.workspace.thoughts:
-                recent_thoughts = self.workspace.thoughts[-2:]  # Last 2 reasoning iterations
-                for thought in recent_thoughts:
-                    iteration = thought.get("iteration", "?")
-                    assessment = thought.get("assessment", "")
-                    approach = thought.get("approach", "")
-                    if assessment or approach:
-                        parts.append(f"ITERATION {iteration}: {assessment} | {approach}")
-
-        # Tool execution history - canonical feedback format with failure analysis
-        if (
-            self.execution
-            and hasattr(self.execution, "completed_calls")
-            and self.execution.completed_calls
-        ):
-            parts.append("TOOL EXECUTION HISTORY:")
-            for call in self.execution.completed_calls[-3:]:  # Last 3 results
-                tool_name = call.get("tool", "unknown")
-                success = call.get("success", False)
-                result = call.get("result", {})
-
-                # Extract meaningful result summary - handle both dict and Result objects
-                summary = "completed"  # Default fallback
-                if hasattr(result, "get") and isinstance(result, dict):
-                    if result.get("result"):
-                        summary = result["result"]  # e.g., "Created file: hello.py"
-                    elif result.get("message"):
-                        summary = result["message"]
-                elif hasattr(result, "success") and hasattr(result, "unwrap"):
-                    # Handle Result objects from resilient_result
-                    if result.success:
-                        summary = str(result.unwrap())
-                    else:
-                        # Extract failure reason for intelligence
-                        summary = str(result.error)
-                elif isinstance(result, str):
-                    summary = result
-                elif result:
-                    summary = str(result)
-
-                status = "✅ SUCCESS" if success else "❌ FAILED"
-                parts.append(f"- {tool_name}: {status} - {summary}")
-
-                # Add conflict resolution hints for failures
-                if not success and "already exists" in summary.lower():
-                    parts.append(
-                        "  💡 HINT: File conflict detected - consider unique filename or overwrite"
-                    )
-                elif not success and "permission" in summary.lower():
-                    parts.append(
-                        "  💡 HINT: Permission issue - try alternative path or ask for clarification"
-                    )
-                elif not success and "not found" in summary.lower():
-                    parts.append(
-                        "  💡 HINT: Resource not found - verify path or create missing dependencies"
-                    )
-
-        return "\n".join(parts) if parts else ""
+    async def context(self) -> str:
+        """Build system context using domain-centric approach."""
+        from cogency.context.assembly import build_context
+        
+        # Use domain-centric context assembly
+        return await build_context(
+            conversation=None,  # State.context() historically excluded conversation
+            working_state=self.working_state,
+            execution=self.execution,
+            tools=None,  # No tool registry in State.context()
+            memory=None,
+            user_id=self.user_id,
+            query=self.query
+        )
 
     def messages(self) -> list[dict]:
         """Get conversation messages for LLM chat interface."""
         return get_messages_for_llm(self.conversation)
 
 
-@dataclass
-class Workspace:
-    """Ephemeral task state within sessions."""
-
-    objective: str = ""
-    assessment: str = ""
-    approach: str = ""
-    observations: list[str] = field(default_factory=list)
-    insights: list[str] = field(default_factory=list)
-    facts: dict[str, Any] = field(default_factory=dict)
-    thoughts: list[dict[str, Any]] = field(default_factory=list)
+# Import canonical domain classes
+from cogency.context.execution import Execution
 
 
-
-
-@dataclass
-class Execution:
-    """Runtime-only execution mechanics - NOT persisted."""
-
-    iteration: int = 0
-    max_iterations: int = 10
-    stop_reason: str | None = None
-
-    messages: list[dict[str, Any]] = field(default_factory=list)
-    response: str | None = None
-
-    pending_calls: list[dict[str, Any]] = field(default_factory=list)
-    completed_calls: list[dict[str, Any]] = field(default_factory=list)
-    iterations_without_tools: int = 0
-    tool_results: dict[str, Any] = field(default_factory=dict)
-
-
-__all__ = ["Workspace", "Conversation", "Execution", "State"]
+__all__ = ["Execution", "State"]
