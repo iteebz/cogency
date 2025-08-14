@@ -101,8 +101,8 @@ async def reason(state, llm, tools, identity: str = "") -> dict:
         # Build context for reasoning with automatic knowledge retrieval
         query = state.query
         user_id = state.user_id
-        context = await _build_context(state, query, user_id)
-        tool_registry = _build_tool_registry(tools)
+        context = await _build_context(state, query, user_id, tools)
+        tool_registry = _build_tool_registry(tools)  # Keep for backward compatibility
 
         # Natural adaptive reasoning: What should I do?
         reasoning_result = await _analyze_query(
@@ -306,93 +306,20 @@ RESPOND WITH ONLY THE JSON OBJECT:"""
             }
 
 
-async def _build_context(state, query: str, user_id: str) -> str:
+async def _build_context(state, query: str, user_id: str, tools: list) -> str:
     """Build context from state for reasoning with automatic knowledge retrieval."""
-    base_context = state.context()
-
-    # Automatically query relevant knowledge for complex queries
-    knowledge_context = await _get_relevant_knowledge(query, user_id)
-
-    if knowledge_context:
-        return f"{base_context}\n\nRELEVANT KNOWLEDGE:\n{knowledge_context}"
-
-    return base_context
-
-
-async def _get_relevant_knowledge(query: str, user_id: str) -> str:
-    """Automatically retrieve relevant knowledge for query context."""
-    from cogency.events import emit
-
-    # Skip retrieval for simple queries that don't need memory
-    if _is_simple_query(query):
-        return ""
-
-    try:
-        import aiosqlite
-
-        from cogency.providers import detect_embed
-        from cogency.semantic import semantic_search
-        from cogency.storage import SQLite
-
-        embedder = detect_embed()
-        store = SQLite()
-        await store._ensure_schema()
-
-        async with aiosqlite.connect(store.db_path) as db:
-            search_result = await semantic_search(
-                embedder=embedder,
-                query=query,
-                db_connection=db,
-                user_id=user_id,
-                top_k=3,  # Limit to most relevant
-                threshold=0.75,  # Higher threshold for automatic retrieval
-            )
-
-        if search_result.failure or not search_result.unwrap():
-            return ""
-
-        # Format knowledge for context injection
-        knowledge_items = []
-        for result in search_result.unwrap()[:2]:  # Top 2 results only
-            topic = result["metadata"].get("topic", "Knowledge")
-            content = result["content"][:200]  # Truncate for context efficiency
-            knowledge_items.append(f"- {topic}: {content}...")
-
-        emit("memory", operation="auto_retrieval", results=len(knowledge_items), query=query)
-        return "\n".join(knowledge_items)
-
-    except Exception as e:
-        emit("memory", operation="auto_retrieval", status="error", error=str(e))
-        return ""
+    from cogency.context.assembly import build_context
+    
+    # Use new context assembly system - preserves all existing functionality
+    # but provides cleaner domain separation and natural language context
+    memory = getattr(state, 'memory', None)  # Memory component if available
+    iteration = getattr(state.execution, 'iteration', 1) if state.execution else 1
+    
+    return await build_context(state, tools, memory, iteration)
 
 
-def _is_simple_query(query: str) -> bool:
-    """Determine if query is simple enough to skip knowledge retrieval."""
-    query_lower = query.lower().strip()
-
-    # Simple greetings and basic questions
-    simple_patterns = [
-        "hello",
-        "hi",
-        "hey",
-        "thanks",
-        "thank you",
-        "what time",
-        "what's the weather",
-        "what day",
-        "who are you",
-        "what are you",
-        "how are you",
-    ]
-
-    # Math or basic factual queries
-    if (
-        any(pattern in query_lower for pattern in ["what is", "calculate", "compute"])
-        and len(query) < 50
-    ):
-        return True
-
-    return any(pattern in query_lower for pattern in simple_patterns)
+# Knowledge retrieval now handled by cogency.context.knowledge.KnowledgeContext
+# Removed duplicate _get_relevant_knowledge() and _is_simple_query() functions
 
 
 def _build_tool_registry(tools) -> str:

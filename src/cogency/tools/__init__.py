@@ -37,8 +37,7 @@ from .files import Files
 
 # Tool composition helpers removed - just use [Files(), Shell()] directly
 
-# Public: Built-in memory recall tool (moved to memory domain)
-from cogency.memory import Recall
+# Built-in memory recall tool moved to memory domain - use @tool decorator instead
 
 # Public: Core tool system functions for registration and LLM integration
 from .registry import (
@@ -66,7 +65,6 @@ __all__ = [
     # Public tool APIs
     "Tool",  # Base class for custom tools
     "Files",  # Built-in file operations
-    "Recall",  # Built-in memory recall
     "Retrieve",  # Built-in document retrieval
     "Scrape",  # Built-in web scraping
     "Search",  # Built-in web search
