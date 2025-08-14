@@ -15,12 +15,16 @@ from cogency.context.knowledge import extract
 from cogency.memory import learn
 from cogency.storage.sqlite import SQLite
 
-# Backward compatibility import
+# Backward compatibility imports
 from cogency.context.conversation import (
     Conversation, 
     create_conversation, 
     load_conversation,
     get_messages_for_llm,
+)
+from cogency.context.working import (
+    WorkingState,
+    create_working_state,
 )
 
 
@@ -36,8 +40,8 @@ class State:
     # Persistent conversation history
     conversation: Conversation = None
 
-    # Task-scoped workspace
-    workspace: Workspace = None
+    # Task-scoped working state
+    working_state: WorkingState = None
 
     # Runtime-only execution state
     execution: Execution | None = None
@@ -68,8 +72,8 @@ class State:
         else:
             conversation = await create_conversation(user_id, store)
 
-        # Create fresh workspace for this task
-        workspace = Workspace(objective=query)
+        # Create fresh working state for this task
+        working_state = create_working_state(query)
 
         # Create runtime execution state
         execution = Execution(max_iterations=max_iterations)
@@ -81,12 +85,13 @@ class State:
             query=query,
             user_id=user_id,
             conversation=conversation,
-            workspace=workspace,
+            working_state=working_state,
             execution=execution,
         )
 
-        # Save new workspace
-        await store.save_workspace(state.task_id, state.user_id, state.workspace)
+        # Save new working state (via workspace compatibility layer)
+        from cogency.context.working import save_working_state
+        await save_working_state(state.task_id, state.user_id, state.working_state, store)
 
         return state
 
@@ -131,10 +136,10 @@ class State:
         if self.conversation is None:
             self.conversation = Conversation(user_id=self.user_id)
 
-        if self.workspace is None:
-            self.workspace = Workspace(objective=self.query)
-        elif not self.workspace.objective:
-            self.workspace.objective = self.query
+        if self.working_state is None:
+            self.working_state = create_working_state(self.query)
+        elif not self.working_state.objective:
+            self.working_state.objective = self.query
 
         if self.execution is None:
             self.execution = Execution()

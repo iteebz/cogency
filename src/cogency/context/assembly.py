@@ -19,23 +19,31 @@ class ContextError(Exception):
 
 
 async def build_context(
-    state: Any, 
-    tools: list[Any], 
-    memory: Optional[Any], 
+    conversation: Any = None,
+    working_state: Any = None,
+    execution: Any = None,
+    tools: list[Any] = None,
+    memory: Optional[Any] = None,
+    user_id: str = "default",
+    query: str = "",
     iteration: int = 1
 ) -> str:
-    """Canonical context assembly pattern.
+    """Context assembly from domain primitives.
     
+    Builds context directly from domain objects without State container.
     Historical discovery from 2025-08-04 design logs:
     - Memory first - stable user frame for LLM interpretation
     - Tools last - actionable options, not situational facts  
     - Double newline separation - clean visual boundaries
-    - Agent assembles, not State - context cuts across domains
     
     Args:
-        state: Current agent state (legacy compatibility)
+        conversation: Conversation domain object
+        working_state: WorkingState domain object  
+        execution: Execution domain object
         tools: Available tool instances
         memory: Memory component (optional)
+        user_id: User identifier for memory context
+        query: Current query for knowledge context
         iteration: Current reasoning iteration
         
     Returns:
@@ -45,7 +53,7 @@ async def build_context(
     
     # Memory domain - Profile injection FIRST
     if memory:
-        memory_context = MemoryContext(memory, state.user_id)
+        memory_context = MemoryContext(memory, user_id)
         memory_content = await memory_context.build()
         if memory_content:
             parts.append(memory_content)
@@ -57,29 +65,41 @@ async def build_context(
         parts.append(system_content)
         
     # Conversation domain - Message history
-    conversation_context = ConversationContext(state.conversation)
-    conversation_content = await conversation_context.build() 
-    if conversation_content:
-        parts.append(conversation_content)
+    if conversation:
+        conversation_context = ConversationContext(conversation)
+        conversation_content = await conversation_context.build() 
+        if conversation_content:
+            parts.append(conversation_content)
         
     # Knowledge domain - Automatic retrieval
-    knowledge_context = KnowledgeContext(state.query, state.user_id)
-    knowledge_content = await knowledge_context.build()
-    if knowledge_content:
-        parts.append(knowledge_content)
+    if query:
+        knowledge_context = KnowledgeContext(query, user_id)
+        knowledge_content = await knowledge_context.build()
+        if knowledge_content:
+            parts.append(knowledge_content)
     
-    # Working domain - Task-scoped workspace
-    working_context = WorkingContext(state)
-    working_content = await working_context.build()
-    if working_content:
-        parts.append(working_content)
+    # Working domain - Task-scoped state
+    if working_state:
+        working_context = WorkingContext(working_state)
+        working_content = await working_context.build()
+        if working_content:
+            parts.append(working_content)
+    
+    # Execution domain - Tool history
+    if execution:
+        from .execution import ExecutionContext
+        execution_context = ExecutionContext(execution)
+        execution_content = await execution_context.build()
+        if execution_content:
+            parts.append(execution_content)
         
     # Tools domain - Registry LAST
-    tool_content = _build_tool_registry(tools)
-    if tool_content:
-        parts.append(f"AVAILABLE TOOLS:\n{tool_content}")
+    if tools:
+        tool_content = _build_tool_registry(tools)
+        if tool_content:
+            parts.append(f"AVAILABLE TOOLS:\n{tool_content}")
     
-    # Canonical assembly: double newline separation, no adornments
+    # Assembly: double newline separation, no adornments
     return "\n\n".join(parts) if parts else ""
 
 
