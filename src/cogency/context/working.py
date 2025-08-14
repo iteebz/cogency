@@ -1,23 +1,22 @@
-"""Working: Current task working memory - tool history and progress."""
+"""Working memory - tool history."""
 
 
-def working(tool_results: list = None) -> str:
-    """Current task working memory - tool history and progress."""
-    if not tool_results:
+def working(tools: list = None) -> str:
+    """Tool execution history."""
+    if not tools:
         return ""
 
-    # Format recent tool executions for context (last 3)
-    recent = tool_results[-3:]
-    formatted = []
-    for result in recent:
-        tool_name = result.get("tool", "unknown")
-        if "result" in result:
-            preview = str(result["result"])[:100]
-            if len(str(result["result"])) > 100:
+    recent = tools[-3:]
+    lines = []
+    for r in recent:
+        name = r.get("tool", "unknown")
+        if "result" in r:
+            preview = str(r["result"])[:100]
+            if len(str(r["result"])) > 100:
                 preview += "..."
-            formatted.append(f"✅ {tool_name}: {preview}")
+            lines.append(f"✅ {name}: {preview}")
         else:
-            error = result.get("error", "Unknown error")
-            formatted.append(f"❌ {tool_name}: {error}")
+            error = r.get("error", "Unknown error")
+            lines.append(f"❌ {name}: {error}")
 
-    return "Working memory:\n" + "\n".join(formatted)
+    return "Working memory:\n" + "\n".join(lines)

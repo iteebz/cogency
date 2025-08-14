@@ -1,14 +1,13 @@
-"""Persistence: Conversation and profile persistence utilities."""
+"""Persistence utilities."""
 
 from ..storage import load_conversations, load_profile, save_conversations, save_profile
 
 
-async def persist_conversation_async(user_id: str, query: str, response: str):
-    """Optional conversation persistence - fire and forget."""
+async def persist(user_id: str, query: str, response: str):
+    """Persist conversation."""
     try:
         messages = load_conversations(user_id)
 
-        # Append user query and assistant response
         messages.extend(
             [
                 {"role": "user", "content": query, "timestamp": __import__("time").time()},
@@ -16,17 +15,16 @@ async def persist_conversation_async(user_id: str, query: str, response: str):
             ]
         )
 
-        # Keep only last 100 messages to prevent unbounded growth
         if len(messages) > 100:
             messages = messages[-100:]
 
         save_conversations(user_id, messages)
     except Exception:
-        pass  # Fire and forget - don't fail if persistence breaks
+        pass
 
 
-def set_user_profile(user_id: str, name: str = None, preferences: list = None, context: str = None):
-    """Set user profile for personalization."""
+def profile(user_id: str, name: str = None, preferences: list = None, context: str = None):
+    """Set user profile."""
     try:
         profile = load_profile(user_id)
 

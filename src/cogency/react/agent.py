@@ -4,12 +4,12 @@ from typing import Any
 
 from ..providers.openai import generate
 from ..tools import BASIC_TOOLS, Tool
-from .parser import parse_json_response
-from .prompts import build_prompt
+from .parser import parse
+from .prompts import prompt
 
 
-class ReActAgent:
-    """Stateless ReAct agent - Reason + Act with tools."""
+class ReAct:
+    """Stateless ReAct - Reason + Act with tools."""
 
     def __init__(self, tools: list[Tool] = None, user_id: str = "default", verbose: bool = False):
         self.tools = {tool.name: tool for tool in (tools or BASIC_TOOLS)}
@@ -25,17 +25,15 @@ class ReActAgent:
                 print(f"\n=== ITERATION {iteration + 1}/{max_iterations} ===")
 
             # Build prompt with context injection
-            prompt = build_prompt(task, self.user_id, tool_results, self.tools)
+            full_prompt = prompt(task, self.user_id, tool_results, self.tools)
 
-            # Get LLM response with JSON enforcement
+            # Get LLM response
             try:
-                response = await generate(prompt)
-                parsed = parse_json_response(response)
+                response = await generate(full_prompt)
+                parsed = parse(response)
 
                 if self.verbose:
-                    reasoning = parsed.get("reasoning", "")
                     action = parsed.get("action", {})
-                    print(f"Reasoning: {reasoning[:100]}...")
                     print(f"Action: {action.get('type', 'unknown')} - {action.get('name', 'N/A')}")
 
                 # Check for completion
@@ -58,12 +56,18 @@ class ReActAgent:
                         else:
                             print(f"Tool error: {result.get('error', 'Unknown')}")
 
+                elif action.get("type") == "continue":
+                    # Continue reasoning without tool execution
+                    if self.verbose:
+                        print("Continuing reasoning...")
+                    continue
+
             except Exception as e:
                 # Emergency fallback - log error and continue
                 tool_results.append(
                     {
                         "tool": "system",
-                        "error": f"JSON parsing failed: {str(e)}",
+                        "error": f"Response parsing failed: {str(e)}",
                         "iteration": iteration,
                     }
                 )

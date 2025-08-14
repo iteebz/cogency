@@ -1,5 +1,5 @@
 """ReAct: Reason + Act loops with stateless execution."""
 
-from .agent import ReActAgent
+from .agent import ReAct
 
-__all__ = ["ReActAgent"]
+__all__ = ["ReAct"]

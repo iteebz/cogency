@@ -1,20 +1,20 @@
 """Context: Pure function context sources for agent reasoning."""
 
-from .assembly import inject_context
+from .assembly import context
 from .conversation import conversation
 from .knowledge import knowledge
 from .memory import memory
-from .persistence import persist_conversation_async, set_user_profile
+from .persistence import persist, profile
 from .system import system
 from .working import working
 
 __all__ = [
-    "inject_context",
+    "context",
     "system",
     "conversation",
     "knowledge",
     "memory",
     "working",
-    "persist_conversation_async",
-    "set_user_profile",
+    "persist",
+    "profile",
 ]
