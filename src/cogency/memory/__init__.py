@@ -1,7 +1,9 @@
-"""Memory domain - agent memory system and profile management."""
+"""Memory domain - MOVED to context/memory/ namespace.
 
-from .learn import learn
-from .memory import Memory, Profile
-from .recall import Recall
+Backward compatibility imports - implementations moved to context/memory/.
+"""
+
+# Backward compatibility imports from consolidated namespace
+from cogency.context.memory import Memory, Profile, learn, Recall
 
 __all__ = ["Memory", "Profile", "learn", "Recall"]
