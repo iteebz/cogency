@@ -56,5 +56,9 @@ build/
 # Cogency runtime
 .cogency
 
+# Development sandboxes
+.sandbox/
+*/.sandbox/
+
 # Mnemos autonomous investigation system
 .mnemos
