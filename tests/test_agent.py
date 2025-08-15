@@ -5,15 +5,8 @@ import pytest
 from cogency import Agent
 
 
-def test_create():
-    """Agent creation."""
-    agent = Agent()
-    assert agent is not None
-
-
 @pytest.mark.asyncio
 async def test_call():
-    """Agent call."""
     import os
 
     if not os.getenv("OPENAI_API_KEY"):
@@ -28,8 +21,7 @@ async def test_call():
 
 
 @pytest.mark.asyncio
-async def test_user():
-    """Agent with user_id."""
+async def test_user_context():
     import os
 
     if not os.getenv("OPENAI_API_KEY"):
@@ -42,17 +34,8 @@ async def test_user():
     assert len(resp) > 0
 
 
-def test_context():
-    """Context injection."""
-    from cogency.context import context
-
-    ctx = context("test", "user")
-    assert isinstance(ctx, str)
-
-
 @pytest.mark.asyncio
-async def test_persist():
-    """Persistence graceful failure."""
+async def test_persistence():
     import os
 
     if not os.getenv("OPENAI_API_KEY"):
@@ -62,3 +45,29 @@ async def test_persist():
     resp = await agent("Test", user_id="test")
     assert isinstance(resp, str)
     assert len(resp) > 0
+
+
+@pytest.mark.asyncio
+async def test_tool_integration():
+    """Test agent with tools integration."""
+    import os
+    
+    if not os.getenv("OPENAI_API_KEY"):
+        pytest.skip("OPENAI_API_KEY not set")
+    
+    from cogency import BASIC_TOOLS
+    agent = Agent(tools=BASIC_TOOLS)
+    
+    # Test that agent can execute without tools
+    resp = await agent("What is 2+2?")
+    assert isinstance(resp, str)
+    assert len(resp) > 0
+
+
+def test_configuration():
+    """Test agent configuration."""
+    agent = Agent(model="claude-4", verbose=True, max_iterations=10)
+    
+    assert agent.model == "claude-4"
+    assert agent.verbose is True
+    assert agent.max_iterations == 10

@@ -1,12 +1,12 @@
 """Working memory - tool history."""
 
 
-def working(tools: list = None) -> str:
+def working(tool_results: list = None) -> str:
     """Tool execution history."""
-    if not tools:
+    if not tool_results:
         return ""
 
-    recent = tools[-3:]
+    recent = tool_results[-3:]
     lines = []
     for r in recent:
         name = r.get("tool", "unknown")

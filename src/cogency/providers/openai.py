@@ -12,7 +12,7 @@ except ImportError:
     pass
 
 
-async def generate(prompt: str, model: str = "gpt-4o-mini") -> str:
+async def generate(prompt: str = None, messages: list = None, model: str = "gpt-4o-mini") -> str:
     """Generate LLM response - pure function."""
     try:
         import openai
@@ -23,9 +23,16 @@ async def generate(prompt: str, model: str = "gpt-4o-mini") -> str:
 
         client = openai.AsyncOpenAI(api_key=api_key)
 
+        if messages:
+            chat_messages = messages
+        elif prompt:
+            chat_messages = [{"role": "user", "content": prompt}]
+        else:
+            return "No prompt or messages provided."
+
         response = await client.chat.completions.create(
             model=model,
-            messages=[{"role": "user", "content": prompt}],
+            messages=chat_messages,
             max_tokens=500,
             temperature=0.7,
         )

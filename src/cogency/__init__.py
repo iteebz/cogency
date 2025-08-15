@@ -2,8 +2,7 @@
 
 from .agent import Agent
 from .context import profile
-from .react import ReAct
-from .tools import BASIC_TOOLS, Tool
+from .tools import Tool, BASIC_TOOLS
 
 __version__ = "2.0.0"
-__all__ = ["Agent", "ReAct", "Tool", "BASIC_TOOLS", "profile"]
+__all__ = ["Agent", "Tool", "BASIC_TOOLS", "profile"]

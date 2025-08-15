@@ -19,14 +19,12 @@ class Retrieve(Tool):
 
     async def execute(self, query: str, limit: int = 3) -> str:
         try:
-            # Limit to max 5 results
             limit = min(limit, 5)
             results = search_documents(query, limit)
 
             if not results:
                 return f"📭 No documents found for: {query}"
 
-            # Format results
             formatted = []
             for i, result in enumerate(results, 1):
                 doc_id = result["doc_id"]

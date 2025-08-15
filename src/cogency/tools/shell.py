@@ -44,7 +44,6 @@ class Shell(Tool):
         )
 
     async def execute(self, command: str) -> str:
-        # Parse and validate command
         parts = command.strip().split()
         if not parts:
             return "❌ Empty command"
@@ -53,13 +52,11 @@ class Shell(Tool):
         if cmd not in self.SAFE_COMMANDS:
             return f"❌ Command '{cmd}' not allowed. Available: {', '.join(sorted(self.SAFE_COMMANDS))}"
 
-        # Ensure sandbox exists
         Path(".sandbox").mkdir(exist_ok=True)
 
         try:
             start = time.time()
 
-            # Execute with shell=False for security
             result = subprocess.run(
                 parts, cwd=".sandbox", capture_output=True, text=True, timeout=30
             )

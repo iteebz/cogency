@@ -1,5 +1,5 @@
 """Providers: External service integrations."""
 
-from .openai import generate
+from .base import generate
 
 __all__ = ["generate"]

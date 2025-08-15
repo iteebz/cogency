@@ -1,22 +1,21 @@
 """Conversation history."""
 
-from ..storage import load_conversations
+from ..storage import history
 
 
-def conversation(user_id: str) -> str:
-    """Recent conversation history."""
+def conversation(user_id: str) -> list[dict]:
+    """Recent conversation history as structured messages."""
     try:
-        messages = load_conversations(user_id)
+        messages = history(user_id)
         if not messages:
-            return ""
+            return []
 
+        # Return last 5 messages as proper message format
         recent = messages[-5:] if len(messages) > 5 else messages
-        lines = []
-        for msg in recent:
-            role = msg.get("role", "unknown")
-            content = msg.get("content", "")[:100]
-            lines.append(f"{role}: {content}")
-
-        return "Recent conversation:\n" + "\n".join(lines)
+        return [
+            {"role": msg.get("role", "user"), "content": msg.get("content", "")}
+            for msg in recent
+            if msg.get("content")  # Skip empty messages
+        ]
     except Exception:
-        return ""
+        return []

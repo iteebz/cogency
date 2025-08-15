@@ -44,7 +44,6 @@ class FileWrite(Tool):
 
     async def execute(self, filename: str, content: str) -> str:
         try:
-            # Ensure sandbox directory exists
             sandbox = Path(".sandbox")
             sandbox.mkdir(exist_ok=True)
 

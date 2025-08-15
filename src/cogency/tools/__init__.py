@@ -1,4 +1,4 @@
-"""Tools: Minimal tool interface for ReAct agents."""
+"""Tools: Minimal tool interface for agents."""
 
 from .base import Tool
 from .files import FileList, FileRead, FileWrite

@@ -19,9 +19,9 @@ def load_json_file(path: Path, default: Any = None) -> Any:
         if path.exists():
             with open(path) as f:
                 return json.load(f)
-        return default or {}
+        return default if default is not None else {}
     except Exception:
-        return default or {}
+        return default if default is not None else {}
 
 
 def save_json_file(path: Path, data: Any) -> bool:
@@ -35,7 +35,7 @@ def save_json_file(path: Path, data: Any) -> bool:
         return False
 
 
-def load_conversations(user_id: str) -> list[dict]:
+def history(user_id: str) -> list[dict]:
     """Load conversation history for user."""
     conv_file = get_cogency_dir() / "conversations" / f"{user_id}.json"
     return load_json_file(conv_file, [])
@@ -104,7 +104,6 @@ def search_documents(query: str, limit: int = 3) -> list[dict]:
                     }
                 )
 
-        # Sort by relevance (simple word count)
         results.sort(key=lambda x: x["relevance"], reverse=True)
         return results[:limit]
     except Exception:
