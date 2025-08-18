@@ -7,13 +7,13 @@ from .system import system
 from .working import working
 
 
-def context(query: str, user_id: str, tools: list = None) -> str:
+def context(query: str, user_id: str, tool_results: list = None) -> str:
     """Assemble context for query."""
     contexts = [
         system(),
         conversation(user_id),
         knowledge(query, user_id),
         memory(user_id),
-        working(tools),
+        working(tool_results),
     ]
     return "\n\n".join(filter(None, contexts))

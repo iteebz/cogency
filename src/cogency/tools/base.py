@@ -1,10 +1,10 @@
-"""Base: Minimal tool interface."""
+"""Base tool interface."""
 
 from abc import ABC, abstractmethod
 
 
 class Tool(ABC):
-    """Minimal tool interface."""
+    """Tool interface."""
 
     @property
     @abstractmethod
