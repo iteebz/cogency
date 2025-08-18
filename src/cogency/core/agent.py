@@ -1,10 +1,10 @@
 """Agent: React-enabled reasoning interface."""
 
-import re
 import time
 from contextlib import suppress
 
 from ..context import context, persist
+from ..lib.parsing import parse_with_signature
 from ..lib.providers.openai import generate
 from ..tools import BASIC_TOOLS
 from .types import AgentResult
@@ -90,33 +90,37 @@ When complete, write your final answer."""
 
     async def _execute_tool(self, response: str, tool_results: list) -> bool:
         """Execute tool from response. Returns True if tool was used."""
-        match = re.search(r"USE:\s*(\w+)\((.*?)\)", response, re.IGNORECASE)
+        # First, extract tool name to get tool instance
+        import re
+
+        match = re.search(r"USE:\s*(\w+)\(", response, re.IGNORECASE)
         if not match:
             return False
 
         tool_name = match.group(1)
-        args_str = match.group(2).strip()
+        if tool_name not in self.tools:
+            result_entry = {"tool": tool_name, "args": {}, "error": f"Unknown tool: {tool_name}"}
+            tool_results.append(result_entry)
+            return True
 
-        args = {}
-        if args_str:
-            for part in args_str.split(","):
-                if "=" in part:
-                    key, value = part.split("=", 1)
-                    args[key.strip()] = value.strip().strip("\"'")
+        # Use signature-based parsing with the actual tool instance
+        parse_result = parse_with_signature(response, self.tools[tool_name])
+        if parse_result.failure:
+            return False
+
+        call_data = parse_result.unwrap()
+        args = call_data["args"]
 
         result_entry = {"tool": tool_name, "args": args}
 
-        if tool_name in self.tools:
-            try:
-                result = await self.tools[tool_name].execute(**args)
-                if result.success:
-                    result_entry["result"] = result.unwrap()
-                else:
-                    result_entry["error"] = result.error
-            except Exception as e:
-                result_entry["error"] = str(e)
-        else:
-            result_entry["error"] = f"Unknown tool: {tool_name}"
+        try:
+            result = await self.tools[tool_name].execute(**args)
+            if result.success:
+                result_entry["result"] = result.unwrap()
+            else:
+                result_entry["error"] = result.error
+        except Exception as e:
+            result_entry["error"] = str(e)
 
         tool_results.append(result_entry)
         return True
