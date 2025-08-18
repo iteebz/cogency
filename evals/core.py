@@ -3,9 +3,14 @@
 import asyncio
 from datetime import datetime
 from typing import Dict, Any, List, Callable
+import sys
+from pathlib import Path
 
-from .config import CONFIG
-from .judge import judge
+# Add current directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+from config import CONFIG
+from judge import judge
 
 TestGenerator = Callable[[int], List[Dict[str, Any]]]
 

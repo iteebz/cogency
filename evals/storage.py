@@ -4,8 +4,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Dict
+import sys
 
-from .config import CONFIG
+# Add current directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent))
+
+from config import CONFIG
 
 
 def save_run(results: Dict, run_id: str = None) -> Path:
