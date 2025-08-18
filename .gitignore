@@ -62,3 +62,6 @@ build/
 
 # Mnemos autonomous investigation system
 .mnemos
+
+# Evaluation runs
+evals/runs/

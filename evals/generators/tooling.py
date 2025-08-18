@@ -1,0 +1,28 @@
+"""Tooling test generators - appropriate tool selection and orchestration."""
+
+import random
+from typing import List, Dict
+
+
+def tooling(size: int = 20) -> List[Dict]:
+    """Generate tool selection and orchestration tests."""
+    scenarios = [
+        ("Create file '{}' with content '{}'", "Used appropriate tool for file creation"),
+        ("Run command 'echo {}'", "Used shell tool appropriately"),
+        ("List files in current directory", "Selected appropriate tool for file listing"),
+        ("Execute 'python -c \"print({})\"'", "Used shell for Python execution"),
+    ]
+    
+    words = ["hello", "test", "data", "output"]
+    files = ["temp.txt", "test.txt", "output.txt"]
+    
+    return [
+        {
+            "prompt": scenario[0].format(
+                random.choice(files) if "{}" in scenario[0] else "",
+                random.choice(words)
+            ),
+            "criteria": scenario[1]
+        }
+        for scenario in random.choices(scenarios, k=size)
+    ]
