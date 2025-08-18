@@ -1,7 +1,8 @@
 """OpenAI provider - isolated LLM integration."""
 
 import os
-from typing import Optional
+
+from ..result import Err, Ok, Result
 
 # Load environment variables
 try:
@@ -12,14 +13,14 @@ except ImportError:
     pass
 
 
-async def generate(prompt: str, model: str = "gpt-4o-mini") -> str:
+async def generate(prompt: str, model: str = "gpt-4o-mini") -> Result[str, str]:
     """Generate LLM response - pure function."""
     try:
         import openai
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            return "Please set OPENAI_API_KEY environment variable."
+            return Err("Please set OPENAI_API_KEY environment variable.")
 
         client = openai.AsyncOpenAI(api_key=api_key)
 
@@ -30,27 +31,29 @@ async def generate(prompt: str, model: str = "gpt-4o-mini") -> str:
             temperature=0.7,
         )
 
-        return response.choices[0].message.content
+        return Ok(response.choices[0].message.content)
 
     except ImportError:
-        return "Please install openai: pip install openai"
+        return Err("Please install openai: pip install openai")
     except Exception as e:
-        return f"LLM Error: {str(e)}"
+        return Err(f"LLM Error: {str(e)}")
 
 
-async def embed(text: str) -> Optional[list]:
+async def embed(text: str) -> Result[list, str]:
     """Generate embedding - pure function."""
     try:
         import openai
 
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
-            return None
+            return Err("Please set OPENAI_API_KEY environment variable.")
 
         client = openai.OpenAI(api_key=api_key)
         response = client.embeddings.create(model="text-embedding-3-small", input=text)
 
-        return response.data[0].embedding
+        return Ok(response.data[0].embedding)
 
-    except Exception:
-        return None
+    except ImportError:
+        return Err("Please install openai: pip install openai")
+    except Exception as e:
+        return Err(f"Embedding Error: {str(e)}")

@@ -27,7 +27,13 @@ class Agent:
             ctx = context(query, self.user_id, tool_results)
             prompt = self._build_prompt(query, ctx, tool_results)
 
-            response = await generate(prompt)
+            llm_result = await generate(prompt)
+            if llm_result.failure:
+                return AgentResult(
+                    f"LLM Error: {llm_result.error}", f"{self.user_id}_{int(time.time())}"
+                )
+
+            response = llm_result.unwrap()
 
             # Parse for completion or tool use
             if "final answer" in response.lower():
@@ -103,7 +109,10 @@ When complete, write your final answer."""
         if tool_name in self.tools:
             try:
                 result = await self.tools[tool_name].execute(**args)
-                result_entry["result"] = result
+                if result.success:
+                    result_entry["result"] = result.unwrap()
+                else:
+                    result_entry["error"] = result.error
             except Exception as e:
                 result_entry["error"] = str(e)
         else:

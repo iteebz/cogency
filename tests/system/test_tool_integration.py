@@ -30,10 +30,13 @@ async def main():
         description = "Perform mathematical calculations"
 
         async def execute(self, expression: str):
+            from cogency import Err, Ok
+
             try:
-                return eval(expression)  # Note: eval is dangerous in production
+                result = eval(expression)  # Note: eval is dangerous in production
+                return Ok(str(result))
             except Exception as e:
-                return f"Error: {e}"
+                return Err(f"Error: {e}")
 
     # Agent with custom tool
     calc_agent = Agent(tools=[Calculator()])

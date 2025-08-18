@@ -4,6 +4,7 @@ import subprocess
 import time
 from pathlib import Path
 
+from ..lib.result import Err, Ok, Result
 from .base import Tool
 
 
@@ -43,15 +44,17 @@ class Shell(Tool):
             f"Execute safe commands in sandbox. Available: {', '.join(sorted(self.SAFE_COMMANDS))}"
         )
 
-    async def execute(self, command: str) -> str:
+    async def execute(self, command: str) -> Result[str, str]:
         # Parse and validate command
         parts = command.strip().split()
         if not parts:
-            return "❌ Empty command"
+            return Err("Empty command")
 
         cmd = parts[0]
         if cmd not in self.SAFE_COMMANDS:
-            return f"❌ Command '{cmd}' not allowed. Available: {', '.join(sorted(self.SAFE_COMMANDS))}"
+            return Err(
+                f"Command '{cmd}' not allowed. Available: {', '.join(sorted(self.SAFE_COMMANDS))}"
+            )
 
         # Ensure sandbox exists
         Path(".sandbox").mkdir(exist_ok=True)
@@ -70,20 +73,20 @@ class Shell(Tool):
                 output = result.stdout.strip()
                 stderr = result.stderr.strip()
 
-                feedback = f"✅ {command} (exit: 0, time: {duration:.1f}s)"
+                feedback = f"{command} (exit: 0, time: {duration:.1f}s)"
                 if output:
                     feedback += f"\n\n{output}"
                 if stderr:
                     feedback += f"\n\nSTDERR:\n{stderr}"
 
-                return feedback
+                return Ok(feedback)
 
             error = result.stderr.strip()
-            return f"❌ {command} (exit: {result.returncode})\n\n{error}"
+            return Err(f"{command} (exit: {result.returncode})\n\n{error}")
 
         except subprocess.TimeoutExpired:
-            return f"❌ Command timed out: {command} (30s limit)"
+            return Err(f"Command timed out: {command} (30s limit)")
         except FileNotFoundError:
-            return f"❌ Command not found: {cmd}"
+            return Err(f"Command not found: {cmd}")
         except Exception as e:
-            return f"❌ Shell error: {str(e)}"
+            return Err(f"Shell error: {str(e)}")

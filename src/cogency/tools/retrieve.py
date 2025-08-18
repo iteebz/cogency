@@ -1,5 +1,6 @@
 """Retrieve: Search knowledge base for relevant documents."""
 
+from ..lib.result import Err, Ok, Result
 from ..lib.storage import search_documents
 from .base import Tool
 
@@ -17,14 +18,14 @@ class Retrieve(Tool):
             "Search knowledge base for documents. Args: query (str), limit (int, optional, max 5)"
         )
 
-    async def execute(self, query: str, limit: int = 3) -> str:
+    async def execute(self, query: str, limit: int = 3) -> Result[str, str]:
         try:
             # Limit to max 5 results
             limit = min(limit, 5)
             results = search_documents(query, limit)
 
             if not results:
-                return f"📭 No documents found for: {query}"
+                return Ok(f"No documents found for: {query}")
 
             # Format results
             formatted = []
@@ -37,7 +38,8 @@ class Retrieve(Tool):
                 relevance = result["relevance"]
                 formatted.append(f"{i}. {doc_id} (relevance: {relevance})\n   {content}")
 
-            return f"🔍 Found {len(results)} documents:\n\n" + "\n\n".join(formatted)
+            result_text = f"Found {len(results)} documents:\n\n" + "\n\n".join(formatted)
+            return Ok(result_text)
 
         except Exception as e:
-            return f"❌ Retrieve error: {str(e)}"
+            return Err(f"Retrieve error: {str(e)}")

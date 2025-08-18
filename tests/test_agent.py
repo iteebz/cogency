@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency import Agent, AgentResult
+from cogency import Agent, AgentResult, Ok
 
 
 def test_create():
@@ -18,7 +18,7 @@ def test_create():
 async def test_call():
     """Agent call returns AgentResult with extracted final answer."""
     with patch("cogency.core.agent.generate") as mock_generate:
-        mock_generate.return_value = "Final answer: Hello there!"
+        mock_generate.return_value = Ok("Final answer: Hello there!")
 
         agent = Agent()
         result = await agent("Hello")
@@ -34,10 +34,8 @@ async def test_call():
 @pytest.mark.asyncio
 async def test_integration_call():
     """Integration test with real LLM."""
-    # Use actual API key for integration test
-    os.environ["OPENAI_API_KEY"] = (
-        "<REDACTED>"
-    )
+    if not os.getenv("OPENAI_API_KEY"):
+        pytest.skip("OPENAI_API_KEY not set")
 
     agent = Agent()
     result = await agent("Hello")
@@ -52,7 +50,7 @@ async def test_integration_call():
 async def test_user():
     """Agent with user_id returns AgentResult with correct conversation_id."""
     with patch("cogency.core.agent.generate") as mock_generate:
-        mock_generate.return_value = "Final answer: Hello user!"
+        mock_generate.return_value = Ok("Final answer: Hello user!")
 
         agent = Agent(user_id="test")
         result = await agent("Hello")
@@ -75,7 +73,7 @@ def test_context():
 async def test_persist():
     """Persistence graceful failure - AgentResult contract."""
     with patch("cogency.core.agent.generate") as mock_generate:
-        mock_generate.return_value = "Final answer: Test complete!"
+        mock_generate.return_value = Ok("Final answer: Test complete!")
 
         agent = Agent(user_id="test")
         result = await agent("Test")

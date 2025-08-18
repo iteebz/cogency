@@ -2,6 +2,8 @@
 
 from abc import ABC, abstractmethod
 
+from ..lib.result import Result
+
 
 class Tool(ABC):
     """Tool interface."""
@@ -19,6 +21,6 @@ class Tool(ABC):
         pass
 
     @abstractmethod
-    async def execute(self, **kwargs) -> str:
+    async def execute(self, **kwargs) -> Result[str, str]:
         """Execute tool with given arguments."""
         pass
