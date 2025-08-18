@@ -5,7 +5,7 @@ from contextlib import suppress
 
 from ..context import context, persist
 from ..lib.parsing import parse_with_signature
-from ..lib.providers.openai import generate
+from ..lib.providers import create_embedder, create_llm
 from ..tools import BASIC_TOOLS
 from .types import AgentResult
 
@@ -13,24 +13,26 @@ from .types import AgentResult
 class Agent:
     """Agent with React reasoning and tool execution."""
 
-    def __init__(self, tools=None, user_id: str = "default", max_iterations: int = 5):
+    def __init__(self, llm="openai", embedder=None, tools=None, max_iterations: int = 5):
+        self.llm = create_llm(llm)
+        self.embedder = create_embedder(embedder) if embedder else None
         self.tools = {t.name: t for t in (tools if tools is not None else BASIC_TOOLS)}
-        self.user_id = user_id
         self.max_iterations = max_iterations
 
-    async def __call__(self, query: str) -> AgentResult:
+    async def __call__(self, query: str, user_id: str = "default") -> AgentResult:
         """Execute query with React reasoning."""
         tool_results = []
 
         for _iteration in range(self.max_iterations):
             # Build context with tools and results
-            ctx = context(query, self.user_id, tool_results)
+            ctx = context(query, user_id, tool_results)
             prompt = self._build_prompt(query, ctx, tool_results)
 
-            llm_result = await generate(prompt)
+            # Use provider system with single canonical path
+            llm_result = await self._generate_response(prompt)
             if llm_result.failure:
                 return AgentResult(
-                    f"LLM Error: {llm_result.error}", f"{self.user_id}_{int(time.time())}"
+                    f"LLM Error: {llm_result.error}", f"{user_id}_{int(time.time())}"
                 )
 
             response = llm_result.unwrap()
@@ -38,25 +40,30 @@ class Agent:
             # Parse for completion or tool use
             if "final answer" in response.lower():
                 final = self._extract_final_answer(response)
-                conversation_id = f"{self.user_id}_{int(time.time())}"
+                conversation_id = f"{user_id}_{int(time.time())}"
                 with suppress(Exception):
-                    await persist(self.user_id, query, final)
+                    await persist(user_id, query, final)
                 return AgentResult(final, conversation_id)
 
             # Execute tool if found
             tool_used = await self._execute_tool(response, tool_results)
             if not tool_used:
                 # No tool found, return response as-is
-                conversation_id = f"{self.user_id}_{int(time.time())}"
+                conversation_id = f"{user_id}_{int(time.time())}"
                 with suppress(Exception):
-                    await persist(self.user_id, query, response)
+                    await persist(user_id, query, response)
                 return AgentResult(response, conversation_id)
 
         # Max iterations reached - return last response
-        conversation_id = f"{self.user_id}_{int(time.time())}"
+        conversation_id = f"{user_id}_{int(time.time())}"
         with suppress(Exception):
-            await persist(self.user_id, query, response)
+            await persist(user_id, query, response)
         return AgentResult(response, conversation_id)
+
+    async def _generate_response(self, prompt: str):
+        """Generate response using configured LLM - single canonical path."""
+        messages = [{"role": "user", "content": prompt}]
+        return await self.llm.generate(messages)
 
     def _build_prompt(self, query: str, ctx: str, tool_results: list) -> str:
         """Build React prompt with context and tools."""
@@ -87,6 +94,11 @@ Think step by step. Use tools when needed by writing:
 USE: tool_name(arg1="value1", arg2="value2")
 
 When complete, write your final answer."""
+
+    async def _generate_response(self, prompt: str):
+        """Generate response using configured LLM provider."""
+        messages = [{"role": "user", "content": prompt}]
+        return await self.llm.generate(messages)
 
     async def _execute_tool(self, response: str, tool_results: list) -> bool:
         """Execute tool from response. Returns True if tool was used."""

@@ -17,9 +17,13 @@ def test_create():
 @pytest.mark.asyncio
 async def test_call():
     """Agent call returns AgentResult with extracted final answer."""
-    with patch("cogency.core.agent.generate") as mock_generate:
-        mock_generate.return_value = Ok("Final answer: Hello there!")
+    from unittest.mock import AsyncMock, Mock
 
+    # Mock provider
+    mock_provider = Mock()
+    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Hello there!"))
+
+    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
         agent = Agent()
         result = await agent("Hello")
 
@@ -48,12 +52,16 @@ async def test_integration_call():
 
 @pytest.mark.asyncio
 async def test_user():
-    """Agent with user_id returns AgentResult with correct conversation_id."""
-    with patch("cogency.core.agent.generate") as mock_generate:
-        mock_generate.return_value = Ok("Final answer: Hello user!")
+    """Agent with runtime user_id returns AgentResult with correct conversation_id."""
+    from unittest.mock import AsyncMock, Mock
 
-        agent = Agent(user_id="test")
-        result = await agent("Hello")
+    # Mock provider
+    mock_provider = Mock()
+    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Hello user!"))
+
+    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+        agent = Agent()  # No user_id in constructor anymore
+        result = await agent("Hello", user_id="test")  # Runtime user_id
 
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
@@ -72,11 +80,15 @@ def test_context():
 @pytest.mark.asyncio
 async def test_persist():
     """Persistence graceful failure - AgentResult contract."""
-    with patch("cogency.core.agent.generate") as mock_generate:
-        mock_generate.return_value = Ok("Final answer: Test complete!")
+    from unittest.mock import AsyncMock, Mock
 
-        agent = Agent(user_id="test")
-        result = await agent("Test")
+    # Mock provider
+    mock_provider = Mock()
+    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Test complete!"))
+
+    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+        agent = Agent()
+        result = await agent("Test", user_id="test")
 
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
