@@ -1,16 +1,11 @@
 """System Test: Advanced Configuration Capability Baseline"""
 
 import asyncio
-import os
 
 from cogency import BASIC_TOOLS, Agent, profile
 
 
 async def main():
-    if not os.getenv("OPENAI_API_KEY"):
-        print("Set OPENAI_API_KEY environment variable")
-        return
-
     # Advanced configuration
     profile(
         "researcher",
@@ -20,7 +15,6 @@ async def main():
     )
 
     agent = Agent(
-        user_id="researcher",
         tools=BASIC_TOOLS,
         max_iterations=10,  # Allow more reasoning cycles
     )
@@ -28,7 +22,8 @@ async def main():
     # Complex research task
     result = await agent(
         "Research the latest developments in transformer architecture "
-        "and create a summary document with key findings"
+        "and create a summary document with key findings",
+        user_id="researcher",
     )
 
     print(f"Research result: {result}")

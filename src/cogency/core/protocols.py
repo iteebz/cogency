@@ -1,5 +1,6 @@
 """Core protocols for provider abstraction."""
 
+from abc import ABC, abstractmethod
 from typing import Protocol, runtime_checkable
 
 from ..lib.result import Result
@@ -37,3 +38,24 @@ class Embedder(Protocol):
             Err(error_message) on failure
         """
         ...
+
+
+class Tool(ABC):
+    """Tool interface."""
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Tool name for agent reference."""
+        pass
+
+    @property
+    @abstractmethod
+    def description(self) -> str:
+        """Tool description for agent understanding."""
+        pass
+
+    @abstractmethod
+    async def execute(self, **kwargs) -> Result[str, str]:
+        """Execute tool with given arguments."""
+        pass

@@ -1,16 +1,11 @@
 """System Test: Basic Agent Capability Baseline"""
 
 import asyncio
-import os
 
 from cogency import Agent
 
 
 async def main():
-    if not os.getenv("OPENAI_API_KEY"):
-        print("Set OPENAI_API_KEY environment variable")
-        return
-
     # Zero ceremony - just ask
     agent = Agent()
     result = await agent("What is the capital of France?")

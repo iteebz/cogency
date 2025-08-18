@@ -32,6 +32,8 @@ python = ">=3.10,<4.0"
 # Core dependencies
 python-dotenv = ">=1.0.0"
 openai = ">=1.59.0,<2.0.0"
+trafilatura = "^2.0.0"
+ddgs = "9.3.1"
 
 
 

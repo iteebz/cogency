@@ -2,8 +2,9 @@
 
 from pathlib import Path
 
+from ..core.protocols import Tool
 from ..lib.result import Err, Ok, Result
-from .base import Tool
+from ..lib.security import safe_path, validate_input
 
 
 class FileRead(Tool):
@@ -18,8 +19,13 @@ class FileRead(Tool):
         return "Read content from a file. Args: filename (str)"
 
     async def execute(self, filename: str) -> Result[str, str]:
+        if not filename:
+            return Err("Filename cannot be empty")
+
         try:
-            file_path = Path(".sandbox") / filename
+            sandbox_dir = Path(".sandbox")
+            file_path = safe_path(sandbox_dir, filename)
+
             with open(file_path) as f:
                 content = f.read()
 
@@ -29,6 +35,8 @@ class FileRead(Tool):
 
         except FileNotFoundError:
             return Err(f"File not found: {filename}")
+        except ValueError as e:
+            return Err(f"Security violation: {str(e)}")
         except Exception as e:
             return Err(f"Failed to read '{filename}': {str(e)}")
 
@@ -45,12 +53,18 @@ class FileWrite(Tool):
         return "Write content to a file. Args: filename (str), content (str)"
 
     async def execute(self, filename: str, content: str) -> Result[str, str]:
+        if not filename:
+            return Err("Filename cannot be empty")
+
+        if not validate_input(content):
+            return Err("Content contains unsafe patterns")
+
         try:
             # Ensure sandbox directory exists
-            sandbox = Path(".sandbox")
-            sandbox.mkdir(exist_ok=True)
+            sandbox_dir = Path(".sandbox")
+            sandbox_dir.mkdir(exist_ok=True)
 
-            file_path = sandbox / filename
+            file_path = safe_path(sandbox_dir, filename)
             with open(file_path, "w") as f:
                 f.write(content)
 
@@ -58,6 +72,8 @@ class FileWrite(Tool):
             result = f"Wrote '{filename}' ({len(content)} chars, {line_count} lines)"
             return Ok(result)
 
+        except ValueError as e:
+            return Err(f"Security violation: {str(e)}")
         except Exception as e:
             return Err(f"Failed to write '{filename}': {str(e)}")
 

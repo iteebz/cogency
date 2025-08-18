@@ -1,8 +1,8 @@
 """Retrieve: Search knowledge base for relevant documents."""
 
+from ..core.protocols import Tool
 from ..lib.result import Err, Ok, Result
 from ..lib.storage import search_documents
-from .base import Tool
 
 
 class Retrieve(Tool):

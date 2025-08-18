@@ -1,16 +1,11 @@
 """System Test: Tool Integration Capability Baseline"""
 
 import asyncio
-import os
 
 from cogency import BASIC_TOOLS, Agent
 
 
 async def main():
-    if not os.getenv("OPENAI_API_KEY"):
-        print("Set OPENAI_API_KEY environment variable")
-        return
-
     # Agent with tool capabilities
     agent = Agent(tools=BASIC_TOOLS)
 
