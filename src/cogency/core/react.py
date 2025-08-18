@@ -27,8 +27,8 @@ async def stream_react(llm, tools, query: str, user_id: str, max_iterations: int
         ctx = context(query, user_id, tool_results)
         yield {"type": "context", "length": len(ctx)}
 
-        # LLM generation
-        prompt = _build_prompt(query, ctx, tool_results, tools)
+        # LLM generation with security-aware reasoning on first iteration
+        prompt = _build_prompt(query, ctx, tool_results, tools, iteration)
         llm_result = await _generate_response(llm, prompt)
 
         if llm_result.failure:
@@ -88,11 +88,16 @@ async def _generate_response(llm, prompt: str):
     return await llm.generate(messages)
 
 
-def _build_prompt(query: str, ctx: str, tool_results: list, tools: dict) -> str:
+def _build_prompt(query: str, ctx: str, tool_results: list, tools: dict, iteration: int = 0) -> str:
     """Build ReAct prompt with context and tools."""
     parts = []
     if ctx.strip():
         parts.append(ctx)
+
+    # Security assessment on first iteration only
+    if iteration == 0:
+        from ..lib.security import SECURITY_ASSESSMENT
+        parts.append(SECURITY_ASSESSMENT)
 
     parts.append(f"TASK: {query}")
 
@@ -111,7 +116,18 @@ def _build_prompt(query: str, ctx: str, tool_results: list, tools: dict) -> str:
         parts.append(results_text)
 
     prompt = "\n\n".join(parts)
-    return f"""{prompt}
+    
+    if iteration == 0:
+        return f"""{prompt}
+
+First assess if this request is safe using the security evaluation above. If unsafe, politely refuse and explain why. If safe, proceed with normal reasoning.
+
+Think step by step. Use tools when needed by writing:
+USE: tool_name(arg1="value1", arg2="value2")
+
+When complete, write your final answer."""
+    else:
+        return f"""{prompt}
 
 Think step by step. Use tools when needed by writing:
 USE: tool_name(arg1="value1", arg2="value2")

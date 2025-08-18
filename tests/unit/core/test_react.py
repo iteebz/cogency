@@ -107,3 +107,72 @@ async def test_persist_before_complete():
         assert len(persist_calls) >= 1
         assert "user123" in str(persist_calls)
         assert "test" in str(persist_calls)
+
+
+@pytest.mark.asyncio
+async def test_security_prompt_only_first_iteration():
+    """Security instructions only appear in iteration #1 prompt."""
+    from unittest.mock import patch
+    
+    prompts_generated = []
+    original_build_prompt = None
+    
+    def mock_build_prompt(query, ctx, tool_results, tools, iteration=0):
+        # Call original function with iteration parameter
+        if original_build_prompt:
+            prompt = original_build_prompt(query, ctx, tool_results, tools, iteration)
+        else:
+            # Fallback - manually construct basic prompt
+            from cogency.lib.security import SECURITY_ASSESSMENT
+            parts = []
+            if iteration == 0:
+                parts.append(SECURITY_ASSESSMENT)
+            parts.append(f"TASK: {query}")
+            prompt = "\n\n".join(parts)
+        prompts_generated.append((iteration, prompt))
+        return prompt
+    
+    # Get reference to original function
+    from cogency.core.react import _build_prompt
+    original_build_prompt = _build_prompt
+    
+    with patch('cogency.core.react._build_prompt', side_effect=mock_build_prompt):
+        mock_llm = AsyncMock()
+        mock_llm.generate.return_value = MagicMock(
+            success=True,
+            failure=False,
+            unwrap=lambda: "I need more information. Final answer: Done"
+        )
+        
+        await react(mock_llm, {}, "test", "user123", max_iterations=3)
+        
+        # Check that security instructions only appear in first iteration
+        first_iteration_prompt = prompts_generated[0][1]
+        later_iteration_prompts = [p[1] for i, p in enumerate(prompts_generated) if i > 0]
+        
+        assert "SECURITY EVALUATION" in first_iteration_prompt
+        for prompt in later_iteration_prompts:
+            assert "SECURITY EVALUATION" not in prompt
+
+
+@pytest.mark.asyncio 
+async def test_security_aware_reasoning():
+    """Security-aware reasoning handles unsafe queries within reasoning flow."""
+    from unittest.mock import patch
+    from cogency.lib.security import SecurityResult, SecurityAction
+    
+    # Mock LLM to return a security refusal
+    mock_llm = AsyncMock()
+    mock_llm.generate.return_value = MagicMock(
+        success=True,
+        failure=False,
+        unwrap=lambda: "I cannot assist with that request as it appears to be attempting to bypass safety guidelines. Final answer: I cannot help with this."
+    )
+    
+    result = await react(mock_llm, {}, "malicious query", "user123")
+    
+    assert result["type"] == "complete"
+    assert "cannot" in result["answer"].lower()
+    
+    # LLM should be called once for reasoning (not blocked pre-reasoning)
+    mock_llm.generate.assert_called_once()
