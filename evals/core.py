@@ -19,8 +19,10 @@ async def evaluate_category(category: str, generator: TestGenerator) -> Dict:
     for i, test in enumerate(tests):
         try:
             if "store_prompt" in test:
-                await agent(test["store_prompt"])
-                agent_result = await agent(test["recall_prompt"])
+                # Use consistent user_id for store/recall pair
+                user_id = f"eval_{category}_{i:02d}"
+                await agent(test["store_prompt"], user_id=user_id)
+                agent_result = await agent(test["recall_prompt"], user_id=user_id)
                 response = agent_result.response
                 prompt_used = test["recall_prompt"]
             else:

@@ -19,9 +19,9 @@ def load_json_file(path: Path, default: Any = None) -> Any:
         if path.exists():
             with open(path) as f:
                 return json.load(f)
-        return default or {}
+        return default if default is not None else {}
     except Exception:
-        return default or {}
+        return default if default is not None else {}
 
 
 def save_json_file(path: Path, data: Any) -> bool:

@@ -43,12 +43,12 @@ async def stream_react(llm, tools, query: str, user_id: str, max_iterations: int
             final = _extract_final_answer(response)
             conversation_id = f"{user_id}_{int(time.time())}"
 
-            # Final event with conversation context
-            yield {"type": "complete", "answer": final, "conversation_id": conversation_id}
-
-            # Persist like original __call__() does
+            # Persist before yielding final answer
             with suppress(Exception):
                 await persist(user_id, query, final)
+                
+            # Final event with conversation context
+            yield {"type": "complete", "answer": final, "conversation_id": conversation_id}
             return
 
         # Tool execution
@@ -64,16 +64,22 @@ async def stream_react(llm, tools, query: str, user_id: str, max_iterations: int
         elif not tool_used:
             # No tool, complete with response
             conversation_id = f"{user_id}_{int(time.time())}"
-            yield {"type": "complete", "answer": response, "conversation_id": conversation_id}
+            
+            # Persist before yielding complete
             with suppress(Exception):
                 await persist(user_id, query, response)
+                
+            yield {"type": "complete", "answer": response, "conversation_id": conversation_id}
             return
 
     # Max iterations - complete with last response
     conversation_id = f"{user_id}_{int(time.time())}"
-    yield {"type": "complete", "answer": response, "conversation_id": conversation_id}
+    
+    # Persist before yielding max iterations complete
     with suppress(Exception):
         await persist(user_id, query, response)
+        
+    yield {"type": "complete", "answer": response, "conversation_id": conversation_id}
 
 
 async def _generate_response(llm, prompt: str):

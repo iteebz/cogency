@@ -17,7 +17,7 @@ class EvalConfig:
     use_llm_judge: bool = False     # Start with raw review, add judge later
     
     # Statistical rigor
-    sample_size: int = 2  # Small initial test
+    sample_size: int = 4  # Test all 4 continuity scenarios  
     num_runs: int = 1  # For initial baseline, scale to 3-5 for significance
     random_seed: int = 42
     

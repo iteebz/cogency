@@ -82,3 +82,28 @@ async def test_shared_logic_zero_duplication(mock_llm, mock_tools):
     assert result["type"] == "complete"
     assert "answer" in result
     assert "conversation_id" in result
+
+
+@pytest.mark.asyncio 
+async def test_persist_before_complete():
+    """Persist called before yield complete - prevents race condition."""
+    from unittest.mock import patch, AsyncMock as AsyncMockFunc
+    persist_calls = []
+    
+    async def mock_persist(user_id, query, response):
+        persist_calls.append((user_id, query, response))
+    
+    with patch('cogency.core.react.persist', side_effect=mock_persist):
+        mock_llm = AsyncMock()
+        mock_llm.generate.return_value = MagicMock(
+            success=True,
+            failure=False,
+            unwrap=lambda: "Final answer: Test complete"
+        )
+        
+        result = await react(mock_llm, {}, "test", "user123", max_iterations=2)
+        
+        assert result["type"] == "complete"
+        assert len(persist_calls) >= 1
+        assert "user123" in str(persist_calls)
+        assert "test" in str(persist_calls)
