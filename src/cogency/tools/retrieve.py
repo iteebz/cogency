@@ -1,6 +1,6 @@
 """Retrieve: Search knowledge base for relevant documents."""
 
-from ..storage import search_documents
+from ..lib.storage import search_documents
 from .base import Tool
 
 

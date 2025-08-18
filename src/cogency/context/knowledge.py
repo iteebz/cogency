@@ -1,6 +1,6 @@
 """Knowledge search."""
 
-from ..storage import search_documents
+from ..lib.storage import search_documents
 
 
 def knowledge(query: str, user_id: str) -> str:

@@ -1,6 +1,6 @@
 """Persistence utilities."""
 
-from ..storage import load_conversations, load_profile, save_conversations, save_profile
+from ..lib.storage import load_conversations, load_profile, save_conversations, save_profile
 
 
 async def persist(user_id: str, query: str, response: str):

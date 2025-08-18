@@ -1,11 +1,13 @@
 """Agent: React-enabled reasoning interface."""
 
 import re
+import time
 from contextlib import suppress
 
-from .context import context, persist
-from .providers.openai import generate
-from .tools import BASIC_TOOLS
+from ..context import context, persist
+from ..lib.providers.openai import generate
+from ..tools import BASIC_TOOLS
+from .types import AgentResult
 
 
 class Agent:
@@ -16,7 +18,7 @@ class Agent:
         self.user_id = user_id
         self.max_iterations = max_iterations
 
-    async def __call__(self, query: str) -> str:
+    async def __call__(self, query: str) -> AgentResult:
         """Execute query with React reasoning."""
         tool_results = []
 
@@ -30,22 +32,25 @@ class Agent:
             # Parse for completion or tool use
             if "final answer" in response.lower():
                 final = self._extract_final_answer(response)
+                conversation_id = f"{self.user_id}_{int(time.time())}"
                 with suppress(Exception):
                     await persist(self.user_id, query, final)
-                return final
+                return AgentResult(final, conversation_id)
 
             # Execute tool if found
             tool_used = await self._execute_tool(response, tool_results)
             if not tool_used:
                 # No tool found, return response as-is
+                conversation_id = f"{self.user_id}_{int(time.time())}"
                 with suppress(Exception):
                     await persist(self.user_id, query, response)
-                return response
+                return AgentResult(response, conversation_id)
 
         # Max iterations reached - return last response
+        conversation_id = f"{self.user_id}_{int(time.time())}"
         with suppress(Exception):
             await persist(self.user_id, query, response)
-        return response
+        return AgentResult(response, conversation_id)
 
     def _build_prompt(self, query: str, ctx: str, tool_results: list) -> str:
         """Build React prompt with context and tools."""
@@ -109,6 +114,9 @@ When complete, write your final answer."""
 
     def _extract_final_answer(self, response: str) -> str:
         """Extract final answer from response."""
-        if "final answer:" in response.lower():
-            return response.split("final answer:")[-1].strip()
+        lower_response = response.lower()
+        if "final answer:" in lower_response:
+            # Find the position of "final answer:" (case insensitive)
+            pos = lower_response.find("final answer:")
+            return response[pos + len("final answer:") :].strip()
         return response

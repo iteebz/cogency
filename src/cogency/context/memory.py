@@ -1,6 +1,6 @@
 """User profile."""
 
-from ..storage import load_profile
+from ..lib.storage import load_profile
 
 
 def memory(user_id: str) -> str:

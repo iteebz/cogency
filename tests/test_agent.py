@@ -1,8 +1,11 @@
 """Agent tests."""
 
+import os
+from unittest.mock import patch
+
 import pytest
 
-from cogency import Agent
+from cogency import Agent, AgentResult
 
 
 def test_create():
@@ -13,33 +16,51 @@ def test_create():
 
 @pytest.mark.asyncio
 async def test_call():
-    """Agent call."""
-    import os
+    """Agent call returns AgentResult with extracted final answer."""
+    with patch("cogency.core.agent.generate") as mock_generate:
+        mock_generate.return_value = "Final answer: Hello there!"
 
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set")
+        agent = Agent()
+        result = await agent("Hello")
+
+        assert isinstance(result, AgentResult)
+        assert isinstance(result.response, str)
+        assert result.response == "Hello there!"  # Final answer extracted
+        assert result.conversation_id.startswith("default_")
+        assert len(result.conversation_id) > len("default_")
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_integration_call():
+    """Integration test with real LLM."""
+    # Use actual API key for integration test
+    os.environ["OPENAI_API_KEY"] = (
+        "<REDACTED>"
+    )
 
     agent = Agent()
-    resp = await agent("What is 2+2?")
+    result = await agent("Hello")
 
-    assert isinstance(resp, str)
-    assert len(resp) > 0
-    assert "4" in resp
+    assert isinstance(result, AgentResult)
+    assert isinstance(result.response, str)
+    assert len(result.response) > 0
+    assert result.conversation_id is not None
 
 
 @pytest.mark.asyncio
 async def test_user():
-    """Agent with user_id."""
-    import os
+    """Agent with user_id returns AgentResult with correct conversation_id."""
+    with patch("cogency.core.agent.generate") as mock_generate:
+        mock_generate.return_value = "Final answer: Hello user!"
 
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set")
+        agent = Agent(user_id="test")
+        result = await agent("Hello")
 
-    agent = Agent(user_id="test")
-    resp = await agent("Hello")
-
-    assert isinstance(resp, str)
-    assert len(resp) > 0
+        assert isinstance(result, AgentResult)
+        assert isinstance(result.response, str)
+        assert result.response == "Hello user!"  # Final answer extracted
+        assert result.conversation_id.startswith("test_")
 
 
 def test_context():
@@ -52,16 +73,17 @@ def test_context():
 
 @pytest.mark.asyncio
 async def test_persist():
-    """Persistence graceful failure."""
-    import os
+    """Persistence graceful failure - AgentResult contract."""
+    with patch("cogency.core.agent.generate") as mock_generate:
+        mock_generate.return_value = "Final answer: Test complete!"
 
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set")
+        agent = Agent(user_id="test")
+        result = await agent("Test")
 
-    agent = Agent(user_id="test")
-    resp = await agent("Test")
-    assert isinstance(resp, str)
-    assert len(resp) > 0
+        assert isinstance(result, AgentResult)
+        assert isinstance(result.response, str)
+        assert result.response == "Test complete!"  # Final answer extracted
+        assert result.conversation_id.startswith("test_")
 
 
 def test_tools_config():

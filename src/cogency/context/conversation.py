@@ -1,6 +1,6 @@
 """Conversation history."""
 
-from ..storage import load_conversations
+from ..lib.storage import load_conversations
 
 
 def conversation(user_id: str) -> str:
