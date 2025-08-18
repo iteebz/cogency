@@ -1,8 +1,25 @@
-# Cogency: Stateless Context-Driven Agent Framework
+# Cogency
 
-Context injection + LLM inference = complete reasoning engine.
+[![PyPI version](https://badge.fury.io/py/cogency.svg)](https://badge.fury.io/py/cogency)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-After extensive research (340 commits), we discovered agents work better as functions.
+**Context-driven agents that work out of the box.**
+
+```python
+from cogency import Agent
+
+agent = Agent()
+result = await agent("Search for Python best practices and summarize")
+```
+
+**Zero ceremony. Maximum capability.**
+
+- **🌐 Web-enabled** - Search and scrape with zero configuration
+- **🔌 Multi-provider** - OpenAI, Anthropic, Gemini support
+- **🛠️ Tool orchestration** - Files, shell, web tools auto-compose
+- **🧠 Context injection** - Automatic assembly of relevant information
+- **⚡️ Streaming** - Event-coordinated ReAct reasoning
 
 ## Quick Start
 
@@ -25,7 +42,7 @@ asyncio.run(main())
 pip install cogency
 ```
 
-Set your OpenAI API key:
+Set your API key:
 ```bash
 export OPENAI_API_KEY="your-api-key-here"
 ```
@@ -41,14 +58,19 @@ agent = Agent()
 response = await agent("Explain quantum computing in simple terms")
 ```
 
-### ReAct Agent with Tools
+### Agent with Tools
 
 ```python
-from cogency import ReAct
+from cogency import Agent, BASIC_TOOLS
+from cogency.tools import Search, Scrape
 
-agent = ReAct(verbose=True)
-result = await agent.solve("Create a Python script that calculates factorial of 10")
-print(result["final_answer"])
+# Web-enabled agent
+agent = Agent(tools=[Search(), Scrape()])
+result = await agent("Search for Python best practices and summarize key points")
+
+# All basic tools (Files, Shell)
+agent = Agent(tools=BASIC_TOOLS)
+result = await agent("Create a Python script that calculates factorial of 10")
 ```
 
 ### User-Specific Context
@@ -96,7 +118,7 @@ Context sources include:
 - **Conversation**: Recent message history  
 - **Knowledge**: Semantic search results
 - **Memory**: User profile and preferences
-- **Working**: Tool execution history (for ReAct agents)
+- **Working**: Tool execution history
 
 ## Design Principles
 
@@ -116,13 +138,28 @@ agent = Agent()
 response = await agent(query: str, user_id: str = "default") -> str
 ```
 
-### ReAct  
-
-Tool-using agent with Reason + Act loops.
+### Streaming
 
 ```python
-agent = ReAct(tools=None, user_id="default", verbose=False)
-result = await agent.solve(task: str, max_iterations: int = 5) -> dict
+from cogency import Agent
+
+agent = Agent()
+async for event in agent.stream("Complex research task requiring multiple steps"):
+    if event["type"] == "reasoning":
+        print(f"Thinking: {event['content'][:100]}...")
+    elif event["type"] == "complete":
+        print(f"Final: {event['answer']}")
+```
+
+### Agent with Multiple Providers
+
+```python
+from cogency import Agent
+from cogency.lib.providers import Anthropic, Nomic
+
+# Provider agnostic: Mix any LLM with any Embedder
+agent = Agent(llm=Anthropic(), embedder=Nomic())
+result = await agent("Compare Python and Rust for systems programming")
 ```
 
 ### Context Functions
@@ -152,4 +189,6 @@ pytest tests/
 
 See `docs/blueprint.md` for complete technical specification.
 
-*v2.0.0 represents a complete architectural rewrite based on empirical evidence that simpler approaches work better for LLM-based reasoning systems.*
+**That's it.** No configuration, no setup, just working agents.
+
+*v2.1.0: Web capabilities, multi-provider support, Result types - zero ceremony preserved.*

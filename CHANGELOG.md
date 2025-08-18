@@ -1,78 +1,61 @@
 # Changelog
 
-## [2.0.0] - 2024-12-19
+## [2.1.0] - 2025-01-18
 
-### 🚀 Complete Architectural Rewrite
+### New Features
 
-After 340 commits exploring complex state management approaches, v2.0.0 represents a fundamental shift to stateless context-driven architecture.
+- **Web capabilities**: Search (ddgs) and scrape (trafilatura) tools
+- **Multi-provider support**: OpenAI, Anthropic, Gemini 
+- **Result types**: `Ok[T]` and `Err[E]` for functional error handling
+- **Streaming**: Event-coordinated streaming interface
+- **Multitenancy**: Runtime user_id memory
 
-### ✨ New Features
+### Architecture
 
-- **Pure Function Agents**: Agents are now simple functions - `await agent("query")`
-- **Context Injection**: Automatic assembly of relevant context from multiple sources
-- **Graceful Degradation**: Failed context sources don't break reasoning
-- **Fire-and-Forget Persistence**: Optional async conversation saving
-- **Minimal Dependencies**: Reduced from 20+ to 2 core dependencies
+- Protocol-based provider system with proper domain coupling
+- Tool → Core → Lib → Infrastructure dependency flow
+- AgentResult with conversation tracking
+- Security validation and input sanitization
 
-### 🏗️ Architecture Changes
+```python
+# Same interface, expanded capabilities  
+agent = Agent(tools=[Search(), Scrape()])
+result = await agent("Search for Python best practices and summarize")
+```
+---
 
-- **Stateless Design**: No database writes during reasoning
-- **Context Sources**: System, conversation, knowledge, memory, working context
-- **Pure Functions**: All context assembly uses pure functions
-- **File Storage**: Simple JSON file persistence instead of SQLite
-- **Read-Only**: Context sources are read-only with error resilience
+## [2.0.0] - 2025-08-15
 
-### 💥 Breaking Changes
+### Complete Architectural Rewrite
 
-- Complete API rewrite - not compatible with v1.x
-- Removed complex state objects (Conversation, Workspace, Execution)
-- Removed elaborate persistence layers and ACID requirements
-- Removed provider abstraction and configuration complexity
-- CLI removed (was unused)
+After 340 commits exploring complex state management, v2.0.0 shifts to stateless context-driven architecture.
 
-### 🔧 Technical Details
+**Core Discovery**: Context injection works better than state management for LLM reasoning.
 
-- **Lines of Code**: Reduced from ~5000+ to ~830 lines
-- **File Count**: Reduced from 100+ to 23 Python files
-- **Dependencies**: Reduced from 20+ to 2 core dependencies
-- **Performance**: Zero writes during reasoning vs multiple DB operations
-- **Memory**: Pure functions vs persistent objects
+### New Features
 
-### 🧪 Testing
+- **Pure function agents**: `await agent("query")` - no objects, no setup
+- **Context injection**: Automatic assembly from system, conversation, knowledge, memory sources
+- **Graceful degradation**: Failed context sources don't break reasoning
+- **Optional persistence**: Async conversation saving, zero writes in reasoning path
 
-- Added comprehensive test suite
-- All tests pass without external dependencies (except LLM calls)
-- Graceful degradation tested
+### Architecture Changes
 
-### 📚 Documentation
+- **Stateless design**: Pure functions replace persistent objects
+- **Read-only context**: Error-resilient information assembly  
+- **File storage**: JSON files replace SQLite complexity
+- **Minimal dependencies**: 20+ dependencies → 2 core dependencies
+- **Massive simplification**: 5000+ LOC → 830 LOC, 100+ files → 23 files
 
-- Complete README rewrite with working examples
-- Technical blueprint in `docs/blueprint.md`
-- Clear API reference and usage patterns
+### Breaking Changes
 
-### 🎯 Design Principles
+Complete rewrite - not compatible with v1.x. Removed state objects, persistence layers, provider abstractions, and unused CLI.
 
-This rewrite follows strict principles discovered through empirical testing:
+### Design Principles
 
-1. **Context is all you need** - LLMs work best with natural language context
-2. **Reads enable, writes constrain** - Eliminate writes from reasoning path
+1. **Context is all you need** - Natural language beats structured state
+2. **Reads enable, writes constrain** - Zero writes during reasoning  
 3. **Simple beats complex** - Functions over objects, files over databases
-4. **Graceful degradation** - Failed context sources don't break agents
-5. **Optional persistence** - Learning and memory are enhancements, not requirements
+4. **Graceful degradation** - Partial context better than no context
 
-### 🔬 Research Foundation
-
-This architecture is backed by extensive exploration documented in 340 commits:
-- Complex state management approaches tested and found inadequate
-- Database-is-state patterns create more problems than they solve
-- LLMs perform better with context injection than structured state
-- Simpler architectures have better performance and fewer bugs
-
-### 📈 Performance Impact
-
-- **Latency**: Eliminated database writes from hot path
-- **Throughput**: Pure functions vs complex object lifecycles
-- **Memory**: No persistent state, automatic garbage collection
-- **Reliability**: Graceful degradation vs complex error recovery
-
-*This represents the first agent framework designed specifically for how LLMs actually work rather than how traditional software architectures work.*
+*First agent framework designed for how LLMs actually work, not traditional software patterns.*
