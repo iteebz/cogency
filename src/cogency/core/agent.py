@@ -17,8 +17,8 @@ class Agent:
         self.tools = {t.name: t for t in (tools if tools is not None else BASIC_TOOLS)}
         self.max_iterations = max_iterations
 
-    async def __call__(self, query: str, user_id: str = "default") -> AgentResult:
-        """Execute query with ReAct reasoning."""
+    async def __call__(self, query: str, *, user_id: str = None) -> AgentResult:
+        """Sacred interface with optional memory multitenancy."""
         final_event = await react(self.llm, self.tools, query, user_id, self.max_iterations)
 
         if final_event["type"] == "error":
@@ -28,7 +28,7 @@ class Agent:
 
         return AgentResult(final_event["answer"], final_event["conversation_id"])
 
-    async def stream(self, query: str, user_id: str = "default"):
+    async def stream(self, query: str, *, user_id: str = None):
         """Stream ReAct reasoning states as structured events.
 
         Yields structured events for each ReAct loop iteration:

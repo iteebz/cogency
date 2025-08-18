@@ -30,8 +30,8 @@ async def test_call():
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
         assert result.response == "Hello there!"  # Final answer extracted
-        assert result.conversation_id.startswith("default_")
-        assert len(result.conversation_id) > len("default_")
+        assert result.conversation_id.startswith("None_")
+        assert len(result.conversation_id) > len("None_")
 
 
 @pytest.mark.integration
@@ -51,22 +51,50 @@ async def test_integration_call():
 
 
 @pytest.mark.asyncio
-async def test_user():
-    """Agent with runtime user_id returns AgentResult with correct conversation_id."""
+async def test_runtime_multitenancy():
+    """Runtime multitenancy with keyword user_id."""
     from unittest.mock import AsyncMock, Mock
 
-    # Mock provider
     mock_provider = Mock()
     mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Hello user!"))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_provider):
-        agent = Agent()  # No user_id in constructor anymore
-        result = await agent("Hello", user_id="test")  # Runtime user_id
+        agent = Agent()
+        # Multiple users, same agent
+        alice = await agent("Hello", user_id="alice")
+        bob = await agent("Hello", user_id="bob")
+
+        assert alice.conversation_id.startswith("alice_")
+        assert bob.conversation_id.startswith("bob_")
+        assert alice.response == "Hello user!"
+        assert bob.response == "Hello user!"
+
+
+@pytest.mark.asyncio
+async def test_sacred_interface():
+    """Sacred zero-ceremony interface preserved."""
+    from unittest.mock import AsyncMock, Mock
+
+    mock_provider = Mock()
+    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Sacred!"))
+
+    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+        agent = Agent()
+        result = await agent("What is 2+2?")
 
         assert isinstance(result, AgentResult)
-        assert isinstance(result.response, str)
-        assert result.response == "Hello user!"  # Final answer extracted
-        assert result.conversation_id.startswith("test_")
+        assert result.response == "Sacred!"
+        assert result.conversation_id.startswith("None_")
+
+
+@pytest.mark.asyncio
+async def test_keyword_only_enforcement():
+    """Keyword-only user_id parameter enforced."""
+    agent = Agent()
+
+    # This should raise TypeError - positional user_id not allowed
+    with pytest.raises(TypeError):
+        await agent("test", "user123")
 
 
 def test_context():

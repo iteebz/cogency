@@ -1,6 +1,6 @@
 """Context tests."""
 
-from cogency.context import context, conversation, knowledge, memory, system, working
+from cogency.context import context, conversation, knowledge, system, working
 
 
 def test_system():
@@ -19,12 +19,6 @@ def test_conversation():
 def test_knowledge():
     """Knowledge context."""
     result = knowledge("test", "test")
-    assert isinstance(result, str)
-
-
-def test_memory():
-    """Memory context."""
-    result = memory("test")
     assert isinstance(result, str)
 
 
