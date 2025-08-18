@@ -14,19 +14,20 @@ async def main():
 
     # Pure agent - zero ceremony
     agent = Agent()
-    response = await agent("What is 2+2?")
-    print(f"Pure: {response}")
+    result = await agent("What is 2+2?")
+    print(f"Pure: {result}")  # AgentResult prints as response via __str__
 
     # With user profile - enhanced context
     profile("alice", name="Alice", preferences=["Python"], context="Developer")
     alice_agent = Agent(user_id="alice")
-    response = await alice_agent("Recommend a Python library")
-    print(f"Profile: {response}")
+    result = await alice_agent("Recommend a Python library")
+    print(f"Profile: {result}")  # Backward compatible printing
 
     # Intelligent agent - tool-enabled reasoning
     intelligent = Agent(tools=BASIC_TOOLS)
     result = await intelligent("Create a Python file that calculates 10!")
     print(f"Intelligent: {result}")
+    print(f"Conversation: {result.conversation_id}")  # Access conversation tracking
 
 
 if __name__ == "__main__":
