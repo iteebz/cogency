@@ -11,17 +11,28 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from config import CONFIG
 from judge import judge
+from sampling import stratify_by_difficulty
 
 TestGenerator = Callable[[int], List[Dict[str, Any]]]
 
 
 async def evaluate_category(category: str, generator: TestGenerator) -> Dict:
     """Run evaluation category with configurable judging."""
-    agent = CONFIG.agent_provider()
-    tests = generator(CONFIG.sample_size)
+    # Generate larger pool for stratified sampling
+    pool_size = CONFIG.sample_size * 2 if CONFIG.stratified_sampling else CONFIG.sample_size
+    test_pool = generator(pool_size)
+    
+    # Apply stratified sampling if enabled
+    if CONFIG.stratified_sampling and len(test_pool) > CONFIG.sample_size:
+        tests = stratify_by_difficulty(test_pool, CONFIG.sample_size)
+    else:
+        tests = test_pool[:CONFIG.sample_size]
+    
     results = []
     
     for i, test in enumerate(tests):
+        # Fresh agent per test to prevent contamination
+        agent = CONFIG.agent()
         try:
             if "store_prompt" in test:
                 # Use consistent user_id for store/recall pair

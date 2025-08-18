@@ -23,10 +23,29 @@ CATEGORIES = {
 async def main():
     """Run cognitive evaluation - single category or full baseline."""
     import sys
+    from config import CONFIG
     
-    # Check for single category argument
-    if len(sys.argv) > 1:
-        category_name = sys.argv[1].lower()
+    # Parse command line arguments
+    args = sys.argv[1:]
+    category_name = None
+    
+    # Handle --samples argument
+    i = 0
+    while i < len(args):
+        if args[i] == '--samples' and i + 1 < len(args):
+            try:
+                CONFIG.sample_size = int(args[i + 1])
+                print(f"📊 Sample size set to {CONFIG.sample_size}")
+                args = args[:i] + args[i+2:]  # Remove processed args
+            except ValueError:
+                print(f"❌ Invalid sample size: {args[i + 1]}")
+                return
+        else:
+            i += 1
+    
+    # Check for category argument
+    if args:
+        category_name = args[0].lower()
         if category_name in CATEGORIES:
             await run_category(category_name, CATEGORIES[category_name])
             return
