@@ -51,7 +51,7 @@ async def test_agent_runtime_user_id(mock_llm):
     mock_llm.generate.return_value = Ok("Response")
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        with patch("cogency.core.agent.context") as mock_context:
+        with patch("cogency.core.react.context") as mock_context:
             mock_context.return_value = "context"
 
             from cogency.core.agent import Agent

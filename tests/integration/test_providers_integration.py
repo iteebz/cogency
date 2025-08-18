@@ -15,7 +15,7 @@ async def test_full_agent_provider_integration():
     mock_provider.generate = AsyncMock(return_value=Ok("Hello from provider"))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_provider):
-        with patch("cogency.core.agent.context", return_value="test context"):
+        with patch("cogency.core.react.context", return_value="test context"):
             from cogency.core.agent import Agent
 
             # Create agent with string shortcut
