@@ -2,7 +2,7 @@
 
 from ..core.protocols import Tool
 from ..lib.result import Err, Ok, Result
-from ..lib.security import validate_input
+from .security import validate_input
 
 
 class Scrape(Tool):

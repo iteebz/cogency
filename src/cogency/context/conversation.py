@@ -26,6 +26,10 @@ class ConversationHistory:
         except Exception:
             return ""
 
+    def messages(self, conversation_id: str, limit: int = 20) -> list[dict[str, Any]]:
+        """Get conversation history as structured messages for LLM context."""
+        return self.get(conversation_id, limit=limit)
+
     def get(self, conversation_id: str, limit: int = None) -> list[dict[str, Any]]:
         """Get conversation messages by conversation_id."""
         try:

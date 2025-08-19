@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ..core.protocols import Tool
 from ..lib.result import Err, Ok, Result
-from ..lib.security import safe_path, validate_input
+from .security import safe_path, validate_input
 
 
 class FileRead(Tool):

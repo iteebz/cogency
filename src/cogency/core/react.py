@@ -59,13 +59,12 @@ async def stream_react(
         yield {"type": "iteration", "number": iteration + 1}
 
         # Context assembly with system capabilities
-        prompt = context.assemble(query, user_id, conversation_id, task_id, tools)
-        yield {"type": "context", "length": len(prompt)}
+        messages = context.assemble(query, user_id, conversation_id, task_id, tools, iteration + 1)
+        yield {"type": "context", "length": len(str(messages))}
 
         # Stream XML sections with canonical boundary detection
         from ..lib.streaming import stream_xml_sections
 
-        messages = [{"role": "user", "content": prompt}]
         stream_result = await stream_xml_sections(llm, messages)
 
         if stream_result.failure:

@@ -71,5 +71,5 @@ Response
     assert call_args[1] == "alice"
     assert call_args[2].startswith("alice_")  # conversation_id
     assert (
-        len(call_args) == 5
-    )  # 5 parameter signature (query, user_id, conversation_id, task_id, tools)
+        len(call_args) == 6
+    )  # 6 parameter signature (query, user_id, conversation_id, task_id, tools, iteration)
