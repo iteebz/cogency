@@ -9,13 +9,31 @@ from cogency.core.react import react, stream_react
 
 @pytest.fixture
 def mock_llm():
-    """Mock LLM that returns structured responses."""
+    """Mock LLM that returns XML structured responses."""
     llm = AsyncMock()
+    # Mock XML structured response for new streaming
+    xml_response = """<thinking>
+I'll search for this information.
+</thinking>
+
+<tools>
+[{"name": "search", "args": {"query": "test"}}]
+</tools>
+
+<response>
+Test response
+</response>"""
+
     llm.generate.return_value = MagicMock(
         success=True,
         failure=False,
-        unwrap=lambda: "I'll search for this. Final answer: Test response",
+        unwrap=lambda: xml_response,
     )
+
+    # Ensure no stream attribute to force batch processing
+    if hasattr(llm, "stream"):
+        delattr(llm, "stream")
+
     return llm
 
 
@@ -52,7 +70,7 @@ async def test_stream_react_yields_events(mock_llm, mock_tools):
     event_types = [e["type"] for e in events]
     assert "iteration" in event_types
     assert "context" in event_types
-    assert "reasoning" in event_types
+    assert "thinking" in event_types
     assert "complete" in event_types
 
 
@@ -96,8 +114,16 @@ async def test_persist_before_complete():
 
     with patch("cogency.core.react.persist", side_effect=mock_persist):
         mock_llm = AsyncMock()
+        xml_response = """<thinking>
+This is a test response.
+</thinking>
+
+<response>
+Final answer: Test complete
+</response>"""
+
         mock_llm.generate.return_value = MagicMock(
-            success=True, failure=False, unwrap=lambda: "Final answer: Test complete"
+            success=True, failure=False, unwrap=lambda: xml_response
         )
 
         result = await react(mock_llm, {}, "test", "user123", max_iterations=2)
@@ -114,35 +140,32 @@ async def test_security_prompt_only_first_iteration():
     from unittest.mock import patch
 
     prompts_generated = []
-    original_build_prompt = None
 
-    def mock_build_prompt(query, ctx, tool_results, tools, iteration=0):
-        # Call original function with iteration parameter
-        if original_build_prompt:
-            prompt = original_build_prompt(query, ctx, tool_results, tools, iteration)
-        else:
-            # Fallback - manually construct basic prompt
-            from cogency.lib.security import SECURITY_ASSESSMENT
+    def mock_context_assemble(query, user_id, tool_results=None, tools=None, iteration=0):
+        # Mock context assembly - track security assessment appearance
+        from cogency.lib.security import SECURITY_ASSESSMENT
 
-            parts = []
-            if iteration == 0:
-                parts.append(SECURITY_ASSESSMENT)
-            parts.append(f"TASK: {query}")
-            prompt = "\n\n".join(parts)
+        parts = []
+        if iteration == 0:
+            parts.append(SECURITY_ASSESSMENT)
+        parts.append(f"TASK: {query}")
+        prompt = "\n\n".join(parts)
         prompts_generated.append((iteration, prompt))
         return prompt
 
-    # Get reference to original function
-    from cogency.core.react import _build_prompt
-
-    original_build_prompt = _build_prompt
-
-    with patch("cogency.core.react._build_prompt", side_effect=mock_build_prompt):
+    # Mock context assembly instead of deleted _build_prompt
+    with patch("cogency.core.react.context.assemble", side_effect=mock_context_assemble):
         mock_llm = AsyncMock()
         mock_llm.generate.return_value = MagicMock(
             success=True,
             failure=False,
-            unwrap=lambda: "I need more information. Final answer: Done",
+            unwrap=lambda: """<thinking>
+I need more information.
+</thinking>
+
+<response>
+Final answer: Done
+</response>""",
         )
 
         await react(mock_llm, {}, "test", "user123", max_iterations=3)
@@ -160,12 +183,24 @@ async def test_security_prompt_only_first_iteration():
 async def test_security_aware_reasoning():
     """Security-aware reasoning handles unsafe queries within reasoning flow."""
 
-    # Mock LLM to return a security refusal
+    # Mock LLM without generate_stream to force batch processing
     mock_llm = AsyncMock()
+    mock_response = """<thinking>
+This request appears to be attempting to bypass safety guidelines. I should refuse this request.
+</thinking>
+
+<response>
+I cannot assist with that request as it appears to be attempting to bypass safety guidelines. I cannot help with this.
+</response>"""
+
+    # Remove stream attribute to force batch processing
+    if hasattr(mock_llm, "stream"):
+        delattr(mock_llm, "stream")
+
     mock_llm.generate.return_value = MagicMock(
         success=True,
         failure=False,
-        unwrap=lambda: "I cannot assist with that request as it appears to be attempting to bypass safety guidelines. Final answer: I cannot help with this.",
+        unwrap=lambda: mock_response,
     )
 
     result = await react(mock_llm, {}, "malicious query", "user123")

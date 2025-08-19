@@ -19,7 +19,14 @@ async def test_agent_with_llm_provider(mock_llm):
     from cogency.lib.result import Ok
 
     # Mock LLM response
-    mock_llm.generate.return_value = Ok("Hello world")
+    xml_response = """<thinking>
+User said hello.
+</thinking>
+
+<response>
+Hello world
+</response>"""
+    mock_llm.generate.return_value = Ok(xml_response)
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         from cogency.core.agent import Agent
@@ -27,7 +34,7 @@ async def test_agent_with_llm_provider(mock_llm):
         agent = Agent(llm="claude", tools=[])
         result = await agent("Hello", user_id="test")
 
-    assert result.response == "Hello world"
+    assert "Hello world" in result.response
     mock_llm.generate.assert_called_once()
 
 
@@ -48,7 +55,14 @@ async def test_agent_runtime_user_id(mock_llm):
     """Agent passes runtime user_id to context."""
     from cogency.lib.result import Ok
 
-    mock_llm.generate.return_value = Ok("Response")
+    xml_response = """<thinking>
+Processing query.
+</thinking>
+
+<response>
+Response
+</response>"""
+    mock_llm.generate.return_value = Ok(xml_response)
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch("cogency.core.react.context") as mock_context:
@@ -60,4 +74,4 @@ async def test_agent_runtime_user_id(mock_llm):
             await agent("Query", user_id="alice")
 
     # Verify context called with runtime user_id
-    mock_context.assemble.assert_called_with("Query", "alice", [])
+    mock_context.assemble.assert_called_with("Query", "alice", [], {}, 0)

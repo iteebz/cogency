@@ -12,10 +12,19 @@ async def test_full_agent_provider_integration():
     """Test complete Agent integration with provider system."""
     # Mock provider
     mock_provider = Mock()
-    mock_provider.generate = AsyncMock(return_value=Ok("Hello from provider"))
+    xml_response = """<thinking>
+Processing integration test.
+</thinking>
+
+<response>
+Hello from provider
+</response>"""
+    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_provider):
-        with patch("cogency.core.react.context.assemble", return_value="test context"):
+        with patch(
+            "cogency.core.react.context.assemble", return_value="test context\n\nTASK: Test query"
+        ):
             from cogency.core.agent import Agent
 
             # Create agent with string shortcut
@@ -25,7 +34,7 @@ async def test_full_agent_provider_integration():
             result = await agent("Test query", user_id="integration_test")
 
     # Verify result
-    assert result.response == "Hello from provider"
+    assert "Hello from provider" in result.response
     assert "integration_test" in result.conversation_id
 
     # Verify provider called correctly

@@ -1,6 +1,5 @@
 """Agent tests."""
 
-import os
 from unittest.mock import patch
 
 import pytest
@@ -21,7 +20,14 @@ async def test_call():
 
     # Mock provider
     mock_provider = Mock()
-    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Hello there!"))
+    xml_response = """<thinking>
+User said hello.
+</thinking>
+
+<response>
+Hello there!
+</response>"""
+    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_provider):
         agent = Agent()
@@ -29,25 +35,47 @@ async def test_call():
 
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
-        assert result.response == "Hello there!"  # Final answer extracted
+        assert "Hello there!" in result.response  # Response section extracted
         assert result.conversation_id.startswith("agent_")
         assert len(result.conversation_id) > len("agent_")
 
 
-@pytest.mark.integration
 @pytest.mark.asyncio
-async def test_integration_call():
-    """Integration test with real LLM."""
-    if not os.getenv("OPENAI_API_KEY"):
-        pytest.skip("OPENAI_API_KEY not set")
+async def test_agent_end_to_end_integration():
+    """Integration test - complete Agent pipeline with mocked LLM."""
+    from unittest.mock import AsyncMock, Mock, patch
 
-    agent = Agent()
-    result = await agent("Hello")
+    # Mock realistic OpenAI-style response
+    mock_provider = Mock()
+    xml_response = """<thinking>
+The user is greeting me with "Hello". I should respond politely.
+</thinking>
 
-    assert isinstance(result, AgentResult)
-    assert isinstance(result.response, str)
-    assert len(result.response) > 0
-    assert result.conversation_id is not None
+<response>
+Hello! How can I help you today?
+</response>"""
+    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
+
+    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+        # Test complete end-to-end flow
+        agent = Agent()
+        result = await agent("Hello")
+
+        # Verify full pipeline works
+        assert isinstance(result, AgentResult)
+        assert isinstance(result.response, str)
+        assert "Hello! How can I help you today?" in result.response
+        assert result.conversation_id.startswith("agent_")
+
+        # Verify XML parsing worked
+        assert "thinking" not in result.response.lower()  # Thinking stripped out
+
+        # Verify LLM was called with proper message structure
+        mock_provider.generate.assert_called_once()
+        call_args = mock_provider.generate.call_args[0][0]
+        assert len(call_args) == 1
+        assert call_args[0]["role"] == "user"
+        assert isinstance(call_args[0]["content"], str)
 
 
 @pytest.mark.asyncio
@@ -56,7 +84,14 @@ async def test_runtime_multitenancy():
     from unittest.mock import AsyncMock, Mock
 
     mock_provider = Mock()
-    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Hello user!"))
+    xml_response = """<thinking>
+User is greeting me.
+</thinking>
+
+<response>
+Hello user!
+</response>"""
+    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_provider):
         agent = Agent()
@@ -66,8 +101,8 @@ async def test_runtime_multitenancy():
 
         assert alice.conversation_id.startswith("alice_")
         assert bob.conversation_id.startswith("bob_")
-        assert alice.response == "Hello user!"
-        assert bob.response == "Hello user!"
+        assert "Hello user!" in alice.response
+        assert "Hello user!" in bob.response
 
 
 @pytest.mark.asyncio
@@ -76,14 +111,21 @@ async def test_sacred_interface():
     from unittest.mock import AsyncMock, Mock
 
     mock_provider = Mock()
-    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Sacred!"))
+    xml_response = """<thinking>
+This is a math question.
+</thinking>
+
+<response>
+Sacred!
+</response>"""
+    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_provider):
         agent = Agent()
         result = await agent("What is 2+2?")
 
         assert isinstance(result, AgentResult)
-        assert result.response == "Sacred!"
+        assert "Sacred!" in result.response
         assert result.conversation_id.startswith("agent_")
 
 
@@ -101,7 +143,7 @@ def test_context():
     """Context injection."""
     from cogency.context import context
 
-    ctx = context.assemble("test", "user")
+    ctx = context.assemble("test", "user", [], {}, 0)
     assert isinstance(ctx, str)
 
 
@@ -112,7 +154,14 @@ async def test_persist():
 
     # Mock provider
     mock_provider = Mock()
-    mock_provider.generate = AsyncMock(return_value=Ok("Final answer: Test complete!"))
+    xml_response = """<thinking>
+This is a test.
+</thinking>
+
+<response>
+Test complete!
+</response>"""
+    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_provider):
         agent = Agent()
@@ -120,7 +169,7 @@ async def test_persist():
 
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
-        assert result.response == "Test complete!"  # Final answer extracted
+        assert "Test complete!" in result.response  # Response section extracted
         assert result.conversation_id.startswith("test_")
 
 

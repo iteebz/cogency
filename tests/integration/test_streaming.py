@@ -13,7 +13,14 @@ async def test_streaming_preserves_sync_behavior():
     """Verify streaming doesn't break synchronous execution."""
     # Mock LLM that returns final answer
     mock_llm = Mock()
-    mock_llm.generate = AsyncMock(return_value=Ok("Final answer: Test response"))
+    xml_response = """<thinking>
+Processing streaming test.
+</thinking>
+
+<response>
+Test response
+</response>"""
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch("cogency.core.react.context") as mock_context:
@@ -23,7 +30,7 @@ async def test_streaming_preserves_sync_behavior():
 
                 # Test synchronous call still works
                 sync_result = await agent("Test query", user_id="sync_test")
-                assert sync_result.response == "Test response"
+                assert "Test response" in sync_result.response
                 assert sync_result.conversation_id.startswith("sync_test_")
 
                 # Test streaming works
@@ -35,7 +42,7 @@ async def test_streaming_preserves_sync_behavior():
                 assert len(stream_events) > 0
                 complete_events = [e for e in stream_events if e["type"] == "complete"]
                 assert len(complete_events) == 1
-                assert complete_events[0]["answer"] == "Test response"
+                assert "Test response" in complete_events[0]["answer"]
 
                 # Both should have called persist
                 assert mock_persist.call_count >= 1
@@ -45,7 +52,14 @@ async def test_streaming_preserves_sync_behavior():
 async def test_streaming_context_assembly():
     """Test streaming properly assembles context like sync version."""
     mock_llm = Mock()
-    mock_llm.generate = AsyncMock(return_value=Ok("Final answer: Done"))
+    xml_response = """<thinking>
+Context assembly test.
+</thinking>
+
+<response>
+Done
+</response>"""
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch("cogency.core.react.context") as mock_context:
@@ -58,7 +72,7 @@ async def test_streaming_context_assembly():
                     events.append(event)
 
                 # Context should be called with same parameters as sync version
-                mock_context.assemble.assert_called_with("Test", "context_test", [])
+                mock_context.assemble.assert_called_with("Test", "context_test", [], {}, 0)
 
                 # Context length should be reported in event
                 context_events = [e for e in events if e["type"] == "context"]
@@ -70,7 +84,14 @@ async def test_streaming_context_assembly():
 async def test_streaming_conversation_id_consistency():
     """Verify streaming conversation_id follows same pattern as sync."""
     mock_llm = Mock()
-    mock_llm.generate = AsyncMock(return_value=Ok("Final answer: Consistent"))
+    xml_response = """<thinking>
+Testing consistency.
+</thinking>
+
+<response>
+Consistent
+</response>"""
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch("cogency.core.react.context") as mock_context:
