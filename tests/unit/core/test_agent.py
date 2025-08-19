@@ -1,6 +1,6 @@
 """Agent tests."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -14,12 +14,8 @@ def test_create():
 
 
 @pytest.mark.asyncio
-async def test_call():
+async def test_call(mock_llm):
     """Agent call returns AgentResult with extracted final answer."""
-    from unittest.mock import AsyncMock, Mock
-
-    # Mock provider
-    mock_provider = Mock()
     xml_response = """<thinking>
 User said hello.
 </thinking>
@@ -27,26 +23,22 @@ User said hello.
 <response>
 Hello there!
 </response>"""
-    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         agent = Agent()
         result = await agent("Hello")
 
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
         assert "Hello there!" in result.response  # Response section extracted
-        assert result.conversation_id.startswith("agent_")
+        assert result.conversation_id.startswith("default_")
         assert len(result.conversation_id) > len("agent_")
 
 
 @pytest.mark.asyncio
-async def test_agent_end_to_end_integration():
+async def test_agent_end_to_end_integration(mock_llm):
     """Integration test - complete Agent pipeline with mocked LLM."""
-    from unittest.mock import AsyncMock, Mock, patch
-
-    # Mock realistic OpenAI-style response
-    mock_provider = Mock()
     xml_response = """<thinking>
 The user is greeting me with "Hello". I should respond politely.
 </thinking>
@@ -54,9 +46,9 @@ The user is greeting me with "Hello". I should respond politely.
 <response>
 Hello! How can I help you today?
 </response>"""
-    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         # Test complete end-to-end flow
         agent = Agent()
         result = await agent("Hello")
@@ -65,25 +57,22 @@ Hello! How can I help you today?
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
         assert "Hello! How can I help you today?" in result.response
-        assert result.conversation_id.startswith("agent_")
+        assert result.conversation_id.startswith("default_")
 
         # Verify XML parsing worked
         assert "thinking" not in result.response.lower()  # Thinking stripped out
 
         # Verify LLM was called with proper message structure
-        mock_provider.generate.assert_called_once()
-        call_args = mock_provider.generate.call_args[0][0]
+        mock_llm.generate.assert_called_once()
+        call_args = mock_llm.generate.call_args[0][0]
         assert len(call_args) == 1
         assert call_args[0]["role"] == "user"
         assert isinstance(call_args[0]["content"], str)
 
 
 @pytest.mark.asyncio
-async def test_runtime_multitenancy():
+async def test_runtime_multitenancy(mock_llm):
     """Runtime multitenancy with keyword user_id."""
-    from unittest.mock import AsyncMock, Mock
-
-    mock_provider = Mock()
     xml_response = """<thinking>
 User is greeting me.
 </thinking>
@@ -91,9 +80,9 @@ User is greeting me.
 <response>
 Hello user!
 </response>"""
-    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         agent = Agent()
         # Multiple users, same agent
         alice = await agent("Hello", user_id="alice")
@@ -106,11 +95,8 @@ Hello user!
 
 
 @pytest.mark.asyncio
-async def test_sacred_interface():
+async def test_sacred_interface(mock_llm):
     """Sacred zero-ceremony interface preserved."""
-    from unittest.mock import AsyncMock, Mock
-
-    mock_provider = Mock()
     xml_response = """<thinking>
 This is a math question.
 </thinking>
@@ -118,15 +104,15 @@ This is a math question.
 <response>
 Sacred!
 </response>"""
-    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         agent = Agent()
         result = await agent("What is 2+2?")
 
         assert isinstance(result, AgentResult)
         assert "Sacred!" in result.response
-        assert result.conversation_id.startswith("agent_")
+        assert result.conversation_id.startswith("default_")
 
 
 @pytest.mark.asyncio
@@ -143,17 +129,13 @@ def test_context():
     """Context injection."""
     from cogency.context import context
 
-    ctx = context.assemble("test", "user", [], {}, 0)
+    ctx = context.assemble("test", "user", "conv1", "task1", {})
     assert isinstance(ctx, str)
 
 
 @pytest.mark.asyncio
-async def test_persist():
+async def test_persist(mock_llm):
     """Persistence graceful failure - AgentResult contract."""
-    from unittest.mock import AsyncMock, Mock
-
-    # Mock provider
-    mock_provider = Mock()
     xml_response = """<thinking>
 This is a test.
 </thinking>
@@ -161,9 +143,9 @@ This is a test.
 <response>
 Test complete!
 </response>"""
-    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         agent = Agent()
         result = await agent("Test", user_id="test")
 

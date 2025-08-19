@@ -5,14 +5,6 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 
 
-@pytest.fixture
-def mock_llm():
-    """Mock LLM provider."""
-    llm = Mock()
-    llm.generate = AsyncMock()
-    return llm
-
-
 @pytest.mark.asyncio
 async def test_agent_with_llm_provider(mock_llm):
     """Agent uses configured LLM provider."""
@@ -26,7 +18,7 @@ User said hello.
 <response>
 Hello world
 </response>"""
-    mock_llm.generate.return_value = Ok(xml_response)
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         from cogency.core.agent import Agent
@@ -62,7 +54,7 @@ Processing query.
 <response>
 Response
 </response>"""
-    mock_llm.generate.return_value = Ok(xml_response)
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch("cogency.core.react.context") as mock_context:
@@ -74,4 +66,10 @@ Response
             await agent("Query", user_id="alice")
 
     # Verify context called with runtime user_id
-    mock_context.assemble.assert_called_with("Query", "alice", [], {}, 0)
+    call_args = mock_context.assemble.call_args[0]
+    assert call_args[0] == "Query"
+    assert call_args[1] == "alice"
+    assert call_args[2].startswith("alice_")  # conversation_id
+    assert (
+        len(call_args) == 5
+    )  # 5 parameter signature (query, user_id, conversation_id, task_id, tools)

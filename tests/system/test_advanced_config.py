@@ -2,16 +2,19 @@
 
 import asyncio
 
-from cogency import BASIC_TOOLS, Agent, profile
+from cogency import BASIC_TOOLS, Agent
+from cogency.context import memory
 
 
 async def main():
     # Advanced configuration
-    profile(
+    memory.update(
         "researcher",
-        name="Dr. Sarah Chen",
-        preferences=["detailed analysis", "scientific accuracy"],
-        context="Research scientist specializing in AI",
+        {
+            "name": "Dr. Sarah Chen",
+            "preferences": ["detailed analysis", "scientific accuracy"],
+            "context": "Research scientist specializing in AI",
+        },
     )
 
     agent = Agent(

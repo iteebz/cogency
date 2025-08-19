@@ -1,37 +1,34 @@
 """System instructions and capabilities."""
 
 
-def system(tools: dict = None, iteration: int = 0) -> str:
-    """System instructions with security assessment and tool capabilities."""
-    parts = [
-        "You are a helpful AI assistant. Use the XML sectioned format for all responses:",
-        "",
-        "<thinking>",
-        "Your reasoning process here",
-        "</thinking>",
-        "",
-        "<tools>",
-        '[{"name": "tool_name", "args": {"param": "value"}}]',
-        "</tools>",
-        "",
-        "<response>",
-        "Your final response here",
-        "</response>",
-    ]
+class SystemInstructions:
+    """Canonical system prompt with tool capabilities."""
 
-    # Security assessment on first iteration only
-    if iteration == 0:
-        from ..lib.security import SECURITY_ASSESSMENT
+    def format(self, tools: dict = None) -> str:
+        """System instructions with tool capabilities."""
+        base = """You are a helpful AI assistant.
 
-        parts.insert(1, SECURITY_ASSESSMENT)
-        parts.insert(2, "")
+RESPOND USING THIS XML STRUCTURE:
+<thinking>your reasoning</thinking>
+<tools>[{"name": "tool_name", "args": {"param": "value"}}] OR []</tools>
+<response>your answer</response>
 
-    # Tool descriptions
-    if tools:
-        tools_text = "AVAILABLE TOOLS:\n" + "\n".join(
-            f"- {t.name}: {t.description}" for t in tools.values()
-        )
-        parts.insert(-6, tools_text)
-        parts.insert(-6, "")
+TOOL CALL FORMAT:
+- Use JSON objects with "name" and "args" fields
+- Example: [{"name": "file_write", "args": {"filename": "test.txt", "content": "hello"}}]
+- For no tools: []
+"""
 
-    return "\n".join(parts)
+        from ..lib.security import SEMANTIC_SECURITY
+
+        if tools:
+            tool_list = "\n".join(f"- {t.name}: {t.description}" for t in tools.values())
+            tools_section = f"\nTOOLS:\n{tool_list}\n"
+        else:
+            tools_section = ""
+
+        return base + SEMANTIC_SECURITY + tools_section
+
+
+# Singleton instance
+system = SystemInstructions()

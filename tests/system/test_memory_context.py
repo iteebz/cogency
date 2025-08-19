@@ -2,16 +2,19 @@
 
 import asyncio
 
-from cogency import Agent, profile
+from cogency import Agent
+from cogency.context import memory
 
 
 async def main():
     # Create user profile for context
-    profile(
+    memory.update(
         "developer",
-        name="Alex",
-        preferences=["Python", "AI", "clean code"],
-        context="Senior software engineer",
+        {
+            "name": "Alex",
+            "preferences": ["Python", "AI", "clean code"],
+            "context": "Senior software engineer",
+        },
     )
 
     # Agent with user context

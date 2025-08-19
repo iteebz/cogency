@@ -8,10 +8,9 @@ from cogency.lib.result import Ok
 
 
 @pytest.mark.asyncio
-async def test_full_agent_provider_integration():
+async def test_full_agent_provider_integration(mock_llm):
     """Test complete Agent integration with provider system."""
-    # Mock provider
-    mock_provider = Mock()
+    # Use canonical mock fixture
     xml_response = """<thinking>
 Processing integration test.
 </thinking>
@@ -19,9 +18,9 @@ Processing integration test.
 <response>
 Hello from provider
 </response>"""
-    mock_provider.generate = AsyncMock(return_value=Ok(xml_response))
+    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_provider):
+    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch(
             "cogency.core.react.context.assemble", return_value="test context\n\nTASK: Test query"
         ):
@@ -38,8 +37,8 @@ Hello from provider
     assert "integration_test" in result.conversation_id
 
     # Verify provider called correctly
-    mock_provider.generate.assert_called_once()
-    call_args = mock_provider.generate.call_args[0][0]  # First positional arg
+    mock_llm.generate.assert_called_once()
+    call_args = mock_llm.generate.call_args[0][0]  # First positional arg
     assert len(call_args) == 1  # Single message
     assert call_args[0]["role"] == "user"
     assert "Test query" in call_args[0]["content"]

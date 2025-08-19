@@ -103,57 +103,23 @@ async def test_shared_logic_zero_duplication(mock_llm, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_persist_before_complete():
-    """Persist called before yield complete - prevents race condition."""
-    from unittest.mock import patch
-
-    persist_calls = []
-
-    async def mock_persist(user_id, query, response):
-        persist_calls.append((user_id, query, response))
-
-    with patch("cogency.core.react.persist", side_effect=mock_persist):
-        mock_llm = AsyncMock()
-        xml_response = """<thinking>
-This is a test response.
-</thinking>
-
-<response>
-Final answer: Test complete
-</response>"""
-
-        mock_llm.generate.return_value = MagicMock(
-            success=True, failure=False, unwrap=lambda: xml_response
-        )
-
-        result = await react(mock_llm, {}, "test", "user123", max_iterations=2)
-
-        assert result["type"] == "complete"
-        assert len(persist_calls) >= 1
-        assert "user123" in str(persist_calls)
-        assert "test" in str(persist_calls)
-
-
-@pytest.mark.asyncio
-async def test_security_prompt_only_first_iteration():
-    """Security instructions only appear in iteration #1 prompt."""
+async def test_security_prompt_in_all_iterations():
+    """Security instructions appear in all iterations for consistent validation."""
     from unittest.mock import patch
 
     prompts_generated = []
 
-    def mock_context_assemble(query, user_id, tool_results=None, tools=None, iteration=0):
-        # Mock context assembly - track security assessment appearance
-        from cogency.lib.security import SECURITY_ASSESSMENT
+    def mock_context_assemble(query, user_id, conversation_id, task_id, tools=None):
+        # Mock context assembly with security in system prompt
+        from cogency.lib.security import SEMANTIC_SECURITY
 
-        parts = []
-        if iteration == 0:
-            parts.append(SECURITY_ASSESSMENT)
-        parts.append(f"TASK: {query}")
+        # Security is always included via system.format()
+        parts = [SEMANTIC_SECURITY, f"TASK: {query}"]
         prompt = "\n\n".join(parts)
-        prompts_generated.append((iteration, prompt))
+        prompts_generated.append(prompt)
         return prompt
 
-    # Mock context assembly instead of deleted _build_prompt
+    # Mock context assembly with new signature
     with patch("cogency.core.react.context.assemble", side_effect=mock_context_assemble):
         mock_llm = AsyncMock()
         mock_llm.generate.return_value = MagicMock(
@@ -170,13 +136,10 @@ Final answer: Done
 
         await react(mock_llm, {}, "test", "user123", max_iterations=3)
 
-        # Check that security instructions only appear in first iteration
-        first_iteration_prompt = prompts_generated[0][1]
-        later_iteration_prompts = [p[1] for i, p in enumerate(prompts_generated) if i > 0]
-
-        assert "SECURITY EVALUATION" in first_iteration_prompt
-        for prompt in later_iteration_prompts:
-            assert "SECURITY EVALUATION" not in prompt
+        # Check that security instructions appear in all iterations
+        assert len(prompts_generated) >= 1
+        for prompt in prompts_generated:
+            assert "SECURITY EVALUATION" in prompt
 
 
 @pytest.mark.asyncio

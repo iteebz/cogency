@@ -40,7 +40,7 @@ class UserMemory:
     def update(self, user_id: str, profile_data: dict[str, Any]) -> bool:
         """Update user profile data."""
         if user_id is None:
-            raise ValueError("user_id cannot be None")
+            return False
         try:
             save_profile(user_id, profile_data)
             return True
@@ -50,19 +50,8 @@ class UserMemory:
     def clear(self, user_id: str) -> bool:
         """Clear user profile data."""
         if user_id is None:
-            raise ValueError("user_id cannot be None")
+            return False
         return self.update(user_id, {})
-
-    def set_preference(self, user_id: str, key: str, value: Any) -> bool:
-        """Set specific preference for user."""
-        profile = self.get(user_id) or {}
-        profile[key] = value
-        return self.update(user_id, profile)
-
-    def get_preference(self, user_id: str, key: str, default: Any = None) -> Any:
-        """Get specific preference for user."""
-        profile = self.get(user_id)
-        return profile.get(key, default) if profile else default
 
 
 # Singleton instance

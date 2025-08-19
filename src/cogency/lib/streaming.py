@@ -7,13 +7,7 @@ from .result import Err, Result
 
 
 def _streamable(llm) -> bool:
-    """Canonical streaming capability detection - avoids Mock auto-creation."""
-    from unittest.mock import Mock
-
-    # Check for real streaming capability, not Mock auto-creation
-    if isinstance(llm, Mock):
-        return False
-
+    """Canonical streaming capability detection."""
     return hasattr(llm, "stream") and callable(getattr(llm, "stream", None))
 
 

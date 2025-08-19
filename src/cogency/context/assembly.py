@@ -14,20 +14,20 @@ class Context:
         self,
         query: str,
         user_id: str,
-        tool_results: list = None,
+        conversation_id: str,
+        task_id: str,
         tools: dict = None,
-        iteration: int = 0,
     ) -> str:
         """Assemble unified context for query using elegant namespace API."""
         if user_id is None:
             raise ValueError("user_id cannot be None")
 
         contexts = [
-            system(tools=tools, iteration=iteration),
-            conversation.format(user_id),
-            knowledge.format(query, user_id),
+            system.format(tools=tools),
+            conversation.format(conversation_id),
+            knowledge.format(user_id),
             memory.format(user_id),
-            working.format(tool_results),
+            working.format(task_id),
             f"TASK: {query}",
         ]
         return "\n\n".join(filter(None, contexts))

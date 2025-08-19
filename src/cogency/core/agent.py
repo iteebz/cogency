@@ -13,17 +13,22 @@ class Agent:
 
     def __init__(self, llm="openai", embedder=None, tools=None, max_iterations: int = 5):
         self.llm = create_llm(llm)
-        self.embedder = create_embedder(embedder) if embedder else None
+        self.embedder = (
+            create_embedder(embedder) if embedder else None
+        )  # TODO: Implement RAG functionality
         self.tools = {t.name: t for t in (tools if tools is not None else BASIC_TOOLS)}
         self.max_iterations = max_iterations
 
-    async def __call__(self, query: str, *, user_id: str = None) -> AgentResult:
-        """Sacred interface with optional memory multitenancy."""
-        # Provide default user_id if None to maintain user isolation
+    async def __call__(
+        self, query: str, *, user_id: str = None, conversation_id: str = None
+    ) -> AgentResult:
+        """Sacred interface with optional memory multitenancy and conversation continuity."""
         if user_id is None:
-            user_id = f"agent_{int(time.time())}"
+            user_id = "default"
 
-        final_event = await react(self.llm, self.tools, query, user_id, self.max_iterations)
+        final_event = await react(
+            self.llm, self.tools, query, user_id, self.max_iterations, conversation_id
+        )
 
         if final_event["type"] == "error":
             return AgentResult(
@@ -32,7 +37,7 @@ class Agent:
 
         return AgentResult(final_event["answer"], final_event["conversation_id"])
 
-    async def stream(self, query: str, *, user_id: str = None):
+    async def stream(self, query: str, *, user_id: str = None, conversation_id: str = None):
         """Stream ReAct reasoning states as structured events.
 
         Yields structured events for each ReAct loop iteration:
@@ -48,9 +53,10 @@ class Agent:
                 if event["type"] == "reasoning":
                     print(f"Thinking: {event['content'][:100]}...")
         """
-        # Provide default user_id if None to maintain user isolation
         if user_id is None:
-            user_id = f"agent_{int(time.time())}"
+            user_id = "default"
 
-        async for event in stream_react(self.llm, self.tools, query, user_id, self.max_iterations):
+        async for event in stream_react(
+            self.llm, self.tools, query, user_id, self.max_iterations, conversation_id
+        ):
             yield event

@@ -38,7 +38,8 @@ def save_json_file(path: Path, data: Any) -> bool:
 def load_conversations(user_id: str) -> list[dict]:
     """Load conversation history for user."""
     conv_file = get_cogency_dir() / "conversations" / f"{user_id}.json"
-    return load_json_file(conv_file, [])
+    result = load_json_file(conv_file, None)
+    return result if result is not None else []
 
 
 def save_conversations(user_id: str, messages: list[dict]) -> bool:

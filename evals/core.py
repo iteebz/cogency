@@ -31,6 +31,9 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
 
     for i, test in enumerate(tests):
         # Fresh agent per test to prevent contamination
+        print(
+            f"🧪 Test {i+1}/{len(tests)}: {test.get('complexity', 'unknown')} - {test['prompt'][:50]}..."
+        )
         agent = CONFIG.agent()
         try:
             if "store_prompt" in test:
@@ -45,7 +48,9 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
                 response = agent_result.response
                 prompt_used = test["prompt"]
 
-            # Capture full context for manual review
+                print(f"   ✅ Completed: {len(response)} char response")
+
+            # Capture test result
             result_data = {
                 "test_id": f"{category}_{i:02d}",
                 "prompt": prompt_used,
