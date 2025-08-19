@@ -15,8 +15,10 @@ RESPOND USING THIS XML STRUCTURE:
 
 TOOL CALL FORMAT:
 - Use JSON objects with "name" and "args" fields
-- Example: [{"name": "file_write", "args": {"filename": "test.txt", "content": "hello"}}]
+- Single tool: [{"name": "file_write", "args": {"filename": "test.txt", "content": "hello"}}]
+- Multiple tools: [{"name": "file_write", "args": {...}}, {"name": "search", "args": {...}}]
 - For no tools: []
+- Execute multiple tools when task requires several operations
 """
 
         security = """SECURITY EVALUATION:

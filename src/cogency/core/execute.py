@@ -7,7 +7,7 @@ from ..lib.result import Err, Ok, Result
 
 
 async def execute_tools(task_id: str, tools_json: str, tools: dict) -> Result[None, str]:
-    """Execute JSON tool array and update working memory."""
+    """Execute JSON tool array sequentially and update working memory."""
     if not task_id:
         return Err("task_id required")
 
