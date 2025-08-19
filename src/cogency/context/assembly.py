@@ -48,7 +48,6 @@ class Context:
         working_context = working.format(task_id)
         if working_context:
             messages.append({"role": "user", "content": working_context})
-
         messages.append({"role": "user", "content": query})
 
         return messages

@@ -22,7 +22,8 @@ Hello from provider
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch(
-            "cogency.core.react.context.assemble", return_value="test context\n\nTASK: Test query"
+            "cogency.core.react.context.assemble",
+            return_value=[{"role": "user", "content": "Test query"}],
         ):
             from cogency.core.agent import Agent
 

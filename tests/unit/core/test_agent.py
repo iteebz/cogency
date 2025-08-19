@@ -65,9 +65,10 @@ Hello! How can I help you today?
         # Verify LLM was called with proper message structure
         mock_llm.generate.assert_called_once()
         call_args = mock_llm.generate.call_args[0][0]
-        assert len(call_args) == 1
-        assert call_args[0]["role"] == "user"
-        assert isinstance(call_args[0]["content"], str)
+        assert isinstance(call_args, list)
+        assert len(call_args) >= 1
+        assert call_args[0]["role"] == "system"
+        assert call_args[-1]["content"] == "Hello"
 
 
 @pytest.mark.asyncio
@@ -130,7 +131,9 @@ def test_context():
     from cogency.context import context
 
     ctx = context.assemble("test", "user", "conv1", "task1", {})
-    assert isinstance(ctx, str)
+    assert isinstance(ctx, list)
+    assert len(ctx) > 0
+    assert all("role" in msg for msg in ctx)
 
 
 @pytest.mark.asyncio

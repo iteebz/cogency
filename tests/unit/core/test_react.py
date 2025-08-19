@@ -82,6 +82,12 @@ async def test_react_handles_llm_error(mock_tools):
         success=False, failure=True, error="LLM connection failed"
     )
 
+    # Mock stream method to prevent coroutine warning
+    async def mock_stream(messages):
+        yield MagicMock(failure=True, error="Stream connection failed")
+
+    error_llm.stream = mock_stream
+
     result = await react(error_llm, mock_tools, "test query", "user123")
 
     assert result["type"] == "error"

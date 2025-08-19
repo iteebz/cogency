@@ -174,8 +174,8 @@ def test_context_assembly_isolation():
 
     # Verify contexts are different and contain user-specific data
     assert context_a != context_b
-    assert isinstance(context_a, str)
-    assert isinstance(context_b, str)
+    assert isinstance(context_a, list)
+    assert isinstance(context_b, list)
 
     # Verify user-specific content appears in correct context
     # (This is implementation-dependent on how format() methods work)

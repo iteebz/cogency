@@ -1,6 +1,6 @@
 """Tests for context namespace API.
 
-Tests define the expected context.assemble() interface for unified
+Tests define the expected context.assembly() interface for unified
 context assembly with user-scoped data integration.
 """
 
@@ -10,7 +10,7 @@ from cogency.context import context, working
 
 
 def test_assemble_basic_context():
-    """Assemble creates basic context without user data."""
+    """Assemble creates canonical message format without user data."""
     query = "What is 2 + 2?"
     user_id = "test_user"
     conversation_id = "conv_123"
@@ -18,12 +18,16 @@ def test_assemble_basic_context():
 
     result = context.assemble(query, user_id, conversation_id, task_id)
 
-    assert isinstance(result, str)
+    assert isinstance(result, list)
     assert len(result) > 0
+    assert all(isinstance(msg, dict) for msg in result)
+    assert all("role" in msg and "content" in msg for msg in result)
+    assert result[0]["role"] == "system"
+    assert result[-1]["content"] == query
 
 
 def test_assemble_with_working_memory():
-    """Assemble includes working memory in context assembly."""
+    """Assemble includes working memory in message format."""
     user_id = "working_test_user"
     task_id = "task_456"
     query = "Continue with the file operations"
@@ -38,12 +42,14 @@ def test_assemble_with_working_memory():
     # Assemble should include working memory
     result = context.assemble(query, user_id, "conv_456", task_id)
 
-    assert isinstance(result, str)
-    assert len(result) > len(query)
+    assert isinstance(result, list)
+    assert len(result) >= 2  # system + query at minimum
+    assert result[0]["role"] == "system"
+    assert result[-1]["content"] == query
 
 
 def test_assemble_user_isolation():
-    """Assemble maintains user isolation in context assembly."""
+    """Assemble maintains user isolation in message format."""
     user_a = "user_a"
     user_b = "user_b"
     task_a = "task_a"
@@ -59,8 +65,10 @@ def test_assemble_user_isolation():
 
     # Contexts should be different and isolated
     assert context_a != context_b
-    assert isinstance(context_a, str)
-    assert isinstance(context_b, str)
+    assert isinstance(context_a, list)
+    assert isinstance(context_b, list)
+    assert all("role" in msg for msg in context_a)
+    assert all("role" in msg for msg in context_b)
 
 
 def test_assemble_api_consistency():
@@ -74,7 +82,7 @@ def test_assemble_api_consistency():
     # Verify the API is available
     assert hasattr(context, "assemble")
     assert callable(context.assemble)
-    assert isinstance(result, str)
+    assert isinstance(result, list)
 
 
 def test_assemble_empty_user_data():
@@ -85,8 +93,9 @@ def test_assemble_empty_user_data():
     # No memory or working data for this user
     result = context.assemble(query, user_id, "conv_empty", "task_empty")
 
-    assert isinstance(result, str)
-    assert len(result) >= len(query)
+    assert isinstance(result, list)
+    assert len(result) >= 2  # system + query minimum
+    assert result[-1]["content"] == query
 
 
 def test_assemble_integrates_with_working():
@@ -102,7 +111,8 @@ def test_assemble_integrates_with_working():
     # Assemble should access working data
     result = context.assemble(query, user_id, "conv_int", task_id)
 
-    assert isinstance(result, str)
+    assert isinstance(result, list)
+    assert result[-1]["content"] == query
 
     # Clean up
     working.clear(task_id)
@@ -118,4 +128,5 @@ def test_assemble_none_user_id():
 def test_assemble_empty_query():
     """Assemble handles empty query string."""
     result = context.assemble("", "test_user", "conv_test", "task_test")
-    assert isinstance(result, str)
+    assert isinstance(result, list)
+    assert result[-1]["content"] == ""

@@ -2,7 +2,6 @@
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -118,5 +117,3 @@ def test_redact_secrets_safe_text():
     result = redact_secrets(text)
     assert result == text
     assert "[REDACTED]" not in result
-
-
