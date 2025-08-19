@@ -16,7 +16,8 @@ async def test_streaming_preserves_sync_behavior():
     mock_llm.generate = AsyncMock(return_value=Ok("Final answer: Test response"))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        with patch("cogency.core.react.context", return_value="context"):
+        with patch("cogency.core.react.context") as mock_context:
+            mock_context.assemble.return_value = "context"
             with patch("cogency.core.react.persist") as mock_persist:
                 agent = Agent(tools=[])
 
@@ -49,7 +50,7 @@ async def test_streaming_context_assembly():
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch("cogency.core.react.context") as mock_context:
             with patch("cogency.core.react.persist"):
-                mock_context.return_value = "assembled context"
+                mock_context.assemble.return_value = "assembled context"
                 agent = Agent(tools=[])
                 events = []
 
@@ -57,7 +58,7 @@ async def test_streaming_context_assembly():
                     events.append(event)
 
                 # Context should be called with same parameters as sync version
-                mock_context.assert_called_with("Test", "context_test", [])
+                mock_context.assemble.assert_called_with("Test", "context_test", [])
 
                 # Context length should be reported in event
                 context_events = [e for e in events if e["type"] == "context"]
@@ -72,7 +73,8 @@ async def test_streaming_conversation_id_consistency():
     mock_llm.generate = AsyncMock(return_value=Ok("Final answer: Consistent"))
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        with patch("cogency.core.react.context", return_value="context"):
+        with patch("cogency.core.react.context") as mock_context:
+            mock_context.assemble.return_value = "context"
             with patch("cogency.core.react.persist"):
                 agent = Agent(tools=[])
 

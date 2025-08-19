@@ -52,7 +52,7 @@ async def test_agent_runtime_user_id(mock_llm):
 
     with patch("cogency.core.agent.create_llm", return_value=mock_llm):
         with patch("cogency.core.react.context") as mock_context:
-            mock_context.return_value = "context"
+            mock_context.assemble.return_value = "context"
 
             from cogency.core.agent import Agent
 
@@ -60,4 +60,4 @@ async def test_agent_runtime_user_id(mock_llm):
             await agent("Query", user_id="alice")
 
     # Verify context called with runtime user_id
-    mock_context.assert_called_with("Query", "alice", [])
+    mock_context.assemble.assert_called_with("Query", "alice", [])

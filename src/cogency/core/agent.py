@@ -19,6 +19,10 @@ class Agent:
 
     async def __call__(self, query: str, *, user_id: str = None) -> AgentResult:
         """Sacred interface with optional memory multitenancy."""
+        # Provide default user_id if None to maintain user isolation
+        if user_id is None:
+            user_id = f"agent_{int(time.time())}"
+
         final_event = await react(self.llm, self.tools, query, user_id, self.max_iterations)
 
         if final_event["type"] == "error":
@@ -44,5 +48,9 @@ class Agent:
                 if event["type"] == "reasoning":
                     print(f"Thinking: {event['content'][:100]}...")
         """
+        # Provide default user_id if None to maintain user isolation
+        if user_id is None:
+            user_id = f"agent_{int(time.time())}"
+
         async for event in stream_react(self.llm, self.tools, query, user_id, self.max_iterations):
             yield event

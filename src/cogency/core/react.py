@@ -9,22 +9,32 @@ from ..lib.parsing import parse_with_signature
 
 async def react(llm, tools, query: str, user_id: str, max_iterations: int = 5):
     """ReAct algorithm - returns final result."""
+    from ..context import working
+
+    result = None
     async for event in stream_react(llm, tools, query, user_id, max_iterations):
         if event["type"] in ["complete", "error"]:
-            return event
-    return None
+            result = event
+            break
+
+    # Clear working memory after task completion (privacy + isolation)
+    working.clear(user_id)
+    return result
 
 
 async def stream_react(llm, tools, query: str, user_id: str, max_iterations: int = 5):
     """ReAct algorithm - streaming interface."""
-    tool_results = []
+    from ..context import working
+
+    # Get user-scoped working memory
+    tool_results = working.get(user_id)
 
     for iteration in range(max_iterations):
         # Iteration start
         yield {"type": "iteration", "number": iteration + 1}
 
         # Context assembly
-        ctx = context(query, user_id, tool_results)
+        ctx = context.assemble(query, user_id, tool_results)
         yield {"type": "context", "length": len(ctx)}
 
         # LLM generation with security-aware reasoning on first iteration
@@ -46,13 +56,13 @@ async def stream_react(llm, tools, query: str, user_id: str, max_iterations: int
             # Persist before yielding final answer
             with suppress(Exception):
                 await persist(user_id, query, final)
-                
+
             # Final event with conversation context
             yield {"type": "complete", "answer": final, "conversation_id": conversation_id}
             return
 
         # Tool execution
-        tool_used = await _execute_tool(response, tool_results, tools)
+        tool_used = await _execute_tool(response, tool_results, tools, user_id)
         if tool_used and tool_results:
             last_result = tool_results[-1]
             yield {
@@ -64,21 +74,21 @@ async def stream_react(llm, tools, query: str, user_id: str, max_iterations: int
         elif not tool_used:
             # No tool, complete with response
             conversation_id = f"{user_id}_{int(time.time())}"
-            
+
             # Persist before yielding complete
             with suppress(Exception):
                 await persist(user_id, query, response)
-                
+
             yield {"type": "complete", "answer": response, "conversation_id": conversation_id}
             return
 
     # Max iterations - complete with last response
     conversation_id = f"{user_id}_{int(time.time())}"
-    
+
     # Persist before yielding max iterations complete
     with suppress(Exception):
         await persist(user_id, query, response)
-        
+
     yield {"type": "complete", "answer": response, "conversation_id": conversation_id}
 
 
@@ -97,6 +107,7 @@ def _build_prompt(query: str, ctx: str, tool_results: list, tools: dict, iterati
     # Security assessment on first iteration only
     if iteration == 0:
         from ..lib.security import SECURITY_ASSESSMENT
+
         parts.append(SECURITY_ASSESSMENT)
 
     parts.append(f"TASK: {query}")
@@ -116,7 +127,7 @@ def _build_prompt(query: str, ctx: str, tool_results: list, tools: dict, iterati
         parts.append(results_text)
 
     prompt = "\n\n".join(parts)
-    
+
     if iteration == 0:
         return f"""{prompt}
 
@@ -126,8 +137,7 @@ Think step by step. Use tools when needed by writing:
 USE: tool_name(arg1="value1", arg2="value2")
 
 When complete, write your final answer."""
-    else:
-        return f"""{prompt}
+    return f"""{prompt}
 
 Think step by step. Use tools when needed by writing:
 USE: tool_name(arg1="value1", arg2="value2")
@@ -135,7 +145,7 @@ USE: tool_name(arg1="value1", arg2="value2")
 When complete, write your final answer."""
 
 
-async def _execute_tool(response: str, tool_results: list, tools: dict) -> bool:
+async def _execute_tool(response: str, tool_results: list, tools: dict, user_id: str) -> bool:
     """Execute tool from response. Returns True if tool was used."""
     import re
 
@@ -169,6 +179,12 @@ async def _execute_tool(response: str, tool_results: list, tools: dict) -> bool:
         result_entry["error"] = str(e)
 
     tool_results.append(result_entry)
+
+    # Update user-scoped working memory after tool execution
+    from ..context import working
+
+    working.update(user_id, tool_results)
+
     return True
 
 

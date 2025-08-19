@@ -30,8 +30,8 @@ async def test_call():
         assert isinstance(result, AgentResult)
         assert isinstance(result.response, str)
         assert result.response == "Hello there!"  # Final answer extracted
-        assert result.conversation_id.startswith("None_")
-        assert len(result.conversation_id) > len("None_")
+        assert result.conversation_id.startswith("agent_")
+        assert len(result.conversation_id) > len("agent_")
 
 
 @pytest.mark.integration
@@ -84,7 +84,7 @@ async def test_sacred_interface():
 
         assert isinstance(result, AgentResult)
         assert result.response == "Sacred!"
-        assert result.conversation_id.startswith("None_")
+        assert result.conversation_id.startswith("agent_")
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ def test_context():
     """Context injection."""
     from cogency.context import context
 
-    ctx = context("test", "user")
+    ctx = context.assemble("test", "user")
     assert isinstance(ctx, str)
 
 

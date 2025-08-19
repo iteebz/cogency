@@ -1,10 +1,11 @@
 """Direct LLM judge - zero ceremony evaluation."""
 
 from datetime import datetime
-from typing import Dict, Union
+from typing import Union
 
 try:
     from dotenv import load_dotenv
+
     load_dotenv()
 except ImportError:
     pass  # dotenv optional
@@ -21,29 +22,30 @@ def create_judge_llm(provider: Union[str, object] = "openai") -> object:
         return None
 
 
-async def judge(criteria: str, prompt: str, response: str, provider: Union[str, object] = "openai") -> tuple[bool, Dict]:
+async def judge(
+    criteria: str, prompt: str, response: str, provider: Union[str, object] = "openai"
+) -> tuple[bool, dict]:
     """Direct LLM judge - configurable provider with autodetection."""
     llm = create_judge_llm(provider)
-    
+
     if llm is None:
         return False, {"error": "LLM judge not configured - using manual review"}
-    
+
     evaluation = f"""CRITERIA: {criteria}
 PROMPT: {prompt}
 RESPONSE: {response}
 
 Did the agent meet the criteria? Answer PASS or FAIL with reasoning."""
-    
+
     messages = [
         {"role": "system", "content": "You are an evaluation judge."},
-        {"role": "user", "content": evaluation}
+        {"role": "user", "content": evaluation},
     ]
-    
+
     result = await llm.generate(messages)
-    
+
     if result.success:
         judgment = result.unwrap()
         passed = "PASS" in judgment.upper()
         return passed, {"judgment": judgment, "timestamp": datetime.now().isoformat()}
-    else:
-        return False, {"error": result.error}
+    return False, {"error": result.error}

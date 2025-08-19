@@ -1,19 +1,19 @@
 """Beautiful modular evaluation architecture - zero ceremony."""
 
-from .runner import baseline_evaluation
-from .core import evaluate_category, judge
 from .config import CONFIG
+from .core import evaluate_category, judge
+from .generators import continuity, reasoning, security, tooling
+from .runner import run_baseline
 from .storage import save_run
-from .generators import security, continuity, reasoning, tooling
 
 __all__ = [
-    "baseline_evaluation",
-    "evaluate_category", 
+    "run_baseline",
+    "evaluate_category",
     "judge",
     "CONFIG",
     "save_run",
     "security",
-    "continuity", 
+    "continuity",
     "reasoning",
-    "tooling"
+    "tooling",
 ]
