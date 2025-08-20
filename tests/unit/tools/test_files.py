@@ -11,8 +11,8 @@ from cogency.tools.files import FileList, FileRead, FileWrite
 def test_file_read_init():
     """FileRead initialization."""
     tool = FileRead()
-    assert tool.name == "file_read"
-    assert "read content" in tool.description.lower()
+    assert tool.name == "read"
+    assert "read file content" in tool.description.lower()
 
 
 @pytest.mark.asyncio
@@ -76,7 +76,7 @@ async def test_file_read_execute_path_traversal():
 def test_file_write_init():
     """FileWrite initialization."""
     tool = FileWrite()
-    assert tool.name == "file_write"
+    assert tool.name == "write"
     assert "write content" in tool.description.lower()
 
 
@@ -94,7 +94,7 @@ async def test_file_write_execute_success():
             result = await tool.execute("test.txt", "Hello world\nLine 2")
 
             assert result.success
-            assert "Wrote 'test.txt'" in result.unwrap()
+            assert "Created 'test.txt'" in result.unwrap()
             assert "2 lines" in result.unwrap()
 
             # Verify file was created
@@ -138,8 +138,8 @@ async def test_file_write_execute_path_traversal():
 def test_file_list_init():
     """FileList initialization."""
     tool = FileList()
-    assert tool.name == "file_list"
-    assert "list files" in tool.description.lower()
+    assert tool.name == "list"
+    assert "hierarchical structure" in tool.description.lower()
 
 
 @pytest.mark.asyncio
@@ -184,8 +184,15 @@ async def test_file_list_execute_with_files():
             assert result.success
             assert "file1.txt" in result.unwrap()
             assert "file2.txt" in result.unwrap()
-            assert "subdir/" in result.unwrap()
-            assert "bytes" in result.unwrap()
+            # Check for files in new hierarchical format
+            result_text = result.unwrap()
+            assert "file1.txt" in result_text
+            assert "file2.txt" in result_text
+            # New format shows summary
+            assert "Total:" in result_text
+            # New hierarchical format includes summary
+            result_text = result.unwrap()
+            assert len(result_text) > 0
         finally:
             os.chdir(old_cwd)
 

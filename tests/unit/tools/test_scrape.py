@@ -11,7 +11,7 @@ def test_init():
     """Scrape initialization."""
     scrape = Scrape()
     assert scrape.name == "scrape"
-    assert "extract text content" in scrape.description.lower()
+    assert "extract clean text content" in scrape.description.lower()
     assert "url" in scrape.description
 
 
@@ -64,7 +64,7 @@ async def test_execute_fetch_failed():
         result = await scrape.execute("https://example.com")
 
         assert result.failure
-        assert "failed to fetch" in result.error.lower()
+        assert "Failed to fetch content from" in result.error
 
 
 @pytest.mark.asyncio
@@ -79,7 +79,7 @@ async def test_execute_extract_failed():
         result = await scrape.execute("https://example.com")
 
         assert result.failure
-        assert "extract" in result.error.lower()
+        assert "No readable content found" in result.error
 
 
 @pytest.mark.asyncio

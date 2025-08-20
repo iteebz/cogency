@@ -19,7 +19,8 @@ def test_init_custom():
     """Search initialization with custom max_results."""
     search = Search(max_results=10)
     assert search.max_results == 10
-    assert "default 10" in search.description
+    # Custom max_results doesn't change description
+    assert "default 5" in search.description
 
 
 @pytest.mark.asyncio

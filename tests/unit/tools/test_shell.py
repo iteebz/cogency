@@ -12,8 +12,8 @@ def test_init():
     """Shell initialization."""
     tool = Shell()
     assert tool.name == "shell"
-    assert "safe commands" in tool.description.lower()
-    assert "python" in tool.description  # Should list available commands
+    assert "execute commands" in tool.description.lower()
+    assert "intelligent feedback" in tool.description.lower()
 
 
 @pytest.mark.asyncio
@@ -32,8 +32,8 @@ async def test_execute_success():
 
             assert result.success
             assert "Hello world" in result.unwrap()
-            assert "exit: 0" in result.unwrap()
-            assert "time: 0.5s" in result.unwrap()
+            assert "✓ echo" in result.unwrap()
+            assert "0.5s" in result.unwrap()
             mock_run.assert_called_once()
 
 
@@ -44,7 +44,7 @@ async def test_execute_empty_command():
     result = await tool.execute("")
 
     assert result.failure
-    assert "empty command" in result.error.lower()
+    assert "command cannot be empty" in result.error.lower()
 
 
 @pytest.mark.asyncio
@@ -54,7 +54,7 @@ async def test_execute_empty_parts():
     result = await tool.execute("   ")
 
     assert result.failure
-    assert "empty command" in result.error.lower()
+    assert "command cannot be empty" in result.error.lower()
 
 
 @pytest.mark.asyncio
@@ -104,7 +104,7 @@ async def test_execute_with_stderr():
 
             assert result.success
             assert "output" in result.unwrap()
-            assert "STDERR:" in result.unwrap()
+            assert "Warnings:" in result.unwrap()
             assert "warning message" in result.unwrap()
 
 
@@ -138,7 +138,7 @@ async def test_execute_timeout():
 
         assert result.failure
         assert "timed out" in result.error.lower()
-        assert "30s limit" in result.error
+        assert "timed out after 30 seconds" in result.error
 
 
 @pytest.mark.asyncio

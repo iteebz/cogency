@@ -41,7 +41,7 @@ class Embedder(Protocol):
 
 
 class Tool(ABC):
-    """Tool interface."""
+    """Tool interface with agent assistance capabilities."""
 
     @property
     @abstractmethod
@@ -54,6 +54,16 @@ class Tool(ABC):
     def description(self) -> str:
         """Tool description for agent understanding."""
         pass
+
+    @property
+    def schema(self) -> dict:
+        """Parameter schema for accurate agent tool calls."""
+        return {}
+
+    @property
+    def examples(self) -> list[dict]:
+        """Usage examples for agent learning."""
+        return []
 
     @abstractmethod
     async def execute(self, **kwargs) -> Result[str, str]:
