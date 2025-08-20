@@ -2,6 +2,7 @@
 
 from ...core.protocols import LLM, Embedder
 from ..result import Err, Ok, Result
+from ..rotation import with_rotation
 
 
 class OpenAI(LLM, Embedder):
@@ -9,13 +10,14 @@ class OpenAI(LLM, Embedder):
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str = None,
         llm_model: str = "gpt-4o-mini",
         embed_model: str = "text-embedding-3-small",
         temperature: float = 0.7,
         max_tokens: int = 500,
     ):
-        self.api_key = api_key
+        from ..credentials import detect_api_key
+        self.api_key = api_key or detect_api_key("openai")
         self.llm_model = llm_model
         self.embed_model = embed_model
         self.temperature = temperature
@@ -31,18 +33,21 @@ class OpenAI(LLM, Embedder):
         return self.client
 
     async def generate(self, messages: list[dict]) -> Result[str, str]:
-        """Generate text from conversation messages."""
+        """Generate text from conversation messages with key rotation."""
         try:
-            client = self._get_client()
-
-            response = await client.chat.completions.create(
-                model=self.llm_model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-            )
-
-            return Ok(response.choices[0].message.content)
+            async def _generate(api_key: str):
+                import openai
+                client = openai.AsyncOpenAI(api_key=api_key)
+                response = await client.chat.completions.create(
+                    model=self.llm_model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                )
+                return response.choices[0].message.content
+            
+            result = await with_rotation("OPENAI", _generate)
+            return Ok(result)
 
         except ImportError:
             return Err("Please install openai: pip install openai")
@@ -50,13 +55,16 @@ class OpenAI(LLM, Embedder):
             return Err(f"OpenAI LLM Error: {str(e)}")
 
     async def embed(self, texts: list[str]) -> Result[list[list[float]], str]:
-        """Generate embeddings for input texts."""
+        """Generate embeddings for input texts with key rotation."""
         try:
-            client = self._get_client()
-
-            response = await client.embeddings.create(model=self.embed_model, input=texts)
-
-            return Ok([item.embedding for item in response.data])
+            async def _embed(api_key: str):
+                import openai
+                client = openai.AsyncOpenAI(api_key=api_key)
+                response = await client.embeddings.create(model=self.embed_model, input=texts)
+                return [item.embedding for item in response.data]
+            
+            result = await with_rotation("OPENAI", _embed)
+            return Ok(result)
 
         except ImportError:
             return Err("Please install openai: pip install openai")

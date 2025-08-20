@@ -2,6 +2,7 @@
 
 from ...core.protocols import LLM, Embedder
 from ..result import Err, Ok, Result
+from ..rotation import with_rotation
 
 
 class Gemini(LLM, Embedder):
@@ -9,53 +10,62 @@ class Gemini(LLM, Embedder):
 
     def __init__(
         self,
-        api_key: str,
+        api_key: str = None,
         llm_model: str = "gemini-2.5-flash-lite",
         embed_model: str = "gemini-embedding-001",
         temperature: float = 0.7,
     ):
-        self.api_key = api_key
+        from ..credentials import detect_api_key
+        self.api_key = api_key or detect_api_key("gemini")
         self.llm_model = llm_model
         self.embed_model = embed_model
         self.temperature = temperature
 
     async def generate(self, messages: list[dict]) -> Result[str, str]:
-        """Generate text from conversation messages."""
+        """Generate text from conversation messages with automatic key rotation."""
         try:
-            import google.generativeai as genai
-
-            genai.configure(api_key=self.api_key)
-            model = genai.GenerativeModel(self.llm_model)
-
-            # Convert messages to Gemini format
-            prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
-
-            response = await model.generate_content_async(
-                prompt, generation_config=genai.types.GenerationConfig(temperature=self.temperature)
-            )
-
-            return Ok(response.text)
-
+            async def _generate(api_key: str):
+                import google.genai as genai
+                
+                client = genai.Client(api_key=api_key)
+                
+                prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+                
+                response = await client.agenerate_content(
+                    model=self.llm_model, 
+                    contents=prompt,
+                    config=genai.GenerateContentConfig(temperature=self.temperature)
+                )
+                
+                return response.text
+            
+            result = await with_rotation("GEMINI", _generate)
+            return Ok(result)
+            
         except ImportError:
-            return Err("Please install google-generativeai: pip install google-generativeai")
+            return Err("Please install google-genai: pip install google-genai")
         except Exception as e:
             return Err(f"Gemini LLM Error: {str(e)}")
 
     async def embed(self, texts: list[str]) -> Result[list[list[float]], str]:
         """Generate embeddings for input texts."""
         try:
-            import google.generativeai as genai
-
-            genai.configure(api_key=self.api_key)
-
-            embeddings = []
-            for text in texts:
-                result = genai.embed_content(model=self.embed_model, content=text)
-                embeddings.append(result["embedding"])
-
-            return Ok(embeddings)
+            async def _embed(api_key: str):
+                import google.genai as genai
+                
+                client = genai.Client(api_key=api_key)
+                
+                embeddings = []
+                for text in texts:
+                    result = await client.aembed_content(model=self.embed_model, content=text)
+                    embeddings.append(result.embedding)
+                
+                return embeddings
+            
+            result = await with_rotation("GEMINI", _embed)
+            return Ok(result)
 
         except ImportError:
-            return Err("Please install google-generativeai: pip install google-generativeai")
+            return Err("Please install google-genai: pip install google-genai")
         except Exception as e:
             return Err(f"Gemini Embedder Error: {str(e)}")

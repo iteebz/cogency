@@ -1,11 +1,18 @@
 """Agent: Pure interface to ReAct algorithm."""
 
 import time
+from dataclasses import dataclass
 
 from ..lib.providers import create_embedder, create_llm
 from ..tools import BASIC_TOOLS
 from .react import react, stream_react
-from .types import AgentResult
+
+
+@dataclass
+class AgentResult:
+    """Agent execution result with response and conversation continuity."""
+    response: str
+    conversation_id: str
 
 
 class Agent:
@@ -37,10 +44,14 @@ class Agent:
 
         if final_event["type"] == "error":
             return AgentResult(
-                f"LLM Error: {final_event['message']}", f"{user_id}_{int(time.time())}"
+                response=f"LLM Error: {final_event['message']}", 
+                conversation_id=f"{user_id}_{int(time.time())}"
             )
 
-        return AgentResult(final_event["answer"], final_event["conversation_id"])
+        return AgentResult(
+            response=final_event["answer"],
+            conversation_id=final_event["conversation_id"]
+        )
 
     async def stream(self, query: str, *, user_id: str = None, conversation_id: str = None):
         """Stream ReAct reasoning states as structured events.
