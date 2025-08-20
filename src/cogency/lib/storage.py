@@ -86,27 +86,94 @@ def add_document(doc_id: str, content: str, metadata: dict = None) -> bool:
         return False
 
 
-def search_documents(query: str, limit: int = 3) -> list[dict]:
-    """Simple text search in knowledge base."""
+async def search_documents(query: str, limit: int = 3, embedder=None) -> list[dict]:
+    """Semantic search in knowledge base with keyword fallback."""
     try:
         knowledge = load_knowledge()
+        if not knowledge:
+            return []
+
         results = []
 
-        query_lower = query.lower()
-        for doc_id, doc_data in knowledge.items():
-            content = doc_data.get("content", "").lower()
-            if query_lower in content:
-                results.append(
-                    {
-                        "doc_id": doc_id,
-                        "content": doc_data.get("content", ""),
-                        "metadata": doc_data.get("metadata", {}),
-                        "relevance": content.count(query_lower),
-                    }
-                )
+        if embedder:
+            # Semantic search path - vector similarity
+            try:
+                query_result = await embedder.embed([query])
+                if query_result.success:
+                    query_embedding = query_result.unwrap()[0]
+                    results = await _semantic_search(query_embedding, knowledge, limit)
+                else:
+                    # Fallback to keyword if embedding fails
+                    results = _keyword_search(query, knowledge, limit)
+            except Exception:
+                # Graceful degradation to keyword search
+                results = _keyword_search(query, knowledge, limit)
+        else:
+            # Keyword search fallback
+            results = _keyword_search(query, knowledge, limit)
 
-        # Sort by relevance (simple word count)
-        results.sort(key=lambda x: x["relevance"], reverse=True)
-        return results[:limit]
+        return results
     except Exception:
         return []
+
+
+def _keyword_search(query: str, knowledge: dict, limit: int) -> list[dict]:
+    """Keyword-based search fallback."""
+    results = []
+    query_lower = query.lower()
+
+    for doc_id, doc_data in knowledge.items():
+        content = doc_data.get("content", "").lower()
+        if query_lower in content:
+            results.append(
+                {
+                    "doc_id": doc_id,
+                    "content": doc_data.get("content", ""),
+                    "metadata": doc_data.get("metadata", {}),
+                    "relevance": content.count(query_lower),
+                }
+            )
+
+    # Sort by relevance (simple word count)
+    results.sort(key=lambda x: x["relevance"], reverse=True)
+    return results[:limit]
+
+
+async def _semantic_search(query_embedding: list[float], knowledge: dict, limit: int) -> list[dict]:
+    """Vector similarity search with cosine similarity."""
+    results = []
+
+    for doc_id, doc_data in knowledge.items():
+        doc_embedding = doc_data.get("embedding")
+        if doc_embedding:
+            similarity = _cosine_similarity(query_embedding, doc_embedding)
+            results.append(
+                {
+                    "doc_id": doc_id,
+                    "content": doc_data.get("content", ""),
+                    "metadata": doc_data.get("metadata", {}),
+                    "relevance": similarity,
+                }
+            )
+
+    # Sort by semantic similarity
+    results.sort(key=lambda x: x["relevance"], reverse=True)
+    return results[:limit]
+
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Calculate cosine similarity between two vectors."""
+    try:
+        # Dot product
+        dot_product = sum(x * y for x, y in zip(a, b))
+
+        # Magnitudes
+        magnitude_a = sum(x * x for x in a) ** 0.5
+        magnitude_b = sum(x * x for x in b) ** 0.5
+
+        if magnitude_a == 0 or magnitude_b == 0:
+            return 0.0
+
+        return dot_product / (magnitude_a * magnitude_b)
+    except Exception:
+        return 0.0

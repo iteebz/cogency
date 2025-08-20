@@ -13,9 +13,7 @@ class Agent:
 
     def __init__(self, llm="openai", embedder=None, tools=None, max_iterations: int = 5):
         self.llm = create_llm(llm)
-        self.embedder = (
-            create_embedder(embedder) if embedder else None
-        )  # TODO: Implement RAG functionality
+        self.embedder = create_embedder(embedder) if embedder else None
         self.tools = {t.name: t for t in (tools if tools is not None else BASIC_TOOLS)}
         self.max_iterations = max_iterations
 
@@ -27,7 +25,14 @@ class Agent:
             user_id = "default"
 
         final_event = await react(
-            self.llm, self.tools, query, user_id, self.max_iterations, conversation_id
+            self.llm,
+            self.tools,
+            query,
+            user_id,
+            self.max_iterations,
+            conversation_id,
+            test_mode=False,
+            embedder=self.embedder,
         )
 
         if final_event["type"] == "error":
@@ -57,6 +62,14 @@ class Agent:
             user_id = "default"
 
         async for event in stream_react(
-            self.llm, self.tools, query, user_id, self.max_iterations, conversation_id
+            self.llm,
+            self.tools,
+            query,
+            user_id,
+            self.max_iterations,
+            conversation_id,
+            task_id=None,
+            test_mode=False,
+            embedder=self.embedder,
         ):
             yield event

@@ -6,7 +6,14 @@ from .scrape import Scrape
 from .search import Search
 from .shell import Shell
 
-BASIC_TOOLS = [FileRead(), FileWrite(), FileList(), Shell(), Search(), Scrape()]
+BASIC_TOOLS = [
+    FileRead(),
+    FileWrite(),
+    FileList(),
+    Shell(),
+    Search(),
+    Scrape(),
+]
 
 __all__ = [
     "Tool",

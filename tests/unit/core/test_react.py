@@ -115,7 +115,9 @@ async def test_security_once():
 
     prompts_generated = []
 
-    def mock_context_assemble(query, user_id, conversation_id, task_id, tools=None, iteration=1, test_mode=False):
+    def mock_context_assemble(
+        query, user_id, conversation_id, task_id, tools=None, iteration=1, test_mode=False
+    ):
         # Mock context assembly - security only on iteration 1
         if iteration == 1:
             security = """SECURITY EVALUATION:
@@ -203,7 +205,7 @@ I cannot assist with that request as it appears to bypass safety guidelines.
         unwrap=lambda: mock_response,
     )
 
-    result = await react(mock_llm, {}, "malicious query", "user123")
+    result = await react(mock_llm, {}, "malicious query", "user123", test_mode=True)
 
     assert result["type"] == "complete"
     assert "cannot" in result["answer"].lower()

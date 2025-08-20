@@ -18,13 +18,14 @@ async def react(
     max_iterations: int = 5,
     conversation_id: str = None,
     test_mode: bool = False,
+    embedder=None,
 ):
     """ReAct algorithm - returns final result."""
     task_id = str(uuid.uuid4())
 
     result = None
     async for event in stream_react(
-        llm, tools, query, user_id, max_iterations, conversation_id, task_id, test_mode
+        llm, tools, query, user_id, max_iterations, conversation_id, task_id, test_mode, embedder
     ):
         if event["type"] in ["complete", "error"]:
             result = event
@@ -44,6 +45,7 @@ async def stream_react(
     conversation_id: str = None,
     task_id: str = None,
     test_mode: bool = False,
+    embedder=None,
 ):
     """Canonical XML sectioned ReAct algorithm - Zero ceremony."""
 
@@ -98,7 +100,8 @@ async def stream_react(
             conversation.add(conversation_id, "assistant", response)
 
             # Learn from successful interaction (background, non-blocking)
-            memory.learn(user_id, query, response)
+            if not test_mode:
+                await memory.learn(user_id, query, response, llm=llm)
 
             yield {
                 "type": "complete",

@@ -37,12 +37,21 @@ Hello from provider
     assert "Hello from provider" in result.response
     assert "integration_test" in result.conversation_id
 
-    # Verify provider called correctly
-    mock_llm.generate.assert_called_once()
-    call_args = mock_llm.generate.call_args[0][0]  # First positional arg
-    assert len(call_args) == 1  # Single message
-    assert call_args[0]["role"] == "user"
-    assert "Test query" in call_args[0]["content"]
+    # Verify provider called correctly (once for reasoning, once for memory learning)
+    assert mock_llm.generate.call_count == 2
+
+    # Check first call (main reasoning)
+    first_call_args = mock_llm.generate.call_args_list[0][0][0]  # First call, first positional arg
+    assert len(first_call_args) == 1  # Single message
+    assert first_call_args[0]["role"] == "user"
+
+    # Check second call (memory learning pattern extraction)
+    second_call_args = mock_llm.generate.call_args_list[1][0][
+        0
+    ]  # Second call, first positional arg
+    assert len(second_call_args) == 1  # Single message
+    assert "Extract user interests" in second_call_args[0]["content"]
+    assert "Test query" in first_call_args[0]["content"]
 
 
 def test_backward_compatibility_preserved():
