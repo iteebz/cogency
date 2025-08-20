@@ -76,7 +76,7 @@ def test_json_in_tools_section():
         <thinking>Need to use multiple tools</thinking>
         <tools>
         [
-            {"name": "file_write", "args": {"filename": "data.json", "content": "{\\"test\\": true}"}},
+            {"name": "file_write", "args": {"filename": "data.json", "content": "{}"}},
             {"name": "shell", "args": {"command": "ls -la"}}
         ]
         </tools>
@@ -153,6 +153,16 @@ def test_comprehensive_edge_cases():
         (
             "<THINKING>Upper</THINKING><tools>[]</tools>",
             {"thinking": "Upper", "tools": "[]", "response": None},
+        ),
+        # Unicode content
+        (
+            "<thinking>Unicode: 中文 🎯</thinking><tools>[]</tools>",
+            {"thinking": "Unicode: 中文 🎯", "tools": "[]", "response": None},
+        ),
+        # Malformed JSON in tools (should handle gracefully)
+        (
+            '<thinking>Bad JSON</thinking><tools>[{"name":"tool", "broken": }</tools>',
+            {"thinking": "Bad JSON", "tools": '[{"name":"tool", "broken": }', "response": None},
         ),
     ]
 

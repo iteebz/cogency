@@ -7,8 +7,9 @@ from ..lib.result import Err, Ok, Result
 class Search(Tool):
     """Search the web using DuckDuckGo."""
 
-    def __init__(self, max_results: int = 5):
+    def __init__(self, max_results: int = 5, performance_cap: int = 10):
         self.max_results = max_results
+        self.performance_cap = performance_cap
 
     @property
     def name(self) -> str:
@@ -16,7 +17,7 @@ class Search(Tool):
 
     @property
     def description(self) -> str:
-        return f"Search the web for information. Args: query (str), limit (int, default {self.max_results})"
+        return f"Search the web. Args: query (str), limit (int, default {self.max_results})"
 
     async def execute(self, query: str, limit: int = None) -> Result[str, str]:
         """Execute web search."""
@@ -30,7 +31,7 @@ class Search(Tool):
 
         # Use instance default or parameter override
         effective_limit = limit if limit is not None else self.max_results
-        effective_limit = min(effective_limit, 10)  # Cap at 10 for performance
+        effective_limit = min(effective_limit, self.performance_cap)
 
         try:
             results = DDGS().text(query, max_results=effective_limit)

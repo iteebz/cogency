@@ -2,12 +2,11 @@
 
 from ..core.protocols import Tool
 from .files import FileList, FileRead, FileWrite
-from .retrieve import Retrieve
 from .scrape import Scrape
 from .search import Search
 from .shell import Shell
 
-BASIC_TOOLS = [FileRead(), FileWrite(), FileList(), Shell(), Retrieve(), Search(), Scrape()]
+BASIC_TOOLS = [FileRead(), FileWrite(), FileList(), Shell(), Search(), Scrape()]
 
 __all__ = [
     "Tool",
@@ -16,7 +15,6 @@ __all__ = [
     "FileWrite",
     "FileList",
     "Shell",
-    "Retrieve",
     "Search",
     "Scrape",
 ]

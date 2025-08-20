@@ -126,3 +126,47 @@ async def test_working_memory_records_actions(mock_tools):
         assert call_args[1]["tool"] == "file_write"
         assert call_args[1]["args"] == {"filename": "test.txt", "content": "hello"}
         assert call_args[1]["result"] == "File written successfully"
+
+
+@pytest.mark.asyncio
+async def test_execute_tool_failures_graceful():
+    """Test graceful handling of multiple tool failures."""
+    # Mock tools with different failure modes
+    failing_tools = {
+        "timeout_tool": AsyncMock(name="timeout_tool"),
+        "error_tool": AsyncMock(name="error_tool"),
+        "missing_tool": None,  # Tool doesn't exist
+    }
+
+    failing_tools["timeout_tool"].execute.return_value = Err("Tool timeout")
+    failing_tools["error_tool"].execute.return_value = Err("Internal error")
+
+    # Test individual failures handle gracefully
+    timeout_result = await execute_tools(
+        "task1", '[{"name": "timeout_tool", "args": {}}]', failing_tools
+    )
+    assert timeout_result.failure
+    assert "timeout" in timeout_result.error.lower()
+
+    error_result = await execute_tools(
+        "task2", '[{"name": "error_tool", "args": {}}]', failing_tools
+    )
+    assert error_result.failure
+    assert "error" in error_result.error.lower()
+
+
+@pytest.mark.asyncio
+async def test_execute_invalid_tool_args(mock_tools):
+    """Test handling of invalid tool argument types."""
+    # Test various invalid argument scenarios
+    test_cases = [
+        ('{"name": "file_write"}', "missing args field"),  # Missing args
+        ('[{"name": "file_write", "args": "not_a_dict"}]', "args must be object"),  # String args
+        ('[{"name": 123, "args": {}}]', "tool name must be string"),  # Numeric name
+    ]
+
+    for tools_json, _expected_error_type in test_cases:
+        result = await execute_tools("task123", tools_json, mock_tools)
+        assert result.failure  # Should handle gracefully, not crash
+        # Should have some error message (specific content may vary)
+        assert len(result.error) > 0

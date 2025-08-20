@@ -35,7 +35,7 @@ Both tools have executed successfully. I can now provide the final response.
 <tools>[]</tools>
 
 <response>
-I've written your notes to a file and searched for Python async best practices. Both tasks completed successfully.
+Both tasks completed successfully. I've written your notes and searched for Python async best practices.
 </response>"""
 
     # Mock multiple LLM calls for iterations
@@ -66,8 +66,8 @@ def mock_multi_tools():
 
 
 @pytest.mark.asyncio
-async def test_react_executes_multiple_tools(mock_llm_multi_tool, mock_multi_tools):
-    """Test ReAct flow executes multiple tools from single LLM response."""
+async def test_multi_execution(mock_llm_multi_tool, mock_multi_tools):
+    """Multi-tool execution."""
     result = await react(
         mock_llm_multi_tool, mock_multi_tools, "Take notes and research async", "user123"
     )

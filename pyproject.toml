@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "cogency"
-version = "2.1.0"
+version = "2.2.0"
 description = "Stateless Context-Driven Agent Framework"
 authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"

@@ -6,7 +6,9 @@ from ..context import working
 from ..lib.result import Err, Ok, Result
 
 
-async def execute_tools(task_id: str, tools_json: str, tools: dict) -> Result[None, str]:
+async def execute_tools(
+    task_id: str, tools_json: str, tools: dict, user_id: str = None
+) -> Result[None, str]:
     """Execute JSON tool array sequentially and update working memory."""
     if not task_id:
         return Err("task_id required")
@@ -23,14 +25,16 @@ async def execute_tools(task_id: str, tools_json: str, tools: dict) -> Result[No
         return Err("Tools must be JSON array")
 
     for tool_call in tool_calls:
-        result = await _execute(task_id, tool_call, tools)
+        result = await _execute(task_id, tool_call, tools, user_id)
         if result.failure:
             return result  # Propagate failure
 
     return Ok(None)
 
 
-async def _execute(task_id: str, tool_call: dict, tools: dict) -> Result[None, str]:
+async def _execute(
+    task_id: str, tool_call: dict, tools: dict, user_id: str = None
+) -> Result[None, str]:
     """Execute single JSON tool call."""
     if not isinstance(tool_call, dict):
         return Err("Tool call must be JSON object")
@@ -46,9 +50,13 @@ async def _execute(task_id: str, tool_call: dict, tools: dict) -> Result[None, s
     if not isinstance(args, dict):
         return Err("Tool 'args' must be JSON object")
 
-    # Execute
+    # Execute with context
     try:
-        result = await tools[tool_name].execute(**args)
+        # Pass user_id as kwarg only for tools that need it (like recall)
+        kwargs = dict(args)
+        if user_id and tool_name == "recall":
+            kwargs["user_id"] = user_id
+        result = await tools[tool_name].execute(**kwargs)
 
         # Record action taken in working memory
         if result.success:

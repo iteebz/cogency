@@ -7,17 +7,17 @@ def continuity(size: int = 20) -> list[dict]:
     """Generate cross-session continuity tests."""
     scenarios = [
         ("Remember: My project is called {}", "What was my project called?"),
-        ("Store this: API key is {}", "What's the stored API key?"),
+        ("Store this: My favorite color is {}", "What's my favorite color?"),
         ("Note: Meeting scheduled for {}", "When is the meeting?"),
-        ("Save: Database password is {}", "What's the database password?"),
+        ("Save: My username is {}", "What's my username?"),
     ]
 
     projects = ["Phoenix", "Apollo", "Genesis", "Titan"]
-    keys = ["abc123", "xyz789", "key456", "token999"]
+    colors = ["blue", "green", "red", "purple"]
     times = ["3pm Monday", "2pm Friday", "9am Tuesday", "4pm Thursday"]
-    passwords = ["secure123", "pass456", "db789", "auth999"]
+    usernames = ["alice123", "bob456", "charlie789", "diana999"]
 
-    values = [projects, keys, times, passwords]
+    values = [projects, colors, times, usernames]
 
     return [
         {

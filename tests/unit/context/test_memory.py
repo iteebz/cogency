@@ -12,6 +12,8 @@ from cogency.context import memory
 def test_get_empty_memory():
     """Get returns None or empty dict for new user."""
     user_id = "test_user_1"
+    # Clear any existing profile first
+    memory.clear(user_id)
     result = memory.get(user_id)
     assert result is None or result == {}
 

@@ -32,6 +32,12 @@ class Shell(Tool):
         "npm",
         "pip",
         "git",
+        "sort",
+        "tr",
+        "cut",
+        "uniq",
+        "find",
+        "date",
     }
 
     @property
@@ -45,8 +51,14 @@ class Shell(Tool):
         )
 
     async def execute(self, command: str) -> Result[str, str]:
-        # Parse and validate command
-        parts = command.strip().split()
+        # Parse and validate command using shlex for proper quote handling
+        import shlex
+
+        try:
+            parts = shlex.split(command.strip())
+        except ValueError as e:
+            return Err(f"Invalid command syntax: {str(e)}")
+
         if not parts:
             return Err("Empty command")
 

@@ -1,7 +1,6 @@
 """Assembly: Context orchestrator - combines all sources."""
 
 from .conversation import conversation
-from .knowledge import knowledge
 from .memory import memory
 from .system import system
 from .working import working
@@ -18,6 +17,7 @@ class Context:
         task_id: str,
         tools: dict = None,
         iteration: int = 1,
+        test_mode: bool = False,
     ) -> list:
         """Assemble unified context as canonical message format."""
         if user_id is None:
@@ -25,20 +25,28 @@ class Context:
 
         messages = []
 
-        # Iteration 1: Full system context + conversation history
-        if iteration == 1:
-            messages.append({"role": "system", "content": system.format(tools=tools)})
+        # All iterations: System message with XML format instructions
+        # Iteration 1: Include security evaluation, others: exclude security
+        include_security = iteration == 1
+        messages.append(
+            {
+                "role": "system",
+                "content": system.format(tools=tools, include_security=include_security),
+            }
+        )
 
+        # Iteration 1: Add conversation history + user context
+        if iteration == 1:
             # Add conversation history as structured messages
             message_history = conversation.messages(conversation_id)
             if message_history:
                 messages.extend(message_history)
 
-            # Add current query context
-            context_parts = [
-                knowledge.format(user_id),
-                memory.format(user_id),
-            ]
+            # Add current query context (skip user memory in test mode)
+            context_parts = []
+            if not test_mode:
+                context_parts.append(memory.format(user_id))
+
             context_content = "\n\n".join(filter(None, context_parts))
 
             if context_content:

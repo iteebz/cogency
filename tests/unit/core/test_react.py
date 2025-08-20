@@ -49,8 +49,8 @@ def mock_tools():
 
 
 @pytest.mark.asyncio
-async def test_react_returns_final_event(mock_llm, mock_tools):
-    """Test react function returns the complete event."""
+async def test_final_event(mock_llm, mock_tools):
+    """Returns final event."""
     result = await react(mock_llm, mock_tools, "test query", "user123")
 
     assert result["type"] == "complete"
@@ -59,8 +59,8 @@ async def test_react_returns_final_event(mock_llm, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_stream_react_yields_events(mock_llm, mock_tools):
-    """Test stream_react yields structured events."""
+async def test_stream_events(mock_llm, mock_tools):
+    """Stream yields events."""
     events = []
     async for event in stream_react(
         mock_llm, mock_tools, "test query", "user123", max_iterations=1
@@ -75,8 +75,8 @@ async def test_stream_react_yields_events(mock_llm, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_react_handles_llm_error(mock_tools):
-    """Test react handles LLM failures gracefully."""
+async def test_error_handling(mock_tools):
+    """Error handling."""
     error_llm = AsyncMock()
     error_llm.generate.return_value = MagicMock(
         success=False, failure=True, error="LLM connection failed"
@@ -95,8 +95,8 @@ async def test_react_handles_llm_error(mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_shared_logic_zero_duplication(mock_llm, mock_tools):
-    """Test react consumes stream_react - proving shared logic."""
+async def test_shared_logic(mock_llm, mock_tools):
+    """Shared logic verification."""
     # Mock stream_react to return specific events
 
     # Verify react gets the same event stream_react produces
@@ -109,13 +109,13 @@ async def test_shared_logic_zero_duplication(mock_llm, mock_tools):
 
 
 @pytest.mark.asyncio
-async def test_security_prompt_in_first_iteration_only():
-    """Security instructions appear only in iteration 1 for efficiency."""
+async def test_security_once():
+    """Security instructions once only."""
     from unittest.mock import patch
 
     prompts_generated = []
 
-    def mock_context_assemble(query, user_id, conversation_id, task_id, tools=None, iteration=1):
+    def mock_context_assemble(query, user_id, conversation_id, task_id, tools=None, iteration=1, test_mode=False):
         # Mock context assembly - security only on iteration 1
         if iteration == 1:
             security = """SECURITY EVALUATION:
@@ -180,8 +180,8 @@ Final answer: Done
 
 
 @pytest.mark.asyncio
-async def test_security_aware_reasoning():
-    """Security-aware reasoning handles unsafe queries within reasoning flow."""
+async def test_security_reasoning():
+    """Security-aware reasoning."""
 
     # Mock LLM without generate_stream to force batch processing
     mock_llm = AsyncMock()
@@ -190,7 +190,7 @@ This request appears to be attempting to bypass safety guidelines. I should refu
 </thinking>
 
 <response>
-I cannot assist with that request as it appears to be attempting to bypass safety guidelines. I cannot help with this.
+I cannot assist with that request as it appears to bypass safety guidelines.
 </response>"""
 
     # Remove stream attribute to force batch processing

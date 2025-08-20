@@ -11,7 +11,7 @@ class Gemini(LLM, Embedder):
         self,
         api_key: str,
         llm_model: str = "gemini-2.5-flash-lite",
-        embed_model: str = "text-embedding-004",
+        embed_model: str = "gemini-embedding-001",
         temperature: float = 0.7,
     ):
         self.api_key = api_key

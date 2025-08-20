@@ -12,22 +12,24 @@ class WorkingMemory:
         self._storage: dict[str, list[dict[str, Any]]] = {}
         self._lock = Lock()
 
-    def format(self, task_id: str) -> str:
+    def format(self, task_id: str, limit: int = 3) -> str:
         """Inject working memory context for LLM reasoning."""
         actions = self.get(task_id)
         if not actions:
             return ""
 
-        # Inject recent tool results for LLM context
-        # TODO: Make recent action limit configurable, not hardcoded to 3
-        recent = actions[-3:] if len(actions) > 3 else actions
+        # Show recent tool results for LLM context
+        recent = actions[-limit:] if len(actions) > limit else actions
         context_lines = []
         for action in recent:
             tool = action.get("tool", "unknown")
+            args = action.get("args", {})
             if "result" in action:
-                context_lines.append(f"✓ {tool} succeeded")
-            else:
-                context_lines.append(f"✗ {tool} failed")
+                result = action["result"]
+                context_lines.append(f"✓ {tool}({args}) → {result}")
+            elif "error" in action:
+                error = action["error"]
+                context_lines.append(f"✗ {tool}({args}) → Error: {error}")
 
         return "Recent actions:\n" + "\n".join(context_lines)
 

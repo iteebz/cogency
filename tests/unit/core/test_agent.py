@@ -37,8 +37,8 @@ Hello there!
 
 
 @pytest.mark.asyncio
-async def test_agent_end_to_end_integration(mock_llm):
-    """Integration test - complete Agent pipeline with mocked LLM."""
+async def test_integration(mock_llm):
+    """Integration test."""
     xml_response = """<thinking>
 The user is greeting me with "Hello". I should respond politely.
 </thinking>
@@ -72,8 +72,8 @@ Hello! How can I help you today?
 
 
 @pytest.mark.asyncio
-async def test_runtime_multitenancy(mock_llm):
-    """Runtime multitenancy with keyword user_id."""
+async def test_multitenancy(mock_llm):
+    """Runtime multitenancy."""
     xml_response = """<thinking>
 User is greeting me.
 </thinking>
@@ -96,8 +96,8 @@ Hello user!
 
 
 @pytest.mark.asyncio
-async def test_sacred_interface(mock_llm):
-    """Sacred zero-ceremony interface preserved."""
+async def test_interface(mock_llm):
+    """Zero-ceremony interface."""
     xml_response = """<thinking>
 This is a math question.
 </thinking>
@@ -117,8 +117,8 @@ Sacred!
 
 
 @pytest.mark.asyncio
-async def test_keyword_only_enforcement():
-    """Keyword-only user_id parameter enforced."""
+async def test_keyword_only():
+    """Keyword-only parameters."""
     agent = Agent()
 
     # This should raise TypeError - positional user_id not allowed

@@ -12,8 +12,8 @@ from cogency.tools.security import (
 )
 
 
-def test_validate_input_safe():
-    """validate_input allows safe content."""
+def test_safe_input():
+    """Safe input validation."""
     assert validate_input("Hello world")
     assert validate_input("python script.py")
     assert validate_input("./relative/path")
@@ -21,8 +21,8 @@ def test_validate_input_safe():
     assert validate_input("file.txt")
 
 
-def test_validate_input_dangerous():
-    """validate_input blocks dangerous patterns."""
+def test_dangerous_input():
+    """Dangerous input blocking."""
     assert not validate_input("rm -rf /")
     assert not validate_input("format c:")
     assert not validate_input("shutdown now")

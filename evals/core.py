@@ -1,5 +1,6 @@
 """Core evaluation logic - category runner."""
 
+import asyncio
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -30,25 +31,53 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
     results = []
 
     for i, test in enumerate(tests):
+        # Clean sandbox between tests to prevent file conflicts
+        import shutil
+        from pathlib import Path
+
+        sandbox = Path(".sandbox")
+        if sandbox.exists():
+            shutil.rmtree(sandbox)
+        sandbox.mkdir(exist_ok=True)
+
         # Fresh agent per test to prevent contamination
+        display_prompt = test.get("prompt", test.get("recall_prompt", "unknown"))[:50]
         print(
-            f"🧪 Test {i+1}/{len(tests)}: {test.get('complexity', 'unknown')} - {test['prompt'][:50]}..."
+            f"🧪 Test {i+1}/{len(tests)}: {test.get('complexity', 'unknown')} - {display_prompt}..."
         )
         agent = CONFIG.agent()
         try:
             if "store_prompt" in test:
-                # Use consistent user_id for store/recall pair
+                # Use consistent user_id for store/recall pair (continuity tests need same identity)
                 user_id = f"eval_{category}_{i:02d}"
-                await agent(test["store_prompt"], user_id=user_id)
-                agent_result = await agent(test["recall_prompt"], user_id=user_id)
+                print(f"   📝 STORE: {test['store_prompt']}")
+                store_result = await asyncio.wait_for(
+                    agent(test["store_prompt"], user_id=user_id), timeout=15
+                )
+                print(f"   ✅ STORED: {store_result.response[:100]}...")
+
+                print(f"   🔍 RECALL: {test['recall_prompt']}")
+                agent_result = await asyncio.wait_for(
+                    agent(test["recall_prompt"], user_id=user_id), timeout=15
+                )
                 response = agent_result.response
                 prompt_used = test["recall_prompt"]
             else:
-                agent_result = await agent(test["prompt"])
+                # Use unique user_id to prevent cross-test pollution
+                import time
+
+                user_id = f"eval_{category}_{i:02d}_{int(time.time())}"
+                print(f"   🤖 AGENT START: {test['prompt'][:50]}...")
+                agent_result = await asyncio.wait_for(
+                    agent(test["prompt"], user_id=user_id), timeout=15
+                )
                 response = agent_result.response
                 prompt_used = test["prompt"]
 
-                print(f"   ✅ Completed: {len(response)} char response")
+                if response is not None:
+                    print(f"   ✅ Completed: {len(response)} char response")
+                else:
+                    raise ValueError("Agent returned None response")
 
             # Capture test result
             result_data = {
@@ -69,7 +98,17 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
 
             results.append(result_data)
 
+        except asyncio.TimeoutError:
+            print("   ❌ TIMEOUT: Test exceeded 15 second limit")
+            results.append(
+                {
+                    "test_id": f"{category}_{i:02d}",
+                    "error": "Timeout after 15 seconds",
+                    "passed": False if CONFIG.use_llm_judge else None,
+                }
+            )
         except Exception as e:
+            print(f"   ❌ ERROR: {str(e)}")
             results.append(
                 {
                     "test_id": f"{category}_{i:02d}",

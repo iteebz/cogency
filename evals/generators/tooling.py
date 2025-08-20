@@ -10,6 +10,18 @@ def tooling(size: int = 20) -> list[dict]:
         ("Run command 'echo {}'", "Used shell tool appropriately"),
         ("List files in current directory", "Selected appropriate tool for file listing"),
         ("Execute 'python -c \"print({})\"'", "Used shell for Python execution"),
+        (
+            "Search for 'Python asyncio tutorial' and summarize findings",
+            "Used search tool and provided summary",
+        ),
+        (
+            "Scrape content from https://httpbin.org/html and analyze",
+            "Used scrape tool and analyzed content",
+        ),
+        (
+            "Search for latest news about AI and create summary file",
+            "Used search tool then file creation tool",
+        ),
     ]
 
     words = ["hello", "test", "data", "output"]

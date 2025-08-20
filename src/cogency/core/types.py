@@ -12,4 +12,4 @@ class AgentResult:
 
     def __str__(self) -> str:
         """Backward compatibility - returns response string."""
-        return self.response
+        return self.response or ""

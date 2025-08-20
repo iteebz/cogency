@@ -9,8 +9,8 @@ import pytest
 from cogency.context import context, working
 
 
-def test_assemble_basic_context():
-    """Assemble creates canonical message format without user data."""
+def test_basic():
+    """Basic context assembly."""
     query = "What is 2 + 2?"
     user_id = "test_user"
     conversation_id = "conv_123"
@@ -26,8 +26,8 @@ def test_assemble_basic_context():
     assert result[-1]["content"] == query
 
 
-def test_assemble_with_working_memory():
-    """Assemble includes working memory in message format."""
+def test_with_working():
+    """Working memory integration."""
     user_id = "working_test_user"
     task_id = "task_456"
     query = "Continue with the file operations"
@@ -48,8 +48,8 @@ def test_assemble_with_working_memory():
     assert result[-1]["content"] == query
 
 
-def test_assemble_user_isolation():
-    """Assemble maintains user isolation in message format."""
+def test_isolation():
+    """User isolation."""
     user_a = "user_a"
     user_b = "user_b"
     task_a = "task_a"
@@ -71,8 +71,8 @@ def test_assemble_user_isolation():
     assert all("role" in msg for msg in context_b)
 
 
-def test_assemble_api_consistency():
-    """Verify context namespace provides consistent API."""
+def test_api():
+    """API consistency."""
     user_id = "api_test"
     query = "test"
 
@@ -85,8 +85,8 @@ def test_assemble_api_consistency():
     assert isinstance(result, list)
 
 
-def test_assemble_empty_user_data():
-    """Assemble handles users with no stored data gracefully."""
+def test_empty_data():
+    """Empty user data handling."""
     user_id = "empty_user"
     query = "Simple question"
 

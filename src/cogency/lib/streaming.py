@@ -3,6 +3,7 @@
 from collections.abc import AsyncGenerator
 from typing import Optional
 
+from .parsing import parse_xml_sections
 from .result import Err, Result
 
 
@@ -45,13 +46,13 @@ async def _stream_realtime(llm, messages) -> Result[dict[str, Optional[str]], st
 async def _parse_batch(llm, messages) -> Result[dict[str, Optional[str]], str]:
     """Fallback batch parsing for non-streaming LLMs."""
     result = await llm.generate(messages)
-    return _parse_xml_buffer(result.unwrap()) if result.success else result
+    if result.failure:
+        return result
+    return _parse_xml_buffer(result.unwrap())
 
 
 def _parse_xml_buffer(buffer: str) -> Result[dict[str, Optional[str]], str]:
     """Parse complete XML buffer into sections."""
-    from .parsing import parse_xml_sections
-
     return parse_xml_sections(buffer)
 
 
@@ -90,13 +91,13 @@ def validate_streaming(test_cases: list) -> bool:
         result = _parse_xml_buffer(input_xml)
 
         if result.failure:
-            print(f"Test {i+1} FAILED: {result.error}")
+            print(f"Test {i + 1} FAILED: {result.error}")
             return False
 
         actual = result.unwrap()
         for section, expected_content in expected.items():
             if actual.get(section) != expected_content:
-                print(f"Test {i+1} FAILED: {section} mismatch")
+                print(f"Test {i + 1} FAILED: {section} mismatch")
                 return False
 
     return True

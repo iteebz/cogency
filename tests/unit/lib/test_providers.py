@@ -1,8 +1,29 @@
-"""Test provider factory functions."""
+"""Test provider protocols and factory functions."""
 
 from unittest.mock import patch
 
 import pytest
+
+from cogency.core.protocols import LLM, Tool
+from cogency.lib.result import Ok
+
+
+def test_llm_protocol_runtime_checking():
+    """LLM protocol works with isinstance at runtime."""
+
+    class MockLLM:
+        async def generate(self, messages):
+            return Ok("response")
+
+    mock_llm = MockLLM()
+    assert isinstance(mock_llm, LLM)
+
+
+def test_tool_protocol_exists():
+    """Tool protocol defined correctly."""
+    assert hasattr(Tool, "execute")
+    assert hasattr(Tool, "name")
+    assert hasattr(Tool, "description")
 
 
 def test_create_llm_string_shortcut():

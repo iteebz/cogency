@@ -47,6 +47,78 @@ class UserMemory:
         except Exception:
             return False
 
+    def learn(self, user_id: str, query: str, response: str, context: str = None) -> None:
+        """Learn from user interaction."""
+        if not user_id or user_id == "default":
+            return
+
+        try:
+            # Extract learnable patterns from interaction
+            profile = self.get(user_id) or {}
+
+            # Track interaction patterns
+            interactions = profile.get("interactions", [])
+            interactions.append(
+                {
+                    "query_type": self._classify_query(query),
+                    "query_length": len(query),
+                    "success": True,
+                }
+            )
+
+            # Keep only recent interactions (last 50)
+            interactions = interactions[-50:]
+
+            # Extract preferences from successful queries
+            preferences = profile.get("preferences", [])
+            preferences = self._extract_preferences(query, response, preferences)
+
+            # Update profile
+            profile.update(
+                {
+                    "interactions": interactions,
+                    "preferences": list(set(preferences)),  # Deduplicate
+                    "last_active": int(__import__("time").time()),
+                }
+            )
+
+            # Async update (non-blocking)
+            self.update(user_id, profile)
+
+        except Exception:
+            # Memory updates never block - graceful degradation
+            pass
+
+    def _classify_query(self, query: str) -> str:
+        """Classify query type for learning."""
+        query_lower = query.lower()
+
+        if any(word in query_lower for word in ["search", "find", "look up"]):
+            return "search"
+        if any(word in query_lower for word in ["create", "write", "generate"]):
+            return "creation"
+        if any(word in query_lower for word in ["explain", "what", "how", "why"]):
+            return "explanation"
+        if any(word in query_lower for word in ["analyze", "review", "check"]):
+            return "analysis"
+        return "general"
+
+    def _extract_preferences(self, query: str, response: str, existing: list) -> list:
+        """Extract user preferences from successful interactions."""
+        preferences = existing.copy()
+
+        # Extract topics/domains from query
+        query_lower = query.lower()
+
+        # Technical domains
+        domains = ["python", "javascript", "react", "api", "database", "ml", "ai"]
+        for domain in domains:
+            if domain in query_lower and domain not in preferences:
+                preferences.append(domain)
+
+        # Limit to most recent 20 preferences
+        return preferences[-20:]
+
     def clear(self, user_id: str) -> bool:
         """Clear user profile data."""
         if user_id is None:
