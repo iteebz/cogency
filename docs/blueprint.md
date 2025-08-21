@@ -20,7 +20,6 @@ Read-only functions that select and format relevant information:
 def inject_context(query: str, user_id: str) -> str:
     sources = [
         conversation_context(user_id),
-        knowledge_context(query, user_id), 
         memory_context(user_id)
     ]
     return "\n\n".join(filter(None, sources))
@@ -33,9 +32,6 @@ def conversation_context(user_id: str) -> str:
     messages = db.get_recent_messages(user_id, limit=10)
     return f"Recent conversation:\n{format_messages(messages)}" if messages else ""
 
-def knowledge_context(query: str, user_id: str) -> str:
-    docs = semantic_search(query, user_id, top_k=5)
-    return f"Relevant knowledge:\n{format_docs(docs)}" if docs else ""
 
 def memory_context(user_id: str) -> str:
     profile = db.get_user_profile(user_id)
@@ -70,9 +66,9 @@ Graceful degradation. Failed context sources don't break reasoning.
 ```python
 def inject_context(query: str, user_id: str) -> str:
     contexts = []
-    for source_fn in [conversation_context, knowledge_context, memory_context]:
+    for source_fn in [conversation_context, memory_context]:
         try:
-            ctx = source_fn(query, user_id) if source_fn == knowledge_context else source_fn(user_id)
+            ctx = source_fn(user_id)
             if ctx: contexts.append(ctx)
         except: pass  # Continue with available context
     return "\n\n".join(contexts)

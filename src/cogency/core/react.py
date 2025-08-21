@@ -1,11 +1,12 @@
 """ReAct Algorithm - Canonical XML Protocol Implementation."""
 
-import time
 import uuid
 
 from ..context import conversation, working
 from ..context.assembly import context
-from ..context.memory import memory
+from ..context.memory import memory as memory_system
+
+# No global observe - passed as parameter
 from ..lib.streaming import stream_xml_sections
 from .execute import execute_tools
 
@@ -17,15 +18,25 @@ async def react(
     user_id: str = None,
     max_iterations: int = 5,
     conversation_id: str = None,
-    test_mode: bool = False,
+    memory: bool = True,
     embedder=None,
+    observer=None,
 ):
     """ReAct algorithm - returns final result."""
     task_id = str(uuid.uuid4())
 
     result = None
     async for event in stream_react(
-        llm, tools, query, user_id, max_iterations, conversation_id, task_id, test_mode, embedder
+        llm,
+        tools,
+        query,
+        user_id,
+        max_iterations,
+        conversation_id,
+        task_id,
+        memory,
+        embedder,
+        observer,
     ):
         if event["type"] in ["complete", "error"]:
             result = event
@@ -44,8 +55,9 @@ async def stream_react(
     max_iterations: int = 5,
     conversation_id: str = None,
     task_id: str = None,
-    test_mode: bool = False,
+    memory: bool = True,
     embedder=None,
+    observer=None,
 ):
     """Canonical XML sectioned ReAct algorithm - Zero ceremony."""
 
@@ -53,7 +65,7 @@ async def stream_react(
     if user_id is None:
         user_id = "default"
     if conversation_id is None:
-        conversation_id = f"{user_id}_{int(time.time())}"  # Unique conversation per invocation
+        conversation_id = user_id  # One endless conversation per user
     if task_id is None:
         task_id = str(uuid.uuid4())
 
@@ -62,8 +74,15 @@ async def stream_react(
 
         # Context assembly with system capabilities
         messages = context.assemble(
-            query, user_id, conversation_id, task_id, tools, iteration + 1, test_mode
+            query, user_id, conversation_id, task_id, tools, iteration + 1, memory
         )
+
+        # Standard logging instead of observe dependency
+        import logging
+
+        logger = logging.getLogger("cogency.react")
+        logger.debug(f"LLM request iteration {iteration + 1}: {len(messages)} messages")
+
         yield {"type": "context", "length": len(str(messages))}
 
         # Stream XML sections with canonical boundary detection
@@ -100,8 +119,8 @@ async def stream_react(
             conversation.add(conversation_id, "assistant", response)
 
             # Learn from successful interaction (background, non-blocking)
-            if not test_mode:
-                await memory.learn(user_id, query, response, llm=llm)
+            if memory:
+                await memory_system.learn(user_id, query, response, llm=llm, embedder=embedder)
 
             yield {
                 "type": "complete",

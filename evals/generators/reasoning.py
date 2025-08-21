@@ -6,61 +6,67 @@ import random
 def reasoning(size: int = 20) -> list[dict]:
     """Generate multi-step reasoning tests with expanded complexity metadata."""
     workflows = [
-        # Simple workflows (1-2 tools, linear) - FORCE tool usage with "USE:" commands
+        # Simple workflows (1-2 tools, linear) - FORCE tool usage with explicit commands
         (
-            "Create file 'test.py' with content print('hello'). Then execute the file using shell command.",
+            "EXECUTE: file_write filename='test.py' content=\"print('hello')\". THEN EXECUTE: shell command='python test.py'",
             "simple",
         ),
         (
-            "Use file_write to save number 42 to 'num.txt', then use file_read to verify it",
+            "EXECUTE: file_write filename='num.txt' content='42'. THEN EXECUTE: file_read filename='num.txt'",
             "simple",
         ),
         (
-            "Create 'data.txt' with content 'test' using file_write, read with file_read, delete with shell",
+            "EXECUTE: file_write filename='data.txt' content='test'. THEN EXECUTE: file_read filename='data.txt'. THEN EXECUTE: shell command='rm data.txt'",
             "simple",
         ),
-        ("Use shell command to calculate 7 * 8 with python -c, save output to file", "simple"),
+        (
+            "EXECUTE: shell command='python -c \"print(7*8)\"'. THEN EXECUTE: file_write filename='calc.txt' with the result",
+            "simple",
+        ),
         # Medium workflows (3-5 tools, some branching)
         (
-            "Write '1,2,3' to numbers.txt, read the file, calculate sum with python, display result",
-            "medium",
-        ),
-        ("Create Python addition script, write to file, execute with shell, show output", "medium"),
-        (
-            "Create config.json with {name:'John', age:20}, read file, modify age to 25, write back",
+            "EXECUTE: file_write filename='numbers.txt' content='1,2,3'. THEN EXECUTE: file_read filename='numbers.txt'. THEN EXECUTE: shell command='python -c \"print(sum([1,2,3]))'\"",
             "medium",
         ),
         (
-            "Write numbers 1-5 to file (one per line), read file, find maximum using python",
+            "EXECUTE: file_write filename='add.py' content='print(10+15)'. THEN EXECUTE: shell command='python add.py'. THEN display the output",
             "medium",
         ),
         (
-            "Create shopping.txt with 'apple,banana,cherry', read file, sort items, count total",
+            "EXECUTE: file_write filename='config.json' content='{\"name\":\"John\", \"age\":20}'. THEN EXECUTE: file_read filename='config.json'. THEN modify age to 25 and save back",
+            "medium",
+        ),
+        (
+            "EXECUTE: file_write filename='nums.txt' content='1\\n2\\n3\\n4\\n5'. THEN EXECUTE: file_read filename='nums.txt'. THEN EXECUTE: shell command to find maximum",
+            "medium",
+        ),
+        (
+            "EXECUTE: file_write filename='shopping.txt' content='apple,banana,cherry'. THEN EXECUTE: file_read filename='shopping.txt'. THEN sort and count items",
             "medium",
         ),
         # Complex workflows (6+ tools, conditional logic, error handling)
         (
-            "Create directory 'workspace', add file 'readme.txt' inside, list directory, clean up",
+            "EXECUTE: shell command='mkdir workspace'. THEN EXECUTE: file_write filename='workspace/readme.txt' content='Hello'. THEN EXECUTE: file_list path='workspace'. THEN EXECUTE: shell command='rm -rf workspace'",
             "complex",
         ),
         (
-            "Make 'project' folder, create 'README.md' with content, list structure, remove all",
+            "EXECUTE: shell command='mkdir project'. THEN EXECUTE: file_write filename='project/README.md' content='# Project'. THEN EXECUTE: file_list path='project'. THEN EXECUTE: shell command='rm -rf project'",
             "complex",
         ),
         (
-            "Create CSV file with name,age rows for 3 people, read CSV, calculate average age",
+            "EXECUTE: file_write filename='people.csv' content='name,age\\nJohn,25\\nJane,30\\nBob,35'. THEN EXECUTE: file_read filename='people.csv'. THEN calculate average age with python",
             "complex",
         ),
         (
-            "Create timer.txt, write countdown 5,4,3,2,1 (separate writes), read final count",
+            "EXECUTE: file_write filename='timer.txt' content='5'. THEN append '4,3,2,1' separately. THEN EXECUTE: file_read filename='timer.txt' to show final countdown",
             "complex",
         ),
         (
-            "Check if 'backup.txt' exists with file_list, if missing create with timestamp",
+            "EXECUTE: file_list to check if 'backup.txt' exists. IF missing, EXECUTE: file_write filename='backup.txt' with current timestamp",
             "complex",
         ),
         (
-            "Create log.txt, append 3 entries with timestamps, count lines, archive if >2 lines",
+            "EXECUTE: file_write filename='log.txt' content='Entry 1'. THEN append 2 more entries with timestamps. THEN count lines and archive if >2",
             "complex",
         ),
     ]

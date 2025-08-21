@@ -1,6 +1,5 @@
 """Core agent contracts."""
 
-from .agent import Agent
-from .types import AgentResult
+from .agent import Agent, AgentResult
 
 __all__ = ["Agent", "AgentResult"]

@@ -1,64 +1,77 @@
-"""Storage layer tests - type preservation and file operations."""
+"""Storage layer tests - SQLite persistence operations."""
 
-from pathlib import Path
-from tempfile import NamedTemporaryFile
+import tempfile
 
-from cogency.lib.storage import load_json_file, save_json_file
-
-
-def test_list_default_preserved():
-    """Default list type preserved when file missing."""
-    nonexistent = Path("nonexistent_file_12345.json")
-    result = load_json_file(nonexistent, [])
-    assert isinstance(result, list)
-    assert result == []
+from cogency.lib.storage import (
+    load_conversations,
+    load_memory,
+    save_conversation_message,
+    save_memory,
+)
 
 
-def test_dict_default_preserved():
-    """Default dict type preserved when file missing."""
-    nonexistent = Path("nonexistent_file_12345.json")
-    result = load_json_file(nonexistent, {})
-    assert isinstance(result, dict)
-    assert result == {}
+def test_conversation_empty_load():
+    """Empty conversation returns empty list."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        result = load_conversations("nonexistent_conv", temp_dir)
+        assert isinstance(result, list)
+        assert result == []
 
 
-def test_none_defaults_to_dict():
-    """None default returns empty dict."""
-    nonexistent = Path("nonexistent_file_12345.json")
-    result = load_json_file(nonexistent, None)
-    assert isinstance(result, dict)
-    assert result == {}
+def test_conversation_roundtrip():
+    """Conversation message save/load roundtrip."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        conv_id = "test_conversation"
+
+        # Save messages
+        assert save_conversation_message(conv_id, "user", "Hello", temp_dir)
+        assert save_conversation_message(conv_id, "assistant", "Hi there", temp_dir)
+
+        # Load and verify
+        messages = load_conversations(conv_id, temp_dir)
+        assert len(messages) == 2
+        assert messages[0]["role"] == "user"
+        assert messages[0]["content"] == "Hello"
+        assert messages[1]["role"] == "assistant"
+        assert messages[1]["content"] == "Hi there"
 
 
-def test_roundtrip_list():
-    """List data roundtrip through save/load."""
-    test_data = ["item1", "item2", "item3"]
-
-    with NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        temp_path = Path(f.name)
-
-    try:
-        save_json_file(temp_path, test_data)
-        loaded = load_json_file(temp_path, [])
-
-        assert isinstance(loaded, list)
-        assert loaded == test_data
-    finally:
-        temp_path.unlink(missing_ok=True)
+def test_memory_empty_load():
+    """Empty memory returns empty dict."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        result = load_memory("nonexistent_user", temp_dir)
+        assert isinstance(result, dict)
+        assert result == {}
 
 
-def test_roundtrip_dict():
-    """Dict data roundtrip through save/load."""
-    test_data = {"key": "value", "count": 42}
+def test_memory_roundtrip():
+    """Memory data save/load roundtrip."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        user_id = "test_user"
+        test_data = {"key": "value", "count": 42, "items": ["a", "b", "c"]}
 
-    with NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-        temp_path = Path(f.name)
-
-    try:
-        save_json_file(temp_path, test_data)
-        loaded = load_json_file(temp_path, {})
+        # Save and load
+        assert save_memory(user_id, test_data, temp_dir)
+        loaded = load_memory(user_id, temp_dir)
 
         assert isinstance(loaded, dict)
         assert loaded == test_data
-    finally:
-        temp_path.unlink(missing_ok=True)
+
+
+def test_memory_update():
+    """Memory updates properly."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        user_id = "test_user"
+
+        # Save initial data
+        initial_data = {"version": 1}
+        assert save_memory(user_id, initial_data, temp_dir)
+
+        # Update with new data
+        updated_data = {"version": 2, "new_field": "added"}
+        assert save_memory(user_id, updated_data, temp_dir)
+
+        # Verify update
+        loaded = load_memory(user_id, temp_dir)
+        assert loaded == updated_data
+        assert loaded["version"] == 2

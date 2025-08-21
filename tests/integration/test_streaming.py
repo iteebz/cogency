@@ -29,7 +29,7 @@ Test response
             # Test synchronous call still works
             sync_result = await agent("Test query", user_id="sync_test")
             assert "Test response" in sync_result.response
-            assert sync_result.conversation_id.startswith("sync_test_")
+            assert sync_result.conversation_id == "sync_test"
 
             # Test streaming works
             stream_events = []
@@ -105,14 +105,8 @@ Consistent
             complete_events = [e for e in stream_events if e["type"] == "complete"]
             stream_conv_id = complete_events[0]["conversation_id"]
 
-            # Both should follow user_id_timestamp pattern
-            assert sync_conv_id.startswith("user123_")
-            assert stream_conv_id.startswith("user123_")
-            assert len(sync_conv_id.split("_")) == 2
-            assert len(stream_conv_id.split("_")) == 2
+            # Both should use user_id as conversation_id when not specified
+            assert sync_conv_id == "user123"
+            assert stream_conv_id == "user123"
 
-            # Timestamps should be integers
-            sync_timestamp = sync_conv_id.split("_")[1]
-            stream_timestamp = stream_conv_id.split("_")[1]
-            assert sync_timestamp.isdigit()
-            assert stream_timestamp.isdigit()
+            # Both use same conversation ID format

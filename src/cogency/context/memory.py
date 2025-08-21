@@ -1,208 +1,137 @@
-"""User profile memory management."""
+"""User memory management - clean and minimal."""
 
 from typing import Any, Optional
 
-from ..lib.storage import load_profile, save_profile
+from ..lib.storage import load_memory, save_memory
 
 
 class UserMemory:
     """User-scoped profile and preference management."""
 
     def format(self, user_id: str) -> str:
-        """Format user profile for context display."""
+        """Format user memory for context display."""
         try:
-            profile = self.get(user_id)
-            if not profile:
+            memory = self.get(user_id)
+            if not memory:
                 return ""
 
-            parts = []
-            if profile.get("name"):
-                parts.append(f"User: {profile['name']}")
-            if profile.get("preferences"):
-                prefs = ", ".join(profile["preferences"])
-                parts.append(f"Interests: {prefs}")
-            if profile.get("context"):
-                parts.append(f"Context: {profile['context']}")
+            import json
 
-            return "User profile:\n" + "\n".join(parts) if parts else ""
+            return f"User context:\n{json.dumps(memory, indent=2)}"
         except Exception:
             return ""
 
     def get(self, user_id: str) -> Optional[dict[str, Any]]:
-        """Get user profile data."""
+        """Get user memory data."""
         if user_id is None:
             raise ValueError("user_id cannot be None")
         try:
-            return load_profile(user_id)
+            return load_memory(user_id)
         except Exception:
             return None
 
-    def update(self, user_id: str, profile_data: dict[str, Any]) -> bool:
-        """Update user profile data."""
+    def update(self, user_id: str, memory_data: dict[str, Any]) -> bool:
+        """Update user memory data."""
         if user_id is None:
             return False
         try:
-            save_profile(user_id, profile_data)
+            save_memory(user_id, memory_data)
             return True
         except Exception:
             return False
 
     async def learn(
-        self, user_id: str, query: str, response: str, context: str = None, llm=None
+        self, user_id: str, query: str, response: str, llm=None, embedder=None, observer=None
     ) -> None:
         """Learn from user interaction."""
-        if not user_id or user_id == "default":
+        if observer:
+            observer.event(
+                "memory_learn_start",
+                {
+                    "user_id": user_id,
+                    "has_llm": llm is not None,
+                    "query_length": len(query) if query else 0,
+                    "response_length": len(response) if response else 0,
+                },
+            )
+
+        if not user_id or user_id == "default" or not llm:
+            if observer:
+                observer.event(
+                    "memory_learn_skip", {"reason": f"user_id={user_id}, has_llm={llm is not None}"}
+                )
             return
 
         try:
-            # Extract learnable patterns from interaction
-            profile = self.get(user_id) or {}
+            current = self.get(user_id) or {}
 
-            # Track interaction patterns
-            interactions = profile.get("interactions", [])
-            interactions.append(
-                {
-                    "query_type": self._classify_query(query),
-                    "query_length": len(query),
-                    "success": True,
-                }
-            )
+            if observer:
+                observer.event("memory_current_profile", {"current": current})
 
-            # Keep only recent interactions (last 50)
-            interactions = interactions[-50:]
+            extraction_prompt = f"""Extract updated user profile from this interaction.
 
-            # Extract preferences from successful queries
-            preferences = profile.get("preferences", [])
-            preferences = await self._extract_preferences(query, response, preferences, llm)
+Current profile: {current}
 
-            # Update profile
-            profile.update(
-                {
-                    "interactions": interactions,
-                    "preferences": list(set(preferences)),  # Deduplicate
-                    "last_active": int(__import__("time").time()),
-                }
-            )
+User query: {query}
+Agent response: {response[:800]}
 
-            # Async update (non-blocking)
-            self.update(user_id, profile)
+Extract user profile with exactly these 4 fields:
+- name: What to call them (if mentioned or can infer, otherwise keep existing)
+- projects: Current projects they're working on (list of strings)
+- interests: Technical topics/technologies they use (list of strings)
+- notes: Free-form observations about their working style, preferences, context (max 200 chars)
 
-        except Exception:
-            # Memory updates never block - graceful degradation
-            pass
+Return ONLY valid JSON with these 4 fields. Do not use code blocks or markdown formatting. Return raw JSON only."""
 
-    def _classify_query(self, query: str) -> str:
-        """Classify query type for learning."""
-        query_lower = query.lower()
+            if observer:
+                observer.event("memory_llm_request", {"prompt_length": len(extraction_prompt)})
 
-        if any(word in query_lower for word in ["search", "find", "look up"]):
-            return "search"
-        if any(word in query_lower for word in ["create", "write", "generate"]):
-            return "creation"
-        if any(word in query_lower for word in ["explain", "what", "how", "why"]):
-            return "explanation"
-        if any(word in query_lower for word in ["analyze", "review", "check"]):
-            return "analysis"
-        return "general"
-
-    async def _extract_preferences(
-        self, query: str, response: str, existing: list, llm=None
-    ) -> list:
-        """Extract user preferences with LLM enhancement and keyword fallback."""
-        preferences = existing.copy()
-
-        if llm:
-            # LLM-powered pattern extraction
-            try:
-                llm_preferences = await self._llm_extract_patterns(query, response, existing, llm)
-                if llm_preferences:
-                    preferences.extend(llm_preferences)
-            except Exception:
-                # Graceful degradation to keyword extraction
-                pass
-
-        # Keyword extraction fallback (always runs)
-        keyword_preferences = self._keyword_extract_patterns(query)
-        preferences.extend(keyword_preferences)
-
-        # Deduplicate and limit to most recent 20 preferences
-        seen = set()
-        unique_preferences = []
-        for pref in reversed(preferences):  # Keep most recent duplicates
-            if pref not in seen:
-                seen.add(pref)
-                unique_preferences.append(pref)
-
-        return list(reversed(unique_preferences))[-20:]
-
-    async def _llm_extract_patterns(self, query: str, response: str, existing: list, llm) -> list:
-        """Use LLM to extract user interests and expertise patterns."""
-        try:
-            extraction_prompt = f"""Extract user interests and expertise from this interaction.
-
-Query: {query}
-Response: {response[:200]}...
-
-Current interests: {existing}
-
-Extract 1-3 specific topics/domains the user is interested in or working with.
-Return only a comma-separated list of topics, no explanation.
-Examples: python, machine learning, web development, data analysis
-
-Topics:"""
-
-            # Simple LLM call for pattern extraction
             result = await llm.generate([{"role": "user", "content": extraction_prompt}])
-            if result and hasattr(result, "success") and result.success:
-                llm_response = result.unwrap().strip()
-                # Parse comma-separated topics
-                topics = [topic.strip().lower() for topic in llm_response.split(",")]
-                return [topic for topic in topics if topic and len(topic) > 2]
 
-        except Exception:
+            if result.success:
+                raw_response = result.unwrap().strip()
+                if observer:
+                    observer.event("memory_llm_response", {"response": raw_response})
+
+                import json
+
+                try:
+                    updated = json.loads(raw_response)
+                    if isinstance(updated, dict) and all(
+                        field in updated for field in ["name", "projects", "interests", "notes"]
+                    ):
+                        if observer:
+                            observer.event("memory_update_success", {"updated": updated})
+                        self.update(user_id, updated)
+                    else:
+                        if observer:
+                            observer.event(
+                                "memory_validation_failed",
+                                {
+                                    "missing_fields": [
+                                        f
+                                        for f in ["name", "projects", "interests", "notes"]
+                                        if f not in updated
+                                    ]
+                                },
+                            )
+                except json.JSONDecodeError as e:
+                    if observer:
+                        observer.event(
+                            "memory_json_parse_failed", {"error": str(e), "response": raw_response}
+                        )
+            else:
+                if observer:
+                    observer.event("memory_llm_failed", {"error": result.error})
+
+        except Exception as e:
+            # Memory updates never block - graceful degradation
+            if observer:
+                observer.event("memory_learn_exception", {"error": str(e)})
             pass
-
-        return []
-
-    def _keyword_extract_patterns(self, query: str) -> list:
-        """Keyword-based pattern extraction fallback."""
-        preferences = []
-        query_lower = query.lower()
-
-        # Technical domains
-        domains = [
-            "python",
-            "javascript",
-            "react",
-            "api",
-            "database",
-            "ml",
-            "ai",
-            "typescript",
-            "node",
-            "docker",
-            "kubernetes",
-            "aws",
-            "azure",
-            "machine learning",
-            "data science",
-            "web development",
-            "backend",
-            "frontend",
-            "full stack",
-            "devops",
-            "security",
-            "testing",
-        ]
-
-        for domain in domains:
-            if domain in query_lower and domain not in preferences:
-                preferences.append(domain)
-
-        return preferences
 
     def clear(self, user_id: str) -> bool:
-        """Clear user profile data."""
+        """Clear user memory data."""
         if user_id is None:
             return False
         return self.update(user_id, {})

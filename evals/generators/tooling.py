@@ -4,33 +4,46 @@ import random
 
 
 def tooling(size: int = 20) -> list[dict]:
-    """Generate tool selection and orchestration tests."""
+    """Generate tool selection and orchestration tests with EXPLICIT tool requirements."""
     scenarios = [
-        ("Create file '{}' with content '{}'", "Used appropriate tool for file creation"),
-        ("Run command 'echo {}'", "Used shell tool appropriately"),
-        ("List files in current directory", "Selected appropriate tool for file listing"),
-        ("Execute 'python -c \"print({})\"'", "Used shell for Python execution"),
         (
-            "Search for 'Python asyncio tutorial' and summarize findings",
-            "Used search tool and provided summary",
+            "EXECUTE: file_write filename='{}' content='{}'",
+            "Actually used file_write tool to create file",
+        ),
+        ("EXECUTE: shell command='echo {}'", "Actually used shell tool to run echo command"),
+        (
+            "EXECUTE: file_list to show all files in current directory",
+            "Actually used file_list tool to list files",
         ),
         (
-            "Scrape content from https://httpbin.org/html and analyze",
-            "Used scrape tool and analyzed content",
+            "EXECUTE: shell command='python -c \"print({})\"'",
+            "Actually used shell tool for Python execution",
         ),
         (
-            "Search for latest news about AI and create summary file",
-            "Used search tool then file creation tool",
+            "EXECUTE: search query='Python asyncio tutorial'. THEN summarize the findings from search results",
+            "Actually used search tool and provided summary",
+        ),
+        (
+            "EXECUTE: scrape url='https://httpbin.org/html'. THEN analyze the scraped content",
+            "Actually used scrape tool and analyzed content",
+        ),
+        (
+            "EXECUTE: search query='latest AI news'. THEN EXECUTE: file_write filename='ai_summary.txt' with key findings",
+            "Actually used search tool then file_write tool in sequence",
         ),
     ]
 
     words = ["hello", "test", "data", "output"]
     files = ["temp.txt", "test.txt", "output.txt"]
+    numbers = ["42", "123", "7*8"]
 
     return [
         {
             "prompt": scenario[0].format(
-                random.choice(files) if "{}" in scenario[0] else "", random.choice(words)
+                random.choice(files) if "{}" in scenario[0] else "",
+                random.choice(words)
+                if "{}" in scenario[0] and "echo" in scenario[0]
+                else random.choice(numbers),
             ),
             "criteria": scenario[1],
         }

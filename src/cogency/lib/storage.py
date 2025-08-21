@@ -1,179 +1,104 @@
-"""Storage: File system operations for persistence."""
+"""Storage: Canonical SQLite backend for persistence."""
 
 import json
+import sqlite3
 import time
 from pathlib import Path
-from typing import Any
 
 
-def get_cogency_dir() -> Path:
-    """Get ~/.cogency directory, create if needed."""
-    cogency_dir = Path.home() / ".cogency"
+def get_cogency_dir(base_dir: str = None) -> Path:
+    """Get cogency directory, configurable like requests."""
+    if base_dir:
+        cogency_dir = Path(base_dir)
+    else:
+        cogency_dir = Path.home() / ".cogency"
     cogency_dir.mkdir(exist_ok=True)
     return cogency_dir
 
 
-def load_json_file(path: Path, default: Any = None) -> Any:
-    """Load JSON file with graceful degradation."""
-    try:
-        if path.exists():
-            with open(path) as f:
-                return json.load(f)
-        return default if default is not None else {}
-    except Exception:
-        return default if default is not None else {}
+def get_db_path(base_dir: str = None) -> Path:
+    """Get SQLite database path."""
+    return get_cogency_dir(base_dir) / "cogency.db"
 
 
-def save_json_file(path: Path, data: Any) -> bool:
-    """Save JSON file with error handling."""
+def _init_db(db_path: Path):
+    """Initialize database schema - canonical tables only."""
+    with sqlite3.connect(db_path) as db:
+        db.executescript("""
+            CREATE TABLE IF NOT EXISTS conversations (
+                conversation_id TEXT NOT NULL,
+                role TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp REAL NOT NULL,
+                PRIMARY KEY (conversation_id, timestamp)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_conversations_id ON conversations(conversation_id);
+
+            CREATE TABLE IF NOT EXISTS memory (
+                user_id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                updated_at REAL NOT NULL
+            );
+        """)
+
+
+def load_conversations(conversation_id: str, base_dir: str = None) -> list[dict]:
+    """Load single conversation from SQLite."""
+    db_path = get_db_path(base_dir)
+    _init_db(db_path)
+
+    with sqlite3.connect(db_path) as db:
+        db.row_factory = sqlite3.Row
+        rows = db.execute(
+            "SELECT role, content FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
+            (conversation_id,),
+        ).fetchall()
+
+        return [{"role": row["role"], "content": row["content"]} for row in rows]
+
+
+def save_conversation_message(
+    conversation_id: str, role: str, content: str, base_dir: str = None
+) -> bool:
+    """Save single message to conversation - O(1) operation."""
+    db_path = get_db_path(base_dir)
+    _init_db(db_path)
+
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        with open(path, "w") as f:
-            json.dump(data, f, indent=2)
+        with sqlite3.connect(db_path) as db:
+            db.execute(
+                "INSERT INTO conversations (conversation_id, role, content, timestamp) VALUES (?, ?, ?, ?)",
+                (conversation_id, role, content, time.time()),
+            )
         return True
     except Exception:
         return False
 
 
-def load_conversations(user_id: str) -> list[dict]:
-    """Load conversation history for user."""
-    conv_file = get_cogency_dir() / "conversations" / f"{user_id}.json"
-    result = load_json_file(conv_file, None)
-    return result if result is not None else []
+def load_memory(user_id: str, base_dir: str = None) -> dict:
+    """Load user memory from SQLite."""
+    db_path = get_db_path(base_dir)
+    _init_db(db_path)
+
+    with sqlite3.connect(db_path) as db:
+        row = db.execute("SELECT data FROM memory WHERE user_id = ?", (user_id,)).fetchone()
+        if row:
+            return json.loads(row[0])
+        return {}
 
 
-def save_conversations(user_id: str, messages: list[dict]) -> bool:
-    """Save conversation history for user."""
-    conv_file = get_cogency_dir() / "conversations" / f"{user_id}.json"
-    return save_json_file(conv_file, messages)
+def save_memory(user_id: str, memory: dict, base_dir: str = None) -> bool:
+    """Save user memory to SQLite."""
+    db_path = get_db_path(base_dir)
+    _init_db(db_path)
 
-
-def load_profile(user_id: str) -> dict:
-    """Load user profile."""
-    profile_file = get_cogency_dir() / "profiles" / f"{user_id}.json"
-    return load_json_file(profile_file, {})
-
-
-def save_profile(user_id: str, profile: dict) -> bool:
-    """Save user profile."""
-    profile_file = get_cogency_dir() / "profiles" / f"{user_id}.json"
-    return save_json_file(profile_file, profile)
-
-
-def load_knowledge() -> dict:
-    """Load knowledge base."""
-    knowledge_file = get_cogency_dir() / "knowledge" / "documents.json"
-    return load_json_file(knowledge_file, {})
-
-
-def save_knowledge(knowledge: dict) -> bool:
-    """Save knowledge base."""
-    knowledge_file = get_cogency_dir() / "knowledge" / "documents.json"
-    return save_json_file(knowledge_file, knowledge)
-
-
-def add_document(doc_id: str, content: str, metadata: dict = None) -> bool:
-    """Add document to knowledge base."""
     try:
-        knowledge = load_knowledge()
-        knowledge[doc_id] = {
-            "content": content,
-            "metadata": metadata or {},
-            "timestamp": time.time(),
-        }
-        return save_knowledge(knowledge)
+        with sqlite3.connect(db_path) as db:
+            db.execute(
+                "INSERT OR REPLACE INTO memory (user_id, data, updated_at) VALUES (?, ?, ?)",
+                (user_id, json.dumps(memory), time.time()),
+            )
+        return True
     except Exception:
         return False
-
-
-async def search_documents(query: str, limit: int = 3, embedder=None) -> list[dict]:
-    """Semantic search in knowledge base with keyword fallback."""
-    try:
-        knowledge = load_knowledge()
-        if not knowledge:
-            return []
-
-        results = []
-
-        if embedder:
-            # Semantic search path - vector similarity
-            try:
-                query_result = await embedder.embed([query])
-                if query_result.success:
-                    query_embedding = query_result.unwrap()[0]
-                    results = await _semantic_search(query_embedding, knowledge, limit)
-                else:
-                    # Fallback to keyword if embedding fails
-                    results = _keyword_search(query, knowledge, limit)
-            except Exception:
-                # Graceful degradation to keyword search
-                results = _keyword_search(query, knowledge, limit)
-        else:
-            # Keyword search fallback
-            results = _keyword_search(query, knowledge, limit)
-
-        return results
-    except Exception:
-        return []
-
-
-def _keyword_search(query: str, knowledge: dict, limit: int) -> list[dict]:
-    """Keyword-based search fallback."""
-    results = []
-    query_lower = query.lower()
-
-    for doc_id, doc_data in knowledge.items():
-        content = doc_data.get("content", "").lower()
-        if query_lower in content:
-            results.append(
-                {
-                    "doc_id": doc_id,
-                    "content": doc_data.get("content", ""),
-                    "metadata": doc_data.get("metadata", {}),
-                    "relevance": content.count(query_lower),
-                }
-            )
-
-    # Sort by relevance (simple word count)
-    results.sort(key=lambda x: x["relevance"], reverse=True)
-    return results[:limit]
-
-
-async def _semantic_search(query_embedding: list[float], knowledge: dict, limit: int) -> list[dict]:
-    """Vector similarity search with cosine similarity."""
-    results = []
-
-    for doc_id, doc_data in knowledge.items():
-        doc_embedding = doc_data.get("embedding")
-        if doc_embedding:
-            similarity = _cosine_similarity(query_embedding, doc_embedding)
-            results.append(
-                {
-                    "doc_id": doc_id,
-                    "content": doc_data.get("content", ""),
-                    "metadata": doc_data.get("metadata", {}),
-                    "relevance": similarity,
-                }
-            )
-
-    # Sort by semantic similarity
-    results.sort(key=lambda x: x["relevance"], reverse=True)
-    return results[:limit]
-
-
-def _cosine_similarity(a: list[float], b: list[float]) -> float:
-    """Calculate cosine similarity between two vectors."""
-    try:
-        # Dot product
-        dot_product = sum(x * y for x, y in zip(a, b))
-
-        # Magnitudes
-        magnitude_a = sum(x * x for x in a) ** 0.5
-        magnitude_b = sum(x * x for x in b) ** 0.5
-
-        if magnitude_a == 0 or magnitude_b == 0:
-            return 0.0
-
-        return dot_product / (magnitude_a * magnitude_b)
-    except Exception:
-        return 0.0

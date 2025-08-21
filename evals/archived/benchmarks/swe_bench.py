@@ -85,7 +85,7 @@ class SWEBenchmark:
         confidence_scores = []
 
         for i, test_case in enumerate(test_cases):
-            print(f"SWE ({i+1}/{total_tests}): {test_case['repo']} - {test_case['instance_id']}")
+            print(f"SWE ({i + 1}/{total_tests}): {test_case['repo']} - {test_case['instance_id']}")
 
             try:
                 response, conversation_id = await agent.run(test_case["problem_statement"])

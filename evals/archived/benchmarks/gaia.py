@@ -110,7 +110,7 @@ class GAIABenchmark:
 
         for i, test_case in enumerate(test_cases):
             print(
-                f"GAIA Level {test_case.get('Level', '?')} ({i+1}/{total_tests}): {test_case.get('task', 'Unknown task')[:50]}..."
+                f"GAIA Level {test_case.get('Level', '?')} ({i + 1}/{total_tests}): {test_case.get('task', 'Unknown task')[:50]}..."
             )
 
             try:
@@ -126,7 +126,7 @@ class GAIABenchmark:
 
                 # Log result with authentic metadata
                 self.logger.log_result(
-                    eval_name=f"gaia_level_{test_case.get('Level', 'unknown')}_{i+1}",
+                    eval_name=f"gaia_level_{test_case.get('Level', 'unknown')}_{i + 1}",
                     judge_result=judge_result,
                     agent_metadata={
                         "level": test_case.get("Level"),
@@ -218,7 +218,7 @@ class GAIABenchmark:
         question = test_case.get("Question", test_case.get("task", "Unknown question"))
         expected_answer = test_case.get("Final answer", "No expected answer provided")
 
-        criteria = f"""GAIA Authentic Benchmark Assessment - Level {test_case.get('Level', '?')}:
+        criteria = f"""GAIA Authentic Benchmark Assessment - Level {test_case.get("Level", "?")}:
 
 Question: {question}
 Expected Answer: {expected_answer}
@@ -231,7 +231,7 @@ Rate the agent's multi-step reasoning and task completion:
 4. **Answer Quality**: How close is the response to the expected answer?
 5. **Tool Usage**: Did it effectively use search and other required tools?
 
-GAIA Level {test_case.get('Level', '?')} Expectations:
+GAIA Level {test_case.get("Level", "?")} Expectations:
 - Level 1: Direct fact-finding with tool usage and verification
 - Level 2: Multi-step research with logical connections and synthesis
 - Level 3: Complex analysis requiring deep reasoning across multiple domains

@@ -65,3 +65,14 @@ build/
 
 # Evaluation runs
 evals/runs/
+
+# Zealot's holy scripture
+CLAUDE.md
+
+
+[user: "Create script"]
+[assistant: "[THINKING] I'll create..."
+[assistant: "[TOOL_CALL] {"file_write": "script.py", "content": "print('Hello World')"}"]
+[assistant: "[TOOL_RESULT] file_write succeeded whatever other metadata"]
+[assistant: "[THINKING] I can now respond..."
+[assistant: "I've created the script successfully"]

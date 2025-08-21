@@ -86,7 +86,7 @@ def test_concurrent_memory_access():
 
     # Each user stores their profile
     for i, user_id in enumerate(users):
-        profile = {"id": i, "name": f"User {i}", "timestamp": f"2025-01-{i+1:02d}"}
+        profile = {"id": i, "name": f"User {i}", "timestamp": f"2025-01-{i + 1:02d}"}
         memory.update(user_id, profile)
 
     # Verify each user has independent memory

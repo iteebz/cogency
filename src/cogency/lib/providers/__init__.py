@@ -2,9 +2,9 @@
 
 from .anthropic import Anthropic
 from .gemini import Gemini
-from .openai import OpenAI, generate
+from .openai import OpenAI
 
-__all__ = ["OpenAI", "Anthropic", "Gemini", "create_llm", "create_embedder", "generate"]
+__all__ = ["OpenAI", "Anthropic", "Gemini", "create_llm", "create_embedder"]
 
 
 def create_llm(provider: str):
@@ -21,7 +21,7 @@ def create_llm(provider: str):
 
 
 def create_embedder(provider: str):
-    """Create Embedder instance from string shortcut.""" 
+    """Create Embedder instance from string shortcut."""
     if isinstance(provider, str):
         if provider.lower() in ["openai", "gpt"]:
             return OpenAI()

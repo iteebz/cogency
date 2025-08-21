@@ -51,7 +51,7 @@ def mock_tools():
 @pytest.mark.asyncio
 async def test_final_event(mock_llm, mock_tools):
     """Returns final event."""
-    result = await react(mock_llm, mock_tools, "test query", "user123")
+    result = await react(mock_llm, mock_tools, "test query", "user123", observer=None)
 
     assert result["type"] == "complete"
     assert "answer" in result
@@ -88,7 +88,7 @@ async def test_error_handling(mock_tools):
 
     error_llm.stream = mock_stream
 
-    result = await react(error_llm, mock_tools, "test query", "user123")
+    result = await react(error_llm, mock_tools, "test query", "user123", observer=None)
 
     assert result["type"] == "error"
     assert "message" in result
@@ -100,7 +100,9 @@ async def test_shared_logic(mock_llm, mock_tools):
     # Mock stream_react to return specific events
 
     # Verify react gets the same event stream_react produces
-    result = await react(mock_llm, mock_tools, "test query", "user123", max_iterations=1)
+    result = await react(
+        mock_llm, mock_tools, "test query", "user123", max_iterations=1, observer=None
+    )
 
     # Both should produce the same final result structure
     assert result["type"] == "complete"
@@ -166,7 +168,7 @@ Final answer: Done
 
         mock_llm.stream = mock_stream
 
-        await react(mock_llm, {}, "test", "user123", max_iterations=3)
+        await react(mock_llm, {}, "test", "user123", max_iterations=3, observer=None)
 
         # Check that security instructions appear only in iteration 1
         assert len(prompts_generated) >= 1
@@ -205,10 +207,10 @@ I cannot assist with that request as it appears to bypass safety guidelines.
         unwrap=lambda: mock_response,
     )
 
-    result = await react(mock_llm, {}, "malicious query", "user123", test_mode=True)
+    result = await react(mock_llm, {}, "malicious query", "user123", observer=None)
 
     assert result["type"] == "complete"
     assert "cannot" in result["answer"].lower()
 
-    # LLM should be called once for reasoning (not blocked pre-reasoning)
-    mock_llm.generate.assert_called_once()
+    # LLM should be called at least once for reasoning (may call again for memory)
+    assert mock_llm.generate.call_count >= 1

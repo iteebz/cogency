@@ -16,6 +16,7 @@ class Anthropic(LLM):
         max_tokens: int = 1024,
     ):
         from ..credentials import detect_api_key
+
         self.api_key = api_key or detect_api_key("anthropic")
         self.llm_model = llm_model
         self.temperature = temperature
@@ -24,20 +25,21 @@ class Anthropic(LLM):
     async def generate(self, messages: list[dict]) -> Result[str, str]:
         """Generate text from conversation messages with automatic key rotation."""
         try:
+
             async def _generate(api_key: str):
                 import anthropic
-                
+
                 client = anthropic.AsyncAnthropic(api_key=api_key)
-                
+
                 response = await client.messages.create(
                     model=self.llm_model,
                     messages=messages,
                     max_tokens=self.max_tokens,
                     temperature=self.temperature,
                 )
-                
+
                 return response.content[0].text
-            
+
             result = await with_rotation("ANTHROPIC", _generate)
             return Ok(result)
 

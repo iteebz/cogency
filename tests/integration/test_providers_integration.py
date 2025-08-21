@@ -50,7 +50,7 @@ Hello from provider
         0
     ]  # Second call, first positional arg
     assert len(second_call_args) == 1  # Single message
-    assert "Extract user interests" in second_call_args[0]["content"]
+    assert "Extract updated user profile" in second_call_args[0]["content"]
     assert "Test query" in first_call_args[0]["content"]
 
 
@@ -64,5 +64,5 @@ def test_backward_compatibility_preserved():
         agent = Agent()
         assert agent is not None
 
-        # Should default to OpenAI
-        mock_create.assert_called_with("openai")
+        # Should default to Gemini
+        mock_create.assert_called_with("gemini")

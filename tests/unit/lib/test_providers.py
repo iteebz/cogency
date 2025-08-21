@@ -31,7 +31,7 @@ def test_create_llm_string_shortcut():
     from cogency.lib.providers import create_llm
     from cogency.lib.providers.openai import OpenAI
 
-    with patch("cogency.lib.providers.detect_api_key", return_value="sk-test"):
+    with patch("cogency.lib.credentials.detect_api_key", return_value="sk-test"):
         llm = create_llm("openai")
         assert isinstance(llm, OpenAI)
         assert llm.api_key == "sk-test"
@@ -59,6 +59,6 @@ def test_create_llm_missing_api_key():
     """Raise error when API key not found."""
     from cogency.lib.providers import create_llm
 
-    with patch("cogency.lib.providers.detect_api_key", return_value=None):
-        with pytest.raises(ValueError, match="OpenAI API key not found"):
+    with patch("cogency.lib.credentials.detect_api_key", return_value=None):
+        with pytest.raises(RuntimeError, match="No API key found"):
             create_llm("openai")

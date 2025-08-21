@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 
 import pytest
 
-from cogency.tools.files import FileList, FileRead, FileWrite
+from cogency.tools.file import FileList, FileRead, FileWrite
 
 
 def test_file_read_init():

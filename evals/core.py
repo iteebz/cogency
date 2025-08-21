@@ -43,7 +43,7 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
         # Fresh agent per test to prevent contamination
         display_prompt = test.get("prompt", test.get("recall_prompt", "unknown"))[:50]
         print(
-            f"🧪 Test {i+1}/{len(tests)}: {test.get('complexity', 'unknown')} - {display_prompt}..."
+            f"🧪 Test {i + 1}/{len(tests)}: {test.get('complexity', 'unknown')} - {display_prompt}..."
         )
         agent = CONFIG.agent()
         try:
@@ -55,6 +55,18 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
                     agent(test["store_prompt"], user_id=user_id), timeout=15
                 )
                 print(f"   ✅ STORED: {store_result.response[:100]}...")
+
+                # CRITICAL: Destroy agent completely to test TRUE cross-session persistence
+                if test.get("requires_agent_destruction", False):
+                    print("   🔥 DESTROYING AGENT - Testing true cross-session memory")
+                    del agent  # Destroy agent reference
+                    import gc
+
+                    gc.collect()  # Force garbage collection
+
+                    # Create completely fresh agent with same user_id
+                    agent = CONFIG.agent()
+                    print("   🆕 FRESH AGENT CREATED")
 
                 print(f"   🔍 RECALL: {test['recall_prompt']}")
                 agent_result = await asyncio.wait_for(
@@ -68,10 +80,21 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
 
                 user_id = f"eval_{category}_{i:02d}_{int(time.time())}"
                 print(f"   🤖 AGENT START: {test['prompt'][:50]}...")
-                agent_result = await asyncio.wait_for(
-                    agent(test["prompt"], user_id=user_id), timeout=15
-                )
-                response = agent_result.response
+
+                # Capture full execution trace for debugging
+                debug_trace = []
+                from cogency.core.react import stream_react
+
+                final_response = None
+                async for event in stream_react(
+                    agent.llm, agent.tools, test["prompt"], user_id, agent.max_iterations
+                ):
+                    debug_trace.append(event)
+                    if event["type"] in ["complete", "error"]:
+                        final_response = event.get("answer", event.get("message", "Unknown error"))
+                        break
+
+                response = final_response or "No response generated"
                 prompt_used = test["prompt"]
 
                 if response is not None:
@@ -79,13 +102,14 @@ async def evaluate_category(category: str, generator: TestGenerator) -> dict:
                 else:
                     raise ValueError("Agent returned None response")
 
-            # Capture test result
+            # Capture test result with debug trace
             result_data = {
                 "test_id": f"{category}_{i:02d}",
                 "prompt": prompt_used,
                 "response": response,
                 "criteria": test["criteria"],
                 "timestamp": datetime.now().isoformat(),
+                "debug_trace": debug_trace if "debug_trace" in locals() else [],
                 **test,
             }
 

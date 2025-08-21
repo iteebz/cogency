@@ -9,7 +9,7 @@ from .working import working
 __all__ = [
     # Core context assembly
     "context",
-    # 4 Namespaces
+    # 3 Namespaces
     "system",  # system.format()
     "conversation",  # conversation.format(), get(), add(), clear()
     "memory",  # memory.format(), memory.get(), memory.update(), memory.clear()

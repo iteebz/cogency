@@ -48,7 +48,20 @@ async def _parse_batch(llm, messages) -> Result[dict[str, Optional[str]], str]:
     result = await llm.generate(messages)
     if result.failure:
         return result
-    return _parse_xml_buffer(result.unwrap())
+
+    raw_response = result.unwrap()
+
+    import logging
+
+    logger = logging.getLogger("cogency.streaming")
+    logger.debug(f"LLM response: {len(raw_response)} chars")
+
+    parse_result = _parse_xml_buffer(raw_response)
+    if parse_result.success:
+        sections = parse_result.unwrap()
+        logger.debug(f"XML sections parsed: {list(sections.keys())}")
+
+    return parse_result
 
 
 def _parse_xml_buffer(buffer: str) -> Result[dict[str, Optional[str]], str]:

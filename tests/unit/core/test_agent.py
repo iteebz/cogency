@@ -4,18 +4,22 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from cogency import Agent, AgentResult, Ok
+from cogency import Agent, Ok
+from cogency.core.agent import AgentResult
 
 
 def test_create():
     """Agent creation."""
-    agent = Agent()
-    assert agent is not None
+    mock_llm = AsyncMock()
+    with patch("cogency.lib.providers.create_llm", return_value=mock_llm):
+        agent = Agent(llm=mock_llm)
+        assert agent is not None
+        assert agent.llm is mock_llm
 
 
 @pytest.mark.asyncio
 async def test_call(mock_llm):
-    """Agent call returns AgentResult with extracted final answer."""
+    """Agent call returns tuple with extracted final answer."""
     xml_response = """<thinking>
 User said hello.
 </thinking>
@@ -25,15 +29,15 @@ Hello there!
 </response>"""
     mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        agent = Agent()
+    with patch("cogency.lib.providers.create_llm", return_value=mock_llm):
+        agent = Agent(llm=mock_llm)
         result = await agent("Hello")
 
         assert isinstance(result, AgentResult)
-        assert isinstance(result.response, str)
-        assert "Hello there!" in result.response  # Response section extracted
-        assert result.conversation_id.startswith("default_")
-        assert len(result.conversation_id) > len("agent_")
+        response, conversation_id = result.response, result.conversation_id
+        assert isinstance(response, str)
+        assert "Hello there!" in response  # Response section extracted
+        assert conversation_id == "default"
 
 
 @pytest.mark.asyncio
@@ -48,19 +52,20 @@ Hello! How can I help you today?
 </response>"""
     mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
+    with patch("cogency.lib.providers.create_llm", return_value=mock_llm):
         # Test complete end-to-end flow
-        agent = Agent()
+        agent = Agent(llm=mock_llm)
         result = await agent("Hello")
 
         # Verify full pipeline works
         assert isinstance(result, AgentResult)
-        assert isinstance(result.response, str)
-        assert "Hello! How can I help you today?" in result.response
-        assert result.conversation_id.startswith("default_")
+        response, conversation_id = result.response, result.conversation_id
+        assert isinstance(response, str)
+        assert "Hello! How can I help you today?" in response
+        assert conversation_id == "default"
 
         # Verify XML parsing worked
-        assert "thinking" not in result.response.lower()  # Thinking stripped out
+        assert "thinking" not in response.lower()  # Thinking stripped out
 
         # Verify LLM was called with proper message structure
         mock_llm.generate.assert_called_once()
@@ -83,16 +88,18 @@ Hello user!
 </response>"""
     mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        agent = Agent()
+    with patch("cogency.lib.providers.create_llm", return_value=mock_llm):
+        agent = Agent(llm=mock_llm)
         # Multiple users, same agent
         alice = await agent("Hello", user_id="alice")
         bob = await agent("Hello", user_id="bob")
 
-        assert alice.conversation_id.startswith("alice_")
-        assert bob.conversation_id.startswith("bob_")
-        assert "Hello user!" in alice.response
-        assert "Hello user!" in bob.response
+        alice_response, alice_conv_id = alice.response, alice.conversation_id
+        bob_response, bob_conv_id = bob.response, bob.conversation_id
+        assert alice_conv_id == "alice"
+        assert bob_conv_id == "bob"
+        assert "Hello user!" in alice_response
+        assert "Hello user!" in bob_response
 
 
 @pytest.mark.asyncio
@@ -107,13 +114,14 @@ Sacred!
 </response>"""
     mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        agent = Agent()
+    with patch("cogency.lib.providers.create_llm", return_value=mock_llm):
+        agent = Agent(llm=mock_llm)
         result = await agent("What is 2+2?")
 
         assert isinstance(result, AgentResult)
-        assert "Sacred!" in result.response
-        assert result.conversation_id.startswith("default_")
+        response, conversation_id = result.response, result.conversation_id
+        assert "Sacred!" in response
+        assert conversation_id == "default"
 
 
 @pytest.mark.asyncio
@@ -138,7 +146,7 @@ def test_context():
 
 @pytest.mark.asyncio
 async def test_persist(mock_llm):
-    """Persistence graceful failure - AgentResult contract."""
+    """Persistence graceful failure - tuple contract."""
     xml_response = """<thinking>
 This is a test.
 </thinking>
@@ -148,14 +156,15 @@ Test complete!
 </response>"""
     mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        agent = Agent()
+    with patch("cogency.lib.providers.create_llm", return_value=mock_llm):
+        agent = Agent(llm=mock_llm)
         result = await agent("Test", user_id="test")
 
         assert isinstance(result, AgentResult)
-        assert isinstance(result.response, str)
-        assert "Test complete!" in result.response  # Response section extracted
-        assert result.conversation_id.startswith("test_")
+        response, conversation_id = result.response, result.conversation_id
+        assert isinstance(response, str)
+        assert "Test complete!" in response  # Response section extracted
+        assert conversation_id == "test"
 
 
 def test_tools_config():

@@ -1,4 +1,4 @@
-"""Cogency: Context-driven agent framework."""
+"""Cogency: Reasoning engine for adaptive agents."""
 
 from .core import Agent, AgentResult
 from .core.protocols import Tool

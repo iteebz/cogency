@@ -17,7 +17,10 @@ class OpenAI(LLM, Embedder):
         max_tokens: int = 500,
     ):
         from ..credentials import detect_api_key
+
         self.api_key = api_key or detect_api_key("openai")
+        if not self.api_key:
+            raise RuntimeError("No API key found")
         self.llm_model = llm_model
         self.embed_model = embed_model
         self.temperature = temperature
@@ -35,8 +38,10 @@ class OpenAI(LLM, Embedder):
     async def generate(self, messages: list[dict]) -> Result[str, str]:
         """Generate text from conversation messages with key rotation."""
         try:
+
             async def _generate(api_key: str):
                 import openai
+
                 client = openai.AsyncOpenAI(api_key=api_key)
                 response = await client.chat.completions.create(
                     model=self.llm_model,
@@ -45,7 +50,7 @@ class OpenAI(LLM, Embedder):
                     temperature=self.temperature,
                 )
                 return response.choices[0].message.content
-            
+
             result = await with_rotation("OPENAI", _generate)
             return Ok(result)
 
@@ -57,12 +62,14 @@ class OpenAI(LLM, Embedder):
     async def embed(self, texts: list[str]) -> Result[list[list[float]], str]:
         """Generate embeddings for input texts with key rotation."""
         try:
+
             async def _embed(api_key: str):
                 import openai
+
                 client = openai.AsyncOpenAI(api_key=api_key)
                 response = await client.embeddings.create(model=self.embed_model, input=texts)
                 return [item.embedding for item in response.data]
-            
+
             result = await with_rotation("OPENAI", _embed)
             return Ok(result)
 
@@ -70,32 +77,3 @@ class OpenAI(LLM, Embedder):
             return Err("Please install openai: pip install openai")
         except Exception as e:
             return Err(f"OpenAI Embedder Error: {str(e)}")
-
-
-# Backward compatibility - keep existing functions
-async def generate(prompt: str, model: str = "gpt-4o-mini") -> Result[str, str]:
-    """Generate LLM response - pure function for backward compatibility."""
-    from ..credentials import detect_api_key
-
-    api_key = detect_api_key("openai")
-    if not api_key:
-        return Err("Please set OPENAI_API_KEY environment variable.")
-
-    provider = OpenAI(api_key=api_key, llm_model=model)
-    messages = [{"role": "user", "content": prompt}]
-    return await provider.generate(messages)
-
-
-async def embed(text: str) -> Result[list, str]:
-    """Generate embedding - pure function for backward compatibility."""
-    from ..credentials import detect_api_key
-
-    api_key = detect_api_key("openai")
-    if not api_key:
-        return Err("Please set OPENAI_API_KEY environment variable.")
-
-    provider = OpenAI(api_key=api_key)
-    result = await provider.embed([text])
-    if result.success:
-        return Ok(result.unwrap()[0])  # Return single embedding
-    return Err(result.error)

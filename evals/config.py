@@ -11,14 +11,14 @@ from cogency import Agent
 class EvalConfig:
     """Zero ceremony evaluation configuration."""
 
-    agent: Callable = lambda: Agent()
+    agent: Callable = lambda: Agent(llm="gemini")
 
     # Judge configuration
     judge_llm: str = "openai"  # "openai", "claude", "gemini", or provider instance
-    use_llm_judge: bool = False  # Start with raw review, add judge later
+    use_llm_judge: bool = True  # Enable LLM judging for pass/fail measurement
 
     # Statistical rigor
-    sample_size: int = 20  # Full test coverage per category
+    sample_size: int = 30  # Improved statistical coverage per category
     num_runs: int = 1  # For initial baseline, scale to 3-5 for significance
     random_seed: int = 42
 

@@ -1,7 +1,7 @@
 """Assembly: Context orchestrator - combines all sources."""
 
 from .conversation import conversation
-from .memory import memory
+from .memory import memory as memory_system
 from .system import system
 from .working import working
 
@@ -17,7 +17,7 @@ class Context:
         task_id: str,
         tools: dict = None,
         iteration: int = 1,
-        test_mode: bool = False,
+        memory: bool = True,
     ) -> list:
         """Assemble unified context as canonical message format."""
         if user_id is None:
@@ -42,10 +42,10 @@ class Context:
             if message_history:
                 messages.extend(message_history)
 
-            # Add current query context (skip user memory in test mode)
+            # Add current query context (skip user memory if disabled)
             context_parts = []
-            if not test_mode:
-                context_parts.append(memory.format(user_id))
+            if memory:
+                context_parts.append(memory_system.format(user_id))
 
             context_content = "\n\n".join(filter(None, context_parts))
 

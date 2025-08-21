@@ -1,6 +1,7 @@
 """Tool execution - canonical JSON-based implementation."""
 
 import json
+import logging
 
 from ..context import working
 from ..lib.result import Err, Ok, Result
@@ -10,24 +11,34 @@ async def execute_tools(
     task_id: str, tools_json: str, tools: dict, user_id: str = None
 ) -> Result[None, str]:
     """Execute JSON tool array sequentially and update working memory."""
+    logger = logging.getLogger("cogency.execute")
+
     if not task_id:
         return Err("task_id required")
 
     if not tools_json or tools_json.strip() == "[]":
         return Ok(None)
 
+    logger.debug(f"Executing tools: {len(tools_json)} chars JSON")
+
     try:
         tool_calls = json.loads(tools_json)
     except json.JSONDecodeError as e:
+        logger.error(f"JSON parse failed: {str(e)} - content: {tools_json[:100]}...")
         return Err(f"Invalid JSON: {str(e)}")
 
     if not isinstance(tool_calls, list):
         return Err("Tools must be JSON array")
 
     for tool_call in tool_calls:
+        logger.debug(f"Executing tool: {tool_call.get('name')}")
+
         result = await _execute(task_id, tool_call, tools, user_id)
         if result.failure:
+            logger.error(f"Tool {tool_call.get('name')} failed: {result.error}")
             return result  # Propagate failure
+
+        logger.debug(f"Tool {tool_call.get('name')} succeeded")
 
     return Ok(None)
 
