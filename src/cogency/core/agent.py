@@ -1,127 +1,159 @@
-"""Agent: Pure interface to ReAct algorithm."""
+"""Agent interface with dual API: simple strings or streaming events.
 
-import time
-from dataclasses import dataclass
+Usage:
+  agent = Agent()              # Configuration closure
+  result = await agent(query)  # Aggregated response
+  async for event in agent.stream(query):  # Raw event stream
+"""
 
-from ..lib.providers import create_embedder, create_llm
-from ..tools import BASIC_TOOLS
-from .react import react, stream_react
+from typing import Optional, Union
 
-
-@dataclass
-class AgentResult:
-    """Agent execution result with response and conversation continuity."""
-
-    response: str
-    conversation_id: str
+from ..context import context
+from ..lib.logger import logger
+from ..lib.storage import SQLite
+from ..tools import TOOLS
+from .config import Config
+from .protocols import LLM, Storage
+from .stream import stream as consciousness_stream
 
 
 class Agent:
-    """Pure interface to ReAct algorithm."""
+    """Agent as configuration closure - stateless execution."""
 
-    def __init__(self, llm="gemini", embedder=None, tools=None, max_iterations=5, debug=None):
-        """Initialize agent with explicit configuration.
+    def __init__(
+        self,
+        llm: Union[str, LLM] = "gemini",
+        storage: Optional[Storage] = None,
+        tools: Optional[list] = None,
+        instructions: Optional[str] = None,
+        mode: str = "auto",
+        max_iterations: int = 3,
+        profile: bool = True,
+        sandbox: bool = True,
+    ):
+        # LLM setup
+        self.llm = self._create_llm(llm)
+        self.storage = storage or SQLite()
 
-        Args:
-            llm: LLM provider ("openai", "gemini", "anthropic") or provider instance
-            embedder: Embedder provider or instance (optional)
-            tools: List of tools (defaults to BASIC_TOOLS)
-            max_iterations: Maximum reasoning iterations
-            debug: Observability config (True=console, str=file_path, False/None=off)
-        """
-        self.llm = create_llm(llm) if isinstance(llm, str) else llm
-        self.embedder = (
-            create_embedder(embedder) if embedder and isinstance(embedder, str) else embedder
-        )
-        self.tools = {t.name: t for t in (tools if tools is not None else BASIC_TOOLS)}
+        # Tool setup - tools are finalized, no dynamic injection
+        self.tools = tools if tools is not None else TOOLS
+
+        # User instructions - safe agent steering layer
+        self.instructions = instructions
+
+        # Stream mode setup
+        valid_modes = {"auto", "replay", "resume"}
+        if mode not in valid_modes:
+            raise ValueError(f"mode must be one of {valid_modes}, got: {mode}")
+        self.mode = mode
+
+        # Config flags
         self.max_iterations = max_iterations
-        self._setup_logging(debug)
+        self.profile = profile
+        self.sandbox = sandbox
 
-    def _setup_logging(self, debug):
-        """Setup logging like requests - standard library approach."""
-        import logging
+        # Logger configured globally - no parameter needed
 
-        if debug is True:
-            # Console debug
-            logging.basicConfig(level=logging.DEBUG, format="%(name)s: %(message)s", force=True)
-        elif isinstance(debug, str):
-            # File debug
-            logging.basicConfig(
-                level=logging.DEBUG,
-                filename=debug,
-                format="%(asctime)s %(name)s: %(message)s",
-                force=True,
-            )
+        # Stateless - agent is pure function with configuration closure
+
+    def _create_llm(self, llm):
+        """Create LLM instance from string or pass through existing instance."""
+        # If already an LLM instance, use it
+        from .protocols import LLM
+
+        if isinstance(llm, LLM):
+            return llm
+
+        # String → built-in LLM
+        if llm == "gemini":
+            from ..lib.llms import Gemini
+
+            return Gemini()
+        if llm == "openai":
+            from ..lib.llms import OpenAI
+
+            return OpenAI()
+        if llm == "anthropic":
+            from ..lib.llms import Anthropic
+
+            return Anthropic()
+
+        valid = ["openai", "gemini", "anthropic"]
+        raise ValueError(f"Unknown LLM '{llm}'. Valid options: {', '.join(valid)}")
+
+    def _build_config(self):
+        """Build agent configuration once."""
+        return Config(
+            llm=self.llm,
+            storage=self.storage,
+            tools=self.tools,
+            instructions=self.instructions,
+            mode=self.mode,
+            max_iterations=self.max_iterations,
+            sandbox=self.sandbox,
+            profile=self.profile,
+        )
+
+    def _conversation_id(self, user_id: str, conversation_id: Optional[str]) -> str:
+        """Get or generate conversation ID."""
+        return conversation_id or f"{user_id}_session"
 
     async def __call__(
-        self, query: str, *, user_id: str = None, conversation_id: str = None, memory: bool = True
-    ) -> AgentResult:
-        """Sacred interface with optional memory multitenancy and conversation continuity."""
-        import logging
+        self, query: str, user_id: str = "default", conversation_id: Optional[str] = None
+    ) -> str:
+        # Create agent config (behavior)
+        config = self._build_config()
 
-        logger = logging.getLogger("cogency")
+        # Runtime params (execution context)
+        conversation_id = self._conversation_id(user_id, conversation_id)
 
-        if user_id is None:
-            user_id = "default"
+        # Execute with context isolation
+        logger.debug(f"Executing: {query[:50]}...")
+        logger.debug(f"Context: user={user_id}, conv={conversation_id}")
 
-        start_time = time.time()
-        logger.info(f"Processing: {query[:60]}{'...' if len(query) > 60 else ''}")
+        try:
+            # Collect all streaming events
+            respond_events = []
+            async for event in consciousness_stream(
+                config,
+                query,
+                user_id,
+                conversation_id,
+                on_complete=context.record,
+                on_learn=context.learn,
+            ):
+                if event["type"] == "respond":
+                    respond_events.append(event["content"])
 
-        final_event = await react(
-            self.llm,
-            self.tools,
-            query,
-            user_id,
-            self.max_iterations,
-            conversation_id,
-            memory=memory,
-            embedder=self.embedder,
-        )
-
-        duration = time.time() - start_time
-
-        if final_event["type"] == "error":
-            logger.error(f"Failed: {final_event['message']}")
-            return AgentResult(
-                response=f"LLM Error: {final_event['message']}",
-                conversation_id=f"{user_id}_{int(time.time())}",
-            )
-
-        logger.info(f"Completed in {duration:.1f}s")
-        return AgentResult(
-            response=final_event["answer"], conversation_id=final_event["conversation_id"]
-        )
+            # Aggregate response events
+            final_response = "".join(respond_events).strip() or "Execution completed"
+            logger.debug(f"Completed: {len(final_response)} chars")
+            return final_response
+        except Exception as e:
+            logger.debug(f"Failed: {e}")
+            raise RuntimeError(f"Execution failed: {e}") from e
 
     async def stream(
-        self, query: str, *, user_id: str = None, conversation_id: str = None, memory: bool = True
+        self, query: str, user_id: str = "default", conversation_id: Optional[str] = None
     ):
-        """Stream ReAct reasoning states as structured events.
+        # Create agent config (behavior)
+        config = self._build_config()
 
-        Yields structured events for each ReAct loop iteration:
-        - iteration: Loop iteration number
-        - context: Context assembly completion
-        - reasoning: LLM response content
-        - tool: Tool execution results
-        - complete: Final answer with conversation_id
-        - error: Failure states
+        # Runtime params (execution context)
+        conversation_id = self._conversation_id(user_id, conversation_id)
 
-        Usage:
-            async for event in agent.stream("Complex task"):
-                if event["type"] == "reasoning":
-                    print(f"Thinking: {event['content'][:100]}...")
-        """
-        if user_id is None:
-            user_id = "default"
+        logger.debug(f"📍 Context: user={user_id}, conv={conversation_id}")
 
-        async for event in stream_react(
-            self.llm,
-            self.tools,
-            query,
-            user_id,
-            self.max_iterations,
-            conversation_id,
-            task_id=None,
-            memory=memory,
-            embedder=self.embedder,
-        ):
-            yield event
+        try:
+            async for event in consciousness_stream(
+                config,
+                query,
+                user_id,
+                conversation_id,
+                on_complete=context.record,
+                on_learn=context.learn,
+            ):
+                yield event
+        except Exception as e:
+            logger.debug(f"Stream failed: {e}")
+            raise RuntimeError(f"Stream failed: {e}") from e

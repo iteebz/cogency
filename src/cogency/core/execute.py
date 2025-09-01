@@ -1,81 +1,88 @@
-"""Tool execution - canonical JSON-based implementation."""
+"""Tool execution - pure tool running logic."""
 
 import json
-import logging
+import time
 
-from ..context import working
-from ..lib.result import Err, Ok, Result
+from .protocols import Event
+from .result import Err, Ok, Result
 
 
-async def execute_tools(
-    task_id: str, tools_json: str, tools: dict, user_id: str = None
-) -> Result[None, str]:
-    """Execute JSON tool array sequentially and update working memory."""
-    logger = logging.getLogger("cogency.execute")
-
-    if not task_id:
-        return Err("task_id required")
-
-    if not tools_json or tools_json.strip() == "[]":
-        return Ok(None)
-
-    logger.debug(f"Executing tools: {len(tools_json)} chars JSON")
-
-    try:
-        tool_calls = json.loads(tools_json)
-    except json.JSONDecodeError as e:
-        logger.error(f"JSON parse failed: {str(e)} - content: {tools_json[:100]}...")
-        return Err(f"Invalid JSON: {str(e)}")
-
-    if not isinstance(tool_calls, list):
-        return Err("Tools must be JSON array")
-
-    for tool_call in tool_calls:
-        logger.debug(f"Executing tool: {tool_call.get('name')}")
-
-        result = await _execute(task_id, tool_call, tools, user_id)
+async def execute_tools(calls: list, config, user_id: str = None) -> list[str]:
+    """Execute tool call array sequentially - returns individual results."""
+    results = []
+    for call in calls:
+        result = await _execute(call, config, user_id)
         if result.failure:
-            logger.error(f"Tool {tool_call.get('name')} failed: {result.error}")
-            return result  # Propagate failure
+            # Store error as result instead of raising - errors go in "result" field
+            results.append(result.error)
+        else:
+            results.append(result.unwrap())
 
-        logger.debug(f"Tool {tool_call.get('name')} succeeded")
-
-    return Ok(None)
+    return results
 
 
-async def _execute(
-    task_id: str, tool_call: dict, tools: dict, user_id: str = None
-) -> Result[None, str]:
-    """Execute single JSON tool call."""
-    if not isinstance(tool_call, dict):
-        return Err("Tool call must be JSON object")
+def create_results_event(individual_results: list) -> dict:
+    """Create results event dict."""
+    return {
+        "type": Event.RESULTS,
+        "content": json.dumps(individual_results),
+        "results": individual_results,
+        "timestamp": time.time(),
+    }
 
-    tool_name = tool_call.get("name")
+
+async def execute_tools_and_save(calls, config, user_id, conversation_id):
+    """Core tool execution + event creation + DB save - shared across resume/replay."""
+    from ..lib.resilience import resilient_save
+
+    # Execute tools
+    individual_results = await execute_tools(calls, config, user_id)
+
+    # Create and save results event
+    results_event = create_results_event(individual_results)
+    resilient_save(
+        conversation_id,
+        user_id,
+        Event.RESULTS,
+        results_event["content"],
+        results_event["timestamp"],
+    )
+
+    return individual_results, results_event
+
+
+async def _execute(call: dict, config, user_id: str = None) -> Result[str]:
+    """Execute single JSON call - pure function."""
+    if not isinstance(call, dict):
+        return Err("Call must be JSON object")
+
+    tool_name = call.get("name")
     if not tool_name:
-        return Err("Tool call missing 'name' field")
+        return Err("Call missing 'name' field")
 
-    if tool_name not in tools:
+    # Find tool in list from config
+    tool = next((t for t in config.tools if t.name == tool_name), None)
+    if not tool:
         return Err(f"Unknown tool: {tool_name}")
 
-    args = tool_call.get("args", {})
+    args = call.get("args", {})
     if not isinstance(args, dict):
         return Err("Tool 'args' must be JSON object")
 
-    # Execute with context
     try:
-        # Pass user_id as kwarg only for tools that need it (like recall)
-        kwargs = dict(args)
-        if user_id and tool_name == "recall":
-            kwargs["user_id"] = user_id
-        result = await tools[tool_name].execute(**kwargs)
+        # Global context injection - all tools get access to agent context
+        if hasattr(config, "sandbox"):
+            args["sandbox"] = config.sandbox
+        if user_id:
+            args["user_id"] = user_id
 
-        # Record action taken in working memory
+        result = await tool.execute(**args)
+
         if result.success:
-            working.actions(task_id, {"tool": tool_name, "args": args, "result": result.unwrap()})
-            return Ok(None)  # Tool succeeded
-        working.actions(task_id, {"tool": tool_name, "args": args, "error": result.error})
-        return Err(f"Tool {tool_name} failed: {result.error}")  # Propagate failure
+            tool_result = result.unwrap()
+            # Convert ToolResult to string for agent consumption
+            return Ok(tool_result.for_agent())
+        return Err(f"Tool {tool_name} failed: {result.error}")
 
     except Exception as e:
-        working.actions(task_id, {"tool": tool_name, "args": args, "error": str(e)})
         return Err(f"Tool {tool_name} execution failed: {str(e)}")

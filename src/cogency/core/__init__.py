@@ -1,5 +1,5 @@
-"""Core agent contracts."""
+"""Core agent and protocols."""
 
-from .agent import Agent, AgentResult
+from .protocols import Tool
 
-__all__ = ["Agent", "AgentResult"]
+__all__ = ["Tool"]
