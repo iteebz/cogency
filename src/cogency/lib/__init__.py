@@ -1,5 +1,5 @@
 """Infrastructure library."""
 
-from .result import Err, Ok, Result
+from ..core.result import Err, Ok, Result
 
 __all__ = ["Result", "Ok", "Err"]

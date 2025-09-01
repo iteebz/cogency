@@ -1,9 +1,17 @@
-"""Cogency: Reasoning engine for adaptive agents."""
+"""Cogency: Streaming consciousness for AI agents."""
 
-from .core import Agent, AgentResult
-from .core.protocols import Tool
+# Load environment variables FIRST - before any imports that need API keys
+try:
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:
+    pass
+
+from .core import Tool
+from .core.agent import Agent
 from .lib import Err, Ok, Result
-from .tools import BASIC_TOOLS
+from .tools import TOOLS
 
-__version__ = "2.2.0"
-__all__ = ["Agent", "AgentResult", "Result", "Ok", "Err", "Tool", "BASIC_TOOLS"]
+__version__ = "3.0.0"
+__all__ = ["Agent", "Result", "Ok", "Err", "Tool", "TOOLS"]

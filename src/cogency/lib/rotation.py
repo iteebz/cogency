@@ -1,8 +1,11 @@
-"""Zero-ceremony API key rotation for any provider."""
+"""API key rotation for providers."""
 
 import os
 import time
 from typing import Any, Callable, Optional
+
+# Global client cache: "PROVIDER:api_key" -> client_instance
+_client_cache = {}
 
 
 class Rotator:
@@ -82,16 +85,81 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
     raise last_error
 
 
-def rotated(prefix: str):
-    """Decorator for automatic key rotation. ZEALOT APPROVED."""
+def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
+    """Decorator for automatic key rotation with client caching."""
+    import inspect
 
     def decorator(func):
-        async def wrapper(*args, **kwargs):
-            async def _execute(api_key):
-                return await func(api_key, *args, **kwargs)
+        # Auto-detect prefix from class name if not provided
+        def get_prefix(self):
+            if prefix:
+                return prefix
+            return self.__class__.__name__.upper()
 
-            return await with_rotation(prefix, _execute)
+        def debug_log(message):
+            """Debug logging for rotation events."""
+            import os
+
+            if os.getenv("COGENCY_DEBUG_ROTATION"):
+                print(f"🔄 ROTATE[{func.__name__}]: {message}")
+
+        # Check if function is async generator
+        if inspect.isasyncgenfunction(func):
+            # Async generator wrapper with caching
+            async def async_gen_wrapper(self, *args, **kwargs):
+                provider_prefix = get_prefix(self)
+
+                async def _execute_cached(api_key):
+                    # Get cached client
+                    cache_key = f"{provider_prefix}:{api_key}"
+                    if cache_key not in _client_cache:
+                        _client_cache[cache_key] = self._create_client(api_key)
+                    client = _client_cache[cache_key]
+
+                    # Call with cached client
+                    async for item in func(self, client, *args, **kwargs):
+                        yield item
+
+                rotator = _rotators.get(provider_prefix) or Rotator(provider_prefix)
+                if provider_prefix not in _rotators:
+                    _rotators[provider_prefix] = rotator
+
+                key = rotator.current_key()
+                if not key:
+                    raise ValueError(f"No {provider_prefix} API keys found")
+
+                try:
+                    async for item in _execute_cached(key):
+                        yield item
+                except Exception as e:
+                    if not rotator.rotate(str(e)):
+                        raise
+                    # Retry with rotated key
+                    key = rotator.current_key()
+                    async for item in _execute_cached(key):
+                        yield item
+
+            return async_gen_wrapper
+
+        # Regular coroutine wrapper with caching
+        async def wrapper(self, *args, **kwargs):
+            provider_prefix = get_prefix(self)
+
+            async def _execute_cached(api_key):
+                # Get cached client
+                cache_key = f"{provider_prefix}:{api_key}"
+                if cache_key not in _client_cache:
+                    _client_cache[cache_key] = self._create_client(api_key)
+                client = _client_cache[cache_key]
+
+                # Call with cached client
+                return await func(self, client, *args, **kwargs)
+
+            return await with_rotation(provider_prefix, _execute_cached)
 
         return wrapper
 
-    return decorator
+    # Handle both @rotate and @rotate() patterns
+    if func is None:
+        return decorator
+    return decorator(func)
