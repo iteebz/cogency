@@ -1,172 +1,269 @@
-"""Unit tests for tool execution functions."""
+"""Execute tests - Tool execution pipeline coverage."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from cogency.core.execute import execute_tools
-from cogency.lib.result import Err, Ok
-
-
-@pytest.fixture
-def mock_tools():
-    """Mock tools with different execution behaviors."""
-    file_write = AsyncMock()
-    file_write.name = "file_write"
-    file_write.execute.return_value = Ok("File written successfully")
-
-    search = AsyncMock()
-    search.name = "search"
-    search.execute.return_value = Ok("Search results found")
-
-    failing_tool = AsyncMock()
-    failing_tool.name = "failing_tool"
-    failing_tool.execute.return_value = Err("Tool execution failed")
-
-    return {
-        "file_write": file_write,
-        "search": search,
-        "failing_tool": failing_tool,
-    }
+from cogency.core.execute import _execute, create_results_event, execute_tools
+from cogency.core.protocols import Event, ToolResult
+from cogency.core.result import Err, Ok
 
 
 @pytest.mark.asyncio
-async def test_execute_single_tool(mock_tools):
-    """Test executing a single tool."""
-    tools_json = '[{"name": "file_write", "args": {"filename": "test.txt", "content": "hello"}}]'
+async def test_execute_tools_basic():
+    """Tool execution handles basic tool calls."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "test_tool"
+    mock_tool.execute.return_value = Ok(ToolResult("Tool result"))
 
-    result = await execute_tools("task123", tools_json, mock_tools)
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
+    mock_config.sandbox = True
+
+    calls = [{"name": "test_tool", "args": {}}]
+
+    result = await execute_tools(calls, mock_config)
+
+    assert result == ["Tool result"]
+    assert mock_tool.execute.called
+
+
+@pytest.mark.asyncio
+async def test_execute_tools_multiple():
+    """Tool execution handles multiple tool calls sequentially."""
+    mock_tool1 = AsyncMock()
+    mock_tool1.name = "tool1"
+    mock_tool1.execute.return_value = Ok(ToolResult("Result 1"))
+    mock_tool2 = AsyncMock()
+    mock_tool2.name = "tool2"
+    mock_tool2.execute.return_value = Ok(ToolResult("Result 2"))
+
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool1, mock_tool2]
+    mock_config.sandbox = True
+
+    calls = [{"name": "tool1", "args": {}}, {"name": "tool2", "args": {"param": "value"}}]
+
+    result = await execute_tools(calls, mock_config)
+
+    assert result == ["Result 1", "Result 2"]
+    assert mock_tool1.execute.called
+    assert mock_tool2.execute.called
+
+
+@pytest.mark.asyncio
+async def test_execute_tools_with_args():
+    """Tool execution passes arguments correctly."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "test_tool"
+    mock_tool.execute.return_value = Ok(ToolResult("Success"))
+
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
+    mock_config.sandbox = True
+
+    calls = [{"name": "test_tool", "args": {"param": "value", "flag": True}}]
+
+    result = await execute_tools(calls, mock_config)
+
+    # Check that original args were passed (global context may be added)
+    call_args = mock_tool.execute.call_args
+    assert call_args.kwargs["param"] == "value"
+    assert call_args.kwargs["flag"] is True
+    assert result == ["Success"]
+
+
+@pytest.mark.asyncio
+async def test_execute_tools_user_id():
+    """Tool execution passes user_id for recall tool."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "recall"
+    mock_tool.execute.return_value = Ok(ToolResult("Recall result"))
+
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
+    mock_config.sandbox = True
+
+    calls = [{"name": "recall", "args": {"query": "test"}}]
+
+    await execute_tools(calls, mock_config, user_id="test_user")
+
+    # Check that recall got user_id and original args
+    call_args = mock_tool.execute.call_args
+    assert call_args.kwargs["query"] == "test"
+    assert call_args.kwargs["user_id"] == "test_user"
+
+
+@pytest.mark.asyncio
+async def test_execute_tools_failure():
+    """Tool execution handles tool failures gracefully."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "failing_tool"
+    mock_tool.execute.return_value = Err("Tool failed")
+
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
+    mock_config.sandbox = True
+
+    calls = [{"name": "failing_tool", "args": {}}]
+
+    result = await execute_tools(calls, mock_config)
+
+    assert result == ["Tool failing_tool failed: Tool failed"]
+
+
+@pytest.mark.asyncio
+async def test_execute_single_valid():
+    """Single tool execution works correctly."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "valid_tool"
+    mock_tool.execute.return_value = Ok(ToolResult("Valid result"))
+
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
+    mock_config.sandbox = True
+
+    call = {"name": "valid_tool", "args": {"test": "value"}}
+
+    result = await _execute(call, mock_config)
 
     assert result.success
-    mock_tools["file_write"].execute.assert_called_once_with(filename="test.txt", content="hello")
+    assert result.unwrap() == "Valid result"
+    # Check that original args were passed (global context may be added)
+    call_args = mock_tool.execute.call_args
+    assert call_args.kwargs["test"] == "value"
 
 
 @pytest.mark.asyncio
-async def test_execute_multiple_tools_sequential(mock_tools):
-    """Test executing multiple tools sequentially."""
-    tools_json = """[
-        {"name": "file_write", "args": {"filename": "test.txt", "content": "hello"}},
-        {"name": "search", "args": {"query": "python tutorial"}}
-    ]"""
+async def test_execute_single_invalid_call():
+    """Single tool execution rejects invalid call format."""
+    mock_config = MagicMock()
+    mock_config.tools = []
 
-    result = await execute_tools("task123", tools_json, mock_tools)
-
-    assert result.success
-    mock_tools["file_write"].execute.assert_called_once_with(filename="test.txt", content="hello")
-    mock_tools["search"].execute.assert_called_once_with(query="python tutorial")
-
-
-@pytest.mark.asyncio
-async def test_execute_tools_propagates_failure(mock_tools):
-    """Test that first tool failure stops execution."""
-    tools_json = """[
-        {"name": "failing_tool", "args": {}},
-        {"name": "search", "args": {"query": "test"}}
-    ]"""
-
-    result = await execute_tools("task123", tools_json, mock_tools)
+    result = await _execute("not a dict", mock_config)
 
     assert result.failure
-    assert "Tool failing_tool failed" in result.error
-    # Second tool should not be called due to failure propagation
-    mock_tools["search"].execute.assert_not_called()
+    assert "Call must be JSON object" in result.error
 
 
 @pytest.mark.asyncio
-async def test_execute_empty_tools_array(mock_tools):
-    """Test executing empty tools array."""
-    result = await execute_tools("task123", "[]", mock_tools)
+async def test_execute_single_unknown_tool():
+    """Single tool execution handles unknown tools."""
+    mock_config = MagicMock()
+    mock_config.tools = []
 
-    assert result.success
+    call = {"name": "unknown_tool", "args": {}}
 
-
-@pytest.mark.asyncio
-async def test_execute_invalid_json(mock_tools):
-    """Test executing invalid JSON."""
-    result = await execute_tools("task123", '{"invalid": json}', mock_tools)
-
-    assert result.failure
-    assert "Invalid JSON" in result.error
-
-
-@pytest.mark.asyncio
-async def test_execute_unknown_tool(mock_tools):
-    """Test executing unknown tool."""
-    tools_json = '[{"name": "unknown_tool", "args": {}}]'
-
-    result = await execute_tools("task123", tools_json, mock_tools)
+    result = await _execute(call, mock_config)
 
     assert result.failure
     assert "Unknown tool: unknown_tool" in result.error
 
 
 @pytest.mark.asyncio
-async def test_execute_missing_task_id(mock_tools):
-    """Test execution without task_id."""
-    result = await execute_tools("", "[]", mock_tools)
+async def test_execute_single_invalid_args():
+    """Single tool execution rejects invalid args format."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "test_tool"
+
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
+
+    call = {"name": "test_tool", "args": "not a dict"}
+
+    result = await _execute(call, mock_config)
 
     assert result.failure
-    assert "task_id required" in result.error
+    assert "Tool 'args' must be JSON object" in result.error
 
 
 @pytest.mark.asyncio
-async def test_working_memory_records_actions(mock_tools):
-    """Test that tool executions are recorded in working memory."""
-    from unittest.mock import patch
+async def test_execute_single_exception():
+    """Single tool execution handles tool exceptions."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "exception_tool"
+    mock_tool.execute.side_effect = Exception("Unexpected error")
 
-    tools_json = '[{"name": "file_write", "args": {"filename": "test.txt", "content": "hello"}}]'
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
 
-    with patch("cogency.core.execute.working") as mock_working:
-        result = await execute_tools("task123", tools_json, mock_tools)
+    call = {"name": "exception_tool", "args": {}}
 
-        assert result.success
-        mock_working.actions.assert_called_once()
-        call_args = mock_working.actions.call_args[0]
-        assert call_args[0] == "task123"  # task_id
-        assert call_args[1]["tool"] == "file_write"
-        assert call_args[1]["args"] == {"filename": "test.txt", "content": "hello"}
-        assert call_args[1]["result"] == "File written successfully"
+    result = await _execute(call, mock_config)
 
-
-@pytest.mark.asyncio
-async def test_execute_tool_failures_graceful():
-    """Test graceful handling of multiple tool failures."""
-    # Mock tools with different failure modes
-    failing_tools = {
-        "timeout_tool": AsyncMock(name="timeout_tool"),
-        "error_tool": AsyncMock(name="error_tool"),
-        "missing_tool": None,  # Tool doesn't exist
-    }
-
-    failing_tools["timeout_tool"].execute.return_value = Err("Tool timeout")
-    failing_tools["error_tool"].execute.return_value = Err("Internal error")
-
-    # Test individual failures handle gracefully
-    timeout_result = await execute_tools(
-        "task1", '[{"name": "timeout_tool", "args": {}}]', failing_tools
-    )
-    assert timeout_result.failure
-    assert "timeout" in timeout_result.error.lower()
-
-    error_result = await execute_tools(
-        "task2", '[{"name": "error_tool", "args": {}}]', failing_tools
-    )
-    assert error_result.failure
-    assert "error" in error_result.error.lower()
+    assert result.failure
+    assert "execution failed: Unexpected error" in result.error
 
 
 @pytest.mark.asyncio
-async def test_execute_invalid_tool_args(mock_tools):
-    """Test handling of invalid tool argument types."""
-    # Test various invalid argument scenarios
-    test_cases = [
-        ('{"name": "file_write"}', "missing args field"),  # Missing args
-        ('[{"name": "file_write", "args": "not_a_dict"}]', "args must be object"),  # String args
-        ('[{"name": 123, "args": {}}]', "tool name must be string"),  # Numeric name
+async def test_execute_sandbox_flag():
+    """Sandbox flag is passed to sandboxed tools."""
+    mock_tool = AsyncMock()
+    mock_tool.name = "read"
+    mock_tool.execute.return_value = Ok(ToolResult("File content"))
+
+    mock_config = MagicMock()
+    mock_config.tools = [mock_tool]
+    mock_config.sandbox = False
+
+    call = {"name": "read", "args": {"filename": "test.txt"}}
+
+    result = await _execute(call, mock_config)
+
+    assert result.success
+    mock_tool.execute.assert_called_with(filename="test.txt", sandbox=False)
+
+
+def test_create_results_event():
+    """Results event creation - canonical event structure."""
+    individual_results = ["result1", "result2", "error: failed"]
+
+    event = create_results_event(individual_results)
+
+    # Canonical event structure
+    assert event["type"] == Event.RESULTS
+    assert "content" in event
+    assert "results" in event
+    assert "timestamp" in event
+
+    # Content is JSON serialized
+    import json
+
+    parsed_content = json.loads(event["content"])
+    assert parsed_content == individual_results
+
+    # Results field is original list
+    assert event["results"] == individual_results
+
+    # Timestamp is recent float
+    import time
+
+    assert isinstance(event["timestamp"], float)
+    assert abs(event["timestamp"] - time.time()) < 1.0  # Within 1 second
+
+
+def test_create_results_event_empty():
+    """Results event handles empty results - edge case."""
+    event = create_results_event([])
+
+    assert event["type"] == Event.RESULTS
+    assert event["content"] == "[]"
+    assert event["results"] == []
+
+
+def test_create_results_event_complex():
+    """Results event handles complex data structures."""
+    complex_results = [
+        {"tool": "file_read", "result": "content", "status": "ok"},
+        "simple string result",
+        ["nested", "list", "result"],
     ]
 
-    for tools_json, _expected_error_type in test_cases:
-        result = await execute_tools("task123", tools_json, mock_tools)
-        assert result.failure  # Should handle gracefully, not crash
-        # Should have some error message (specific content may vary)
-        assert len(result.error) > 0
+    event = create_results_event(complex_results)
+
+    # Should serialize complex structures
+    import json
+
+    parsed = json.loads(event["content"])
+    assert parsed == complex_results
+    assert event["results"] == complex_results

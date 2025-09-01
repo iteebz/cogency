@@ -1,112 +1,77 @@
-"""Integration tests for Agent coordination with React and Context."""
+"""Streaming integration tests - transport mechanics."""
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import pytest
 
-from cogency import Agent
-from cogency.lib.result import Ok
+
+@pytest.mark.asyncio
+async def test_agent_http_mode():
+    """Agent uses HTTP mode correctly."""
+    from cogency import Agent
+
+    agent = Agent(mode="replay")  # Test basic mode functionality
+
+    with patch("cogency.core.agent.consciousness_stream") as mock_stream:
+        # Mock async generator
+        async def mock_events():
+            yield {"type": "respond", "content": "HTTP response"}
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
+
+        result = await agent("Test query")
+
+        assert result == "HTTP response"
+        mock_stream.assert_called_once()
+
+        # Verify stream was passed correctly
+        call_args = mock_stream.call_args[0][0]  # First arg is config
+        assert call_args.mode == "replay"
 
 
 @pytest.mark.asyncio
-async def test_streaming_preserves_sync_behavior(mock_llm):
-    """Verify streaming doesn't break synchronous execution."""
-    # Use canonical mock fixture
-    xml_response = """<thinking>
-Processing streaming test.
-</thinking>
+async def test_agent_websocket_mode():
+    """Agent uses WebSocket mode correctly."""
+    from cogency import Agent
 
-<response>
-Test response
-</response>"""
-    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
+    agent = Agent(mode="resume")  # Test resume mode functionality
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        with patch("cogency.core.react.context") as mock_context:
-            mock_context.assemble.return_value = "context"
-            agent = Agent(tools=[])
+    with patch("cogency.core.agent.consciousness_stream") as mock_stream:
+        # Mock async generator
+        async def mock_events():
+            yield {"type": "respond", "content": "WebSocket response"}
 
-            # Test synchronous call still works
-            sync_result = await agent("Test query", user_id="sync_test")
-            assert "Test response" in sync_result.response
-            assert sync_result.conversation_id == "sync_test"
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
 
-            # Test streaming works
-            stream_events = []
-            async for event in agent.stream("Test query", user_id="stream_test"):
-                stream_events.append(event)
+        result = await agent("Test query")
 
-            # Both should complete successfully
-            assert len(stream_events) > 0
-            complete_events = [e for e in stream_events if e["type"] == "complete"]
-            assert len(complete_events) == 1
-            assert "Test response" in complete_events[0]["answer"]
+        assert result == "WebSocket response"
+        mock_stream.assert_called_once()
+
+        # Verify stream was passed
+        call_args = mock_stream.call_args[0][0]
+        assert call_args.mode == "resume"
 
 
 @pytest.mark.asyncio
-async def test_streaming_context_assembly(mock_llm):
-    """Test streaming properly assembles context like sync version."""
-    xml_response = """<thinking>
-Context assembly test.
-</thinking>
+async def test_agent_auto_mode():
+    """Agent auto mode selects transport correctly."""
+    from cogency import Agent
 
-<response>
-Done
-</response>"""
-    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
+    agent = Agent(mode="auto")  # Test auto mode functionality
 
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        with patch("cogency.core.react.context") as mock_context:
-            mock_context.assemble.return_value = "assembled context"
-            agent = Agent(tools=[])
-            events = []
+    with patch("cogency.core.agent.consciousness_stream") as mock_stream:
+        # Mock async generator
+        async def mock_events():
+            yield {"type": "respond", "content": "Auto mode response"}
 
-            async for event in agent.stream("Test", user_id="context_test"):
-                events.append(event)
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
 
-            # Context should be called with current signature
-            assert mock_context.assemble.called
-            call_args = mock_context.assemble.call_args[0]
-            assert call_args[0] == "Test"  # query
-            assert call_args[1] == "context_test"  # user_id
+        result = await agent("Test query")
 
-            # Context length should be reported in event
-            context_events = [e for e in events if e["type"] == "context"]
-            assert len(context_events) == 1
-            assert context_events[0]["length"] == len("assembled context")
+        assert result == "Auto mode response"
+        mock_stream.assert_called_once()
 
-
-@pytest.mark.asyncio
-async def test_streaming_conversation_id_consistency(mock_llm):
-    """Verify streaming conversation_id follows same pattern as sync."""
-    xml_response = """<thinking>
-Testing consistency.
-</thinking>
-
-<response>
-Consistent
-</response>"""
-    mock_llm.generate = AsyncMock(return_value=Ok(xml_response))
-
-    with patch("cogency.core.agent.create_llm", return_value=mock_llm):
-        with patch("cogency.core.react.context") as mock_context:
-            mock_context.assemble.return_value = "context"
-            agent = Agent(tools=[])
-
-            # Get sync conversation ID pattern
-            sync_result = await agent("Test", user_id="user123")
-            sync_conv_id = sync_result.conversation_id
-
-            # Get streaming conversation ID
-            stream_events = []
-            async for event in agent.stream("Test", user_id="user123"):
-                stream_events.append(event)
-
-            complete_events = [e for e in stream_events if e["type"] == "complete"]
-            stream_conv_id = complete_events[0]["conversation_id"]
-
-            # Both should use user_id as conversation_id when not specified
-            assert sync_conv_id == "user123"
-            assert stream_conv_id == "user123"
-
-            # Both use same conversation ID format
+        # Verify auto mode was passed
+        call_args = mock_stream.call_args[0][0]
+        assert call_args.mode == "auto"

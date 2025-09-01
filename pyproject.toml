@@ -4,7 +4,7 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "cogency"
-version = "2.2.0"
+version = "3.0.0"
 description = "Stateless Context-Driven Agent Framework"
 authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
@@ -25,6 +25,9 @@ classifiers = [
 ]
 packages = [{ include = "cogency", from = "src" }]
 
+[tool.poetry.scripts]
+cogency = "cogency.cli:main"
+
 
 [tool.poetry.dependencies]
 python = ">=3.10,<4.0"
@@ -36,16 +39,15 @@ trafilatura = "^2.0.0"
 ddgs = "9.3.1"
 google-genai = "^1.31.0"
 anthropic = "^0.64.0"
+tiktoken = "^0.11.0"
 
 
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.8.0"
 pytest = "^8.4.1"
-pytest-asyncio = "^0.21.0"
+pytest-asyncio = "^0.23.0"
 pytest-timeout = "^2.4.0"
-jsonschema = "^4.19.0"
-pytest-xdist = "^3.3.1"  # For parallel test execution
 
 
 
@@ -84,7 +86,6 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 pythonpath = ["src"]
@@ -92,17 +93,20 @@ filterwarnings = [
     "ignore::DeprecationWarning:starlette.*",
     "ignore::PendingDeprecationWarning:starlette.*"
 ]
-# Performance optimizations
 addopts = [
     "--strict-markers",
     "--strict-config", 
     "-ra"  # Show short test summary for all except passed
 ]
-# Test markers for parallel execution
 markers = [
+    "asyncio: Async tests using pytest-asyncio",
     "unit: Unit tests (can run in parallel)",
     "integration: Integration tests (may need isolation)", 
     "contract: API contract validation tests",
     "schema: Schema validation tests",
-    "slow: Slow tests that should run last"
+    "slow: Slow tests that should run last",
+    "timeout: Test timeout marker for pytest-timeout"
 ]
+
+[tool.pytest_asyncio]
+asyncio_mode = "auto"
