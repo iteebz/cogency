@@ -1,42 +1,92 @@
 """Core protocols for provider abstraction."""
 
 from abc import ABC, abstractmethod
-from typing import Protocol, runtime_checkable
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional, Protocol, runtime_checkable
 
-from ..lib.result import Result
+from .result import Result
+
+# Unicode section symbol - zero collision risk with natural language
+DELIMITER = "§"
+
+
+@dataclass
+class ToolResult:
+    """Canonical tool execution result - natural language outcome + optional content."""
+
+    outcome: str  # Natural language completion: "File written to poison.txt"
+    content: Optional[str] = None  # Optional detailed data: file contents, search results, etc.
+
+    def for_agent(self) -> str:
+        """Format for agent consumption - outcome + content."""
+        if self.content:
+            return f"{self.outcome}\n\n{self.content}"
+        return self.outcome
+
+    def for_human(self) -> str:
+        """Format for human display - just the natural language outcome."""
+        return self.outcome
+
+
+class Event(str, Enum):
+    """Canonical events - type-safe strings, no ceremony."""
+
+    THINK = "think"
+    CALLS = "calls"
+    RESULTS = "results"
+    RESPOND = "respond"
+    USER = "user"
+    YIELD = "yield"  # Control signal - not persisted, just execution handover
+
+    @property
+    def delimiter(self) -> str:
+        """Convert event to streaming delimiter format."""
+        return f"{DELIMITER}{self.upper()}"
 
 
 @runtime_checkable
 class LLM(Protocol):
-    """Text generation protocol."""
+    """LLM provider interface - complete responses + streaming + optional WebSocket."""
 
-    async def generate(self, messages: list[dict]) -> Result[str, str]:
-        """Generate text from conversation messages.
+    # MANDATORY: Complete generation
+    async def generate(self, messages: list[dict]) -> Result[str]: ...
 
-        Args:
-            messages: List of {"role": str, "content": str} dicts
+    # MANDATORY: HTTP streaming (universal)
+    async def stream(self, messages: list[dict]): ...
 
-        Returns:
-            Ok(generated_text) on success
-            Err(error_message) on failure
-        """
-        ...
+    # OPTIONAL: WebSocket streaming (next-gen consciousness)
+    async def connect(self, messages: list[dict]): ...
+
+    async def send(self, session, content: str) -> bool: ...
+
+    async def receive(self, session): ...
+
+    async def close(self, session) -> bool: ...
 
 
 @runtime_checkable
-class Embedder(Protocol):
-    """Vector embedding protocol."""
+class Storage(Protocol):
+    """Storage protocol for conversation messages and user profiles."""
 
-    async def embed(self, texts: list[str]) -> Result[list[list[float]], str]:
-        """Generate embeddings for input texts.
+    async def save_message(
+        self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
+    ) -> bool:
+        """Save single message to conversation."""
+        ...
 
-        Args:
-            texts: List of strings to embed
+    async def load_messages(
+        self, conversation_id: str, include: list[str] = None, exclude: list[str] = None
+    ) -> list[dict]:
+        """Load conversation messages with optional type filtering."""
+        ...
 
-        Returns:
-            Ok(list of embedding vectors) on success
-            Err(error_message) on failure
-        """
+    async def save_profile(self, user_id: str, profile: dict) -> bool:
+        """Save user profile (with embedded metadata)."""
+        ...
+
+    async def load_profile(self, user_id: str) -> dict:
+        """Load latest user profile."""
         ...
 
 
@@ -46,26 +96,21 @@ class Tool(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Tool name for agent reference."""
         pass
 
     @property
     @abstractmethod
     def description(self) -> str:
-        """Tool description for agent understanding."""
         pass
 
     @property
     def schema(self) -> dict:
-        """Parameter schema for accurate agent tool calls."""
         return {}
 
     @property
     def examples(self) -> list[dict]:
-        """Usage examples for agent learning."""
         return []
 
     @abstractmethod
-    async def execute(self, **kwargs) -> Result[str, str]:
-        """Execute tool with given arguments."""
+    async def execute(self, **kwargs) -> Result[ToolResult]:
         pass
