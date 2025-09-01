@@ -1,64 +1,111 @@
-"""Assembly: Context orchestrator - combines all sources."""
+"""Context assembly for conversations."""
 
-from .conversation import conversation
-from .memory import memory as memory_system
-from .system import system
-from .working import working
+from ..core.protocols import Event
+from ..lib.storage import save_message
+from .conversation import current_cycle_messages, history
+from .profile import format as profile_format
+from .profile import learn
+from .system import prompt as system_prompt
 
 
 class Context:
-    """Unified context assembly with user-scoped data integration."""
+    """Context assembly for streaming conversations."""
+
+    def record(self, conversation_id: str, user_id: str, events: list) -> bool:
+        """Batch record events to storage with chronological ordering."""
+        import json
+
+        for event in events:
+            timestamp = event.get("timestamp")
+            content = event.get("content", "")
+
+            match event["type"]:
+                case Event.USER:
+                    if not save_message(conversation_id, user_id, Event.USER, content, timestamp):
+                        return False
+                case Event.THINK:
+                    if not save_message(conversation_id, user_id, Event.THINK, content, timestamp):
+                        return False
+                case Event.CALLS:
+                    if not save_message(
+                        conversation_id, user_id, Event.CALLS, json.dumps(event["calls"]), timestamp
+                    ):
+                        return False
+                case Event.RESULTS:
+                    if not save_message(
+                        conversation_id,
+                        user_id,
+                        Event.RESULTS,
+                        json.dumps(event["results"]),
+                        timestamp,
+                    ):
+                        return False
+                case Event.RESPOND:
+                    if not save_message(
+                        conversation_id, user_id, Event.RESPOND, content, timestamp
+                    ):
+                        return False
+
+        return True
 
     def assemble(
         self,
         query: str,
         user_id: str,
         conversation_id: str,
-        task_id: str,
-        tools: dict = None,
-        iteration: int = 1,
-        memory: bool = True,
+        tools: list = None,
+        config=None,
     ) -> list:
-        """Assemble unified context as canonical message format."""
+        """Assemble context into single system message + user query format."""
         if user_id is None:
             raise ValueError("user_id cannot be None")
 
-        messages = []
+        # Build system message with all context
+        system_sections = []
 
-        # All iterations: System message with XML format instructions
-        # Iteration 1: Include security evaluation, others: exclude security
-        include_security = iteration == 1
-        messages.append(
-            {
-                "role": "system",
-                "content": system.format(tools=tools, include_security=include_security),
-            }
+        # Core instructions and tools (with optional user instructions)
+        instructions = config.instructions if config else None
+        system_sections.append(
+            system_prompt(tools=tools, instructions=instructions, include_security=True)
         )
 
-        # Iteration 1: Add conversation history + user context
-        if iteration == 1:
-            # Add conversation history as structured messages
-            message_history = conversation.messages(conversation_id)
-            if message_history:
-                messages.extend(message_history)
+        # User profile context
+        profile = config.profile if config else True
+        if profile:
+            profile_content = profile_format(user_id)
+            if profile_content:
+                system_sections.append("USER CONTEXT:")
+                system_sections.append(profile_content)
 
-            # Add current query context (skip user memory if disabled)
-            context_parts = []
-            if memory:
-                context_parts.append(memory_system.format(user_id))
+        # Conversation history (past cycles only)
+        history_content = history(conversation_id)
+        if history_content:
+            system_sections.append("CONVERSATION HISTORY:")
+            system_sections.append(history_content)
 
-            context_content = "\n\n".join(filter(None, context_parts))
+        # Task boundary to prevent context confusion
+        system_sections.append(
+            "CURRENT TASK: Execute the following request independently. "
+            "Previous responses are context only - do not assume prior completion."
+        )
 
-            if context_content:
-                messages.append({"role": "user", "content": context_content})
+        # Combine all sections into system message
+        full_system_content = "\n\n".join(system_sections)
 
-        # All iterations: working memory + current query
-        working_context = working.format(task_id)
-        if working_context:
-            messages.append({"role": "user", "content": working_context})
-        messages.append({"role": "user", "content": query})
+        messages = [
+            {"role": "system", "content": full_system_content},
+            {"role": "user", "content": query},
+        ]
+
+        # Add current cycle messages for replay mode continuity
+        current_cycle = current_cycle_messages(conversation_id)
+        messages.extend(current_cycle)
 
         return messages
+
+    def learn(self, user_id: str, llm) -> None:
+        """Trigger profile learning (fire and forget)."""
+        learn(user_id, llm)
 
 
 # Singleton instance

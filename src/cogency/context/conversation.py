@@ -1,57 +1,168 @@
-"""Conversation history management."""
+"""Conversation history construction for context assembly."""
 
-from typing import Any
-
-from ..lib.storage import load_conversations, save_conversation_message
-
-
-class ConversationHistory:
-    """User-scoped conversation and chat history management."""
-
-    def format(self, conversation_id: str) -> str:
-        """Format recent conversation history for context display."""
-        try:
-            messages = self.get(conversation_id)
-            if not messages:
-                return ""
-
-            recent = messages[-5:] if len(messages) > 5 else messages
-            lines = []
-            for msg in recent:
-                role = msg.get("role", "unknown")
-                content = msg.get("content", "")[:100]
-                lines.append(f"{role}: {content}")
-
-            return "Recent conversation:\n" + "\n".join(lines)
-        except Exception:
-            return ""
-
-    def messages(self, conversation_id: str, limit: int = 20) -> list[dict[str, Any]]:
-        """Get conversation history as structured messages for LLM context."""
-        messages = self.get(conversation_id, limit=limit)
-
-        # Filter out corrupted messages with null content
-        valid_messages = []
-        for msg in messages:
-            if isinstance(msg.get("content"), str) and msg.get("role"):
-                valid_messages.append(msg)
-
-        return valid_messages
-
-    def get(self, conversation_id: str, limit: int = None) -> list[dict[str, Any]]:
-        """Get conversation messages by conversation_id."""
-        try:
-            messages = load_conversations(conversation_id)
-            if limit is not None:
-                return messages[-limit:] if len(messages) > limit else messages
-            return messages
-        except Exception:
-            return []
-
-    def add(self, conversation_id: str, role: str, content: str) -> bool:
-        """Add message to conversation history - O(1) SQLite operation."""
-        return save_conversation_message(conversation_id, role, content)
+from ..core.protocols import Event
+from ..lib.storage import load_messages
+from .constants import DEFAULT_CONVERSATION_ID, HISTORY_LIMIT
 
 
-# Singleton instance
-conversation = ConversationHistory()
+def history(conversation_id: str) -> str:
+    """Context assembly algorithm:
+
+    - Single system message with all context
+    - History: Last N user/assistant/tools messages before current cycle
+    - Format: USER:/ASSISTANT:/TOOLS: (reference markers)
+    - Filtering: Skip 'think' events, truncate tool results
+    - Prevents hallucination by excluding current cycle from history
+    """
+    if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
+        return ""
+
+    all_messages = load_messages(conversation_id)
+    if not all_messages:
+        return ""
+
+    past_messages = _past_messages(all_messages)
+    if not past_messages:
+        return ""
+
+    # Filter out 'think' messages BEFORE applying history limit
+    conversational_messages = [msg for msg in past_messages if msg["type"] != Event.THINK]
+    if not conversational_messages:
+        return ""
+
+    # Take last N conversational messages (user/assistant/tools only)
+    history_messages = conversational_messages[-HISTORY_LIMIT:]
+    return _format_messages(history_messages)
+
+
+def _past_messages(all_messages):
+    """Get messages before current cycle boundary."""
+    last_user_idx = None
+    for i in range(len(all_messages) - 1, -1, -1):
+        if all_messages[i]["type"] == Event.USER:
+            last_user_idx = i
+            break
+
+    if last_user_idx is None or last_user_idx == 0:
+        return []  # No history or only current message
+
+    return all_messages[:last_user_idx]  # Everything before current cycle
+
+
+def _format_messages(history_messages):
+    """Pair calls with results for history display."""
+    import json
+
+    formatted = []
+
+    i = 0
+    while i < len(history_messages):
+        msg = history_messages[i]
+        msg_type = msg["type"]
+        content = msg["content"]
+
+        if msg_type == Event.CALLS:
+            calls = json.loads(content) if content else []
+            results = []
+
+            # Grab matching results from next message
+            if i + 1 < len(history_messages) and history_messages[i + 1]["type"] == Event.RESULTS:
+                results_content = history_messages[i + 1]["content"]
+                results = json.loads(results_content) if results_content else []
+                i += 1  # Skip results message
+
+            # Pair calls with results
+            if calls:
+                pairs = []
+                for j, call in enumerate(calls):
+                    result = results[j] if j < len(results) else "No result"
+                    pairs.append({"call": call, "result": result})
+
+                from ..lib.format import format_tools
+
+                tools_display = format_tools(json.dumps(pairs), truncate=True)
+                formatted.append(f"TOOLS: {tools_display}")
+
+        elif msg_type == Event.RESULTS:
+            pass  # Skip standalone results
+        elif msg_type == Event.RESPOND:
+            formatted.append(f"ASSISTANT: {content}")
+        else:
+            formatted.append(f"{msg_type.upper()}: {content}")
+
+        i += 1
+
+    return "\n".join(formatted) if formatted else ""
+
+
+def current_cycle_messages(conversation_id: str) -> list[dict]:
+    """Get current cycle messages for replay mode continuity.
+
+    Current cycle reconstruction:
+    - Everything after last user message
+    - Format as assistant/system conversation messages
+    - Enables multi-iteration cycle memory
+    """
+    if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
+        return []
+
+    all_messages = load_messages(conversation_id)
+    if not all_messages:
+        return []
+
+    # Find current cycle messages (after last user message)
+    current_cycle = _current_cycle_messages(all_messages)
+    if not current_cycle:
+        return []
+
+    # Show natural conversation context, not synthetic delimiters
+    if current_cycle:
+        natural_history = format(current_cycle)
+        return [{"role": "assistant", "content": f"Previous cycle:\n{natural_history}"}]
+    return []
+
+
+def _current_cycle_messages(all_messages):
+    """Get messages after current cycle boundary."""
+    last_user_idx = None
+    for i in range(len(all_messages) - 1, -1, -1):
+        if all_messages[i]["type"] == Event.USER:
+            last_user_idx = i
+            break
+
+    if last_user_idx is None or last_user_idx == len(all_messages) - 1:
+        return []  # No current cycle or user message is last
+
+    return all_messages[last_user_idx + 1 :]  # Everything after last user message
+
+
+def format(current_cycle):
+    """Format semantic events into readable conversation flow."""
+    if not current_cycle:
+        return ""
+
+    lines = []
+    for record in current_cycle:
+        msg_type = record["type"]
+        content = record["content"]
+
+        match msg_type:
+            case Event.THINK:
+                lines.append(f"Thinking: {content}")
+            case Event.CALLS:
+                # Parse tools for natural description
+                import json
+
+                try:
+                    tools = json.loads(content) if content else []
+                    if tools:
+                        tool_names = [tool.get("name", "unknown") for tool in tools]
+                        lines.append(f"Used tools: {', '.join(tool_names)}")
+                except json.JSONDecodeError:
+                    lines.append(f"Used tools: {content}")
+            case Event.RESULTS:
+                lines.append(f"Observed: {content}")
+            case Event.RESPOND:
+                lines.append(f"Responded: {content}")
+
+    return "\n".join(lines)
