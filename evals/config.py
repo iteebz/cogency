@@ -1,34 +1,32 @@
-"""Evaluation configuration - single source of truth."""
+"""Canonical evaluation configuration."""
 
-from dataclasses import dataclass
+import os
 from pathlib import Path
-from typing import Callable
 
 from cogency import Agent
 
 
-@dataclass
-class EvalConfig:
-    """Zero ceremony evaluation configuration."""
+class Config:
+    """Zero ceremony eval config."""
 
-    agent: Callable = lambda: Agent(llm="gemini")
+    def agent(self):
+        """Create fresh agent per test."""
+        return Agent(llm="gemini", mode="replay")
 
-    # Judge configuration
-    judge_llm: str = "openai"  # "openai", "claude", "gemini", or provider instance
-    use_llm_judge: bool = True  # Enable LLM judging for pass/fail measurement
+    @property
+    def sample_size(self):
+        return int(os.getenv("EVAL_SAMPLES", "30"))
 
-    # Statistical rigor
-    sample_size: int = 30  # Improved statistical coverage per category
-    num_runs: int = 1  # For initial baseline, scale to 3-5 for significance
-    random_seed: int = 42
+    @sample_size.setter
+    def sample_size(self, value):
+        os.environ["EVAL_SAMPLES"] = str(value)
 
-    # Output control
-    output_dir: Path = Path("evals/runs")
-    save_raw_outputs: bool = True  # For manual review
+    @property
+    def output_dir(self):
+        return Path.home() / ".cogency/evals"
 
-    # Sampling strategy
-    stratified_sampling: bool = True  # Balance difficulty across samples
-    temporal_sampling: bool = False  # Future: avoid recency bias
+    timeout: int = 15
+    use_llm_judge: bool = False  # Manual review for V3
 
 
-CONFIG = EvalConfig()
+CONFIG = Config()
