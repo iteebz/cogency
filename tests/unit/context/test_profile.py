@@ -53,6 +53,6 @@ def test_learn_triggers():
     """Profile learn skips in test environment - canonical behavior."""
     mock_llm = Mock()
     with patch("cogency.context.profile._delta", return_value=True):
-        # CANONICAL: In test environment, learning should be skipped
+        # In test environment, learning should be skipped
         result = profile.learn("user123", mock_llm)
         assert result is None  # Should return early due to pytest detection

@@ -33,4 +33,4 @@ def test_invalid_llm():
         assert hasattr(agent.llm, "generate")
     except Exception as e:
         # If it raises, should be controlled
-        assert isinstance(e, (ValueError, ImportError, KeyError))
+        assert isinstance(e, ValueError | ImportError | KeyError)

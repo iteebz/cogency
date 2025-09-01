@@ -1,7 +1,6 @@
 """Agent execution configuration."""
 
 from dataclasses import dataclass
-from typing import Optional
 
 from .protocols import LLM, Storage, Tool
 
@@ -20,7 +19,7 @@ class Config:
     tools: list[Tool]
 
     # User steering layer (injection-safe)
-    instructions: Optional[str] = None
+    instructions: str | None = None
 
     # Execution behavior
     max_iterations: int = 3

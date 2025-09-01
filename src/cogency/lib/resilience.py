@@ -48,7 +48,7 @@ def retry(attempts: int = 3, base_delay: float = 0.1):
     return decorator
 
 
-# Canonical resilient save - single point of DB persistence
+# Resilient save - single point of DB persistence
 @retry(attempts=3, base_delay=0.1)
 def resilient_save(
     conversation_id: str, user_id: str, msg_type: str, content: str, timestamp: float = None

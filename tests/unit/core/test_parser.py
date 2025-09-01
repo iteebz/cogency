@@ -12,7 +12,7 @@ Test cases:
 
 import pytest
 
-from cogency.core.parser import parse_stream
+from cogency.core.parser import _parse_json, parse_stream
 from cogency.core.protocols import Event
 
 
@@ -128,7 +128,7 @@ async def test_malformed_json_destruction():
     ]
 
     for i, malformed_json in enumerate(malformed_cases):
-        print(f"\n🧨 JSON DESTRUCTION {i+1}: {repr(malformed_json)}")
+        print(f"\n🧨 JSON DESTRUCTION {i + 1}: {repr(malformed_json)}")
 
         tokens = [
             Event.CALLS.delimiter + " ",
@@ -161,7 +161,7 @@ async def test_malformed_json_destruction():
             print("✅ Survived malformed JSON")
 
         except asyncio.TimeoutError:
-            print(f"⏰ TIMEOUT on case {i+1}: {repr(malformed_json)} - INFINITE LOOP DETECTED")
+            print(f"⏰ TIMEOUT on case {i + 1}: {repr(malformed_json)} - INFINITE LOOP DETECTED")
             # Skip this case but don't fail the test
             continue
         except Exception as e:
@@ -218,11 +218,86 @@ async def test_stream_cutoff_destruction():
 
 
 if __name__ == "__main__":
-    print("🔥 PARSER DESTRUCTION TESTING 🔥")
+    print("PARSER STRESS TESTING")
     print("=" * 50)
 
     test_pipe_fragment_catastrophe()
     test_malformed_json_destruction()
     test_stream_cutoff_destruction()
 
-    print("\n🎯 DESTRUCTION COMPLETE - PARSER REQUIREMENTS VALIDATED")
+    print("\nSTRESS TESTING COMPLETE - PARSER REQUIREMENTS VALIDATED")
+
+
+# Additional edge case tests from parser investigation
+
+
+@pytest.mark.asyncio
+async def test_json_validation_edge_cases():
+    """Test JSON validation with systematic edge cases."""
+
+    # Valid JSON cases
+    valid_cases = ['{"name": "test", "args": {"key": "value"}}', '[{"name": "tool"}]', "{}", "[]"]
+
+    for valid_json in valid_cases:
+        result = _parse_json(valid_json)
+        assert result.success, f"Valid JSON failed: {valid_json}"
+
+    # Invalid JSON cases
+    invalid_cases = [
+        '{"name": "test", "args": {',  # Missing closing
+        '{"name": "tëst"}',  # Non-ASCII
+        "",  # Empty
+        "not json at all",  # Not JSON
+        "{invalid}",  # Unquoted keys
+    ]
+
+    for invalid_json in invalid_cases:
+        result = _parse_json(invalid_json)
+        assert result.failure, f"Invalid JSON should fail: {invalid_json}"
+
+
+@pytest.mark.asyncio
+async def test_yield_context_detection():
+    """Test context-aware YIELD delimiter handling."""
+
+    # YIELD after CALLS = execute context
+    tokens = [Event.CALLS.delimiter + " [{}]", Event.YIELD.delimiter]
+    stream = MockStream(tokens)
+    events = [event async for event in parse_stream(stream)]
+
+    yield_events = [e for e in events if e["type"] == Event.YIELD]
+    assert len(yield_events) == 1
+    assert yield_events[0]["content"] == "execute"
+
+    # YIELD after RESPOND = complete context
+    tokens = [Event.RESPOND.delimiter + " Done", Event.YIELD.delimiter]
+    stream = MockStream(tokens)
+    events = [event async for event in parse_stream(stream)]
+
+    yield_events = [e for e in events if e["type"] == Event.YIELD]
+    assert len(yield_events) == 1
+    assert yield_events[0]["content"] == "complete"
+
+
+@pytest.mark.asyncio
+async def test_error_token_handling():
+    """Test handling of error tokens from stream."""
+
+    class ErrorResult:
+        def __init__(self, error):
+            self.failure = True
+            self.error = error
+
+    async def error_stream():
+        yield Event.THINK.delimiter + " Starting"
+        yield ErrorResult("Connection lost")
+        yield "This should not be processed"
+
+    events = []
+    async for event in parse_stream(error_stream()):
+        events.append(event)
+
+    # Should stop at error and yield error event
+    error_events = [e for e in events if e["type"] == "error"]
+    assert len(error_events) == 1
+    assert "Connection lost" in error_events[0]["content"]

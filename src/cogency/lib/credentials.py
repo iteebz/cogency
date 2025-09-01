@@ -2,7 +2,6 @@
 
 import os
 from pathlib import Path
-from typing import Optional
 
 
 def load_env():
@@ -17,7 +16,7 @@ def load_env():
                     os.environ.setdefault(key.strip(), value.strip().strip("\"'"))
 
 
-def detect_api_key(service: str) -> Optional[str]:
+def detect_api_key(service: str) -> str | None:
     """Detect API key with intelligent service mappings and rotation support."""
     load_env()
 

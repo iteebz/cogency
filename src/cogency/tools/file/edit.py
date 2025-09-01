@@ -67,7 +67,6 @@ class FileEdit(Tool):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(new_content)
 
-            # Canonical outcome
             outcome = f"File edited: {file} (1 replacement)"
             return Ok(ToolResult(outcome))
 
@@ -80,15 +79,12 @@ class FileEdit(Tool):
         self, filename: str, old_text: str, new_text: str, file_path: Path
     ) -> str:
         """Format edit result with file context."""
-        # File metrics
         stat = file_path.stat()
         size = format_size(stat.st_size)
         category = categorize_file(file_path)
 
-        # Build header
         header = f"Replaced text in '{filename}' ({size}) [{category}]"
 
-        # Add syntax context for code files
         if category == "code":
             ext = file_path.suffix.lower()
             if ext in [".py", ".js", ".ts", ".go", ".rs"]:
@@ -99,7 +95,6 @@ class FileEdit(Tool):
         new_display = new_text[:50] + "..." if len(new_text) > 50 else new_text
         diff = f"- {old_display}\n+ {new_display}"
 
-        # Add file hint
         return f"{header}\n{diff}"
 
     def _handle_multiple_matches(self, content: str, old: str, matches: int) -> Result[str]:
@@ -128,7 +123,7 @@ class FileEdit(Tool):
                     break
 
         error_msg = f"Found {matches} matches for '{old}'. Be more specific:\n\n"
-        error_msg += "\n\n".join([f"Match {i+1}:\n{ctx}" for i, ctx in enumerate(match_contexts)])
+        error_msg += "\n\n".join([f"Match {i + 1}:\n{ctx}" for i, ctx in enumerate(match_contexts)])
         error_msg += "\n\n* Include more surrounding context to make the match unique"
 
         return Err(error_msg)

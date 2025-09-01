@@ -14,7 +14,6 @@ async def test_agent_basic_response():
     """Agent produces response end-to-end."""
     agent = Agent()
 
-    # CANONICAL: Zero ceremony async generator mocking
     mock_response = "Hello, I'm working!"
 
     with patch("cogency.core.agent.consciousness_stream") as mock_stream:

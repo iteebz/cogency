@@ -58,9 +58,17 @@ class MemoryRecall(Tool):
             # Get current context window to exclude
             current_timestamps = self._get_timestamps(conversation_id)
 
-            # Fuzzy search past user messages
+            # Get already retrieved content to avoid duplication
+            retrieved_content = self._get_retrieved_content(conversation_id)
+
+            # Fuzzy search past user messages with enhanced filtering
             matches = self._search_messages(
-                query=query, user_id=user_id, exclude_timestamps=current_timestamps, limit=3
+                query=query,
+                user_id=user_id,
+                exclude_timestamps=current_timestamps,
+                exclude_content=retrieved_content,
+                limit=3,
+                fetch_multiplier=3.0,
             )
 
             if not matches:
@@ -68,7 +76,6 @@ class MemoryRecall(Tool):
                 content = "No past references found outside current conversation"
                 return Ok(ToolResult(outcome, content))
 
-            # Canonical outcome + content
             outcome = f"Memory searched for '{query}' ({len(matches)} matches)"
             content = self._format_matches(matches, query)
             return Ok(ToolResult(outcome, content))

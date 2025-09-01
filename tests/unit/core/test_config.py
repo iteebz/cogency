@@ -74,7 +74,7 @@ def test_config_required_fields(mock_llm, mock_storage):
     assert len(config_with_tools.tools) == 1
 
 
-def test_config_canonical_separation(mock_llm, mock_storage):
+def test_config_separation(mock_llm, mock_storage):
     """Config separates capabilities from runtime params."""
 
     config = Config(

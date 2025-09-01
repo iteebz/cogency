@@ -84,5 +84,5 @@ def test_pricing():
     for _model, pricing in PRICING.items():
         assert "input" in pricing
         assert "output" in pricing
-        assert isinstance(pricing["input"], (int, float))
-        assert isinstance(pricing["output"], (int, float))
+        assert isinstance(pricing["input"], int | float)
+        assert isinstance(pricing["output"], int | float)

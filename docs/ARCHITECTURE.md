@@ -1,5 +1,7 @@
 # Architecture
 
+**Key innovations:** WebSocket streaming, delimiter protocol, dual-mode execution, stateless orchestration
+
 ## Context Replay Elimination
 
 **Traditional:** Full context replay every tool call

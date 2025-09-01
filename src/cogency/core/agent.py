@@ -6,14 +6,12 @@ Usage:
   async for event in agent.stream(query):  # Raw event stream
 """
 
-from typing import Optional, Union
-
 from ..context import context
 from ..lib.logger import logger
 from ..lib.storage import SQLite
 from ..tools import TOOLS
 from .config import Config
-from .protocols import LLM, Storage
+from .protocols import LLM, Event, Storage
 from .stream import stream as consciousness_stream
 
 
@@ -22,10 +20,10 @@ class Agent:
 
     def __init__(
         self,
-        llm: Union[str, LLM] = "gemini",
-        storage: Optional[Storage] = None,
-        tools: Optional[list] = None,
-        instructions: Optional[str] = None,
+        llm: str | LLM = "gemini",
+        storage: Storage | None = None,
+        tools: list | None = None,
+        instructions: str | None = None,
         mode: str = "auto",
         max_iterations: int = 3,
         profile: bool = True,
@@ -94,20 +92,17 @@ class Agent:
             profile=self.profile,
         )
 
-    def _conversation_id(self, user_id: str, conversation_id: Optional[str]) -> str:
+    def _conversation_id(self, user_id: str, conversation_id: str | None) -> str:
         """Get or generate conversation ID."""
         return conversation_id or f"{user_id}_session"
 
     async def __call__(
-        self, query: str, user_id: str = "default", conversation_id: Optional[str] = None
+        self, query: str, user_id: str = "default", conversation_id: str | None = None
     ) -> str:
-        # Create agent config (behavior)
         config = self._build_config()
 
-        # Runtime params (execution context)
         conversation_id = self._conversation_id(user_id, conversation_id)
 
-        # Execute with context isolation
         logger.debug(f"Executing: {query[:50]}...")
         logger.debug(f"Context: user={user_id}, conv={conversation_id}")
 
@@ -122,7 +117,7 @@ class Agent:
                 on_complete=context.record,
                 on_learn=context.learn,
             ):
-                if event["type"] == "respond":
+                if event["type"] == Event.RESPOND:
                     respond_events.append(event["content"])
 
             # Aggregate response events
@@ -134,12 +129,10 @@ class Agent:
             raise RuntimeError(f"Execution failed: {e}") from e
 
     async def stream(
-        self, query: str, user_id: str = "default", conversation_id: Optional[str] = None
+        self, query: str, user_id: str = "default", conversation_id: str | None = None
     ):
-        # Create agent config (behavior)
         config = self._build_config()
 
-        # Runtime params (execution context)
         conversation_id = self._conversation_id(user_id, conversation_id)
 
         logger.debug(f"📍 Context: user={user_id}, conv={conversation_id}")

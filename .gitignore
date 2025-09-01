@@ -63,8 +63,6 @@ build/
 # Mnemos autonomous investigation system
 .mnemos
 
-# Evaluation runs
-evals/runs/
 
 # Zealot's holy scripture
 CLAUDE.md

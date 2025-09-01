@@ -85,7 +85,6 @@ class FileRead(Tool):
         if not content:
             return f"📄 {filename} (empty file)"
 
-        # Get file stats
         stat = file_path.stat()
         size = format_size(stat.st_size)
         line_count = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
@@ -93,16 +92,13 @@ class FileRead(Tool):
         # Categorize file
         category = categorize_file(file_path)
 
-        # Build header with context
         header = f"📄 {filename} ({size}, {line_count} lines) [{category}]"
 
-        # Add syntax context for code files
         if category == "code":
             ext = file_path.suffix.lower()
             if ext in [".py", ".js", ".ts", ".go", ".rs"]:
                 header += f" {ext[1:].upper()}"
 
-        # Handle large files intelligently
         if len(content) > 5000:
             preview = content[:5000]
             return f"{header}\n\n{preview}\n\n[File truncated at 5,000 characters. Full size: {len(content):,} chars]\n* File is large - consider using 'shell' with 'head' or 'tail' for specific sections"

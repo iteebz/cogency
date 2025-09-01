@@ -26,7 +26,7 @@ async def test_replay_stateless_behavior():
         mock_context.assemble.return_value = [{"role": "user", "content": "test"}]
 
         with patch("cogency.core.replay.parse_stream") as mock_parse:
-            # CANONICAL: Use async generator factory to prevent hanging
+            # Use async generator factory to prevent hanging
             mock_parse.side_effect = mock_generator(
                 [{"type": Event.RESPOND, "content": "done"}, {"type": "end"}]
             )
@@ -53,7 +53,7 @@ async def test_replay_max_iterations():
         mock_context.assemble.return_value = [{"role": "user", "content": "test"}]
 
         with patch("cogency.core.replay.parse_stream") as mock_parse:
-            # CANONICAL: Use async generator factory to prevent hanging
+            # Use async generator factory to prevent hanging
             mock_parse.side_effect = mock_generator(
                 [
                     {"type": Event.CALLS, "calls": [{"name": "test"}]},
@@ -78,7 +78,7 @@ async def test_replay_max_iterations():
 @pytest.mark.asyncio
 async def test_inject_stateful_behavior(mock_llm, mock_storage):
     """Inject maintains WebSocket session state."""
-    # CANONICAL: Use fixture with proper async generator support
+    # Use fixture with proper async generator support
     from tests.conftest import mock_generator
 
     mock_llm.resumable = True
@@ -151,7 +151,7 @@ async def test_mode_tool_execution():
         mock_context.assemble.return_value = [{"role": "user", "content": "test"}]
 
         with patch("cogency.core.replay.parse_stream") as mock_parse:
-            # CANONICAL: Use async generator factory to prevent hanging
+            # Use async generator factory to prevent hanging
             mock_parse.side_effect = mock_generator(
                 [
                     {"type": Event.CALLS, "calls": [{"name": "test_tool", "args": {}}]},

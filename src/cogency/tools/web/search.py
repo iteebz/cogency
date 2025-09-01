@@ -46,7 +46,6 @@ class WebSearch(Tool):
                 content = "No results found"
                 return Ok(ToolResult(outcome, content))
 
-            # Canonical result formatting
             formatted = []
             for result in results:
                 title = result.get("title", "No title")
@@ -55,7 +54,6 @@ class WebSearch(Tool):
 
                 formatted.append(f"{title}\n{body}\n{href}")
 
-            # Canonical outcome + content
             outcome = f"Search completed for '{query}' ({len(results)} results)"
             content = "\n\n".join(formatted)
             return Ok(ToolResult(outcome, content))

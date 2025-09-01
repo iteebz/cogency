@@ -44,7 +44,7 @@ def _save_if_needed(event: dict, on_complete) -> None:
 def _make_event(event_type, content: str, timestamp: float = None) -> dict:
     """Create standard event dict."""
     return {
-        "type": event_type,
+        "type": event_type.value,
         "content": content.strip() if content else "",
         "timestamp": timestamp or time.time(),
     }

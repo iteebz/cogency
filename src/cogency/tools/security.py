@@ -3,7 +3,6 @@
 Input validation, path safety, and secret redaction for tools.
 """
 
-import re
 from pathlib import Path
 
 
@@ -36,9 +35,3 @@ def safe_path(base_dir: Path, rel_path: str) -> Path:
         raise ValueError(f"Path escapes base directory: {rel_path}")
 
     return resolved
-
-
-def redact_secrets(text: str) -> str:
-    """Redact common secrets from text."""
-    text = re.sub(r"sk-[a-zA-Z0-9_-]{6,}", "[REDACTED]", text)
-    return re.sub(r"AKIA[a-zA-Z0-9]{12,}", "[REDACTED]", text)

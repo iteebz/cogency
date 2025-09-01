@@ -59,28 +59,40 @@ class Gemini(LLM):
             return Err(f"Gemini Generate Error: {str(e)}")
 
     async def connect(self, messages: list[dict]):
-        """Create bidirectional Gemini Live WebSocket session."""
+        """Create bidirectional Gemini Live WebSocket session with rotation support."""
+        from ..rotation import with_rotation
+
+        async def _connect_with_key(api_key: str):
+            try:
+                from google.genai import types
+
+                config = {
+                    "response_modalities": ["TEXT"],
+                    "generation_config": {"max_output_tokens": 8192},
+                }
+
+                client = self._create_client(api_key)
+                connection = client.aio.live.connect(model=self.stream_model, config=config)
+                session = await connection.__aenter__()
+
+                # Send initial conversation
+                content = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+                await session.send_client_content(
+                    turns=types.Content(role="user", parts=[types.Part(text=content)]),
+                    turn_complete=True,
+                )
+
+                return {"session": session, "connection": connection, "types": types}
+
+            except Exception as e:
+                print(f"GEMINI WEBSOCKET FAILED: {e}")
+                import traceback
+
+                traceback.print_exc()
+                raise e
+
         try:
-            from google.genai import types
-
-            config = {
-                "response_modalities": ["TEXT"],
-                "generation_config": {"max_output_tokens": 8192},
-            }
-
-            client = self._create_client(self.api_key)
-            connection = client.aio.live.connect(model=self.stream_model, config=config)
-            session = await connection.__aenter__()
-
-            # Send initial conversation
-            content = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
-            await session.send_client_content(
-                turns=types.Content(role="user", parts=[types.Part(text=content)]),
-                turn_complete=True,
-            )
-
-            return {"session": session, "connection": connection, "types": types}
-
+            return await with_rotation("GEMINI", _connect_with_key)
         except Exception:
             return None
 

@@ -49,10 +49,8 @@ class WebScrape(Tool):
             if not extracted:
                 return Err(f"No readable content found at: {url}")
 
-            # Get domain for context
             domain = self._extract_domain(url)
 
-            # Canonical outcome + content
             content_formatted = self._format_content(extracted)
             size_kb = len(content_formatted) / 1024
             outcome = f"Content scraped from {domain} ({size_kb:.1f}KB)"
@@ -62,7 +60,7 @@ class WebScrape(Tool):
             return Err(f"Scraping failed: {str(e)}")
 
     def _format_content(self, content: str) -> str:
-        """Canonical content formatting - zero ceremony, maximum intelligence."""
+        """Content formatting."""
         if not content:
             return "No content extracted"
 

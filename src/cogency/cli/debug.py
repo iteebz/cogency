@@ -61,7 +61,7 @@ def show_conversation(conversation_id: str = None):
                         name = tool.get("name", "unknown")
                         args = tool.get("args", {})
                         print(
-                            f"  {i+1}. {name}({', '.join(f'{k}={repr(v)}' for k, v in args.items())})"
+                            f"  {i + 1}. {name}({', '.join(f'{k}={repr(v)}' for k, v in args.items())})"
                         )
                 except json.JSONDecodeError:
                     print(f"  ❌ Invalid JSON: {content[:100]}...")
@@ -128,7 +128,7 @@ def show_context(conversation_id: str = None):
         messages = context.assemble(query, "ask_user", conversation_id, TOOLS)
 
         for i, msg in enumerate(messages):
-            print(f"🔸 MESSAGE {i+1} [{msg['role'].upper()}]")
+            print(f"🔸 MESSAGE {i + 1} [{msg['role'].upper()}]")
             print("-" * 40)
             content = msg["content"]
 
@@ -136,7 +136,7 @@ def show_context(conversation_id: str = None):
             if len(content) > 2000:
                 lines = content.split("\n")
                 print("\n".join(lines[:30]))
-                print(f"\n... [TRUNCATED - {len(lines)-30} more lines] ...\n")
+                print(f"\n... [TRUNCATED - {len(lines) - 30} more lines] ...\n")
                 print("\n".join(lines[-10:]))
             else:
                 print(content)
@@ -182,7 +182,7 @@ def query_main():
                     print("📋 Recent conversations:")
                     for conv_id, msg_count, last_msg in result:
                         ago = int(time.time() - last_msg)
-                        time_ago = f"{ago//60}m ago" if ago > 60 else f"{ago}s ago"
+                        time_ago = f"{ago // 60}m ago" if ago > 60 else f"{ago}s ago"
                         print(f"  {conv_id[:8]}... | {msg_count:2d} msgs | {time_ago}")
 
                 elif cmd.startswith("messages "):

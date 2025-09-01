@@ -215,12 +215,11 @@ async def test_execute_sandbox_flag():
 
 
 def test_create_results_event():
-    """Results event creation - canonical event structure."""
+    """Results event creation - event structure."""
     individual_results = ["result1", "result2", "error: failed"]
 
     event = create_results_event(individual_results)
 
-    # Canonical event structure
     assert event["type"] == Event.RESULTS
     assert "content" in event
     assert "results" in event

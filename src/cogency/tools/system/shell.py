@@ -3,7 +3,6 @@
 import subprocess
 import time
 from pathlib import Path
-from typing import Optional
 
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
@@ -132,7 +131,7 @@ class SystemShell(Tool):
         except Exception as e:
             return Err(f"Execution error: {str(e)}")
 
-    def _get_command_suggestion(self, cmd: str) -> Optional[str]:
+    def _get_command_suggestion(self, cmd: str) -> str | None:
         """Get intelligent command suggestion for common mistakes."""
         return self.COMMAND_SUGGESTIONS.get(cmd)
 
@@ -143,10 +142,9 @@ class SystemShell(Tool):
         execution_time: float,
         sandbox_path: Path,
     ) -> Result[ToolResult]:
-        """Canonical shell result formatting - context in outcome, pure content."""
+        """Shell result formatting - context in outcome, pure content."""
 
         if result.returncode == 0:
-            # Build canonical outcome with context
             cmd_name = command.split()[0]
             rel_path = sandbox_path.name
 
@@ -156,10 +154,8 @@ class SystemShell(Tool):
             else:
                 outcome = f"Command executed: {cmd_name} ({rel_path}/)"
 
-            # Pure content - just the output
             content_parts = []
 
-            # Main output
             stdout = result.stdout.strip()
             if stdout:
                 content_parts.append(stdout)
@@ -169,7 +165,6 @@ class SystemShell(Tool):
             if stderr:
                 content_parts.append(f"Warnings:\n{stderr}")
 
-            # Canonical outcome + pure content
             content = "\n".join(content_parts) if content_parts else None
             return Ok(ToolResult(outcome, content))
 
@@ -183,9 +178,7 @@ class SystemShell(Tool):
 
         return Err(error_msg)
 
-    def _get_error_suggestion(
-        self, command: str, exit_code: int, error_output: str
-    ) -> Optional[str]:
+    def _get_error_suggestion(self, command: str, exit_code: int, error_output: str) -> str | None:
         """Provide intelligent suggestions for command failures."""
         cmd_parts = command.split()
         cmd = cmd_parts[0]

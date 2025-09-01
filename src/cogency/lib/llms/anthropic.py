@@ -1,4 +1,9 @@
-"""Anthropic provider - LLM protocol implementation."""
+"""Anthropic provider - LLM protocol implementation.
+
+Note: WebSocket streaming not yet supported by Anthropic API (as of August 2025).
+Uses HTTP with Server-Sent Events fallback. Streaming architecture ready
+for WebSocket when Anthropic adds support.
+"""
 
 from ...core.protocols import LLM, Event
 from ...core.result import Err, Ok, Result

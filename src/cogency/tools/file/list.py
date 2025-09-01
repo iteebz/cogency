@@ -109,7 +109,6 @@ class FileList(Tool):
             # Recursive formatting with increased indent
             lines.append(self._format_tree(subtree, indent + "  "))
 
-        # Files second
         for file_info in tree["files"]:
             name = file_info["name"]
             size = format_size(file_info["size"])

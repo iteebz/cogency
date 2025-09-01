@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cogency CLI - zero ceremony agent execution.
+"""Cogency CLI - agent execution.
 
 USAGE:
     cogency "your question"                    # Continue conversation (auto-context)
@@ -11,7 +11,7 @@ PHILOSOPHY:
     - Continue context by default (Claude workflow)
     - Explicit --new when fresh context needed
     - Stream debugging when execution hangs
-    - Zero ceremony, maximum utility
+    - Simple, maximum utility
 """
 
 import asyncio

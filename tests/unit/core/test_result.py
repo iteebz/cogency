@@ -208,7 +208,7 @@ def test_type_safety_destruction():
 
 
 if __name__ == "__main__":
-    print("🔥 RESULT MONADIC FOUNDATION DESTRUCTION 🔥")
+    print("RESULT MONADIC FOUNDATION TESTING")
     print("=" * 50)
 
     test_autoflattening_ok_nesting()
@@ -222,4 +222,4 @@ if __name__ == "__main__":
     test_err_none_destruction()
     test_type_safety_destruction()
 
-    print("🎯 MONADIC DESTRUCTION COMPLETE - FOUNDATION VALIDATED")
+    print("MONADIC TESTING COMPLETE - FOUNDATION VALIDATED")

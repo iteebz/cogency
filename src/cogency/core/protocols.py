@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from .result import Result
 
@@ -13,10 +13,10 @@ DELIMITER = "§"
 
 @dataclass
 class ToolResult:
-    """Canonical tool execution result - natural language outcome + optional content."""
+    """Tool execution result - natural language outcome + optional content."""
 
     outcome: str  # Natural language completion: "File written to poison.txt"
-    content: Optional[str] = None  # Optional detailed data: file contents, search results, etc.
+    content: str | None = None  # Optional detailed data: file contents, search results, etc.
 
     def for_agent(self) -> str:
         """Format for agent consumption - outcome + content."""
@@ -30,7 +30,7 @@ class ToolResult:
 
 
 class Event(str, Enum):
-    """Canonical events - type-safe strings, no ceremony."""
+    """Events - type-safe strings, no ceremony."""
 
     THINK = "think"
     CALLS = "calls"
@@ -44,6 +44,14 @@ class Event(str, Enum):
         """Convert event to streaming delimiter format."""
         return f"{DELIMITER}{self.upper()}"
 
+    def __eq__(self, other):
+        if isinstance(other, str):
+            return self.value == other
+        return super().__eq__(other)
+
+    def __hash__(self):
+        return super().__hash__()
+
 
 @runtime_checkable
 class LLM(Protocol):
@@ -55,7 +63,7 @@ class LLM(Protocol):
     # MANDATORY: HTTP streaming (universal)
     async def stream(self, messages: list[dict]): ...
 
-    # OPTIONAL: WebSocket streaming (next-gen consciousness)
+    # OPTIONAL: WebSocket streaming
     async def connect(self, messages: list[dict]): ...
 
     async def send(self, session, content: str) -> bool: ...

@@ -12,7 +12,7 @@ pytest_plugins = ["pytest_asyncio"]
 
 @pytest.fixture
 def mock_llm():
-    """Mock LLM provider for testing - canonical pattern."""
+    """Mock LLM provider for testing."""
     provider = Mock()
 
     # Standard generation - async function that returns Result
@@ -45,7 +45,7 @@ def mock_llm():
 
 @pytest.fixture
 def mock_storage():
-    """Mock storage for all tests - canonical pattern."""
+    """Mock storage for all tests."""
     return Mock()
 
 
@@ -64,7 +64,7 @@ Test response
 def mock_generator(items):
     """Create async generator factory for mocking.
 
-    CANONICAL PATTERN: Eliminates async generator mocking ceremony.
+    Eliminates async generator mocking ceremony.
 
     THE PROBLEM:
         # ❌ BROKEN - returns dead coroutine

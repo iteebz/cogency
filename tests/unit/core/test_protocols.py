@@ -1,4 +1,4 @@
-"""Protocol tests - Canonical Event enum and interface validation.
+"""Protocol tests - Event enum and interface validation.
 
 COMPREHENSIVE COVERAGE:
 1. Event enum string behavior
@@ -12,7 +12,7 @@ from cogency.core.protocols import Event
 
 
 class TestEventEnum:
-    """Event enum - canonical foundation testing."""
+    """Event enum foundation testing."""
 
     def test_event_string_behavior(self):
         """Event enum behaves like strings - critical for compatibility."""
@@ -114,15 +114,15 @@ class TestEventUsagePatterns:
 
 
 if __name__ == "__main__":
-    print("🔥 PROTOCOL TESTING 🔥")
+    print("PROTOCOL TESTING")
     print("=" * 50)
 
     # Run basic smoke test
     assert Event.THINK == "think"
     assert Event.CALLS.delimiter == "§CALLS"
 
-    print("✅ Event enum canonical behavior validated")
-    print("✅ Delimiter conversion works")
-    print("✅ String/enum dual compatibility confirmed")
+    print("Event enum behavior validated")
+    print("Delimiter conversion works")
+    print("String/enum dual compatibility confirmed")
 
-    print("\n🎯 PROTOCOL FOUNDATION: BULLETPROOF")
+    print("\nPROTOCOL FOUNDATION: VERIFIED")

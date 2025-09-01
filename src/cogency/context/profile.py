@@ -1,7 +1,6 @@
 """User profile management and learning."""
 
 import json
-from typing import Optional
 
 from ..lib.logger import logger
 from ..lib.storage import load_profile, save_profile
@@ -33,7 +32,7 @@ def prompt(profile: dict, user_messages: list, compress: bool = False) -> str:
     )
 
 
-def get(user_id: str) -> Optional[dict]:
+def get(user_id: str) -> dict | None:
     """Get latest user profile."""
     if not user_id or user_id == "default":
         return None
@@ -205,7 +204,7 @@ async def _learn(user_id: str, llm) -> bool:
 
 async def _process_profile(
     current: dict, user_messages: list, llm, compress: bool = False
-) -> Optional[dict]:
+) -> dict | None:
     """Process profile update or compression."""
     prompt_text = prompt(current, user_messages, compress=compress)
 

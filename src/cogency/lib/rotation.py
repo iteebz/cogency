@@ -2,7 +2,8 @@
 
 import os
 import time
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 # Global client cache: "PROVIDER:api_key" -> client_instance
 _client_cache = {}
@@ -34,7 +35,7 @@ class Rotator:
 
         return keys
 
-    def current_key(self) -> Optional[str]:
+    def current_key(self) -> str | None:
         """Get current active key."""
         return self.keys[self.current % len(self.keys)] if self.keys else None
 

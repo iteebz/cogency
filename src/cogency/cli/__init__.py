@@ -1,10 +1,10 @@
-"""CLI interface for Cogency - ZERO CEREMONY CLAUDE-OPTIMIZED."""
+"""CLI interface for Cogency."""
 
 import sys
 
 
 def main():
-    """CLI entry point - canonical simplicity."""
+    """CLI entry point."""
 
     # Show last conversation
     if len(sys.argv) > 1 and sys.argv[1] == "last":

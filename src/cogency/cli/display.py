@@ -76,7 +76,7 @@ class Renderer:
                     # Zip with pending calls for display
                     if self.pending_calls and event.get("results"):
                         executions = []
-                        for call, result in zip(self.pending_calls, event["results"]):
+                        for call, result in zip(self.pending_calls, event["results"], strict=False):
                             executions.append({"call": call, "result": result})
                         _render_tools(executions)
                         self.pending_calls = None
