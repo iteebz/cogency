@@ -1,27 +1,31 @@
 """Tools: Minimal tool interface for ReAct agents."""
 
 from ..core.protocols import Tool
-from .file import FileList, FileRead, FileWrite
-from .scrape import Scrape
-from .search import Search
-from .shell import Shell
+from .file import FileEdit, FileList, FileRead, FileWrite
+from .memory import MemoryRecall
+from .system import SystemShell
+from .web import WebScrape, WebSearch
 
-BASIC_TOOLS = [
+TOOLS = [
     FileRead(),
     FileWrite(),
+    FileEdit(),
     FileList(),
-    Shell(),
-    Search(),
-    Scrape(),
+    SystemShell(),
+    WebSearch(),
+    WebScrape(),
+    MemoryRecall(),
 ]
 
 __all__ = [
     "Tool",
-    "BASIC_TOOLS",
+    "TOOLS",
     "FileRead",
     "FileWrite",
+    "FileEdit",
     "FileList",
-    "Shell",
-    "Search",
-    "Scrape",
+    "MemoryRecall",
+    "SystemShell",
+    "WebSearch",
+    "WebScrape",
 ]

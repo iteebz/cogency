@@ -1,15 +1,15 @@
-"""File reading with intelligent context and formatting."""
+"""File reading tool."""
 
 from pathlib import Path
 
-from ...core.protocols import Tool
-from ...lib.result import Err, Ok, Result
+from ...core.protocols import Tool, ToolResult
+from ...core.result import Err, Ok, Result
 from ..security import safe_path
 from .utils import categorize_file, format_size
 
 
 class FileRead(Tool):
-    """Enhanced file reading with intelligent context and formatting."""
+    """File reading with intelligent context and formatting."""
 
     @property
     def name(self) -> str:
@@ -17,45 +17,68 @@ class FileRead(Tool):
 
     @property
     def description(self) -> str:
-        return "Read file content with intelligent formatting. Args: filename (str)"
+        return "Read file content"
 
     @property
     def schema(self) -> dict:
         return {
-            "filename": {"type": "str", "required": True, "description": "Path to file to read"}
+            "file": {},
+            "start": {"type": "integer", "optional": True},
+            "lines": {"type": "integer", "optional": True},
         }
 
-    @property
-    def examples(self) -> list[dict]:
-        return [
-            {"task": "Read config file", "call": {"filename": "config.json"}},
-            {"task": "Read source code", "call": {"filename": "main.py"}},
-            {"task": "Read documentation", "call": {"filename": "README.md"}},
-        ]
-
-    async def execute(self, filename: str) -> Result[str, str]:
-        if not filename:
-            return Err("Filename cannot be empty")
+    async def execute(
+        self, file: str, start: int = 0, lines: int = 100, sandbox: bool = True, **kwargs
+    ) -> Result[ToolResult]:
+        if not file:
+            return Err("File cannot be empty")
 
         try:
-            sandbox_dir = Path(".sandbox")
-            file_path = safe_path(sandbox_dir, filename)
+            if sandbox:
+                # Sandboxed execution
+                sandbox_dir = Path(".sandbox")
+                file_path = safe_path(sandbox_dir, file)
+            else:
+                # Direct filesystem access
+                file_path = Path(file).resolve()
 
-            with open(file_path, encoding="utf-8") as f:
-                content = f.read()
+            # Read specific lines if requested - PERFORMANCE WIN
+            if start > 0 or lines != 100:
+                content = self._read_lines(file_path, start, lines)
+                end_line = start + (lines - 1) if lines else "end"
+                outcome = f"File read from {file} (lines {start}-{end_line})"
+            else:
+                # Read entire file - default behavior
+                with open(file_path, encoding="utf-8") as f:
+                    content = f.read()
+                outcome = f"File read from {file}"
 
-            # Enhanced formatting with context
-            formatted = self._format_content(filename, content, file_path)
-            return Ok(formatted)
+            return Ok(ToolResult(outcome, content))
 
         except FileNotFoundError:
-            return Err(f"File not found: {filename}\n💡 Use 'list' to see available files")
+            location = "sandbox" if sandbox else "filesystem"
+            return Err(
+                f"File not found: {file} (searched in {location})\n* Use 'list' to see available files"
+            )
         except UnicodeDecodeError:
-            return Err(f"File '{filename}' contains binary data - cannot display as text")
+            return Err(f"File '{file}' contains binary data - cannot display as text")
         except ValueError as e:
             return Err(f"Security violation: {str(e)}")
         except Exception as e:
-            return Err(f"Failed to read '{filename}': {str(e)}")
+            return Err(f"Failed to read '{file}': {str(e)}")
+
+    def _read_lines(self, file_path: Path, start: int, lines: int = None) -> str:
+        """Read specific lines from file - performance optimized."""
+        result_lines = []
+        with open(file_path, encoding="utf-8") as f:
+            for line_num, line in enumerate(f, 0):  # Zero-indexed
+                if line_num < start:
+                    continue
+                if lines and len(result_lines) >= lines:
+                    break
+                result_lines.append(line.rstrip("\n"))
+
+        return "\n".join(result_lines)
 
     def _format_content(self, filename: str, content: str, file_path: Path) -> str:
         """Format file content with intelligent context."""
@@ -82,6 +105,6 @@ class FileRead(Tool):
         # Handle large files intelligently
         if len(content) > 5000:
             preview = content[:5000]
-            return f"{header}\n\n{preview}\n\n[File truncated at 5,000 characters. Full size: {len(content):,} chars]\n💡 File is large - consider using 'shell' with 'head' or 'tail' for specific sections"
+            return f"{header}\n\n{preview}\n\n[File truncated at 5,000 characters. Full size: {len(content):,} chars]\n* File is large - consider using 'shell' with 'head' or 'tail' for specific sections"
 
         return f"{header}\n\n{content}"
