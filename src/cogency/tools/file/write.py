@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
-from ..security import safe_path, validate_input
+from ..security import resolve_path_safely
 from .utils import categorize_file, format_size
 
 
@@ -21,26 +21,23 @@ class FileWrite(Tool):
 
     @property
     def schema(self) -> dict:
-        return {"filename": {}, "content": {}}
+        return {"file": {}, "content": {}}
 
     async def execute(
-        self, filename: str, content: str, sandbox: bool = True, **kwargs
+        self, file: str, content: str, sandbox: bool = True, **kwargs
     ) -> Result[ToolResult]:
-        if not filename:
-            return Err("Filename cannot be empty")
-
-        if not validate_input(content):
-            return Err("Content contains unsafe patterns")
+        if not file:
+            return Err("File cannot be empty")
 
         try:
             if sandbox:
                 # Sandboxed execution
                 sandbox_dir = Path(".sandbox")
                 sandbox_dir.mkdir(exist_ok=True)
-                file_path = safe_path(sandbox_dir, filename)
+                file_path = resolve_path_safely(file, sandbox_dir)
             else:
-                # Direct filesystem access
-                file_path = Path(filename).resolve()
+                # Direct filesystem access with traversal protection
+                file_path = resolve_path_safely(file)
 
             # Check if overwriting existing file
             is_overwrite = file_path.exists()
@@ -51,16 +48,16 @@ class FileWrite(Tool):
                 f.write(content)
 
             # Clear completion signal
-            outcome = f"File written to {filename}"
+            outcome = f"File written to {file}"
             return Ok(ToolResult(outcome))
 
         except ValueError as e:
             return Err(f"Security violation: {str(e)}")
         except Exception as e:
-            return Err(f"Failed to write '{filename}': {str(e)}")
+            return Err(f"Failed to write '{file}': {str(e)}")
 
     def _feedback(
-        self, filename: str, content: str, file_path: Path, is_overwrite: bool, old_size: int
+        self, file: str, content: str, file_path: Path, is_overwrite: bool, old_size: int
     ) -> str:
         # Basic metrics
         size = format_size(len(content.encode("utf-8")))
@@ -71,7 +68,7 @@ class FileWrite(Tool):
 
         # Build result message
         action = "Updated" if is_overwrite else "Created"
-        header = f"{action} '{filename}' ({size}, {line_count} lines) [{category}]"
+        header = f"{action} '{file}' ({size}, {line_count} lines) [{category}]"
 
         # Add syntax context for code files
         if category == "code":

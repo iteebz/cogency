@@ -13,15 +13,6 @@ from .result import Err, Ok, Result
 logger = logging.getLogger(__name__)
 
 
-def _extract_token(token_result):
-    """Extract token from Result wrapper."""
-    if hasattr(token_result, "failure") and token_result.failure:
-        return None, token_result.error
-    if hasattr(token_result, "unwrap"):
-        return token_result.unwrap(), None
-    return token_result, None
-
-
 def _parse_json(content: str) -> Result[dict]:
     """Parse JSON content with Result pattern."""
     try:
@@ -60,9 +51,20 @@ def _build_pattern():
 
 def _accumulate_content(buffer: str, content: str, timestamp: float):
     """Accumulate content with timestamp tracking."""
-    if buffer and not content:
-        timestamp = time.time()
+    timestamp = timestamp or time.time()
     return content + buffer, timestamp
+
+
+def _emit_yield_event(context_state: Event):
+    """Emit context-aware YIELD event."""
+    if context_state == Event.CALLS:
+        context = "execute"  # Yield after calls = execute tools
+    elif context_state == Event.RESPOND:
+        context = "complete"  # Yield after respond = complete conversation
+    else:
+        context = "unknown"  # Default yield
+
+    return _make_event(Event.YIELD, context)
 
 
 def _handle_partial_delimiter(buffer: str, content: str, timestamp: float):
@@ -84,87 +86,108 @@ def _process_complete_delimiter(match, buffer: str):
     return before, delimiter, remaining_buffer
 
 
+def _has_potential_delimiter_start(buffer: str) -> bool:
+    """Check if buffer ends with potential delimiter start to avoid premature emission."""
+    if not buffer:
+        return False
+
+    # Check if buffer ends with partial delimiter symbol
+    if buffer.endswith("§"):
+        return True
+
+    # Check if buffer ends with partial delimiter keywords
+    delimiter_keywords = ["THINK", "CALLS", "RESPOND", "YIELD"]
+    for keyword in delimiter_keywords:
+        for i in range(1, len(keyword)):
+            partial = "§" + keyword[:i]
+            if buffer.endswith(partial):
+                return True
+
+    return False
+
+
 async def parse_stream(
     tokens: AsyncGenerator, on_complete=None
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Parse token stream into semantic events with context-aware yield."""
+    """Parse token stream into semantic events with real-time streaming."""
     buffer = ""
     state = Event.THINK
-    content = ""
     timestamp = None
 
     pattern = _build_pattern()
 
-    async for token_result in tokens:
-        token, error = _extract_token(token_result)
-        if error:
-            yield {"type": "error", "content": error}
-            return
+    # Pure string token stream - no Result unwrapping needed
+    async for token in tokens:
+        if not isinstance(token, str):
+            raise RuntimeError(f"Parser expects string tokens, got {type(token)}")
 
+        logger.debug(f"Parser token: {token[:50]}...")
         buffer += token
+        logger.debug(f"Parser buffer: {buffer[:100]}...")
 
+        # Process all complete delimiters in buffer (preserve original logic)
         while True:
             match = pattern.search(buffer)
+            if match:
+                logger.debug(f"Parser delimiter match: {match.group(1)}")
+            else:
+                logger.debug("Parser no delimiter match")
             if not match:
-                # Handle partial delimiters
-                content, timestamp, buffer = _handle_partial_delimiter(buffer, content, timestamp)
+                # No complete delimiter - emit or accumulate based on state
+                if state == Event.CALLS:
+                    # CALLS: keep accumulating for JSON parsing (don't emit)
+                    pass
+                else:
+                    # THINK/RESPOND: stream tokens immediately (pure real-time)
+                    if not _has_potential_delimiter_start(buffer):
+                        if buffer.strip():
+                            event = _make_event(state, buffer, timestamp or time.time())
+                            yield event
+                        buffer = ""
                 break
 
-            # Found complete delimiter
+            # Found complete delimiter - extract components
             before, delimiter, buffer = _process_complete_delimiter(match, buffer)
 
-            # Add content before delimiter
-            if before:
-                content, timestamp = _accumulate_content(before, content, timestamp)
-
-            # Emit current state if we have content
-            if content.strip():
-                event = _make_event(state, content, timestamp)
-
+            # Stream content before delimiter (except CALLS which we parse as JSON)
+            if before.strip():
                 if state == Event.CALLS:
-                    result = _parse_json(content)
+                    # Parse accumulated CALLS content as JSON
+                    result = _parse_json(before)
                     if result.success:
+                        event = _make_event(Event.CALLS, before, timestamp or time.time())
                         event["calls"] = result.unwrap()
+                        yield event
                         _save_if_needed(event, on_complete)
                     else:
                         yield {"type": "error", "content": f"Invalid JSON: {result.error}"}
-                        # Reset and continue
-                        state = delimiter
-                        content = ""
-                        timestamp = None
-                        buffer = buffer[match.end() :]
-                        continue
-
-                yield event
-                if state in [Event.THINK, Event.RESPOND]:
-                    _save_if_needed(event, on_complete)
+                else:
+                    # THINK/RESPOND: stream immediately
+                    event = _make_event(state, before, timestamp or time.time())
+                    yield event
 
             # Handle context-aware YIELD delimiter
             if delimiter == Event.YIELD:
-                # Determine context from current state
-                if state == Event.CALLS:
-                    context = "execute"  # Yield after calls = execute tools
-                elif state == Event.RESPOND:
-                    context = "complete"  # Yield after respond = complete conversation
-                else:
-                    context = "unknown"  # Default yield
-
-                yield _make_event(Event.YIELD, context)
+                yield _emit_yield_event(state)
 
             # Transition to new state
             state = delimiter
-            content = ""
-            timestamp = None
+            timestamp = time.time()
 
-    # Final flush
-    if content.strip():
-        event = _make_event(state, content, timestamp)
+    # Final flush of remaining content
+    if buffer.strip():
         if state == Event.CALLS:
-            result = _parse_json(content)
+            # Parse final CALLS JSON
+            result = _parse_json(buffer)
+            event = _make_event(Event.CALLS, buffer, timestamp or time.time())
             if result.success:
                 event["calls"] = result.unwrap()
-        yield event
-        _save_if_needed(event, on_complete)
+            yield event
+            _save_if_needed(event, on_complete)
+        else:
+            # Stream final THINK/RESPOND content
+            event = _make_event(state, buffer, timestamp or time.time())
+            yield event
 
 
 async def collect_events(stream, on_complete=None) -> list[dict[str, Any]]:

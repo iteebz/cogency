@@ -9,12 +9,19 @@ from ..core.protocols import Event
 from ..lib.storage import get_db_path
 
 
-def show_conversation(conversation_id: str = None):
-    """Show last conversation flow."""
+def _require_db():
+    """Get database path or exit early if none exists."""
     db_path = get_db_path()
-
     if not db_path.exists():
         print("❌ No conversations found")
+        return None
+    return db_path
+
+
+def show_conversation(conversation_id: str = None):
+    """Show last conversation flow."""
+    db_path = _require_db()
+    if not db_path:
         return
 
     with sqlite3.connect(db_path) as db:
@@ -50,8 +57,7 @@ def show_conversation(conversation_id: str = None):
 
             elif msg_type == Event.THINK:
                 print("\n🧠 THINK:")
-                first_line = content.split("\n")[0][:80]
-                print(f"  {first_line}...")
+                print(f"  {content}")
 
             elif msg_type == Event.CALLS:
                 print("\n🛠️  TOOLS:")
@@ -64,7 +70,7 @@ def show_conversation(conversation_id: str = None):
                             f"  {i + 1}. {name}({', '.join(f'{k}={repr(v)}' for k, v in args.items())})"
                         )
                 except json.JSONDecodeError:
-                    print(f"  ❌ Invalid JSON: {content[:100]}...")
+                    print(f"  ❌ Invalid JSON: {content}")
 
             elif msg_type == Event.RESPOND:
                 print("\n🤖 ASSISTANT:")
@@ -80,10 +86,8 @@ def show_context(conversation_id: str = None):
     from ..context.assembly import context
     from ..tools import TOOLS
 
-    db_path = get_db_path()
-
-    if not db_path.exists():
-        print("❌ No conversations found")
+    db_path = _require_db()
+    if not db_path:
         return
 
     with sqlite3.connect(db_path) as db:
@@ -125,7 +129,12 @@ def show_context(conversation_id: str = None):
         print()
 
         # Assemble context exactly like the agent does
-        messages = context.assemble(query, "ask_user", conversation_id, TOOLS)
+        from ..core.config import Config
+        from ..lib.llms import Gemini
+        from ..lib.storage import SQLite
+
+        config = Config(llm=Gemini(), storage=SQLite(), tools=TOOLS)
+        messages = context.assemble(query, "ask_user", conversation_id, config)
 
         for i, msg in enumerate(messages):
             print(f"🔸 MESSAGE {i + 1} [{msg['role'].upper()}]")
@@ -145,10 +154,8 @@ def show_context(conversation_id: str = None):
 
 def query_main():
     """Interactive database query for real debugging."""
-    db_path = get_db_path()
-
-    if not db_path.exists():
-        print("❌ No database found")
+    db_path = _require_db()
+    if not db_path:
         return
 
     if not sys.stdin.isatty():

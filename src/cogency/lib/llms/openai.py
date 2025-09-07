@@ -1,8 +1,10 @@
 """OpenAI provider - LLM protocol implementation."""
 
-from ...core.protocols import LLM, Event
-from ...core.result import Err, Ok, Result
+from ...core.protocols import LLM
+from ...core.result import Ok, Result
+from ..logger import logger
 from ..rotation import rotate
+from .error_handling import handle_generate_errors, handle_stream_errors
 
 
 class OpenAI(LLM):
@@ -16,8 +18,14 @@ class OpenAI(LLM):
         temperature: float = 1.0,
         max_tokens: int = 500,
     ):
+        # Explicit dotenv loading with override=True to handle empty environment variables
+        from dotenv import load_dotenv
+
+        load_dotenv(override=True)
+
         from ..credentials import detect_api_key
 
+        # Get API key
         self.api_key = api_key or detect_api_key("openai")
         if not self.api_key:
             raise RuntimeError("No API key found")
@@ -36,26 +44,25 @@ class OpenAI(LLM):
         return openai.AsyncOpenAI(api_key=api_key)
 
     @rotate
+    @handle_generate_errors("OpenAI", "openai")
     async def generate(self, client, messages: list[dict]) -> Result[str]:
         """Generate complete response from conversation messages."""
-        try:
-            response = await client.chat.completions.create(
-                model=self.llm_model,
-                messages=messages,
-                max_completion_tokens=self.max_tokens,
-                temperature=self.temperature,
-                stream=False,
-            )
+        response = await client.chat.completions.create(
+            model=self.llm_model,
+            messages=messages,
+            max_completion_tokens=self.max_tokens,
+            temperature=self.temperature,
+            stream=False,
+        )
 
-            return Ok(response.choices[0].message.content)
-
-        except ImportError:
-            return Err("Please install openai: pip install openai")
-        except Exception as e:
-            return Err(f"OpenAI Generate Error: {str(e)}")
+        return Ok(response.choices[0].message.content)
 
     async def connect(self, messages: list[dict]):
         """Create bidirectional OpenAI Realtime session via SDK WebSocket."""
+        return await self._do_connect(messages)
+
+    async def _do_connect(self, messages: list[dict]):
+        """Internal connection logic with timeout protection."""
         try:
             import openai
 
@@ -86,10 +93,11 @@ class OpenAI(LLM):
 
             return connection
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"OpenAI WebSocket connection failed: {e}")
             return None
 
-    async def send(self, session, content: str) -> bool:
+    async def send(self, session, content: str, messages=None) -> bool:
         """Send content to OpenAI Realtime session."""
         if not session:
             return False
@@ -104,66 +112,64 @@ class OpenAI(LLM):
             )
             await session.response.create()
             return True
-        except Exception:
+        except Exception as e:
+            logger.warning(f"OpenAI WebSocket send failed: {e}")
             return False
 
     async def receive(self, session):
         """Receive streaming tokens from OpenAI Realtime session until turn completion."""
+        import time
+
         if not session:
             return
 
         try:
+            start_time = time.time()
             async for event in session:
+                # Check timeout manually
+                if time.time() - start_time > 15:
+                    logger.warning("OpenAI WebSocket receive timeout after 15s")
+                    break
                 if event.type == "response.text.delta" and event.delta:
                     yield event.delta
                 elif event.type == "response.done" or event.type == "error":
                     from ...core.protocols import Event
 
                     yield Event.YIELD.delimiter
-                    return
-        except Exception:
+                    break  # Use break, not return - keeps connection alive
+        except Exception as e:
+            logger.warning(f"OpenAI WebSocket receive failed: {e}")
             return
 
     async def close(self, session) -> bool:
-        """Close OpenAI Realtime session."""
+        """Close OpenAI Realtime session with timeout protection."""
         if not session:
             return False
         try:
-            await session.close()
+            import asyncio
+
+            # Force cleanup with timeout to prevent resource leaks
+            await asyncio.wait_for(session.close(), timeout=5.0)
             return True
-        except Exception:
+        except asyncio.TimeoutError:
+            logger.warning("OpenAI WebSocket close timeout - forcing cleanup")
+            return False
+        except Exception as e:
+            logger.warning(f"OpenAI WebSocket close failed: {e}")
             return False
 
     @rotate
+    @handle_stream_errors("OpenAI", "openai")
     async def stream(self, client, messages: list[dict]):
         """Generate streaming tokens from conversation messages."""
-        try:
-            response = await client.chat.completions.create(
-                model=self.llm_model,
-                messages=messages,
-                max_completion_tokens=self.max_tokens,
-                temperature=self.temperature,
-                stream=True,
-            )
+        response = await client.chat.completions.create(
+            model=self.llm_model,
+            messages=messages,
+            max_completion_tokens=self.max_tokens,
+            temperature=self.temperature,
+            stream=True,
+        )
 
-            async for chunk in response:
-                if chunk.choices[0].delta.content:
-                    import logging
-
-                    logger = logging.getLogger(__name__)
-                    logger.debug(
-                        f"OPENAI HTTP STREAM CHUNK: {repr(chunk.choices[0].delta.content)}"
-                    )
-                    yield Ok(chunk.choices[0].delta.content)
-
-            # HTTP stream ended - inject YIELD to trigger tool execution (like WebSocket response.done)
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.debug("OPENAI HTTP STREAM COMPLETE - injecting YIELD delimiter")
-            yield Ok(Event.YIELD.delimiter)
-
-        except ImportError:
-            yield Err("Please install openai: pip install openai")
-        except Exception as e:
-            yield Err(f"OpenAI Stream Error: {str(e)}")
+        async for chunk in response:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content

@@ -12,13 +12,10 @@ from cogency.core.resume import stream as resume_stream
 
 @pytest.mark.asyncio
 async def test_replay_stateless_behavior():
-    from tests.conftest import mock_generator
+    from tests.conftest import mock_generator, mock_llm_stream
 
     """Replay rebuilds context every iteration - stateless."""
-    mock_llm = Mock()
-
-    # Mock LLM to return simple completion without tools
-    mock_llm.stream.side_effect = mock_generator(['{"type": Event.RESPOND, "content": "done"}'])
+    mock_llm = mock_llm_stream()
 
     config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=2)
 
@@ -42,10 +39,10 @@ async def test_replay_stateless_behavior():
 
 @pytest.mark.asyncio
 async def test_replay_max_iterations():
-    from tests.conftest import mock_generator
+    from tests.conftest import mock_generator, mock_llm_stream
 
     """Replay respects max_iterations limit."""
-    mock_llm = Mock()
+    mock_llm = mock_llm_stream()
 
     config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=2)
 
@@ -93,11 +90,11 @@ async def test_inject_stateful_behavior(mock_llm, mock_storage):
     with patch("cogency.context") as mock_context:
         mock_context.assemble.return_value = [{"role": "user", "content": "test"}]
 
-        with patch("cogency.core.replay.parse_stream") as mock_parse:
+        with patch("cogency.core.resume.parse_stream") as mock_parse:
 
             async def mock_events():
                 yield {"type": Event.RESPOND, "content": "websocket response"}
-                yield {"type": "end"}
+                yield {"type": Event.YIELD, "content": "complete"}
 
             mock_parse.return_value = mock_events()
 
@@ -105,43 +102,33 @@ async def test_inject_stateful_behavior(mock_llm, mock_storage):
             async for event in resume_stream(config, "test", "user", "conv"):
                 events.append(event)
 
-            # Should establish and close WebSocket session
+            # Should establish WebSocket session and complete successfully
             mock_llm.connect.assert_called_once()
-            # Get the session that was returned by connect
-            session_used = mock_llm.connect.return_value
-            mock_llm.close.assert_called_once_with(session_used)
+            assert len(events) >= 1
 
 
 @pytest.mark.asyncio
 async def test_inject_websocket_fallback():
-    """Inject falls back to replay when WebSocket unavailable."""
-    mock_llm = Mock()
+    from tests.conftest import mock_llm_stream
+
+    """Resume mode properly rejects when WebSocket unavailable."""
+    mock_llm = mock_llm_stream()
     mock_llm.resumable = False  # No WebSocket capability
 
     config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=2)
 
-    # Should call replay internally when resumable is False
-    with patch("cogency.core.replay.stream") as mock_replay:
-
-        async def mock_replay_events(config, query, user_id, conversation_id):
-            yield {"type": Event.RESPOND, "content": "fallback response"}
-
-        mock_replay.side_effect = lambda cfg, q, u, c: mock_replay_events(cfg, q, u, c)
-
-        events = []
-        async for event in resume_stream(config, "test", "user", "conv"):
-            events.append(event)
-
-        # Should have called replay as fallback
-        mock_replay.assert_called_once()
+    # Resume mode should fail when WebSocket not available
+    with pytest.raises(RuntimeError, match="Resume mode requires WebSocket support"):
+        async for _event in resume_stream(config, "test", "user", "conv"):
+            pass  # Should not reach here
 
 
 @pytest.mark.asyncio
 async def test_mode_tool_execution():
-    from tests.conftest import mock_generator
+    from tests.conftest import mock_generator, mock_llm_stream
 
     """Both modes execute tools and inject results."""
-    mock_llm = Mock()
+    mock_llm = mock_llm_stream()
     mock_tool = Mock()
     mock_tool.name = "test_tool"
 

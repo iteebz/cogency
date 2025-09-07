@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
-from ..security import safe_path
+from ..security import resolve_path_safely
 from .utils import categorize_file, format_size
 
 
@@ -37,10 +37,10 @@ class FileRead(Tool):
             if sandbox:
                 # Sandboxed execution
                 sandbox_dir = Path(".sandbox")
-                file_path = safe_path(sandbox_dir, file)
+                file_path = resolve_path_safely(file, sandbox_dir)
             else:
-                # Direct filesystem access
-                file_path = Path(file).resolve()
+                # Direct filesystem access with traversal protection
+                file_path = resolve_path_safely(file)
 
             # Read specific lines if requested - PERFORMANCE WIN
             if start > 0 or lines != 100:

@@ -1,8 +1,10 @@
 """Resilient operations - ripped from resilient-result, simplified."""
 
+import asyncio
 import time
 from functools import wraps
 
+from ..core.result import Err
 from ..lib.logger import logger
 from .storage import save_message
 
@@ -13,7 +15,6 @@ def retry(attempts: int = 3, base_delay: float = 0.1):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            last_error = None
             for attempt in range(attempts):
                 try:
                     result = func(*args, **kwargs)
@@ -22,25 +23,15 @@ def retry(attempts: int = 3, base_delay: float = 0.1):
                     if func == save_message and not result:
                         raise RuntimeError("Database save failed")
 
-                    # Log success if we had retries
-                    if attempt > 0:
-                        logger.debug(f"{func.__name__} succeeded after {attempt + 1} attempts")
-
                     return result
 
-                except Exception as e:
-                    last_error = e
-
+                except Exception:
                     # If this is the last attempt, don't sleep or retry
                     if attempt < attempts - 1:
                         delay = base_delay * (2**attempt)
-                        logger.debug(
-                            f"Retrying {func.__name__} (attempt {attempt + 2}/{attempts}) after {type(e).__name__}: waiting {delay:.1f}s"
-                        )
                         time.sleep(delay)
 
-            # All attempts failed - log and return False for graceful degradation
-            logger.debug(f"{func.__name__} failed after {attempts} attempts: {last_error}")
+            # All attempts failed - return False for graceful degradation
             return False
 
         return wrapper
@@ -57,6 +48,22 @@ def resilient_save(
     return save_message(
         conversation_id, user_id, msg_type, content, base_dir=None, timestamp=timestamp
     )
+
+
+def timeout(seconds: float = 30):
+    """Simple timeout decorator for async functions."""
+
+    def decorator(func):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            try:
+                return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
+            except asyncio.TimeoutError:
+                return Err(f"Operation timed out after {seconds}s")
+
+        return wrapper
+
+    return decorator
 
 
 def safe_callback(callback, *args, **kwargs) -> None:

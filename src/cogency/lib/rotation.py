@@ -5,8 +5,9 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-# Global client cache: "PROVIDER:api_key" -> client_instance
-_client_cache = {}
+from cogency.core.result import Err, Ok, Result
+
+# No client caching - WebSocket clients hold stateful connections
 
 
 class Rotator:
@@ -40,54 +41,80 @@ class Rotator:
         return self.keys[self.current % len(self.keys)] if self.keys else None
 
     def rotate(self, error: str = None) -> bool:
-        """Rotate if error indicates rate limiting."""
-        if not error or len(self.keys) < 2:
+        """Rotate on rate limits or force rotation."""
+        import logging
+
+        logging.getLogger(__name__)
+
+        if len(self.keys) < 2:
             return False
+
+        # Force rotation if no error (proactive load balancing)
+        if not error:
+            # Always rotate for load balancing - remove time restriction
+            self.current = (self.current + 1) % len(self.keys)
+            self.last_rotation = time.time()
+            return True
 
         # Rate limit detection
         rate_signals = ["quota", "rate limit", "429", "throttle", "exceeded"]
-        if not any(signal in error.lower() for signal in rate_signals):
+        rate_detected = any(signal in error.lower() for signal in rate_signals)
+
+        if not rate_detected:
             return False
 
-        # Rotate (max once per second)
-        now = time.time()
-        if now - self.last_rotation > 1:
-            self.current = (self.current + 1) % len(self.keys)
-            self.last_rotation = now
-            return True
-        return False
+        # Always rotate on rate limit errors - no time restriction
+        self.current = (self.current + 1) % len(self.keys)
+        self.last_rotation = time.time()
+        return True
 
 
 # Global rotators
 _rotators: dict[str, Rotator] = {}
 
 
-async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
-    """Execute function with automatic key rotation on rate limits."""
+async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Result[Any]:
+    """Execute function with automatic key rotation (rotate every call + retry on failure)."""
+    import logging
+
+    logging.getLogger(__name__)
+
     if prefix not in _rotators:
         _rotators[prefix] = Rotator(prefix)
 
     rotator = _rotators[prefix]
-    last_error = None
 
-    # Try up to 3 times with different keys
-    for _ in range(3):
-        key = rotator.current_key()
-        if not key:
-            raise ValueError(f"No {prefix} API keys found")
+    # Step 1: Automatically rotate to next key for load balancing
+    rotator.rotate()  # Force rotation (no error = proactive rotation)
+
+    key = rotator.current_key()
+    if not key:
+        return Err(f"No {prefix} API keys found")
+
+    # Step 2: Try the call with current key
+    try:
+        result = await func(key, *args, **kwargs)
+        return Ok(result)
+    except Exception as e:
+        # Step 3: If failure, rotate again and retry once
+        rotated = rotator.rotate(str(e))
+        if not rotated:
+            return Err(str(e))  # Not a rate limit or no more keys
+
+        # Retry with different key
+        retry_key = rotator.current_key()
+        if not retry_key:
+            return Err(f"No {prefix} API keys available for retry")
 
         try:
-            return await func(key, *args, **kwargs)
-        except Exception as e:
-            last_error = e
-            if not rotator.rotate(str(e)):
-                break  # Not a rate limit error or no more keys
-
-    raise last_error
+            result = await func(retry_key, *args, **kwargs)
+            return Ok(result)
+        except Exception as retry_error:
+            return Err(str(retry_error))
 
 
 def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
-    """Decorator for automatic key rotation with client caching."""
+    """Decorator for automatic key rotation with fresh clients."""
     import inspect
 
     def decorator(func):
@@ -98,26 +125,21 @@ def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
             return self.__class__.__name__.upper()
 
         def debug_log(message):
-            """Debug logging for rotation events."""
-            import os
-
-            if os.getenv("COGENCY_DEBUG_ROTATION"):
-                print(f"🔄 ROTATE[{func.__name__}]: {message}")
+            """Debug logging removed - libraries shouldn't use environment variables."""
+            # No runtime configuration via env vars in library code
+            pass
 
         # Check if function is async generator
         if inspect.isasyncgenfunction(func):
-            # Async generator wrapper with caching
+            # Async generator wrapper
             async def async_gen_wrapper(self, *args, **kwargs):
                 provider_prefix = get_prefix(self)
 
-                async def _execute_cached(api_key):
-                    # Get cached client
-                    cache_key = f"{provider_prefix}:{api_key}"
-                    if cache_key not in _client_cache:
-                        _client_cache[cache_key] = self._create_client(api_key)
-                    client = _client_cache[cache_key]
+                async def _execute(api_key):
+                    # Create fresh client for each call
+                    client = self._create_client(api_key)
 
-                    # Call with cached client
+                    # Call with fresh client
                     async for item in func(self, client, *args, **kwargs):
                         yield item
 
@@ -125,38 +147,50 @@ def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
                 if provider_prefix not in _rotators:
                     _rotators[provider_prefix] = rotator
 
+                # Check for API keys first - fail fast on config errors
+                if not rotator.keys:
+                    yield Err(f"No {provider_prefix} API keys found")
+                    return
+
+                # Step 1: Auto-rotate for load balancing
+                rotator.rotate()
                 key = rotator.current_key()
-                if not key:
-                    raise ValueError(f"No {provider_prefix} API keys found")
 
                 try:
-                    async for item in _execute_cached(key):
+                    async for item in _execute(key):
                         yield item
                 except Exception as e:
+                    # Step 2: If failure, rotate again and retry once
                     if not rotator.rotate(str(e)):
-                        raise
-                    # Retry with rotated key
+                        yield Err(str(e))
+                        return
+
                     key = rotator.current_key()
-                    async for item in _execute_cached(key):
-                        yield item
+                    if not key:  # Safety check after rotation
+                        yield Err(f"No {provider_prefix} API keys available for retry")
+                        return
+
+                    try:
+                        async for item in _execute(key):
+                            yield item
+                    except Exception as retry_error:
+                        yield Err(str(retry_error))
 
             return async_gen_wrapper
 
-        # Regular coroutine wrapper with caching
+        # Regular coroutine wrapper
         async def wrapper(self, *args, **kwargs):
             provider_prefix = get_prefix(self)
 
-            async def _execute_cached(api_key):
-                # Get cached client
-                cache_key = f"{provider_prefix}:{api_key}"
-                if cache_key not in _client_cache:
-                    _client_cache[cache_key] = self._create_client(api_key)
-                client = _client_cache[cache_key]
+            async def _execute(api_key):
+                # Create fresh client for each call
+                client = self._create_client(api_key)
 
-                # Call with cached client
+                # Call with fresh client
                 return await func(self, client, *args, **kwargs)
 
-            return await with_rotation(provider_prefix, _execute_cached)
+            # with_rotation now handles auto-rotation + retry automatically
+            return await with_rotation(provider_prefix, _execute)
 
         return wrapper
 

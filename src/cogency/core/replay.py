@@ -31,7 +31,7 @@ async def _handle_execute_yield_replay(calls, config, user_id, conversation_id, 
     messages.append(
         {
             "role": "system",
-            "content": json.dumps(individual_results),
+            "content": f"COMPLETED ACTIONS: {json.dumps(individual_results)}",
         }
     )
 
@@ -44,8 +44,8 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
         raise ValueError("LLM provider required")
 
     try:
-        # Assemble context from storage
-        messages = context.assemble(query, user_id, conversation_id, config.tools, config)
+        # Assemble context from storage (exclude current cycle to prevent duplication)
+        messages = context.assemble(query, user_id, conversation_id, config)
 
         for iteration in range(1, config.max_iterations + 1):
             # Add final iteration guidance
@@ -65,6 +65,7 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
 
             persist_event = create_event_persister(conversation_id, user_id)
 
+            # HTTP STREAMING: Direct stream call, pure tokens
             async for event in parse_stream(config.llm.stream(messages), on_complete=persist_event):
                 logger.debug(f"Event: {event['type']} - {event.get('content', '')[:100]}...")
 

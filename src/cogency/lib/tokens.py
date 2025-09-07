@@ -1,5 +1,7 @@
 """Token counting and cost analysis."""
 
+from .logger import logger
+
 try:
     import tiktoken
 
@@ -77,7 +79,8 @@ class Tokens:
         """Initialize token tracking from LLM."""
         try:
             return cls(getattr(llm, "llm_model", "unknown"))
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Token tracking init failed: {e}")
             return None
 
     def add_input(self, text: str):
@@ -88,8 +91,6 @@ class Tokens:
     def add_output(self, text: str):
         tokens = count_tokens(text, self.model)
         self.output += tokens
-        cost = self.cost()
-        print(f"+{tokens} | Total: {self.total()} | ${cost:.4f}")
         return tokens
 
     def total(self):
@@ -97,6 +98,18 @@ class Tokens:
 
     def cost(self) -> float:
         return calculate_cost(self.input, self.output, self.model)
+
+    def to_metrics_event(self, duration: float = 0.0) -> dict:
+        """Create metrics event for CLI display."""
+        from ..core.protocols import Event
+
+        return {
+            "type": Event.METRICS,
+            "input_tokens": self.input,
+            "output_tokens": self.output,
+            "cost": self.cost(),
+            "duration": duration,
+        }
 
     def compare_streaming_cost(self, stream_model: str) -> dict:
         batch_cost = self.cost()

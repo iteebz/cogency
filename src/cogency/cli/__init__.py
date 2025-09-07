@@ -74,9 +74,11 @@ def main():
     if "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) == 1:
         print("🤖 Cogency - Streaming consciousness for AI agents")
         print()
-        print("🚀 EXECUTION (CLAUDE-OPTIMIZED):")
-        print('  cogency "your question"              # Continue conversation (auto-context)')
-        print('  cogency "your question" --new        # Force new conversation')
+        print("🚀 EXECUTION:")
+        print(
+            '  cogency "your question"              # Ask a question (continues previous conversation)'
+        )
+        print('  cogency "your question" --new        # Start fresh conversation (resets context)')
         print('  cogency "your question" --debug      # Show execution details')
         print('  cogency "your question" --show-stream # Show raw token stream')
         print()
@@ -102,7 +104,8 @@ def main():
         print()
         print("💡 Example workflow:")
         print('  cogency "analyze this bug"           # Start debugging session')
-        print('  cogency "try this solution"          # Continue same context')
+        print('  cogency "try this solution"          # Continue in same conversation')
+        print('  cogency "restart" --new              # Reset to a fresh conversation')
         print('  cogency "verify the fix" --debug     # See execution details')
         print("  cogency last                         # Review what happened")
         print("  cogency prompt                       # See exact LLM context")

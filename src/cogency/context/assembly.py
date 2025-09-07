@@ -2,10 +2,43 @@
 
 from ..core.protocols import Event
 from ..lib.storage import save_message
+from ..lib.tokens import count_tokens
+from .constants import CONTEXT_LIMITS
 from .conversation import current_cycle_messages, history
 from .profile import format as profile_format
 from .profile import learn
 from .system import prompt as system_prompt
+
+
+def _get_context_limit(model: str) -> int:
+    """Get context limit for model, defaulting to conservative 6.4k."""
+    return CONTEXT_LIMITS.get(model, 6400)  # Conservative default
+
+
+def _truncate_history(history_content: str, max_tokens: int, model: str) -> str:
+    """Truncate history content to fit within token budget, preserving most recent messages."""
+    if not history_content or max_tokens <= 0:
+        return ""
+
+    # Split by lines and truncate from the beginning (preserve most recent)
+    lines = history_content.split("\n")
+    truncated_lines = []
+    current_tokens = 0
+
+    # Work backwards from most recent messages
+    for line in reversed(lines):
+        line_tokens = count_tokens(line + "\n", model)
+        if current_tokens + line_tokens > max_tokens:
+            break
+        truncated_lines.insert(0, line)  # Preserve original order
+        current_tokens += line_tokens
+
+    result = "\n".join(truncated_lines)
+    if len(truncated_lines) < len(lines):
+        # Add truncation indicator
+        result = "[...conversation truncated...]\n" + result
+
+    return result
 
 
 class Context:
@@ -53,43 +86,90 @@ class Context:
         query: str,
         user_id: str,
         conversation_id: str,
-        tools: list = None,
         config=None,
     ) -> list:
-        """Assemble context into single system message + user query format."""
-        if user_id is None:
-            raise ValueError("user_id cannot be None")
+        """Assemble context with intelligent token limits to prevent model window overflow.
 
-        # Build system message with all context
+        Stateless architecture: rebuild complete agent context from storage every cycle.
+        No retained state. Pure functional execution. Perfect reproducibility."""
+
+        # Config is config - no agent wrapper bullshit
+        tools = config.tools if config else None
+
+        # Get model for token counting and limits
+        model = config.llm.llm_model if config else "unknown"
+        context_limit = _get_context_limit(model)
+
+        # Build system message components with size tracking
         system_sections = []
+        total_tokens = 0
 
-        # Core instructions and tools (with optional user instructions)
-        instructions = config.instructions if config else None
-        system_sections.append(
-            system_prompt(tools=tools, instructions=instructions, include_security=True)
+        # Core instructions and tools (protected - always included)
+        core_prompt = system_prompt(
+            tools=tools, instructions=config.instructions if config else None, include_security=True
         )
+        core_tokens = count_tokens(core_prompt, model)
+        system_sections.append(core_prompt)
+        total_tokens += core_tokens
 
-        # User profile context
-        profile = config.profile if config else True
-        if profile:
-            profile_content = profile_format(user_id)
-            if profile_content:
-                system_sections.append("USER CONTEXT:")
-                system_sections.append(profile_content)
+        # Reserve tokens for user query and current cycle
+        from ..core.protocols import Mode
 
-        # Conversation history (past cycles only)
-        history_content = history(conversation_id)
-        if history_content:
-            system_sections.append("CONVERSATION HISTORY:")
-            system_sections.append(history_content)
+        query_tokens = count_tokens(query, model)
+        current_cycle_tokens = 0
+        if config and config.mode != Mode.REPLAY:
+            current_cycle = current_cycle_messages(conversation_id)
+            if current_cycle:
+                current_cycle_content = "\n".join(msg["content"] for msg in current_cycle)
+                current_cycle_tokens = count_tokens(current_cycle_content, model)
 
-        # Task boundary to prevent context confusion
-        system_sections.append(
+        # Reserve 1000 tokens for generation headroom
+        reserved_tokens = query_tokens + current_cycle_tokens + 1000
+        available_tokens = context_limit - total_tokens - reserved_tokens
+
+        # Add optional context within remaining budget
+        if available_tokens > 0:
+            # User profile (high priority - user-specific context)
+            profile = config.profile if config else True
+            if profile and available_tokens > 100:  # Minimum viable profile space
+                profile_content = profile_format(user_id)
+                if profile_content:
+                    profile_tokens = count_tokens(f"USER CONTEXT:\n{profile_content}", model)
+                    if profile_tokens <= available_tokens:
+                        system_sections.append("USER CONTEXT:")
+                        system_sections.append(profile_content)
+                        total_tokens += profile_tokens
+                        available_tokens -= profile_tokens
+
+            # Conversation history (medium priority - truncate intelligently if needed)
+            if available_tokens > 200:  # Minimum viable history space
+                history_content = history(conversation_id)
+                if history_content:
+                    history_section = f"CONVERSATION HISTORY:\n{history_content}"
+                    history_tokens = count_tokens(history_section, model)
+
+                    if history_tokens <= available_tokens:
+                        system_sections.append("CONVERSATION HISTORY:")
+                        system_sections.append(history_content)
+                        total_tokens += history_tokens
+                        available_tokens -= history_tokens
+                    else:
+                        # Truncate history to fit budget
+                        truncated_history = _truncate_history(
+                            history_content, available_tokens - 50, model
+                        )  # Reserve 50 for header
+                        if truncated_history:
+                            system_sections.append("CONVERSATION HISTORY:")
+                            system_sections.append(truncated_history)
+
+        # Task boundary (always included)
+        task_boundary = (
             "CURRENT TASK: Execute the following request independently. "
             "Previous responses are context only - do not assume prior completion."
         )
+        system_sections.append(task_boundary)
 
-        # Combine all sections into system message
+        # Assemble final messages
         full_system_content = "\n\n".join(system_sections)
 
         messages = [
@@ -97,9 +177,10 @@ class Context:
             {"role": "user", "content": query},
         ]
 
-        # Add current cycle messages for replay mode continuity
-        current_cycle = current_cycle_messages(conversation_id)
-        messages.extend(current_cycle)
+        # Add current cycle messages for resume mode continuity (skip in replay mode)
+        if config and config.mode != Mode.REPLAY:
+            current_cycle = current_cycle_messages(conversation_id)
+            messages.extend(current_cycle)
 
         return messages
 

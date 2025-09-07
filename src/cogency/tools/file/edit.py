@@ -4,7 +4,7 @@ from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
-from ..security import safe_path, validate_input
+from ..security import resolve_path_safely
 from .utils import categorize_file, format_size
 
 
@@ -32,17 +32,14 @@ class FileEdit(Tool):
         if not old:
             return Err("Old text cannot be empty")
 
-        if not validate_input(new):
-            return Err("Content contains unsafe patterns")
-
         try:
             if sandbox:
                 # Sandboxed execution
                 sandbox_dir = Path(".sandbox")
-                file_path = safe_path(sandbox_dir, file)
+                file_path = resolve_path_safely(file, sandbox_dir)
             else:
-                # Direct filesystem access
-                file_path = Path(file).resolve()
+                # Direct filesystem access with traversal protection
+                file_path = resolve_path_safely(file)
 
             # Read existing content
             if not file_path.exists():

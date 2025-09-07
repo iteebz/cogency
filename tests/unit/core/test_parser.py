@@ -30,33 +30,33 @@ class MockStream:
 
 
 @pytest.mark.asyncio
-async def test_pipe_fragment_catastrophe():
-    """DESTROY: Every possible pipe fragment leak scenario."""
+async def test_delimiter_fragment_leakage():
+    """DESTROY: Every possible delimiter fragment leak scenario."""
 
     destruction_cases = [
         # Case 1: Section symbol at boundary
         {
             "name": "section_symbol_boundary",
             "tokens": ["thinking ", Event.CALLS.delimiter + " ", "[]" + Event.YIELD.delimiter],
-            "expect_no_pipes": True,
+            "expect_no_delimiters": True,
         },
         # Case 2: Section in middle of token
         {
             "name": "section_mid_token",
             "tokens": ["analyzing ", Event.CALLS.delimiter + " ", "[]" + Event.YIELD.delimiter],
-            "expect_no_pipes": True,
+            "expect_no_delimiters": True,
         },
         # Case 3: Split section symbol
         {
             "name": "split_section",
             "tokens": ["text ", "§", "CALLS ", "[]" + Event.YIELD.delimiter],
-            "expect_no_pipes": True,
+            "expect_no_delimiters": True,
         },
         # Case 4: Pipe in middle of content (should preserve pipes)
         {
             "name": "pipe_in_content",
             "tokens": ["unix | pipe", Event.CALLS.delimiter + " ", "[]" + Event.YIELD.delimiter],
-            "expect_no_pipes": False,  # This should preserve the pipe
+            "expect_no_delimiters": False,  # This should preserve the pipe
         },
     ]
 
@@ -76,12 +76,12 @@ async def test_pipe_fragment_catastrophe():
 
             print(f"Think content: {repr(think_content)}")
 
-            if case["expect_no_pipes"]:
+            if case["expect_no_delimiters"]:
                 # Should NOT have delimiter fragments (§ should not leak)
                 assert "§" not in think_content.replace(
                     "unix | pipe", ""
-                ), f"SECTION LEAK in {case['name']}: {repr(think_content)}"
-                print("✅ No section symbol leakage")
+                ), f"DELIMITER LEAK in {case['name']}: {repr(think_content)}"
+                print("✅ No delimiter symbol leakage")
             else:
                 # Should preserve legitimate pipes
                 assert "unix | pipe" in think_content, f"LEGITIMATE PIPE LOST in {case['name']}"
@@ -217,15 +217,21 @@ async def test_stream_cutoff_destruction():
             raise
 
 
-if __name__ == "__main__":
+async def main():
     print("PARSER STRESS TESTING")
     print("=" * 50)
 
-    test_pipe_fragment_catastrophe()
-    test_malformed_json_destruction()
-    test_stream_cutoff_destruction()
+    await test_delimiter_fragment_leakage()
+    await test_malformed_json_destruction()
+    await test_stream_cutoff_destruction()
 
     print("\nSTRESS TESTING COMPLETE - PARSER REQUIREMENTS VALIDATED")
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(main())
 
 
 # Additional edge case tests from parser investigation
@@ -281,23 +287,14 @@ async def test_yield_context_detection():
 
 @pytest.mark.asyncio
 async def test_error_token_handling():
-    """Test handling of error tokens from stream."""
-
-    class ErrorResult:
-        def __init__(self, error):
-            self.failure = True
-            self.error = error
+    """Test handling of non-string tokens raises exceptions."""
 
     async def error_stream():
         yield Event.THINK.delimiter + " Starting"
-        yield ErrorResult("Connection lost")
+        yield {"not": "a string"}  # Non-string token
         yield "This should not be processed"
 
     events = []
-    async for event in parse_stream(error_stream()):
-        events.append(event)
-
-    # Should stop at error and yield error event
-    error_events = [e for e in events if e["type"] == "error"]
-    assert len(error_events) == 1
-    assert "Connection lost" in error_events[0]["content"]
+    with pytest.raises(RuntimeError, match="Parser expects string tokens"):
+        async for event in parse_stream(error_stream()):
+            events.append(event)

@@ -5,6 +5,8 @@ Uses HTTP with Server-Sent Events fallback. Streaming architecture ready
 for WebSocket when Anthropic adds support.
 """
 
+from collections.abc import AsyncGenerator
+
 from ...core.protocols import LLM, Event
 from ...core.result import Err, Ok, Result
 from ..rotation import rotate
@@ -52,22 +54,34 @@ class Anthropic(LLM):
             return Err(f"Anthropic Generate Error: {str(e)}")
 
     @rotate
-    async def stream(self, client, messages: list[dict]):
-        """Generate streaming tokens from conversation messages."""
+    async def connect(self, client, messages: list[dict]) -> Result[object]:
+        """INFRASTRUCTURE: Create streaming connection with error handling."""
         try:
-            async with client.messages.stream(
+            # Create stream connection (pre-configured, ready to use)
+            stream_connection = client.messages.stream(
                 model=self.llm_model,
                 messages=messages,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
-            ) as stream:
-                async for text in stream.text_stream:
-                    yield Ok(text)
+            )
 
-                # HTTP stream ended - inject YIELD to trigger tool execution
-                yield Ok(Event.YIELD.delimiter)
+            return Ok(stream_connection)
 
         except ImportError:
-            yield Err("Please install anthropic: pip install anthropic")
+            return Err("Please install anthropic: pip install anthropic")
         except Exception as e:
-            yield Err(f"Anthropic Stream Error: {str(e)}")
+            return Err(f"Anthropic Connection Error: {str(e)}")
+
+    async def stream(self, connection) -> AsyncGenerator[str, None]:
+        """DATA LAYER: Pure token streaming with exceptions on failure."""
+        try:
+            async with connection as stream:
+                async for text in stream.text_stream:
+                    yield text  # Pure string token
+
+                # HTTP stream ended - inject YIELD to trigger tool execution
+                yield Event.YIELD.delimiter
+
+        except Exception as e:
+            # Exceptions terminate the stream cleanly
+            raise RuntimeError(f"Anthropic Stream Error: {str(e)}") from None

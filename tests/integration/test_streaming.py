@@ -12,7 +12,7 @@ async def test_agent_http_mode():
 
     agent = Agent(mode="replay")  # Test basic mode functionality
 
-    with patch("cogency.core.agent.consciousness_stream") as mock_stream:
+    with patch("cogency.core.agent.stream") as mock_stream:
         # Mock async generator
         async def mock_events():
             yield {"type": "respond", "content": "HTTP response"}
@@ -36,7 +36,7 @@ async def test_agent_websocket_mode():
 
     agent = Agent(mode="resume")  # Test resume mode functionality
 
-    with patch("cogency.core.agent.consciousness_stream") as mock_stream:
+    with patch("cogency.core.agent.stream") as mock_stream:
         # Mock async generator
         async def mock_events():
             yield {"type": "respond", "content": "WebSocket response"}
@@ -60,7 +60,7 @@ async def test_agent_auto_mode():
 
     agent = Agent(mode="auto")  # Test auto mode functionality
 
-    with patch("cogency.core.agent.consciousness_stream") as mock_stream:
+    with patch("cogency.core.agent.stream") as mock_stream:
         # Mock async generator
         async def mock_events():
             yield {"type": "respond", "content": "Auto mode response"}

@@ -13,6 +13,12 @@ pytest_plugins = ["pytest_asyncio"]
 @pytest.fixture
 def mock_llm():
     """Mock LLM provider for testing."""
+    return mock_llm_stream()
+
+
+def mock_llm_stream():
+    """Factory for creating streaming LLM mocks."""
+
     provider = Mock()
 
     # Standard generation - async function that returns Result
@@ -21,24 +27,31 @@ def mock_llm():
 
     provider.generate = Mock(side_effect=mock_generate)
 
-    # Streaming support with proper async generator
-    provider.stream = None  # Disabled by default
-
-    # WebSocket support for resume mode
-    provider.resumable = False  # Disabled by default
-
-    # Create a consistent session object for connect/close matching
-    mock_session = Mock()
+    # Two-phase pattern: connect + stream
+    mock_connection = Mock()
 
     async def mock_connect(*args, **kwargs):
-        return mock_session
+        return Ok(mock_connection)
+
+    provider.connect = Mock(side_effect=mock_connect)
+
+    async def mock_stream(connection):
+        yield "§RESPOND\nTest response"
+
+    provider.stream = Mock(side_effect=mock_stream)
+
+    # WebSocket support
+    provider.resumable = False  # Default to HTTP mode
 
     async def mock_close(*args, **kwargs):
         return True
 
-    provider.connect = Mock(side_effect=mock_connect, return_value=mock_session)
     provider.close = Mock(side_effect=mock_close)
-    provider.receive = Mock(side_effect=mock_generator(["mock_token"]))
+
+    async def mock_receive(session):
+        yield "Test WebSocket token"
+
+    provider.receive = Mock(side_effect=mock_receive)
 
     return provider
 
@@ -110,8 +123,8 @@ def mock_websocket_tokens():
 
 
 @pytest.fixture
-def mock_consciousness_stream():
-    """Mock consciousness stream for agent tests."""
+def mock_stream():
+    """Mock stream for agent tests."""
     return mock_generator([{"type": "respond", "content": "Test response"}])
 
 

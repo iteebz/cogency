@@ -6,14 +6,15 @@ from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
+from ..security import sanitize_shell_input, timeout_context
 
 
 class SystemShell(Tool):
     """shell execution with intelligence and context awareness."""
 
-    # Categorized safe commands
+    # Categorized safe commands - rely on semantic security for dangerous usage
     SAFE_COMMANDS = {
-        # File operations
+        # File operations - semantic security handles dangerous paths
         "ls",
         "pwd",
         "cat",
@@ -43,11 +44,15 @@ class SystemShell(Tool):
         "npm",
         "pip",
         "git",
-        # System
+        # System info - semantic security handles reconnaissance usage
         "date",
         "whoami",
         "which",
         "env",
+        # DANGEROUS commands - let semantic security handle them
+        "ps",  # Process enumeration - semantic security blocks malicious usage
+        "netstat",  # Network reconnaissance - semantic security blocks
+        "history",  # Command history - semantic security blocks credential harvesting
     }
 
     # Command suggestions for common mistakes
@@ -78,10 +83,9 @@ class SystemShell(Tool):
         if not command or not command.strip():
             return Err("Command cannot be empty")
 
-        command = command.strip()
-
-        # Parse command safely
+        # Sanitize command input using proper escaping
         try:
+            command = sanitize_shell_input(command.strip())
             import shlex
 
             parts = shlex.split(command)
@@ -104,6 +108,10 @@ class SystemShell(Tool):
                 )
             return Err(f"Command '{cmd}' not allowed. Available: {available}")
 
+        # Argument validation - semantic security handles most cases, catch obvious system access
+        if not self._validate_command_safety(parts, sandbox):
+            return Err(f"Command arguments contain system paths or dangerous operations: {command}")
+
         # Working directory logic
         if sandbox:
             working_path = Path(".sandbox")
@@ -111,13 +119,14 @@ class SystemShell(Tool):
         else:
             working_path = Path.cwd()
 
-        # Execute with enhanced feedback
+        # Execute with enhanced feedback and timeout protection
         try:
             start_time = time.time()
 
-            result = subprocess.run(
-                parts, cwd=str(working_path), capture_output=True, text=True, timeout=30
-            )
+            with timeout_context(30):
+                result = subprocess.run(
+                    parts, cwd=str(working_path), capture_output=True, text=True, timeout=30
+                )
 
             execution_time = time.time() - start_time
 
@@ -134,6 +143,48 @@ class SystemShell(Tool):
     def _get_command_suggestion(self, cmd: str) -> str | None:
         """Get intelligent command suggestion for common mistakes."""
         return self.COMMAND_SUGGESTIONS.get(cmd)
+
+    def _validate_command_safety(self, parts: list, sandbox: bool) -> bool:
+        """Validate command arguments for obvious system access patterns.
+
+        Semantic security handles sophisticated attacks - this catches basic patterns.
+        """
+        full_command = " ".join(parts)
+
+        # System paths that should never be accessed
+        dangerous_paths = [
+            "/etc/",
+            "/bin/",
+            "/sbin/",
+            "/usr/bin/",
+            "/System/",
+            "/etc/passwd",
+            "/etc/hosts",
+            "/etc/shadow",
+            "~/.ssh/",
+            "~/.bashrc",
+            "~/.profile",
+        ]
+
+        # Check for dangerous path patterns
+        for path in dangerous_paths:
+            if path in full_command:
+                return False
+
+        # Additional validation for specific commands
+        cmd = parts[0]
+
+        if cmd == "find" and len(parts) > 1 and (parts[1] == "/" or parts[1].startswith("/")):
+            # Block filesystem-wide searches
+            return False
+
+        if cmd == "cat" and len(parts) > 1:
+            # Block system file reading
+            for arg in parts[1:]:
+                if arg.startswith("/etc/") or arg.startswith("/bin/"):
+                    return False
+
+        return True
 
     def _format_result(
         self,
@@ -192,10 +243,10 @@ class SystemShell(Tool):
         elif cmd == "git" and "not a git repository" in error_output.lower():
             return "Initialize git repository with 'git init' first"
 
-        elif cmd in ["ls", "cat"] and "No such file" in error_output:
+        elif cmd == "ls" and "No such file" in error_output:
             return "Use 'list' tool to see available files, or 'pwd' to check current directory"
 
         elif exit_code == 1 and cmd == "python":
-            return "Check syntax with 'cat filename.py' or run with 'python -c \"simple code\"'"
+            return "Check syntax with 'read' tool or run with 'python -c \"simple code\"'"
 
         return None

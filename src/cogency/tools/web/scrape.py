@@ -5,8 +5,8 @@ from urllib.parse import urlparse
 
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
+from ...lib.logger import logger
 from ..constants import SCRAPE_MAX_CHARS
-from ..security import validate_input
 
 
 class WebScrape(Tool):
@@ -30,9 +30,6 @@ class WebScrape(Tool):
             return Err("URL cannot be empty")
 
         url = url.strip()
-
-        if not validate_input(url):
-            return Err("Invalid URL provided")
 
         try:
             import trafilatura
@@ -87,5 +84,6 @@ class WebScrape(Tool):
             if domain.startswith("www."):
                 domain = domain[4:]
             return domain
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Domain extraction failed for {url}: {e}")
             return "unknown-domain"

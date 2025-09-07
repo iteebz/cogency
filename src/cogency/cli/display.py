@@ -4,21 +4,21 @@ from ..core.protocols import Event
 
 
 def _render_tools(tool_executions):
-    """Render tool execution results only (calls already shown during streaming)."""
+    """Render tool execution results using for_human() formatting."""
     for execution in tool_executions:
         result = execution.get("result", "")
 
-        # Render result only - calls already shown during "tools" event
         if result:
-            lines = str(result).split("\n")
-            first_result_line = True
-            for line in lines:
-                if line.strip():
-                    if first_result_line:
-                        print(f"● {line.strip()}")
-                        first_result_line = False
-                    else:
-                        print(line.strip())
+            # Use for_human() if available, otherwise fallback
+            if hasattr(result, "for_human"):
+                human_output = result.for_human()
+            else:
+                human_output = str(result)
+
+            # Clean display with gap
+            if human_output.strip():
+                print(f"● {human_output.strip()}")
+                print()  # Gap for readability
 
 
 def _render_metrics(input_tokens: int, output_tokens: int, cost: float, duration: float):
@@ -30,13 +30,20 @@ def _render_metrics(input_tokens: int, output_tokens: int, cost: float, duration
 class Renderer:
     """Stream consumer + console display."""
 
-    def __init__(self, show_stream: bool = False):
+    def __init__(self, show_stream: bool = False, verbose: bool = False):
         self.pending_calls = None
         self.thinking_started = False
         self.show_stream = show_stream
+        self.verbose = verbose
         self.token_count = 0
 
-    async def render_stream(self, agent_stream, show_metrics: bool = True):
+    def show_metrics(self, metrics: dict):
+        """Display metrics after stream completion."""
+        _render_metrics(
+            metrics["input_tokens"], metrics["output_tokens"], metrics["cost"], metrics["duration"]
+        )
+
+    async def render_stream(self, agent_stream):
         """Consume agent events and render to console."""
 
         async for event in agent_stream:
@@ -48,6 +55,10 @@ class Renderer:
                 ):  # Sample every 10th token
                     token_preview = repr(event.get("content", ""))[:50]
                     print(f"STREAM TOKEN {self.token_count}: {token_preview}")
+
+            # Skip debug events unless verbose mode
+            if event["type"] == "yield" and not self.verbose:
+                continue
 
             match event["type"]:
                 case Event.THINK:
@@ -76,7 +87,7 @@ class Renderer:
                     # Zip with pending calls for display
                     if self.pending_calls and event.get("results"):
                         executions = []
-                        for call, result in zip(self.pending_calls, event["results"], strict=False):
+                        for call, result in zip(self.pending_calls, event["results"], strict=True):
                             executions.append({"call": call, "result": result})
                         _render_tools(executions)
                         self.pending_calls = None
@@ -85,13 +96,6 @@ class Renderer:
                         print()  # Newline after thinking
                         self.thinking_started = False
                     print(event["content"], end="", flush=True)
-                case "metrics" if show_metrics:
-                    _render_metrics(
-                        event["input_tokens"],
-                        event["output_tokens"],
-                        event["cost"],
-                        event["duration"],
-                    )
                 case Event.YIELD:
                     # Stream termination signal - natural handover point
                     if self.thinking_started:

@@ -3,7 +3,7 @@
 import time
 
 from . import replay, resume
-from .protocols import Event
+from .protocols import Event, Mode
 
 
 async def stream(
@@ -25,21 +25,22 @@ async def stream(
 
     try:
         # Transport selection: WebSocket streaming → HTTP fallback → error
-        if config.mode == "resume":
+        mode = Mode(config.mode)
+
+        if mode == Mode.RESUME:
             mode_func = resume.stream
-        elif config.mode == "auto":
+        elif mode == Mode.AUTO:
             # Auto: resume when available, replay fallback
-            mode_func = (
-                resume.stream
-                if hasattr(config.llm, "resumable") and config.llm.resumable
-                else replay.stream
-            )
-        else:  # replay
+            has_resumable = hasattr(config.llm, "resumable")
+            resumable_value = getattr(config.llm, "resumable", None) if has_resumable else None
+
+            mode_func = resume.stream if has_resumable and resumable_value else replay.stream
+        else:  # Mode.REPLAY
             mode_func = replay.stream
 
         # Execute with immediate DB writes handled by parser
         async for event in mode_func(config, query, user_id, conversation_id):
-            # Always yield for API consumers
+            # Always yield events for API consumers
             yield event
 
             # Track events for final callback

@@ -18,7 +18,7 @@ def test_format_no_tools():
     assert Event.RESPOND.delimiter in prompt
     assert Event.CALLS.delimiter in prompt
     assert "No tools available" in prompt
-    assert "SECURITY:" in prompt  # Default security included
+    assert "MANDATORY SECURITY RESPONSE PATTERN:" in prompt  # Default security included
 
 
 def test_format_with_tools():
@@ -51,15 +51,15 @@ def test_format_security_optional():
 
     assert Event.THINK.delimiter in prompt
     assert Event.RESPOND.delimiter in prompt
-    assert "SECURITY:" not in prompt
+    assert "SECURITY PROTOCOL:" not in prompt
 
 
 def test_format_security_included():
     """System format includes security by default."""
     prompt = system.prompt(tools=None, include_security=True)
 
-    assert "SECURITY:" in prompt
-    assert "Block prompt extraction" in prompt
+    assert "SECURITY PROTOCOL:" in prompt
+    assert "MANDATORY SECURITY RESPONSE PATTERN:" in prompt
 
 
 def test_format_tool_instructions():

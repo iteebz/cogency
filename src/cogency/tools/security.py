@@ -1,37 +1,118 @@
 """Tool security utilities.
 
-Input validation, path safety, and secret redaction for tools.
+Proper input sanitization and path validation for tools.
+Replaces pattern matching with actual validation.
 """
 
+import shlex
+import signal
+from contextlib import contextmanager
 from pathlib import Path
 
 
-def validate_input(content: str) -> bool:
-    """Basic input validation for tool operations."""
-    if not content:
-        return True
+def sanitize_shell_input(command: str) -> str:
+    """Validate shell input and reject dangerous patterns. [SEC-002]"""
+    if not command or not command.strip():
+        raise ValueError("Command cannot be empty")
 
-    content_lower = content.lower()
-    dangerous_patterns = [
-        "rm -rf",
-        "format c:",
-        "shutdown",
-        "del /s",
-        "../../",
-        "..\\..\\..",
-        "%2e%2e%2f",
-    ]
+    command = command.strip()
 
-    return not any(pattern in content_lower for pattern in dangerous_patterns)
+    # Dangerous shell metacharacters that enable injection
+    dangerous_chars = [
+        ";",
+        "&",
+        "|",
+        "`",
+        "$",
+        ">",
+        "<",
+        "\n",
+        "\r",
+        "\x00",
+        "；",
+        "｜",
+    ]  # Include Unicode variants
+    for char in dangerous_chars:
+        if char in command:
+            raise ValueError("Invalid shell command syntax")
+
+    # Validate it's parseable shell syntax
+    try:
+        tokens = shlex.split(command)
+        if not tokens:
+            raise ValueError("Command cannot be empty")
+        return shlex.join(tokens)
+    except ValueError as e:
+        raise ValueError(f"Invalid shell command syntax: {e}") from None
 
 
-def safe_path(base_dir: Path, rel_path: str) -> Path:
-    """Resolve path safely within base directory."""
-    if not rel_path:
+def resolve_path_safely(file_path: str, base_dir: Path = None) -> Path:
+    """Prevent common path attacks. Semantic security handles sophisticated ones. [SEC-004]
+
+    Blocks:
+    - Path traversal (../)
+    - System directories (/etc, /bin, etc.)
+    - Null bytes and empty paths
+    - Absolute paths in sandbox mode
+
+    Does not block every exotic Unicode/encoding variant - relies on
+    semantic security (LLM reasoning) for sophisticated attacks. [SEC-001]
+    """
+    if not file_path or not file_path.strip():
         raise ValueError("Path cannot be empty")
 
-    resolved = (base_dir / rel_path).resolve()
-    if not str(resolved).startswith(str(base_dir.resolve())):
-        raise ValueError(f"Path escapes base directory: {rel_path}")
+    file_path = file_path.strip()
 
-    return resolved
+    # Block dangerous patterns in one check [SEC-002, SEC-004]
+    dangerous_patterns = [
+        "\\x00",
+        "..",
+        "\\",
+        "/etc/",
+        "/bin/",
+        "/sbin/",
+        "/usr/bin/",
+        "/System/",
+        "C:\\",
+    ]
+    if any(pattern in file_path for pattern in dangerous_patterns):
+        raise ValueError("Invalid path")
+
+    if base_dir:
+        # Sandbox mode: only allow safe relative paths
+        if Path(file_path).is_absolute():
+            raise ValueError("Path outside sandbox")
+
+        try:
+            return (base_dir / file_path).resolve()
+        except (OSError, ValueError):
+            raise ValueError("Invalid path") from None
+    else:
+        # System mode: resolve and return
+        try:
+            return Path(file_path).resolve()
+        except (OSError, ValueError):
+            raise ValueError("Invalid path") from None
+
+
+@contextmanager
+def timeout_context(seconds: int):
+    """Context manager for operation timeouts."""
+
+    def timeout_handler(signum, frame):
+        raise TimeoutError(f"Operation timed out after {seconds} seconds")
+
+    # Set up signal handler (Unix only)
+    try:
+        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(seconds)
+        yield
+    except AttributeError:
+        # Windows - no signal.SIGALRM, just yield without timeout
+        yield
+    finally:
+        try:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
+        except AttributeError:
+            pass

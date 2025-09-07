@@ -1,6 +1,7 @@
 """Core protocols for provider abstraction."""
 
 from abc import ABC, abstractmethod
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol, runtime_checkable
@@ -29,6 +30,15 @@ class ToolResult:
         return self.outcome
 
 
+@dataclass
+class WebSocketSession:
+    """WebSocket session container - no more session['session'] bullshit."""
+
+    session: object
+    connection: object
+    types: object
+
+
 class Event(str, Enum):
     """Events - type-safe strings, no ceremony."""
 
@@ -44,6 +54,14 @@ class Event(str, Enum):
         """Convert event to streaming delimiter format."""
         return f"{DELIMITER}{self.upper()}"
 
+
+class Mode(str, Enum):
+    """Agent execution modes - type-safe strings, no ceremony."""
+
+    RESUME = "resume"
+    REPLAY = "replay"
+    AUTO = "auto"
+
     def __eq__(self, other):
         if isinstance(other, str):
             return self.value == other
@@ -55,21 +73,22 @@ class Event(str, Enum):
 
 @runtime_checkable
 class LLM(Protocol):
-    """LLM provider interface - complete responses + streaming + optional WebSocket."""
+    """LLM provider interface with clean layer separation.
 
-    # MANDATORY: Complete generation
+    Infrastructure layer (Results): Connection setup/teardown
+    Data layer (Exceptions): Pure token streaming
+    """
+
+    # INFRASTRUCTURE LAYER - Results pattern for setup/config
     async def generate(self, messages: list[dict]) -> Result[str]: ...
+    async def connect(self, messages: list[dict]) -> Result[object]: ...
 
-    # MANDATORY: HTTP streaming (universal)
-    async def stream(self, messages: list[dict]): ...
+    # DATA LAYER - Exception pattern for streaming
+    async def stream(self, connection) -> AsyncGenerator[str, None]: ...
 
-    # OPTIONAL: WebSocket streaming
-    async def connect(self, messages: list[dict]): ...
-
+    # WebSocket session management (infrastructure)
     async def send(self, session, content: str) -> bool: ...
-
-    async def receive(self, session): ...
-
+    async def receive(self, session) -> AsyncGenerator[str, None]: ...
     async def close(self, session) -> bool: ...
 
 

@@ -10,6 +10,7 @@ from typing import NamedTuple
 
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
+from ...lib.logger import logger
 from ...lib.storage import get_db_path
 from ..file.utils import format_relative_time
 
@@ -104,7 +105,8 @@ class MemoryRecall(Tool):
                 ).fetchall()
 
                 return [row[0] for row in rows]
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Recent messages lookup failed: {e}")
             return []
 
     def _search_messages(
@@ -160,7 +162,8 @@ class MemoryRecall(Tool):
                     for row in rows
                 ]
 
-        except Exception:
+        except Exception as e:
+            logger.warning(f"Message search failed: {e}")
             return []
 
     def _format_matches(self, matches: list[MessageMatch], query: str) -> str:
