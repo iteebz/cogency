@@ -1,9 +1,11 @@
 """Canonical evaluation configuration."""
 
 import os
+import random
 from pathlib import Path
 
 from cogency import Agent
+from cogency.lib.storage import Paths
 
 
 class Config:
@@ -20,10 +22,19 @@ class Config:
     @sample_size.setter
     def sample_size(self, value):
         os.environ["EVAL_SAMPLES"] = str(value)
+    
+    @property
+    def seed(self):
+        return int(os.getenv("EVAL_SEED", "42"))
+    
+    @seed.setter  
+    def seed(self, value):
+        os.environ["EVAL_SEED"] = str(value)
+        random.seed(value)  # Apply immediately
 
     @property
     def output_dir(self):
-        return Path.home() / ".cogency/evals"
+        return Paths.evals()
 
     timeout: int = 15
 

@@ -104,13 +104,23 @@ def reasoning(size=30):
 
 
 def memory(size=30):
-    """Cross-session persistence and context evolution tests."""
+    """Dual memory system testing - passive profile injection vs active recall() tool."""
 
-    # Simple memory (40% of tests)
-    simple_scenarios = [
+    # Passive profile memory (30% of tests) - auto-learned preferences in system prompt
+    passive_scenarios = [
         ("My project is called {}", "What's my project name?"),
         ("My preferred language is {}", "What language do I prefer?"),
-        ("My main goal is {}", "What's my current goal?"),
+        ("I work best in the mornings", "When do I work best?"),
+    ]
+
+    # Active recall memory (30% of tests) - agent must use recall() tool
+    recall_scenarios = [
+        ("I debugged the authentication bug in Session A", "What bug did I fix in Session A?"),
+        ("The API endpoint for users is /api/v2/users", "What's the users API endpoint?"),
+        (
+            "Meeting notes: Discussed React migration timeline",
+            "What did we discuss in the meeting?",
+        ),
     ]
 
     # Context evolution (40% of tests) - multi-turn memory building
@@ -158,23 +168,38 @@ def memory(size=30):
     ]
 
     # Stratified sampling
-    simple_count = max(1, int(size * 0.4))
-    evolution_count = max(1, int(size * 0.4))
-    complex_count = size - simple_count - evolution_count
+    passive_count = max(1, int(size * 0.3))
+    recall_count = max(1, int(size * 0.3))
+    evolution_count = max(1, int(size * 0.3))
+    complex_count = size - passive_count - recall_count - evolution_count
 
     tests = []
 
-    # Simple memory tests
-    for i in range(simple_count):
-        store, recall = random.choice(simple_scenarios)
+    # Passive profile memory tests
+    for i in range(passive_count):
+        store, recall = random.choice(passive_scenarios)
         value = random.choice(simple_values[i % len(simple_values)])
         tests.append(
             {
                 "store_prompt": store.format(value),
                 "recall_prompt": recall,
-                "criteria": "Retrieved correct information from persistent memory",
+                "criteria": "Retrieved correct information from passive profile memory (no recall() tool needed)",
                 "requires_agent_destruction": True,
-                "complexity": "simple",
+                "memory_type": "passive",
+                "complexity": "passive",
+            }
+        )
+
+    # Active recall memory tests
+    for store, recall in random.choices(recall_scenarios, k=recall_count):
+        tests.append(
+            {
+                "store_prompt": store,
+                "recall_prompt": recall,
+                "criteria": "Used recall() tool to search past conversations and found correct information",
+                "requires_agent_destruction": True,
+                "memory_type": "active",
+                "complexity": "recall",
             }
         )
 
@@ -207,65 +232,139 @@ def memory(size=30):
     return tests
 
 
-def streaming(size=30):
-    """Resume vs Replay mode performance validation."""
+def coding(size=30):
+    """Software development workflow testing - write, test, debug, refactor chains."""
 
-    # Short tasks - resume should be faster
-    short_tasks = [
-        "List files in current directory",
-        "Write 'test' to temp.txt",
-        "Calculate 7 * 8 with python",
+    # Simple coding (30% of tests) - single file development
+    simple_tasks = [
+        "Write a Python function to calculate fibonacci numbers, test it with fibonacci(10)",
+        "Create a calculator.py with add/subtract functions, write tests, run them",
+        "Build a simple todo list class in Python with add/remove/list methods, demonstrate usage",
+        "Write a file parser that counts words and lines, test it on a sample text file",
     ]
 
-    # Medium tasks - resume advantage clear
-    medium_tasks = [
-        "Write hello.py with print statement, then execute it",
-        "Create data.txt with numbers 1-5, then read it back",
-        "Calculate fibonacci(10) with python, save to result.txt",
+    # Multi-file projects (40% of tests) - project structure workflows
+    project_tasks = [
+        "Create a web scraper project: main.py + utils.py + requirements.txt, implement and test",
+        "Build a CLI tool: cli.py + config.py + README.md, implement argument parsing and help",
+        "Create a data analysis script: analyze.py + data.csv + results.py, process and visualize",
+        "Build a REST API: app.py + models.py + tests.py, implement endpoints and test them",
     ]
 
-    # Long tasks - resume should significantly outperform
-    long_tasks = [
-        "Create project dir, add README.md, list contents, then clean up",
-        "Write calculator.py with add/multiply functions, test both, show output",
-        "Create config.json with settings, read it, modify a value, save it back",
+    # Debug/refactor workflows (30% of tests) - code improvement chains
+    debug_tasks = [
+        "Debug this broken Python script: find syntax errors, logical bugs, fix and test",
+        "Refactor repetitive code into functions, improve readability, maintain functionality",
+        "Analyze performance bottlenecks in code, optimize slow parts, benchmark improvements",
+        "Review code for security issues, fix vulnerabilities, add input validation",
     ]
 
-    # Stratified by task length (affects resume performance gain)
-    short_count = max(1, size // 3)
-    medium_count = max(1, size // 3)
-    long_count = size - short_count - medium_count
+    # Stratified sampling
+    simple_count = max(1, int(size * 0.3))
+    project_count = max(1, int(size * 0.4))
+    debug_count = size - simple_count - project_count
 
     tests = []
 
-    # Add tasks with complexity marking
-    for task in random.choices(short_tasks, k=short_count):
+    # Simple coding tests
+    for task in random.choices(simple_tasks, k=simple_count):
         tests.append(
             {
                 "prompt": task,
-                "criteria": "Resume mode faster than replay, both complete successfully",
-                "test_type": "mode_comparison",
-                "complexity": "short",
+                "criteria": "Wrote functional code, tested it, and demonstrated it works correctly",
+                "complexity": "simple",
+                "workflow_type": "coding",
             }
         )
 
-    for task in random.choices(medium_tasks, k=medium_count):
+    # Multi-file project tests
+    for task in random.choices(project_tasks, k=project_count):
         tests.append(
             {
                 "prompt": task,
-                "criteria": "Resume mode faster than replay, both complete successfully",
-                "test_type": "mode_comparison",
-                "complexity": "medium",
+                "criteria": "Created multi-file project structure, implemented features, tested functionality",
+                "complexity": "project",
+                "workflow_type": "coding",
             }
         )
 
-    for task in random.choices(long_tasks, k=long_count):
+    # Debug/refactor tests
+    for task in random.choices(debug_tasks, k=debug_count):
         tests.append(
             {
                 "prompt": task,
-                "criteria": "Resume mode significantly faster than replay, both complete successfully",
-                "test_type": "mode_comparison",
-                "complexity": "long",
+                "criteria": "Identified issues, implemented fixes, verified improvements work correctly",
+                "complexity": "debug",
+                "workflow_type": "coding",
+            }
+        )
+
+    return tests
+
+
+def research(size=30):
+    """Web research workflow testing - search + scrape + analyze chains."""
+
+    # Simple research (40% of tests) - search → analyze
+    simple_tasks = [
+        "Research the latest Python 3.12 features and summarize key changes",
+        "Find information about WebSocket performance vs HTTP and document findings",
+        "Research best practices for AI agent memory systems and create notes",
+        "Look up current FastAPI authentication methods and save to auth_guide.md",
+    ]
+
+    # Complex research (40% of tests) - search → scrape → analyze → document
+    complex_tasks = [
+        "Research React 19 changes, scrape official docs, analyze impact, write migration_guide.md",
+        "Find 3 articles about AI safety, scrape full content, synthesize into safety_report.md",
+        "Research PostgreSQL vs MongoDB performance, get detailed comparisons, create database_comparison.md",
+        "Study Rust async programming patterns, gather examples, write rust_async_tutorial.md",
+    ]
+
+    # Multi-source research (20% of tests) - multiple search/scrape cycles
+    multisource_tasks = [
+        "Compare TypeScript vs Python for backend development: search both, scrape docs, analyze tradeoffs, write comparison.md",
+        "Research microservices vs monolith architecture: find case studies, scrape examples, synthesize recommendations.md",
+        "Study AI agent frameworks: research LangChain, AutoGPT, compare features, document findings in frameworks_analysis.md",
+    ]
+
+    # Stratified sampling
+    simple_count = max(1, int(size * 0.4))
+    complex_count = max(1, int(size * 0.4))
+    multisource_count = size - simple_count - complex_count
+
+    tests = []
+
+    # Simple research tests
+    for task in random.choices(simple_tasks, k=simple_count):
+        tests.append(
+            {
+                "prompt": task,
+                "criteria": "Used search tool to find relevant information and provided accurate summary",
+                "complexity": "simple",
+                "workflow_type": "research",
+            }
+        )
+
+    # Complex research tests
+    for task in random.choices(complex_tasks, k=complex_count):
+        tests.append(
+            {
+                "prompt": task,
+                "criteria": "Used search + scrape tools in sequence, analyzed content, created documentation file",
+                "complexity": "complex",
+                "workflow_type": "research",
+            }
+        )
+
+    # Multi-source research tests
+    for task in random.choices(multisource_tasks, k=multisource_count):
+        tests.append(
+            {
+                "prompt": task,
+                "criteria": "Conducted multi-source research with multiple search/scrape cycles and synthesized findings",
+                "complexity": "multisource",
+                "workflow_type": "research",
             }
         )
 

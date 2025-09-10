@@ -6,9 +6,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from cogency.lib.storage import Paths
+
 from .config import CONFIG
 from .core import evaluate_category
-from .generate import memory, reasoning, security, streaming
+from .generate import coding, memory, reasoning, research, security
 
 
 async def run(category=None, samples=None):
@@ -19,8 +21,10 @@ async def run(category=None, samples=None):
         return await _run_category("reasoning", reasoning, samples)
     if category == "memory":
         return await _run_category("memory", memory, samples)
-    if category == "streaming":
-        return await _run_category("streaming", streaming, samples)
+    if category == "coding":
+        return await _run_category("coding", coding, samples)
+    if category == "research":
+        return await _run_category("research", research, samples)
     if category == "security":
         return await _run_category("security", security, samples)
     return await _run_all(samples)
@@ -38,16 +42,39 @@ async def _run_category(name, generator, samples):
     try:
         result = await evaluate_category(name, generator)
 
-        # Save to predictable location
-        output_dir = Path.home() / ".cogency/evals"
-        output_dir.mkdir(parents=True, exist_ok=True)
+        # Generate timestamped run directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
+        
+        run_dir = Paths.evals(f"runs/{run_id}")
+        run_dir.mkdir(parents=True, exist_ok=True)
 
-        category_file = output_dir / f"{name}.json"
-        with open(category_file, "w") as f:
+        # Save config metadata
+        config_data = {
+            "llm": CONFIG.agent().config.llm.llm_model,
+            "mode": CONFIG.mode,
+            "sandbox": CONFIG.sandbox,
+            "sample_size": samples,
+            "judge_llm": CONFIG.judge_llm,
+            "seed": CONFIG.seed,
+            "timestamp": datetime.now().isoformat(),
+        }
+        
+        with open(Paths.evals(f"runs/{run_id}/config.json"), "w") as f:
+            json.dump(config_data, f, indent=2)
+
+        # Save category result
+        with open(Paths.evals(f"runs/{run_id}/{name}.json"), "w") as f:
             json.dump(result, f, indent=2)
 
+        # Update latest symlink
+        latest_link = Paths.evals("latest")
+        if latest_link.exists() or latest_link.is_symlink():
+            latest_link.unlink()
+        latest_link.symlink_to(f"runs/{run_id}")
+
         print(f"Results: {result.get('passed', 0)}/{result['total']}")
-        print(f"Saved: {category_file}")
+        print(f"Saved: {run_dir}")
 
         return result
 
@@ -63,7 +90,8 @@ async def _run_all(samples):
     categories = {
         "reasoning": reasoning,
         "memory": memory,
-        "streaming": streaming,
+        "coding": coding,
+        "research": research,
         "security": security,
     }
 
@@ -81,35 +109,56 @@ async def _run_all(samples):
         passed = sum(r.get("passed", 0) for r in results if r.get("passed") is not None)
         rate = passed / total if total else 0
 
-        summary = {
-            "version": "v3.0.0",
+        # Generate timestamped run directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
+        
+        run_dir = Paths.evals(f"runs/{run_id}")
+        run_dir.mkdir(parents=True, exist_ok=True)
+
+        # Save config metadata
+        config_data = {
+            "llm": CONFIG.agent().config.llm.llm_model,
+            "mode": CONFIG.mode,
+            "sandbox": CONFIG.sandbox,
+            "sample_size": samples,
+            "judge_llm": CONFIG.judge_llm,
+            "seed": CONFIG.seed,
             "timestamp": datetime.now().isoformat(),
+        }
+        
+        with open(Paths.evals(f"runs/{run_id}/config.json"), "w") as f:
+            json.dump(config_data, f, indent=2)
+
+        # Save summary
+        summary = {
+            "run_id": run_id,
+            "version": "v3.0.0",
             "total": total,
             "passed": passed,
             "rate": f"{rate:.1%}",
             "categories": {r["category"]: r for r in results},
         }
 
-        # Save to predictable locations
-        output_dir = Path.home() / ".cogency/evals"
-        output_dir.mkdir(parents=True, exist_ok=True)
-
-        # Latest summary for Claude Code
-        latest_file = output_dir / "latest.json"
-        with open(latest_file, "w") as f:
+        with open(Paths.evals(f"runs/{run_id}/summary.json"), "w") as f:
             json.dump(summary, f, indent=2)
 
-        # Individual category files
+        # Save individual category files
         for result in results:
-            category_file = output_dir / f"{result['category']}.json"
-            with open(category_file, "w") as f:
+            with open(Paths.evals(f"runs/{run_id}/{result['category']}.json"), "w") as f:
                 json.dump(result, f, indent=2)
+
+        # Update latest symlink
+        latest_link = Paths.evals("latest")
+        if latest_link.exists() or latest_link.is_symlink():
+            latest_link.unlink()
+        latest_link.symlink_to(f"runs/{run_id}")
 
         print(f"Overall: {summary['rate']}")
         for result in results:
             rate = f"{result.get('rate', 0):.1%}" if result.get("rate") else "Raw"
             print(f"{result['category'].capitalize()}: {rate}")
-        print(f"Latest: {latest_file}")
+        print(f"Latest: {run_dir}")
 
         return summary
 
@@ -119,10 +168,12 @@ async def _run_all(samples):
 
 def latest():
     """Get latest evaluation summary."""
-    latest_file = Path.home() / ".cogency/evals/latest.json"
-    if latest_file.exists():
-        with open(latest_file) as f:
-            return json.load(f)
+    latest_link = Paths.evals("latest")
+    if latest_link.exists():
+        summary_file = latest_link / "summary.json"
+        if summary_file.exists():
+            with open(summary_file) as f:
+                return json.load(f)
     return None
 
 
@@ -142,6 +193,12 @@ async def cli():
         idx = args.index("--samples")
         samples = int(args[idx + 1])
         args = [a for i, a in enumerate(args) if i not in [idx, idx + 1]]
+
+    if "--seed" in args:
+        idx = args.index("--seed")
+        CONFIG.seed = int(args[idx + 1])
+        args = [a for i, a in enumerate(args) if i not in [idx, idx + 1]]
+        print(f"🎲 Using seed: {CONFIG.seed}")
 
     if "--mode" in args:
         idx = args.index("--mode")

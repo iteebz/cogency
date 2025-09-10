@@ -10,6 +10,10 @@ from .config import CONFIG
 
 async def evaluate_category(category: str, generator) -> dict:
     """Run evaluation category."""
+    # Apply seed for reproducible sampling
+    import random
+    random.seed(CONFIG.seed)
+    
     tests = generator(CONFIG.sample_size)
 
     # Parallel execution with semaphore to limit concurrency
@@ -79,14 +83,26 @@ async def _execute_test(i, test, category):
 
     try:
         import time
+        from cogency.lib.observe import Observer
 
         user_id = f"eval_{category}_{i:02d}_{int(time.time())}"
+        
+        # Metrics collection
+        start_time = time.time()
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         if "store_prompt" in test:
             # Simple memory test with agent destruction
-            await asyncio.wait_for(
-                agent(test["store_prompt"], user_id=user_id), timeout=CONFIG.timeout
-            )
+            store_stream = agent(test["store_prompt"], user_id=user_id)
+            observer = Observer(store_stream, agent.config.llm.llm_model)
+            
+            async for event in observer:
+                pass  # Consume stream to get metrics
+            
+            metrics = observer.get_metrics()
+            total_input_tokens += metrics["input_tokens"]
+            total_output_tokens += metrics["output_tokens"]
 
             if test.get("requires_agent_destruction"):
                 del agent
@@ -95,15 +111,31 @@ async def _execute_test(i, test, category):
                 gc.collect()
                 agent = CONFIG.agent()
 
-            response = await asyncio.wait_for(
-                agent(test["recall_prompt"], user_id=user_id), timeout=CONFIG.timeout
-            )
+            recall_stream = agent(test["recall_prompt"], user_id=user_id)
+            observer = Observer(recall_stream, agent.config.llm.llm_model)
+            
+            response = ""
+            async for event in observer:
+                if event.get("type") == "respond":
+                    response += event.get("content", "")
+            
+            metrics = observer.get_metrics()
+            total_input_tokens += metrics["input_tokens"]
+            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["recall_prompt"]
 
         elif "evolution_prompts" in test:
             # Context evolution test - multiple interactions
             for prompt in test["evolution_prompts"]:
-                await asyncio.wait_for(agent(prompt, user_id=user_id), timeout=CONFIG.timeout)
+                stream = agent(prompt, user_id=user_id)
+                observer = Observer(stream, agent.config.llm.llm_model)
+                
+                async for event in observer:
+                    pass  # Consume stream
+                
+                metrics = observer.get_metrics()
+                total_input_tokens += metrics["input_tokens"]
+                total_output_tokens += metrics["output_tokens"]
 
             # Agent destruction to test persistence
             del agent
@@ -112,15 +144,31 @@ async def _execute_test(i, test, category):
             gc.collect()
             agent = CONFIG.agent()
 
-            response = await asyncio.wait_for(
-                agent(test["final_prompt"], user_id=user_id), timeout=CONFIG.timeout
-            )
+            final_stream = agent(test["final_prompt"], user_id=user_id)
+            observer = Observer(final_stream, agent.config.llm.llm_model)
+            
+            response = ""
+            async for event in observer:
+                if event.get("type") == "respond":
+                    response += event.get("content", "")
+            
+            metrics = observer.get_metrics()
+            total_input_tokens += metrics["input_tokens"]
+            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["final_prompt"]
 
         elif "context_prompts" in test:
             # Complex synthesis test
             for prompt in test["context_prompts"]:
-                await asyncio.wait_for(agent(prompt, user_id=user_id), timeout=CONFIG.timeout)
+                stream = agent(prompt, user_id=user_id)
+                observer = Observer(stream, agent.config.llm.llm_model)
+                
+                async for event in observer:
+                    pass  # Consume stream
+                
+                metrics = observer.get_metrics()
+                total_input_tokens += metrics["input_tokens"]
+                total_output_tokens += metrics["output_tokens"]
 
             del agent
             import gc
@@ -128,30 +176,49 @@ async def _execute_test(i, test, category):
             gc.collect()
             agent = CONFIG.agent()
 
-            response = await asyncio.wait_for(
-                agent(test["synthesis_prompt"], user_id=user_id), timeout=CONFIG.timeout
-            )
+            synthesis_stream = agent(test["synthesis_prompt"], user_id=user_id)
+            observer = Observer(synthesis_stream, agent.config.llm.llm_model)
+            
+            response = ""
+            async for event in observer:
+                if event.get("type") == "respond":
+                    response += event.get("content", "")
+            
+            metrics = observer.get_metrics()
+            total_input_tokens += metrics["input_tokens"]
+            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["synthesis_prompt"]
 
         elif test.get("test_type") == "mode_comparison":
             # Resume vs Replay performance test
-            import time
-
-            # Test resume mode (default)
-            start_time = time.time()
+            resume_start = time.time()
             resume_agent = CONFIG.agent()  # Uses mode="auto" -> resume
-            await asyncio.wait_for(
-                resume_agent(test["prompt"], user_id=user_id), timeout=CONFIG.timeout
-            )
-            resume_time = time.time() - start_time
+            
+            resume_stream = resume_agent(test["prompt"], user_id=user_id)
+            observer = Observer(resume_stream, resume_agent.config.llm.llm_model)
+            
+            async for event in observer:
+                pass  # Consume stream
+            
+            resume_metrics = observer.get_metrics()
+            resume_time = time.time() - resume_start
 
             # Test replay mode
-            start_time = time.time()
+            replay_start = time.time()
             replay_agent = CONFIG.agent(mode="replay")
-            await asyncio.wait_for(
-                replay_agent(test["prompt"], user_id=f"{user_id}_replay"), timeout=CONFIG.timeout
-            )
-            replay_time = time.time() - start_time
+            
+            replay_stream = replay_agent(test["prompt"], user_id=f"{user_id}_replay")
+            observer = Observer(replay_stream, replay_agent.config.llm.llm_model)
+            
+            async for event in observer:
+                pass  # Consume stream
+            
+            replay_metrics = observer.get_metrics()
+            replay_time = time.time() - replay_start
+
+            # Aggregate token counts
+            total_input_tokens = resume_metrics["input_tokens"] + replay_metrics["input_tokens"]
+            total_output_tokens = resume_metrics["output_tokens"] + replay_metrics["output_tokens"]
 
             # Calculate performance metrics
             speedup = replay_time / resume_time if resume_time > 0 else 1.0
@@ -168,8 +235,17 @@ async def _execute_test(i, test, category):
 
         else:
             # Standard test
-            result = await agent(test["prompt"], user_id=user_id)
-            response = result.response if hasattr(result, "response") else str(result)
+            stream = agent(test["prompt"], user_id=user_id)
+            observer = Observer(stream, agent.config.llm.llm_model)
+            
+            response = ""
+            async for event in observer:
+                if event.get("type") == "respond":
+                    response += event.get("content", "")
+            
+            metrics = observer.get_metrics()
+            total_input_tokens += metrics["input_tokens"]
+            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["prompt"]
 
         # Capture tool execution traces
@@ -191,19 +267,41 @@ async def _execute_test(i, test, category):
         except Exception:
             pass  # No traces available
 
-        # Return enriched test result
+        # Build canonical stream format
+        stream = []
+        
+        # Add reasoning steps as THINK events
+        for step in reasoning_steps:
+            stream.append({"type": "think", "content": step})
+            
+        # Add tool executions as CALLS events  
+        for trace in tool_traces:
+            stream.append({"type": "calls", "content": trace})
+            
+        # Add response as final RESPOND event
+        if response:
+            stream.append({"type": "respond", "content": response})
+
+        # Calculate final timing
+        total_seconds = time.time() - start_time
+
+        # Canonical result format - mirror architecture
         result_data = {
             "test_id": f"{category}_{i:02d}",
             "prompt": prompt_used,
-            "response": response,
+            "stream": stream,
+            "tokens": [total_input_tokens, total_output_tokens],
+            "seconds": round(total_seconds, 2),
             "criteria": test["criteria"],
-            "timestamp": datetime.now().isoformat(),
-            "tool_traces": tool_traces,
-            "reasoning_steps": reasoning_steps,
         }
 
-        # Add all test fields including performance metrics
-        result_data.update(test)
+        # Add performance metrics if available
+        if "resume_time" in test:
+            result_data["resume_time"] = test["resume_time"]
+        if "replay_time" in test:
+            result_data["replay_time"] = test["replay_time"]
+        if "speedup" in test:
+            result_data["speedup"] = test["speedup"]
 
         return result_data
 
