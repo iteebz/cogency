@@ -114,8 +114,12 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
                         calls = event["calls"]
 
                     case Event.RESPOND:
-                        # Response event received
+                        # Response event - agent continues working
                         pass
+
+                    case Event.END:
+                        # Agent finished - actual termination
+                        complete = True
 
                     case Event.YIELD:
                         # Context-aware yield handling

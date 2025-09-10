@@ -39,7 +39,7 @@ class TestEventEnum:
         """Event enum behaves like enum - type safety."""
         # Enum iteration
         all_events = list(Event)
-        assert len(all_events) == 6
+        assert len(all_events) == 7
         assert Event.THINK in all_events
         assert Event.YIELD in all_events
 

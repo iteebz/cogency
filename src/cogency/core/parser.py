@@ -44,7 +44,7 @@ def _make_event(event_type, content: str, timestamp: float = None) -> dict:
 def _build_pattern():
     """Build regex pattern from Event enum."""
     events = "|".join(
-        event.upper() for event in [Event.THINK, Event.CALLS, Event.RESPOND, Event.YIELD]
+        event.upper() for event in [Event.THINK, Event.CALLS, Event.RESPOND, Event.YIELD, Event.END]
     )
     return re.compile(rf"{DELIMITER}({events})(?:\s|$)")
 
@@ -96,7 +96,7 @@ def _has_potential_delimiter_start(buffer: str) -> bool:
         return True
 
     # Check if buffer ends with partial delimiter keywords
-    delimiter_keywords = ["THINK", "CALLS", "RESPOND", "YIELD"]
+    delimiter_keywords = ["THINK", "CALLS", "RESPOND", "YIELD", "END"]
     for keyword in delimiter_keywords:
         for i in range(1, len(keyword)):
             partial = "§" + keyword[:i]
@@ -169,6 +169,10 @@ async def parse_stream(
             # Handle context-aware YIELD delimiter
             if delimiter == Event.YIELD:
                 yield _emit_yield_event(state)
+
+            # Handle END delimiter - emit and terminate
+            elif delimiter == Event.END:
+                yield _make_event(Event.END, "", timestamp or time.time())
 
             # Transition to new state
             state = delimiter

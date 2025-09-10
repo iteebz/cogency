@@ -25,8 +25,8 @@ async def test_agent_basic_response():
         assert isinstance(response, str)
         assert len(response) > 0
 
-        # HTTP replay mode: NEVER calls connect(), only stream()
-        mock_llm.stream.assert_called_once()
+        # HTTP replay mode: NEVER calls connect(), calls stream() at least once
+        assert mock_llm.stream.call_count >= 1  # May iterate multiple times now
         assert mock_llm.connect.call_count == 0  # HTTP is stateless
 
 
@@ -101,8 +101,8 @@ async def test_agent_user_isolation():
         assert isinstance(response1, str)
         assert isinstance(response2, str)
 
-        # HTTP replay mode: NEVER calls connect(), only stream() per user
-        assert mock_llm.stream.call_count == 2
+        # HTTP replay mode: NEVER calls connect(), calls stream() for each user
+        assert mock_llm.stream.call_count >= 2  # May iterate multiple times per user
         assert mock_llm.connect.call_count == 0  # HTTP is stateless
 
 

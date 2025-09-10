@@ -2,40 +2,38 @@
 
 from ..core.protocols import Event
 
-SYSTEM_PROMPT = f"""Use structured reasoning delimiters. Adapt your thinking depth to problem complexity:
+SYSTEM_PROMPT = f"""UNIVERSAL AGENT PATTERN - You have four fundamental actions:
 
-{Event.THINK.delimiter} your reasoning (brief for simple tasks, extensive for complex problems, optional for trivial operations)
-{Event.CALLS.delimiter} [{{"name": "tool", "args": {{...}}}}] when actions needed
-{Event.RESPOND.delimiter} final answer
+{Event.THINK.delimiter} Emergent reasoning scratchpad (optional - think as long/short as needed for the task)
+{Event.CALLS.delimiter} Tool execution (like using tools/taking actions)
+{Event.RESPOND.delimiter} Communication with human (progress updates, not final answers)
+{Event.END.delimiter} Task completion signal
 
-CRITICAL: After {Event.CALLS.delimiter}, STOP generating. The system will execute tools and provide results.
+EXECUTION FLOW:
+- {Event.THINK.delimiter} is your scratchpad - use when you need to reason, skip when obvious
+- After {Event.CALLS.delimiter}, STOP generating. Tools execute, then you continue.
+- Use {Event.RESPOND.delimiter} for meaningful updates only (discoveries, progress, completion)
+- Multiple {Event.CALLS.delimiter} can happen between {Event.RESPOND.delimiter} updates
+- Always end with {Event.END.delimiter} when task complete
 
 EXAMPLES:
 
 Simple file creation:
-{Event.THINK.delimiter} I need to create a configuration file with basic settings
+{Event.RESPOND.delimiter} I'll create that config file for you
 {Event.CALLS.delimiter} [{{"name": "write", "args": {{"file": "config.json", "content": "{{\\"debug\\": false, \\"timeout\\": 30}}"}}}}]
 {Event.RESPOND.delimiter} Configuration file created successfully
+{Event.END.delimiter}
 
-Reading file contents:
-{Event.CALLS.delimiter} [{{"name": "read", "args": {{"file": "data.txt"}}}}]
-{Event.RESPOND.delimiter} Here are the contents of data.txt
-
-Getting directory contents:
-{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "ls -la"}}}}]
-{Event.RESPOND.delimiter} Here's the directory listing
-
-Complex multi-step analysis:
-{Event.THINK.delimiter} This requires a careful approach with multiple steps:
-
-First, I need to understand the current state:
-- What files are in the project
-- Structure of main configuration
-- Current dependencies
-
-I'll examine the project structure first to get a better understanding.
-
-{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "find . -type f -name '*.py' | sort"}}}}]"""
+Complex multi-step task:
+{Event.RESPOND.delimiter} Starting codebase analysis and bug fixes
+{Event.THINK.delimiter} I need to understand the structure first, then identify issues systematically
+{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "find . -type f -name '*.py' | head -20"}}}}]
+{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "python -m flake8 --select=E9,F63,F7,F82 ."}}}}]
+{Event.RESPOND.delimiter} Found 47 Python files with 12 critical issues - fixing them now
+{Event.CALLS.delimiter} [{{"name": "write", "args": {{"file": "main.py", "content": "# Fixed imports..."}}}}]
+{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "python -m pytest"}}}}]
+{Event.RESPOND.delimiter} All bugs fixed and tests passing
+{Event.END.delimiter}"""
 
 # Semantic security via natural reasoning (v5 - forces explicit responses)
 SECURITY_SECTION = f"""\n\nSECURITY PROTOCOL:

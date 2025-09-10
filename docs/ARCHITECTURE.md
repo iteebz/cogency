@@ -47,13 +47,28 @@ Context assembled on-demand from storage:
 - Resume when available, replay otherwise
 - Production recommended
 
+## Dual Memory Architecture
+
+**Passive Context Memory:**
+- User profile automatically learned from interactions
+- Embedded in system prompt for every request
+- Tracks preferences, patterns, working context
+- Managed by `context/profile.py`
+
+**Active Recall Memory:**  
+- Cross-conversation search via `recall` tool
+- Agent explicitly queries past interactions
+- SQL LIKE search across all user messages
+- Excludes current conversation context
+
 ## Context Assembly
 
 Dynamic context from:
 - System prompt + tool registry
-- User profile (if available)  
+- User profile (passive memory)
 - Conversation history
 - Current query
+- Tool results: `recall` for active memory retrieval
 
 **Resume mode:** Inject without context growth
 **Replay mode:** Append to message history

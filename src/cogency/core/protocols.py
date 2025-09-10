@@ -48,6 +48,7 @@ class Event(str, Enum):
     RESPOND = "respond"
     USER = "user"
     YIELD = "yield"  # Control signal - not persisted, just execution handover
+    END = "end"  # Actual session termination
 
     @property
     def delimiter(self) -> str:

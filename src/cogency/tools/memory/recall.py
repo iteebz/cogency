@@ -59,17 +59,12 @@ class MemoryRecall(Tool):
             # Get current context window to exclude
             current_timestamps = self._get_timestamps(conversation_id)
 
-            # Get already retrieved content to avoid duplication
-            retrieved_content = self._get_retrieved_content(conversation_id)
-
-            # Fuzzy search past user messages with enhanced filtering
+            # Simple SQL LIKE search of past user messages
             matches = self._search_messages(
                 query=query,
                 user_id=user_id,
                 exclude_timestamps=current_timestamps,
-                exclude_content=retrieved_content,
                 limit=3,
-                fetch_multiplier=3.0,
             )
 
             if not matches:

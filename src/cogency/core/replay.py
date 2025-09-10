@@ -77,8 +77,13 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
                             continue
 
                     case Event.RESPOND:
-                        # Response complete
-                        logger.debug("Response complete")
+                        # Response event - agent continues working
+                        logger.debug("Agent response - continuing")
+                        pass
+
+                    case Event.END:
+                        # Agent finished - actual termination
+                        logger.debug("Agent finished")
                         complete = True
 
                     case Event.YIELD:

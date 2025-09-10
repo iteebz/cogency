@@ -17,6 +17,7 @@ def test_format_no_tools():
     assert Event.THINK.delimiter in prompt
     assert Event.RESPOND.delimiter in prompt
     assert Event.CALLS.delimiter in prompt
+    assert Event.END.delimiter in prompt
     assert "No tools available" in prompt
     assert "MANDATORY SECURITY RESPONSE PATTERN:" in prompt  # Default security included
 
@@ -40,8 +41,8 @@ def test_format_with_tools():
     assert Event.THINK.delimiter in prompt
     assert Event.CALLS.delimiter in prompt
     assert Event.RESPOND.delimiter in prompt
+    assert Event.END.delimiter in prompt
     assert "read" in prompt
-    assert "write" in prompt
     assert "write" in prompt
 
 
@@ -51,6 +52,7 @@ def test_format_security_optional():
 
     assert Event.THINK.delimiter in prompt
     assert Event.RESPOND.delimiter in prompt
+    assert Event.END.delimiter in prompt
     assert "SECURITY PROTOCOL:" not in prompt
 
 
@@ -86,4 +88,5 @@ def test_format_empty_tools():
     # Empty tools dict should behave like no tools
     assert Event.THINK.delimiter in prompt
     assert Event.RESPOND.delimiter in prompt
+    assert Event.END.delimiter in prompt
     assert "No tools available" in prompt
