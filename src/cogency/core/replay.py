@@ -14,18 +14,15 @@ Features:
 import json
 
 from ..context import context
-from ..lib.logger import logger
+from ..lib.persist import persister
+from .execute import execute
 from .parser import parse_stream
 from .protocols import Event
 
 
-async def _handle_execute_yield_replay(calls, config, user_id, conversation_id, messages):
+async def _execute_and_continue(calls, config, user_id, conversation_id, messages):
     """Execute tools and add results to message context for next HTTP iteration."""
-    from .execute import execute_tools_and_save
-
-    individual_results, results_event = await execute_tools_and_save(
-        calls, config, user_id, conversation_id
-    )
+    individual_results, results_event = await execute(calls, config, user_id, conversation_id)
 
     # Add results to message context for next iteration
     messages.append(
@@ -61,50 +58,42 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
             complete = False
 
             # Parse LLM stream with immediate persistence
-            from ..lib.persist import create_event_persister
-
-            persist_event = create_event_persister(conversation_id, user_id)
+            persist_event = persister(conversation_id, user_id)
 
             # HTTP STREAMING: Direct stream call, pure tokens
-            async for event in parse_stream(config.llm.stream(messages), on_complete=persist_event):
-                logger.debug(f"Event: {event['type']} - {event.get('content', '')[:100]}...")
+            try:
+                async for event in parse_stream(
+                    config.llm.stream(messages), on_complete=persist_event
+                ):
+                    match event["type"]:
+                        case Event.CALLS:
+                            calls = event.get("calls")
+                            if not calls:
+                                continue
 
-                match event["type"]:
-                    case Event.CALLS:
-                        calls = event.get("calls")
-                        if not calls:
-                            logger.debug("CALLS parsing failed - skipping")
-                            continue
+                        case Event.RESPOND:
+                            # Response event - agent continues working
+                            pass
 
-                    case Event.RESPOND:
-                        # Response event - agent continues working
-                        logger.debug("Agent response - continuing")
-                        pass
-
-                    case Event.END:
-                        # Agent finished - actual termination
-                        logger.debug("Agent finished")
-                        complete = True
-
-                    case Event.YIELD:
-                        # Context-aware yield handling
-                        yield_context = event.get("content", "unknown")
-
-                        if yield_context == "execute" and calls:
-                            # Execute tools, add to context for next request
-                            individual_results, results_event = await _handle_execute_yield_replay(
-                                calls, config, user_id, conversation_id, messages
-                            )
-                            yield results_event
-
-                            # Start new iteration cycle
-                            break
-
-                        elif yield_context == "complete":
-                            # Complete
+                        case Event.END:
+                            # Agent finished - actual termination
                             complete = True
 
-                yield event
+                        case Event.EXECUTE:
+                            # Execute tools and start new iteration cycle
+                            if calls:
+                                # Execute tools, add to context for next request
+                                individual_results, results_event = await _execute_and_continue(
+                                    calls, config, user_id, conversation_id, messages
+                                )
+                                yield results_event
+
+                                # Start new iteration cycle
+                                break
+
+                    yield event
+            except Exception:
+                raise
 
             # Exit iteration loop if complete
             if complete:

@@ -5,7 +5,7 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry]
 name = "cogency"
 version = "3.0.0"
-description = "Stateless Context-Driven Agent Framework"
+description = "Streaming agents"
 authors = ["Tyson Chan <tyson.chan@proton.me>"]
 readme = "README.md"
 license = "Apache-2.0"
@@ -19,35 +19,38 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-packages = [{ include = "cogency", from = "src" }]
+packages = [
+    { include = "cogency", from = "src" },
+    { include = "evals" }
+]
 
 [tool.poetry.scripts]
 cogency = "cogency.cli:main"
+cogency-evals = "evals.__main__:main"
 
 
 [tool.poetry.dependencies]
-python = ">=3.10,<4.0"
+python = ">=3.11,<4.0"
 
 # Core dependencies
 python-dotenv = ">=1.0.0"
-openai = ">=1.59.0,<2.0.0"
+openai = "^1.107.1"
 trafilatura = "^2.0.0"
-ddgs = "9.3.1"
-google-genai = "1.33.0"
-anthropic = "^0.64.0"
+ddgs = "^9.5.2"
+google-genai = "^1.36.0"
+anthropic = "^0.67.0"
 tiktoken = "^0.11.0"
-numpy = "^1.24.0"
+numpy = "^2.3.3"
 
 
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.8.0"
+ruff = "^0.13.0"
 pytest = "^8.4.1"
-pytest-asyncio = "^0.23.0"
+pytest-asyncio = "^1.1.0"
 pytest-timeout = "^2.4.0"
 
 

@@ -2,7 +2,6 @@
 
 import os
 import random
-from pathlib import Path
 
 from cogency import Agent
 from cogency.lib.storage import Paths
@@ -22,12 +21,12 @@ class Config:
     @sample_size.setter
     def sample_size(self, value):
         os.environ["EVAL_SAMPLES"] = str(value)
-    
+
     @property
     def seed(self):
         return int(os.getenv("EVAL_SEED", "42"))
-    
-    @seed.setter  
+
+    @seed.setter
     def seed(self, value):
         os.environ["EVAL_SEED"] = str(value)
         random.seed(value)  # Apply immediately
@@ -35,6 +34,14 @@ class Config:
     @property
     def output_dir(self):
         return Paths.evals()
+
+    @property
+    def max_concurrent_tests(self):
+        return int(os.getenv("EVAL_CONCURRENCY", "3"))
+
+    @max_concurrent_tests.setter
+    def max_concurrent_tests(self, value):
+        os.environ["EVAL_CONCURRENCY"] = str(value)
 
     timeout: int = 15
 

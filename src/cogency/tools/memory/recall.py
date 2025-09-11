@@ -11,7 +11,7 @@ from typing import NamedTuple
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
 from ...lib.logger import logger
-from ...lib.storage import get_db_path
+from ...lib.storage import Paths
 from ..file.utils import format_relative_time
 
 
@@ -84,7 +84,7 @@ class MemoryRecall(Tool):
         if not conversation_id:
             return []
 
-        db_path = get_db_path()
+        db_path = Paths.db()
 
         try:
             with sqlite3.connect(db_path) as db:
@@ -108,7 +108,7 @@ class MemoryRecall(Tool):
         self, query: str, user_id: str, exclude_timestamps: list[float], limit: int = 3
     ) -> list[MessageMatch]:
         """Fuzzy search user messages with SQLite pattern matching."""
-        db_path = get_db_path()
+        db_path = Paths.db()
 
         # Build fuzzy search patterns
         keywords = query.lower().split()

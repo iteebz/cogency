@@ -4,7 +4,6 @@ import asyncio
 import json
 import sys
 from datetime import datetime
-from pathlib import Path
 
 from cogency.lib.storage import Paths
 
@@ -45,7 +44,7 @@ async def _run_category(name, generator, samples):
         # Generate timestamped run directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
-        
+
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -59,7 +58,7 @@ async def _run_category(name, generator, samples):
             "seed": CONFIG.seed,
             "timestamp": datetime.now().isoformat(),
         }
-        
+
         with open(Paths.evals(f"runs/{run_id}/config.json"), "w") as f:
             json.dump(config_data, f, indent=2)
 
@@ -112,7 +111,7 @@ async def _run_all(samples):
         # Generate timestamped run directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
-        
+
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -126,7 +125,7 @@ async def _run_all(samples):
             "seed": CONFIG.seed,
             "timestamp": datetime.now().isoformat(),
         }
-        
+
         with open(Paths.evals(f"runs/{run_id}/config.json"), "w") as f:
             json.dump(config_data, f, indent=2)
 
@@ -210,6 +209,12 @@ async def cli():
             print("🔁 Replay mode - HTTP only")
         elif CONFIG.mode == "auto":
             print("🤖 Auto mode - WebSocket with HTTP fallback")
+
+    if "--concurrency" in args:
+        idx = args.index("--concurrency")
+        CONFIG.max_concurrent_tests = int(args[idx + 1])
+        args = [a for i, a in enumerate(args) if i not in [idx, idx + 1]]
+        print(f"⚡ Concurrency: {CONFIG.max_concurrent_tests} parallel tests")
 
     if "--llm" in args:
         idx = args.index("--llm")

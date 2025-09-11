@@ -4,5 +4,9 @@ import asyncio
 
 from .eval import cli
 
-if __name__ == "__main__":
+def main():
+    """Entry point for poetry script."""
     asyncio.run(cli())
+
+if __name__ == "__main__":
+    main()

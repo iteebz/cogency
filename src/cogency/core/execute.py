@@ -3,6 +3,7 @@
 import json
 import time
 
+from ..lib.resilience import resilient_save
 from .protocols import Event
 from .result import Err, Ok, Result
 
@@ -21,25 +22,18 @@ async def execute_tools(calls: list, config, user_id: str = None) -> list[str]:
     return results
 
 
-def create_results_event(individual_results: list) -> dict:
-    """Create results event dict."""
-    return {
+async def execute(calls, config, user_id, conversation_id):
+    """Execute tools and save results."""
+    # Execute tools
+    individual_results = await execute_tools(calls, config, user_id)
+
+    # Create and save results event
+    results_event = {
         "type": Event.RESULTS,
         "content": json.dumps(individual_results),
         "results": individual_results,
         "timestamp": time.time(),
     }
-
-
-async def execute_tools_and_save(calls, config, user_id, conversation_id):
-    """Core tool execution + event creation + DB save - shared across resume/replay."""
-    from ..lib.resilience import resilient_save
-
-    # Execute tools
-    individual_results = await execute_tools(calls, config, user_id)
-
-    # Create and save results event
-    results_event = create_results_event(individual_results)
     resilient_save(
         conversation_id,
         user_id,

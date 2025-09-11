@@ -42,10 +42,6 @@ class Rotator:
 
     def rotate(self, error: str = None) -> bool:
         """Rotate on rate limits or force rotation."""
-        import logging
-
-        logging.getLogger(__name__)
-
         if len(self.keys) < 2:
             return False
 
@@ -75,10 +71,6 @@ _rotators: dict[str, Rotator] = {}
 
 async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Result[Any]:
     """Execute function with automatic key rotation (rotate every call + retry on failure)."""
-    import logging
-
-    logging.getLogger(__name__)
-
     if prefix not in _rotators:
         _rotators[prefix] = Rotator(prefix)
 
@@ -123,11 +115,6 @@ def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
             if prefix:
                 return prefix
             return self.__class__.__name__.upper()
-
-        def debug_log(message):
-            """Debug logging removed - libraries shouldn't use environment variables."""
-            # No runtime configuration via env vars in library code
-            pass
 
         # Check if function is async generator
         if inspect.isasyncgenfunction(func):

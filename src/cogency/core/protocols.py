@@ -30,15 +30,6 @@ class ToolResult:
         return self.outcome
 
 
-@dataclass
-class WebSocketSession:
-    """WebSocket session container - no more session['session'] bullshit."""
-
-    session: object
-    connection: object
-    types: object
-
-
 class Event(str, Enum):
     """Events - type-safe strings, no ceremony."""
 
@@ -47,7 +38,7 @@ class Event(str, Enum):
     RESULTS = "results"
     RESPOND = "respond"
     USER = "user"
-    YIELD = "yield"  # Control signal - not persisted, just execution handover
+    EXECUTE = "execute"  # Execute tools signal - pause stream for tool execution
     END = "end"  # Actual session termination
 
     @property
@@ -62,14 +53,6 @@ class Mode(str, Enum):
     RESUME = "resume"
     REPLAY = "replay"
     AUTO = "auto"
-
-    def __eq__(self, other):
-        if isinstance(other, str):
-            return self.value == other
-        return super().__eq__(other)
-
-    def __hash__(self):
-        return super().__hash__()
 
 
 @runtime_checkable

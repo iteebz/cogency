@@ -36,13 +36,3 @@ def detect_api_key(service: str) -> str | None:
                     return os.environ[rotation_key]
 
     return None
-
-    # Check rotation keys (GEMINI_API_KEY_1, GEMINI_API_KEY_2, etc.)
-    for pattern in patterns:
-        if pattern.endswith("_API_KEY"):
-            for i in range(1, 10):  # Check _1 through _9
-                rotation_key = f"{pattern}_{i}"
-                if rotation_key in os.environ:
-                    return os.environ[rotation_key]
-
-    return None

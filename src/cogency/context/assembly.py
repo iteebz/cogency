@@ -1,5 +1,7 @@
 """Context assembly for conversations."""
 
+import json
+
 from ..core.protocols import Event
 from ..lib.storage import save_message
 from ..lib.tokens import count_tokens
@@ -46,38 +48,21 @@ class Context:
 
     def record(self, conversation_id: str, user_id: str, events: list) -> bool:
         """Batch record events to storage with chronological ordering."""
-        import json
-
         for event in events:
             timestamp = event.get("timestamp")
             content = event.get("content", "")
+            event_type = event["type"]
 
-            match event["type"]:
-                case Event.USER:
-                    if not save_message(conversation_id, user_id, Event.USER, content, timestamp):
-                        return False
-                case Event.THINK:
-                    if not save_message(conversation_id, user_id, Event.THINK, content, timestamp):
-                        return False
-                case Event.CALLS:
-                    if not save_message(
-                        conversation_id, user_id, Event.CALLS, json.dumps(event["calls"]), timestamp
-                    ):
-                        return False
-                case Event.RESULTS:
-                    if not save_message(
-                        conversation_id,
-                        user_id,
-                        Event.RESULTS,
-                        json.dumps(event["results"]),
-                        timestamp,
-                    ):
-                        return False
-                case Event.RESPOND:
-                    if not save_message(
-                        conversation_id, user_id, Event.RESPOND, content, timestamp
-                    ):
-                        return False
+            # Serialize complex event content
+            if event_type == Event.CALLS:
+                content = json.dumps(event["calls"])
+            elif event_type == Event.RESULTS:
+                content = json.dumps(event["results"])
+
+            if not save_message(
+                conversation_id, user_id, event_type, content, base_dir=None, timestamp=timestamp
+            ):
+                return False
 
         return True
 

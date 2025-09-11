@@ -2,66 +2,73 @@
 
 ## Explicit Agent State Signaling
 
-**Problem:** Frameworks guess when agents need tools
+**Problem:** Frameworks guess when agents need tools  
 **Solution:** Agents explicitly signal execution state
 
-```python
+```
 §THINK: I need to examine the code structure first
-§CALLS: [{"name": "file_read", "args": {"path": "main.py"}}]
-§YIELD:
+§CALLS: [{"name": "read", "args": {"file": "main.py"}}]
+§EXECUTE:
 [SYSTEM: Found syntax error on line 15]
 §RESPOND: Fixed the missing semicolon. Code runs correctly now.
+§END:
 ```
 
-LLM controls timing. Parser handles execution.
+Agent controls timing. Parser handles execution.
 
 ## Delimiters
 
-- `§THINK:` Internal reasoning 
+- `§THINK:` Internal reasoning scratchpad
 - `§CALLS:` Tool calls as JSON array
-- `§YIELD:` Pause for tool execution
-- `§RESPOND:` Final response
+- `§EXECUTE:` Pause signal for tool execution
+- `§RESPOND:` Communication with human
+- `§END:` Task completion signal
 
 ## Examples
 
-**No tools needed:**
+**Simple response (no tools):**
 ```
-|||RESPOND: Python is a programming language created by Guido van Rossum.
-```
-
-**Single tool:**
-```
-|||THINK: I should check what files exist first.
-|||TOOLS: [{"name": "file_list"}]
-|||WAIT:
-|||RESPOND: I found 3 files: main.py, config.json, README.md
+§RESPOND: Python is a programming language created by Guido van Rossum.
+§END:
 ```
 
-**Multiple tools in sequence:**
+**Single tool call:**
 ```
-|||TOOLS: [
-  {"name": "file_list"},
-  {"name": "file_read", "args": {"path": "config.json"}}
-]
-|||WAIT:
-|||RESPOND: This is a Node.js project using Express and TypeScript.
+§THINK: I should check what files exist first.
+§CALLS: [{"name": "list", "args": {}}]
+§EXECUTE:
+[SYSTEM: Found 3 files: main.py, config.json, README.md]
+§RESPOND: I found 3 files: main.py, config.json, README.md
+§END:
+```
+
+**Multiple sequential tools:**
+```
+§CALLS: [{"name": "list", "args": {}}]
+§EXECUTE:
+[SYSTEM: Found: main.py, config.json]
+§CALLS: [{"name": "read", "args": {"file": "config.json"}}]
+§EXECUTE:
+[SYSTEM: {"debug": false, "timeout": 30}]
+§RESPOND: This is a Node.js project with Express configuration.
+§END:
 ```
 
 ## Parser Events
 
-The protocol generates structured events:
+Protocol generates structured events:
 
 ```python
-{"type": "think", "content": "reasoning text"}
-{"type": "tools", "tools": [{"name": "file_read", "args": {...}}]}
-{"type": "wait", "content": ""}  
-{"type": "respond", "content": "final response"}
-{"type": "end", "content": ""}
+{"type": "think", "content": "reasoning text", "timestamp": 1234567890.0}
+{"type": "calls", "content": "[{...}]", "calls": [...], "timestamp": 1234567890.0}
+{"type": "execute", "content": "", "timestamp": 1234567890.0}
+{"type": "respond", "content": "final response", "timestamp": 1234567890.0}
+{"type": "end", "content": "", "timestamp": 1234567890.0}
 ```
 
 ## Rules
 
-1. Tools must be valid JSON array: `[{"name": "tool_name", "args": {...}}]`
-2. Empty tools array means no execution: `|||TOOLS: []`
-3. `|||WAIT:` required after non-empty tools
-4. Invalid JSON triggers error event
+1. **Tool calls must be valid JSON array:** `[{"name": "tool_name", "args": {...}}]`
+2. **EXECUTE required after CALLS:** Parser waits for tool execution
+3. **Invalid JSON triggers error event:** Parser emits error, continues
+4. **END terminates stream:** Final event, no further processing

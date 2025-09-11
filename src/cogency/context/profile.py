@@ -6,10 +6,6 @@ from ..lib.logger import logger
 from ..lib.storage import load_profile, save_profile
 from .constants import PROFILE_LIMITS
 
-# =============================================================================
-# PROFILE LEARNING SYSTEM
-# =============================================================================
-
 PROFILE_TEMPLATE = """Current: {profile}
 Messages: {user_messages}
 {instruction}
@@ -19,7 +15,6 @@ Example: {{"who":"developer","style":"direct","focus":"AI projects","interests":
 def prompt(profile: dict, user_messages: list, compress: bool = False) -> str:
     """Generate profile learning prompt."""
     if compress:
-        len(json.dumps(profile))
         return PROFILE_TEMPLATE.format(
             profile=json.dumps(profile),
             user_messages="\n".join(user_messages),
@@ -56,7 +51,7 @@ def format(user_id: str) -> str:
         return ""
 
 
-def _delta(user_id: str) -> bool:
+def should_learn(user_id: str) -> bool:
     """Check if 5+ new user messages since last learning."""
     current = get(user_id)
     if not current:
@@ -64,7 +59,7 @@ def _delta(user_id: str) -> bool:
 
     import sqlite3
 
-    from ..lib.storage import get_db_path
+    from ..lib.storage import Paths
 
     # Get metadata from embedded profile
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
@@ -78,7 +73,7 @@ def _delta(user_id: str) -> bool:
         return True
 
     # Count unlearned messages
-    db_path = get_db_path()
+    db_path = Paths.db()
     if not db_path.exists():
         return False
 
@@ -113,8 +108,7 @@ def learn(user_id: str, llm):
         logger.debug(f"🧠 Profile learning skipped in test environment for {user_id}")
         return
 
-    # Check if learning needed (internal responsibility)
-    if not _delta(user_id):
+    if not should_learn(user_id):
         return
 
     # Background execution (non-blocking)
@@ -123,7 +117,7 @@ def learn(user_id: str, llm):
     # Fire-and-forget background learning
     try:
         loop = asyncio.get_running_loop()
-        task = loop.create_task(_learn(user_id, llm))
+        task = loop.create_task(learn_async(user_id, llm))
 
         # Prevent "task not awaited" warning by adding done callback that handles exceptions
         def handle_task_done(task):
@@ -139,7 +133,7 @@ def learn(user_id: str, llm):
     logger.debug(f"🧠 Profile learning triggered for {user_id}")
 
 
-async def _learn(user_id: str, llm) -> bool:
+async def learn_async(user_id: str, llm) -> bool:
     """Internal async learning implementation."""
 
     current = get(user_id) or {
@@ -156,9 +150,9 @@ async def _learn(user_id: str, llm) -> bool:
     import sqlite3
     import time
 
-    from ..lib.storage import get_db_path
+    from ..lib.storage import Paths
 
-    db_path = get_db_path()
+    db_path = Paths.db()
     if not db_path.exists():
         return False
 
@@ -185,7 +179,7 @@ async def _learn(user_id: str, llm) -> bool:
     # Check if compression needed
     current_chars = len(json.dumps(current))
     compress = current_chars > PROFILE_LIMITS["compress_threshold"]
-    updated = await _process_profile(current, message_texts, llm, compress=compress)
+    updated = await update_profile(current, message_texts, llm, compress=compress)
 
     if updated and updated != current:
         # Embed metadata in profile
@@ -202,7 +196,7 @@ async def _learn(user_id: str, llm) -> bool:
     return False
 
 
-async def _process_profile(
+async def update_profile(
     current: dict, user_messages: list, llm, compress: bool = False
 ) -> dict | None:
     """Process profile update or compression."""
@@ -217,27 +211,10 @@ async def _process_profile(
 
     result = result.unwrap()
 
-    if compress:
-        if result:
-            try:
-                compressed = _clean_json(result)
-                current_chars = len(json.dumps(current))
-                compressed_chars = len(json.dumps(compressed))
-                logger.debug(f"🗜️ COMPRESSED: {current_chars} → {compressed_chars} chars")
-                return compressed
-            except json.JSONDecodeError:
-                logger.debug(f"🚨 COMPRESS JSON ERROR: {result[:100]}...")
-        return current
-    if result and result.strip().upper() != "SKIP":
-        try:
-            return _clean_json(result)
-        except json.JSONDecodeError:
-            logger.debug(f"🚨 JSON PARSE ERROR: {result[:100]}...")
-    return None
+    if not result:
+        return current if compress else None
 
-
-def _clean_json(result: str) -> dict:
-    """Strip markdown blocks and parse JSON."""
+    # Strip markdown blocks and parse JSON
     clean_result = result.strip()
     if clean_result.startswith("```json"):
         clean_result = clean_result[7:]
@@ -246,7 +223,20 @@ def _clean_json(result: str) -> dict:
     if clean_result.endswith("```"):
         clean_result = clean_result[:-3]
 
-    return json.loads(clean_result.strip())
+    try:
+        parsed = json.loads(clean_result.strip())
+        if compress:
+            current_chars = len(json.dumps(current))
+            compressed_chars = len(json.dumps(parsed))
+            logger.debug(f"🗜️ COMPRESSED: {current_chars} → {compressed_chars} chars")
+            return parsed
+        if result.strip().upper() != "SKIP":
+            return parsed
+    except json.JSONDecodeError:
+        error_type = "COMPRESS" if compress else "JSON PARSE"
+        logger.debug(f"🚨 {error_type} ERROR: {result[:100]}...")
+
+    return current if compress else None
 
 
 # Direct function exports - no ceremony

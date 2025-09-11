@@ -1,9 +1,10 @@
-"""Agent interface with dual API: Result patterns or streaming events.
+"""Streaming agents - pure stream protocol.
 
 Usage:
   agent = Agent()              # Configuration closure
-  result = await agent(query)  # Returns Result[str] - no exceptions at boundary
-  async for event in agent.stream(query):  # Raw event stream with error events
+  async for event in agent(query):  # Returns event stream
+      if event["type"] == "respond":
+          result = event["content"]
 """
 
 from ..context import context
@@ -77,71 +78,30 @@ class Agent:
         valid = ["openai", "gemini", "anthropic"]
         raise ValueError(f"Unknown LLM '{llm}'. Valid options: {', '.join(valid)}")
 
-    def _conversation_id(self, user_id: str, conversation_id: str | None) -> str:
-        """Get or generate conversation ID."""
-        return conversation_id or f"{user_id}_session"
-
     async def __call__(
         self, query: str, user_id: str = "default", conversation_id: str | None = None
-    ) -> str:
-        conversation_id = self._conversation_id(user_id, conversation_id)
-
-        try:
-            # Collect all streaming events
-            respond_events = []
-            async for event in stream(
-                self.config,
-                query,
-                user_id,
-                conversation_id,
-                on_complete=context.record,
-                on_learn=context.learn,
-            ):
-                if event["type"] == Event.RESPOND:
-                    respond_events.append(event["content"])
-
-            # Aggregate response events
-            response = "".join(respond_events).strip()
-            if not response:
-                raise RuntimeError("Agent produced no response")
-            return response
-        except Exception as e:
-            logger.debug(f"Failed: {e}")
-            # Convert specific errors to helpful messages
-            error_msg = str(e)
-            if "Agent produced no response" in error_msg:
-                logger.debug("Agent produced no response - likely API key or configuration issue")
-                raise RuntimeError(
-                    "Agent execution failed - check API keys and configuration"
-                ) from None
-            if "LLM connection failed" in error_msg:
-                raise RuntimeError(
-                    "LLM connection failed - check API keys and configuration"
-                ) from None
-            raise RuntimeError(
-                "Agent execution failed"
-            ) from None  # [SEC-003] No error chain leakage
-
-    async def stream(
-        self, query: str, user_id: str = "default", conversation_id: str | None = None
     ):
-        conversation_id = self._conversation_id(user_id, conversation_id)
+        """Stream events for query - pure streaming protocol."""
+        conversation_id = conversation_id or f"{user_id}_session"
 
         try:
+            # Bind recording function to agent's storage with resilience
+            def record_to_storage(conversation_id: str, user_id: str, events: list) -> bool:
+                try:
+                    return self.config.storage.record_message(conversation_id, user_id, events)
+                except Exception as e:
+                    logger.debug(f"Storage recording failed: {e}")
+                    return False  # Graceful degradation
+
             async for event in stream(
                 self.config,
                 query,
                 user_id,
                 conversation_id,
-                on_complete=context.record,
+                on_complete=record_to_storage,
                 on_learn=context.learn,
             ):
                 yield event
         except Exception as e:
             logger.debug(f"Stream failed: {e}")
-            # Convert connection errors to helpful messages
-            if "LLM connection failed" in str(e):
-                raise RuntimeError(
-                    "LLM connection failed - check API keys and configuration"
-                ) from None
             raise RuntimeError("Stream failed") from None  # [SEC-003] No error chain leakage

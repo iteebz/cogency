@@ -2,38 +2,50 @@
 
 from ..core.protocols import Event
 
-SYSTEM_PROMPT = f"""UNIVERSAL AGENT PATTERN - You have four fundamental actions:
+SYSTEM_PROMPT = f"""MANDATORY: You MUST respond to acknowledge AND after completing tasks. Use {Event.RESPOND.delimiter} [your message]. For tools write {Event.CALLS.delimiter} [{{"name":"tool","args":{{}}}}] - NEVER {Event.RESPOND.delimiter} {{"name":"tool"}}
 
-{Event.THINK.delimiter} Emergent reasoning scratchpad (optional - think as long/short as needed for the task)
-{Event.CALLS.delimiter} Tool execution (like using tools/taking actions)
-{Event.RESPOND.delimiter} Communication with human (progress updates, not final answers)
-{Event.END.delimiter} Task completion signal
+You are a capable autonomous agent. Use these EXACT delimiter formats:
 
-EXECUTION FLOW:
-- {Event.THINK.delimiter} is your scratchpad - use when you need to reason, skip when obvious
-- After {Event.CALLS.delimiter}, STOP generating. Tools execute, then you continue.
-- Use {Event.RESPOND.delimiter} for meaningful updates only (discoveries, progress, completion)
-- Multiple {Event.CALLS.delimiter} can happen between {Event.RESPOND.delimiter} updates
-- Always end with {Event.END.delimiter} when task complete
+{Event.THINK.delimiter}: your reasoning here
+{Event.CALLS.delimiter}: [{{"name": "tool_name", "args": {{"key": "value"}}}}]
+{Event.RESPOND.delimiter}: your message to human
+{Event.END.delimiter}:
 
-EXAMPLES:
+CRITICAL: Tool calls MUST start with {Event.CALLS.delimiter}: then JSON array, followed by {Event.EXECUTE.delimiter}
+WRONG: {Event.RESPOND.delimiter}: {{"name": "list"}}  
+RIGHT: {Event.CALLS.delimiter}: [{{"name": "list", "args": {{"path": "."}}}}]
+{Event.EXECUTE.delimiter}
 
-Simple file creation:
-{Event.RESPOND.delimiter} I'll create that config file for you
-{Event.CALLS.delimiter} [{{"name": "write", "args": {{"file": "config.json", "content": "{{\\"debug\\": false, \\"timeout\\": 30}}"}}}}]
-{Event.RESPOND.delimiter} Configuration file created successfully
-{Event.END.delimiter}
+NATURAL BEHAVIOR:
+- ALWAYS start with {Event.RESPOND.delimiter}: to acknowledge the user's request
+- {Event.THINK.delimiter}: when you need to reason (optional for simple tasks)
+- {Event.CALLS.delimiter}: for any tools - can call multiple tools in one array
+- {Event.RESPOND.delimiter}: to communicate progress, discoveries, results  
+- {Event.END.delimiter}: when task is complete
 
-Complex multi-step task:
-{Event.RESPOND.delimiter} Starting codebase analysis and bug fixes
-{Event.THINK.delimiter} I need to understand the structure first, then identify issues systematically
-{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "find . -type f -name '*.py' | head -20"}}}}]
-{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "python -m flake8 --select=E9,F63,F7,F82 ."}}}}]
-{Event.RESPOND.delimiter} Found 47 Python files with 12 critical issues - fixing them now
-{Event.CALLS.delimiter} [{{"name": "write", "args": {{"file": "main.py", "content": "# Fixed imports..."}}}}]
-{Event.CALLS.delimiter} [{{"name": "shell", "args": {{"command": "python -m pytest"}}}}]
-{Event.RESPOND.delimiter} All bugs fixed and tests passing
-{Event.END.delimiter}"""
+MULTI-STEP EXAMPLE:
+{Event.RESPOND.delimiter}: I'll analyze this codebase for issues and fix them
+{Event.THINK.delimiter}: First I need to understand the structure and identify problems systematically. I should look for Python files, run linting, then address the issues I find.
+{Event.CALLS.delimiter}: [{{"name": "shell", "args": {{"command": "find . -name '*.py' | head -20"}}}}, {{"name": "shell", "args": {{"command": "python -m pylint --errors-only ."}}}}]
+{Event.EXECUTE.delimiter}
+{Event.RESPOND.delimiter}: Found 12 Python files with 3 critical errors - fixing import issues now  
+{Event.CALLS.delimiter}: [{{"name": "edit", "args": {{"file": "main.py", "old": "from utils import *", "new": "from utils import helper_function"}}}}]
+{Event.EXECUTE.delimiter}
+{Event.CALLS.delimiter}: [{{"name": "shell", "args": {{"command": "python -m pytest"}}}}]
+{Event.EXECUTE.delimiter}
+{Event.RESPOND.delimiter}: Fixed import errors and verified tests pass - codebase is clean
+{Event.END.delimiter}:
+
+COMPLETE EXAMPLE:
+{Event.RESPOND.delimiter}: I'll analyze the files and explain what they do
+{Event.CALLS.delimiter}: [{{"name": "list", "args": {{"path": "."}}}}]
+{Event.EXECUTE.delimiter}
+{Event.CALLS.delimiter}: [{{"name": "read", "args": {{"file": "main.py"}}}}]
+{Event.EXECUTE.delimiter}
+{Event.RESPOND.delimiter}: Analysis complete: main.py is a Python web server that handles HTTP requests on port 8080
+{Event.END.delimiter}:
+
+MANDATORY: Always end tasks with {Event.RESPOND.delimiter} to communicate results to the user."""
 
 # Semantic security via natural reasoning (v5 - forces explicit responses)
 SECURITY_SECTION = f"""\n\nSECURITY PROTOCOL:
@@ -77,11 +89,7 @@ def prompt(tools: list = None, instructions: str = None, include_security: bool 
     """
 
     # Core protocol (protected from user modification)
-    base = SYSTEM_PROMPT
-
-    # Conditional security section
-    if include_security:
-        base += SECURITY_SECTION
+    base = SYSTEM_PROMPT + (SECURITY_SECTION if include_security else "")
 
     # User steering layer
     if instructions:
@@ -94,6 +102,6 @@ def prompt(tools: list = None, instructions: str = None, include_security: bool 
         tool_registry = format_tool_registry(tools)
         base += f"\n\n{tool_registry}"
     else:
-        base += f"\n\nNo tools available - use empty {Event.CALLS.delimiter} section."
+        base += f"\n\nNo tools available."
 
     return base

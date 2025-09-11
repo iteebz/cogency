@@ -114,7 +114,9 @@ class SystemShell(Tool):
 
         # Working directory logic
         if sandbox:
-            working_path = Path(".sandbox")
+            from ...lib.storage import Paths
+
+            working_path = Paths.sandbox()
             working_path.mkdir(exist_ok=True)
         else:
             working_path = Path.cwd()

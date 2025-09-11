@@ -8,7 +8,7 @@ import sys
 import warnings
 
 from .. import Agent
-from ..lib.storage import get_db_path
+from ..lib.storage import Paths
 from ..tools import TOOLS
 
 # Suppress asyncio warnings for cleaner output
@@ -26,7 +26,7 @@ except ImportError:
 
 def get_last_conversation_id(user_id: str) -> str:
     """Get the last conversation ID for continuation, or create new one."""
-    db_path = get_db_path()
+    db_path = Paths.db()
 
     if not db_path.exists():
         # No database yet - create first conversation
@@ -70,22 +70,20 @@ async def main():
     parser.add_argument("--mode", default="auto", choices=["auto", "resume", "replay"])
     parser.add_argument("--user", default="ask_user", help="User identity")
     parser.add_argument("--instructions", help="Custom agent instructions")
-    parser.add_argument("--max-iterations", type=int, default=3, help="Max iterations")
+    parser.add_argument("--max-iterations", type=int, default=10, help="Max iterations")
     parser.add_argument("--no-tools", action="store_true", help="Disable tools")
     parser.add_argument("--no-profile", action="store_true", help="Disable user memory")
     parser.add_argument("--no-sandbox", action="store_true", help="Disable security sandbox")
     parser.add_argument("--new", action="store_true", help="Force new conversation")
     parser.add_argument("--debug", action="store_true", help="Show execution traces")
-    parser.add_argument("--show-stream", action="store_true", help="Show raw token stream")
-    parser.add_argument("--metrics", action="store_true", help="Show token usage metrics")
     parser.add_argument("--verbose", action="store_true", help="Show detailed debug events")
 
     args = parser.parse_args()
 
     if args.debug:
-        from ..lib.logger import logger
+        from ..lib.logger import set_debug
 
-        logger.set_debug(True)
+        set_debug(True)
 
     # Create agent
     agent = Agent(
@@ -117,20 +115,20 @@ async def main():
     if args.instructions:
         config_parts.append("custom instructions")
 
-    print(f"🤖 Cogency Agent ({', '.join(config_parts)}, max_iterations={args.max_iterations})")
-    print(f"👤 User: {args.user}")
-    print(f"🔄 Context: {context_type}")
-    print(f"❓ Question: {args.question}")
-    # Clean session display
-    session_name = f"session_{len(conversation_id) % 100:02d}"
-    print(f"🆔 Session: {session_name}")
-    print("─" * 50)
+    # Show minimal header only with --verbose
+    if args.verbose:
+        print(f"Cogency Agent ({', '.join(config_parts)}, max_iterations={args.max_iterations})")
+        print(f"User: {args.user}")
+        print(f"Context: {context_type}")
+        session_name = f"session_{len(conversation_id) % 100:02d}"
+        print(f"Session: {session_name}")
+        print("─" * 50)
 
     # Debug mode - show assembled context
     if args.debug:
         from ..context import context
 
-        print("🔍 DEBUG MODE: Assembled Context")
+        print("DEBUG MODE: Assembled Context")
         print("=" * 60)
         messages = context.assemble(args.question, args.user, conversation_id, agent.config)
         for msg in messages:
@@ -144,27 +142,35 @@ async def main():
 
         @observe(agent)
         async def observed_stream():
-            async for event in agent.stream(
-                args.question, user_id=args.user, conversation_id=conversation_id
-            ):
-                yield event
+            try:
+                async for event in agent(
+                    args.question, user_id=args.user, conversation_id=conversation_id
+                ):
+                    yield event
+            except asyncio.CancelledError:
+                # Agent stream was cancelled - yield cancellation event and re-raise
+                yield {
+                    "type": "cancelled",
+                    "content": "Task interrupted by user",
+                    "timestamp": __import__("time").time(),
+                }
+                raise  # Re-raise for proper cleanup
 
         # Create single stream instance
         stream_instance = observed_stream()
 
-        renderer = Renderer(show_stream=args.show_stream, verbose=args.verbose)
+        renderer = Renderer(verbose=args.verbose)
         await renderer.render_stream(stream_instance)
 
-        # Show metrics after stream completion
-        if args.metrics and hasattr(observed_stream, "metrics"):
+        # Always show metrics after stream completion
+        if hasattr(observed_stream, "metrics"):
             metrics = observed_stream.metrics
             renderer.show_metrics(metrics)
 
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        pass
     except Exception as e:
-        print(f"❌ Error: {e}")
-        import traceback
-
-        traceback.print_exc()
+        print(f"Error: {e}")
 
 
 if __name__ == "__main__":

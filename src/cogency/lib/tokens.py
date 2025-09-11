@@ -54,9 +54,7 @@ def count_tokens(text: str, model: str) -> int:
 
 def calculate_cost(input_tokens: int, output_tokens: int, model: str) -> float:
     if model not in PRICING:
-        raise ValueError(
-            f"Unsupported model for pricing: {model}. Add to PRICING dict with actual rates."
-        )
+        return 0.0  # Unknown model - no cost tracking
 
     pricing = PRICING[model]
     input_cost = (input_tokens / 1_000_000) * pricing["input"]

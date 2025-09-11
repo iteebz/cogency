@@ -22,14 +22,20 @@ class FileList(Tool):
     def schema(self) -> dict:
         return {"path": {"optional": True}, "pattern": {"optional": True}}
 
-    async def execute(self, path: str = ".", pattern: str = "*", **kwargs) -> Result[ToolResult]:
+    async def execute(self, path: str = ".", pattern: str = None, **kwargs) -> Result[ToolResult]:
         """List files with clean tree structure and metadata."""
         try:
+            # Handle None pattern
+            if pattern is None:
+                pattern = "*"
+                
             # Determine target directory
+            from ...lib.storage import Paths
+
             if path == ".":
-                target = Path(".sandbox")
+                target = Paths.sandbox()
             else:
-                target = Path(".sandbox") / path
+                target = Paths.sandbox(path)
 
             if not target.exists():
                 return Err(f"Directory '{path}' does not exist")
@@ -87,7 +93,7 @@ class FileList(Tool):
 
     def _matches_pattern(self, filename: str, pattern: str) -> bool:
         """Simple pattern matching (supports * wildcards)."""
-        if pattern == "*":
+        if pattern is None or pattern == "*":
             return True
 
         # Convert shell-style wildcards to simple matching

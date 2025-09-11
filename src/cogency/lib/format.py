@@ -26,7 +26,7 @@ def format_tools(tools_json: str, truncate: bool = True) -> str:
         name = call.get("name", "unknown")
         args = call.get("args", {})
 
-        if args:
+        if args and isinstance(args, dict):
             # Truncate long argument values for readability
             truncated_args = {}
             for k, v in args.items():

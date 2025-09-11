@@ -2,7 +2,7 @@
 
 WebSocket pattern:
 1. Single session → continuous token stream
-2. Parser detects §YIELD → pause session → execute tools
+2. Parser detects §EXECUTE → pause session → execute tools
 3. Inject results → resume same stream
 4. Repeat within same session
 
@@ -17,23 +17,20 @@ Features:
 import json
 
 from ..context import context
-from ..lib.logger import logger
+from ..lib.persist import persister
+from .execute import execute
 from .parser import parse_stream
 from .protocols import Event
 
 
-async def _handle_execute_yield(calls, config, user_id, session, conversation_id):
+async def _execute_and_inject(calls, config, user_id, session, conversation_id):
     """
     Execute tools and inject results into same WebSocket session.
 
     After tool execution, combines results with a continuation prompt to ensure
     the LLM continues processing subsequent steps in multi-step tasks.
     """
-    from .execute import execute_tools_and_save
-
-    individual_results, results_event = await execute_tools_and_save(
-        calls, config, user_id, conversation_id
-    )
+    individual_results, results_event = await execute(calls, config, user_id, conversation_id)
 
     # Format results as JSON
     results_text = json.dumps(individual_results)
@@ -60,17 +57,11 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
     has_resumable = hasattr(config.llm, "resumable")
     resumable_value = getattr(config.llm, "resumable", None) if has_resumable else None
 
-    logger.info(
-        f"RESUME MODE DEBUG: LLM type={type(config.llm)}, has_resumable={has_resumable}, resumable_value={resumable_value}"
-    )
-
     if not has_resumable or not resumable_value:
         raise RuntimeError(
             f"Resume mode requires WebSocket support. Provider {type(config.llm).__name__} does not support resumable sessions. "
             f"Use mode='auto' for fallback behavior or mode='replay' for HTTP-only."
         )
-
-    logger.info("USING WEBSOCKET RESUME MODE")
 
     session = None
     try:
@@ -97,18 +88,10 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
         tool_results_sent = False  # Track when we've sent tool results
 
         # Parse streaming tokens with immediate persistence
-        from ..lib.persist import create_event_persister
-
-        persist_event = create_event_persister(conversation_id, user_id)
-
-        # Continuous token stream from WebSocket
-        async def continuous_token_stream():
-            """Token stream from WebSocket to parser."""
-            async for token in config.llm.receive(session):
-                yield token
+        persist_event = persister(conversation_id, user_id)
 
         try:
-            async for event in parse_stream(continuous_token_stream(), on_complete=persist_event):
+            async for event in parse_stream(config.llm.receive(session), on_complete=persist_event):
                 match event["type"]:
                     case Event.CALLS:
                         calls = event["calls"]
@@ -121,59 +104,33 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
                         # Agent finished - actual termination
                         complete = True
 
-                    case Event.YIELD:
-                        # Context-aware yield handling
-                        yield_context = event.get("content", "unknown")
-
-                        if yield_context == "execute" and calls:
+                    case Event.EXECUTE:
+                        # Execute tools and continue same session
+                        if calls:
                             # Execute tools and continue same session
-                            results_event = await _handle_execute_yield(
+                            results_event = await _execute_and_inject(
                                 calls, config, user_id, session, conversation_id
                             )
                             yield results_event
                             calls = None
                             tool_results_sent = True  # Mark that we sent tool results
 
-                        elif yield_context == "complete":
-                            # Conversation complete
-                            complete = True
-
-                        elif tool_results_sent:
-                            # After tool results, any YIELD means Gemini completed the turn
-                            complete = True
-
-                        else:
-                            # Only complete on explicit completion signal
-                            # WebSocket streams continue until explicit "complete" context
-                            pass
-
                 yield event
 
                 # Stop after completion
                 if complete:
                     break
+        except Exception:
+            raise
 
-            # Handle incomplete sessions - strict mode, no fallback
-            if not complete:
-                # If we sent tool results and stream ended, that's success in Gemini Live
-                if tool_results_sent:
-                    complete = True
-                else:
-                    raise RuntimeError(
-                        "WebSocket session incomplete - resume mode requires successful WebSocket completion. "
-                        "Use mode='auto' for fallback behavior."
-                    )
+        # Handle incomplete sessions 
+        if not complete:
+            # Stream ended without §END - this is natural completion for resume mode
+            # WebSocket streams end when provider decides, not when agent decides
+            complete = True
 
-        except Exception as e:
-            logger.error(
-                f"RESUME MODE FAILED: WebSocket connection failed ({type(e).__name__}: {str(e)}). "
-                f"Resume mode is strict - use mode='auto' for fallback behavior."
-            )
-            if session:
-                await config.llm.close(session)
-            raise RuntimeError(
-                f"Resume mode WebSocket error: {str(e)}. Use mode='auto' for fallback behavior."
-            ) from e
+    except Exception as e:
+        raise RuntimeError(f"WebSocket failed: {str(e)}") from e
     finally:
         # Always cleanup session - success or failure
         if session:

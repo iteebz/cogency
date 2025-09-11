@@ -1,11 +1,8 @@
 """File editing tool."""
 
-from pathlib import Path
-
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
 from ..security import resolve_path_safely
-from .utils import categorize_file, format_size
 
 
 class FileEdit(Tool):
@@ -24,7 +21,7 @@ class FileEdit(Tool):
         return {"file": {}, "old": {}, "new": {}}
 
     async def execute(
-        self, file: str, old: str, new: str, sandbox: bool = True
+        self, file: str, old: str, new: str, sandbox: bool = True, **kwargs
     ) -> Result[ToolResult]:
         if not file:
             return Err("File cannot be empty")
@@ -35,7 +32,9 @@ class FileEdit(Tool):
         try:
             if sandbox:
                 # Sandboxed execution
-                sandbox_dir = Path(".sandbox")
+                from ...lib.storage import Paths
+
+                sandbox_dir = Paths.sandbox()
                 file_path = resolve_path_safely(file, sandbox_dir)
             else:
                 # Direct filesystem access with traversal protection
@@ -71,28 +70,6 @@ class FileEdit(Tool):
             return Err(f"Security violation: {str(e)}")
         except Exception as e:
             return Err(f"Failed to edit '{file}': {str(e)}")
-
-    def _format_edit_result(
-        self, filename: str, old_text: str, new_text: str, file_path: Path
-    ) -> str:
-        """Format edit result with file context."""
-        stat = file_path.stat()
-        size = format_size(stat.st_size)
-        category = categorize_file(file_path)
-
-        header = f"Replaced text in '{filename}' ({size}) [{category}]"
-
-        if category == "code":
-            ext = file_path.suffix.lower()
-            if ext in [".py", ".js", ".ts", ".go", ".rs"]:
-                header += f" {ext[1:].upper()}"
-
-        # Show the actual change - truncate if too long
-        old_display = old_text[:50] + "..." if len(old_text) > 50 else old_text
-        new_display = new_text[:50] + "..." if len(new_text) > 50 else new_text
-        diff = f"- {old_display}\n+ {new_display}"
-
-        return f"{header}\n{diff}"
 
     def _handle_multiple_matches(self, content: str, old: str, matches: int) -> Result[str]:
         """Handle multiple matches with context for agent guidance."""

@@ -1,10 +1,10 @@
 """Gemini provider - LLM protocol implementation."""
 
-from ...core.protocols import LLM, WebSocketSession
-from ...core.result import Ok, Result
+from ...core.protocols import LLM
+from ...core.result import Err, Ok, Result
 from ..logger import logger
 from ..rotation import rotate
-from .error_handling import handle_generate_errors, handle_stream_errors
+from .interrupt import interruptible
 
 
 class Gemini(LLM):
@@ -78,14 +78,19 @@ class Gemini(LLM):
         )
 
     @rotate
-    @handle_generate_errors("Gemini", "google-genai")
     async def generate(self, client, messages: list[dict]) -> Result[str]:
         """Generate complete response from conversation messages."""
-        # Use proper structured messages instead of flattening
-        response = await client.aio.models.generate_content(model=self.llm_model, contents=messages)
-
-        response_text = response.text
-        return Ok(response_text)
+        try:
+            # Use proper structured messages instead of flattening
+            response = await client.aio.models.generate_content(
+                model=self.llm_model, contents=messages
+            )
+            response_text = response.text
+            return Ok(response_text)
+        except ImportError:
+            return Err("Please install google-genai: pip install google-genai")
+        except Exception as e:
+            return Err(f"Gemini Generate Error: {str(e)}")
 
     async def connect(self, messages: list[dict]):
         """Create bidirectional Gemini Live WebSocket session with rotation support."""
@@ -117,7 +122,14 @@ class Gemini(LLM):
                 # Send initial conversation history
                 await self._send_initial_messages(session, user_messages, types)
 
-                return WebSocketSession(session=session, connection=connection, types=types)
+                # Return simple session container
+                class Session:
+                    def __init__(self, session, connection, types):
+                        self.session = session
+                        self.connection = connection
+                        self.types = types
+
+                return Session(session, connection, types)
 
             except Exception as e:
                 # Let with_rotation handle connection failures
@@ -141,6 +153,7 @@ class Gemini(LLM):
             logger.warning(f"Gemini WebSocket send failed: {e}")
             return False
 
+    @interruptible
     async def receive(self, session):
         """Receive streaming tokens from Gemini Live session until turn completion."""
         import time
@@ -148,48 +161,42 @@ class Gemini(LLM):
         if not session:
             return
 
-        try:
-            start_time = time.time()
-            message_count = 0
-            async for message in session.session.receive():
-                message_count += 1
-                logger.debug(
-                    f"Gemini message {message_count}: {type(message).__name__} - {repr(message)[:200]}"
-                )
+        start_time = time.time()
+        message_count = 0
+        async for message in session.session.receive():
+            message_count += 1
+            logger.debug(
+                f"Gemini message {message_count}: {type(message).__name__} - {repr(message)[:200]}"
+            )
 
-                # Check timeout manually
-                if time.time() - start_time > 15:
-                    logger.warning("Gemini WebSocket receive timeout after 15s")
-                    break
+            # Check timeout manually
+            if time.time() - start_time > 15:
+                logger.warning("Gemini WebSocket receive timeout after 15s")
+                break
 
-                # Handle text content
-                server_content = getattr(message, "server_content", None)
-                if (
-                    server_content
-                    and hasattr(server_content, "model_turn")
-                    and server_content.model_turn
-                ):
-                    model_turn = server_content.model_turn
-                    if hasattr(model_turn, "parts") and model_turn.parts:
-                        for part in model_turn.parts:
-                            if hasattr(part, "text") and part.text:
-                                yield part.text
+            # Handle text content
+            server_content = getattr(message, "server_content", None)
+            if (
+                server_content
+                and hasattr(server_content, "model_turn")
+                and server_content.model_turn
+            ):
+                model_turn = server_content.model_turn
+                if hasattr(model_turn, "parts") and model_turn.parts:
+                    for part in model_turn.parts:
+                        if hasattr(part, "text") and part.text:
+                            yield part.text
 
-                # Handle completion signals
-                if server_content and (
-                    getattr(server_content, "turn_complete", False)
-                    or getattr(server_content, "generation_complete", False)
-                ):
-                    from ...core.protocols import Event
+            # Handle completion signals - emit EXECUTE and break
+            if server_content and (
+                getattr(server_content, "turn_complete", False)
+                or getattr(server_content, "generation_complete", False)
+            ):
+                logger.debug("Gemini turn complete")
+                yield "§EXECUTE"  # Protocol boundary for tool execution
+                break  # Use break, not return - keeps connection alive
 
-                    logger.debug("Gemini turn complete")
-                    yield Event.YIELD.delimiter
-                    break  # Use break, not return - keeps connection alive
-
-            logger.debug(f"Gemini receive loop ended, processed {message_count} messages")
-        except Exception as e:
-            logger.warning(f"Gemini WebSocket receive failed: {e}")
-            return
+        logger.debug(f"Gemini receive loop ended, processed {message_count} messages")
 
     async def close(self, session) -> bool:
         """Close Gemini Live session with timeout protection."""
@@ -215,7 +222,7 @@ class Gemini(LLM):
             return False
 
     @rotate
-    @handle_stream_errors("Gemini", "google-genai")
+    @interruptible
     async def stream(self, client, messages: list[dict]):
         """Generate streaming tokens from conversation messages."""
         prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])

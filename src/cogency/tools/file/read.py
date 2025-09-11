@@ -5,7 +5,6 @@ from pathlib import Path
 from ...core.protocols import Tool, ToolResult
 from ...core.result import Err, Ok, Result
 from ..security import resolve_path_safely
-from .utils import categorize_file, format_size
 
 
 class FileRead(Tool):
@@ -36,7 +35,9 @@ class FileRead(Tool):
         try:
             if sandbox:
                 # Sandboxed execution
-                sandbox_dir = Path(".sandbox")
+                from ...lib.storage import Paths
+
+                sandbox_dir = Paths.sandbox()
                 file_path = resolve_path_safely(file, sandbox_dir)
             else:
                 # Direct filesystem access with traversal protection
@@ -57,9 +58,7 @@ class FileRead(Tool):
 
         except FileNotFoundError:
             location = "sandbox" if sandbox else "filesystem"
-            return Err(
-                f"File not found: {file} (searched in {location})\n* Use 'list' to see available files"
-            )
+            return Err(f"File not found: {file} (searched in {location})")
         except UnicodeDecodeError:
             return Err(f"File '{file}' contains binary data - cannot display as text")
         except ValueError as e:
@@ -79,28 +78,3 @@ class FileRead(Tool):
                 result_lines.append(line.rstrip("\n"))
 
         return "\n".join(result_lines)
-
-    def _format_content(self, filename: str, content: str, file_path: Path) -> str:
-        """Format file content with intelligent context."""
-        if not content:
-            return f"📄 {filename} (empty file)"
-
-        stat = file_path.stat()
-        size = format_size(stat.st_size)
-        line_count = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
-
-        # Categorize file
-        category = categorize_file(file_path)
-
-        header = f"📄 {filename} ({size}, {line_count} lines) [{category}]"
-
-        if category == "code":
-            ext = file_path.suffix.lower()
-            if ext in [".py", ".js", ".ts", ".go", ".rs"]:
-                header += f" {ext[1:].upper()}"
-
-        if len(content) > 5000:
-            preview = content[:5000]
-            return f"{header}\n\n{preview}\n\n[File truncated at 5,000 characters. Full size: {len(content):,} chars]\n* File is large - consider using 'shell' with 'head' or 'tail' for specific sections"
-
-        return f"{header}\n\n{content}"

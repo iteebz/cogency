@@ -1,5 +1,6 @@
 """Stream orchestration with mode selection and persistence."""
 
+import asyncio
 import time
 
 from . import replay, resume
@@ -15,27 +16,36 @@ async def stream(
     """
     # Record initial user message
     user_event = {"type": Event.USER, "content": query, "timestamp": time.time()}
-    events = [user_event]
+    events = []  # Don't include user event in final callback
 
-    # Record user message immediately with resilience
+    # Record user message immediately
     if on_complete:
-        from ..lib.resilience import resilient_save
-
-        resilient_save(conversation_id, user_id, Event.USER, query, user_event["timestamp"])
+        on_complete(conversation_id, user_id, [user_event])
 
     try:
         # Transport selection: WebSocket streaming → HTTP fallback → error
         mode = Mode(config.mode)
 
+        # Mode selection with auto-fallback
         if mode == Mode.RESUME:
             mode_func = resume.stream
-        elif mode == Mode.AUTO:
-            # Auto: resume when available, replay fallback
-            has_resumable = hasattr(config.llm, "resumable")
-            resumable_value = getattr(config.llm, "resumable", None) if has_resumable else None
+        elif mode == Mode.AUTO and getattr(config.llm, "resumable", False):
+            # Try resume with fallback - buffer events to avoid duplication
+            try:
+                resume_events = []
+                async for event in resume.stream(config, query, user_id, conversation_id):
+                    resume_events.append(event)
+                # Resume succeeded - yield all buffered events
+                for event in resume_events:
+                    yield event
+                return
+            except Exception as e:
+                from ..lib.logger import logger
 
-            mode_func = resume.stream if has_resumable and resumable_value else replay.stream
-        else:  # Mode.REPLAY
+                logger.info(f"Resume mode failed, falling back to replay: {str(e)}")
+                # Resume failed - discard buffered events, use replay
+                mode_func = replay.stream
+        else:
             mode_func = replay.stream
 
         # Execute with immediate DB writes handled by parser
@@ -44,9 +54,12 @@ async def stream(
             yield event
 
             # Track events for final callback
-            if event["type"] == Event.RESULTS:
+            if event["type"] in (Event.RESULTS, Event.RESPOND):
                 events.append(event)
 
+    except asyncio.CancelledError:
+        # Re-raise cancellation after cleanup
+        raise
     finally:
         # Final callback for remaining coordination
         if on_complete:

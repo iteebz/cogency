@@ -11,14 +11,33 @@ def get_cogency_dir(base_dir: str = None) -> Path:
     if base_dir:
         cogency_dir = Path(base_dir)
     else:
-        cogency_dir = Path.home() / ".cogency"
+        cogency_dir = Path(".cogency")  # Local to current directory
     cogency_dir.mkdir(exist_ok=True)
     return cogency_dir
 
 
-def get_db_path(base_dir: str = None) -> Path:
-    """Get SQLite database path."""
-    return get_cogency_dir(base_dir) / "store.db"
+class Paths:
+    """Clean path management for cogency directories."""
+
+    @staticmethod
+    def db(subpath: str = None, base_dir: str = None) -> Path:
+        """Get database path with optional subpath."""
+        base = get_cogency_dir(base_dir) / "store.db"
+        return base / subpath if subpath else base
+
+    @staticmethod
+    def sandbox(subpath: str = None, base_dir: str = None) -> Path:
+        """Get sandbox path with optional subpath."""
+        base = get_cogency_dir(base_dir) / "sandbox"
+        base.mkdir(exist_ok=True)
+        return base / subpath if subpath else base
+
+    @staticmethod
+    def evals(subpath: str = None, base_dir: str = None) -> Path:
+        """Get evaluations path with optional subpath."""
+        base = get_cogency_dir(base_dir) / "evals"
+        base.mkdir(exist_ok=True)
+        return base / subpath if subpath else base
 
 
 class DB:
@@ -29,7 +48,7 @@ class DB:
     @classmethod
     def connect(cls, base_dir: str = None):
         """Get database connection with automatic initialization."""
-        db_path = get_db_path(base_dir)
+        db_path = Paths.db(base_dir=base_dir)
 
         if str(db_path) not in cls._initialized_paths:
             cls._init_schema(db_path)
@@ -162,38 +181,51 @@ def save_profile(user_id: str, profile: dict, base_dir: str = None) -> bool:
         return False
 
 
-# Storage implementation
-
-
 class SQLite:
-    """SQLite storage implementation."""
+    """Storage facade - direct function delegation."""
 
     def __init__(self, base_dir: str = None):
         self.base_dir = base_dir
 
-    async def save_message(
+    def save_message(
         self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
     ) -> bool:
-        """Save single message to conversation."""
         return save_message(conversation_id, user_id, type, content, self.base_dir, timestamp)
 
-    async def load_messages(
+    def load_messages(
         self, conversation_id: str, include: list[str] = None, exclude: list[str] = None
     ) -> list[dict]:
-        """Load conversation messages with optional type filtering."""
         return load_messages(conversation_id, self.base_dir, include, exclude)
 
-    async def save_profile(self, user_id: str, profile: dict) -> bool:
-        """Save user profile (with embedded metadata)."""
+    def save_profile(self, user_id: str, profile: dict) -> bool:
         return save_profile(user_id, profile, self.base_dir)
 
-    async def load_profile(self, user_id: str) -> dict:
-        """Load latest user profile."""
+    def load_profile(self, user_id: str) -> dict:
         return load_profile(user_id, self.base_dir)
 
+    def record_message(self, conversation_id: str, user_id: str, events: list) -> bool:
+        """Record batch of events using agent's configured storage."""
+        import json
 
-# Default storage instance
-default_storage = SQLite()
+        from ..core.protocols import Event
+
+        for event in events:
+            timestamp = event.get("timestamp")
+            content = event.get("content", "")
+            event_type = event["type"]
+
+            # Serialize complex event content (same logic as context.record)
+            if event_type == Event.CALLS:
+                content = json.dumps(event["calls"])
+            elif event_type == Event.RESULTS:
+                content = json.dumps(event["results"])
+
+            # Convert enum to string for storage
+            type_str = event_type.value if hasattr(event_type, "value") else event_type
+
+            if not self.save_message(conversation_id, user_id, type_str, content, timestamp):
+                return False
+        return True
 
 
 def clear_messages(conversation_id: str, base_dir: str = None) -> bool:

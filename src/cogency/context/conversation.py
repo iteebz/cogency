@@ -1,5 +1,7 @@
 """Conversation history construction for context assembly."""
 
+import json
+
 from ..core.protocols import Event
 from ..lib.storage import load_messages
 from .constants import DEFAULT_CONVERSATION_ID, HISTORY_LIMIT
@@ -21,22 +23,7 @@ def history(conversation_id: str) -> str:
     if not all_messages:
         return ""
 
-    past_messages = _past_messages(all_messages)
-    if not past_messages:
-        return ""
-
-    # Filter out 'think' messages BEFORE applying history limit
-    conversational_messages = [msg for msg in past_messages if msg["type"] != Event.THINK]
-    if not conversational_messages:
-        return ""
-
-    # Take last N conversational messages (user/assistant/tools only)
-    history_messages = conversational_messages[-HISTORY_LIMIT:]
-    return _format_messages(history_messages)
-
-
-def _past_messages(all_messages):
-    """Get messages before current cycle boundary."""
+    # Find last user message to get cycle boundary
     last_user_idx = None
     for i in range(len(all_messages) - 1, -1, -1):
         if all_messages[i]["type"] == Event.USER:
@@ -44,17 +31,19 @@ def _past_messages(all_messages):
             break
 
     if last_user_idx is None or last_user_idx == 0:
-        return []  # No history or only current message
+        return ""  # No history or only current message
 
-    return all_messages[:last_user_idx]  # Everything before current cycle
+    # Get past messages (before current cycle) and filter out 'think'
+    past_messages = all_messages[:last_user_idx]
+    conversational_messages = [msg for msg in past_messages if msg["type"] != Event.THINK]
+    if not conversational_messages:
+        return ""
 
+    # Take last N conversational messages (user/assistant/tools only)
+    history_messages = conversational_messages[-HISTORY_LIMIT:]
 
-def _format_messages(history_messages):
-    """Pair calls with results for history display."""
-    import json
-
+    # Format messages with call/result pairing
     formatted = []
-
     i = 0
     while i < len(history_messages):
         msg = history_messages[i]
@@ -110,20 +99,7 @@ def current_cycle_messages(conversation_id: str) -> list[dict]:
     if not all_messages:
         return []
 
-    # Find current cycle messages (after last user message)
-    current_cycle = _current_cycle_messages(all_messages)
-    if not current_cycle:
-        return []
-
-    # Show natural conversation context, not synthetic delimiters
-    if current_cycle:
-        natural_history = format(current_cycle)
-        return [{"role": "assistant", "content": f"Previous cycle:\n{natural_history}"}]
-    return []
-
-
-def _current_cycle_messages(all_messages):
-    """Get messages after current cycle boundary."""
+    # Find last user message to get current cycle boundary
     last_user_idx = None
     for i in range(len(all_messages) - 1, -1, -1):
         if all_messages[i]["type"] == Event.USER:
@@ -133,36 +109,33 @@ def _current_cycle_messages(all_messages):
     if last_user_idx is None or last_user_idx == len(all_messages) - 1:
         return []  # No current cycle or user message is last
 
-    return all_messages[last_user_idx + 1 :]  # Everything after last user message
-
-
-def format(current_cycle):
-    """Format semantic events into readable conversation flow."""
+    # Get current cycle messages (after last user message)
+    current_cycle = all_messages[last_user_idx + 1 :]
     if not current_cycle:
-        return ""
+        return []
 
+    # Format current cycle into natural conversation
     lines = []
     for record in current_cycle:
         msg_type = record["type"]
         content = record["content"]
 
-        match msg_type:
-            case Event.THINK:
-                lines.append(f"Thinking: {content}")
-            case Event.CALLS:
-                # Parse tools for natural description
-                import json
+        if msg_type == Event.THINK:
+            lines.append(f"Thinking: {content}")
+        elif msg_type == Event.CALLS:
+            try:
+                tools = json.loads(content) if content else []
+                if tools:
+                    tool_names = [tool.get("name", "unknown") for tool in tools]
+                    lines.append(f"Used tools: {', '.join(tool_names)}")
+            except json.JSONDecodeError:
+                lines.append(f"Used tools: {content}")
+        elif msg_type == Event.RESULTS:
+            lines.append(f"Observed: {content}")
+        elif msg_type == Event.RESPOND:
+            lines.append(f"Responded: {content}")
 
-                try:
-                    tools = json.loads(content) if content else []
-                    if tools:
-                        tool_names = [tool.get("name", "unknown") for tool in tools]
-                        lines.append(f"Used tools: {', '.join(tool_names)}")
-                except json.JSONDecodeError:
-                    lines.append(f"Used tools: {content}")
-            case Event.RESULTS:
-                lines.append(f"Observed: {content}")
-            case Event.RESPOND:
-                lines.append(f"Responded: {content}")
-
-    return "\n".join(lines)
+    natural_history = "\n".join(lines)
+    if natural_history:
+        return [{"role": "assistant", "content": f"Previous cycle:\n{natural_history}"}]
+    return []

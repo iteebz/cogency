@@ -7,6 +7,7 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
+from ..lib.resilience import safe_callback
 from .protocols import DELIMITER, Event
 from .result import Err, Ok, Result
 
@@ -24,57 +25,13 @@ def _parse_json(content: str) -> Result[dict]:
         return Err(str(e))
 
 
-def _save_if_needed(event: dict, on_complete) -> None:
-    """Save event via callback if provided."""
-    if on_complete:
-        from ..lib.resilience import safe_callback
-
-        safe_callback(on_complete, event)
-
-
-def _make_event(event_type, content: str, timestamp: float = None) -> dict:
-    """Create standard event dict."""
-    return {
-        "type": event_type.value,
-        "content": content.strip() if content else "",
-        "timestamp": timestamp or time.time(),
-    }
-
-
 def _build_pattern():
     """Build regex pattern from Event enum."""
     events = "|".join(
-        event.upper() for event in [Event.THINK, Event.CALLS, Event.RESPOND, Event.YIELD, Event.END]
+        event.upper()
+        for event in [Event.THINK, Event.CALLS, Event.RESPOND, Event.EXECUTE, Event.END]
     )
-    return re.compile(rf"{DELIMITER}({events})(?:\s|$)")
-
-
-def _accumulate_content(buffer: str, content: str, timestamp: float):
-    """Accumulate content with timestamp tracking."""
-    timestamp = timestamp or time.time()
-    return content + buffer, timestamp
-
-
-def _emit_yield_event(context_state: Event):
-    """Emit context-aware YIELD event."""
-    if context_state == Event.CALLS:
-        context = "execute"  # Yield after calls = execute tools
-    elif context_state == Event.RESPOND:
-        context = "complete"  # Yield after respond = complete conversation
-    else:
-        context = "unknown"  # Default yield
-
-    return _make_event(Event.YIELD, context)
-
-
-def _handle_partial_delimiter(buffer: str, content: str, timestamp: float):
-    """Handle incomplete delimiter in buffer - extract content before delimiter."""
-    pos = buffer.find(DELIMITER)
-    if pos != -1:
-        content, timestamp = _accumulate_content(buffer[:pos], content, timestamp)
-        return content, timestamp, buffer[pos:]
-    content, timestamp = _accumulate_content(buffer, content, timestamp)
-    return content, timestamp, ""
+    return re.compile(rf"{DELIMITER}({events})(?::?\s|:?$)")
 
 
 def _process_complete_delimiter(match, buffer: str):
@@ -96,7 +53,7 @@ def _has_potential_delimiter_start(buffer: str) -> bool:
         return True
 
     # Check if buffer ends with partial delimiter keywords
-    delimiter_keywords = ["THINK", "CALLS", "RESPOND", "YIELD", "END"]
+    delimiter_keywords = ["THINK", "CALLS", "RESPOND", "EXECUTE", "END"]
     for keyword in delimiter_keywords:
         for i in range(1, len(keyword)):
             partial = "§" + keyword[:i]
@@ -111,7 +68,7 @@ async def parse_stream(
 ) -> AsyncGenerator[dict[str, Any], None]:
     """Parse token stream into semantic events with real-time streaming."""
     buffer = ""
-    state = Event.THINK
+    state = Event.RESPOND
     timestamp = None
 
     pattern = _build_pattern()
@@ -121,29 +78,20 @@ async def parse_stream(
         if not isinstance(token, str):
             raise RuntimeError(f"Parser expects string tokens, got {type(token)}")
 
-        logger.debug(f"Parser token: {token[:50]}...")
+        # Parser handles semantic events only - no token streaming here
+
+        # Standard parser - no token-level streaming
+
         buffer += token
-        logger.debug(f"Parser buffer: {buffer[:100]}...")
 
         # Process all complete delimiters in buffer (preserve original logic)
         while True:
             match = pattern.search(buffer)
-            if match:
-                logger.debug(f"Parser delimiter match: {match.group(1)}")
-            else:
-                logger.debug("Parser no delimiter match")
             if not match:
-                # No complete delimiter - emit or accumulate based on state
+                # No complete delimiter - only accumulate for CALLS
                 if state == Event.CALLS:
-                    # CALLS: keep accumulating for JSON parsing (don't emit)
                     pass
-                else:
-                    # THINK/RESPOND: stream tokens immediately (pure real-time)
-                    if not _has_potential_delimiter_start(buffer):
-                        if buffer.strip():
-                            event = _make_event(state, buffer, timestamp or time.time())
-                            yield event
-                        buffer = ""
+                # For THINK/RESPOND, tokens already streamed above
                 break
 
             # Found complete delimiter - extract components
@@ -155,24 +103,39 @@ async def parse_stream(
                     # Parse accumulated CALLS content as JSON
                     result = _parse_json(before)
                     if result.success:
-                        event = _make_event(Event.CALLS, before, timestamp or time.time())
-                        event["calls"] = result.unwrap()
+                        event = {
+                            "type": Event.CALLS.value,
+                            "content": before.strip(),
+                            "timestamp": timestamp or time.time(),
+                            "calls": result.unwrap(),
+                        }
                         yield event
-                        _save_if_needed(event, on_complete)
+                        if on_complete:
+                            safe_callback(on_complete, event)
                     else:
                         yield {"type": "error", "content": f"Invalid JSON: {result.error}"}
                 else:
-                    # THINK/RESPOND: stream immediately
-                    event = _make_event(state, before, timestamp or time.time())
-                    yield event
+                    # THINK/RESPOND: stream immediately, clean delimiter artifacts
+                    content = before.strip()
+                    if content.startswith(":"):
+                        content = content[1:].strip()
+                    yield {
+                        "type": state.value,
+                        "content": content,
+                        "timestamp": timestamp or time.time(),
+                    }
 
-            # Handle context-aware YIELD delimiter
-            if delimiter == Event.YIELD:
-                yield _emit_yield_event(state)
+            # Handle EXECUTE delimiter
+            if delimiter == Event.EXECUTE:
+                yield {"type": Event.EXECUTE.value, "content": "", "timestamp": time.time()}
 
             # Handle END delimiter - emit and terminate
             elif delimiter == Event.END:
-                yield _make_event(Event.END, "", timestamp or time.time())
+                yield {
+                    "type": Event.END.value,
+                    "content": "",
+                    "timestamp": timestamp or time.time(),
+                }
 
             # Transition to new state
             state = delimiter
@@ -183,15 +146,29 @@ async def parse_stream(
         if state == Event.CALLS:
             # Parse final CALLS JSON
             result = _parse_json(buffer)
-            event = _make_event(Event.CALLS, buffer, timestamp or time.time())
+            event = {
+                "type": Event.CALLS.value,
+                "content": buffer.strip(),
+                "timestamp": timestamp or time.time(),
+            }
             if result.success:
                 event["calls"] = result.unwrap()
             yield event
-            _save_if_needed(event, on_complete)
+            if on_complete:
+                safe_callback(on_complete, event)
+        elif state is not None:
+            yield {
+                "type": state.value,
+                "content": buffer.strip(),
+                "timestamp": timestamp or time.time(),
+            }
         else:
-            # Stream final THINK/RESPOND content
-            event = _make_event(state, buffer, timestamp or time.time())
-            yield event
+            yield {
+                "type": Event.RESPOND.value,
+                "content": buffer.strip(),
+                "timestamp": timestamp or time.time(),
+            }
+
 
 
 async def collect_events(stream, on_complete=None) -> list[dict[str, Any]]:

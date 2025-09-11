@@ -7,9 +7,6 @@ from ...core.result import Err, Ok, Result
 class WebSearch(Tool):
     """Clean web search with intelligent output formatting."""
 
-    def __init__(self):
-        pass
-
     @property
     def name(self) -> str:
         return "search"

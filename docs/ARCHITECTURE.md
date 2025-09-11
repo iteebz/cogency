@@ -7,7 +7,7 @@
 **Traditional:** Full context replay every tool call
 ```python
 agent.run() → [Messages 1-50] → Tool → [Messages 1-51] → Tool
-# Token cost: Linear growth with conversation length
+# Token cost: Quadratic growth with conversation length
 ```
 
 **Cogency:** Bidirectional stream maintains context  

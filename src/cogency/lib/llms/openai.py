@@ -1,10 +1,10 @@
 """OpenAI provider - LLM protocol implementation."""
 
 from ...core.protocols import LLM
-from ...core.result import Ok, Result
+from ...core.result import Err, Ok, Result
 from ..logger import logger
 from ..rotation import rotate
-from .error_handling import handle_generate_errors, handle_stream_errors
+from .interrupt import interruptible
 
 
 class OpenAI(LLM):
@@ -14,7 +14,7 @@ class OpenAI(LLM):
         self,
         api_key: str = None,
         llm_model: str = "gpt-4o-mini",
-        stream_model: str = "gpt-4o-mini-realtime-preview",
+        stream_model: str = "gpt-4o-mini-realtime-preview",  # Note: Full gpt-4o-realtime-preview supports delimiters better
         temperature: float = 1.0,
         max_tokens: int = 500,
     ):
@@ -44,51 +44,61 @@ class OpenAI(LLM):
         return openai.AsyncOpenAI(api_key=api_key)
 
     @rotate
-    @handle_generate_errors("OpenAI", "openai")
     async def generate(self, client, messages: list[dict]) -> Result[str]:
         """Generate complete response from conversation messages."""
-        response = await client.chat.completions.create(
-            model=self.llm_model,
-            messages=messages,
-            max_completion_tokens=self.max_tokens,
-            temperature=self.temperature,
-            stream=False,
-        )
-
-        return Ok(response.choices[0].message.content)
+        try:
+            response = await client.chat.completions.create(
+                model=self.llm_model,
+                messages=messages,
+                max_completion_tokens=self.max_tokens,
+                temperature=self.temperature,
+                stream=False,
+            )
+            return Ok(response.choices[0].message.content)
+        except ImportError:
+            return Err("Please install openai: pip install openai")
+        except Exception as e:
+            return Err(f"OpenAI Generate Error: {str(e)}")
 
     async def connect(self, messages: list[dict]):
         """Create bidirectional OpenAI Realtime session via SDK WebSocket."""
-        return await self._do_connect(messages)
-
-    async def _do_connect(self, messages: list[dict]):
-        """Internal connection logic with timeout protection."""
         try:
             import openai
 
             client = openai.AsyncOpenAI(api_key=self.api_key)
             connection = await client.beta.realtime.connect(model=self.stream_model).__aenter__()
 
-            # Configure for text responses
+            # Configure for text responses with proper system instructions
+            system_content = ""
+            user_messages = []
+            
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_content += msg["content"] + "\n"
+                else:
+                    user_messages.append(msg)
+            
             await connection.session.update(
                 session={
                     "modalities": ["text"],
                     "temperature": self.temperature,
                     "max_response_output_tokens": 2000,
-                    "instructions": messages[0]["content"] if messages else "",
+                    "instructions": system_content.strip(),
                 }
             )
 
-            # Send initial conversation
-            content = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages[1:]])
-            if content:
+            # Send each user message properly and trigger response generation
+            for msg in user_messages:
                 await connection.conversation.item.create(
                     item={
                         "type": "message",
-                        "role": "user",
-                        "content": [{"type": "input_text", "text": content}],
+                        "role": msg["role"],
+                        "content": [{"type": "input_text", "text": msg["content"]}],
                     }
                 )
+            
+            # CRITICAL: Trigger response generation for resume mode compatibility
+            if user_messages:
                 await connection.response.create()
 
             return connection
@@ -116,6 +126,7 @@ class OpenAI(LLM):
             logger.warning(f"OpenAI WebSocket send failed: {e}")
             return False
 
+    @interruptible
     async def receive(self, session):
         """Receive streaming tokens from OpenAI Realtime session until turn completion."""
         import time
@@ -123,23 +134,17 @@ class OpenAI(LLM):
         if not session:
             return
 
-        try:
-            start_time = time.time()
-            async for event in session:
-                # Check timeout manually
-                if time.time() - start_time > 15:
-                    logger.warning("OpenAI WebSocket receive timeout after 15s")
-                    break
-                if event.type == "response.text.delta" and event.delta:
-                    yield event.delta
-                elif event.type == "response.done" or event.type == "error":
-                    from ...core.protocols import Event
-
-                    yield Event.YIELD.delimiter
-                    break  # Use break, not return - keeps connection alive
-        except Exception as e:
-            logger.warning(f"OpenAI WebSocket receive failed: {e}")
-            return
+        start_time = time.time()
+        async for event in session:
+            # Check timeout manually
+            if time.time() - start_time > 15:
+                logger.warning("OpenAI WebSocket receive timeout after 15s")
+                break
+            if event.type == "response.text.delta" and event.delta:
+                yield event.delta
+            elif event.type == "response.done" or event.type == "error":
+                yield "§EXECUTE"  # Protocol boundary for tool execution
+                break  # Use break, not return - keeps connection alive
 
     async def close(self, session) -> bool:
         """Close OpenAI Realtime session with timeout protection."""
@@ -159,7 +164,7 @@ class OpenAI(LLM):
             return False
 
     @rotate
-    @handle_stream_errors("OpenAI", "openai")
+    @interruptible
     async def stream(self, client, messages: list[dict]):
         """Generate streaming tokens from conversation messages."""
         response = await client.chat.completions.create(
@@ -172,4 +177,10 @@ class OpenAI(LLM):
 
         async for chunk in response:
             if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+                content = chunk.choices[0].delta.content
+                # Character-level streaming for maximum responsiveness
+                for char in content:
+                    yield char
+        
+        # Stream complete - emit EXECUTE for tool execution
+        yield "§EXECUTE"

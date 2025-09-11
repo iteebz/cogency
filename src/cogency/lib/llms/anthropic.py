@@ -7,9 +7,10 @@ for WebSocket when Anthropic adds support.
 
 from collections.abc import AsyncGenerator
 
-from ...core.protocols import LLM, Event
+from ...core.protocols import LLM
 from ...core.result import Err, Ok, Result
 from ..rotation import rotate
+from .interrupt import interruptible
 
 
 class Anthropic(LLM):
@@ -72,16 +73,18 @@ class Anthropic(LLM):
         except Exception as e:
             return Err(f"Anthropic Connection Error: {str(e)}")
 
-    async def stream(self, connection) -> AsyncGenerator[str, None]:
-        """DATA LAYER: Pure token streaming with exceptions on failure."""
+    @rotate
+    @interruptible
+    async def stream(self, client, messages: list[dict]) -> AsyncGenerator[str, None]:
+        """Generate streaming tokens from conversation messages."""
         try:
-            async with connection as stream:
+            async with client.messages.stream(
+                model=self.llm_model,
+                messages=messages,
+                max_tokens=self.max_tokens,
+                temperature=self.temperature,
+            ) as stream:
                 async for text in stream.text_stream:
-                    yield text  # Pure string token
-
-                # HTTP stream ended - inject YIELD to trigger tool execution
-                yield Event.YIELD.delimiter
-
+                    yield text
         except Exception as e:
-            # Exceptions terminate the stream cleanly
-            raise RuntimeError(f"Anthropic Stream Error: {str(e)}") from None
+            raise RuntimeError(f"Anthropic streaming error: {str(e)}") from e
