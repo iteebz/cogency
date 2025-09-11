@@ -8,7 +8,7 @@ from .protocols import Event, Mode
 
 
 async def stream(
-    config, query: str, user_id: str, conversation_id: str, on_complete=None, on_learn=None
+    config, query: str, user_id: str, conversation_id: str, chunks: bool = False, on_complete=None, on_learn=None
 ):
     """Stream orchestration with immediate persistence and learning callbacks.
 

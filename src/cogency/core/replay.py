@@ -15,8 +15,8 @@ import json
 
 from ..context import context
 from ..lib.persist import persister
-from .execute import execute
-from .parser import parse_stream
+from .executor import execute
+from .parser import parse_tokens
 from .protocols import Event
 
 
@@ -62,8 +62,8 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
 
             # HTTP STREAMING: Direct stream call, pure tokens
             try:
-                async for event in parse_stream(
-                    config.llm.stream(messages), on_complete=persist_event
+                async for event in parse_tokens(
+                    config.llm.stream(messages)
                 ):
                     match event["type"]:
                         case Event.CALLS:

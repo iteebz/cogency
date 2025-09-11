@@ -218,8 +218,19 @@ class SystemShell(Tool):
             if stderr:
                 content_parts.append(f"Warnings:\n{stderr}")
 
-            content = "\n".join(content_parts) if content_parts else None
-            return Ok(ToolResult(outcome, content))
+            content = "\n".join(content_parts) if content_parts else ""
+            
+            return Ok(ToolResult(
+                display=f"ran {cmd_name}: exit {result.returncode}",
+                raw_data={
+                    "command": command,
+                    "exit_code": result.returncode,
+                    "stdout": result.stdout,
+                    "stderr": result.stderr,
+                    "execution_time": execution_time,
+                    "working_directory": str(sandbox_path)
+                }
+            ))
 
         # Failure formatting with helpful suggestions
         error_output = result.stderr.strip() or "Command failed"

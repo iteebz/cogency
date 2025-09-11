@@ -50,8 +50,16 @@ class WebScrape(Tool):
 
             content_formatted = self._format_content(extracted)
             size_kb = len(content_formatted) / 1024
-            outcome = f"Content scraped from {domain} ({size_kb:.1f}KB)"
-            return Ok(ToolResult(outcome, content_formatted))
+            
+            return Ok(ToolResult(
+                display=f"scraped {domain}: {size_kb:.1f}KB",
+                raw_data={
+                    "domain": domain,
+                    "url": url,
+                    "content": content_formatted,
+                    "size_bytes": len(content_formatted)
+                }
+            ))
 
         except Exception as e:
             return Err(f"Scraping failed: {str(e)}")

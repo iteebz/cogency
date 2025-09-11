@@ -13,7 +13,7 @@ from ..lib.storage import SQLite
 from ..tools import TOOLS
 from .config import Config
 from .protocols import LLM, Event, Mode, Storage
-from .stream import stream
+from .orchestrator import stream
 
 
 class Agent:
@@ -79,9 +79,16 @@ class Agent:
         raise ValueError(f"Unknown LLM '{llm}'. Valid options: {', '.join(valid)}")
 
     async def __call__(
-        self, query: str, user_id: str = "default", conversation_id: str | None = None
+        self, query: str, user_id: str = "default", conversation_id: str | None = None, chunks: bool = False
     ):
-        """Stream events for query - pure streaming protocol."""
+        """Stream events for query.
+        
+        Args:
+            query: User query
+            user_id: User identifier  
+            conversation_id: Conversation identifier
+            chunks: If True, stream individual tokens. If False, stream semantic events.
+        """
         conversation_id = conversation_id or f"{user_id}_session"
 
         try:
@@ -98,6 +105,7 @@ class Agent:
                 query,
                 user_id,
                 conversation_id,
+                chunks=chunks,
                 on_complete=record_to_storage,
                 on_learn=context.learn,
             ):

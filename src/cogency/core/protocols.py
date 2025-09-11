@@ -14,10 +14,10 @@ DELIMITER = "§"
 
 @dataclass
 class ToolResult:
-    """Tool execution result - natural language outcome + optional content."""
+    """Tool execution result - zealot-grade simplicity."""
 
-    outcome: str  # Natural language completion: "File written to poison.txt"
-    content: str | None = None  # Optional detailed data: file contents, search results, etc.
+    outcome: str                    # Natural language completion: "Found 12 search results"
+    content: str | None = None      # Optional detailed data for LLM context
 
     def for_agent(self) -> str:
         """Format for agent consumption - outcome + content."""
@@ -34,12 +34,13 @@ class Event(str, Enum):
     """Events - type-safe strings, no ceremony."""
 
     THINK = "think"
-    CALLS = "calls"
-    RESULTS = "results"
+    CALL = "call"        # Single tool call
+    RESULT = "result"    # Single tool result
     RESPOND = "respond"
     USER = "user"
     EXECUTE = "execute"  # Execute tools signal - pause stream for tool execution
-    END = "end"  # Actual session termination
+    TOOL = "tool"        # Single tool execution with formatted display
+    END = "end"          # Actual session termination
 
     @property
     def delimiter(self) -> str:

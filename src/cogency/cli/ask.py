@@ -144,7 +144,7 @@ async def main():
         async def observed_stream():
             try:
                 async for event in agent(
-                    args.question, user_id=args.user, conversation_id=conversation_id
+                    args.question, user_id=args.user, conversation_id=conversation_id, chunks=False
                 ):
                     yield event
             except asyncio.CancelledError:
