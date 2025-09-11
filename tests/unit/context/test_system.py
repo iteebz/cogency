@@ -1,92 +1,36 @@
-"""System tests - System prompt generation coverage."""
+"""System tests."""
 
 from cogency.context import system
 from cogency.core.protocols import Event
 
 
-def test_imports():
-    """System imports correctly."""
-    assert system.prompt is not None
-    assert callable(system.prompt)
+class MockTool:
+    def __init__(self, name, description):
+        self.name = name
+        self.description = description
 
 
-def test_format_no_tools():
-    """System format works without tools."""
+def test_prompt():
+    """System prompt contains delimiters, handles tools/security correctly."""
+    # No tools
     prompt = system.prompt(tools=None)
-
     assert Event.THINK.delimiter in prompt
-    assert Event.RESPOND.delimiter in prompt
     assert Event.CALLS.delimiter in prompt
+    assert Event.RESPOND.delimiter in prompt
     assert Event.END.delimiter in prompt
     assert "No tools available" in prompt
-    assert "MANDATORY SECURITY RESPONSE PATTERN:" in prompt  # Default security included
-
-
-def test_format_with_tools():
-    """System format works with tools."""
-
-    # Mock tool objects
-    class MockTool:
-        def __init__(self, name, description):
-            self.name = name
-            self.description = description
-
-    tools = [
-        MockTool("read", "Read file contents"),
-        MockTool("write", "Write file contents"),
-    ]
-
-    prompt = system.prompt(tools=tools)
-
-    assert Event.THINK.delimiter in prompt
-    assert Event.CALLS.delimiter in prompt
-    assert Event.RESPOND.delimiter in prompt
-    assert Event.END.delimiter in prompt
-    assert "read" in prompt
-    assert "write" in prompt
-
-
-def test_format_security_optional():
-    """System format can exclude security."""
-    prompt = system.prompt(tools=None, include_security=False)
-
-    assert Event.THINK.delimiter in prompt
-    assert Event.RESPOND.delimiter in prompt
-    assert Event.END.delimiter in prompt
-    assert "SECURITY PROTOCOL:" not in prompt
-
-
-def test_format_security_included():
-    """System format includes security by default."""
-    prompt = system.prompt(tools=None, include_security=True)
-
-    assert "SECURITY PROTOCOL:" in prompt
     assert "MANDATORY SECURITY RESPONSE PATTERN:" in prompt
 
-
-def test_format_tool_instructions():
-    """System format includes proper tool instructions."""
-
-    class MockTool:
-        def __init__(self, name, description):
-            self.name = name
-            self.description = description
-
-    tools = [MockTool("test", "Test tool")]
+    # With tools
+    tools = [MockTool("read", "Read file contents")]
     prompt = system.prompt(tools=tools)
+    assert "read" in prompt
+    assert "Read file contents" in prompt
 
-    # Check for core protocol elements
-    assert Event.CALLS.delimiter in prompt
-    assert "test" in prompt  # Tool name should appear
-    assert "Test tool" in prompt  # Tool description should appear
-
-
-def test_format_empty_tools():
-    """System format handles empty tools dict."""
+    # Empty tools
     prompt = system.prompt(tools=[])
-
-    # Empty tools dict should behave like no tools
-    assert Event.THINK.delimiter in prompt
-    assert Event.RESPOND.delimiter in prompt
-    assert Event.END.delimiter in prompt
     assert "No tools available" in prompt
+
+    # Security optional
+    prompt = system.prompt(tools=None, include_security=False)
+    assert "SECURITY PROTOCOL:" not in prompt

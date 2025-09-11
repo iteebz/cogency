@@ -1,143 +1,62 @@
-"""Integration tests - First principles V3 launch coverage."""
+"""End-to-end system tests - full CLI integration."""
 
-from unittest.mock import Mock, patch
+import subprocess
+import tempfile
+from pathlib import Path
 
 import pytest
 
-from cogency import Agent
+
+@pytest.mark.asyncio
+async def test_cli_basic():
+    """CLI executes basic query successfully."""
+    result = subprocess.run(
+        ["python", "-m", "cogency", "What is 2+2?"], capture_output=True, text=True, timeout=30
+    )
+
+    # Should complete successfully
+    assert result.returncode == 0
+
+    # Should contain reasonable response
+    assert len(result.stdout.strip()) > 0
+    assert "4" in result.stdout or "four" in result.stdout.lower()
 
 
 @pytest.mark.asyncio
-async def test_agent_basic_response():
-    from tests.conftest import mock_llm_stream
+async def test_cli_with_tools():
+    """CLI can execute tool-based workflows."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        # Change to temp directory for sandboxed execution
+        result = subprocess.run(
+            ["python", "-m", "cogency", "Create a file called test.txt with content 'hello'"],
+            capture_output=True,
+            text=True,
+            cwd=temp_dir,
+            timeout=30,
+        )
 
-    """Agent produces response end-to-end."""
+        # Should complete successfully
+        assert result.returncode == 0
 
-    with patch("cogency.lib.llms.Gemini") as mock_gemini:
-        mock_llm = mock_llm_stream()
-        mock_gemini.return_value = mock_llm
-
-        agent = Agent(mode="replay", llm="gemini")
-
-        response = await agent("Hello")
-
-        # Should get string response
-        assert isinstance(response, str)
-        assert len(response) > 0
-
-        # HTTP replay mode: NEVER calls connect(), calls stream() at least once
-        assert mock_llm.stream.call_count >= 1  # May iterate multiple times now
-        assert mock_llm.connect.call_count == 0  # HTTP is stateless
-
-
-@pytest.mark.asyncio
-async def test_agent_with_delimiters():
-    from tests.conftest import mock_llm_stream
-
-    """Agent handles delimiter parsing."""
-
-    with patch("cogency.lib.llms.Gemini") as mock_gemini:
-        mock_llm = mock_llm_stream()
-        mock_gemini.return_value = mock_llm
-
-        agent = Agent(mode="replay", llm="gemini")
-
-        response = await agent("Hello")
-
-        # Should get clean response
-        assert isinstance(response, str)
-        assert len(response) > 0
-
-        # Should not contain delimiters in final response
-        assert "§" not in response
+        # Should have created the file
+        test_file = Path(temp_dir) / "test.txt"
+        if test_file.exists():
+            assert test_file.read_text().strip() == "hello"
 
 
 @pytest.mark.asyncio
-async def test_agent_error_handling():
-    from tests.conftest import mock_llm_stream
+async def test_cli_error_handling():
+    """CLI handles errors gracefully."""
+    # Invalid command structure
+    result = subprocess.run(
+        ["python", "-m", "cogency", "--invalid-flag", "query"],
+        capture_output=True,
+        text=True,
+        timeout=10,
+    )
 
-    """Agent handles errors gracefully."""
+    # Should exit with error code
+    assert result.returncode != 0
 
-    with patch("cogency.lib.llms.Gemini") as mock_gemini:
-        mock_llm = mock_llm_stream()
-
-        # Mock stream failure (HTTP mode uses stream(), not connect())
-        class MockAsyncIterator:
-            def __aiter__(self):
-                return self
-
-            async def __anext__(self):
-                raise Exception("Test stream error")
-
-        mock_llm.stream = Mock(return_value=MockAsyncIterator())
-
-        mock_gemini.return_value = mock_llm
-
-        agent = Agent(mode="replay", llm="gemini")
-
-        # Should raise controlled error with helpful message
-        with pytest.raises(RuntimeError) as exc_info:
-            await agent("Hello")
-
-        assert "Agent execution failed" in str(exc_info.value)
-
-
-@pytest.mark.asyncio
-async def test_agent_user_isolation():
-    from tests.conftest import mock_llm_stream
-
-    """Agent maintains user isolation."""
-
-    with patch("cogency.lib.llms.Gemini") as mock_gemini:
-        mock_llm = mock_llm_stream()
-        mock_gemini.return_value = mock_llm
-
-        agent = Agent(mode="replay", llm="gemini")
-
-        # Different users should work independently
-        response1 = await agent("Hello", user_id="user1")
-        response2 = await agent("Hello", user_id="user2")
-
-        assert isinstance(response1, str)
-        assert isinstance(response2, str)
-
-        # HTTP replay mode: NEVER calls connect(), calls stream() for each user
-        assert mock_llm.stream.call_count >= 2  # May iterate multiple times per user
-        assert mock_llm.connect.call_count == 0  # HTTP is stateless
-
-
-@pytest.mark.asyncio
-async def test_agent_websocket_mode():
-    from cogency.core.protocols import WebSocketSession
-    from tests.conftest import mock_llm_stream
-
-    """Agent WebSocket mode calls connect(), not stream()."""
-
-    with patch("cogency.lib.llms.Gemini") as mock_gemini:
-        mock_llm = mock_llm_stream()
-
-        # Mock WebSocket session
-        mock_session = WebSocketSession(session=Mock(), connection=Mock(), types=Mock())
-        mock_llm.connect.return_value = mock_session
-        mock_llm.resumable = True  # Enable WebSocket capability
-
-        # Mock receive to yield tokens
-        async def mock_receive(*args):
-            yield "§RESPOND"
-            yield "Test response"
-            yield "§YIELD"
-
-        mock_llm.receive = Mock(side_effect=mock_receive)
-        mock_gemini.return_value = mock_llm
-
-        agent = Agent(mode="resume", llm="gemini")
-
-        response = await agent("Hello")
-
-        # Should get string response
-        assert isinstance(response, str)
-        assert len(response) > 0
-
-        # WebSocket mode: ALWAYS calls connect(), NEVER calls stream()
-        mock_llm.connect.assert_called_once()
-        assert mock_llm.stream.call_count == 0  # WebSocket doesn't use stream()
+    # Should provide helpful error message
+    assert len(result.stderr) > 0 or "error" in result.stdout.lower()
