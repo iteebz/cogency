@@ -41,10 +41,12 @@ class FileWrite(Tool):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
-            return Ok(ToolResult(
-                display=f"file created: {file}",
-                raw_data={"file_path": str(file_path), "bytes_written": len(content)}
-            ))
+            return Ok(
+                ToolResult(
+                    display=f"file created: {file}",
+                    raw_data={"file_path": str(file_path), "bytes_written": len(content)},
+                )
+            )
 
         except ValueError as e:
             return Err(f"Security violation: {str(e)}")

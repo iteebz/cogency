@@ -9,23 +9,17 @@ import json
 import time
 
 from ..lib.resilience import resilient_save
-from .protocols import Event, ToolResult
-from .result import Err, Ok, Result
+from .protocols import ToolResult
 
 
-async def execute(
-    call: dict, config, user_id: str, conversation_id: str
-) -> ToolResult:
-    """Execute single tool call and return simple ToolResult.
-    
-    Returns ToolResult: Simple outcome + content for Streamer
-    """
+async def execute(call: dict, config, user_id: str, conversation_id: str) -> ToolResult:
+    """Execute single tool call."""
     timestamp = time.time()
-    
+
     # Validation errors
     if not isinstance(call, dict):
         return ToolResult(outcome="invalid call format: Call must be JSON object")
-    
+
     tool_name = call.get("name")
     if not tool_name:
         return ToolResult(outcome="missing tool name: Call missing 'name' field")
@@ -51,13 +45,12 @@ async def execute(
 
         if result.success:
             tool_result = result.unwrap()
-            
+
             # Store successful execution
             _save_tool_execution(conversation_id, user_id, call, tool_result, timestamp)
-            
+
             return tool_result  # Simple ToolResult object
-        else:
-            return ToolResult(outcome=f"{tool_name} failed: {result.error}")
+        return ToolResult(outcome=f"{tool_name} failed: {result.error}")
 
     except Exception as e:
         return ToolResult(outcome=f"{tool_name} crashed: {str(e)}")
@@ -66,32 +59,17 @@ async def execute(
 async def execute_calls(
     calls: list[dict], config, user_id: str, conversation_id: str
 ) -> list[ToolResult]:
-    """Execute multiple tool calls and return list of ToolResults.
-    
-    Interface for Streamer - executes each call individually.
-    """
-    results = []
-    for call in calls:
-        result = await execute(call, config, user_id, conversation_id)
-        results.append(result)
-    return results
+    """Execute multiple tool calls."""
+    return [await execute(call, config, user_id, conversation_id) for call in calls]
 
 
-def _save_tool_execution(conversation_id: str, user_id: str, call: dict, result: ToolResult, timestamp: float):
-    """Save successful tool execution to DB."""
+def _save_tool_execution(
+    conversation_id: str, user_id: str, call: dict, result: ToolResult, timestamp: float
+):
     execution_data = {
         "call": call,
-        "result": {
-            "outcome": result.outcome,
-            "content": result.content
-        },
-        "timestamp": timestamp
+        "result": {"outcome": result.outcome, "content": result.content},
+        "timestamp": timestamp,
     }
-    
-    resilient_save(
-        conversation_id,
-        user_id, 
-        Event.TOOL,
-        json.dumps(execution_data),
-        timestamp
-    )
+
+    resilient_save(conversation_id, user_id, "tool", json.dumps(execution_data), timestamp)

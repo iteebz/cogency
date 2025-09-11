@@ -3,7 +3,6 @@
 import asyncio
 from functools import wraps
 
-from ...core.protocols import Event
 from ..logger import logger
 
 
@@ -25,6 +24,6 @@ def interruptible(func):
         except Exception as e:
             logger.error(f"{provider_name} error: {str(e)}")
             # Emit EXECUTE on error only
-            yield Event.EXECUTE.delimiter
+            yield "execute".delimiter
 
     return wrapper

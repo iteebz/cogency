@@ -99,10 +99,9 @@ class Tokens:
 
     def to_metrics_event(self, duration: float = 0.0) -> dict:
         """Create metrics event for CLI display."""
-        from ..core.protocols import Event
 
         return {
-            "type": Event.METRICS,
+            "type": "metrics",
             "input_tokens": self.input,
             "output_tokens": self.output,
             "cost": self.cost(),

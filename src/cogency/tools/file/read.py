@@ -47,25 +47,27 @@ class FileRead(Tool):
             if start > 0 or lines != 100:
                 content = self._read_lines(file_path, start, lines)
                 end_line = start + (lines - 1) if lines else "end"
-                line_count = len(content.split('\n')) if content else 0
+                line_count = len(content.split("\n")) if content else 0
                 display = f"read {file}: lines {start}-{end_line} ({line_count} lines)"
             else:
                 # Read entire file - default behavior
                 with open(file_path, encoding="utf-8") as f:
                     content = f.read()
-                line_count = len(content.split('\n')) if content else 0
+                line_count = len(content.split("\n")) if content else 0
                 display = f"read {file}: {line_count} lines"
 
-            return Ok(ToolResult(
-                display=display,
-                raw_data={
-                    "file_path": str(file_path),
-                    "content": content,
-                    "line_count": line_count,
-                    "start_line": start,
-                    "lines_requested": lines
-                }
-            ))
+            return Ok(
+                ToolResult(
+                    display=display,
+                    raw_data={
+                        "file_path": str(file_path),
+                        "content": content,
+                        "line_count": line_count,
+                        "start_line": start,
+                        "lines_requested": lines,
+                    },
+                )
+            )
 
         except FileNotFoundError:
             location = "sandbox" if sandbox else "filesystem"

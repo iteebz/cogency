@@ -28,7 +28,7 @@ class FileList(Tool):
             # Handle None pattern
             if pattern is None:
                 pattern = "*"
-                
+
             # Determine target directory
             from ...lib.storage import Paths
 

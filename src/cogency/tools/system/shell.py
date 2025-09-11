@@ -199,13 +199,12 @@ class SystemShell(Tool):
 
         if result.returncode == 0:
             cmd_name = command.split()[0]
-            rel_path = sandbox_path.name
 
             # Add timing if significant (AGENT PERFORMANCE SIGNAL)
             if execution_time > 0.1:
-                outcome = f"Command executed: {cmd_name} ({rel_path}/ {execution_time:.1f}s)"
+                pass
             else:
-                outcome = f"Command executed: {cmd_name} ({rel_path}/)"
+                pass
 
             content_parts = []
 
@@ -218,19 +217,21 @@ class SystemShell(Tool):
             if stderr:
                 content_parts.append(f"Warnings:\n{stderr}")
 
-            content = "\n".join(content_parts) if content_parts else ""
-            
-            return Ok(ToolResult(
-                display=f"ran {cmd_name}: exit {result.returncode}",
-                raw_data={
-                    "command": command,
-                    "exit_code": result.returncode,
-                    "stdout": result.stdout,
-                    "stderr": result.stderr,
-                    "execution_time": execution_time,
-                    "working_directory": str(sandbox_path)
-                }
-            ))
+            "\n".join(content_parts) if content_parts else ""
+
+            return Ok(
+                ToolResult(
+                    display=f"ran {cmd_name}: exit {result.returncode}",
+                    raw_data={
+                        "command": command,
+                        "exit_code": result.returncode,
+                        "stdout": result.stdout,
+                        "stderr": result.stderr,
+                        "execution_time": execution_time,
+                        "working_directory": str(sandbox_path),
+                    },
+                )
+            )
 
         # Failure formatting with helpful suggestions
         error_output = result.stderr.strip() or "Command failed"

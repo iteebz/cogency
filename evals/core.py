@@ -79,7 +79,7 @@ async def _execute_test(i, test, category):
         shutil.rmtree(sandbox)
     sandbox.mkdir(exist_ok=True)
 
-    print(f"🧪 Test {i+1}: {test.get('complexity', 'unknown')}")
+    print(f"🧪 Test {i + 1}: {test.get('complexity', 'unknown')}")
 
     agent = CONFIG.agent()
 
@@ -328,10 +328,10 @@ async def _simple_judge(result):
 
     prompt = f"""Evaluate this test result:
 
-CRITERIA: {result['criteria']}
-PROMPT: {result['prompt']}
-RESPONSE: {result['response']}
-TOOL_TRACES: {result.get('tool_traces', [])}
+CRITERIA: {result["criteria"]}
+PROMPT: {result["prompt"]}
+RESPONSE: {result["response"]}
+TOOL_TRACES: {result.get("tool_traces", [])}
 
 Did the agent meet the evaluation criteria? Answer PASS or FAIL with brief reason.
 

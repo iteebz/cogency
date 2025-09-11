@@ -2,7 +2,6 @@
 
 import json
 
-from ..core.protocols import Event
 from ..lib.storage import save_message
 from ..lib.tokens import count_tokens
 from .constants import CONTEXT_LIMITS
@@ -54,9 +53,9 @@ class Context:
             event_type = event["type"]
 
             # Serialize complex event content
-            if event_type == Event.CALLS:
+            if event_type == "call":
                 content = json.dumps(event["calls"])
-            elif event_type == Event.RESULTS:
+            elif event_type == "result":
                 content = json.dumps(event["results"])
 
             if not save_message(

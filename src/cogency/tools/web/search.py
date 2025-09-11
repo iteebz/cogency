@@ -39,10 +39,12 @@ class WebSearch(Tool):
             results = DDGS().text(query.strip(), max_results=effective_limit)
 
             if not results:
-                return Ok(ToolResult(
-                    display=f"searched '{query}': no results",
-                    raw_data={"query": query, "results": []}
-                ))
+                return Ok(
+                    ToolResult(
+                        display=f"searched '{query}': no results",
+                        raw_data={"query": query, "results": []},
+                    )
+                )
 
             formatted = []
             for result in results:
@@ -51,14 +53,16 @@ class WebSearch(Tool):
                 href = result.get("href", "No URL")
                 formatted.append(f"{title}\n{body}\n{href}")
 
-            return Ok(ToolResult(
-                display=f"searched '{query}': {len(results)} results",
-                raw_data={
-                    "query": query,
-                    "results": results,
-                    "formatted_content": "\n\n".join(formatted)
-                }
-            ))
+            return Ok(
+                ToolResult(
+                    display=f"searched '{query}': {len(results)} results",
+                    raw_data={
+                        "query": query,
+                        "results": results,
+                        "formatted_content": "\n\n".join(formatted),
+                    },
+                )
+            )
 
         except Exception as e:
             return Err(f"Search failed: {str(e)}")

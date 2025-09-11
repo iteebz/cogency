@@ -207,17 +207,15 @@ class SQLite:
         """Record batch of events using agent's configured storage."""
         import json
 
-        from ..core.protocols import Event
-
         for event in events:
             timestamp = event.get("timestamp")
             content = event.get("content", "")
             event_type = event["type"]
 
             # Serialize complex event content (same logic as context.record)
-            if event_type == Event.CALLS:
+            if event_type == "call":
                 content = json.dumps(event["calls"])
-            elif event_type == Event.RESULTS:
+            elif event_type == "result":
                 content = json.dumps(event["results"])
 
             # Convert enum to string for storage

@@ -14,38 +14,10 @@ Features:
 - Maximum token efficiency
 """
 
-import json
-
 from ..context import context
 from ..lib.persist import persister
-from .executor import execute
+from .accumulator import Accumulator
 from .parser import parse_tokens
-from .protocols import Event
-
-
-async def _execute_and_inject(calls, config, user_id, session, conversation_id):
-    """
-    Execute tools and inject results into same WebSocket session.
-
-    After tool execution, combines results with a continuation prompt to ensure
-    the LLM continues processing subsequent steps in multi-step tasks.
-    """
-    individual_results, results_event = await execute(calls, config, user_id, conversation_id)
-
-    # Format results as JSON
-    results_text = json.dumps(individual_results)
-
-    # Combine with continuation instruction
-    # This ensures the LLM continues to the next steps after processing tool results
-    combined_message = f"{results_text}\n\nContinue with the next steps of the task."
-
-    # Send combined message to WebSocket session
-    # Note: This message is part of the WebSocket flow and isn't stored in the conversation DB
-    success = await config.llm.send(session, combined_message)
-    if not success:
-        raise RuntimeError("Failed to send results to WebSocket")
-
-    return results_event
 
 
 async def stream(config, query: str, user_id: str, conversation_id: str):
@@ -83,37 +55,29 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
         else:
             session = session_result
 
-        calls = None
         complete = False
-        tool_results_sent = False  # Track when we've sent tool results
 
-        # Parse streaming tokens with immediate persistence
         persist_event = persister(conversation_id, user_id)
+        accumulator = Accumulator(
+            config,
+            user_id,
+            conversation_id,
+            chunks=True,
+            on_persist=persist_event,
+        )
 
         try:
-            async for event in parse_tokens(config.llm.receive(session)):
+            async for event in accumulator.process(parse_tokens(config.llm.receive(session))):
                 match event["type"]:
-                    case Event.CALLS:
-                        calls = event["calls"]
-
-                    case Event.RESPOND:
-                        # Response event - agent continues working
-                        pass
-
-                    case Event.END:
+                    case "end":
                         # Agent finished - actual termination
                         complete = True
 
-                    case Event.EXECUTE:
-                        # Execute tools and continue same session
-                        if calls:
-                            # Execute tools and continue same session
-                            results_event = await _execute_and_inject(
-                                calls, config, user_id, session, conversation_id
-                            )
-                            yield results_event
-                            calls = None
-                            tool_results_sent = True  # Mark that we sent tool results
+                    case "result":
+                        # Tool result - inject into WebSocket session
+                        success = await config.llm.send(session, event["content"])
+                        if not success:
+                            raise RuntimeError("Failed to inject tool result into WebSocket")
 
                 yield event
 
@@ -123,7 +87,7 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
         except Exception:
             raise
 
-        # Handle incomplete sessions 
+        # Handle incomplete sessions
         if not complete:
             # Stream ended without §END - this is natural completion for resume mode
             # WebSocket streams end when provider decides, not when agent decides

@@ -1,8 +1,7 @@
-"""Event persistence utilities."""
+"""persistence utilities."""
 
 import json
 
-from ..core.protocols import Event
 from .resilience import resilient_save
 
 
@@ -15,12 +14,12 @@ def persister(conversation_id: str, user_id: str):
         timestamp = event.get("timestamp")
 
         # Map event types to storage
-        if event_type == Event.THINK:
-            resilient_save(conversation_id, user_id, Event.THINK, content, timestamp)
-        elif event_type == Event.CALLS:
+        if event_type == "think":
+            resilient_save(conversation_id, user_id, "think", content, timestamp)
+        elif event_type == "call":
             calls_content = json.dumps(event["calls"])
-            resilient_save(conversation_id, user_id, Event.CALLS, calls_content, timestamp)
-        elif event_type == Event.RESPOND:
-            resilient_save(conversation_id, user_id, Event.RESPOND, content, timestamp)
+            resilient_save(conversation_id, user_id, "call", calls_content, timestamp)
+        elif event_type == "respond":
+            resilient_save(conversation_id, user_id, "respond", content, timestamp)
 
     return save_event

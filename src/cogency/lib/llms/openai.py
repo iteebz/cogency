@@ -71,13 +71,13 @@ class OpenAI(LLM):
             # Configure for text responses with proper system instructions
             system_content = ""
             user_messages = []
-            
+
             for msg in messages:
                 if msg["role"] == "system":
                     system_content += msg["content"] + "\n"
                 else:
                     user_messages.append(msg)
-            
+
             await connection.session.update(
                 session={
                     "modalities": ["text"],
@@ -96,7 +96,7 @@ class OpenAI(LLM):
                         "content": [{"type": "input_text", "text": msg["content"]}],
                     }
                 )
-            
+
             # CRITICAL: Trigger response generation for resume mode compatibility
             if user_messages:
                 await connection.response.create()
@@ -181,6 +181,6 @@ class OpenAI(LLM):
                 # Character-level streaming for maximum responsiveness
                 for char in content:
                     yield char
-        
+
         # Stream complete - emit EXECUTE for tool execution
         yield "§EXECUTE"

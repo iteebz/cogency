@@ -5,7 +5,6 @@ import sqlite3
 import sys
 import time
 
-from ..core.protocols import Event
 from ..lib.storage import Paths
 
 
@@ -50,13 +49,13 @@ def show_conversation(conversation_id: str = None):
         for msg_type, content, timestamp in messages:
             age = int(time.time() - timestamp)
 
-            if msg_type == Event.USER:
+            if msg_type == "user":
                 print(f"\nUSER ({age}s ago): {content}")
 
-            elif msg_type == Event.THINK:
+            elif msg_type == "think":
                 print(f"\nTHINK: {content}")
 
-            elif msg_type == Event.CALLS:
+            elif msg_type == "call":
                 print("\nTOOLS:")
                 try:
                     tools = json.loads(content)
@@ -69,10 +68,10 @@ def show_conversation(conversation_id: str = None):
                 except json.JSONDecodeError:
                     print(f"  Invalid JSON: {content}")
 
-            elif msg_type == Event.RESPOND:
+            elif msg_type == "respond":
                 print(f"\nASSISTANT: {content}")
 
-        tool_count = len([m for m in messages if m[0] == Event.CALLS])
+        tool_count = len([m for m in messages if m[0] == "call"])
         print(f"SUMMARY: {len(messages)} messages, {tool_count} tool executions")
 
 

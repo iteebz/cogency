@@ -1,8 +1,6 @@
 """CLI display - console rendering for agent consciousness."""
 
-from ..core.protocols import Event
-
-
+# No enum - just strings
 
 
 def _render_metrics(input_tokens: int, output_tokens: int, cost: float, duration: float):
@@ -18,25 +16,23 @@ class Renderer:
         self.verbose = verbose
         self.current_state = None  # Track if we're in think/respond mode
 
-
     def show_metrics(self, metrics: dict):
         """Display metrics after stream completion."""
         _render_metrics(
             metrics["input_tokens"], metrics["output_tokens"], metrics["cost"], metrics["duration"]
         )
 
-
     async def render_stream(self, agent_stream):
         """Consume agent events and render to console."""
         async for event in agent_stream:
             match event["type"]:
-                case Event.THINK:
+                case "think":
                     if event["content"]:
                         if self.current_state != "think":
                             print("\n~ ", end="", flush=True)
                             self.current_state = "think"
-                        print(event['content'], end="", flush=True)
-                case Event.TOOL:
+                        print(event["content"], end="", flush=True)
+                case "tool":
                     # Clean tool event display
                     if self.current_state:
                         print()  # Newline after streaming content
@@ -44,12 +40,12 @@ class Renderer:
                     status_marker = "●" if event.get("status") == "success" else "✗"
                     print(f"{status_marker} {event['display']}")
                     print()  # Gap for readability
-                case Event.RESPOND:
+                case "respond":
                     if event["content"]:
                         if self.current_state != "respond":
                             print("\n> ", end="", flush=True)
                             self.current_state = "respond"
-                        print(event['content'], end="", flush=True)
+                        print(event["content"], end="", flush=True)
                 case "cancelled":
                     print(f"\n{event['content']}")
                     return

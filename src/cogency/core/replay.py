@@ -11,28 +11,10 @@ Features:
 - No WebSocket dependencies
 """
 
-import json
-
 from ..context import context
 from ..lib.persist import persister
-from .executor import execute
+from .accumulator import Accumulator
 from .parser import parse_tokens
-from .protocols import Event
-
-
-async def _execute_and_continue(calls, config, user_id, conversation_id, messages):
-    """Execute tools and add results to message context for next HTTP iteration."""
-    individual_results, results_event = await execute(calls, config, user_id, conversation_id)
-
-    # Add results to message context for next iteration
-    messages.append(
-        {
-            "role": "system",
-            "content": f"COMPLETED ACTIONS: {json.dumps(individual_results)}",
-        }
-    )
-
-    return individual_results, results_event
 
 
 async def stream(config, query: str, user_id: str, conversation_id: str):
@@ -54,42 +36,34 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
                     }
                 )
 
-            calls = None
             complete = False
 
-            # Parse LLM stream with immediate persistence
             persist_event = persister(conversation_id, user_id)
+            accumulator = Accumulator(
+                config,
+                user_id,
+                conversation_id,
+                chunks=True,
+                on_persist=persist_event,
+            )
 
-            # HTTP STREAMING: Direct stream call, pure tokens
             try:
-                async for event in parse_tokens(
-                    config.llm.stream(messages)
-                ):
+                async for event in accumulator.process(parse_tokens(config.llm.stream(messages))):
                     match event["type"]:
-                        case Event.CALLS:
-                            calls = event.get("calls")
-                            if not calls:
-                                continue
-
-                        case Event.RESPOND:
-                            # Response event - agent continues working
-                            pass
-
-                        case Event.END:
+                        case "end":
                             # Agent finished - actual termination
                             complete = True
 
-                        case Event.EXECUTE:
-                            # Execute tools and start new iteration cycle
-                            if calls:
-                                # Execute tools, add to context for next request
-                                individual_results, results_event = await _execute_and_continue(
-                                    calls, config, user_id, conversation_id, messages
-                                )
-                                yield results_event
-
-                                # Start new iteration cycle
-                                break
+                        case "result":
+                            # Tool result - add to context for next HTTP iteration
+                            messages.append(
+                                {
+                                    "role": "system",
+                                    "content": f"COMPLETED ACTION: {event['content']}",
+                                }
+                            )
+                            # Break to start new iteration cycle
+                            break
 
                     yield event
             except Exception:

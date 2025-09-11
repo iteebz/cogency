@@ -11,9 +11,9 @@ from ..context import context
 from ..lib.logger import logger
 from ..lib.storage import SQLite
 from ..tools import TOOLS
+from . import replay, resume
 from .config import Config
-from .protocols import LLM, Event, Mode, Storage
-from .orchestrator import stream
+from .protocols import LLM, Mode, Storage
 
 
 class Agent:
@@ -79,13 +79,17 @@ class Agent:
         raise ValueError(f"Unknown LLM '{llm}'. Valid options: {', '.join(valid)}")
 
     async def __call__(
-        self, query: str, user_id: str = "default", conversation_id: str | None = None, chunks: bool = False
+        self,
+        query: str,
+        user_id: str = "default",
+        conversation_id: str | None = None,
+        chunks: bool = False,
     ):
         """Stream events for query.
-        
+
         Args:
             query: User query
-            user_id: User identifier  
+            user_id: User identifier
             conversation_id: Conversation identifier
             chunks: If True, stream individual tokens. If False, stream semantic events.
         """
@@ -100,16 +104,23 @@ class Agent:
                     logger.debug(f"Storage recording failed: {e}")
                     return False  # Graceful degradation
 
-            async for event in stream(
-                self.config,
-                query,
-                user_id,
-                conversation_id,
-                chunks=chunks,
-                on_complete=record_to_storage,
-                on_learn=context.learn,
-            ):
+            # Mode selection - no orchestrator needed
+            if self.config.mode == Mode.RESUME:
+                mode_stream = resume.stream
+            elif self.config.mode == Mode.AUTO and getattr(self.config.llm, "resumable", False):
+                try:
+                    mode_stream = resume.stream
+                except Exception:
+                    mode_stream = replay.stream
+            else:
+                mode_stream = replay.stream
+
+            async for event in mode_stream(self.config, query, user_id, conversation_id):
                 yield event
+
+            # Post-stream callbacks
+            record_to_storage(conversation_id, user_id, [])
+            context.learn(user_id, self.config.llm)
         except Exception as e:
             logger.debug(f"Stream failed: {e}")
             raise RuntimeError("Stream failed") from None  # [SEC-003] No error chain leakage

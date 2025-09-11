@@ -54,14 +54,14 @@ def compare_runs(run1_id: str, run2_id: str) -> None:
         return
 
     print("📊 Comparing Runs")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Run A: {run1_id}")
     print(f"Run B: {run2_id}")
     print()
 
     # Config comparison
     print("🔧 Configuration")
-    print(f"{'='*30}")
+    print(f"{'=' * 30}")
     config1, config2 = run1["config"], run2["config"]
 
     print(f"{'LLM:':<15} {config1.get('llm', 'N/A'):<10} vs {config2.get('llm', 'N/A')}")
@@ -77,7 +77,7 @@ def compare_runs(run1_id: str, run2_id: str) -> None:
 
     # Performance comparison
     print("📈 Performance")
-    print(f"{'='*30}")
+    print(f"{'=' * 30}")
     summary1, summary2 = run1["summary"], run2["summary"]
 
     total1, total2 = summary1.get("total", 0), summary2.get("total", 0)
@@ -94,7 +94,7 @@ def compare_runs(run1_id: str, run2_id: str) -> None:
 
     # Category breakdown
     print("📋 Categories")
-    print(f"{'='*30}")
+    print(f"{'=' * 30}")
     categories1 = summary1.get("categories", {})
     categories2 = summary2.get("categories", {})
 
