@@ -6,6 +6,16 @@ import pytest
 
 from cogency.core.result import Ok
 
+
+async def get_agent_response(agent, query, **kwargs):
+    """Helper to extract final response from agent stream - maintains test compatibility."""
+    response_content = ""
+    async for event in agent(query, **kwargs):
+        if event["type"] == "respond":
+            response_content += event["content"]
+    return response_content.strip()
+
+
 pytest_plugins = ["pytest_asyncio"]
 
 

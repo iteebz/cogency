@@ -19,6 +19,9 @@ class WebSearch(Tool):
     def schema(self) -> dict:
         return {"query": {}}
 
+    def describe_action(self, query: str, **kwargs) -> str:
+        return f"Searching \"{query}\""
+
     async def execute(self, query: str, **kwargs) -> Result[ToolResult]:
         """Execute clean web search."""
         if not query or not query.strip():
@@ -39,12 +42,7 @@ class WebSearch(Tool):
             results = DDGS().text(query.strip(), max_results=effective_limit)
 
             if not results:
-                return Ok(
-                    ToolResult(
-                        display=f"searched '{query}': no results",
-                        raw_data={"query": query, "results": []},
-                    )
-                )
+                return Ok(ToolResult(outcome=f"No results for '{query}'", content=None))
 
             formatted = []
             for result in results:
@@ -53,16 +51,9 @@ class WebSearch(Tool):
                 href = result.get("href", "No URL")
                 formatted.append(f"{title}\n{body}\n{href}")
 
-            return Ok(
-                ToolResult(
-                    display=f"searched '{query}': {len(results)} results",
-                    raw_data={
-                        "query": query,
-                        "results": results,
-                        "formatted_content": "\n\n".join(formatted),
-                    },
-                )
-            )
+            content = "\n\n".join(formatted)
+            outcome = f"Found {len(results)} results for '{query}'"
+            return Ok(ToolResult(outcome=outcome, content=content))
 
         except Exception as e:
             return Err(f"Search failed: {str(e)}")

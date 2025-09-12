@@ -20,6 +20,9 @@ class FileEdit(Tool):
     def schema(self) -> dict:
         return {"file": {}, "old": {}, "new": {}}
 
+    def describe_action(self, file: str, **kwargs) -> str:
+        return f"Editing {file}"
+
     async def execute(
         self, file: str, old: str, new: str, sandbox: bool = True, **kwargs
     ) -> Result[ToolResult]:

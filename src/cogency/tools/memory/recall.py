@@ -43,6 +43,9 @@ class MemoryRecall(Tool):
             }
         }
 
+    def describe_action(self, query: str, **kwargs) -> str:
+        return f"Recalling \"{query}\""
+
     async def execute(
         self, query: str, conversation_id: str = None, user_id: str = None
     ) -> Result[ToolResult]:
@@ -70,11 +73,11 @@ class MemoryRecall(Tool):
             if not matches:
                 outcome = f"Memory searched for '{query}'"
                 content = "No past references found outside current conversation"
-                return Ok(ToolResult(outcome, content))
+                return Ok(ToolResult(outcome=outcome, content=content))
 
             outcome = f"Memory searched for '{query}' ({len(matches)} matches)"
             content = self._format_matches(matches, query)
-            return Ok(ToolResult(outcome, content))
+            return Ok(ToolResult(outcome=outcome, content=content))
 
         except Exception as e:
             return Err(f"Recall search failed: {str(e)}")

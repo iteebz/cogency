@@ -1,69 +1,49 @@
-"""Token counting and cost analysis."""
+"""Token counting for streaming agents."""
+
+import tiktoken
 
 from .logger import logger
 
-try:
-    import tiktoken
-
-    TIKTOKEN_AVAILABLE = True
-except ImportError:
-    TIKTOKEN_AVAILABLE = False
-
-# Production cost optimization - streaming consciousness TCO analysis with actual rates
-PRICING = {
-    # OpenAI Standard Models
-    "gpt-4o": {"input": 2.50, "output": 10.00},
-    "gpt-4o-mini": {"input": 0.15, "output": 0.60},
-    "gpt-5": {"input": 1.25, "output": 10.00},
-    "gpt-5-mini": {"input": 0.25, "output": 2.00},
-    "gpt-5-nano": {"input": 0.05, "output": 0.40},
-    "o1-mini": {"input": 1.10, "output": 4.40},
-    "o3-mini": {"input": 1.10, "output": 4.40},
-    # OpenAI Realtime Models
-    "gpt-4o-realtime-preview": {"input": 5.00, "output": 20.00},
-    "gpt-4o-mini-realtime-preview": {"input": 0.60, "output": 2.40},
-    # Gemini Models
-    "gemini-2.5-flash": {"input": 0.30, "output": 2.50},
-    "gemini-2.5-flash-lite": {"input": 0.10, "output": 0.40},
-    "models/gemini-2.5-flash-live-preview": {"input": 0.50, "output": 2.00},
-    # Anthropic Claude
-    "claude-sonnet-4": {"input": 3.00, "output": 15.00},
-    "claude-haiku-3.5": {"input": 0.80, "output": 4.00},
-    # Embeddings
-    "text-embedding-3-small": {"input": 0.01, "output": 0.00},
-    "text-embedding-3-large": {"input": 0.065, "output": 0.00},
-    "gemini-embedding-001": {"input": 0.15, "output": 0.00},
-}
-
 
 def count_tokens(text: str, model: str) -> int:
+    """Count tokens in text using model-appropriate encoding."""
     if not text:
         return 0
-
-    if not TIKTOKEN_AVAILABLE:
-        # Fallback approximation: ~4 chars per token
-        return len(text) // 4
 
     try:
         enc = tiktoken.encoding_for_model(model)
         return len(enc.encode(text))
     except KeyError:
-        # Fallback approximation for unknown models
-        return len(text) // 4
+        # Use cl100k_base encoding for unknown models (GPT-4 compatible)
+        enc = tiktoken.get_encoding("cl100k_base")
+        return len(enc.encode(text))
 
 
-def calculate_cost(input_tokens: int, output_tokens: int, model: str) -> float:
-    if model not in PRICING:
-        return 0.0  # Unknown model - no cost tracking
+def count_message_tokens(messages: list[dict], model: str) -> int:
+    """Count tokens in message array using tiktoken's native message encoding."""
+    if not messages:
+        return 0
 
-    pricing = PRICING[model]
-    input_cost = (input_tokens / 1_000_000) * pricing["input"]
-    output_cost = (output_tokens / 1_000_000) * pricing["output"]
-    return input_cost + output_cost
+    # Use tiktoken's native message encoding for OpenAI models
+    if model.startswith("gpt") or "gpt" in model.lower():
+        try:
+            enc = tiktoken.encoding_for_model(model)
+            return len(enc.encode_messages(messages))
+        except (KeyError, AttributeError):
+            pass
+
+    # For non-OpenAI models, format messages and count with cl100k_base
+    total_text = ""
+    for msg in messages:
+        role = msg.get("role", "")
+        content = msg.get("content", "")
+        total_text += f"{role}: {content}\n"
+
+    return count_tokens(total_text, model)
 
 
 class Tokens:
-    """Track input/output tokens with cost analysis."""
+    """Track input/output tokens for streaming agents."""
 
     def __init__(self, model: str):
         if not model:
@@ -86,6 +66,12 @@ class Tokens:
         self.input += tokens
         return tokens
 
+    def add_input_messages(self, messages: list[dict]):
+        """Add input tokens from message array."""
+        tokens = count_message_tokens(messages, self.model)
+        self.input += tokens
+        return tokens
+
     def add_output(self, text: str):
         tokens = count_tokens(text, self.model)
         self.output += tokens
@@ -94,29 +80,11 @@ class Tokens:
     def total(self):
         return self.input + self.output
 
-    def cost(self) -> float:
-        return calculate_cost(self.input, self.output, self.model)
-
     def to_metrics_event(self, duration: float = 0.0) -> dict:
         """Create metrics event for CLI display."""
-
         return {
             "type": "metrics",
             "input_tokens": self.input,
             "output_tokens": self.output,
-            "cost": self.cost(),
             "duration": duration,
-        }
-
-    def compare_streaming_cost(self, stream_model: str) -> dict:
-        batch_cost = self.cost()
-        stream_cost = calculate_cost(self.input, self.output, stream_model)
-
-        return {
-            "batch_model": self.model,
-            "batch_cost": batch_cost,
-            "stream_model": stream_model,
-            "stream_cost": stream_cost,
-            "premium": stream_cost / batch_cost if batch_cost > 0 else 0,
-            "savings": batch_cost - stream_cost,
         }

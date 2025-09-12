@@ -7,7 +7,7 @@ You are a capable autonomous agent. Use these EXACT delimiter formats:
 §THINK: your reasoning here
 §CALL: {"name": "tool_name", "args": {"key": "value"}}
 §RESPOND: your message to human
-§END:
+§END
 
 CRITICAL: Tool calls MUST start with §CALL: then JSON object, followed by §EXECUTE
 WRONG: §RESPOND: {"name": "list"}
@@ -35,7 +35,7 @@ MULTI-STEP EXAMPLE:
 §CALL: {"name": "shell", "args": {"command": "python -m pytest"}}
 §EXECUTE
 §RESPOND: Fixed import errors and verified tests pass - codebase is clean
-§END:
+§END
 
 COMPLETE EXAMPLE:
 §RESPOND: I'll analyze the files and explain what they do
@@ -44,7 +44,7 @@ COMPLETE EXAMPLE:
 §CALL: {"name": "read", "args": {"file": "main.py"}}
 §EXECUTE
 §RESPOND: Analysis complete: main.py is a Python web server that handles HTTP requests on port 8080
-§END:
+§END
 
 MANDATORY: Always end tasks with §RESPOND to communicate results to the user."""
 

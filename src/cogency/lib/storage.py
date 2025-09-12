@@ -5,6 +5,8 @@ import sqlite3
 import time
 from pathlib import Path
 
+from .resilience import retry
+
 
 def get_cogency_dir(base_dir: str = None) -> Path:
     """Get cogency directory, configurable like requests."""
@@ -122,7 +124,8 @@ def load_messages(
         return [{"type": row["type"], "content": row["content"]} for row in rows]
 
 
-def save_message(
+@retry(attempts=3, base_delay=0.1)
+async def save_message(
     conversation_id: str,
     user_id: str,
     type: str,
@@ -130,19 +133,25 @@ def save_message(
     base_dir: str = None,
     timestamp: float = None,
 ) -> bool:
-    """Save single message to conversation - O(1) operation."""
+    """Save single message to conversation - O(1) operation with retry."""
+    import asyncio
+    
     if timestamp is None:
         timestamp = time.time()
 
-    try:
-        with DB.connect(base_dir) as db:
-            db.execute(
-                "INSERT INTO conversations (conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
-                (conversation_id, user_id, type, content, timestamp),
-            )
-        return True
-    except Exception:
-        return False
+    def _sync_save():
+        try:
+            with DB.connect(base_dir) as db:
+                db.execute(
+                    "INSERT INTO conversations (conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
+                    (conversation_id, user_id, type, content, timestamp),
+                )
+            return True
+        except Exception:
+            return False
+    
+    # Run sync SQLite operation in thread pool for protocol compliance
+    return await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
 
 def load_profile(user_id: str, base_dir: str = None) -> dict:
@@ -234,3 +243,8 @@ def clear_messages(conversation_id: str, base_dir: str = None) -> bool:
         return True
     except Exception:
         return False
+
+
+def default_storage():
+    """Default storage implementation."""
+    return SQLite()

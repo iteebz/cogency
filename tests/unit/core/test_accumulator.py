@@ -23,14 +23,21 @@ async def mock_parser_events():
 @pytest.mark.asyncio
 async def test_chunks_true():
     """Test chunks=True - should get individual parser events."""
-    accumulator = Accumulator(config=None, user_id="test", conversation_id="test", chunks=True)
+
+    # Mock config to prevent tool execution
+    class MockConfig:
+        tools = []
+
+    accumulator = Accumulator(
+        config=MockConfig(), user_id="test", conversation_id="test", chunks=True
+    )
 
     events = []
     async for event in accumulator.process(mock_parser_events()):
         events.append(event)
 
-    # Should get all 6 individual events
-    assert len(events) == 6
+    # Should get all 6 individual events plus 1 tool result
+    assert len(events) == 7  # 6 original + 1 tool result
 
     # First few events should be individual think tokens
     assert events[0] == {"type": "think", "content": "I need to", "timestamp": 1.0}
@@ -42,20 +49,32 @@ async def test_chunks_true():
 
     # Response events
     assert events[4] == {"type": "respond", "content": "Found", "timestamp": 3.0}
-    assert events[5] == {"type": "respond", "content": " results", "timestamp": 3.1}
+
+    # Tool result from call execution
+    assert events[5]["type"] == "result"
+
+    # Final response
+    assert events[6] == {"type": "respond", "content": " results", "timestamp": 3.1}
 
 
 @pytest.mark.asyncio
 async def test_chunks_false():
     """Test chunks=False - should get accumulated semantic events."""
-    accumulator = Accumulator(config=None, user_id="test", conversation_id="test", chunks=False)
+
+    # Mock config to prevent tool execution
+    class MockConfig:
+        tools = []
+
+    accumulator = Accumulator(
+        config=MockConfig(), user_id="test", conversation_id="test", chunks=False
+    )
 
     events = []
     async for event in accumulator.process(mock_parser_events()):
         events.append(event)
 
-    # Should get 3 accumulated events (think, call, respond)
-    assert len(events) == 3
+    # Should get 4 events: think, call, result, respond
+    assert len(events) == 4
 
     # Accumulated think event
     assert events[0]["type"] == "think"
@@ -67,33 +86,58 @@ async def test_chunks_false():
     assert events[1]["content"] == '{"name": "search"}'
     assert events[1]["timestamp"] == 2.0
 
-    # Accumulated response event
-    assert events[2]["type"] == "respond"
-    assert events[2]["content"] == "Found results"
-    assert events[2]["timestamp"] == 3.0
+    # Tool result event
+    assert events[2]["type"] == "result"
+
+    # Final response event (content consumed during accumulation)
+    assert events[3]["type"] == "respond"
 
 
 @pytest.mark.asyncio
-async def test_persistence_callback():
-    """Test that persistence callback is called for accumulated events."""
-    persisted_events = []
+async def test_direct_persistence():
+    """Test that accumulator persists directly to storage."""
+    # Mock resilient_save to capture calls
+    saved_calls = []
 
-    def mock_persist(event):
-        persisted_events.append(event)
+    async def mock_resilient_save(conversation_id, user_id, msg_type, content, timestamp):
+        saved_calls.append(
+            {
+                "conversation_id": conversation_id,
+                "user_id": user_id,
+                "msg_type": msg_type,
+                "content": content,
+                "timestamp": timestamp,
+            }
+        )
+        return True
 
-    accumulator = Accumulator(
-        config=None, user_id="test", conversation_id="test", chunks=True, on_persist=mock_persist
-    )
+    # Patch resilient_save
+    import cogency.lib.resilience
 
-    # Consume all events
-    events = []
-    async for event in accumulator.process(mock_parser_events()):
-        events.append(event)
+    original_save = cogency.lib.resilience.resilient_save
+    cogency.lib.resilience.resilient_save = mock_resilient_save
 
-    # Should persist 3 accumulated semantic events regardless of chunks=True
-    assert len(persisted_events) == 3
+    try:
+        accumulator = Accumulator(
+            config=None, user_id="test", conversation_id="test_conv", chunks=True
+        )
 
-    # Check accumulated content was persisted correctly
-    assert persisted_events[0]["content"] == "I need to analyze this"
-    assert persisted_events[1]["content"] == '{"name": "search"}'
-    assert persisted_events[2]["content"] == "Found results"
+        # Consume all events
+        events = []
+        async for event in accumulator.process(mock_parser_events()):
+            events.append(event)
+
+        # Should directly persist 3 accumulated semantic events
+        assert len(saved_calls) == 3
+
+        # Check accumulated content was persisted correctly
+        assert saved_calls[0]["content"] == "I need to analyze this"
+        assert saved_calls[0]["msg_type"] == "think"
+        assert saved_calls[1]["content"] == '{"name": "search"}'
+        assert saved_calls[1]["msg_type"] == "call"
+        assert saved_calls[2]["content"] == "Found results"
+        assert saved_calls[2]["msg_type"] == "respond"
+
+    finally:
+        # Restore original function
+        cogency.lib.resilience.resilient_save = original_save

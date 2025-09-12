@@ -1,61 +1,110 @@
-"""Token parser: delimiters → events."""
+"""Word-boundary streaming parser with delimiter protocol.
+
+Transforms character streams into semantic events via word-boundary detection.
+Handles LLM protocol violations (compact JSON, split delimiters) robustly.
+
+Core strategy: Buffer characters until whitespace, detect delimiters on complete words.
+"""
 
 import re
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from .protocols import DELIMITER
+DELIMITER = "§"
 
 
-def _build_delimiter_pattern():
+def _delimiter_pattern():
+    """Compile regex for delimiter detection on word boundaries."""
     events = "|".join(["THINK", "CALL", "RESPOND", "EXECUTE", "END"])
-    return re.compile(rf"{DELIMITER}({events})(?::?\s*|:?$)")
+    return re.compile(rf"^{DELIMITER}({events})(?::.*)?$")
+
+
+def _process_word(word: str, current_state: str, delimiter_pattern) -> tuple[str, list[dict]]:
+    """Process complete word for delimiter detection and event emission.
+
+    Handles compact JSON (§CALL:{"name":"tool"}) by splitting at colon boundary.
+    Returns updated state and list of events to emit.
+    """
+    events = []
+
+    if word.startswith(DELIMITER):
+        # Extract delimiter and content
+        colon_pos = word.find(":")
+        if colon_pos > 0:
+            delimiter_part = word[: colon_pos + 1]
+            content_part = word[colon_pos + 1 :]
+        else:
+            delimiter_part = word
+            content_part = ""
+
+        # Check if valid delimiter
+        if match := delimiter_pattern.match(delimiter_part):
+            delimiter_name = match.group(1).lower()
+
+            if delimiter_name == "execute":
+                events.append({"type": "execute", "content": "", "timestamp": time.time()})
+            elif delimiter_name == "end":
+                events.append({"type": "end", "content": "", "timestamp": time.time()})
+            else:
+                # State transition
+                current_state = delimiter_name
+                if content_part.strip():
+                    events.append(
+                        {
+                            "type": current_state,
+                            "content": content_part.strip(),
+                            "timestamp": time.time(),
+                        }
+                    )
+        else:
+            # Invalid delimiter, treat as content
+            events.append({"type": current_state, "content": word, "timestamp": time.time()})
+    else:
+        # Regular content
+        events.append({"type": current_state, "content": word, "timestamp": time.time()})
+
+    return current_state, events
 
 
 async def parse_tokens(
     token_stream: AsyncGenerator[str, None],
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Tokens → semantic events."""
-    buffer = ""
+    """Transform character stream into semantic events via word-boundary parsing.
+
+    Buffers characters until whitespace, then processes complete words for delimiter
+    detection. Handles LLM protocol violations robustly while maintaining accuracy.
+
+    Yields events: {"type": "think|call|respond|execute|end", "content": str, "timestamp": float}
+    """
+    word_buffer = ""
     current_state = "respond"
-    pattern = _build_delimiter_pattern()
+    delimiter_pattern = _delimiter_pattern()
 
     async for token in token_stream:
         if not isinstance(token, str):
             raise RuntimeError(f"Parser expects string tokens, got {type(token)}")
 
-        # Check for delimiter in this token
-        buffer += token
-        match = pattern.search(buffer)
+        for char in token:
+            if char.isspace():
+                # Word boundary reached - process accumulated word
+                if word_buffer.strip():
+                    word = word_buffer.strip()
+                    current_state, events = _process_word(word, current_state, delimiter_pattern)
 
-        if match:
-            # Found delimiter - extract content before it
-            content_before = buffer[: match.start()]
-            delimiter_name = match.group(1).lower()
-            new_state = delimiter_name
+                    for event in events:
+                        yield event
+                        if event["type"] == "end":
+                            return  # Terminate on END
 
-            # Emit content before delimiter with current state
-            if content_before:
-                yield {"type": current_state, "content": content_before, "timestamp": time.time()}
+                word_buffer = ""
+            else:
+                word_buffer += char
 
-            # Emit delimiter events
-            if new_state == "execute":
-                yield {"type": "execute", "content": "", "timestamp": time.time()}
-            elif new_state == "end":
-                yield {"type": "end", "content": "", "timestamp": time.time()}
-                return
+    # Process final word if stream ends without whitespace
+    if word_buffer.strip():
+        word = word_buffer.strip()
+        current_state, events = _process_word(word, current_state, delimiter_pattern)
 
-            # Update sticky note state and reset buffer
-            current_state = new_state
-            buffer = buffer[match.end() :]
-
-            # Process remaining buffer content if any
-            if buffer:
-                yield {"type": current_state, "content": buffer, "timestamp": time.time()}
-                buffer = ""
-        else:
-            # No delimiter found - emit token with current sticky note state
-            if token:
-                yield {"type": current_state, "content": token, "timestamp": time.time()}
-            buffer = ""  # Reset buffer after emission
+        for event in events:
+            yield event

@@ -20,7 +20,8 @@ def temp_dir():
         yield tmp
 
 
-def test_storage_layer_behavior(temp_dir):
+@pytest.mark.asyncio
+async def test_storage_layer_behavior(temp_dir):
     """Storage layer persists conversations and profiles with filtering and isolation."""
 
     # Path configuration
@@ -32,10 +33,10 @@ def test_storage_layer_behavior(temp_dir):
     conv_id = "test_conv"
 
     # Multiple message types saved in order
-    assert save_message(conv_id, "user", "user", "Hello", temp_dir)
-    assert save_message(conv_id, "user", "assistant", "Hi there", temp_dir)
-    assert save_message(conv_id, "user", "thinking", "Internal thought", temp_dir)
-    assert save_message(conv_id, "user", "user", "How are you?", temp_dir)
+    assert await save_message(conv_id, "user", "user", "Hello", temp_dir)
+    assert await save_message(conv_id, "user", "assistant", "Hi there", temp_dir)
+    assert await save_message(conv_id, "user", "thinking", "Internal thought", temp_dir)
+    assert await save_message(conv_id, "user", "user", "How are you?", temp_dir)
 
     # All messages loaded in chronological order
     all_messages = load_messages(conv_id, temp_dir)
@@ -58,7 +59,7 @@ def test_storage_layer_behavior(temp_dir):
 
     # Conversation isolation
     conv2_id = "other_conv"
-    assert save_message(conv2_id, "user2", "user", "Isolated message", temp_dir)
+    assert await save_message(conv2_id, "user2", "user", "Isolated message", temp_dir)
 
     conv1_msgs = load_messages(conv_id, temp_dir)
     conv2_msgs = load_messages(conv2_id, temp_dir)

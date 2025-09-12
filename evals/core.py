@@ -326,12 +326,21 @@ async def _simple_judge(result):
     """Simple LLM judge - no agent ceremony."""
     from cogency.lib.llms import Anthropic, OpenAI
 
+    # Extract response from stream
+    response = ""
+    tool_traces = []
+    for event in result.get("stream", []):
+        if event.get("type") == "respond":
+            response += event.get("content", "")
+        elif event.get("type") == "calls":
+            tool_traces.append(event.get("content", ""))
+
     prompt = f"""Evaluate this test result:
 
 CRITERIA: {result["criteria"]}
 PROMPT: {result["prompt"]}
-RESPONSE: {result["response"]}
-TOOL_TRACES: {result.get("tool_traces", [])}
+RESPONSE: {response}
+TOOL_TRACES: {tool_traces}
 
 Did the agent meet the evaluation criteria? Answer PASS or FAIL with brief reason.
 

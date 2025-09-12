@@ -78,6 +78,9 @@ class SystemShell(Tool):
     def schema(self) -> dict:
         return {"command": {}}
 
+    def describe_action(self, command: str, **kwargs) -> str:
+        return f"Running {command}"
+
     async def execute(self, command: str, sandbox: bool = True, **kwargs) -> Result[ToolResult]:
         """Execute command with enhanced intelligence and context."""
         if not command or not command.strip():
@@ -217,21 +220,19 @@ class SystemShell(Tool):
             if stderr:
                 content_parts.append(f"Warnings:\n{stderr}")
 
-            "\n".join(content_parts) if content_parts else ""
+            content = "\n".join(content_parts) if content_parts else ""
+            
+            # Human-friendly outcome based on output
+            stdout = result.stdout.strip()
+            if stdout:
+                first_line = stdout.split('\n')[0]
+                outcome = f"Output: {first_line}"
+                if len(stdout.split('\n')) > 1:
+                    outcome += "..."
+            else:
+                outcome = "Command completed"
 
-            return Ok(
-                ToolResult(
-                    display=f"ran {cmd_name}: exit {result.returncode}",
-                    raw_data={
-                        "command": command,
-                        "exit_code": result.returncode,
-                        "stdout": result.stdout,
-                        "stderr": result.stderr,
-                        "execution_time": execution_time,
-                        "working_directory": str(sandbox_path),
-                    },
-                )
-            )
+            return Ok(ToolResult(outcome=outcome, content=content))
 
         # Failure formatting with helpful suggestions
         error_output = result.stderr.strip() or "Command failed"

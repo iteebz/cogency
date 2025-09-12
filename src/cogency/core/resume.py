@@ -15,23 +15,19 @@ Features:
 """
 
 from ..context import context
-from ..lib.persist import persister
 from .accumulator import Accumulator
 from .parser import parse_tokens
 
 
-async def stream(config, query: str, user_id: str, conversation_id: str):
+async def stream(config, query: str, user_id: str, conversation_id: str, chunks: bool = False):
     """WebSocket streaming with tool injection and session continuity."""
     if config.llm is None:
         raise ValueError("LLM provider required")
 
-    # Check resume capability - strict mode, no fallback
-    has_resumable = hasattr(config.llm, "resumable")
-    resumable_value = getattr(config.llm, "resumable", None) if has_resumable else None
-
-    if not has_resumable or not resumable_value:
+    # Duck typing - if it doesn't have WebSocket methods, fail fast
+    if not hasattr(config.llm, "connect"):
         raise RuntimeError(
-            f"Resume mode requires WebSocket support. Provider {type(config.llm).__name__} does not support resumable sessions. "
+            f"Resume mode requires WebSocket support. Provider {type(config.llm).__name__} missing connect() method. "
             f"Use mode='auto' for fallback behavior or mode='replay' for HTTP-only."
         )
 
@@ -57,13 +53,11 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
 
         complete = False
 
-        persist_event = persister(conversation_id, user_id)
         accumulator = Accumulator(
             config,
             user_id,
             conversation_id,
-            chunks=True,
-            on_persist=persist_event,
+            chunks=chunks,
         )
 
         try:

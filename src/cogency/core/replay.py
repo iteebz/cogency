@@ -12,12 +12,11 @@ Features:
 """
 
 from ..context import context
-from ..lib.persist import persister
 from .accumulator import Accumulator
 from .parser import parse_tokens
 
 
-async def stream(config, query: str, user_id: str, conversation_id: str):
+async def stream(config, query: str, user_id: str, conversation_id: str, chunks: bool = False):
     """Stateless HTTP iterations with context rebuild per request."""
     if config.llm is None:
         raise ValueError("LLM provider required")
@@ -38,13 +37,11 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
 
             complete = False
 
-            persist_event = persister(conversation_id, user_id)
             accumulator = Accumulator(
                 config,
                 user_id,
                 conversation_id,
-                chunks=True,
-                on_persist=persist_event,
+                chunks=chunks,
             )
 
             try:
@@ -62,10 +59,12 @@ async def stream(config, query: str, user_id: str, conversation_id: str):
                                     "content": f"COMPLETED ACTION: {event['content']}",
                                 }
                             )
+                            # Yield result to user before breaking
+                            yield event
                             # Break to start new iteration cycle
                             break
-
-                    yield event
+                        case _:
+                            yield event
             except Exception:
                 raise
 

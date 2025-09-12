@@ -34,9 +34,6 @@ class OpenAI(LLM):
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        # Session resume capability
-        self.resumable = True
-
     def _create_client(self, api_key: str):
         """Create OpenAI client for given API key."""
         import openai
@@ -66,7 +63,11 @@ class OpenAI(LLM):
             import openai
 
             client = openai.AsyncOpenAI(api_key=self.api_key)
-            connection = await client.beta.realtime.connect(model=self.stream_model).__aenter__()
+            connection_manager = client.beta.realtime.connect(model=self.stream_model)
+            connection = await connection_manager.__aenter__()
+
+            # Store connection manager for proper cleanup
+            connection._connection_manager = connection_manager
 
             # Configure for text responses with proper system instructions
             system_content = ""
@@ -153,8 +154,14 @@ class OpenAI(LLM):
         try:
             import asyncio
 
-            # Force cleanup with timeout to prevent resource leaks
-            await asyncio.wait_for(session.close(), timeout=5.0)
+            # Use proper context manager cleanup if available
+            if hasattr(session, "_connection_manager"):
+                await asyncio.wait_for(
+                    session._connection_manager.__aexit__(None, None, None), timeout=5.0
+                )
+            else:
+                # Fallback to direct close
+                await asyncio.wait_for(session.close(), timeout=5.0)
             return True
         except asyncio.TimeoutError:
             logger.warning("OpenAI WebSocket close timeout - forcing cleanup")

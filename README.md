@@ -1,8 +1,30 @@
 # Cogency
 
-**Streaming agents**
+**Streaming agents that resume execution after tool calls**
 
-Resume execution after tool calls. No context replay. Linear token scaling.
+Break free from quadratic context replay. **Linear token scaling** enables conversations of unlimited depth.
+
+## Performance Breakthrough
+
+**Traditional frameworks replay entire context every tool call:**
+```
+Turn 8: 31,200 tokens (5.2x cost)
+Turn 16: 100,800 tokens (9.3x cost) 
+Turn 32: 355,200 tokens (17.4x cost)
+```
+
+**Cogency maintains streaming state:**
+```
+Turn 8: 6,000 tokens
+Turn 16: 10,800 tokens  
+Turn 32: 20,400 tokens
+```
+
+**Result: 94% token reduction at 32 turns.** The deeper the conversation, the greater the savings.
+
+## Core Innovation
+
+**Stream injection with delimiter protocol:**
 
 ```python
 from cogency import Agent
@@ -13,25 +35,25 @@ async for event in agent("Debug this Python script and fix any issues"):
         print(event["content"])
 ```
 
-## Resume vs Replay
-
-**Traditional frameworks:** Context replay grows quadratically
+**Agent signals execution state explicitly:**
 ```
-Turn 1: [Messages 1-10] → Tool → [Messages 1-11] → Tool
-Turn 2: [Messages 1-11] → Tool → [Messages 1-12] → Tool  
-# Token cost: O(n²) growth
-```
-
-**Cogency:** Stream resumes after tool execution
-```
-§THINK: Let me examine the code structure first
-§CALLS: [{"name": "read", "args": {"file": "main.py"}}]
-§EXECUTE:
+§THINK: I need to examine the code structure first
+§CALL: {"name": "read", "args": {"file": "main.py"}}  
+§EXECUTE
 [SYSTEM: Found syntax error on line 15]
 §RESPOND: Fixed the missing semicolon. Code runs correctly now.
+§END
 ```
 
-**Context stays constant. Token usage stays flat.**
+**Stream pauses for tool execution, then resumes with results injected.** No context replay needed.
+
+## Key Features
+
+**🚀 Stream Resumption**: WebSocket sessions maintain context across tool calls  
+**💾 Dual Memory**: Passive profiles + active recall across conversations  
+**🔒 Layered Security**: Semantic reasoning + execution-level validation  
+**🔌 Multi-Provider**: OpenAI Realtime, Gemini Live, Claude HTTP  
+**⚡ Real-time Streaming**: Word-level or semantic-level event control
 
 ## Installation
 
@@ -100,6 +122,28 @@ class DatabaseTool(Tool):
 
 agent = Agent(tools=[DatabaseTool()])
 ```
+
+## Streaming Control
+
+**chunks=False (default):** Complete semantic units
+```python
+async for event in agent("Debug this code", chunks=False):
+    if event["type"] == "think":
+        print(f"🤔 {event['content']}")  # "I need to analyze this code structure"
+    elif event["type"] == "respond":
+        print(f"💬 {event['content']}")  # "The syntax error is on line 15"
+```
+
+**chunks=True:** Real-time event streaming
+```python  
+async for event in agent("Debug this code", chunks=True):
+    if event["type"] == "think":
+        print(event["content"], end="")  # "I need" " to" " analyze"...
+    elif event["type"] == "respond":  
+        print(event["content"], end="")  # "The" " syntax" " error"...
+```
+
+See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed streaming behavior and frontend integration patterns.
 
 ## Performance
 

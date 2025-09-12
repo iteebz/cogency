@@ -35,20 +35,19 @@ async def test_memory_system_integration():
         # Mock LLM with simple response
         mock_llm = Mock()
 
-        async def mock_stream(*args, **kwargs):
-            yield "§RESPOND"
-            yield "I understand you're asking about your past work."
-            yield "§END"
+        async def mock_stream(messages):
+            yield "§RESPOND\n"
+            yield "I understand you're asking about your past work.\n"
+            yield "§END\n"
 
-        mock_llm.stream = Mock(side_effect=lambda *args, **kwargs: mock_stream())
-        mock_llm.resumable = False
+        mock_llm.stream = mock_stream
 
         from pathlib import Path
 
         with patch("cogency.lib.storage.Paths.db", return_value=Path(temp_dir) / "store.db"):
             with patch("cogency.lib.llms.Gemini", return_value=mock_llm):
                 storage = SQLite(temp_dir)
-                agent = Agent(llm="gemini", storage=storage, profile=True)
+                agent = Agent(llm="gemini", storage=storage, profile=True, mode="replay")
 
                 # Verify agent can access profile
                 from cogency.context.profile import get
@@ -70,6 +69,11 @@ async def test_memory_system_integration():
                 assert "recall" in tool_names
 
                 # Verify basic agent functionality still works
-                response = await agent("Tell me about my past work", user_id="user1")
+                responses = []
+                async for event in agent("Tell me about my past work", user_id="user1"):
+                    if event["type"] == "respond":
+                        responses.append(event["content"])
+
+                response = "".join(responses)
                 assert isinstance(response, str)
                 assert len(response) > 0

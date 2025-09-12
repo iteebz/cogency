@@ -24,6 +24,9 @@ class WebScrape(Tool):
     def schema(self) -> dict:
         return {"url": {}}
 
+    def describe_action(self, url: str, **kwargs) -> str:
+        return f"Scraping {url}"
+
     async def execute(self, url: str, **kwargs) -> Result[ToolResult]:
         """Execute clean web scraping."""
         if not url or not url.strip():
@@ -51,17 +54,8 @@ class WebScrape(Tool):
             content_formatted = self._format_content(extracted)
             size_kb = len(content_formatted) / 1024
 
-            return Ok(
-                ToolResult(
-                    display=f"scraped {domain}: {size_kb:.1f}KB",
-                    raw_data={
-                        "domain": domain,
-                        "url": url,
-                        "content": content_formatted,
-                        "size_bytes": len(content_formatted),
-                    },
-                )
-            )
+            outcome = f"Scraped {domain} ({size_kb:.1f}KB)"
+            return Ok(ToolResult(outcome=outcome, content=content_formatted))
 
         except Exception as e:
             return Err(f"Scraping failed: {str(e)}")

@@ -42,15 +42,29 @@ async def test_execution():
     """Agent executes with proper streaming, context, and error handling."""
     agent = Agent()
 
-    # Successful execution
-    with patch("cogency.core.agent.stream") as mock_stream:
+    # Successful execution - use mock LLM to avoid real API calls
+    from cogency.core.protocols import LLM
+
+    class MockLLM(LLM):
+        async def generate(self, messages):
+            pass
+
+        async def stream(self, messages):
+            pass
+
+    agent = Agent(llm=MockLLM(), mode="replay")  # Force replay mode to avoid WebSocket
+
+    with patch("cogency.core.replay.stream") as mock_stream:
 
         async def mock_events():
             yield {"type": "respond", "content": "Test response"}
 
         mock_stream.side_effect = lambda *args, **kwargs: mock_events()
 
-        response = await agent("Hello", user_id="test_user")
+        response = None
+        async for event in agent("Hello", user_id="test_user"):
+            if event["type"] == "respond":
+                response = event["content"]
         assert response == "Test response"
 
         mock_stream.assert_called_once()
@@ -61,7 +75,9 @@ async def test_execution():
         assert user_id == "test_user"
 
     # Error handling
-    with patch("cogency.core.agent.stream") as mock_stream:
+    error_agent = Agent(llm=MockLLM(), mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
 
         async def mock_failing_events():
             raise RuntimeError("Stream execution failed")
@@ -69,16 +85,23 @@ async def test_execution():
 
         mock_stream.return_value = mock_failing_events()
 
-        with pytest.raises(RuntimeError, match="Agent execution failed"):
-            await agent("Test query")
+        with pytest.raises(RuntimeError, match="Stream failed"):
+            async for _ in error_agent("Test query"):
+                pass
 
-    # Empty response handling
-    with patch("cogency.core.agent.stream") as mock_stream:
+    # Empty response should just stream events as-is (zealot: no validation ceremony)
+    empty_agent = Agent(llm=MockLLM(), mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
 
         async def mock_empty_events():
             yield {"type": "think", "content": "Just thinking"}
 
         mock_stream.side_effect = lambda *args, **kwargs: mock_empty_events()
 
-        with pytest.raises(RuntimeError, match="Agent execution failed"):
-            await agent("Test query")
+        events = []
+        async for event in empty_agent("Test query"):
+            events.append(event)
+
+        assert len(events) == 1
+        assert events[0]["type"] == "think"

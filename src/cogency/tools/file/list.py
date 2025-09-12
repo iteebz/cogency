@@ -22,6 +22,9 @@ class FileList(Tool):
     def schema(self) -> dict:
         return {"path": {"optional": True}, "pattern": {"optional": True}}
 
+    def describe_action(self, path: str = ".", **kwargs) -> str:
+        return f"Listing {path}"
+
     async def execute(self, path: str = ".", pattern: str = None, **kwargs) -> Result[ToolResult]:
         """List files with clean tree structure and metadata."""
         try:
@@ -50,8 +53,8 @@ class FileList(Tool):
 
             # Format outcome
             file_count = self._count_files(tree)
-            outcome = f"Directory listed ({file_count} items)"
-            return Ok(ToolResult(outcome, content))
+            outcome = f"Listed {file_count} items in {path}"
+            return Ok(ToolResult(outcome=outcome, content=content))
 
         except Exception as e:
             return Err(f"Error listing files: {str(e)}")

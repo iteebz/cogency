@@ -20,6 +20,9 @@ class FileWrite(Tool):
     def schema(self) -> dict:
         return {"file": {}, "content": {}}
 
+    def describe_action(self, file: str, **kwargs) -> str:
+        return f"Creating {file}"
+
     async def execute(
         self, file: str, content: str, sandbox: bool = True, **kwargs
     ) -> Result[ToolResult]:
@@ -41,10 +44,11 @@ class FileWrite(Tool):
             with open(file_path, "w", encoding="utf-8") as f:
                 f.write(content)
 
+            line_count = content.count('\n') + 1 if content else 0
             return Ok(
                 ToolResult(
-                    display=f"file created: {file}",
-                    raw_data={"file_path": str(file_path), "bytes_written": len(content)},
+                    outcome=f"Created {file} ({line_count} lines)",
+                    content=f"Created: {file_path}",
                 )
             )
 

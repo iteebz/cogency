@@ -25,8 +25,9 @@ def test_llm_provider_behavior():
         # Required capabilities present
         assert hasattr(openai_agent.config.llm, "generate")
         assert hasattr(gemini_agent.config.llm, "generate")
-        assert openai_agent.config.llm.resumable is True
-        assert gemini_agent.config.llm.resumable is True
+        # WebSocket capabilities (duck typing)
+        assert hasattr(openai_agent.config.llm, "connect")
+        assert hasattr(gemini_agent.config.llm, "connect")
 
     # Invalid providers fail gracefully
     try:

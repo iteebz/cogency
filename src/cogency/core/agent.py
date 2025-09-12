@@ -9,7 +9,7 @@ Usage:
 
 from ..context import context
 from ..lib.logger import logger
-from ..lib.storage import SQLite
+from ..lib.storage import default_storage
 from ..tools import TOOLS
 from . import replay, resume
 from .config import Config
@@ -35,7 +35,7 @@ class Agent:
         # Config is internal data structure, not user-facing API
         self.config = Config(
             llm=self._create_llm(llm),
-            storage=storage or SQLite(),
+            storage=storage or default_storage(),
             tools=tools if tools is not None else TOOLS,
             instructions=instructions,
             mode=mode,
@@ -97,7 +97,7 @@ class Agent:
 
         try:
             # Bind recording function to agent's storage with resilience
-            def record_to_storage(conversation_id: str, user_id: str, events: list) -> bool:
+            def finalize_storage(conversation_id: str, user_id: str, events: list) -> bool:
                 try:
                     return self.config.storage.record_message(conversation_id, user_id, events)
                 except Exception as e:
@@ -107,7 +107,8 @@ class Agent:
             # Mode selection - no orchestrator needed
             if self.config.mode == Mode.RESUME:
                 mode_stream = resume.stream
-            elif self.config.mode == Mode.AUTO and getattr(self.config.llm, "resumable", False):
+            elif self.config.mode == Mode.AUTO:
+                # Try WebSocket first, fallback to HTTP on any failure
                 try:
                     mode_stream = resume.stream
                 except Exception:
@@ -115,11 +116,11 @@ class Agent:
             else:
                 mode_stream = replay.stream
 
-            async for event in mode_stream(self.config, query, user_id, conversation_id):
+            async for event in mode_stream(self.config, query, user_id, conversation_id, chunks):
                 yield event
 
             # Post-stream callbacks
-            record_to_storage(conversation_id, user_id, [])
+            finalize_storage(conversation_id, user_id, [])
             context.learn(user_id, self.config.llm)
         except Exception as e:
             logger.debug(f"Stream failed: {e}")

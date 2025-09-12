@@ -7,11 +7,11 @@
 
 ```
 §THINK: I need to examine the code structure first
-§CALLS: [{"name": "read", "args": {"file": "main.py"}}]
-§EXECUTE:
+§CALL: {"name": "read", "args": {"file": "main.py"}}
+§EXECUTE
 [SYSTEM: Found syntax error on line 15]
 §RESPOND: Fixed the missing semicolon. Code runs correctly now.
-§END:
+§END
 ```
 
 Agent controls timing. Parser handles execution.
@@ -19,39 +19,39 @@ Agent controls timing. Parser handles execution.
 ## Delimiters
 
 - `§THINK:` Internal reasoning scratchpad
-- `§CALLS:` Tool calls as JSON array
-- `§EXECUTE:` Pause signal for tool execution
+- `§CALL:` Single tool call as JSON object
+- `§EXECUTE` Pause signal for tool execution
 - `§RESPOND:` Communication with human
-- `§END:` Task completion signal
+- `§END` Task completion signal
 
 ## Examples
 
 **Simple response (no tools):**
 ```
 §RESPOND: Python is a programming language created by Guido van Rossum.
-§END:
+§END
 ```
 
 **Single tool call:**
 ```
 §THINK: I should check what files exist first.
-§CALLS: [{"name": "list", "args": {}}]
-§EXECUTE:
+§CALL: {"name": "list", "args": {}}
+§EXECUTE
 [SYSTEM: Found 3 files: main.py, config.json, README.md]
 §RESPOND: I found 3 files: main.py, config.json, README.md
-§END:
+§END
 ```
 
 **Multiple sequential tools:**
 ```
-§CALLS: [{"name": "list", "args": {}}]
-§EXECUTE:
+§CALL: {"name": "list", "args": {}}
+§EXECUTE
 [SYSTEM: Found: main.py, config.json]
-§CALLS: [{"name": "read", "args": {"file": "config.json"}}]
-§EXECUTE:
+§CALL: {"name": "read", "args": {"file": "config.json"}}
+§EXECUTE
 [SYSTEM: {"debug": false, "timeout": 30}]
 §RESPOND: This is a Node.js project with Express configuration.
-§END:
+§END
 ```
 
 ## Parser Events
@@ -60,7 +60,7 @@ Protocol generates structured events:
 
 ```python
 {"type": "think", "content": "reasoning text", "timestamp": 1234567890.0}
-{"type": "calls", "content": "[{...}]", "calls": [...], "timestamp": 1234567890.0}
+{"type": "call", "content": "{\"name\": \"tool\"}", "timestamp": 1234567890.0}
 {"type": "execute", "content": "", "timestamp": 1234567890.0}
 {"type": "respond", "content": "final response", "timestamp": 1234567890.0}
 {"type": "end", "content": "", "timestamp": 1234567890.0}
@@ -68,7 +68,7 @@ Protocol generates structured events:
 
 ## Rules
 
-1. **Tool calls must be valid JSON array:** `[{"name": "tool_name", "args": {...}}]`
-2. **EXECUTE required after CALLS:** Parser waits for tool execution
-3. **Invalid JSON triggers error event:** Parser emits error, continues
+1. **Tool calls must be valid JSON object:** `{"name": "tool_name", "args": {...}}`
+2. **EXECUTE required after CALL:** Parser waits for tool execution
+3. **Invalid JSON treated as content:** Parser continues with malformed calls as regular content
 4. **END terminates stream:** Final event, no further processing

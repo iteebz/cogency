@@ -24,6 +24,6 @@ def interruptible(func):
         except Exception as e:
             logger.error(f"{provider_name} error: {str(e)}")
             # Emit EXECUTE on error only
-            yield "execute".delimiter
+            yield "§EXECUTE"
 
     return wrapper

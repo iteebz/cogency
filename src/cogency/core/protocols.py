@@ -8,9 +8,6 @@ from typing import Protocol, runtime_checkable
 
 from .result import Result
 
-# Unicode section symbol - zero collision risk with natural language
-DELIMITER = "§"
-
 
 @dataclass
 class ToolResult:
@@ -111,3 +108,7 @@ class Tool(ABC):
     @abstractmethod
     async def execute(self, **kwargs) -> Result[ToolResult]:
         pass
+
+    def describe_action(self, **kwargs) -> str:
+        """Human-readable action description for display."""
+        return f"{self.name}({', '.join(f'{k}={v}' for k, v in kwargs.items())})"

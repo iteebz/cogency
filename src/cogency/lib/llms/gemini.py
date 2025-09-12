@@ -23,8 +23,6 @@ class Gemini(LLM):
         self.llm_model = llm_model
         self.stream_model = stream_model
         self.temperature = temperature
-        # Session resume capability (optional)
-        self.resumable = True
 
     def _prepare_websocket_config(self, messages: list[dict]) -> tuple:
         """Build WebSocket config with proper systemInstruction handling.

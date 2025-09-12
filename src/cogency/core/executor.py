@@ -8,7 +8,8 @@ Natural reasoning: think → act → think → act.
 import json
 import time
 
-from ..lib.resilience import resilient_save
+from ..lib.logger import logger
+from ..lib.storage import save_message
 from .protocols import ToolResult
 
 
@@ -18,11 +19,11 @@ async def execute(call: dict, config, user_id: str, conversation_id: str) -> Too
 
     # Validation errors
     if not isinstance(call, dict):
-        return ToolResult(outcome="invalid call format: Call must be JSON object")
+        return ToolResult(outcome="invalid call format")
 
     tool_name = call.get("name")
     if not tool_name:
-        return ToolResult(outcome="missing tool name: Call missing 'name' field")
+        return ToolResult(outcome="missing tool name")
 
     # Find tool in config
     tool = next((t for t in config.tools if t.name == tool_name), None)
@@ -31,7 +32,7 @@ async def execute(call: dict, config, user_id: str, conversation_id: str) -> Too
 
     args = call.get("args", {})
     if not isinstance(args, dict):
-        return ToolResult(outcome=f"{tool_name} invalid args: Args must be JSON object")
+        return ToolResult(outcome=f"{tool_name} invalid args")
 
     try:
         # Global context injection
@@ -47,7 +48,7 @@ async def execute(call: dict, config, user_id: str, conversation_id: str) -> Too
             tool_result = result.unwrap()
 
             # Store successful execution
-            _save_tool_execution(conversation_id, user_id, call, tool_result, timestamp)
+            await _save_tool_execution(conversation_id, user_id, call, tool_result, timestamp)
 
             return tool_result  # Simple ToolResult object
         return ToolResult(outcome=f"{tool_name} failed: {result.error}")
@@ -63,7 +64,7 @@ async def execute_calls(
     return [await execute(call, config, user_id, conversation_id) for call in calls]
 
 
-def _save_tool_execution(
+async def _save_tool_execution(
     conversation_id: str, user_id: str, call: dict, result: ToolResult, timestamp: float
 ):
     execution_data = {
@@ -72,4 +73,8 @@ def _save_tool_execution(
         "timestamp": timestamp,
     }
 
-    resilient_save(conversation_id, user_id, "tool", json.dumps(execution_data), timestamp)
+    save_success = await save_message(
+        conversation_id, user_id, "tool", json.dumps(execution_data), timestamp=timestamp
+    )
+    if not save_success:
+        logger.warning(f"Failed to persist tool execution for conversation {conversation_id}")
