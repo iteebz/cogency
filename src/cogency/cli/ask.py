@@ -125,12 +125,10 @@ async def run_agent(
         print("=" * 60)
 
     try:
-        # Streaming execution with observation
-        from ..lib.observer import observe
+        # Direct streaming execution
         from .display import Renderer
 
-        @observe(agent)
-        async def observed_stream():
+        async def stream_with_cancellation():
             try:
                 async for event in agent(
                     question, user_id=user, conversation_id=conversation_id, chunks=False
@@ -145,16 +143,8 @@ async def run_agent(
                 }
                 raise  # Re-raise for proper cleanup
 
-        # Create single stream instance
-        stream_instance = observed_stream()
-
         renderer = Renderer(verbose=verbose)
-        await renderer.render_stream(stream_instance)
-
-        # Always show metrics after stream completion
-        if hasattr(observed_stream, "metrics"):
-            metrics = observed_stream.metrics
-            renderer.show_metrics(metrics)
+        await renderer.render_stream(stream_with_cancellation())
 
     except (asyncio.CancelledError, KeyboardInterrupt):
         pass

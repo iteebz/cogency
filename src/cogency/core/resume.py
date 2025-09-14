@@ -14,7 +14,10 @@ Features:
 - Maximum token efficiency
 """
 
+import time
+
 from ..context import context
+from ..lib.metrics import Tokens
 from .accumulator import Accumulator
 from .parser import parse_tokens
 
@@ -31,10 +34,21 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
             f"Use mode='auto' for fallback behavior or mode='replay' for HTTP-only."
         )
 
+    # Initialize token tracking
+    tokens = Tokens.init(config.llm)
+    task_start_time = time.time()
+    step_start_time = time.time()
+    step_input_tokens = 0
+    step_output_tokens = 0
+
     session = None
     try:
         # Assemble initial context
         messages = await context.assemble(query, user_id, conversation_id, config)
+        
+        # Track initial input tokens
+        if tokens:
+            step_input_tokens = tokens.add_input_messages(messages)
 
         # Establish persistent WebSocket session
         session = await config.llm.connect(messages)
@@ -50,16 +64,43 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
 
         try:
             async for event in accumulator.process(parse_tokens(config.llm.receive(session))):
+                # Track output tokens for content events
+                if event["type"] in ["think", "respond"] and tokens and event.get("content"):
+                    step_output_tokens += tokens.add_output(event["content"])
+                
                 match event["type"]:
                     case "end":
                         # Agent finished - actual termination
                         complete = True
+                        
+                        # Emit final metrics
+                        if tokens:
+                            step_duration = time.time() - step_start_time
+                            total_duration = time.time() - task_start_time
+                            metrics_event = tokens.to_step_metrics(
+                                step_input_tokens, step_output_tokens, step_duration, total_duration
+                            )
+                            yield metrics_event
 
                     case "result":
                         # Tool result - inject into WebSocket session
                         success = await config.llm.send(session, event["content"])
                         if not success:
                             raise RuntimeError("Failed to inject tool result into WebSocket")
+                        
+                        # Emit metrics after tool result injection (end of LLM step)
+                        if tokens:
+                            step_duration = time.time() - step_start_time
+                            total_duration = time.time() - task_start_time
+                            metrics_event = tokens.to_step_metrics(
+                                step_input_tokens, step_output_tokens, step_duration, total_duration
+                            )
+                            yield metrics_event
+                            
+                            # Reset for next step
+                            step_start_time = time.time()
+                            step_input_tokens = 0
+                            step_output_tokens = 0
 
                 yield event
 

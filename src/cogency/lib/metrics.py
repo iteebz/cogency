@@ -80,11 +80,18 @@ class Tokens:
     def total(self):
         return self.input + self.output
 
-    def to_metrics_event(self, duration: float = 0.0) -> dict:
-        """Create metrics event for CLI display."""
+    def to_step_metrics(self, step_input: int, step_output: int, step_duration: float, total_duration: float) -> dict:
+        """Create metrics event with step and total data."""
         return {
             "type": "metrics",
-            "input_tokens": self.input,
-            "output_tokens": self.output,
-            "duration": duration,
+            "step": {
+                "input": step_input,
+                "output": step_output, 
+                "duration": step_duration
+            },
+            "total": {
+                "input": self.input,
+                "output": self.output,
+                "duration": total_duration
+            }
         }

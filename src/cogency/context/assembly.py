@@ -3,7 +3,7 @@
 import json
 
 from ..lib.storage import save_message
-from ..lib.tokens import count_tokens
+from ..lib.metrics import count_tokens
 from .constants import CONTEXT_LIMITS
 from .conversation import current_cycle_messages, history
 from .profile import format as profile_format

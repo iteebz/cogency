@@ -86,11 +86,11 @@ async def _execute_test(i, test, category):
     try:
         import time
 
-        from cogency.lib.observer import Observer
+# Stream-native metrics collection - no observer needed
 
         user_id = f"eval_{category}_{i:02d}_{int(time.time())}"
 
-        # Metrics collection
+        # Stream-native metrics collection
         start_time = time.time()
         total_input_tokens = 0
         total_output_tokens = 0
@@ -98,14 +98,12 @@ async def _execute_test(i, test, category):
         if "store_prompt" in test:
             # Simple memory test with agent destruction
             store_stream = agent(test["store_prompt"], user_id=user_id)
-            observer = Observer(store_stream, agent.config.llm.llm_model)
 
-            async for _event in observer:
-                pass  # Consume stream to get metrics
-
-            metrics = observer.get_metrics()
-            total_input_tokens += metrics["input_tokens"]
-            total_output_tokens += metrics["output_tokens"]
+            async for event in store_stream:
+                if event["type"] == "metrics":
+                    total = event["total"]
+                    total_input_tokens = total["input"]
+                    total_output_tokens = total["output"]
 
             if test.get("requires_agent_destruction"):
                 del agent
@@ -115,30 +113,28 @@ async def _execute_test(i, test, category):
                 agent = CONFIG.agent()
 
             recall_stream = agent(test["recall_prompt"], user_id=user_id)
-            observer = Observer(recall_stream, agent.config.llm.llm_model)
 
             response = ""
-            async for event in observer:
-                if event.get("type") == "respond":
+            async for event in recall_stream:
+                if event["type"] == "respond":
                     response += event.get("content", "")
+                elif event["type"] == "metrics":
+                    total = event["total"]
+                    total_input_tokens = total["input"]
+                    total_output_tokens = total["output"]
 
-            metrics = observer.get_metrics()
-            total_input_tokens += metrics["input_tokens"]
-            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["recall_prompt"]
 
         elif "evolution_prompts" in test:
             # Context evolution test - multiple interactions
             for prompt in test["evolution_prompts"]:
                 stream = agent(prompt, user_id=user_id)
-                observer = Observer(stream, agent.config.llm.llm_model)
 
-                async for _event in observer:
-                    pass  # Consume stream
-
-                metrics = observer.get_metrics()
-                total_input_tokens += metrics["input_tokens"]
-                total_output_tokens += metrics["output_tokens"]
+                async for event in stream:
+                    if event["type"] == "metrics":
+                        total = event["total"]
+                        total_input_tokens = total["input"]
+                        total_output_tokens = total["output"]
 
             # Agent destruction to test persistence
             del agent
@@ -148,30 +144,28 @@ async def _execute_test(i, test, category):
             agent = CONFIG.agent()
 
             final_stream = agent(test["final_prompt"], user_id=user_id)
-            observer = Observer(final_stream, agent.config.llm.llm_model)
 
             response = ""
-            async for event in observer:
-                if event.get("type") == "respond":
+            async for event in final_stream:
+                if event["type"] == "respond":
                     response += event.get("content", "")
+                elif event["type"] == "metrics":
+                    total = event["total"]
+                    total_input_tokens = total["input"]
+                    total_output_tokens = total["output"]
 
-            metrics = observer.get_metrics()
-            total_input_tokens += metrics["input_tokens"]
-            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["final_prompt"]
 
         elif "context_prompts" in test:
             # Complex synthesis test
             for prompt in test["context_prompts"]:
                 stream = agent(prompt, user_id=user_id)
-                observer = Observer(stream, agent.config.llm.llm_model)
 
-                async for _event in observer:
-                    pass  # Consume stream
-
-                metrics = observer.get_metrics()
-                total_input_tokens += metrics["input_tokens"]
-                total_output_tokens += metrics["output_tokens"]
+                async for event in stream:
+                    if event["type"] == "metrics":
+                        total = event["total"]
+                        total_input_tokens = total["input"]
+                        total_output_tokens = total["output"]
 
             del agent
             import gc
@@ -180,16 +174,16 @@ async def _execute_test(i, test, category):
             agent = CONFIG.agent()
 
             synthesis_stream = agent(test["synthesis_prompt"], user_id=user_id)
-            observer = Observer(synthesis_stream, agent.config.llm.llm_model)
 
             response = ""
-            async for event in observer:
-                if event.get("type") == "respond":
+            async for event in synthesis_stream:
+                if event["type"] == "respond":
                     response += event.get("content", "")
+                elif event["type"] == "metrics":
+                    total = event["total"]
+                    total_input_tokens = total["input"]
+                    total_output_tokens = total["output"]
 
-            metrics = observer.get_metrics()
-            total_input_tokens += metrics["input_tokens"]
-            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["synthesis_prompt"]
 
         elif test.get("test_type") == "mode_comparison":
@@ -198,12 +192,15 @@ async def _execute_test(i, test, category):
             resume_agent = CONFIG.agent()  # Uses mode="auto" -> resume
 
             resume_stream = resume_agent(test["prompt"], user_id=user_id)
-            observer = Observer(resume_stream, resume_agent.config.llm.llm_model)
+            resume_input_tokens = 0
+            resume_output_tokens = 0
 
-            async for _event in observer:
-                pass  # Consume stream
+            async for event in resume_stream:
+                if event["type"] == "metrics":
+                    total = event["total"]
+                    resume_input_tokens = total["input"]
+                    resume_output_tokens = total["output"]
 
-            resume_metrics = observer.get_metrics()
             resume_time = time.time() - resume_start
 
             # Test replay mode
@@ -211,17 +208,20 @@ async def _execute_test(i, test, category):
             replay_agent = CONFIG.agent(mode="replay")
 
             replay_stream = replay_agent(test["prompt"], user_id=f"{user_id}_replay")
-            observer = Observer(replay_stream, replay_agent.config.llm.llm_model)
+            replay_input_tokens = 0
+            replay_output_tokens = 0
 
-            async for _event in observer:
-                pass  # Consume stream
+            async for event in replay_stream:
+                if event["type"] == "metrics":
+                    total = event["total"]
+                    replay_input_tokens = total["input"]
+                    replay_output_tokens = total["output"]
 
-            replay_metrics = observer.get_metrics()
             replay_time = time.time() - replay_start
 
             # Aggregate token counts
-            total_input_tokens = resume_metrics["input_tokens"] + replay_metrics["input_tokens"]
-            total_output_tokens = resume_metrics["output_tokens"] + replay_metrics["output_tokens"]
+            total_input_tokens = resume_input_tokens + replay_input_tokens
+            total_output_tokens = resume_output_tokens + replay_output_tokens
 
             # Calculate performance metrics
             speedup = replay_time / resume_time if resume_time > 0 else 1.0
@@ -239,16 +239,16 @@ async def _execute_test(i, test, category):
         else:
             # Standard test
             stream = agent(test["prompt"], user_id=user_id)
-            observer = Observer(stream, agent.config.llm.llm_model)
 
             response = ""
-            async for event in observer:
-                if event.get("type") == "respond":
+            async for event in stream:
+                if event["type"] == "respond":
                     response += event.get("content", "")
+                elif event["type"] == "metrics":
+                    total = event["total"]
+                    total_input_tokens = total["input"]
+                    total_output_tokens = total["output"]
 
-            metrics = observer.get_metrics()
-            total_input_tokens += metrics["input_tokens"]
-            total_output_tokens += metrics["output_tokens"]
             prompt_used = test["prompt"]
 
         # Capture tool execution traces

@@ -11,7 +11,10 @@ Features:
 - No WebSocket dependencies
 """
 
+import time
+
 from ..context import context
+from ..lib.metrics import Tokens
 from .accumulator import Accumulator
 from .parser import parse_tokens
 
@@ -20,6 +23,10 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
     """Stateless HTTP iterations with context rebuild per request."""
     if config.llm is None:
         raise ValueError("LLM provider required")
+
+    # Initialize token tracking
+    tokens = Tokens.init(config.llm)
+    task_start_time = time.time()
 
     try:
         # Assemble context from storage (exclude current cycle to prevent duplication)
@@ -44,8 +51,21 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
                 chunks=chunks,
             )
 
+            # Track this LLM call
+            step_start_time = time.time()
+            if tokens:
+                step_input_tokens = tokens.add_input_messages(messages)
+            else:
+                step_input_tokens = 0
+
+            step_output_tokens = 0
+            
             try:
                 async for event in accumulator.process(parse_tokens(config.llm.stream(messages))):
+                    # Track output tokens for content events
+                    if event["type"] in ["think", "respond"] and tokens and event.get("content"):
+                        step_output_tokens += tokens.add_output(event["content"])
+                    
                     match event["type"]:
                         case "end":
                             # Agent finished - actual termination
@@ -65,6 +85,16 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
                             break
                         case _:
                             yield event
+                            
+                # Emit metrics after LLM call completes
+                if tokens:
+                    step_duration = time.time() - step_start_time
+                    total_duration = time.time() - task_start_time
+                    metrics_event = tokens.to_step_metrics(
+                        step_input_tokens, step_output_tokens, step_duration, total_duration
+                    )
+                    yield metrics_event
+                    
             except Exception:
                 raise
 

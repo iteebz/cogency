@@ -26,6 +26,8 @@ class Renderer:
 
     async def render_stream(self, agent_stream):
         """Consume agent events and render to console."""
+        final_metrics = None
+        
         async for event in agent_stream:
             match event["type"]:
                 case "think":
@@ -60,6 +62,14 @@ class Renderer:
                             print("\n> ", end="", flush=True)
                             self.current_state = "respond"
                         print(event["content"] + " ", end="", flush=True)
+                case "metrics":
+                    # Store latest metrics, display at end
+                    final_metrics = event
                 case "cancelled":
                     print(f"\n{event['content']}")
                     return
+                    
+        # Display final metrics if available
+        if final_metrics:
+            total = final_metrics["total"]
+            _render_metrics(total["input"], total["output"], total["duration"], self.verbose)
