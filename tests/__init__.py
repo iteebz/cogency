@@ -1,4 +1,4 @@
-"""Streaming consciousness test suite.
+"""Streaming agents test suite.
 
-Comprehensive testing for the ceremony-eliminated streaming consciousness architecture.
+Comprehensive testing for the ceremony-eliminated streaming architecture.
 """

@@ -103,7 +103,7 @@ class Gemini(LLM):
 
                 client = self._create_client(api_key)
 
-                # Simple connection - no resumption token ceremony needed
+                # Simple connection
                 config = types.LiveConnectConfig(
                     response_modalities=config_dict["response_modalities"],
                 )
@@ -142,7 +142,7 @@ class Gemini(LLM):
         try:
             await session.session.send_client_content(
                 turns=session.types.Content(role="user", parts=[session.types.Part(text=content)]),
-                turn_complete=False,  # Don't complete turn - let model continue
+                turn_complete=True,  # Complete turn - as shown in official examples
             )
             return True
         except Exception as e:
@@ -183,13 +183,12 @@ class Gemini(LLM):
                         if hasattr(part, "text") and part.text:
                             yield part.text
 
-            # Handle completion signals - emit EXECUTE and break
+            # Handle completion signals - break without injecting EXECUTE
             if server_content and (
                 getattr(server_content, "turn_complete", False)
                 or getattr(server_content, "generation_complete", False)
             ):
                 logger.debug("Gemini turn complete")
-                yield "§EXECUTE"  # Protocol boundary for tool execution
                 break  # Use break, not return - keeps connection alive
 
         logger.debug(f"Gemini receive loop ended, processed {message_count} messages")
@@ -233,3 +232,6 @@ class Gemini(LLM):
             if chunk.text:
                 output_text += chunk.text
                 yield chunk.text
+        
+        # Inject §EXECUTE for tool execution consistency
+        yield "§EXECUTE"

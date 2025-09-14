@@ -1,95 +1,117 @@
-"""Semantic event accumulator with streaming granularity control.
+"""Stream processing with clean persistence separation.
 
-Transforms parser events into complete semantic units with persistence and tool execution.
-The chunks flag controls streaming behavior: immediate vs batched emission.
-
-Core responsibility: Accumulate fragmented events into coherent semantic blocks.
+Accumulate events → Execute tools → Emit results.
+Persistence delegated to specialized service.
 """
 
-import json
 import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from ..lib.logger import logger
-from ..lib.storage import save_message
 from .executor import execute
+from .persister import EventPersister
 from .protocols import ToolCall
-
-# No more enum imports - just use strings
 
 
 class Accumulator:
-    """Semantic event accumulator with persistence and tool execution.
-
-    Processes parser events into complete semantic units. Handles tool execution
-    atomically with persistence. Controls streaming granularity via chunks flag.
-    """
+    """Stream processor focused on event accumulation and tool execution."""
 
     def __init__(self, config, user_id: str, conversation_id: str, *, chunks: bool = False):
         self.config = config
         self.user_id = user_id
         self.conversation_id = conversation_id
         self.chunks = chunks
+        
+        # Delegate persistence
+        self.persister = EventPersister(conversation_id, user_id)
+        
+        # Simple accumulation state
         self.current_type = None
         self.content = ""
         self.start_time = None
-        self._pending_result = None
-        self._stored_call = None
-        self._pending_call_event = None
 
     async def process(
         self, parser_events: AsyncGenerator[dict[str, Any], None]
     ) -> AsyncGenerator[dict[str, Any], None]:
-        """Transform parser events into complete semantic units.
-
-        chunks=True: Stream events immediately (real-time)
-        chunks=False: Batch events by semantic boundaries (coherent units)
-
-        Handles tool execution and persistence atomically on state transitions.
-        """
+        """Process events with clean tool execution."""
 
         async for event in parser_events:
             event_type = event["type"]
             content = event["content"]
-            timestamp = time.time()  # Single timestamp when processing
+            timestamp = time.time()
 
             if self.chunks:
                 yield event
 
-            state_changed = event_type != self.current_type
+            # Handle control flow events
+            if event_type == "execute":
+                if self.current_type == "call" and self.content.strip():
+                    # Persist the call first
+                    await self.persister.persist_call(self.content, self.start_time)
+                    
+                    # Execute and persist result
+                    try:
+                        tool_call = ToolCall.from_json(self.content.strip())
+                        result = await execute(tool_call, self.config, self.user_id, self.conversation_id)
+                        
+                        # Format and persist result
+                        from .formatter import Formatter
+                        result_content = Formatter.tool_result_human(result)
+                        await self.persister.persist_result(result_content, timestamp)
+                        
+                        # Emit result
+                        yield {
+                            "type": "result",
+                            "content": result_content,
+                            "timestamp": timestamp,
+                        }
+                    except (ValueError, TypeError, KeyError) as e:
+                        # LLM input error - send feedback event
+                        error_content = f"Invalid tool call: {str(e)}"
+                        await self.persister.persist_result(error_content, timestamp)
+                            
+                        yield {
+                            "type": "result", 
+                            "content": error_content,
+                            "timestamp": timestamp,
+                        }
+                    # Let system errors (OSError, ConnectionError, etc) bubble up
+                    
+                    # Reset state
+                    self.current_type = None
+                    self.content = ""
+                    self.start_time = None
+                continue
+                
+            elif event_type == "end":
+                # End processing
+                yield {"type": "end", "content": "", "timestamp": timestamp}
+                return
 
-            if state_changed:
-                # State change - yield previous accumulated event (chunks=False only)
-                if not self.chunks and self.current_type and self.content.strip():
-                    # Don't yield "call" events - they get processed in _persist()
-                    if self.current_type != "call":
+            # Handle state transitions
+            if event_type != self.current_type:
+                # Persist and emit previous accumulated content
+                if self.current_type and self.content.strip():
+                    # Persist think/respond events (calls handled in execute)
+                    if self.current_type == "think":
+                        await self.persister.persist_think(self.content, self.start_time)
+                    elif self.current_type == "respond":
+                        await self.persister.persist_respond(self.content, self.start_time)
+                    
+                    # Emit for streaming (non-chunks mode, skip calls - handled by execute)
+                    if not self.chunks and self.current_type != "call":
                         yield {
                             "type": self.current_type,
                             "content": self.content,
                             "timestamp": self.start_time,
                         }
 
-                # Persist previous accumulated content
-                if self.current_type and self.content.strip():
-                    await self._persist()
-
-                # Yield pending call event if exists  
-                if self._pending_call_event:
-                    yield self._pending_call_event
-                    self._pending_call_event = None
-                
-                # Yield pending tool result if exists
-                if self._pending_result:
-                    yield self._pending_result
-                    self._pending_result = None
-
                 # Start new accumulation
                 self.current_type = event_type
                 self.content = content
                 self.start_time = timestamp
             else:
-                # Same event type - accumulate content with spaces
+                # Same type - accumulate content
                 if (
                     self.content
                     and content
@@ -99,135 +121,18 @@ class Accumulator:
                     self.content += " "
                 self.content += content
 
-        # Final flush - persist any remaining content
+        # Final flush
         if self.current_type and self.content.strip():
-            await self._persist()
-
-            # Yield final pending call event if exists
-            if self._pending_call_event:
-                yield self._pending_call_event
-                self._pending_call_event = None
-
-            # Yield final pending result if exists
-            if self._pending_result:
-                yield self._pending_result
-                self._pending_result = None
-
-            # Yield final event for non-chunks mode (except call - handled specially)
+            # Persist final events
+            if self.current_type == "think":
+                await self.persister.persist_think(self.content, self.start_time)
+            elif self.current_type == "respond":
+                await self.persister.persist_respond(self.content, self.start_time)
+            
+            # Emit final event (non-chunks mode, skip calls)
             if not self.chunks and self.current_type != "call":
                 yield {
                     "type": self.current_type,
                     "content": self.content,
                     "timestamp": self.start_time,
                 }
-
-    async def _persist(self):
-        """Persist complete accumulated event to DB."""
-        if not self.current_type or not self.content.strip():
-            return
-
-        # Direct persistence - no callback bullshit  
-        if self.current_type == "call":
-            # Parse and store structured call data
-            # Clean call content by removing any trailing delimiters
-            clean_content = self.content.strip()
-            # Remove any §EXECUTE delimiters that got accumulated
-            if "§EXECUTE" in clean_content:
-                clean_content = clean_content.split("§EXECUTE")[0].strip()
-            
-            try:
-                tool_call = ToolCall.from_json(clean_content)
-                await save_message(
-                    self.conversation_id,
-                    self.user_id,
-                    "call",
-                    tool_call.to_json(),
-                    timestamp=self.start_time,
-                )
-                # Store parsed call for later execution on §EXECUTE
-                self._stored_call = tool_call
-                
-                # Store clean call event for yielding
-                self._pending_call_event = {
-                    "type": "call", 
-                    "content": tool_call.to_json(),
-                    "timestamp": self.start_time,
-                }
-                
-            except json.JSONDecodeError:
-                # Invalid JSON - store as raw content
-                try:
-                    await save_message(
-                        self.conversation_id,
-                        self.user_id,
-                        "call",
-                        self.content.strip(),
-                        timestamp=self.start_time,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to persist invalid call data for conversation {self.conversation_id}: {e}"
-                    )
-        elif self.current_type == "execute":
-            # Execute previously stored call
-            if hasattr(self, '_stored_call') and self._stored_call:
-                tool_event = await self._execute_tool(self._stored_call)
-                
-                # Save result message for conversation context
-                try:
-                    await save_message(
-                        self.conversation_id,
-                        self.user_id,
-                        "result",
-                        tool_event["content"] or tool_event["outcome"],
-                        timestamp=self.start_time,
-                    )
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to persist result data for conversation {self.conversation_id}: {e}"
-                    )
-                
-                # Store result for immediate yielding
-                self._pending_result = tool_event
-                
-                # Clear stored call
-                self._stored_call = None
-                
-        else:
-            # Standard event types
-            try:
-                await save_message(
-                    self.conversation_id,
-                    self.user_id,
-                    self.current_type,
-                    self.content.strip(),
-                    timestamp=self.start_time,
-                )
-            except Exception as e:
-                logger.warning(
-                    f"Failed to persist {self.current_type} data for conversation {self.conversation_id}: {e}"
-                )
-
-        # Reset accumulation
-        self.content = ""
-        self.start_time = None
-
-    async def _execute_tool(self, tool_call: ToolCall):
-        """Execute tool call and return tool event with clean formatting."""
-        try:
-            # Execute tool with structured call
-            result = await execute(tool_call, self.config, self.user_id, self.conversation_id)
-
-            return {
-                "type": "result",
-                "outcome": result.outcome,
-                "content": result.content,
-            }
-
-        except Exception as e:
-            # Tool execution failed - return error event
-            return {
-                "type": "result",
-                "outcome": f"Error: {str(e)}",
-                "content": f"Tool execution failed: {str(e)}",
-            }

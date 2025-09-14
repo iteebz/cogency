@@ -132,17 +132,16 @@ def timeout_context(seconds: int):
 
 
 def safe_execute(func):
-    """Decorator for safe tool execution - handles security, file, and general errors."""
+    """Decorator for safe tool execution - handles input validation errors only."""
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except ValueError as e:
-            return ToolResult(outcome=f"Security violation: {str(e)}")
-        except FileNotFoundError as e:
-            return ToolResult(outcome=f"File not found: {str(e)}")
-        except Exception as e:
-            return ToolResult(outcome=f"Tool execution failed: {str(e)}")
+            # Input validation error - return as tool result
+            return ToolResult(outcome=f"Invalid input: {str(e)}")
+        # Let system errors (OSError, PermissionError, etc) bubble up
+        # These should halt processing, not become tool results
 
     return wrapper

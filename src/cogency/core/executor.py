@@ -1,7 +1,7 @@
 """Single tool execution - pure tool running logic.
 
 ZEALOT ARCHITECTURE: Execute ONE tool call at a time.
-Multi-tool calls were premature optimization bullshit.
+Multi-tool calls were premature optimization.
 Natural reasoning: think → act → think → act.
 """
 
@@ -29,28 +29,5 @@ async def execute(call: ToolCall, config, user_id: str, conversation_id: str) ->
         args["user_id"] = user_id
 
     tool_result = await tool.execute(**args)
-    await _save_tool_execution(conversation_id, user_id, call, tool_result, timestamp)
-
+    # Note: Persistence handled by accumulator for ACID properties
     return tool_result
-
-
-async def execute_calls(
-    calls: list[ToolCall], config, user_id: str, conversation_id: str
-) -> list[ToolResult]:
-    return [await execute(call, config, user_id, conversation_id) for call in calls]
-
-
-async def _save_tool_execution(
-    conversation_id: str, user_id: str, call: ToolCall, result: ToolResult, timestamp: float
-):
-    execution_data = {
-        "call": {"name": call.name, "args": call.args},
-        "result": {"outcome": result.outcome, "content": result.content},
-        "timestamp": timestamp,
-    }
-
-    save_success = await save_message(
-        conversation_id, user_id, "tool", json.dumps(execution_data), timestamp=timestamp
-    )
-    if not save_success:
-        logger.warning(f"Failed to persist tool execution for conversation {conversation_id}")

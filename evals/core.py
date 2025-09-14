@@ -29,17 +29,11 @@ async def evaluate_category(category: str, generator) -> dict:
         *[run_test(i, test) for i, test in enumerate(tests)], return_exceptions=True
     )
 
-    # Filter exceptions and add error handling
+    # Filter exceptions
     final_results = []
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            final_results.append(
-                {
-                    "test_id": f"{category}_{i:02d}",
-                    "error": str(result),
-                    "passed": False,
-                }
-            )
+            final_results.append({"test_id": f"{category}_{i:02d}", "error": str(result), "passed": False})
         else:
             final_results.append(result)
 
@@ -86,17 +80,13 @@ async def _execute_test(i, test, category):
     try:
         import time
 
-# Stream-native metrics collection - no observer needed
-
         user_id = f"eval_{category}_{i:02d}_{int(time.time())}"
-
-        # Stream-native metrics collection
         start_time = time.time()
         total_input_tokens = 0
         total_output_tokens = 0
 
         if "store_prompt" in test:
-            # Simple memory test with agent destruction
+            # Memory test with agent destruction
             store_stream = agent(test["store_prompt"], user_id=user_id)
 
             async for event in store_stream:
@@ -108,29 +98,31 @@ async def _execute_test(i, test, category):
             if test.get("requires_agent_destruction"):
                 del agent
                 import gc
-
                 gc.collect()
                 agent = CONFIG.agent()
 
             recall_stream = agent(test["recall_prompt"], user_id=user_id)
-
-            response = ""
+            stream = []
+            
             async for event in recall_stream:
-                if event["type"] == "respond":
-                    response += event.get("content", "")
-                elif event["type"] == "metrics":
+                if event["type"] == "metrics":
                     total = event["total"]
                     total_input_tokens = total["input"]
                     total_output_tokens = total["output"]
+                else:
+                    # Convert to readable stream format
+                    event_type = event["type"].upper()
+                    content = str(event.get("content", ""))
+                    stream.append(f"{event_type}: {content}")
 
             prompt_used = test["recall_prompt"]
 
         elif "evolution_prompts" in test:
             # Context evolution test - multiple interactions
             for prompt in test["evolution_prompts"]:
-                stream = agent(prompt, user_id=user_id)
+                evolution_stream = agent(prompt, user_id=user_id)
 
-                async for event in stream:
+                async for event in evolution_stream:
                     if event["type"] == "metrics":
                         total = event["total"]
                         total_input_tokens = total["input"]
@@ -139,29 +131,31 @@ async def _execute_test(i, test, category):
             # Agent destruction to test persistence
             del agent
             import gc
-
             gc.collect()
             agent = CONFIG.agent()
 
             final_stream = agent(test["final_prompt"], user_id=user_id)
-
-            response = ""
+            stream = []
+            
             async for event in final_stream:
-                if event["type"] == "respond":
-                    response += event.get("content", "")
-                elif event["type"] == "metrics":
+                if event["type"] == "metrics":
                     total = event["total"]
                     total_input_tokens = total["input"]
                     total_output_tokens = total["output"]
+                else:
+                    # Convert to readable stream format
+                    event_type = event["type"].upper()
+                    content = str(event.get("content", ""))
+                    stream.append(f"{event_type}: {content}")
 
             prompt_used = test["final_prompt"]
 
         elif "context_prompts" in test:
             # Complex synthesis test
             for prompt in test["context_prompts"]:
-                stream = agent(prompt, user_id=user_id)
+                context_stream = agent(prompt, user_id=user_id)
 
-                async for event in stream:
+                async for event in context_stream:
                     if event["type"] == "metrics":
                         total = event["total"]
                         total_input_tokens = total["input"]
@@ -169,127 +163,47 @@ async def _execute_test(i, test, category):
 
             del agent
             import gc
-
             gc.collect()
             agent = CONFIG.agent()
 
             synthesis_stream = agent(test["synthesis_prompt"], user_id=user_id)
-
-            response = ""
+            stream = []
+            
             async for event in synthesis_stream:
-                if event["type"] == "respond":
-                    response += event.get("content", "")
-                elif event["type"] == "metrics":
+                if event["type"] == "metrics":
                     total = event["total"]
                     total_input_tokens = total["input"]
                     total_output_tokens = total["output"]
+                else:
+                    # Convert to readable stream format
+                    event_type = event["type"].upper()
+                    content = str(event.get("content", ""))
+                    stream.append(f"{event_type}: {content}")
 
             prompt_used = test["synthesis_prompt"]
 
-        elif test.get("test_type") == "mode_comparison":
-            # Resume vs Replay performance test
-            resume_start = time.time()
-            resume_agent = CONFIG.agent()  # Uses mode="auto" -> resume
-
-            resume_stream = resume_agent(test["prompt"], user_id=user_id)
-            resume_input_tokens = 0
-            resume_output_tokens = 0
-
-            async for event in resume_stream:
-                if event["type"] == "metrics":
-                    total = event["total"]
-                    resume_input_tokens = total["input"]
-                    resume_output_tokens = total["output"]
-
-            resume_time = time.time() - resume_start
-
-            # Test replay mode
-            replay_start = time.time()
-            replay_agent = CONFIG.agent(mode="replay")
-
-            replay_stream = replay_agent(test["prompt"], user_id=f"{user_id}_replay")
-            replay_input_tokens = 0
-            replay_output_tokens = 0
-
-            async for event in replay_stream:
-                if event["type"] == "metrics":
-                    total = event["total"]
-                    replay_input_tokens = total["input"]
-                    replay_output_tokens = total["output"]
-
-            replay_time = time.time() - replay_start
-
-            # Aggregate token counts
-            total_input_tokens = resume_input_tokens + replay_input_tokens
-            total_output_tokens = resume_output_tokens + replay_output_tokens
-
-            # Calculate performance metrics
-            speedup = replay_time / resume_time if resume_time > 0 else 1.0
-
-            response = (
-                f"Resume: {resume_time:.2f}s | Replay: {replay_time:.2f}s | Speedup: {speedup:.1f}x"
-            )
-            prompt_used = test["prompt"]
-
-            # Add performance data to result
-            test["resume_time"] = resume_time
-            test["replay_time"] = replay_time
-            test["speedup"] = speedup
-
         else:
-            # Standard test
-            stream = agent(test["prompt"], user_id=user_id)
-
-            response = ""
-            async for event in stream:
-                if event["type"] == "respond":
-                    response += event.get("content", "")
-                elif event["type"] == "metrics":
+            # Standard test - capture all events except metrics
+            stream_events = agent(test["prompt"], user_id=user_id)
+            stream = []
+            
+            async for event in stream_events:
+                if event["type"] == "metrics":
                     total = event["total"]
                     total_input_tokens = total["input"]
                     total_output_tokens = total["output"]
+                else:
+                    # Convert to readable stream format
+                    event_type = event["type"].upper()
+                    content = str(event.get("content", ""))
+                    stream.append(f"{event_type}: {content}")
 
             prompt_used = test["prompt"]
 
-        # Capture tool execution traces
-        tool_traces = []
-        reasoning_steps = []
 
-        # Extract traces from stored conversation
-        try:
-            from cogency.lib.storage import load_messages
-
-            conversation_id = f"{user_id}_session"  # Match agent's conversation_id pattern
-            messages = load_messages(conversation_id)
-
-            for msg in messages:
-                if msg["type"] == "thinking":
-                    reasoning_steps.append(msg["content"])
-                elif msg["type"] == "calls":
-                    tool_traces.append(msg["content"])
-        except Exception:
-            pass  # No traces available
-
-        # Build canonical stream format
-        stream = []
-
-        # Add reasoning steps as THINK events
-        for step in reasoning_steps:
-            stream.append({"type": "think", "content": step})
-
-        # Add tool executions as CALLS events
-        for trace in tool_traces:
-            stream.append({"type": "calls", "content": trace})
-
-        # Add response as final RESPOND event
-        if response:
-            stream.append({"type": "respond", "content": response})
-
-        # Calculate final timing
         total_seconds = time.time() - start_time
 
-        # Canonical result format - mirror architecture
-        result_data = {
+        return {
             "test_id": f"{category}_{i:02d}",
             "prompt": prompt_used,
             "stream": stream,
@@ -298,49 +212,25 @@ async def _execute_test(i, test, category):
             "criteria": test["criteria"],
         }
 
-        # Add performance metrics if available
-        if "resume_time" in test:
-            result_data["resume_time"] = test["resume_time"]
-        if "replay_time" in test:
-            result_data["replay_time"] = test["replay_time"]
-        if "speedup" in test:
-            result_data["speedup"] = test["speedup"]
-
-        return result_data
-
     except asyncio.TimeoutError:
-        return {
-            "test_id": f"{category}_{i:02d}",
-            "error": "Timeout",
-            "passed": False,
-        }
+        return {"test_id": f"{category}_{i:02d}", "error": "Timeout", "passed": False}
     except Exception as e:
-        return {
-            "test_id": f"{category}_{i:02d}",
-            "error": str(e),
-            "passed": False,
-        }
+        return {"test_id": f"{category}_{i:02d}", "error": str(e), "passed": False}
 
 
 async def _simple_judge(result):
     """Simple LLM judge - no agent ceremony."""
-    from cogency.lib.llms import Anthropic, OpenAI
+    from cogency.lib.llms import Anthropic, Gemini, OpenAI
 
-    # Extract response from stream
-    response = ""
-    tool_traces = []
-    for event in result.get("stream", []):
-        if event.get("type") == "respond":
-            response += event.get("content", "")
-        elif event.get("type") == "calls":
-            tool_traces.append(event.get("content", ""))
+    # Stream is already formatted as strings
+    stream_text = "\n".join(result.get("stream", []))
 
     prompt = f"""Evaluate this test result:
 
 CRITERIA: {result["criteria"]}
 PROMPT: {result["prompt"]}
-RESPONSE: {response}
-TOOL_TRACES: {tool_traces}
+AGENT_STREAM:
+{stream_text}
 
 Did the agent meet the evaluation criteria? Answer PASS or FAIL with brief reason.
 
@@ -352,24 +242,28 @@ Format: PASS: reason | FAIL: reason"""
             judge = OpenAI()
         elif CONFIG.judge_llm == "anthropic":
             judge = Anthropic()
+        elif CONFIG.judge_llm == "gemini":
+            judge = Gemini()
         else:
             return {"passed": False, "judge_reason": f"Unknown judge LLM: {CONFIG.judge_llm}"}
 
-        # Make simple LLM call
-        messages = [{"role": "user", "content": prompt}]
-        result_obj = await judge.generate(messages)
-
-        if not result_obj.success:
-            return {"passed": False, "judge_reason": f"LLM error: {result_obj.error}"}
-
-        response = result_obj.unwrap()
+        # Make simple LLM call - handle different message formats
+        if CONFIG.judge_llm == "gemini":
+            # Gemini expects simple string content, not role-based messages
+            response = await judge.generate([prompt])
+        else:
+            # OpenAI/Anthropic expect structured messages
+            messages = [{"role": "user", "content": prompt}]
+            response = await judge.generate(messages)
 
         # Parse PASS/FAIL from response
-        if response.strip().upper().startswith("PASS"):
+        clean_response = response.strip().upper()
+        if clean_response.startswith("PASS"):
             return {"passed": True, "judge_reason": response.strip()}
-        if response.strip().upper().startswith("FAIL"):
+        elif clean_response.startswith("FAIL"):
             return {"passed": False, "judge_reason": response.strip()}
-        return {"passed": False, "judge_reason": f"Invalid judge response: {response}"}
+        else:
+            return {"passed": False, "judge_reason": f"Invalid judge response: {response}"}
 
     except Exception as e:
         return {"passed": False, "judge_reason": f"Judge error: {str(e)}"}

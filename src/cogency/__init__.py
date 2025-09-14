@@ -1,4 +1,4 @@
-"""Cogency: Streaming consciousness for AI agents."""
+"""Cogency: Streaming agents."""
 
 # Load environment variables FIRST - before any imports that need API keys
 try:

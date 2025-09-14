@@ -71,7 +71,7 @@ class Context:
         Stateless architecture: rebuild complete agent context from storage every cycle.
         No retained state. Pure functional execution. Perfect reproducibility."""
 
-        # Config is config - no agent wrapper bullshit
+        # Config is config - no agent wrapper
         tools = config.tools if config else None
 
         # Get model for token counting and limits

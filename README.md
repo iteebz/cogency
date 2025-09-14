@@ -53,7 +53,8 @@ async for event in agent("Debug this Python script and fix any issues"):
 **💾 Dual Memory**: Passive profiles + active recall across conversations  
 **🔒 Layered Security**: Semantic reasoning + execution-level validation  
 **🔌 Multi-Provider**: OpenAI Realtime, Gemini Live, Claude HTTP  
-**⚡ Real-time Streaming**: Word-level or semantic-level event control
+**⚡ Real-time Streaming**: Word-level or semantic-level event control  
+**🔍 9 Built-in Tools**: Complete file_, web_, memory_, and system_ operations
 
 ## Installation
 
@@ -107,6 +108,10 @@ async for event in agent(
 ):
     if event["type"] == "respond":
         print(event["content"])
+
+# 9 built-in tools:
+# file_read, file_write, file_edit, file_list, file_search
+# web_search, web_scrape, recall, shell
 
 # Custom tools
 from cogency import Tool, ToolResult

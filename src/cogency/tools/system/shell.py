@@ -14,6 +14,10 @@ class SystemShell(Tool):
     description = "Execute system commands"
     schema = {"command": {}}
 
+    def describe(self, args: dict) -> str:
+        """Human-readable action description."""
+        return f"Running {args.get('command', 'command')}"
+
     @safe_execute
     async def execute(self, command: str, sandbox: bool = True, **kwargs) -> ToolResult:
         """Execute command with proper security validation."""

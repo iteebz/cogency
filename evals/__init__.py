@@ -1,4 +1,4 @@
-"""Canonical evaluation interface - zero ceremony access."""
+"""Evaluation interface - zero ceremony access."""
 
 from .eval import latest, logs, run
 

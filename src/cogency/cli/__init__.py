@@ -6,7 +6,7 @@ import json
 import typer
 
 app = typer.Typer(
-    name="cogency", help="Streaming consciousness for AI agents", no_args_is_help=False
+    name="cogency", help="Streaming agents", no_args_is_help=False
 )
 
 

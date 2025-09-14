@@ -11,6 +11,10 @@ class FileEdit(Tool):
     description = "Replace text in file"
     schema = {"file": {}, "old": {}, "new": {}}
 
+    def describe(self, args: dict) -> str:
+        """Human-readable action description."""
+        return f"Editing {args.get('file', 'file')}"
+
     @safe_execute
     async def execute(
         self, file: str, old: str, new: str, sandbox: bool = True, **kwargs

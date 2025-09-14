@@ -89,7 +89,7 @@ async def test_execution():
             async for _ in error_agent("Test query"):
                 pass
 
-    # Empty response should just stream events as-is (zealot: no validation ceremony)
+    # Empty response should just stream events as-is
     empty_agent = Agent(llm=MockLLM(), mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:

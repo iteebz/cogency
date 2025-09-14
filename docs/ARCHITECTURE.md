@@ -57,6 +57,7 @@ for await (const event of agent.stream(query, {chunks: false})) {
 - **Input**: Structured call data from accumulator
 - **Output**: Tool execution results
 - **Strategy**: Single tool execution with error handling
+- **Tools**: file_read, file_write, file_edit, file_list, file_search, web_search, web_scrape, recall, shell
 
 ## Context Replay Elimination
 

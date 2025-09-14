@@ -17,6 +17,10 @@ class FileRead(Tool):
         "lines": {"type": "integer", "optional": True},
     }
 
+    def describe(self, args: dict) -> str:
+        """Human-readable action description."""
+        return f"Reading {args.get('file', 'file')}"
+
     @safe_execute
     async def execute(
         self, file: str, start: int = 0, lines: int = 100, sandbox: bool = True, **kwargs

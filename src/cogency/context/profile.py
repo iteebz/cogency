@@ -236,5 +236,4 @@ async def update_profile(
     return current if compress else None
 
 
-# Direct function exports - no ceremony
 __all__ = ["get", "format", "learn"]

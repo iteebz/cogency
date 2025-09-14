@@ -16,6 +16,10 @@ class WebScrape(Tool):
     description = "Extract web content"
     schema = {"url": {}}
 
+    def describe(self, args: dict) -> str:
+        """Human-readable action description."""
+        return f"Scraping {args.get('url', 'url')}"
+
     @safe_execute
     async def execute(self, url: str, **kwargs) -> ToolResult:
         """Execute clean web scraping."""

@@ -51,7 +51,7 @@ class Rotator:
             return True
 
         # Rate limit detection
-        rate_signals = ["quota", "rate limit", "429", "throttle", "exceeded"]
+        rate_signals = ["quota", "rate limit", "429", "throttle", "exceeded", "503", "unavailable"]
         rate_detected = any(signal in error.lower() for signal in rate_signals)
 
         if not rate_detected:

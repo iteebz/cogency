@@ -18,6 +18,11 @@ class FileSearch(Tool):
         "path": {"optional": True},
     }
 
+    def describe(self, args: dict) -> str:
+        """Human-readable action description."""
+        query = args.get('content') or args.get('pattern', 'files')
+        return f'Searching files for "{query}"'
+
     @safe_execute
     async def execute(
         self, pattern: str = None, content: str = None, path: str = ".", **kwargs

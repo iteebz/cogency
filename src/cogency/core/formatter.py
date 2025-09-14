@@ -8,14 +8,15 @@ from .protocols import ToolCall, ToolResult
 
 # Tool call display formats - centralized and extensible
 CALL_FORMATS = {
-    "write": lambda args: f"Creating {args.get('file', 'file')}",
-    "read": lambda args: f"Reading {args.get('file', 'file')}",
-    "shell": lambda args: f"Running {args.get('command', 'command')}",
-    "search": lambda args: f'Searching "{args.get("query", "query")}"',
+    "file_write": lambda args: f"Creating {args.get('file', 'file')}",
+    "file_read": lambda args: f"Reading {args.get('file', 'file')}",
+    "file_edit": lambda args: f"Editing {args.get('file', 'file')}",
+    "file_list": lambda args: f"Listing {args.get('path', '.')}",
+    "file_search": lambda args: f'Searching files for "{args.get("query", "query")}"',
+    "web_search": lambda args: f'Web searching "{args.get("query", "query")}"',
+    "web_scrape": lambda args: f"Scraping {args.get('url', 'url')}",
     "recall": lambda args: f'Recalling "{args.get("query", "query")}"',
-    "scrape": lambda args: f"Scraping {args.get('url', 'url')}",
-    "list": lambda args: f"Listing {args.get('path', '.')}",
-    "edit": lambda args: f"Editing {args.get('file', 'file')}",
+    "shell": lambda args: f"Running {args.get('command', 'command')}",
 }
 
 
@@ -29,6 +30,14 @@ class Formatter:
     @staticmethod
     def tool_call_human(call: ToolCall) -> str:
         """Format tool call for human display - semantic action."""
+        # Look up tool instance by name
+        from ..tools import TOOLS
+        tool_instance = next((t for t in TOOLS if t.name == call.name), None)
+        
+        if tool_instance and hasattr(tool_instance, 'describe'):
+            return tool_instance.describe(call.args)
+        
+        # Fallback to format dict (for tools not yet updated)
         formatter = CALL_FORMATS.get(call.name, lambda args: f"Running {call.name}")
         return formatter(call.args)
 

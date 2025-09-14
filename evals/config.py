@@ -1,4 +1,4 @@
-"""Canonical evaluation configuration."""
+"""Evaluation configuration."""
 
 import os
 import random

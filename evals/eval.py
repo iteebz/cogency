@@ -1,4 +1,4 @@
-"""Canonical evaluation runner - module interface + CLI."""
+"""Evaluation runner - module interface + CLI."""
 
 import asyncio
 import json
@@ -41,14 +41,11 @@ async def _run_category(name, generator, samples):
     try:
         result = await evaluate_category(name, generator)
 
-        # Generate timestamped run directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
 
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save config metadata
         config_data = {
             "llm": CONFIG.agent().config.llm.llm_model,
             "mode": CONFIG.mode,
@@ -62,11 +59,8 @@ async def _run_category(name, generator, samples):
         with open(Paths.evals(f"runs/{run_id}/config.json"), "w") as f:
             json.dump(config_data, f, indent=2)
 
-        # Save category result
         with open(Paths.evals(f"runs/{run_id}/{name}.json"), "w") as f:
             json.dump(result, f, indent=2)
-
-        # Update latest symlink
         latest_link = Paths.evals("latest")
         if latest_link.exists() or latest_link.is_symlink():
             latest_link.unlink()
@@ -103,19 +97,15 @@ async def _run_all(samples):
             *[evaluate_category(name, generator) for name, generator in categories.items()]
         )
 
-        # Calculate summary
         total = sum(r["total"] for r in results)
         passed = sum(r.get("passed", 0) for r in results if r.get("passed") is not None)
         rate = passed / total if total else 0
 
-        # Generate timestamped run directory
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
 
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
-
-        # Save config metadata
         config_data = {
             "llm": CONFIG.agent().config.llm.llm_model,
             "mode": CONFIG.mode,
@@ -129,7 +119,6 @@ async def _run_all(samples):
         with open(Paths.evals(f"runs/{run_id}/config.json"), "w") as f:
             json.dump(config_data, f, indent=2)
 
-        # Save summary
         summary = {
             "run_id": run_id,
             "version": "v3.0.0",
@@ -142,7 +131,6 @@ async def _run_all(samples):
         with open(Paths.evals(f"runs/{run_id}/summary.json"), "w") as f:
             json.dump(summary, f, indent=2)
 
-        # Save individual category files
         for result in results:
             with open(Paths.evals(f"runs/{run_id}/{result['category']}.json"), "w") as f:
                 json.dump(result, f, indent=2)

@@ -125,6 +125,30 @@ def show_user(user_id: str):
             print(f"\n No conversations found for {user_id}")
 
 
+def nuke_evals():
+    """Nuclear cleanup of eval results directory."""
+    evals_path = Paths.evals()
+
+    if not evals_path.exists():
+        print(" No evals directory found")
+        return 0
+
+    # Count files before
+    file_count = sum(1 for _ in evals_path.rglob("*") if _.is_file())
+    print(f" Evals: {evals_path} ({file_count} files)")
+
+    if file_count == 0:
+        print(" Evals already empty")
+        return 0
+
+    import shutil
+
+    shutil.rmtree(evals_path)
+    evals_path.mkdir(parents=True, exist_ok=True)
+    print(f" Nuked evals - {file_count} files deleted")
+    return file_count
+
+
 def nuke_sandbox():
     """Nuclear cleanup of sandbox directory."""
     sandbox_path = get_cogency_dir() / "sandbox"
@@ -172,7 +196,7 @@ def nuke_db():
 
 
 def nuke_everything():
-    """Nuclear cleanup - delete everything (DB + sandbox)."""
+    """Nuclear cleanup - delete everything (DB + sandbox + evals)."""
     db_path = Paths.db()
 
     # Count what we're about to nuke
@@ -184,15 +208,24 @@ def nuke_everything():
     else:
         print(" Database: No database found")
 
+    # Count evals
+    evals_path = Paths.evals()
+    eval_files = 0
+    if evals_path.exists():
+        eval_files = sum(1 for _ in evals_path.rglob("*") if _.is_file())
+        print(f" Evals: {evals_path} ({eval_files} files)")
+    else:
+        print(" Evals: No evals directory found")
+
     sandbox_files = nuke_sandbox()
 
-    total_items = db_records + sandbox_files
+    total_items = db_records + sandbox_files + eval_files
     if total_items == 0:
         print(" Nothing to nuke - already clean")
         return
 
     print(
-        f"\n NUCLEAR CLEANUP: {db_records} DB records + {sandbox_files} sandbox files = {total_items} total"
+        f"\n NUCLEAR CLEANUP: {db_records} DB records + {sandbox_files} sandbox files + {eval_files} eval files = {total_items} total"
     )
     confirm = input("Type 'yes' to confirm nuclear cleanup: ")
 
@@ -200,6 +233,8 @@ def nuke_everything():
         if db_path.exists():
             db_path.unlink()
             print(f" Nuked database - {db_records} records deleted")
+        if eval_files > 0:
+            nuke_evals()
         print(f" NUCLEAR CLEANUP COMPLETE - {total_items} items deleted")
     else:
         print(" Nuclear cleanup cancelled")

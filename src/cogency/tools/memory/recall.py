@@ -35,6 +35,10 @@ class MemoryRecall(Tool):
         }
     }
 
+    def describe(self, args: dict) -> str:
+        """Human-readable action description."""
+        return f'Recalling "{args.get("query", "query")}"'
+
     @safe_execute
     async def execute(
         self, query: str, conversation_id: str = None, user_id: str = None

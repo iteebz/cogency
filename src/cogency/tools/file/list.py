@@ -13,6 +13,10 @@ class FileList(Tool):
     description = "List files and directories"
     schema = {"path": {"optional": True}, "pattern": {"optional": True}}
 
+    def describe(self, args: dict) -> str:
+        """Human-readable action description."""
+        return f"Listing {args.get('path', '.')}"
+
     @safe_execute
     async def execute(self, path: str = ".", pattern: str = None, **kwargs) -> ToolResult:
         """List files in clean tree format."""

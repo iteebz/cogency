@@ -1,56 +1,52 @@
 """System prompt generation."""
 
-SYSTEM_PROMPT = """You're a helpful agent working with structured tools. Use these delimiters to communicate clearly:
+SYSTEM_PROMPT = """You MUST use structured delimiters for tool execution:
 
-§RESPOND: your message to the user
-§THINK: work through problems step by step
+§RESPOND: your message to the user (use multiple times as needed)
+§THINK: optional reasoning scratch pad
 §CALL: {"name": "tool_name", "args": {"key": "value"}}
-§END: when the task is complete
+§EXECUTE
+§END: when task complete
 
-Natural flow: Acknowledge requests, reason when helpful, use tools purposefully, communicate discoveries, and wrap up clearly.
-
-Prefer structured tools for common tasks:
-- file_list over `ls` commands  
-- file_search over `find` or `grep`
-- file_read over `cat` commands
+CRITICAL: Every §CALL must be immediately followed by §EXECUTE
 
 Examples:
 
-Quick task:
-§RESPOND: I'll check what files are here
+Simple task:
+§RESPOND: I'll check the files here
 §CALL: {"name": "file_list", "args": {"path": "."}}
-§RESPOND: Found 12 files - mostly Python scripts and config files
+§EXECUTE
+§RESPOND: Found 12 files - mostly Python scripts
 §END
 
-Thoughtful approach:
-§RESPOND: I'll help debug this codebase
-§THINK: Should start by understanding the structure, then look for obvious issues like import problems or syntax errors
+Multi-step with reasoning:
+§RESPOND: I'll analyze this codebase for issues
+§THINK: Need to understand structure first, then check for common problems
 §CALL: {"name": "file_search", "args": {"pattern": "*.py"}}
-§RESPOND: Found 5 Python files, let me check the main entry point
+§EXECUTE
+§RESPOND: Found 5 Python files, checking the main entry point
 §CALL: {"name": "file_read", "args": {"file": "main.py"}}
-§THINK: I see an import issue here that could cause problems
-§RESPOND: Found the issue - fixing import statement
+§EXECUTE  
+§THINK: I see wildcard imports which could cause namespace issues
+§RESPOND: Found import issue - fixing it now
 §CALL: {"name": "file_edit", "args": {"file": "main.py", "old": "from utils import *", "new": "from utils import helper_function"}}
-§RESPOND: Fixed the wildcard import - code should run cleanly now
+§EXECUTE
+§RESPOND: Fixed wildcard import - codebase should run cleanly now
 §END"""
 
-SECURITY_SECTION = """\n\nSecurity guidelines:
-
-Work within the user's project directory and avoid system areas like /etc/, /usr/, /bin/, ~/.ssh/, or similar system paths. These contain sensitive configuration and aren't relevant to typical development tasks.
-
-For shell commands, stick to development-focused operations like running scripts, package managers (npm, pip), or build tools. Avoid system reconnaissance commands like `ps aux`, `netstat`, `history`, or similar.
-
-Use the structured file tools when possible - they're designed to work safely within the project scope.
-
-If asked to do something that seems outside normal development work, just explain what you can help with instead."""
+SECURITY_SECTION = """\n\nWork within project scope and avoid system areas. Use structured tools when possible."""
 
 
 def prompt(tools: list = None, instructions: str = None, include_security: bool = True) -> str:
-    """Generate system prompt with layered architecture.
-
-    Core: Delimiter protocol + security (protected)
-    User: Instructions (agent steering)
-    Dynamic: Tools + context (runtime)
+    """Generate minimal viable prompt for maximum emergence.
+    
+    Core principles:
+    - RESPOND: Multiple times, LLM choice timing
+    - THINK: Optional reasoning scratch pad
+    - CALL + EXECUTE: Always paired, no exceptions
+    - END: LLM decides when complete
+    - Security: Semantic high-level principles
+    - Universal: Same prompt all providers/modes
     """
 
     # Core protocol (protected from user modification)
@@ -62,9 +58,9 @@ def prompt(tools: list = None, instructions: str = None, include_security: bool 
 
     # Dynamic context layer
     if tools:
-        from ..tools.registry import format_tool_registry
+        from ..tools import instructions
 
-        tool_registry = format_tool_registry(tools)
+        tool_registry = instructions(tools)
         base += f"\n\n{tool_registry}"
     else:
         base += "\n\nNo tools available."
