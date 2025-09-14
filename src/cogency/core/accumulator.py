@@ -12,7 +12,9 @@ from collections.abc import AsyncGenerator
 from typing import Any
 
 from ..lib.logger import logger
+from ..lib.storage import save_message
 from .executor import execute
+from .protocols import ToolCall
 
 # No more enum imports - just use strings
 
@@ -48,7 +50,7 @@ class Accumulator:
         async for event in parser_events:
             event_type = event["type"]
             content = event["content"]
-            timestamp = event["timestamp"]
+            timestamp = time.time()  # Single timestamp when processing
 
             if self.chunks:
                 yield event
@@ -110,102 +112,82 @@ class Accumulator:
         if not self.current_type or not self.content.strip():
             return
 
-        from ..lib.storage import save_message
-
         # Direct persistence - no callback bullshit
         if self.current_type == "call":
             # Parse and store structured call data
             try:
-                call_data = json.loads(self.content.strip())
-                save_success = await save_message(
-                    self.conversation_id,
-                    self.user_id,
-                    "call",
-                    json.dumps(call_data),
-                    timestamp=self.start_time,
-                )
-                if not save_success:
-                    logger.warning(
-                        f"Failed to persist call data for conversation {self.conversation_id}"
-                    )
-
-                # Execute tool after persistence
-                tool_event = await self._execute_tool()
-                self._pending_result = tool_event
-                
-                # Also save result message for conversation context
+                tool_call = ToolCall.from_json(self.content.strip())
                 await save_message(
                     self.conversation_id,
                     self.user_id,
-                    "result", 
-                    tool_event["result_agent"],  # Agent gets full result
-                    timestamp=tool_event["timestamp"],
+                    "call",
+                    tool_call.to_json(),
+                    timestamp=self.start_time,
                 )
+            except Exception as e:
+                logger.warning(f"Failed to persist call data for conversation {self.conversation_id}: {e}")
+                tool_call = ToolCall.from_json(self.content.strip())  # Still need to parse for execution
+
+            # Execute tool after persistence (always happens)
+            tool_event = await self._execute_tool(tool_call)
+            self._pending_result = tool_event
+
+            # Also save result message for conversation context
+            try:
+                await save_message(
+                    self.conversation_id,
+                    self.user_id,
+                    "result",
+                    tool_event["content"] or tool_event["outcome"],  # Full context or outcome
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist result data for conversation {self.conversation_id}: {e}")
 
             except json.JSONDecodeError:
                 # Invalid JSON - store as raw content
-                save_success = await save_message(
+                try:
+                    await save_message(
+                        self.conversation_id,
+                        self.user_id,
+                        "call",
+                        self.content.strip(),
+                        timestamp=self.start_time,
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to persist invalid call data for conversation {self.conversation_id}: {e}")
+        else:
+            # Standard event types
+            try:
+                await save_message(
                     self.conversation_id,
                     self.user_id,
-                    "call",
+                    self.current_type,
                     self.content.strip(),
                     timestamp=self.start_time,
                 )
-                if not save_success:
-                    logger.warning(
-                        f"Failed to persist invalid call data for conversation {self.conversation_id}"
-                    )
-        else:
-            # Standard event types
-            save_success = await save_message(
-                self.conversation_id,
-                self.user_id,
-                self.current_type,
-                self.content.strip(),
-                timestamp=self.start_time,
-            )
-            if not save_success:
-                logger.warning(
-                    f"Failed to persist {self.current_type} data for conversation {self.conversation_id}"
-                )
+            except Exception as e:
+                logger.warning(f"Failed to persist {self.current_type} data for conversation {self.conversation_id}: {e}")
 
         # Reset accumulation
         self.content = ""
         self.start_time = None
 
-    async def _execute_tool(self):
-        """Execute tool call and return tool event with human/agent formatting."""
+    async def _execute_tool(self, tool_call: ToolCall):
+        """Execute tool call and return tool event with clean formatting."""
         try:
-            # Parse tool call from accumulated content
-            call_data = json.loads(self.content.strip())
-            
-            # Get tool for describe_action
-            from cogency.tools import TOOLS
-            tool_name = call_data.get("name", "unknown")
-            tool = next((t for t in TOOLS if t.name == tool_name), None)
-            
-            # Execute single tool
-            result = await execute(call_data, self.config, self.user_id, self.conversation_id)
-            
-            # Create tool event with human/agent formatting
-            action_display = tool.describe_action(**call_data.get("args", {})) if tool else f"Running {tool_name}"
-            
+            # Execute tool with structured call
+            result = await execute(tool_call, self.config, self.user_id, self.conversation_id)
+
             return {
-                "type": "tool",
-                "display": action_display,  # Human display: "Creating config.py"
-                "status": "success",
-                "result_human": result.for_human(),  # Human result: outcome only
-                "result_agent": result.for_agent(),  # Agent result: outcome + content
-                "timestamp": time.time(),
+                "type": "result",
+                "outcome": result.outcome,
+                "content": result.content,
             }
 
-        except (json.JSONDecodeError, Exception) as e:
-            # Tool execution failed - return error tool event
+        except Exception as e:
+            # Tool execution failed - return error event
             return {
-                "type": "tool", 
-                "display": "Tool execution failed",
-                "status": "error",
-                "result_human": f"Error: {str(e)}",
-                "result_agent": f"Tool execution failed: {str(e)}",
-                "timestamp": time.time(),
+                "type": "result",
+                "outcome": f"Error: {str(e)}",
+                "content": f"Tool execution failed: {str(e)}",
             }

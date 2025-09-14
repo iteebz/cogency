@@ -109,8 +109,7 @@ async for event in agent(
         print(event["content"])
 
 # Custom tools
-from cogency import Tool
-from cogency.core.result import Ok
+from cogency import Tool, ToolResult
 
 class DatabaseTool(Tool):
     name = "query_db"
@@ -118,7 +117,7 @@ class DatabaseTool(Tool):
     
     async def execute(self, sql: str, user_id: str):
         # Your implementation
-        return Ok("Query results...")
+        return ToolResult(outcome="Query executed successfully", content="Query results...")
 
 agent = Agent(tools=[DatabaseTool()])
 ```

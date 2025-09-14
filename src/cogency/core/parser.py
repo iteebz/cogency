@@ -7,7 +7,6 @@ Core strategy: Buffer characters until whitespace, detect delimiters on complete
 """
 
 import re
-import time
 from collections.abc import AsyncGenerator
 from typing import Any
 
@@ -43,9 +42,9 @@ def _process_word(word: str, current_state: str, delimiter_pattern) -> tuple[str
             delimiter_name = match.group(1).lower()
 
             if delimiter_name == "execute":
-                events.append({"type": "execute", "content": "", "timestamp": time.time()})
+                events.append({"type": "execute", "content": ""})
             elif delimiter_name == "end":
-                events.append({"type": "end", "content": "", "timestamp": time.time()})
+                events.append({"type": "end", "content": ""})
             else:
                 # State transition
                 current_state = delimiter_name
@@ -54,15 +53,14 @@ def _process_word(word: str, current_state: str, delimiter_pattern) -> tuple[str
                         {
                             "type": current_state,
                             "content": content_part.strip(),
-                            "timestamp": time.time(),
                         }
                     )
         else:
             # Invalid delimiter, treat as content
-            events.append({"type": current_state, "content": word, "timestamp": time.time()})
+            events.append({"type": current_state, "content": word})
     else:
         # Regular content
-        events.append({"type": current_state, "content": word, "timestamp": time.time()})
+        events.append({"type": current_state, "content": word})
 
     return current_state, events
 
@@ -75,7 +73,7 @@ async def parse_tokens(
     Buffers characters until whitespace, then processes complete words for delimiter
     detection. Handles LLM protocol violations robustly while maintaining accuracy.
 
-    Yields events: {"type": "think|call|respond|execute|end", "content": str, "timestamp": float}
+    Yields events: {"type": "think|call|respond|execute|end", "content": str}
     """
     word_buffer = ""
     current_state = "respond"

@@ -5,7 +5,6 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-from cogency.core.result import Err, Ok, Result
 
 # No client caching - WebSocket clients hold stateful connections
 
@@ -69,7 +68,7 @@ class Rotator:
 _rotators: dict[str, Rotator] = {}
 
 
-async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Result[Any]:
+async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
     """Execute function with automatic key rotation (rotate every call + retry on failure)."""
     if prefix not in _rotators:
         _rotators[prefix] = Rotator(prefix)
@@ -81,28 +80,26 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Result[
 
     key = rotator.current_key()
     if not key:
-        return Err(f"No {prefix} API keys found")
+        raise RuntimeError(f"No {prefix} API keys found")
 
     # Step 2: Try the call with current key
     try:
-        result = await func(key, *args, **kwargs)
-        return Ok(result)
+        return await func(key, *args, **kwargs)
     except Exception as e:
         # Step 3: If failure, rotate again and retry once
         rotated = rotator.rotate(str(e))
         if not rotated:
-            return Err(str(e))  # Not a rate limit or no more keys
+            raise e  # Not a rate limit or no more keys, preserve original error
 
         # Retry with different key
         retry_key = rotator.current_key()
         if not retry_key:
-            return Err(f"No {prefix} API keys available for retry")
+            raise RuntimeError(f"No {prefix} API keys available for retry")
 
         try:
-            result = await func(retry_key, *args, **kwargs)
-            return Ok(result)
+            return await func(retry_key, *args, **kwargs)
         except Exception as retry_error:
-            return Err(str(retry_error))
+            raise retry_error
 
 
 def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
@@ -136,8 +133,7 @@ def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
 
                 # Check for API keys first - fail fast on config errors
                 if not rotator.keys:
-                    yield Err(f"No {provider_prefix} API keys found")
-                    return
+                    raise RuntimeError(f"No {provider_prefix} API keys found")
 
                 # Step 1: Auto-rotate for load balancing
                 rotator.rotate()
@@ -149,19 +145,17 @@ def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
                 except Exception as e:
                     # Step 2: If failure, rotate again and retry once
                     if not rotator.rotate(str(e)):
-                        yield Err(str(e))
-                        return
+                        raise e
 
                     key = rotator.current_key()
                     if not key:  # Safety check after rotation
-                        yield Err(f"No {provider_prefix} API keys available for retry")
-                        return
+                        raise RuntimeError(f"No {provider_prefix} API keys available for retry")
 
                     try:
                         async for item in _execute(key):
                             yield item
                     except Exception as retry_error:
-                        yield Err(str(retry_error))
+                        raise retry_error
 
             return async_gen_wrapper
 

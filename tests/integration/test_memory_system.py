@@ -21,16 +21,16 @@ async def test_memory_system_integration():
             "style": "technical discussions",
             "_meta": {"last_learned_at": 100},
         }
-        save_profile("user1", user_profile, temp_dir)
+        await save_profile("user1", user_profile, temp_dir)
 
         # Set up historical messages for recall (must use user1_ prefix)
-        save_message(
+        await save_message(
             "user1_old1", "user1", "user", "I was working on a Django project", temp_dir, 50
         )
-        save_message(
+        await save_message(
             "user1_old2", "user1", "user", "Had trouble with database migrations", temp_dir, 60
         )
-        save_message("user1_old3", "user1", "user", "Finally got the API working", temp_dir, 70)
+        await save_message("user1_old3", "user1", "user", "Finally got the API working", temp_dir, 70)
 
         # Mock LLM with simple response
         mock_llm = Mock()
@@ -52,7 +52,7 @@ async def test_memory_system_integration():
                 # Verify agent can access profile
                 from cogency.context.profile import get
 
-                profile = get("user1")
+                profile = await get("user1")
                 assert profile["who"] == "Alice"
                 assert "Python programming" in profile["interests"]
 
@@ -61,8 +61,8 @@ async def test_memory_system_integration():
 
                 recall_tool = MemoryRecall()
                 recall_result = await recall_tool.execute("Django", user_id="user1")
-                assert recall_result.success
-                assert "Django project" in recall_result.unwrap().content
+                assert not any(failure in recall_result.outcome for failure in ["failed:", "error:", "Security violation:"])
+                assert "Django project" in recall_result.content
 
                 # Verify agent has recall tool available
                 tool_names = {tool.name for tool in agent.config.tools}

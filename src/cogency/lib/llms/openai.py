@@ -1,7 +1,6 @@
 """OpenAI provider - LLM protocol implementation."""
 
 from ...core.protocols import LLM
-from ...core.result import Err, Ok, Result
 from ..logger import logger
 from ..rotation import rotate
 from .interrupt import interruptible
@@ -41,7 +40,7 @@ class OpenAI(LLM):
         return openai.AsyncOpenAI(api_key=api_key)
 
     @rotate
-    async def generate(self, client, messages: list[dict]) -> Result[str]:
+    async def generate(self, client, messages: list[dict]) -> str:
         """Generate complete response from conversation messages."""
         try:
             response = await client.chat.completions.create(
@@ -51,11 +50,11 @@ class OpenAI(LLM):
                 temperature=self.temperature,
                 stream=False,
             )
-            return Ok(response.choices[0].message.content)
-        except ImportError:
-            return Err("Please install openai: pip install openai")
+            return response.choices[0].message.content
+        except ImportError as e:
+            raise ImportError("Please install openai: pip install openai") from e
         except Exception as e:
-            return Err(f"OpenAI Generate Error: {str(e)}")
+            raise RuntimeError(f"OpenAI Generate Error: {str(e)}") from e
 
     async def connect(self, messages: list[dict]):
         """Create bidirectional OpenAI Realtime session via SDK WebSocket."""

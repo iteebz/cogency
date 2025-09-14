@@ -4,61 +4,49 @@ import re
 from urllib.parse import urlparse
 
 from ...core.protocols import Tool, ToolResult
-from ...core.result import Err, Ok, Result
 from ...lib.logger import logger
 from ..constants import SCRAPE_MAX_CHARS
+from ..security import safe_execute
 
 
 class WebScrape(Tool):
     """Extract and format web content with clean output."""
 
-    @property
-    def name(self) -> str:
-        return "scrape"
+    name = "scrape"
+    description = "Extract web content"
+    schema = {"url": {}}
 
-    @property
-    def description(self) -> str:
-        return "Extract web content"
-
-    @property
-    def schema(self) -> dict:
-        return {"url": {}}
-
-    def describe_action(self, url: str, **kwargs) -> str:
-        return f"Scraping {url}"
-
-    async def execute(self, url: str, **kwargs) -> Result[ToolResult]:
+    @safe_execute
+    async def execute(self, url: str, **kwargs) -> ToolResult:
         """Execute clean web scraping."""
         if not url or not url.strip():
-            return Err("URL cannot be empty")
+            return ToolResult(outcome="URL cannot be empty")
 
         url = url.strip()
 
         try:
             import trafilatura
         except ImportError:
-            return Err("Web scraping not available. Install with: pip install trafilatura")
+            return ToolResult(
+                outcome="Web scraping not available. Install with: pip install trafilatura"
+            )
 
-        try:
-            # Fetch and extract content
-            content = trafilatura.fetch_url(url)
-            if not content:
-                return Err(f"Failed to fetch content from: {url}")
+        # Fetch and extract content
+        content = trafilatura.fetch_url(url)
+        if not content:
+            return ToolResult(outcome=f"Failed to fetch content from: {url}")
 
-            extracted = trafilatura.extract(content, include_tables=True)
-            if not extracted:
-                return Err(f"No readable content found at: {url}")
+        extracted = trafilatura.extract(content, include_tables=True)
+        if not extracted:
+            return ToolResult(outcome=f"No readable content found at: {url}")
 
-            domain = self._extract_domain(url)
+        domain = self._extract_domain(url)
 
-            content_formatted = self._format_content(extracted)
-            size_kb = len(content_formatted) / 1024
+        content_formatted = self._format_content(extracted)
+        size_kb = len(content_formatted) / 1024
 
-            outcome = f"Scraped {domain} ({size_kb:.1f}KB)"
-            return Ok(ToolResult(outcome=outcome, content=content_formatted))
-
-        except Exception as e:
-            return Err(f"Scraping failed: {str(e)}")
+        outcome = f"Scraped {domain} ({size_kb:.1f}KB)"
+        return ToolResult(outcome=outcome, content=content_formatted)
 
     def _format_content(self, content: str) -> str:
         """Content formatting."""

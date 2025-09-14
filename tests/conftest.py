@@ -4,8 +4,6 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from cogency.core.result import Ok
-
 
 async def get_agent_response(agent, query, **kwargs):
     """Helper to extract final response from agent stream - maintains test compatibility."""
@@ -35,7 +33,7 @@ def mock_llm():
     llm = Mock()
 
     # Core generation
-    llm.generate = AsyncMock(return_value=Ok("Test response"))
+    llm.generate = AsyncMock(return_value="Test response")
 
     # WebSocket operations
     llm.connect = AsyncMock(return_value=Mock())

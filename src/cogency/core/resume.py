@@ -34,22 +34,10 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
     session = None
     try:
         # Assemble initial context
-        messages = context.assemble(query, user_id, conversation_id, config)
+        messages = await context.assemble(query, user_id, conversation_id, config)
 
         # Establish persistent WebSocket session
-        session_result = await config.llm.connect(messages)
-
-        if not session_result:
-            raise RuntimeError("Failed to establish WebSocket connection")
-
-        # Unwrap Result if needed
-        if hasattr(session_result, "success") and hasattr(session_result, "unwrap"):
-            if session_result.success:
-                session = session_result.unwrap()
-            else:
-                raise RuntimeError("Failed to establish WebSocket connection")
-        else:
-            session = session_result
+        session = await config.llm.connect(messages)
 
         complete = False
 

@@ -43,7 +43,6 @@ class Paths:
 
 
 class DB:
-    """Simple database manager - no ceremony."""
 
     _initialized_paths = set()
 
@@ -103,25 +102,30 @@ def _filter_type(include: list[str] = None, exclude: list[str] = None):
     return "", []
 
 
-def load_messages(
+async def load_messages(
     conversation_id: str, base_dir: str = None, include: list[str] = None, exclude: list[str] = None
 ) -> list[dict]:
     """Load conversation from SQLite with optional type filtering."""
-    with DB.connect(base_dir) as db:
-        db.row_factory = sqlite3.Row
+    import asyncio
+    
+    def _sync_load():
+        with DB.connect(base_dir) as db:
+            db.row_factory = sqlite3.Row
 
-        # Base query with filter
-        query = "SELECT type, content FROM conversations WHERE conversation_id = ?"
-        params = [conversation_id]
+            # Base query with filter
+            query = "SELECT type, content FROM conversations WHERE conversation_id = ?"
+            params = [conversation_id]
 
-        filter_clause, filter_params = _filter_type(include, exclude)
-        query += filter_clause
-        params.extend(filter_params)
+            filter_clause, filter_params = _filter_type(include, exclude)
+            query += filter_clause
+            params.extend(filter_params)
 
-        query += " ORDER BY timestamp"
+            query += " ORDER BY timestamp"
 
-        rows = db.execute(query, params).fetchall()
-        return [{"type": row["type"], "content": row["content"]} for row in rows]
+            rows = db.execute(query, params).fetchall()
+            return [{"type": row["type"], "content": row["content"]} for row in rows]
+    
+    return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
 
 @retry(attempts=3, base_delay=0.1)
@@ -132,42 +136,45 @@ async def save_message(
     content: str,
     base_dir: str = None,
     timestamp: float = None,
-) -> bool:
-    """Save single message to conversation - O(1) operation with retry."""
+) -> None:
+    """Save single message to conversation - O(1) operation with retry. Raises on failure."""
     import asyncio
-    
+
     if timestamp is None:
         timestamp = time.time()
 
     def _sync_save():
-        try:
-            with DB.connect(base_dir) as db:
-                db.execute(
-                    "INSERT INTO conversations (conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
-                    (conversation_id, user_id, type, content, timestamp),
-                )
-            return True
-        except Exception:
-            return False
-    
+        with DB.connect(base_dir) as db:
+            db.execute(
+                "INSERT INTO conversations (conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
+                (conversation_id, user_id, type, content, timestamp),
+            )
+
     # Run sync SQLite operation in thread pool for protocol compliance
-    return await asyncio.get_event_loop().run_in_executor(None, _sync_save)
+    await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
 
-def load_profile(user_id: str, base_dir: str = None) -> dict:
+async def load_profile(user_id: str, base_dir: str = None) -> dict:
     """Load latest user profile from SQLite."""
-    with DB.connect(base_dir) as db:
-        row = db.execute(
-            "SELECT data FROM profiles WHERE user_id = ? ORDER BY version DESC LIMIT 1", (user_id,)
-        ).fetchone()
-        if row:
-            return json.loads(row[0])
-        return {}
+    import asyncio
+    
+    def _sync_load():
+        with DB.connect(base_dir) as db:
+            row = db.execute(
+                "SELECT data FROM profiles WHERE user_id = ? ORDER BY version DESC LIMIT 1", (user_id,)
+            ).fetchone()
+            if row:
+                return json.loads(row[0])
+            return {}
+    
+    return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
 
-def save_profile(user_id: str, profile: dict, base_dir: str = None) -> bool:
-    """Save new user profile version to SQLite."""
-    try:
+async def save_profile(user_id: str, profile: dict, base_dir: str = None) -> None:
+    """Save new user profile version to SQLite. Raises on failure."""
+    import asyncio
+    
+    def _sync_save():
         with DB.connect(base_dir) as db:
             # Get next version atomically
             current_version = (
@@ -185,35 +192,33 @@ def save_profile(user_id: str, profile: dict, base_dir: str = None) -> bool:
                 "INSERT INTO profiles (user_id, version, data, created_at, char_count) VALUES (?, ?, ?, ?, ?)",
                 (user_id, next_version, profile_json, time.time(), char_count),
             )
-        return True
-    except Exception:
-        return False
+    
+    await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
 
 class SQLite:
-    """Storage facade - direct function delegation."""
 
     def __init__(self, base_dir: str = None):
         self.base_dir = base_dir
 
-    def save_message(
+    async def save_message(
         self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
-    ) -> bool:
-        return save_message(conversation_id, user_id, type, content, self.base_dir, timestamp)
+    ) -> None:
+        await save_message(conversation_id, user_id, type, content, self.base_dir, timestamp)
 
-    def load_messages(
+    async def load_messages(
         self, conversation_id: str, include: list[str] = None, exclude: list[str] = None
     ) -> list[dict]:
-        return load_messages(conversation_id, self.base_dir, include, exclude)
+        return await load_messages(conversation_id, self.base_dir, include, exclude)
 
-    def save_profile(self, user_id: str, profile: dict) -> bool:
-        return save_profile(user_id, profile, self.base_dir)
+    async def save_profile(self, user_id: str, profile: dict) -> None:
+        await save_profile(user_id, profile, self.base_dir)
 
-    def load_profile(self, user_id: str) -> dict:
-        return load_profile(user_id, self.base_dir)
+    async def load_profile(self, user_id: str) -> dict:
+        return await load_profile(user_id, self.base_dir)
 
-    def record_message(self, conversation_id: str, user_id: str, events: list) -> bool:
-        """Record batch of events using agent's configured storage."""
+    async def record_message(self, conversation_id: str, user_id: str, events: list) -> None:
+        """Record batch of events using agent's configured storage. Raises on failure."""
         import json
 
         for event in events:
@@ -230,21 +235,14 @@ class SQLite:
             # Convert enum to string for storage
             type_str = event_type.value if hasattr(event_type, "value") else event_type
 
-            if not self.save_message(conversation_id, user_id, type_str, content, timestamp):
-                return False
-        return True
+            await self.save_message(conversation_id, user_id, type_str, content, timestamp)
 
 
-def clear_messages(conversation_id: str, base_dir: str = None) -> bool:
-    """Clear conversation for testing."""
-    try:
-        with DB.connect(base_dir) as db:
-            db.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
-        return True
-    except Exception:
-        return False
+def clear_messages(conversation_id: str, base_dir: str = None) -> None:
+    """Clear conversation for testing. Raises on failure."""
+    with DB.connect(base_dir) as db:
+        db.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
 
 
 def default_storage():
-    """Default storage implementation."""
     return SQLite()

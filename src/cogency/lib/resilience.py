@@ -3,8 +3,6 @@
 import asyncio
 from functools import wraps
 
-from ..core.result import Err
-from ..lib.logger import logger
 
 
 def retry(attempts: int = 3, base_delay: float = 0.1):
@@ -41,21 +39,16 @@ def retry(attempts: int = 3, base_delay: float = 0.1):
     return decorator
 
 
-
-
 def timeout(seconds: float = 30):
-    """Simple timeout decorator for async functions."""
 
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
             try:
                 return await asyncio.wait_for(func(*args, **kwargs), timeout=seconds)
-            except asyncio.TimeoutError:
-                return Err(f"Operation timed out after {seconds}s")
+            except asyncio.TimeoutError as e:
+                raise TimeoutError(f"Operation timed out after {seconds}s") from e
 
         return wrapper
 
     return decorator
-
-

@@ -1,73 +1,49 @@
-"""File reading tool."""
+"""File reading tool - handles errors internally."""
 
 from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
-from ...core.result import Err, Ok, Result
-from ..security import resolve_path_safely
+from ..security import get_safe_file_path, safe_execute
 
 
 class FileRead(Tool):
     """File reading with intelligent context and formatting."""
 
-    @property
-    def name(self) -> str:
-        return "read"
+    name = "read"
+    description = "Read file content"
+    schema = {
+        "file": {},
+        "start": {"type": "integer", "optional": True},
+        "lines": {"type": "integer", "optional": True},
+    }
 
-    @property
-    def description(self) -> str:
-        return "Read file content"
-
-    @property
-    def schema(self) -> dict:
-        return {
-            "file": {},
-            "start": {"type": "integer", "optional": True},
-            "lines": {"type": "integer", "optional": True},
-        }
-
-    def describe_action(self, file: str, **kwargs) -> str:
-        return f"Reading {file}"
-
+    @safe_execute
     async def execute(
         self, file: str, start: int = 0, lines: int = 100, sandbox: bool = True, **kwargs
-    ) -> Result[ToolResult]:
+    ) -> ToolResult:
         if not file:
-            return Err("File cannot be empty")
+            return ToolResult(outcome="File cannot be empty")
 
         try:
-            if sandbox:
-                # Sandboxed execution
-                from ...lib.storage import Paths
-
-                sandbox_dir = Paths.sandbox()
-                file_path = resolve_path_safely(file, sandbox_dir)
-            else:
-                # Direct filesystem access with traversal protection
-                file_path = resolve_path_safely(file)
+            file_path = get_safe_file_path(file, sandbox)
 
             # Read content based on parameters
             if start > 0 or lines != 100:
                 content = self._read_lines(file_path, start, lines)
-                line_count = content.count('\n') + 1 if content else 0
+                line_count = content.count("\n") + 1 if content else 0
                 outcome = f"Read {file} lines {start}-{start + lines - 1} ({line_count} lines)"
             else:
                 with open(file_path, encoding="utf-8") as f:
                     content = f.read()
-                line_count = content.count('\n') + 1 if content else 0
+                line_count = content.count("\n") + 1 if content else 0
                 outcome = f"Read {file} ({line_count} lines)"
 
-            return Ok(ToolResult(outcome=outcome, content=content))
+            return ToolResult(outcome=outcome, content=content)
 
-        except FileNotFoundError:
-            location = "sandbox" if sandbox else "filesystem"
-            return Err(f"File not found: {file} (searched in {location})")
         except UnicodeDecodeError:
-            return Err(f"File '{file}' contains binary data - cannot display as text")
-        except ValueError as e:
-            return Err(f"Security violation: {str(e)}")
-        except Exception as e:
-            return Err(f"Failed to read '{file}': {str(e)}")
+            return ToolResult(
+                outcome=f"File '{file}' contains binary data - cannot display as text"
+            )
 
     def _read_lines(self, file_path: Path, start: int, lines: int = None) -> str:
         """Read specific lines from file - performance optimized."""

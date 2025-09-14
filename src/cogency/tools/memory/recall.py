@@ -9,10 +9,10 @@ import sqlite3
 from typing import NamedTuple
 
 from ...core.protocols import Tool, ToolResult
-from ...core.result import Err, Ok, Result
 from ...lib.logger import logger
 from ...lib.storage import Paths
 from ..file.utils import format_relative_time
+from ..security import safe_execute
 
 
 class MessageMatch(NamedTuple):
@@ -26,61 +26,47 @@ class MessageMatch(NamedTuple):
 class MemoryRecall(Tool):
     """Recall past user messages outside current context window using fuzzy search."""
 
-    @property
-    def name(self) -> str:
-        return "recall"
-
-    @property
-    def description(self) -> str:
-        return "Search past user messages for context outside current conversation"
-
-    @property
-    def schema(self) -> dict:
-        return {
-            "query": {
-                "description": "Keywords to search for in past user messages",
-                "required": True,
-            }
+    name = "recall"
+    description = "Search past user messages for context outside current conversation"
+    schema = {
+        "query": {
+            "description": "Keywords to search for in past user messages",
+            "required": True,
         }
+    }
 
-    def describe_action(self, query: str, **kwargs) -> str:
-        return f"Recalling \"{query}\""
-
+    @safe_execute
     async def execute(
         self, query: str, conversation_id: str = None, user_id: str = None
-    ) -> Result[ToolResult]:
+    ) -> ToolResult:
         """Execute fuzzy search on past user messages."""
         if not query or not query.strip():
-            return Err("Search query cannot be empty")
+            return ToolResult(outcome="Search query cannot be empty")
 
         if not user_id:
-            return Err("User ID required for memory recall")
+            return ToolResult(outcome="User ID required for memory recall")
 
         query = query.strip()
 
-        try:
-            # Get current context window to exclude
-            current_timestamps = self._get_timestamps(conversation_id)
+        # Get current context window to exclude
+        current_timestamps = self._get_timestamps(conversation_id)
 
-            # Simple SQL LIKE search of past user messages
-            matches = self._search_messages(
-                query=query,
-                user_id=user_id,
-                exclude_timestamps=current_timestamps,
-                limit=3,
-            )
+        # Simple SQL LIKE search of past user messages
+        matches = self._search_messages(
+            query=query,
+            user_id=user_id,
+            exclude_timestamps=current_timestamps,
+            limit=3,
+        )
 
-            if not matches:
-                outcome = f"Memory searched for '{query}'"
-                content = "No past references found outside current conversation"
-                return Ok(ToolResult(outcome=outcome, content=content))
+        if not matches:
+            outcome = f"Memory searched for '{query}'"
+            content = "No past references found outside current conversation"
+            return ToolResult(outcome=outcome, content=content)
 
-            outcome = f"Memory searched for '{query}' ({len(matches)} matches)"
-            content = self._format_matches(matches, query)
-            return Ok(ToolResult(outcome=outcome, content=content))
-
-        except Exception as e:
-            return Err(f"Recall search failed: {str(e)}")
+        outcome = f"Memory searched for '{query}' ({len(matches)} matches)"
+        content = self._format_matches(matches, query)
+        return ToolResult(outcome=outcome, content=content)
 
     def _get_timestamps(self, conversation_id: str) -> list[float]:
         """Get timestamps of current context window to exclude from search."""

@@ -1,36 +1,28 @@
 """Executor tests - reference-grade tool execution validation."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from cogency.core.config import Config
 from cogency.core.executor import execute, execute_calls
-from cogency.core.protocols import Tool, ToolResult
-from cogency.core.result import Err, Ok
-
+from cogency.core.protocols import Tool, ToolCall, ToolResult
+from cogency.tools.security import safe_execute
 
 class MockTool(Tool):
     """Test tool for executor validation."""
 
-    @property
-    def name(self) -> str:
-        return "mock"
+    name = "mock"
+    description = "Test tool"
+    schema = {"arg": {}}
 
-    @property
-    def description(self) -> str:
-        return "Test tool"
-
-    @property
-    def schema(self) -> dict:
-        return {"arg": {}}
-
+    @safe_execute
     async def execute(self, arg: str = "default", **kwargs):
         if arg == "fail":
-            return Err("Tool failed")
+            raise ValueError("Tool failed")
         if arg == "crash":
             raise RuntimeError("Tool crashed")
-        return Ok(ToolResult(outcome=f"executed with {arg}", content=f"details: {arg}"))
+        return ToolResult(outcome=f"executed with {arg}", content=f"details: {arg}")
 
 
 @pytest.fixture
@@ -40,14 +32,10 @@ def config():
 
     class MockLLM(LLM):
         async def generate(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("Generated response")
+            return "Generated response"
 
         async def connect(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("connection")
+            return "connection"
 
         async def stream(self, connection):
             yield "token"
@@ -80,7 +68,7 @@ def config():
 @pytest.mark.asyncio
 async def test_successful_execution(config):
     """Tool executes successfully with proper result structure."""
-    call = {"name": "mock", "args": {"arg": "test_value"}}
+    call = ToolCall(name="mock", args={"arg": "test_value"})
 
     result = await execute(call, config, "user1", "conv1")
 
@@ -92,59 +80,34 @@ async def test_successful_execution(config):
 @pytest.mark.asyncio
 async def test_tool_not_found(config):
     """Missing tool returns proper error."""
-    call = {"name": "nonexistent", "args": {}}
+    call = ToolCall(name="nonexistent", args={})
 
     result = await execute(call, config, "user1", "conv1")
 
     assert result.outcome == "nonexistent not found: Tool 'nonexistent' not registered"
 
 
-@pytest.mark.asyncio
-async def test_missing_tool_name(config):
-    """Call without tool name returns validation error."""
-    call = {"args": {"arg": "test"}}
-
-    result = await execute(call, config, "user1", "conv1")
-
-    assert result.outcome == "missing tool name"
-
-
-@pytest.mark.asyncio
-async def test_invalid_call_format(config):
-    """Non-dict call returns format error."""
-    result = await execute("invalid", config, "user1", "conv1")
-
-    assert result.outcome == "invalid call format"
-
-
-@pytest.mark.asyncio
-async def test_invalid_args_format(config):
-    """Non-dict args return validation error."""
-    call = {"name": "mock", "args": "invalid"}
-
-    result = await execute(call, config, "user1", "conv1")
-
-    assert result.outcome == "mock invalid args"
+# These validation tests removed - ToolCall structure guarantees valid format
 
 
 @pytest.mark.asyncio
 async def test_tool_execution_failure(config):
     """Tool returning Err() handled properly."""
-    call = {"name": "mock", "args": {"arg": "fail"}}
+    call = ToolCall(name="mock", args={"arg": "fail"})
 
     result = await execute(call, config, "user1", "conv1")
 
-    assert result.outcome == "mock failed: Tool failed"
+    assert result.outcome == "Security violation: Tool failed"
 
 
 @pytest.mark.asyncio
 async def test_tool_crash(config):
     """Exception during execution handled gracefully."""
-    call = {"name": "mock", "args": {"arg": "crash"}}
+    call = ToolCall(name="mock", args={"arg": "crash"})
 
     result = await execute(call, config, "user1", "conv1")
 
-    assert result.outcome == "mock crashed: Tool crashed"
+    assert result.outcome == "Tool execution failed: Tool crashed"
 
 
 @pytest.mark.asyncio
@@ -154,18 +117,14 @@ async def test_context_injection():
 
     mock_tool = MagicMock()
     mock_tool.name = "context_tool"
-    mock_tool.execute = MagicMock(return_value=Ok(ToolResult(outcome="success")))
+    mock_tool.execute = AsyncMock(return_value=ToolResult(outcome="success"))
 
     class MockLLM(LLM):
         async def generate(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("Generated")
+            return("Generated")
 
         async def connect(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("connection")
+            return("connection")
 
         async def stream(self, connection):
             yield "token"
@@ -194,7 +153,7 @@ async def test_context_injection():
 
     config = Config(llm=MockLLM(), storage=MockStorage(), tools=[mock_tool], sandbox=True)
 
-    call = {"name": "context_tool", "args": {"explicit_arg": "value"}}
+    call = ToolCall(name="context_tool", args={"explicit_arg": "value"})
 
     await execute(call, config, "test_user", "test_conv")
 
@@ -210,14 +169,10 @@ async def test_execute_calls_multiple():
 
     class MockLLM(LLM):
         async def generate(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("Generated")
+            return("Generated")
 
         async def connect(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("connection")
+            return("connection")
 
         async def stream(self, connection):
             yield "token"
@@ -247,8 +202,8 @@ async def test_execute_calls_multiple():
     config = Config(llm=MockLLM(), storage=MockStorage(), tools=[MockTool()])
 
     calls = [
-        {"name": "mock", "args": {"arg": "first"}},
-        {"name": "mock", "args": {"arg": "second"}},
+        ToolCall(name="mock", args={"arg": "first"}),
+        ToolCall(name="mock", args={"arg": "second"}),
     ]
 
     results = await execute_calls(calls, config, "user1", "conv1")
@@ -265,14 +220,10 @@ async def test_execute_calls_handles_failures():
 
     class MockLLM(LLM):
         async def generate(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("Generated")
+            return("Generated")
 
         async def connect(self, messages):
-            from cogency.core.result import Ok
-
-            return Ok("connection")
+            return("connection")
 
         async def stream(self, connection):
             yield "token"
@@ -302,14 +253,14 @@ async def test_execute_calls_handles_failures():
     config = Config(llm=MockLLM(), storage=MockStorage(), tools=[MockTool()])
 
     calls = [
-        {"name": "mock", "args": {"arg": "success"}},
-        {"name": "mock", "args": {"arg": "fail"}},
-        {"name": "mock", "args": {"arg": "another_success"}},
+        ToolCall(name="mock", args={"arg": "success"}),
+        ToolCall(name="mock", args={"arg": "fail"}),
+        ToolCall(name="mock", args={"arg": "another_success"}),
     ]
 
     results = await execute_calls(calls, config, "user1", "conv1")
 
     assert len(results) == 3
     assert results[0].outcome == "executed with success"
-    assert results[1].outcome == "mock failed: Tool failed"
+    assert results[1].outcome == "Security violation: Tool failed"
     assert results[2].outcome == "executed with another_success"

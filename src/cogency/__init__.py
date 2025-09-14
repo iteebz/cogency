@@ -10,8 +10,8 @@ except ImportError:
 
 from .core import Tool
 from .core.agent import Agent
-from .lib import Err, Ok, Result
+from .core.protocols import ToolResult
 from .tools import TOOLS
 
 __version__ = "3.0.0"
-__all__ = ["Agent", "Result", "Ok", "Err", "Tool", "TOOLS"]
+__all__ = ["Agent", "Tool", "ToolResult", "TOOLS"]

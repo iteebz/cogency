@@ -8,7 +8,6 @@ from cogency.core.accumulator import Accumulator
 from cogency.core.config import Config
 from cogency.core.parser import parse_tokens
 from cogency.core.protocols import LLM, Storage, Tool, ToolResult
-from cogency.core.result import Ok
 
 
 class MockLLM(LLM):
@@ -16,10 +15,10 @@ class MockLLM(LLM):
         self.response_tokens = response_tokens
 
     async def generate(self, messages):
-        return Ok("Generated")
+        return "Generated"
 
     async def connect(self, messages):
-        return Ok("connection")
+        return "connection"
 
     async def stream(self, connection):
         for token in self.response_tokens:
@@ -40,33 +39,25 @@ class MockLLM(LLM):
 
 class MockStorage(Storage):
     async def save_message(self, *args, **kwargs):
-        return True
+        pass  # Returns None like real storage
 
     async def load_messages(self, *args, **kwargs):
         return []
 
     async def save_profile(self, *args, **kwargs):
-        return True
+        pass  # Returns None like real storage
 
     async def load_profile(self, *args, **kwargs):
         return {}
 
 
 class MockTool(Tool):
-    @property
-    def name(self):
-        return "test_tool"
-
-    @property
-    def description(self):
-        return "Test tool"
-
-    @property
-    def schema(self):
-        return {"message": {}}
+    name = "test_tool"
+    description = "Test tool"
+    schema = {"message": {}}
 
     async def execute(self, message="test", **kwargs):
-        return Ok(ToolResult(outcome=f"Tool executed: {message}"))
+        return ToolResult(outcome=f"Tool executed: {message}")
 
 
 @pytest.mark.asyncio
@@ -90,7 +81,6 @@ async def test_parser_accumulator_executor_flow():
 
     # Connect and get token stream
     connection = await llm.connect([])
-    connection = connection.unwrap()
 
     # Parse tokens directly
     parser_events = parse_tokens(llm.stream(connection))
@@ -101,7 +91,8 @@ async def test_parser_accumulator_executor_flow():
 
     async for event in accumulator.process(parser_events):
         events.append(event)
-        print(f"Event: {event['type']} - {event['content'][:50]}...")
+        content = event.get('content') or ''
+        print(f"Event: {event['type']} - {content[:50]}...")
 
     print(f"Total events: {len(events)}")
 

@@ -1,6 +1,7 @@
 """CLI display - console rendering for agent consciousness."""
 
-# No enum - just strings
+from ..core.formatter import Formatter
+from ..core.protocols import ToolCall
 
 
 def _render_metrics(input_tokens: int, output_tokens: int, duration: float):
@@ -30,19 +31,25 @@ class Renderer:
                             print("\n~ ", end="", flush=True)
                             self.current_state = "think"
                         print(event["content"] + " ", end="", flush=True)
-                case "tool":
-                    # Clean tool event display - humans see semantic action + clean result
+                case "call":
+                    # Tool call started - show action
                     if self.current_state:
                         print()  # Newline after streaming content
                     self.current_state = None
-                    
-                    status_marker = "●" if event.get("status") == "success" else "✗"
-                    action_display = event.get("display", "Tool execution")
-                    result_display = event.get("result_human", "")
-                    
-                    print(f"{status_marker} {action_display}")
-                    if result_display:
-                        print(f"  {result_display}")
+
+                    # Parse call and format display using Formatter
+                    try:
+                        tool_call = ToolCall.from_json(event["content"])
+                        action_display = Formatter.tool_call_human(tool_call)
+                    except Exception:
+                        action_display = "Tool execution"
+
+                    print(f"● {action_display}")
+
+                case "result":
+                    # Tool result - show outcome using event data
+                    outcome = event.get("outcome", "Tool completed")
+                    print(f"  {outcome}")
                     print()  # Gap for readability
                 case "respond":
                     if event["content"]:

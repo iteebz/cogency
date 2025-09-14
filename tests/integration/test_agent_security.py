@@ -23,8 +23,7 @@ async def test_dangerous_paths_blocked(shell_tool):
 
     for cmd in dangerous_commands:
         result = await shell_tool.execute(cmd, sandbox=True)
-        assert result.failure, f"Command should be blocked: {cmd}"
-        assert "system paths or dangerous operations" in result.error
+        assert "system paths or dangerous operations" in result.outcome, f"Command should be blocked: {cmd}"
 
 
 @pytest.mark.asyncio
@@ -39,10 +38,9 @@ async def test_legitimate_commands_pass(shell_tool):
 
     for cmd in legitimate_commands:
         result = await shell_tool.execute(cmd, sandbox=True)
-        # Should pass validation (may fail execution due to missing files, but not security)
-        if result.failure:
-            assert "system paths or dangerous operations" not in result.error
-            assert "not allowed" not in result.error
+        # Should pass security validation (may fail execution, but not security)
+        assert "system paths or dangerous operations" not in result.outcome, f"Legitimate command blocked: {cmd}"
+        assert "Invalid command syntax" not in result.outcome, f"Legitimate command blocked: {cmd}"
 
 
 @pytest.mark.asyncio
@@ -50,18 +48,15 @@ async def test_layered_security(shell_tool):
     """Test that all security layers work together."""
     # Command injection - blocked by shell sanitizer
     result1 = await shell_tool.execute("ls; rm -rf /", sandbox=True)
-    assert result1.failure
-    assert "Invalid shell command syntax" in result1.error
-
+    assert "Invalid command syntax" in result1.outcome
+    
     # Unknown command - blocked by whitelist
     result2 = await shell_tool.execute("malicious_binary", sandbox=True)
-    assert result2.failure
-    assert "not allowed" in result2.error
-
+    assert "not allowed" in result2.outcome
+    
     # System path in allowed command - blocked by argument validation
     result3 = await shell_tool.execute("cat /etc/passwd", sandbox=True)
-    assert result3.failure
-    assert "system paths or dangerous operations" in result3.error
+    assert "system paths or dangerous operations" in result3.outcome
 
 
 @pytest.mark.asyncio
@@ -71,8 +66,8 @@ async def test_sandbox_modes(shell_tool):
 
     # Should be blocked in sandbox mode
     result1 = await shell_tool.execute(dangerous_cmd, sandbox=True)
-    assert result1.failure
+    assert "system paths or dangerous operations" in result1.outcome
 
-    # Should also be blocked in non-sandbox mode
+    # Should also be blocked in non-sandbox mode  
     result2 = await shell_tool.execute(dangerous_cmd, sandbox=False)
-    assert result2.failure
+    assert "system paths or dangerous operations" in result2.outcome

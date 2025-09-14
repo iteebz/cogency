@@ -7,7 +7,6 @@ import pytest
 
 from cogency import Agent
 from cogency.core.protocols import LLM, Tool, ToolResult
-from cogency.core.result import Ok
 
 
 class MockStreamingLLM(LLM):
@@ -18,14 +17,10 @@ class MockStreamingLLM(LLM):
         self.llm_model = "mock_model"  # For token counting
 
     async def generate(self, messages):
-        from cogency.core.result import Ok
-
-        return Ok("Non-streaming response")
+        return "Non-streaming response"
 
     async def connect(self, messages):
-        from cogency.core.result import Ok
-
-        return Ok("mock_connection")
+        return "mock_connection"
 
     async def stream(self, connection):
         """Stream protocol tokens for testing."""
@@ -221,30 +216,50 @@ async def test_error_handling_in_streaming_flow():
 async def test_persistence_integration():
     """Test that streaming events are persisted during accumulation."""
 
-    # Mock the persistence layer to verify calls
-    from unittest.mock import patch
+    # Create mock storage to track persistence calls
+    from unittest.mock import AsyncMock
+    
+    class MockStorageWithTracking:
+        def __init__(self):
+            self.save_calls = []
+            
+        async def save_message(self, *args, **kwargs):
+            self.save_calls.append(args)
+            
+        async def load_messages(self, *args, **kwargs):
+            return []
+            
+        async def save_profile(self, *args, **kwargs):
+            pass
+            
+        async def load_profile(self, *args, **kwargs):
+            return {}
+            
+        async def record_message(self, *args, **kwargs):
+            self.save_calls.append(args)
 
-    with patch("cogency.lib.resilience.resilient_save") as mock_save:
-        protocol_tokens = [
-            "§THINK\n",
-            "Thinking...\n",
-            "§CALL\n",
-            '{"name": "test_tool", "args": {"message": "persist_test"}}\n',
-            "§RESPOND\n",
-            "Response text\n",
-        ]
+    mock_storage = MockStorageWithTracking()
+    
+    protocol_tokens = [
+        "§THINK\n",
+        "Thinking...\n",
+        "§CALL\n",
+        '{"name": "test_tool", "args": {"message": "persist_test"}}\n',
+        "§RESPOND\n",
+        "Response text\n",
+    ]
 
-        llm = MockStreamingLLM(protocol_tokens)
-        tool = MockTestTool()
-        agent = Agent(llm=llm, tools=[tool], mode="replay", max_iterations=1)
+    llm = MockStreamingLLM(protocol_tokens)
+    tool = MockTestTool()
+    agent = Agent(llm=llm, tools=[tool], storage=mock_storage, mode="replay", max_iterations=1)
 
-        events = []
-        async for event in agent("Test query", chunks=False):
-            events.append(event)
+    events = []
+    async for event in agent("Test query", chunks=False):
+        events.append(event)
 
-        # Verify persistence was called - accumulator should persist events
-        assert mock_save.call_count >= 1  # At least some persistence calls
+    # Verify persistence was called - accumulator should persist events
+    assert len(mock_storage.save_calls) >= 1  # At least some persistence calls
 
-        # Basic validation that we got events and persistence happened
-        assert len(events) >= 1
-        assert events[0]["type"] in ["think", "call"]
+    # Basic validation that we got events and persistence happened
+    assert len(events) >= 1
+    assert events[0]["type"] in ["think", "call"]

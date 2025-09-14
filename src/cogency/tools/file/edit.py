@@ -1,80 +1,57 @@
 """File editing tool."""
 
 from ...core.protocols import Tool, ToolResult
-from ...core.result import Err, Ok, Result
-from ..security import resolve_path_safely
+from ..security import get_safe_file_path, safe_execute
 
 
 class FileEdit(Tool):
     """Edit specific lines in files."""
 
-    @property
-    def name(self) -> str:
-        return "edit"
+    name = "edit"
+    description = "Replace text in file"
+    schema = {"file": {}, "old": {}, "new": {}}
 
-    @property
-    def description(self) -> str:
-        return "Replace text in file"
-
-    @property
-    def schema(self) -> dict:
-        return {"file": {}, "old": {}, "new": {}}
-
-    def describe_action(self, file: str, **kwargs) -> str:
-        return f"Editing {file}"
-
+    @safe_execute
     async def execute(
         self, file: str, old: str, new: str, sandbox: bool = True, **kwargs
-    ) -> Result[ToolResult]:
+    ) -> ToolResult:
         if not file:
-            return Err("File cannot be empty")
+            return ToolResult(outcome="File cannot be empty")
 
         if not old:
-            return Err("Old text cannot be empty")
+            return ToolResult(outcome="Old text cannot be empty")
 
-        try:
-            if sandbox:
-                # Sandboxed execution
-                from ...lib.storage import Paths
+        file_path = get_safe_file_path(file, sandbox)
 
-                sandbox_dir = Paths.sandbox()
-                file_path = resolve_path_safely(file, sandbox_dir)
-            else:
-                # Direct filesystem access with traversal protection
-                file_path = resolve_path_safely(file)
+        # Read existing content
+        if not file_path.exists():
+            return ToolResult(outcome=f"File '{file}' does not exist")
 
-            # Read existing content
-            if not file_path.exists():
-                return Err(f"File '{file}' does not exist")
+        with open(file_path, encoding="utf-8") as f:
+            content = f.read()
 
-            with open(file_path, encoding="utf-8") as f:
-                content = f.read()
+        # Count matches for intelligent feedback
+        matches = content.count(old)
 
-            # Count matches for intelligent feedback
-            matches = content.count(old)
+        if matches == 0:
+            return ToolResult(
+                outcome=f"Text not found: '{old}'\\n* Check exact spelling, whitespace, and case"
+            )
 
-            if matches == 0:
-                return Err(f"Text not found: '{old}'\n* Check exact spelling, whitespace, and case")
+        if matches > 1:
+            return self._handle_multiple_matches(content, old, matches)
 
-            if matches > 1:
-                return self._handle_multiple_matches(content, old, matches)
+        # Single match - perform replacement
+        new_content = content.replace(old, new, 1)
 
-            # Single match - perform replacement
-            new_content = content.replace(old, new, 1)
+        # Write back
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(new_content)
 
-            # Write back
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(new_content)
+        outcome = f"File edited: {file} (1 replacement)"
+        return ToolResult(outcome=outcome)
 
-            outcome = f"File edited: {file} (1 replacement)"
-            return Ok(ToolResult(outcome))
-
-        except ValueError as e:
-            return Err(f"Security violation: {str(e)}")
-        except Exception as e:
-            return Err(f"Failed to edit '{file}': {str(e)}")
-
-    def _handle_multiple_matches(self, content: str, old: str, matches: int) -> Result[str]:
+    def _handle_multiple_matches(self, content: str, old: str, matches: int) -> ToolResult:
         """Handle multiple matches with context for agent guidance."""
         lines = content.split("\n")
         match_contexts = []
@@ -103,4 +80,4 @@ class FileEdit(Tool):
         error_msg += "\n\n".join([f"Match {i + 1}:\n{ctx}" for i, ctx in enumerate(match_contexts)])
         error_msg += "\n\n* Include more surrounding context to make the match unique"
 
-        return Err(error_msg)
+        return ToolResult(outcome=error_msg)

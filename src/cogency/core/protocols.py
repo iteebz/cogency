@@ -1,54 +1,50 @@
 """Core protocols for provider abstraction."""
 
+import json
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from enum import Enum
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
-from .result import Result
+
+
+@dataclass
+class ToolCall:
+    """Tool call - structured input."""
+
+    name: str
+    args: dict[str, Any]
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "ToolCall":
+        """Parse ToolCall from JSON string."""
+        data = json.loads(json_str)
+        return cls(name=data["name"], args=data.get("args", {}))
+
+    def to_json(self) -> str:
+        """Serialize ToolCall to JSON string."""
+        return json.dumps({"name": self.name, "args": self.args})
 
 
 @dataclass
 class ToolResult:
-    """Tool execution result - zealot-grade simplicity."""
+    """Tool execution result - pure data."""
 
     outcome: str  # Natural language completion: "Found 12 search results"
     content: str | None = None  # Optional detailed data for LLM context
-
-    def for_agent(self) -> str:
-        """Format for agent consumption - outcome + content."""
-        if self.content:
-            return f"{self.outcome}\n\n{self.content}"
-        return self.outcome
-
-    def for_human(self) -> str:
-        """Format for human display - just the natural language outcome."""
-        return self.outcome
-
-
-#  types: "think", "call", "result", "respond", "user", "execute", "tool", "end"
-
-
-class Mode(str, Enum):
-    """Agent execution modes - type-safe strings, no ceremony."""
-
-    RESUME = "resume"
-    REPLAY = "replay"
-    AUTO = "auto"
 
 
 @runtime_checkable
 class LLM(Protocol):
     """LLM provider interface with clean layer separation.
 
-    Infrastructure layer (Results): Connection setup/teardown
-    Data layer (Exceptions): Pure token streaming
+    Infrastructure layer: Connection setup/teardown (raises on failure)
+    Data layer: Pure token streaming (raises on failure)
     """
 
-    # INFRASTRUCTURE LAYER - Results pattern for setup/config
-    async def generate(self, messages: list[dict]) -> Result[str]: ...
-    async def connect(self, messages: list[dict]) -> Result[object]: ...
+    # INFRASTRUCTURE LAYER - Direct exceptions for setup/config
+    async def generate(self, messages: list[dict]) -> str: ...
+    async def connect(self, messages: list[dict]) -> object: ...
 
     # DATA LAYER - Exception pattern for streaming
     async def stream(self, connection) -> AsyncGenerator[str, None]: ...
@@ -61,12 +57,12 @@ class LLM(Protocol):
 
 @runtime_checkable
 class Storage(Protocol):
-    """Storage protocol for conversation messages and user profiles."""
+    """Storage protocol - honest failures, no silent lies."""
 
     async def save_message(
         self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
-    ) -> bool:
-        """Save single message to conversation."""
+    ) -> None:
+        """Save single message to conversation. Raises on failure."""
         ...
 
     async def load_messages(
@@ -75,8 +71,8 @@ class Storage(Protocol):
         """Load conversation messages with optional type filtering."""
         ...
 
-    async def save_profile(self, user_id: str, profile: dict) -> bool:
-        """Save user profile (with embedded metadata)."""
+    async def save_profile(self, user_id: str, profile: dict) -> None:
+        """Save user profile. Raises on failure."""
         ...
 
     async def load_profile(self, user_id: str) -> dict:
@@ -85,30 +81,15 @@ class Storage(Protocol):
 
 
 class Tool(ABC):
-    """Tool interface with agent assistance capabilities."""
+    """Tool interface - clean attribute access."""
 
-    @property
-    @abstractmethod
-    def name(self) -> str:
-        pass
-
-    @property
-    @abstractmethod
-    def description(self) -> str:
-        pass
-
-    @property
-    def schema(self) -> dict:
-        return {}
-
-    @property
-    def examples(self) -> list[dict]:
-        return []
+    # Class attributes - required
+    name: str
+    description: str
+    schema: dict = {}
+    examples: list[dict] = []
 
     @abstractmethod
-    async def execute(self, **kwargs) -> Result[ToolResult]:
+    async def execute(self, **kwargs) -> ToolResult:
+        """Execute tool and return result. Handle errors internally."""
         pass
-
-    def describe_action(self, **kwargs) -> str:
-        """Human-readable action description for display."""
-        return f"{self.name}({', '.join(f'{k}={v}' for k, v in kwargs.items())})"

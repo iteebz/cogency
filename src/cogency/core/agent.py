@@ -13,7 +13,7 @@ from ..lib.storage import default_storage
 from ..tools import TOOLS
 from . import replay, resume
 from .config import Config
-from .protocols import LLM, Mode, Storage
+from .protocols import LLM, Storage
 
 
 class Agent:
@@ -45,11 +45,9 @@ class Agent:
         )
 
         # Validate mode during construction
-        try:
-            Mode(mode)
-        except ValueError:
-            valid_modes = [m.value for m in Mode]
-            raise ValueError(f"mode must be one of {valid_modes}, got: {mode}") from None
+        valid_modes = ["auto", "resume", "replay"]
+        if mode not in valid_modes:
+            raise ValueError(f"mode must be one of {valid_modes}, got: {mode}")
 
         # Stateless - agent is pure function with configuration closure
 
@@ -96,18 +94,19 @@ class Agent:
         conversation_id = conversation_id or f"{user_id}_session"
 
         try:
-            # Bind recording function to agent's storage with resilience
-            def finalize_storage(conversation_id: str, user_id: str, events: list) -> bool:
+            # Explicit storage handling - no silent failures
+            async def finalize_storage(conversation_id: str, user_id: str, events: list):
                 try:
-                    return self.config.storage.record_message(conversation_id, user_id, events)
+                    await self.config.storage.record_message(conversation_id, user_id, events)
+                    logger.debug("Conversation saved successfully")
                 except Exception as e:
-                    logger.debug(f"Storage recording failed: {e}")
-                    return False  # Graceful degradation
+                    logger.warning(f"Cannot save conversation: {e}")
+                    # Notify but continue - user knows storage is unavailable
 
             # Mode selection - no orchestrator needed
-            if self.config.mode == Mode.RESUME:
+            if self.config.mode == "resume":
                 mode_stream = resume.stream
-            elif self.config.mode == Mode.AUTO:
+            elif self.config.mode == "auto":
                 # Try WebSocket first, fallback to HTTP on any failure
                 try:
                     mode_stream = resume.stream
@@ -120,7 +119,7 @@ class Agent:
                 yield event
 
             # Post-stream callbacks
-            finalize_storage(conversation_id, user_id, [])
+            await finalize_storage(conversation_id, user_id, [])
             context.learn(user_id, self.config.llm)
         except Exception as e:
             logger.debug(f"Stream failed: {e}")

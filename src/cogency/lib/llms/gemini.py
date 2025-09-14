@@ -1,7 +1,6 @@
 """Gemini provider - LLM protocol implementation."""
 
 from ...core.protocols import LLM
-from ...core.result import Err, Ok, Result
 from ..logger import logger
 from ..rotation import rotate
 from .interrupt import interruptible
@@ -76,19 +75,18 @@ class Gemini(LLM):
         )
 
     @rotate
-    async def generate(self, client, messages: list[dict]) -> Result[str]:
+    async def generate(self, client, messages: list[dict]) -> str:
         """Generate complete response from conversation messages."""
         try:
             # Use proper structured messages instead of flattening
             response = await client.aio.models.generate_content(
                 model=self.llm_model, contents=messages
             )
-            response_text = response.text
-            return Ok(response_text)
-        except ImportError:
-            return Err("Please install google-genai: pip install google-genai")
+            return response.text
+        except ImportError as e:
+            raise ImportError("Please install google-genai: pip install google-genai") from e
         except Exception as e:
-            return Err(f"Gemini Generate Error: {str(e)}")
+            raise RuntimeError(f"Gemini Generate Error: {str(e)}") from e
 
     async def connect(self, messages: list[dict]):
         """Create bidirectional Gemini Live WebSocket session with rotation support."""

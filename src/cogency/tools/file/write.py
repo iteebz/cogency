@@ -1,58 +1,29 @@
-"""File writing tool."""
+"""File writing tool - handles errors internally."""
 
 from ...core.protocols import Tool, ToolResult
-from ...core.result import Err, Ok, Result
-from ..security import resolve_path_safely
+from ..security import get_safe_file_path, safe_execute
 
 
 class FileWrite(Tool):
     """File writing with intelligent feedback and context awareness."""
 
-    @property
-    def name(self) -> str:
-        return "write"
+    name = "write"
+    description = "Write content to file"
+    schema = {"file": {}, "content": {}}
 
-    @property
-    def description(self) -> str:
-        return "Write content to file"
-
-    @property
-    def schema(self) -> dict:
-        return {"file": {}, "content": {}}
-
-    def describe_action(self, file: str, **kwargs) -> str:
-        return f"Creating {file}"
-
-    async def execute(
-        self, file: str, content: str, sandbox: bool = True, **kwargs
-    ) -> Result[ToolResult]:
+    @safe_execute
+    async def execute(self, file: str, content: str, sandbox: bool = True, **kwargs) -> ToolResult:
         if not file:
-            return Err("File cannot be empty")
+            return ToolResult(outcome="File cannot be empty")
 
-        try:
-            if sandbox:
-                # Sandboxed execution
-                from ...lib.storage import Paths
+        file_path = get_safe_file_path(file, sandbox)
 
-                sandbox_dir = Paths.sandbox()
-                file_path = resolve_path_safely(file, sandbox_dir)
-            else:
-                # Direct filesystem access with traversal protection
-                file_path = resolve_path_safely(file)
+        # Write with UTF-8 encoding
+        with open(file_path, "w", encoding="utf-8") as f:
+            f.write(content)
 
-            # Write with UTF-8 encoding
-            with open(file_path, "w", encoding="utf-8") as f:
-                f.write(content)
-
-            line_count = content.count('\n') + 1 if content else 0
-            return Ok(
-                ToolResult(
-                    outcome=f"Created {file} ({line_count} lines)",
-                    content=f"Created: {file_path}",
-                )
-            )
-
-        except ValueError as e:
-            return Err(f"Security violation: {str(e)}")
-        except Exception as e:
-            return Err(f"Failed to write '{file}': {str(e)}")
+        line_count = content.count("\n") + 1 if content else 0
+        return ToolResult(
+            outcome=f"Created {file} ({line_count} lines)",
+            content=f"Created: {file_path}",
+        )

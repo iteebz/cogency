@@ -27,21 +27,21 @@ def prompt(profile: dict, user_messages: list, compress: bool = False) -> str:
     )
 
 
-def get(user_id: str) -> dict | None:
+async def get(user_id: str) -> dict | None:
     """Get latest user profile."""
     if not user_id or user_id == "default":
         return None
     try:
-        return load_profile(user_id)
+        return await load_profile(user_id)
     except Exception as e:
         logger.debug(f"⚠️ Profile fetch failed for {user_id}: {e}")
         return None
 
 
-def format(user_id: str) -> str:
+async def format(user_id: str) -> str:
     """Format user profile for context display."""
     try:
-        profile_data = get(user_id)
+        profile_data = await get(user_id)
         if not profile_data:
             return ""
 
@@ -51,9 +51,9 @@ def format(user_id: str) -> str:
         return ""
 
 
-def should_learn(user_id: str) -> bool:
+async def should_learn(user_id: str) -> bool:
     """Check if 5+ new user messages since last learning."""
-    current = get(user_id)
+    current = await get(user_id)
     if not current:
         return False
 
@@ -61,10 +61,8 @@ def should_learn(user_id: str) -> bool:
 
     from ..lib.storage import Paths
 
-    # Get metadata from embedded profile
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
 
-    # Emergency: Profile over compression threshold
     current_chars = len(json.dumps(current))
     if current_chars > PROFILE_LIMITS["compress_threshold"]:
         logger.debug(
@@ -72,7 +70,6 @@ def should_learn(user_id: str) -> bool:
         )
         return True
 
-    # Count unlearned messages
     db_path = Paths.db()
     if not db_path.exists():
         return False
@@ -85,8 +82,6 @@ def should_learn(user_id: str) -> bool:
             """,
             (user_id, last_learned),
         ).fetchone()[0]
-
-    # Trigger: 5+ new USER messages only
     if unlearned >= PROFILE_LIMITS["learning_trigger"]:
         logger.debug(
             f"📊 DELTA: {unlearned} new USER messages >= {PROFILE_LIMITS['learning_trigger']}"
@@ -108,8 +103,8 @@ def learn(user_id: str, llm):
         logger.debug(f"🧠 Profile learning skipped in test environment for {user_id}")
         return
 
-    if not should_learn(user_id):
-        return
+    # Note: should_learn is now async, but this is sync context for fire-and-forget
+    # Just trigger learning and let learn_async do the check internally
 
     # Background execution (non-blocking)
     import asyncio
@@ -136,7 +131,11 @@ def learn(user_id: str, llm):
 async def learn_async(user_id: str, llm) -> bool:
     """Internal async learning implementation."""
 
-    current = get(user_id) or {
+    # Check if learning is needed
+    if not await should_learn(user_id):
+        return False
+
+    current = await get(user_id) or {
         "who": "",
         "style": "",
         "focus": "",
@@ -187,11 +186,15 @@ async def learn_async(user_id: str, llm) -> bool:
             "last_learned_at": time.time(),
             "messages_processed": len(messages),
         }
-        success = save_profile(user_id, updated)
-
-        final_chars = len(json.dumps(updated))
-        logger.debug(f"💾 DELTA SAVE: {'✅' if success else '❌'} {final_chars} chars")
-        return success
+        try:
+            await save_profile(user_id, updated)
+            final_chars = len(json.dumps(updated))
+            logger.debug(f"💾 DELTA SAVE: ✅ {final_chars} chars")
+            return True
+        except Exception as e:
+            final_chars = len(json.dumps(updated))
+            logger.debug(f"💾 DELTA SAVE: ❌ {final_chars} chars - {e}")
+            return False
 
     return False
 
@@ -204,12 +207,6 @@ async def update_profile(
 
     messages = [{"role": "user", "content": prompt_text}]
     result = await llm.generate(messages)
-
-    if not result.success:
-        logger.debug(f"🚨 GENERATE ERROR: {result.error}")
-        return None
-
-    result = result.unwrap()
 
     if not result:
         return current if compress else None

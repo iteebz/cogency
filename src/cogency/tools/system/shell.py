@@ -5,8 +5,7 @@ import time
 from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
-from ...core.result import Err, Ok, Result
-from ..security import sanitize_shell_input, timeout_context
+from ..security import safe_execute, sanitize_shell_input, timeout_context
 
 
 class SystemShell(Tool):
@@ -66,25 +65,15 @@ class SystemShell(Tool):
         "delete": "rm",
     }
 
-    @property
-    def name(self) -> str:
-        return "shell"
+    name = "shell"
+    description = "Execute system commands"
+    schema = {"command": {}}
 
-    @property
-    def description(self) -> str:
-        return "Execute system commands"
-
-    @property
-    def schema(self) -> dict:
-        return {"command": {}}
-
-    def describe_action(self, command: str, **kwargs) -> str:
-        return f"Running {command}"
-
-    async def execute(self, command: str, sandbox: bool = True, **kwargs) -> Result[ToolResult]:
+    @safe_execute
+    async def execute(self, command: str, sandbox: bool = True, **kwargs) -> ToolResult:
         """Execute command with enhanced intelligence and context."""
         if not command or not command.strip():
-            return Err("Command cannot be empty")
+            return ToolResult(outcome="Command cannot be empty")
 
         # Sanitize command input using proper escaping
         try:
@@ -93,10 +82,10 @@ class SystemShell(Tool):
 
             parts = shlex.split(command)
         except ValueError as e:
-            return Err(f"Invalid command syntax: {str(e)}")
+            return ToolResult(outcome=f"Invalid command syntax: {str(e)}")
 
         if not parts:
-            return Err("Empty command after parsing")
+            return ToolResult(outcome="Empty command after parsing")
 
         cmd = parts[0]
 
@@ -106,14 +95,16 @@ class SystemShell(Tool):
             available = ", ".join(sorted(self.SAFE_COMMANDS))
 
             if suggestion:
-                return Err(
-                    f"Command '{cmd}' not allowed. Did you mean '{suggestion}'? Available: {available}"
+                return ToolResult(
+                    outcome=f"Command '{cmd}' not allowed. Did you mean '{suggestion}'? Available: {available}"
                 )
-            return Err(f"Command '{cmd}' not allowed. Available: {available}")
+            return ToolResult(outcome=f"Command '{cmd}' not allowed. Available: {available}")
 
         # Argument validation - semantic security handles most cases, catch obvious system access
         if not self._validate_command_safety(parts, sandbox):
-            return Err(f"Command arguments contain system paths or dangerous operations: {command}")
+            return ToolResult(
+                outcome=f"Command arguments contain system paths or dangerous operations: {command}"
+            )
 
         # Working directory logic
         if sandbox:
@@ -139,11 +130,11 @@ class SystemShell(Tool):
             return self._format_result(command, result, execution_time, working_path)
 
         except subprocess.TimeoutExpired:
-            return Err(f"Command timed out after 30 seconds: {command}")
+            return ToolResult(outcome=f"Command timed out after 30 seconds: {command}")
         except FileNotFoundError:
-            return Err(f"Command not found: {cmd}")
+            return ToolResult(outcome=f"Command not found: {cmd}")
         except Exception as e:
-            return Err(f"Execution error: {str(e)}")
+            return ToolResult(outcome=f"Execution error: {str(e)}")
 
     def _get_command_suggestion(self, cmd: str) -> str | None:
         """Get intelligent command suggestion for common mistakes."""
@@ -197,11 +188,11 @@ class SystemShell(Tool):
         result: subprocess.CompletedProcess,
         execution_time: float,
         sandbox_path: Path,
-    ) -> Result[ToolResult]:
+    ) -> ToolResult:
         """Shell result formatting - context in outcome, pure content."""
 
         if result.returncode == 0:
-            cmd_name = command.split()[0]
+            command.split()[0]
 
             # Add timing if significant (AGENT PERFORMANCE SIGNAL)
             if execution_time > 0.1:
@@ -221,18 +212,18 @@ class SystemShell(Tool):
                 content_parts.append(f"Warnings:\n{stderr}")
 
             content = "\n".join(content_parts) if content_parts else ""
-            
+
             # Human-friendly outcome based on output
             stdout = result.stdout.strip()
             if stdout:
-                first_line = stdout.split('\n')[0]
+                first_line = stdout.split("\n")[0]
                 outcome = f"Output: {first_line}"
-                if len(stdout.split('\n')) > 1:
+                if len(stdout.split("\n")) > 1:
                     outcome += "..."
             else:
                 outcome = "Command completed"
 
-            return Ok(ToolResult(outcome=outcome, content=content))
+            return ToolResult(outcome=outcome, content=content)
 
         # Failure formatting with helpful suggestions
         error_output = result.stderr.strip() or "Command failed"
@@ -242,7 +233,7 @@ class SystemShell(Tool):
         if suggestion:
             error_msg += f"\n\n* Suggestion: {suggestion}"
 
-        return Err(error_msg)
+        return ToolResult(outcome=error_msg)
 
     def _get_error_suggestion(self, command: str, exit_code: int, error_output: str) -> str | None:
         """Provide intelligent suggestions for command failures."""

@@ -3,61 +3,47 @@
 from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
-from ...core.result import Err, Ok, Result
+from ..security import get_safe_file_path, safe_execute
 from .utils import categorize_file, format_size
 
 
 class FileList(Tool):
     """File listing tool."""
 
-    @property
-    def name(self) -> str:
-        return "list"
+    name = "list"
+    description = "List files"
+    schema = {"path": {"optional": True}, "pattern": {"optional": True}}
 
-    @property
-    def description(self) -> str:
-        return "List files"
-
-    @property
-    def schema(self) -> dict:
-        return {"path": {"optional": True}, "pattern": {"optional": True}}
-
-    def describe_action(self, path: str = ".", **kwargs) -> str:
-        return f"Listing {path}"
-
-    async def execute(self, path: str = ".", pattern: str = None, **kwargs) -> Result[ToolResult]:
+    @safe_execute
+    async def execute(self, path: str = ".", pattern: str = None, **kwargs) -> ToolResult:
         """List files with clean tree structure and metadata."""
-        try:
-            # Handle None pattern
-            if pattern is None:
-                pattern = "*"
+        # Handle None pattern
+        if pattern is None:
+            pattern = "*"
 
-            # Determine target directory
+        # Determine target directory using sandbox
+        if path == ".":
             from ...lib.storage import Paths
 
-            if path == ".":
-                target = Paths.sandbox()
-            else:
-                target = Paths.sandbox(path)
+            target = Paths.sandbox()
+        else:
+            target = get_safe_file_path(path, sandbox=True)
 
-            if not target.exists():
-                return Err(f"Directory '{path}' does not exist")
+        if not target.exists():
+            return ToolResult(outcome=f"Directory '{path}' does not exist")
 
-            # Build clean tree structure
-            tree = self._build_tree(target, pattern, depth=2)
-            if not tree:
-                return Err("No files found")
+        # Build clean tree structure
+        tree = self._build_tree(target, pattern, depth=2)
+        if not tree:
+            return ToolResult(outcome="No files found")
 
-            # Format as clean tree
-            content = self._format_tree(tree)
+        # Format as clean tree
+        content = self._format_tree(tree)
 
-            # Format outcome
-            file_count = self._count_files(tree)
-            outcome = f"Listed {file_count} items in {path}"
-            return Ok(ToolResult(outcome=outcome, content=content))
-
-        except Exception as e:
-            return Err(f"Error listing files: {str(e)}")
+        # Format outcome
+        file_count = self._count_files(tree)
+        outcome = f"Listed {file_count} items in {path}"
+        return ToolResult(outcome=outcome, content=content)
 
     def _build_tree(self, path: Path, pattern: str, depth: int, current_depth: int = 0) -> dict:
         """Build clean tree structure - directories and files with essential metadata."""

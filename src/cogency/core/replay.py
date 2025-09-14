@@ -23,7 +23,7 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
 
     try:
         # Assemble context from storage (exclude current cycle to prevent duplication)
-        messages = context.assemble(query, user_id, conversation_id, config)
+        messages = await context.assemble(query, user_id, conversation_id, config)
 
         for iteration in range(1, config.max_iterations + 1):
             # Add final iteration guidance

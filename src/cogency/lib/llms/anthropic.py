@@ -8,7 +8,6 @@ for WebSocket when Anthropic adds support.
 from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM
-from ...core.result import Err, Ok, Result
 from ..rotation import rotate
 from .interrupt import interruptible
 
@@ -37,7 +36,7 @@ class Anthropic(LLM):
         return anthropic.AsyncAnthropic(api_key=api_key)
 
     @rotate
-    async def generate(self, client, messages: list[dict]) -> Result[str]:
+    async def generate(self, client, messages: list[dict]) -> str:
         """Generate complete response from conversation messages."""
         try:
             response = await client.messages.create(
@@ -47,15 +46,15 @@ class Anthropic(LLM):
                 temperature=self.temperature,
             )
 
-            return Ok(response.content[0].text)
+            return response.content[0].text
 
-        except ImportError:
-            return Err("Please install anthropic: pip install anthropic")
+        except ImportError as e:
+            raise ImportError("Please install anthropic: pip install anthropic") from e
         except Exception as e:
-            return Err(f"Anthropic Generate Error: {str(e)}")
+            raise RuntimeError(f"Anthropic Generate Error: {str(e)}") from e
 
     @rotate
-    async def connect(self, client, messages: list[dict]) -> Result[object]:
+    async def connect(self, client, messages: list[dict]) -> object:
         """INFRASTRUCTURE: Create streaming connection with error handling."""
         try:
             # Create stream connection (pre-configured, ready to use)
@@ -66,12 +65,12 @@ class Anthropic(LLM):
                 temperature=self.temperature,
             )
 
-            return Ok(stream_connection)
+            return stream_connection
 
-        except ImportError:
-            return Err("Please install anthropic: pip install anthropic")
+        except ImportError as e:
+            raise ImportError("Please install anthropic: pip install anthropic") from e
         except Exception as e:
-            return Err(f"Anthropic Connection Error: {str(e)}")
+            raise RuntimeError(f"Anthropic Connection Error: {str(e)}") from e
 
     @rotate
     @interruptible

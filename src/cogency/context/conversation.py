@@ -6,7 +6,7 @@ from ..lib.storage import load_messages
 from .constants import DEFAULT_CONVERSATION_ID, HISTORY_LIMIT
 
 
-def history(conversation_id: str) -> str:
+async def history(conversation_id: str) -> str:
     """Context assembly algorithm:
 
     - Single system message with all context
@@ -18,7 +18,7 @@ def history(conversation_id: str) -> str:
     if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
         return ""
 
-    all_messages = load_messages(conversation_id)
+    all_messages = await load_messages(conversation_id)
     if not all_messages:
         return ""
 
@@ -83,7 +83,7 @@ def history(conversation_id: str) -> str:
     return "\n".join(formatted) if formatted else ""
 
 
-def current_cycle_messages(conversation_id: str) -> list[dict]:
+async def current_cycle_messages(conversation_id: str) -> list[dict]:
     """Get current cycle messages for replay mode continuity.
 
     Current cycle reconstruction:
@@ -94,7 +94,7 @@ def current_cycle_messages(conversation_id: str) -> list[dict]:
     if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
         return []
 
-    all_messages = load_messages(conversation_id)
+    all_messages = await load_messages(conversation_id)
     if not all_messages:
         return []
 

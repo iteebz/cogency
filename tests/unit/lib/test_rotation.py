@@ -36,7 +36,7 @@ async def test_api_key_rotation_behavior():
         # Multiple calls auto-rotate for load balancing
         for _ in range(4):
             result = await with_rotation("TEST", capture_key)
-            assert result.success
+            assert result.startswith("response_")
 
         # Should alternate keys: key1→key2, key2→key1, etc.
         assert call_keys == ["key2", "key1", "key2", "key1"]
@@ -52,16 +52,16 @@ async def test_api_key_rotation_behavior():
             return "success_after_retry"
 
         result = await with_rotation("TEST", quota_test)
-        assert result.success
+        assert result == "success_after_retry"
         assert call_count == 2  # Auto-rotate + retry
 
         # All keys exhausted scenario
         async def all_exhausted(api_key):
             raise Exception("received 1011 (internal error) You exceeded your current quota")
 
-        result = await with_rotation("TEST", all_exhausted)
-        assert not result.success
-        assert "quota" in result.error.lower()
+        with pytest.raises(Exception) as exc_info:
+            await with_rotation("TEST", all_exhausted)
+        assert "quota" in str(exc_info.value).lower()
 
     # @rotate decorator auto-detection and fresh clients
     class MockProvider:
@@ -76,9 +76,9 @@ async def test_api_key_rotation_behavior():
 
     # Auto-detects MOCKPROVIDER prefix, handles missing keys
     provider = MockProvider()
-    result = await provider.method("test")
-    assert result.failure
-    assert "No MOCKPROVIDER API keys found" in result.error
+    with pytest.raises(Exception) as exc_info:
+        await provider.method("test")
+    assert "No MOCKPROVIDER API keys found" in str(exc_info.value)
 
     # Creates fresh clients and rotates on rate limits
     with patch.dict(
@@ -88,5 +88,5 @@ async def test_api_key_rotation_behavior():
     ):
         _rotators.clear()
         result = await provider.method("data")
-        assert result.success
-        assert "good_key" in result.unwrap()  # Rotated from fail_key to good_key
+        assert isinstance(result, str)
+        assert "good_key" in result  # Rotated from fail_key to good_key

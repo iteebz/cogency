@@ -7,7 +7,10 @@ Replaces pattern matching with actual validation.
 import shlex
 import signal
 from contextlib import contextmanager
+from functools import wraps
 from pathlib import Path
+
+from ..core.protocols import ToolResult
 
 
 def sanitize_shell_input(command: str) -> str:
@@ -95,6 +98,16 @@ def resolve_path_safely(file_path: str, base_dir: Path = None) -> Path:
             raise ValueError("Invalid path") from None
 
 
+def get_safe_file_path(file: str, sandbox: bool = True) -> Path:
+    """Get safe file path for sandbox or system mode - eliminates duplication."""
+    if sandbox:
+        from ..lib.storage import Paths
+
+        sandbox_dir = Paths.sandbox()
+        return resolve_path_safely(file, sandbox_dir)
+    return resolve_path_safely(file)
+
+
 @contextmanager
 def timeout_context(seconds: int):
     """Context manager for operation timeouts."""
@@ -116,3 +129,20 @@ def timeout_context(seconds: int):
             signal.signal(signal.SIGALRM, old_handler)
         except AttributeError:
             pass
+
+
+def safe_execute(func):
+    """Decorator for safe tool execution - handles security, file, and general errors."""
+
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except ValueError as e:
+            return ToolResult(outcome=f"Security violation: {str(e)}")
+        except FileNotFoundError as e:
+            return ToolResult(outcome=f"File not found: {str(e)}")
+        except Exception as e:
+            return ToolResult(outcome=f"Tool execution failed: {str(e)}")
+
+    return wrapper

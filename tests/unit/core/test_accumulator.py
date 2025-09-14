@@ -79,14 +79,14 @@ async def test_chunks_false():
     # Accumulated think event
     assert events[0]["type"] == "think"
     assert events[0]["content"] == "I need to analyze this"
-    assert events[0]["timestamp"] == 1.0
+    assert isinstance(events[0]["timestamp"], float)
 
-    # Call event (single, no accumulation needed)
+    # Call event (single, no accumulation needed)  
     assert events[1]["type"] == "call"
     assert events[1]["content"] == '{"name": "search"}'
-    assert events[1]["timestamp"] == 2.0
+    assert isinstance(events[1]["timestamp"], float)
 
-    # Tool result event
+    # Tool result event (should exist even when tool fails)
     assert events[2]["type"] == "result"
 
     # Final response event (content consumed during accumulation)
@@ -96,28 +96,22 @@ async def test_chunks_false():
 @pytest.mark.asyncio
 async def test_direct_persistence():
     """Test that accumulator persists directly to storage."""
-    # Mock resilient_save to capture calls
+    from unittest.mock import patch, AsyncMock
+    
     saved_calls = []
 
-    async def mock_resilient_save(conversation_id, user_id, msg_type, content, timestamp):
-        saved_calls.append(
-            {
-                "conversation_id": conversation_id,
-                "user_id": user_id,
-                "msg_type": msg_type,
-                "content": content,
-                "timestamp": timestamp,
-            }
-        )
-        return True
-
-    # Patch resilient_save
-    import cogency.lib.resilience
-
-    original_save = cogency.lib.resilience.resilient_save
-    cogency.lib.resilience.resilient_save = mock_resilient_save
-
-    try:
+    async def track_calls(*args, **kwargs):
+        saved_calls.append({
+            "conversation_id": args[0],
+            "user_id": args[1], 
+            "msg_type": args[2],
+            "content": args[3],
+            "timestamp": kwargs.get("timestamp"),
+        })
+    
+    with patch("cogency.core.accumulator.save_message", new_callable=AsyncMock) as mock_save:
+        mock_save.side_effect = track_calls
+        
         accumulator = Accumulator(
             config=None, user_id="test", conversation_id="test_conv", chunks=True
         )
@@ -127,17 +121,16 @@ async def test_direct_persistence():
         async for event in accumulator.process(mock_parser_events()):
             events.append(event)
 
-        # Should directly persist 3 accumulated semantic events
-        assert len(saved_calls) == 3
+        # Should persist 4 messages: think, call, result, respond  
+        assert len(saved_calls) == 4
 
-        # Check accumulated content was persisted correctly
+        # Check accumulated content was persisted correctly  
         assert saved_calls[0]["content"] == "I need to analyze this"
         assert saved_calls[0]["msg_type"] == "think"
-        assert saved_calls[1]["content"] == '{"name": "search"}'
-        assert saved_calls[1]["msg_type"] == "call"
-        assert saved_calls[2]["content"] == "Found results"
-        assert saved_calls[2]["msg_type"] == "respond"
-
-    finally:
-        # Restore original function
-        cogency.lib.resilience.resilient_save = original_save
+        assert saved_calls[1]["content"] == '{"name": "search", "args": {}}'
+        assert saved_calls[1]["msg_type"] == "call" 
+        # Tool execution result (failure since no config.tools)
+        assert saved_calls[2]["msg_type"] == "result"  
+        assert "Tool execution failed" in saved_calls[2]["content"] or "not found" in saved_calls[2]["content"]
+        assert saved_calls[3]["content"] == "Found results"
+        assert saved_calls[3]["msg_type"] == "respond"

@@ -12,7 +12,6 @@ from .system import prompt as system_prompt
 
 
 def _get_context_limit(model: str) -> int:
-    """Get context limit for model, defaulting to conservative 6.4k."""
     return CONTEXT_LIMITS.get(model, 6400)  # Conservative default
 
 
@@ -43,10 +42,9 @@ def _truncate_history(history_content: str, max_tokens: int, model: str) -> str:
 
 
 class Context:
-    """Context assembly for streaming conversations."""
 
-    def record(self, conversation_id: str, user_id: str, events: list) -> bool:
-        """Batch record events to storage with chronological ordering."""
+    async def record(self, conversation_id: str, user_id: str, events: list) -> None:
+        """Batch record events to storage with chronological ordering. Raises on failure."""
         for event in events:
             timestamp = event.get("timestamp")
             content = event.get("content", "")
@@ -58,14 +56,11 @@ class Context:
             elif event_type == "result":
                 content = json.dumps(event["results"])
 
-            if not save_message(
+            await save_message(
                 conversation_id, user_id, event_type, content, base_dir=None, timestamp=timestamp
-            ):
-                return False
+            )
 
-        return True
-
-    def assemble(
+    async def assemble(
         self,
         query: str,
         user_id: str,
@@ -97,12 +92,11 @@ class Context:
         total_tokens += core_tokens
 
         # Reserve tokens for user query and current cycle
-        from ..core.protocols import Mode
 
         query_tokens = count_tokens(query, model)
         current_cycle_tokens = 0
-        if config and config.mode != Mode.REPLAY:
-            current_cycle = current_cycle_messages(conversation_id)
+        if config and config.mode != "replay":
+            current_cycle = await current_cycle_messages(conversation_id)
             if current_cycle:
                 current_cycle_content = "\n".join(msg["content"] for msg in current_cycle)
                 current_cycle_tokens = count_tokens(current_cycle_content, model)
@@ -116,7 +110,7 @@ class Context:
             # User profile (high priority - user-specific context)
             profile = config.profile if config else True
             if profile and available_tokens > 100:  # Minimum viable profile space
-                profile_content = profile_format(user_id)
+                profile_content = await profile_format(user_id)
                 if profile_content:
                     profile_tokens = count_tokens(f"USER CONTEXT:\n{profile_content}", model)
                     if profile_tokens <= available_tokens:
@@ -127,7 +121,7 @@ class Context:
 
             # Conversation history (medium priority - truncate intelligently if needed)
             if available_tokens > 200:  # Minimum viable history space
-                history_content = history(conversation_id)
+                history_content = await history(conversation_id)
                 if history_content:
                     history_section = f"CONVERSATION HISTORY:\n{history_content}"
                     history_tokens = count_tokens(history_section, model)
@@ -162,7 +156,7 @@ class Context:
         ]
 
         # Add current cycle messages for resume mode continuity (skip in replay mode)
-        if config and config.mode != Mode.REPLAY:
+        if config and config.mode != "replay":
             current_cycle = current_cycle_messages(conversation_id)
             messages.extend(current_cycle)
 
