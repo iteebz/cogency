@@ -48,7 +48,7 @@ Include description, reproduction steps, and impact assessment.
 - **Vector:** Malicious file paths in tool parameters (`../../../etc/passwd`)
 - **Impact:** Allows access to sensitive system files and directories
 - **Status:** ✅ Mitigated - Critical fallbacks with immediate pattern blocking
-- **Mitigation:** `resolve_path_safely()` - traversal prevention + system directory blocking
+- **Mitigation:** `validate_path()` - traversal prevention + system directory blocking
 - **Related Tests:** Path traversal validation, file access security
 - **Severity:** High - Unauthorized file system access
 

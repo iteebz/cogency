@@ -16,11 +16,11 @@ async def test_get():
     assert await profile.get("default") is None
 
 
-@pytest.mark.asyncio  
+@pytest.mark.asyncio
 async def test_format():
     """Format returns empty string for empty profile."""
     with patch("cogency.context.profile.get", return_value={}):
-        result = await profile.format("user123") 
+        result = await profile.format("user123")
         assert result == ""
 
 
@@ -70,11 +70,19 @@ async def test_learn_async_logic():
         await save_message("conv1", "user1", "user", "Can you help with algorithms?", temp_dir, 120)
 
         with patch("cogency.context.profile.get", return_value=mock_profile):
-            with patch("cogency.context.profile.should_learn", new_callable=AsyncMock, return_value=True):
+            with patch(
+                "cogency.context.profile.should_learn", new_callable=AsyncMock, return_value=True
+            ):
                 from pathlib import Path
 
-                with patch("cogency.lib.storage.Paths.db", return_value=Path(temp_dir) / "store.db"):
-                    with patch("cogency.context.profile.save_profile", new_callable=AsyncMock, return_value=True) as mock_save:
+                with patch(
+                    "cogency.lib.storage.Paths.db", return_value=Path(temp_dir) / "store.db"
+                ):
+                    with patch(
+                        "cogency.context.profile.save_profile",
+                        new_callable=AsyncMock,
+                        return_value=True,
+                    ) as mock_save:
                         # Should learn and update profile
                         result = await profile.learn_async("user1", mock_llm)
 

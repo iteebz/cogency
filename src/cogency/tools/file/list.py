@@ -1,91 +1,82 @@
-"""File listing tool."""
+"""File listing tool with clean tree output."""
 
 from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
-from ..security import get_safe_file_path, safe_execute
-from .utils import categorize_file, format_size
+from ..security import resolve_file, safe_execute
 
 
 class FileList(Tool):
-    """File listing tool."""
+    """List files and directories in clean tree format."""
 
-    name = "list"
-    description = "List files"
+    name = "file_list"
+    description = "List files and directories"
     schema = {"path": {"optional": True}, "pattern": {"optional": True}}
 
     @safe_execute
     async def execute(self, path: str = ".", pattern: str = None, **kwargs) -> ToolResult:
-        """List files with clean tree structure and metadata."""
-        # Handle None pattern
+        """List files in clean tree format."""
         if pattern is None:
             pattern = "*"
 
-        # Determine target directory using sandbox
+        # Determine target directory
         if path == ".":
             from ...lib.storage import Paths
 
             target = Paths.sandbox()
         else:
-            target = get_safe_file_path(path, sandbox=True)
+            target = resolve_file(path, sandbox=True)
 
         if not target.exists():
             return ToolResult(outcome=f"Directory '{path}' does not exist")
 
-        # Build clean tree structure
-        tree = self._build_tree(target, pattern, depth=2)
-        if not tree:
+        # Build tree structure
+        tree_lines = self._build_tree(target, pattern, depth=2)
+
+        if not tree_lines:
             return ToolResult(outcome="No files found")
 
-        # Format as clean tree
-        content = self._format_tree(tree)
+        content = "\n".join(tree_lines)
+        outcome = f"Listed {len([line for line in tree_lines if not line.endswith('/')])} items"
 
-        # Format outcome
-        file_count = self._count_files(tree)
-        outcome = f"Listed {file_count} items in {path}"
         return ToolResult(outcome=outcome, content=content)
 
-    def _build_tree(self, path: Path, pattern: str, depth: int, current_depth: int = 0) -> dict:
-        """Build clean tree structure - directories and files with essential metadata."""
-        tree = {"dirs": {}, "files": []}
+    def _build_tree(
+        self, path: Path, pattern: str, depth: int, current_depth: int = 0, prefix: str = ""
+    ) -> list:
+        """Build clean tree lines."""
+        lines = []
 
         if current_depth >= depth:
-            return tree
+            return lines
 
         try:
-            for item in sorted(path.iterdir()):
-                # Skip hidden files
+            items = sorted(path.iterdir(), key=lambda x: (x.is_file(), x.name))
+
+            for item in items:
                 if item.name.startswith("."):
                     continue
 
                 if item.is_dir():
-                    subtree = self._build_tree(item, pattern, depth, current_depth + 1)
-                    if subtree["dirs"] or subtree["files"]:  # Only include non-empty dirs
-                        tree["dirs"][item.name] = subtree
+                    lines.append(f"{prefix}{item.name}/")
+                    sub_lines = self._build_tree(
+                        item, pattern, depth, current_depth + 1, prefix + "  "
+                    )
+                    lines.extend(sub_lines)
 
-                elif item.is_file():
-                    # Apply pattern matching
-                    if self._matches_pattern(item.name, pattern):
-                        stat = item.stat()
-                        tree["files"].append(
-                            {
-                                "name": item.name,
-                                "size": stat.st_size,
-                                "category": categorize_file(item),
-                            }
-                        )
+                elif item.is_file() and self._matches_pattern(item.name, pattern):
+                    lines.append(f"{prefix}{item.name}")
 
         except PermissionError:
-            pass  # Skip inaccessible directories
+            pass
 
-        return tree
+        return lines
 
     def _matches_pattern(self, filename: str, pattern: str) -> bool:
-        """Simple pattern matching (supports * wildcards)."""
-        if pattern is None or pattern == "*":
+        """Simple pattern matching."""
+        if pattern == "*":
             return True
 
-        # Convert shell-style wildcards to simple matching
         if "*" in pattern:
             parts = pattern.split("*")
             if len(parts) == 2:
@@ -93,28 +84,3 @@ class FileList(Tool):
                 return filename.startswith(prefix) and filename.endswith(suffix)
 
         return pattern.lower() in filename.lower()
-
-    def _format_tree(self, tree: dict, indent: str = "") -> str:
-        """Format clean tree structure."""
-        lines = []
-
-        # Directories first
-        for dir_name, subtree in tree["dirs"].items():
-            lines.append(f"{indent}{dir_name}/")
-            # Recursive formatting with increased indent
-            lines.append(self._format_tree(subtree, indent + "  "))
-
-        for file_info in tree["files"]:
-            name = file_info["name"]
-            size = format_size(file_info["size"])
-            category = file_info["category"]
-            lines.append(f"{indent}{name} [{category}] {size}")
-
-        return "\n".join(line for line in lines if line.strip())
-
-    def _count_files(self, tree: dict) -> int:
-        """Count total files recursively."""
-        count = len(tree["files"])
-        for subtree in tree["dirs"].values():
-            count += self._count_files(subtree)
-        return count

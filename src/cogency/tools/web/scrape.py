@@ -12,7 +12,7 @@ from ..security import safe_execute
 class WebScrape(Tool):
     """Extract and format web content with clean output."""
 
-    name = "scrape"
+    name = "web_scrape"
     description = "Extract web content"
     schema = {"url": {}}
 

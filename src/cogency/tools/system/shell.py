@@ -1,69 +1,14 @@
 """Shell command execution tool."""
 
 import subprocess
-import time
 from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
-from ..security import safe_execute, sanitize_shell_input, timeout_context
+from ..security import safe_execute, sanitize_shell_input
 
 
 class SystemShell(Tool):
-    """shell execution with intelligence and context awareness."""
-
-    # Categorized safe commands - rely on semantic security for dangerous usage
-    SAFE_COMMANDS = {
-        # File operations - semantic security handles dangerous paths
-        "ls",
-        "pwd",
-        "cat",
-        "head",
-        "tail",
-        "wc",
-        "grep",
-        "find",
-        "mkdir",
-        "touch",
-        "cp",
-        "mv",
-        "rm",
-        "chmod",
-        # Text processing
-        "echo",
-        "sort",
-        "tr",
-        "cut",
-        "uniq",
-        "sed",
-        "awk",
-        # Development
-        "python",
-        "python3",
-        "node",
-        "npm",
-        "pip",
-        "git",
-        # System info - semantic security handles reconnaissance usage
-        "date",
-        "whoami",
-        "which",
-        "env",
-        # DANGEROUS commands - let semantic security handle them
-        "ps",  # Process enumeration - semantic security blocks malicious usage
-        "netstat",  # Network reconnaissance - semantic security blocks
-        "history",  # Command history - semantic security blocks credential harvesting
-    }
-
-    # Command suggestions for common mistakes
-    COMMAND_SUGGESTIONS = {
-        "python3": "python",
-        "nodejs": "node",
-        "list": "ls",
-        "copy": "cp",
-        "move": "mv",
-        "remove": "rm",
-        "delete": "rm",
-    }
+    """Execute shell commands with security validation."""
 
     name = "shell"
     description = "Execute system commands"
@@ -71,42 +16,21 @@ class SystemShell(Tool):
 
     @safe_execute
     async def execute(self, command: str, sandbox: bool = True, **kwargs) -> ToolResult:
-        """Execute command with enhanced intelligence and context."""
+        """Execute command with proper security validation."""
         if not command or not command.strip():
             return ToolResult(outcome="Command cannot be empty")
 
-        # Sanitize command input using proper escaping
-        try:
-            command = sanitize_shell_input(command.strip())
-            import shlex
+        # Security validation handled by security layer
+        sanitized = sanitize_shell_input(command.strip())
 
-            parts = shlex.split(command)
-        except ValueError as e:
-            return ToolResult(outcome=f"Invalid command syntax: {str(e)}")
+        import shlex
+
+        parts = shlex.split(sanitized)
 
         if not parts:
             return ToolResult(outcome="Empty command after parsing")
 
-        cmd = parts[0]
-
-        # Security validation with suggestions
-        if cmd not in self.SAFE_COMMANDS:
-            suggestion = self._get_command_suggestion(cmd)
-            available = ", ".join(sorted(self.SAFE_COMMANDS))
-
-            if suggestion:
-                return ToolResult(
-                    outcome=f"Command '{cmd}' not allowed. Did you mean '{suggestion}'? Available: {available}"
-                )
-            return ToolResult(outcome=f"Command '{cmd}' not allowed. Available: {available}")
-
-        # Argument validation - semantic security handles most cases, catch obvious system access
-        if not self._validate_command_safety(parts, sandbox):
-            return ToolResult(
-                outcome=f"Command arguments contain system paths or dangerous operations: {command}"
-            )
-
-        # Working directory logic
+        # Working directory
         if sandbox:
             from ...lib.storage import Paths
 
@@ -115,144 +39,29 @@ class SystemShell(Tool):
         else:
             working_path = Path.cwd()
 
-        # Execute with enhanced feedback and timeout protection
+        # Execute
         try:
-            start_time = time.time()
+            result = subprocess.run(
+                parts, cwd=str(working_path), capture_output=True, text=True, timeout=30
+            )
 
-            with timeout_context(30):
-                result = subprocess.run(
-                    parts, cwd=str(working_path), capture_output=True, text=True, timeout=30
-                )
+            if result.returncode == 0:
+                content_parts = []
 
-            execution_time = time.time() - start_time
+                if result.stdout.strip():
+                    content_parts.append(result.stdout.strip())
 
-            # Format intelligent output
-            return self._format_result(command, result, execution_time, working_path)
+                if result.stderr.strip():
+                    content_parts.append(f"Warnings:\n{result.stderr.strip()}")
 
-        except subprocess.TimeoutExpired:
-            return ToolResult(outcome=f"Command timed out after 30 seconds: {command}")
-        except FileNotFoundError:
-            return ToolResult(outcome=f"Command not found: {cmd}")
-        except Exception as e:
-            return ToolResult(outcome=f"Execution error: {str(e)}")
-
-    def _get_command_suggestion(self, cmd: str) -> str | None:
-        """Get intelligent command suggestion for common mistakes."""
-        return self.COMMAND_SUGGESTIONS.get(cmd)
-
-    def _validate_command_safety(self, parts: list, sandbox: bool) -> bool:
-        """Validate command arguments for obvious system access patterns.
-
-        Semantic security handles sophisticated attacks - this catches basic patterns.
-        """
-        full_command = " ".join(parts)
-
-        # System paths that should never be accessed
-        dangerous_paths = [
-            "/etc/",
-            "/bin/",
-            "/sbin/",
-            "/usr/bin/",
-            "/System/",
-            "/etc/passwd",
-            "/etc/hosts",
-            "/etc/shadow",
-            "~/.ssh/",
-            "~/.bashrc",
-            "~/.profile",
-        ]
-
-        # Check for dangerous path patterns
-        for path in dangerous_paths:
-            if path in full_command:
-                return False
-
-        # Additional validation for specific commands
-        cmd = parts[0]
-
-        if cmd == "find" and len(parts) > 1 and (parts[1] == "/" or parts[1].startswith("/")):
-            # Block filesystem-wide searches
-            return False
-
-        if cmd == "cat" and len(parts) > 1:
-            # Block system file reading
-            for arg in parts[1:]:
-                if arg.startswith("/etc/") or arg.startswith("/bin/"):
-                    return False
-
-        return True
-
-    def _format_result(
-        self,
-        command: str,
-        result: subprocess.CompletedProcess,
-        execution_time: float,
-        sandbox_path: Path,
-    ) -> ToolResult:
-        """Shell result formatting - context in outcome, pure content."""
-
-        if result.returncode == 0:
-            command.split()[0]
-
-            # Add timing if significant (AGENT PERFORMANCE SIGNAL)
-            if execution_time > 0.1:
-                pass
-            else:
-                pass
-
-            content_parts = []
-
-            stdout = result.stdout.strip()
-            if stdout:
-                content_parts.append(stdout)
-
-            # Warning for stderr even on success
-            stderr = result.stderr.strip()
-            if stderr:
-                content_parts.append(f"Warnings:\n{stderr}")
-
-            content = "\n".join(content_parts) if content_parts else ""
-
-            # Human-friendly outcome based on output
-            stdout = result.stdout.strip()
-            if stdout:
-                first_line = stdout.split("\n")[0]
-                outcome = f"Output: {first_line}"
-                if len(stdout.split("\n")) > 1:
-                    outcome += "..."
-            else:
+                content = "\n".join(content_parts) if content_parts else ""
                 outcome = "Command completed"
 
-            return ToolResult(outcome=outcome, content=content)
+                return ToolResult(outcome=outcome, content=content)
+            error_output = result.stderr.strip() or "Command failed"
+            return ToolResult(outcome=f"Command failed (exit {result.returncode}): {error_output}")
 
-        # Failure formatting with helpful suggestions
-        error_output = result.stderr.strip() or "Command failed"
-        suggestion = self._get_error_suggestion(command, result.returncode, error_output)
-
-        error_msg = f"✗ {command} (exit: {result.returncode})\n\n{error_output}"
-        if suggestion:
-            error_msg += f"\n\n* Suggestion: {suggestion}"
-
-        return ToolResult(outcome=error_msg)
-
-    def _get_error_suggestion(self, command: str, exit_code: int, error_output: str) -> str | None:
-        """Provide intelligent suggestions for command failures."""
-        cmd_parts = command.split()
-        cmd = cmd_parts[0]
-
-        if "not found" in error_output.lower():
-            if cmd == "python":
-                return "Try 'python3' or check if Python is installed"
-            if cmd in ["npm", "node"]:
-                return "Node.js may not be available in this environment"
-
-        elif cmd == "git" and "not a git repository" in error_output.lower():
-            return "Initialize git repository with 'git init' first"
-
-        elif cmd == "ls" and "No such file" in error_output:
-            return "Use 'list' tool to see available files, or 'pwd' to check current directory"
-
-        elif exit_code == 1 and cmd == "python":
-            return "Check syntax with 'read' tool or run with 'python -c \"simple code\"'"
-
-        return None
+        except subprocess.TimeoutExpired:
+            return ToolResult(outcome="Command timed out after 30 seconds")
+        except FileNotFoundError:
+            return ToolResult(outcome=f"Command not found: {parts[0]}")

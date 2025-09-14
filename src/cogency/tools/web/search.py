@@ -7,7 +7,7 @@ from ..security import safe_execute
 class WebSearch(Tool):
     """Clean web search with intelligent output formatting."""
 
-    name = "search"
+    name = "web_search"
     description = "Search the web for information"
     schema = {"query": {}}
 

@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 """Cogency CLI - agent execution."""
 
-import argparse
 import asyncio
 import sqlite3
-import sys
 import warnings
 
 from .. import Agent
@@ -55,96 +53,87 @@ def get_last_conversation_id(user_id: str) -> str:
         return str(uuid.uuid4())
 
 
-async def main():
-    # Let __init__.py handle the no-arguments case
-    if len(sys.argv) < 2:
-        from . import main as cli_main
+async def run_agent(
+    question: str,
+    llm: str = "gemini",
+    mode: str = "auto",
+    user: str = "ask_user",
+    instructions: str = None,
+    max_iterations: int = 10,
+    no_tools: bool = False,
+    no_profile: bool = False,
+    no_sandbox: bool = False,
+    new: bool = False,
+    debug: bool = False,
+    verbose: bool = False,
+):
+    """Run agent with given parameters."""
 
-        cli_main()
-        return
-
-    # Parse arguments with argparse
-    parser = argparse.ArgumentParser(description="Cogency Agent CLI")
-    parser.add_argument("question", help="Question for the agent")
-    parser.add_argument("--llm", default="gemini", choices=["openai", "gemini", "anthropic"])
-    parser.add_argument("--mode", default="auto", choices=["auto", "resume", "replay"])
-    parser.add_argument("--user", default="ask_user", help="User identity")
-    parser.add_argument("--instructions", help="Custom agent instructions")
-    parser.add_argument("--max-iterations", type=int, default=10, help="Max iterations")
-    parser.add_argument("--no-tools", action="store_true", help="Disable tools")
-    parser.add_argument("--no-profile", action="store_true", help="Disable user memory")
-    parser.add_argument("--no-sandbox", action="store_true", help="Disable security sandbox")
-    parser.add_argument("--new", action="store_true", help="Force new conversation")
-    parser.add_argument("--debug", action="store_true", help="Show execution traces")
-    parser.add_argument("--verbose", action="store_true", help="Show detailed debug events")
-
-    args = parser.parse_args()
-
-    if args.debug:
+    if debug:
         from ..lib.logger import set_debug
 
         set_debug(True)
 
     # Create agent
     agent = Agent(
-        llm=args.llm,
-        tools=TOOLS if not args.no_tools else None,
-        instructions=args.instructions,
-        mode=args.mode,
-        max_iterations=args.max_iterations,
-        profile=not args.no_profile,
-        sandbox=not args.no_sandbox,
+        llm=llm,
+        tools=TOOLS if not no_tools else None,
+        instructions=instructions,
+        mode=mode,
+        max_iterations=max_iterations,
+        profile=not no_profile,
+        sandbox=not no_sandbox,
     )
 
     # Continuation logic
-    if args.new:
+    if new:
         import uuid
 
         conversation_id = str(uuid.uuid4())
         context_type = "fresh"
     else:
-        conversation_id = get_last_conversation_id(args.user)
+        conversation_id = get_last_conversation_id(user)
         context_type = "continue"
 
     # Show clean execution header
-    config_parts = [args.llm, args.mode]
-    if args.no_tools:
+    config_parts = [llm, mode]
+    if no_tools:
         config_parts.append("no tools")
-    if args.no_profile:
+    if no_profile:
         config_parts.append("no profile")
-    if args.instructions:
+    if instructions:
         config_parts.append("custom instructions")
 
     # Show minimal header only with --verbose
-    if args.verbose:
-        print(f"Cogency Agent ({', '.join(config_parts)}, max_iterations={args.max_iterations})")
-        print(f"User: {args.user}")
+    if verbose:
+        print(f"Cogency Agent ({', '.join(config_parts)}, max_iterations={max_iterations})")
+        print(f"User: {user}")
         print(f"Context: {context_type}")
         session_name = f"session_{len(conversation_id) % 100:02d}"
         print(f"Session: {session_name}")
         print("─" * 50)
 
     # Debug mode - show assembled context
-    if args.debug:
+    if debug:
         from ..context import context
 
         print("DEBUG MODE: Assembled Context")
         print("=" * 60)
-        messages = context.assemble(args.question, args.user, conversation_id, agent.config)
+        messages = await context.assemble(question, user, conversation_id, agent.config)
         for msg in messages:
             print(f"[{msg['role'].upper()}] {msg['content']}")
         print("=" * 60)
 
     try:
         # Streaming execution with observation
-        from ..lib.observe import observe
+        from ..lib.observer import observe
         from .display import Renderer
 
         @observe(agent)
         async def observed_stream():
             try:
                 async for event in agent(
-                    args.question, user_id=args.user, conversation_id=conversation_id, chunks=False
+                    question, user_id=user, conversation_id=conversation_id, chunks=False
                 ):
                     yield event
             except asyncio.CancelledError:
@@ -159,7 +148,7 @@ async def main():
         # Create single stream instance
         stream_instance = observed_stream()
 
-        renderer = Renderer(verbose=args.verbose)
+        renderer = Renderer(verbose=verbose)
         await renderer.render_stream(stream_instance)
 
         # Always show metrics after stream completion
@@ -171,6 +160,13 @@ async def main():
         pass
     except Exception as e:
         print(f"Error: {e}")
+
+
+async def main():
+    """Legacy main function for backwards compatibility."""
+    from . import main as cli_main
+
+    cli_main()
 
 
 if __name__ == "__main__":

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from typing import Any, Protocol, runtime_checkable
 
 
-
 @dataclass
 class ToolCall:
     """Tool call - structured input."""

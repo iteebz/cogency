@@ -58,14 +58,12 @@ class Anthropic(LLM):
         """INFRASTRUCTURE: Create streaming connection with error handling."""
         try:
             # Create stream connection (pre-configured, ready to use)
-            stream_connection = client.messages.stream(
+            return client.messages.stream(
                 model=self.llm_model,
                 messages=messages,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )
-
-            return stream_connection
 
         except ImportError as e:
             raise ImportError("Please install anthropic: pip install anthropic") from e

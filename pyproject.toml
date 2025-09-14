@@ -44,6 +44,7 @@ google-genai = "^1.36.0"
 anthropic = "^0.67.0"
 tiktoken = "^0.11.0"
 numpy = "^2.3.3"
+typer = "^0.17.4"
 
 
 

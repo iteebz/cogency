@@ -42,7 +42,6 @@ def _truncate_history(history_content: str, max_tokens: int, model: str) -> str:
 
 
 class Context:
-
     async def record(self, conversation_id: str, user_id: str, events: list) -> None:
         """Batch record events to storage with chronological ordering. Raises on failure."""
         for event in events:
@@ -157,7 +156,7 @@ class Context:
 
         # Add current cycle messages for resume mode continuity (skip in replay mode)
         if config and config.mode != "replay":
-            current_cycle = current_cycle_messages(conversation_id)
+            current_cycle = await current_cycle_messages(conversation_id)
             messages.extend(current_cycle)
 
         return messages

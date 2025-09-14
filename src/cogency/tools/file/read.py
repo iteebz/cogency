@@ -1,15 +1,15 @@
-"""File reading tool - handles errors internally."""
+"""File reading tool."""
 
 from pathlib import Path
 
 from ...core.protocols import Tool, ToolResult
-from ..security import get_safe_file_path, safe_execute
+from ..security import resolve_file, safe_execute
 
 
 class FileRead(Tool):
-    """File reading with intelligent context and formatting."""
+    """Read file content."""
 
-    name = "read"
+    name = "file_read"
     description = "Read file content"
     schema = {
         "file": {},
@@ -24,32 +24,25 @@ class FileRead(Tool):
         if not file:
             return ToolResult(outcome="File cannot be empty")
 
-        try:
-            file_path = get_safe_file_path(file, sandbox)
+        file_path = resolve_file(file, sandbox)
 
-            # Read content based on parameters
+        try:
             if start > 0 or lines != 100:
                 content = self._read_lines(file_path, start, lines)
-                line_count = content.count("\n") + 1 if content else 0
-                outcome = f"Read {file} lines {start}-{start + lines - 1} ({line_count} lines)"
             else:
                 with open(file_path, encoding="utf-8") as f:
                     content = f.read()
-                line_count = content.count("\n") + 1 if content else 0
-                outcome = f"Read {file} ({line_count} lines)"
 
-            return ToolResult(outcome=outcome, content=content)
+            return ToolResult(outcome=f"Read {file}", content=content)
 
         except UnicodeDecodeError:
-            return ToolResult(
-                outcome=f"File '{file}' contains binary data - cannot display as text"
-            )
+            return ToolResult(outcome=f"File '{file}' contains binary data")
 
     def _read_lines(self, file_path: Path, start: int, lines: int = None) -> str:
-        """Read specific lines from file - performance optimized."""
+        """Read specific lines from file."""
         result_lines = []
         with open(file_path, encoding="utf-8") as f:
-            for line_num, line in enumerate(f, 0):  # Zero-indexed
+            for line_num, line in enumerate(f, 0):
                 if line_num < start:
                     continue
                 if lines and len(result_lines) >= lines:

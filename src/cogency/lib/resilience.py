@@ -4,7 +4,6 @@ import asyncio
 from functools import wraps
 
 
-
 def retry(attempts: int = 3, base_delay: float = 0.1):
     """Simple retry decorator with exponential backoff - no Result ceremony."""
 
@@ -40,7 +39,6 @@ def retry(attempts: int = 3, base_delay: float = 0.1):
 
 
 def timeout(seconds: float = 30):
-
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):

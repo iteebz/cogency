@@ -56,9 +56,7 @@ class MockTestTool(Tool):
         return {"message": {}}
 
     async def execute(self, message: str = "default", **kwargs):
-        return Ok(
-            ToolResult(outcome=f"Tool executed: {message}", content=f"Full details: {message}")
-        )
+        return ToolResult(outcome=f"Tool executed: {message}", content=f"Full details: {message}")
 
 
 @pytest.mark.asyncio
@@ -217,29 +215,28 @@ async def test_persistence_integration():
     """Test that streaming events are persisted during accumulation."""
 
     # Create mock storage to track persistence calls
-    from unittest.mock import AsyncMock
-    
+
     class MockStorageWithTracking:
         def __init__(self):
             self.save_calls = []
-            
+
         async def save_message(self, *args, **kwargs):
             self.save_calls.append(args)
-            
+
         async def load_messages(self, *args, **kwargs):
             return []
-            
+
         async def save_profile(self, *args, **kwargs):
             pass
-            
+
         async def load_profile(self, *args, **kwargs):
             return {}
-            
+
         async def record_message(self, *args, **kwargs):
             self.save_calls.append(args)
 
     mock_storage = MockStorageWithTracking()
-    
+
     protocol_tokens = [
         "§THINK\n",
         "Thinking...\n",

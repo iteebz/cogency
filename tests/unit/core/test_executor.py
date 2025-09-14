@@ -9,6 +9,7 @@ from cogency.core.executor import execute, execute_calls
 from cogency.core.protocols import Tool, ToolCall, ToolResult
 from cogency.tools.security import safe_execute
 
+
 class MockTool(Tool):
     """Test tool for executor validation."""
 
@@ -121,10 +122,10 @@ async def test_context_injection():
 
     class MockLLM(LLM):
         async def generate(self, messages):
-            return("Generated")
+            return "Generated"
 
         async def connect(self, messages):
-            return("connection")
+            return "connection"
 
         async def stream(self, connection):
             yield "token"
@@ -169,10 +170,10 @@ async def test_execute_calls_multiple():
 
     class MockLLM(LLM):
         async def generate(self, messages):
-            return("Generated")
+            return "Generated"
 
         async def connect(self, messages):
-            return("connection")
+            return "connection"
 
         async def stream(self, connection):
             yield "token"
@@ -220,10 +221,10 @@ async def test_execute_calls_handles_failures():
 
     class MockLLM(LLM):
         async def generate(self, messages):
-            return("Generated")
+            return "Generated"
 
         async def connect(self, messages):
-            return("connection")
+            return "connection"
 
         async def stream(self, connection):
             yield "token"

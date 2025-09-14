@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.lib.observe import Observer, observe
+from cogency.lib.observer import Observer, observe
 
 
 async def mock_stream_events():

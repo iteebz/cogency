@@ -1,128 +1,150 @@
 """CLI interface for Cogency."""
 
-import sys
+import asyncio
+import json
+
+import typer
+
+app = typer.Typer(
+    name="cogency", help="Streaming consciousness for AI agents", no_args_is_help=False
+)
 
 
-def main():
-    """CLI entry point."""
+@app.command()
+def ask(
+    question: str = typer.Argument(help="Question for the agent"),
+    llm: str = typer.Option("gemini", "--llm", help="LLM provider (openai, gemini, anthropic)"),
+    mode: str = typer.Option("auto", "--mode", help="Stream mode (auto, resume, replay)"),
+    user: str = typer.Option("ask_user", "--user", help="User identity"),
+    instructions: str = typer.Option(None, "--instructions", help="Custom agent instructions"),
+    max_iterations: int = typer.Option(10, "--max-iterations", help="Maximum reasoning iterations"),
+    no_tools: bool = typer.Option(False, "--no-tools", help="Disable tools"),
+    no_profile: bool = typer.Option(False, "--no-profile", help="Disable user memory"),
+    no_sandbox: bool = typer.Option(False, "--no-sandbox", help="Disable security sandbox"),
+    new: bool = typer.Option(False, "--new", help="Start fresh conversation"),
+    debug: bool = typer.Option(False, "--debug", help="Show execution traces"),
+    verbose: bool = typer.Option(False, "--verbose", help="Show detailed debug events"),
+):
+    """Ask the agent a question."""
+    from .ask import run_agent
 
-    # Show last conversation
-    if len(sys.argv) > 1 and sys.argv[1] == "last":
-        from .debug import show_conversation
+    asyncio.run(
+        run_agent(
+            question,
+            llm,
+            mode,
+            user,
+            instructions,
+            max_iterations,
+            no_tools,
+            no_profile,
+            no_sandbox,
+            new,
+            debug,
+            verbose,
+        )
+    )
 
-        if len(sys.argv) > 2:
-            show_conversation(sys.argv[2])
-        else:
-            show_conversation()
-        return
 
-    # Show assembled context
-    if len(sys.argv) > 1 and sys.argv[1] == "context":
-        from .debug import show_context
+@app.command()
+def last(conv_id: str = typer.Argument(None, help="Conversation ID")):
+    """Show last conversation flow."""
+    from .debug import show_conversation
 
-        if len(sys.argv) > 2:
-            show_context(sys.argv[2])
-        else:
-            show_context()
-        return
+    show_conversation(conv_id)
 
-    # Database inspection
-    if len(sys.argv) > 1 and sys.argv[1] == "db":
-        from .debug import query_main
 
-        query_main()
-        return
+@app.command()
+def context(conv_id: str = typer.Argument(None, help="Conversation ID")):
+    """Show assembled context."""
+    from .debug import show_context
 
-    # Database statistics
-    if len(sys.argv) > 1 and sys.argv[1] == "stats":
-        from .admin import show_stats
+    show_context(conv_id)
 
-        show_stats()
-        return
 
-    # User profiles
-    if len(sys.argv) > 1 and sys.argv[1] == "users":
-        from .admin import users_main
+@app.command()
+def db():
+    """Database inspection."""
+    from .debug import query_main
 
-        users_main()
-        return
+    query_main()
 
-    # Profile inspection
-    if len(sys.argv) > 1 and sys.argv[1] == "profile":
-        from ..context.profile import get
 
+@app.command()
+def stats():
+    """Database statistics."""
+    from .admin import show_stats
+
+    show_stats()
+
+
+@app.command()
+def users():
+    """User profiles."""
+    from .admin import users_main
+
+    users_main()
+
+
+@app.command()
+def profile():
+    """Show user profile."""
+    import asyncio
+    from ..context.profile import get
+
+    async def _show_profile():
         user_id = "ask_user"  # Default CLI user
-        user_profile = get(user_id)
+        user_profile = await get(user_id)
         if user_profile:
-            import json
-
             print(json.dumps(user_profile))
         else:
             print("{}")
-        return
 
-    # Nuclear cleanup
-    if len(sys.argv) > 1 and sys.argv[1] == "nuke":
-        # Handle nuke subcommands
-        if len(sys.argv) > 2:
-            subcommand = sys.argv[2]
-            if subcommand == "sandbox":
-                from .admin import nuke_sandbox
+    asyncio.run(_show_profile())
 
-                nuke_sandbox()
-                return
-            if subcommand == "db":
-                from .admin import nuke_db
 
-                nuke_db()
-                return
-            return
-            return
-        # Default nuke with confirmation
-        from .admin import nuke_everything
+nuke_app = typer.Typer(help="Nuclear cleanup commands")
 
-        nuke_everything()
-        return
 
-    # Help for Claude
-    if "--help" in sys.argv or "-h" in sys.argv or len(sys.argv) == 1:
-        print("Cogency - Streaming agents")
-        print()
-        print("EXECUTION:")
-        print('  cogency "question"              # Ask (continues conversation)')
-        print('  cogency "question" --new        # Start fresh conversation')
-        print('  cogency "question" --debug      # Show execution details')
-        print()
-        print("DEBUGGING:")
-        print("  cogency last [conv_id]          # Show conversation flow")
-        print("  cogency context [conv_id]       # Show assembled context")
-        print("  cogency db                      # Database inspection")
-        print("  cogency stats                   # Database stats")
-        print("  cogency profile                 # Show user profile")
-        print()
-        print("OPTIONS:")
-        print("  --llm=name              LLM provider (openai, gemini, anthropic)")
-        print("  --mode=type             Stream mode (auto, resume, replay)")
-        print("  --max-iterations=N      Maximum reasoning iterations")
-        print("  --user=name             User identity")
-        print('  --instructions="..."    Custom agent instructions')
-        print("  --no-tools              Disable tools")
-        print("  --no-profile            Disable user memory")
-        print("  --no-sandbox            Disable security sandbox")
-        print("  --debug                 Show execution traces")
-        print()
-        print("ADMIN:")
-        print("  cogency nuke                    # Delete all data")
-        print("  cogency nuke sandbox            # Delete sandbox only")
-        print("  cogency nuke db                 # Delete database only")
-        return
+@nuke_app.command("all")
+def nuke_all():
+    """Delete all data (with confirmation)."""
+    from .admin import nuke_everything
 
-    # Default: agent execution
-    import asyncio
+    nuke_everything()
 
-    from .ask import main as ask_main
 
-    asyncio.run(ask_main())
+@nuke_app.command("sandbox")
+def nuke_sandbox_cmd():
+    """Delete sandbox only."""
+    from .admin import nuke_sandbox
+
+    nuke_sandbox()
+
+
+@nuke_app.command("db")
+def nuke_db_cmd():
+    """Delete database only."""
+    from .admin import nuke_db
+
+    nuke_db()
+
+
+app.add_typer(nuke_app, name="nuke")
+
+
+def main():
+    """CLI entry point with smart argument handling."""
+    import sys
+    
+    # If first arg doesn't match a command, treat as direct question
+    if len(sys.argv) > 1 and sys.argv[1] not in [
+        "ask", "last", "context", "db", "stats", "users", "profile", "nuke", "--help", "-h"
+    ]:
+        # Insert 'ask' command for direct questions
+        sys.argv.insert(1, "ask")
+    
+    app()
 
 
 if __name__ == "__main__":

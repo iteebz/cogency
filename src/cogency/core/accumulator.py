@@ -35,6 +35,8 @@ class Accumulator:
         self.content = ""
         self.start_time = None
         self._pending_result = None
+        self._stored_call = None
+        self._pending_call_event = None
 
     async def process(
         self, parser_events: AsyncGenerator[dict[str, Any], None]
@@ -60,16 +62,23 @@ class Accumulator:
             if state_changed:
                 # State change - yield previous accumulated event (chunks=False only)
                 if not self.chunks and self.current_type and self.content.strip():
-                    yield {
-                        "type": self.current_type,
-                        "content": self.content,
-                        "timestamp": self.start_time,
-                    }
+                    # Don't yield "call" events - they get processed in _persist()
+                    if self.current_type != "call":
+                        yield {
+                            "type": self.current_type,
+                            "content": self.content,
+                            "timestamp": self.start_time,
+                        }
 
                 # Persist previous accumulated content
                 if self.current_type and self.content.strip():
                     await self._persist()
 
+                # Yield pending call event if exists  
+                if self._pending_call_event:
+                    yield self._pending_call_event
+                    self._pending_call_event = None
+                
                 # Yield pending tool result if exists
                 if self._pending_result:
                     yield self._pending_result
@@ -94,13 +103,18 @@ class Accumulator:
         if self.current_type and self.content.strip():
             await self._persist()
 
+            # Yield final pending call event if exists
+            if self._pending_call_event:
+                yield self._pending_call_event
+                self._pending_call_event = None
+
             # Yield final pending result if exists
             if self._pending_result:
                 yield self._pending_result
                 self._pending_result = None
 
-            # Yield final event for non-chunks mode
-            if not self.chunks:
+            # Yield final event for non-chunks mode (except call - handled specially)
+            if not self.chunks and self.current_type != "call":
                 yield {
                     "type": self.current_type,
                     "content": self.content,
@@ -112,11 +126,17 @@ class Accumulator:
         if not self.current_type or not self.content.strip():
             return
 
-        # Direct persistence - no callback bullshit
+        # Direct persistence - no callback bullshit  
         if self.current_type == "call":
             # Parse and store structured call data
+            # Clean call content by removing any trailing delimiters
+            clean_content = self.content.strip()
+            # Remove any §EXECUTE delimiters that got accumulated
+            if "§EXECUTE" in clean_content:
+                clean_content = clean_content.split("§EXECUTE")[0].strip()
+            
             try:
-                tool_call = ToolCall.from_json(self.content.strip())
+                tool_call = ToolCall.from_json(clean_content)
                 await save_message(
                     self.conversation_id,
                     self.user_id,
@@ -124,25 +144,16 @@ class Accumulator:
                     tool_call.to_json(),
                     timestamp=self.start_time,
                 )
-            except Exception as e:
-                logger.warning(f"Failed to persist call data for conversation {self.conversation_id}: {e}")
-                tool_call = ToolCall.from_json(self.content.strip())  # Still need to parse for execution
-
-            # Execute tool after persistence (always happens)
-            tool_event = await self._execute_tool(tool_call)
-            self._pending_result = tool_event
-
-            # Also save result message for conversation context
-            try:
-                await save_message(
-                    self.conversation_id,
-                    self.user_id,
-                    "result",
-                    tool_event["content"] or tool_event["outcome"],  # Full context or outcome
-                )
-            except Exception as e:
-                logger.warning(f"Failed to persist result data for conversation {self.conversation_id}: {e}")
-
+                # Store parsed call for later execution on §EXECUTE
+                self._stored_call = tool_call
+                
+                # Store clean call event for yielding
+                self._pending_call_event = {
+                    "type": "call", 
+                    "content": tool_call.to_json(),
+                    "timestamp": self.start_time,
+                }
+                
             except json.JSONDecodeError:
                 # Invalid JSON - store as raw content
                 try:
@@ -154,7 +165,34 @@ class Accumulator:
                         timestamp=self.start_time,
                     )
                 except Exception as e:
-                    logger.warning(f"Failed to persist invalid call data for conversation {self.conversation_id}: {e}")
+                    logger.warning(
+                        f"Failed to persist invalid call data for conversation {self.conversation_id}: {e}"
+                    )
+        elif self.current_type == "execute":
+            # Execute previously stored call
+            if hasattr(self, '_stored_call') and self._stored_call:
+                tool_event = await self._execute_tool(self._stored_call)
+                
+                # Save result message for conversation context
+                try:
+                    await save_message(
+                        self.conversation_id,
+                        self.user_id,
+                        "result",
+                        tool_event["content"] or tool_event["outcome"],
+                        timestamp=self.start_time,
+                    )
+                except Exception as e:
+                    logger.warning(
+                        f"Failed to persist result data for conversation {self.conversation_id}: {e}"
+                    )
+                
+                # Store result for immediate yielding
+                self._pending_result = tool_event
+                
+                # Clear stored call
+                self._stored_call = None
+                
         else:
             # Standard event types
             try:
@@ -166,7 +204,9 @@ class Accumulator:
                     timestamp=self.start_time,
                 )
             except Exception as e:
-                logger.warning(f"Failed to persist {self.current_type} data for conversation {self.conversation_id}: {e}")
+                logger.warning(
+                    f"Failed to persist {self.current_type} data for conversation {self.conversation_id}: {e}"
+                )
 
         # Reset accumulation
         self.content = ""

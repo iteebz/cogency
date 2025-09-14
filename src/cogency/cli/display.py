@@ -4,10 +4,13 @@ from ..core.formatter import Formatter
 from ..core.protocols import ToolCall
 
 
-def _render_metrics(input_tokens: int, output_tokens: int, duration: float):
-    """Render final execution metrics with clean separation."""
-    print(f"\n{'─' * 30}")
-    print(f"{input_tokens}→{output_tokens} tokens | {duration:.1f}s")
+def _render_metrics(input_tokens: int, output_tokens: int, duration: float, verbose: bool = False):
+    """Render final execution metrics subtly."""
+    if verbose:
+        print(f"\n[{input_tokens}→{output_tokens} tokens, {duration:.1f}s]")
+    else:
+        # Just a subtle hint, no jarring separators
+        print(f"[{input_tokens}→{output_tokens} tokens, {duration:.1f}s]")
 
 
 class Renderer:
@@ -19,7 +22,7 @@ class Renderer:
 
     def show_metrics(self, metrics: dict):
         """Display metrics after stream completion."""
-        _render_metrics(metrics["input_tokens"], metrics["output_tokens"], metrics["duration"])
+        _render_metrics(metrics["input_tokens"], metrics["output_tokens"], metrics["duration"], self.verbose)
 
     async def render_stream(self, agent_stream):
         """Consume agent events and render to console."""
@@ -44,12 +47,12 @@ class Renderer:
                     except Exception:
                         action_display = "Tool execution"
 
-                    print(f"● {action_display}")
+                    print(f"○ {action_display}")
 
                 case "result":
                     # Tool result - show outcome using event data
                     outcome = event.get("outcome", "Tool completed")
-                    print(f"  {outcome}")
+                    print(f"● {outcome}")
                     print()  # Gap for readability
                 case "respond":
                     if event["content"]:

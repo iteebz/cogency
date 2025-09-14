@@ -6,12 +6,12 @@ Embeddings would add ~15% better matching at 4x complexity cost.
 """
 
 import sqlite3
+import time
 from typing import NamedTuple
 
 from ...core.protocols import Tool, ToolResult
 from ...lib.logger import logger
 from ...lib.storage import Paths
-from ..file.utils import format_relative_time
 from ..security import safe_execute
 
 
@@ -154,7 +154,15 @@ class MemoryRecall(Tool):
         """Format search results for ToolResult content."""
         results = []
         for match in matches:
-            time_ago = format_relative_time(match.timestamp)
+            time_diff = time.time() - match.timestamp
+            if time_diff < 60:
+                time_ago = "<1min ago"
+            elif time_diff < 3600:
+                time_ago = f"{int(time_diff / 60)}min ago"
+            elif time_diff < 86400:
+                time_ago = f"{int(time_diff / 3600)}h ago"
+            else:
+                time_ago = f"{int(time_diff / 86400)}d ago"
 
             # Preview with highlighting (simple approach)
             content = match.content

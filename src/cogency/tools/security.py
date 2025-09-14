@@ -49,7 +49,7 @@ def sanitize_shell_input(command: str) -> str:
         raise ValueError(f"Invalid shell command syntax: {e}") from None
 
 
-def resolve_path_safely(file_path: str, base_dir: Path = None) -> Path:
+def validate_path(file_path: str, base_dir: Path = None) -> Path:
     """Prevent common path attacks. Semantic security handles sophisticated ones. [SEC-004]
 
     Blocks:
@@ -98,14 +98,14 @@ def resolve_path_safely(file_path: str, base_dir: Path = None) -> Path:
             raise ValueError("Invalid path") from None
 
 
-def get_safe_file_path(file: str, sandbox: bool = True) -> Path:
-    """Get safe file path for sandbox or system mode - eliminates duplication."""
+def resolve_file(file: str, sandbox: bool = True) -> Path:
+    """Resolve file path for sandbox or system mode - eliminates duplication."""
     if sandbox:
         from ..lib.storage import Paths
 
         sandbox_dir = Paths.sandbox()
-        return resolve_path_safely(file, sandbox_dir)
-    return resolve_path_safely(file)
+        return validate_path(file, sandbox_dir)
+    return validate_path(file)
 
 
 @contextmanager

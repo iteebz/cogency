@@ -43,7 +43,6 @@ class Paths:
 
 
 class DB:
-
     _initialized_paths = set()
 
     @classmethod
@@ -107,7 +106,7 @@ async def load_messages(
 ) -> list[dict]:
     """Load conversation from SQLite with optional type filtering."""
     import asyncio
-    
+
     def _sync_load():
         with DB.connect(base_dir) as db:
             db.row_factory = sqlite3.Row
@@ -124,7 +123,7 @@ async def load_messages(
 
             rows = db.execute(query, params).fetchall()
             return [{"type": row["type"], "content": row["content"]} for row in rows]
-    
+
     return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
 
@@ -157,23 +156,24 @@ async def save_message(
 async def load_profile(user_id: str, base_dir: str = None) -> dict:
     """Load latest user profile from SQLite."""
     import asyncio
-    
+
     def _sync_load():
         with DB.connect(base_dir) as db:
             row = db.execute(
-                "SELECT data FROM profiles WHERE user_id = ? ORDER BY version DESC LIMIT 1", (user_id,)
+                "SELECT data FROM profiles WHERE user_id = ? ORDER BY version DESC LIMIT 1",
+                (user_id,),
             ).fetchone()
             if row:
                 return json.loads(row[0])
             return {}
-    
+
     return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
 
 async def save_profile(user_id: str, profile: dict, base_dir: str = None) -> None:
     """Save new user profile version to SQLite. Raises on failure."""
     import asyncio
-    
+
     def _sync_save():
         with DB.connect(base_dir) as db:
             # Get next version atomically
@@ -192,12 +192,11 @@ async def save_profile(user_id: str, profile: dict, base_dir: str = None) -> Non
                 "INSERT INTO profiles (user_id, version, data, created_at, char_count) VALUES (?, ?, ?, ?, ?)",
                 (user_id, next_version, profile_json, time.time(), char_count),
             )
-    
+
     await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
 
 class SQLite:
-
     def __init__(self, base_dir: str = None):
         self.base_dir = base_dir
 

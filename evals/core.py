@@ -86,7 +86,7 @@ async def _execute_test(i, test, category):
     try:
         import time
 
-        from cogency.lib.observe import Observer
+        from cogency.lib.observer import Observer
 
         user_id = f"eval_{category}_{i:02d}_{int(time.time())}"
 

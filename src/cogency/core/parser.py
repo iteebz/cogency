@@ -98,6 +98,22 @@ async def parse_tokens(
                 word_buffer = ""
             else:
                 word_buffer += char
+                
+                # Check for §EXECUTE in buffer without waiting for word boundary
+                if "§EXECUTE" in word_buffer:
+                    # Split at §EXECUTE
+                    parts = word_buffer.split("§EXECUTE", 1)
+                    if parts[0].strip():
+                        # Process content before §EXECUTE
+                        current_state, events = _process_word(parts[0].strip(), current_state, delimiter_pattern)
+                        for event in events:
+                            yield event
+                    
+                    # Emit execute event
+                    yield {"type": "execute", "content": ""}
+                    
+                    # Continue with remaining content
+                    word_buffer = parts[1] if len(parts) > 1 else ""
 
     # Process final word if stream ends without whitespace
     if word_buffer.strip():

@@ -292,3 +292,22 @@ async def test_compact_delimiter_with_content():
     assert events[1]["content"] == "more"
     assert events[2]["type"] == "call"
     assert events[2]["content"] == "content"
+
+
+@pytest.mark.asyncio
+async def test_execute_with_leading_space():
+    """Test parser handles §EXECUTE with leading space for word boundary."""
+    tokens = ['{"name":"test"}', " §EXECUTE", " continue"]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    # Should emit call content, then execute event, then continue
+    assert len(events) == 3
+    assert events[0]["type"] == "respond"
+    assert events[0]["content"] == '{"name":"test"}'
+    assert events[1]["type"] == "execute"
+    assert events[1]["content"] == ""
+    assert events[2]["type"] == "respond"
+    assert events[2]["content"] == "continue"

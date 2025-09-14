@@ -5,7 +5,6 @@ import time
 from collections.abc import Callable
 from typing import Any
 
-
 # No client caching - WebSocket clients hold stateful connections
 
 
@@ -94,7 +93,7 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
         # Retry with different key
         retry_key = rotator.current_key()
         if not retry_key:
-            raise RuntimeError(f"No {prefix} API keys available for retry")
+            raise RuntimeError(f"No {prefix} API keys available for retry") from None
 
         try:
             return await func(retry_key, *args, **kwargs)
@@ -149,7 +148,9 @@ def rotate(func=None, *, prefix: str = None, per_connection: bool = False):
 
                     key = rotator.current_key()
                     if not key:  # Safety check after rotation
-                        raise RuntimeError(f"No {provider_prefix} API keys available for retry")
+                        raise RuntimeError(
+                            f"No {provider_prefix} API keys available for retry"
+                        ) from None
 
                     try:
                         async for item in _execute(key):

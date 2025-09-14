@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools.security import resolve_path_safely, sanitize_shell_input, timeout_context
+from cogency.tools.security import validate_path, sanitize_shell_input, timeout_context
 
 # Comprehensive attack vectors for systematic security coverage
 SHELL_INJECTION_ATTACKS = [
@@ -100,19 +100,19 @@ def test_security_layer_comprehensive_attack_blocking():
         sandbox = Path(temp_dir)
         for attack in PATH_TRAVERSAL_ATTACKS:
             with pytest.raises(ValueError, match="Path outside sandbox|Invalid path"):
-                resolve_path_safely(attack, sandbox)
+                validate_path(attack, sandbox)
 
     # System paths blocked in non-sandbox mode
     system_paths = [p for p in PATH_TRAVERSAL_ATTACKS if p.startswith("/") or "C:\\" in p]
     for path in system_paths:
         with pytest.raises(ValueError, match="Invalid path"):
-            resolve_path_safely(path)
+            validate_path(path)
 
     # Legitimate paths work in both modes
     for path in LEGITIMATE_INPUTS["paths"]:
-        assert isinstance(resolve_path_safely(path), Path)
+        assert isinstance(validate_path(path), Path)
         with tempfile.TemporaryDirectory() as temp_dir:
-            assert isinstance(resolve_path_safely(path, Path(temp_dir)), Path)
+            assert isinstance(validate_path(path, Path(temp_dir)), Path)
 
     # Edge case validation
     edge_cases = [
@@ -124,7 +124,7 @@ def test_security_layer_comprehensive_attack_blocking():
     for invalid_input, error_pattern in edge_cases:
         with pytest.raises(ValueError, match=error_pattern):
             if invalid_input.strip() == "":
-                resolve_path_safely(invalid_input)
+                validate_path(invalid_input)
             else:
                 sanitize_shell_input(invalid_input)
 
@@ -170,40 +170,27 @@ def test_semantic_security_boundary_documentation():
     # Exotic encodings pass path security (semantic layer handles these)
     for attack in SEMANTIC_SECURITY_BOUNDARY_ATTACKS:
         try:
-            result = resolve_path_safely(attack)
+            result = validate_path(attack)
             assert isinstance(result, Path)
         except ValueError:
             pass  # Some may fail due to filesystem restrictions
 
     # Security functions are deterministic
     assert sanitize_shell_input("ls -la") == sanitize_shell_input("ls -la")
-    assert resolve_path_safely("file.txt") == resolve_path_safely("file.txt")
+    assert validate_path("file.txt") == validate_path("file.txt")
 
 
-def test_shell_tool_argument_validation():
-    """Shell tool validates command safety correctly."""
-    from cogency.tools.system.shell import SystemShell
+def test_shell_input_sanitization():
+    """Shell input sanitization blocks dangerous patterns."""
+    from cogency.tools.security import sanitize_shell_input
 
-    shell = SystemShell()
+    # Test dangerous commands are blocked
+    for cmd in SHELL_INJECTION_ATTACKS[:5]:  # Test subset
+        with pytest.raises(ValueError):
+            sanitize_shell_input(cmd)
 
-    # Block system path access
-    dangerous_commands = [
-        ["cat", "/etc/passwd"],
-        ["find", "/", "-name", "*.key"],
-        ["ls", "~/.ssh/id_rsa"],
-        ["head", "/bin/sh"],
-    ]
-
-    for cmd_args in dangerous_commands:
-        assert not shell._validate_command_safety(cmd_args, True)
-
-    # Allow safe operations
-    safe_commands = [
-        ["ls", "-la"],
-        ["cat", "file.txt"],
-        ["find", ".", "-name", "*.py"],
-        ["grep", "pattern", "file.txt"],
-    ]
-
-    for cmd_args in safe_commands:
-        assert shell._validate_command_safety(cmd_args, True)
+    # Test safe commands are allowed
+    safe_commands = ["ls", "pwd", "echo hello"]
+    for cmd in safe_commands:
+        result = sanitize_shell_input(cmd)
+        assert result == cmd

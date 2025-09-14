@@ -1,6 +1,7 @@
 """Context assembly tests."""
 
 import pytest
+
 from cogency.context import context
 
 

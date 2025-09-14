@@ -30,7 +30,9 @@ async def test_memory_system_integration():
         await save_message(
             "user1_old2", "user1", "user", "Had trouble with database migrations", temp_dir, 60
         )
-        await save_message("user1_old3", "user1", "user", "Finally got the API working", temp_dir, 70)
+        await save_message(
+            "user1_old3", "user1", "user", "Finally got the API working", temp_dir, 70
+        )
 
         # Mock LLM with simple response
         mock_llm = Mock()
@@ -61,7 +63,10 @@ async def test_memory_system_integration():
 
                 recall_tool = MemoryRecall()
                 recall_result = await recall_tool.execute("Django", user_id="user1")
-                assert not any(failure in recall_result.outcome for failure in ["failed:", "error:", "Security violation:"])
+                assert not any(
+                    failure in recall_result.outcome
+                    for failure in ["failed:", "error:", "Security violation:"]
+                )
                 assert "Django project" in recall_result.content
 
                 # Verify agent has recall tool available

@@ -91,7 +91,7 @@ async def test_parser_accumulator_executor_flow():
 
     async for event in accumulator.process(parser_events):
         events.append(event)
-        content = event.get('content') or ''
+        content = event.get("content") or ""
         print(f"Event: {event['type']} - {content[:50]}...")
 
     print(f"Total events: {len(events)}")
