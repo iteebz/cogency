@@ -1,12 +1,12 @@
-"""Profile tests."""
+"""Profile learning and persistence tests."""
 
 import tempfile
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from cogency.context import profile
-from cogency.lib.storage import save_message
+from cogency.lib.storage import SQLite
 
 
 @pytest.mark.asyncio
@@ -25,82 +25,70 @@ async def test_format():
 
 
 @pytest.mark.asyncio
-async def test_should_learn_logic():
+async def test_should_learn_logic(mock_config):
     """Should learn triggers on message count and compression threshold."""
-
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with tempfile.TemporaryDirectory():
         # No profile = no learning
         with patch("cogency.context.profile.get", return_value=None):
-            assert not await profile.should_learn("user1")
+            assert not await profile.should_learn("user1", mock_config)
 
         # Mock profile exists
         mock_profile = {"who": "Alice", "_meta": {"last_learned_at": 100}}
 
         with patch("cogency.context.profile.get", return_value=mock_profile):
-            # Save some user messages after timestamp 100
-            await save_message("conv1", "user1", "user", "Message 1", temp_dir, 110)
-            await save_message("conv1", "user1", "user", "Message 2", temp_dir, 120)
-            await save_message("conv1", "user1", "user", "Message 3", temp_dir, 130)
-            await save_message("conv1", "user1", "user", "Message 4", temp_dir, 140)
-            await save_message("conv1", "user1", "user", "Message 5", temp_dir, 150)
+            # Add messages to storage to trigger learning
+            for i in range(5):
+                await mock_config.storage.save_message(
+                    "conv1", "user1", "user", f"message {i}", timestamp=110 + i
+                )
 
-            from pathlib import Path
-
-            with patch("cogency.lib.storage.Paths.db", return_value=Path(temp_dir) / "store.db"):
-                # 5+ messages should trigger learning
-                assert await profile.should_learn("user1")
+            result = await profile.should_learn("user1", mock_config)
+            assert result
 
 
 @pytest.mark.asyncio
-async def test_learn_async_logic():
+async def test_learn_async_logic(mock_config):
     """Learn async generates profile from messages."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
-        # Mock LLM that returns learning result
-        mock_llm = Mock()
-        mock_llm.generate = AsyncMock(
-            return_value='{"who": "Alice", "interests": "programming", "style": "direct"}'
+        # Mock LLM response
+        mock_config.llm.generate.return_value = (
+            '{"who": "Alice", "interests": "programming", "style": "direct"}'
         )
 
         # Set up existing profile
         mock_profile = {"who": "Bob", "_meta": {"last_learned_at": 100}}
 
         # Add user messages
-        await save_message("conv1", "user1", "user", "I love coding Python", temp_dir, 110)
-        await save_message("conv1", "user1", "user", "Can you help with algorithms?", temp_dir, 120)
+        storage = SQLite(temp_dir)
+        await storage.save_message("conv1", "user1", "user", "I love coding Python", 110)
+        await storage.save_message("conv1", "user1", "user", "Can you help with algorithms?", 120)
+
+        # Update config to use temporary storage
+        mock_config.storage = storage
 
         with patch("cogency.context.profile.get", return_value=mock_profile):
             with patch(
                 "cogency.context.profile.should_learn", new_callable=AsyncMock, return_value=True
             ):
-                from pathlib import Path
+                mock_save = AsyncMock()
+                storage.save_profile = mock_save
 
-                with patch(
-                    "cogency.lib.storage.Paths.db", return_value=Path(temp_dir) / "store.db"
-                ):
-                    with patch(
-                        "cogency.context.profile.save_profile",
-                        new_callable=AsyncMock,
-                        return_value=True,
-                    ) as mock_save:
-                        # Should learn and update profile
-                        result = await profile.learn_async("user1", mock_llm)
+                result = await profile.learn_async("user1", mock_config)
 
-                        assert result is True
-                        mock_llm.generate.assert_called_once()
-                        mock_save.assert_called_once()
+                assert result is True
+                mock_config.llm.generate.assert_called_once()
+                mock_save.assert_called_once()
 
-                        # Check learning prompt contained user messages
-                        call_args = mock_llm.generate.call_args[0][0]
-                        prompt_text = str(call_args)
-                        assert "I love coding Python" in prompt_text
-                        assert "Can you help with algorithms?" in prompt_text
+                # Check learning prompt contained user messages
+                call_args = mock_config.llm.generate.call_args[0][0]
+                prompt_text = str(call_args)
+                assert "I love coding Python" in prompt_text
+                assert "Can you help with algorithms?" in prompt_text
 
 
-def test_learn_pytest_detection():
+def test_learn_pytest_detection(mock_config):
     """Learn detects pytest environment and returns early."""
-    mock_llm = Mock()
-
     # This should return None due to pytest detection
-    result = profile.learn("user123", mock_llm)
+    result = profile.learn("user123", mock_config)
     assert result is None

@@ -1,47 +1,52 @@
+"""API key rotation tests - rate limit handling and service aliases."""
+
 import os
 from unittest.mock import patch
 
 import pytest
 
-from cogency.lib.rotation import Rotator, _rotators, rotate, with_rotation
-
-
-def setup_function():
-    _rotators.clear()
+from cogency.lib.rotation import get_api_key, is_rate_limit_error, load_keys, with_rotation
 
 
 @pytest.mark.asyncio
-async def test_api_key_rotation_behavior():
-    """Core rotation behavior: auto-balance, rate limit detection, retry with exhaustion."""
+async def test_rotation():
+    """API keys rotate correctly when rate limits are hit, supports service aliases like GEMINI→GOOGLE, and distributes load randomly across available keys."""
 
-    # Basic rotation mechanics
+    # Key loading with numbered and single patterns
     with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
-        rotator = Rotator("test")
-        assert rotator.keys == ["key1", "key2"]
-        assert rotator.current_key() == "key1"
+        keys = load_keys("TEST")
+        assert keys == ["key1", "key2"]
 
-        # Rate limit detection triggers rotation
-        with patch("cogency.lib.rotation.time.time", side_effect=range(10)):
-            assert rotator.rotate("Rate limit exceeded") is True
-            assert rotator.rotate("quota exceeded") is True
-            assert rotator.rotate("invalid key") is False  # Non-rate-limit error
+        # get_api_key returns first key
+        assert get_api_key("test") == "key1"
 
-        # Auto-balancing through with_rotation
-        call_keys = []
+    # Service alias support
+    with patch.dict(os.environ, {"GOOGLE_API_KEY": "google_key"}, clear=True):
+        assert get_api_key("gemini") == "google_key"
 
-        async def capture_key(api_key):
-            call_keys.append(api_key)
-            return f"response_{api_key}"
+    # Rate limit detection
+    assert is_rate_limit_error("Rate limit exceeded") is True
+    assert is_rate_limit_error("quota exceeded") is True
+    assert is_rate_limit_error("invalid key") is False
 
-        # Multiple calls auto-rotate for load balancing
-        for _ in range(4):
+    # Rotation with multiple keys
+    call_keys = []
+
+    async def capture_key(api_key):
+        call_keys.append(api_key)
+        return f"response_{api_key}"
+
+    with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
+        # Multiple calls should use random starting positions
+        for _ in range(10):
             result = await with_rotation("TEST", capture_key)
             assert result.startswith("response_")
 
-        # Should alternate keys: key1→key2, key2→key1, etc.
-        assert call_keys == ["key2", "key1", "key2", "key1"]
+        # Should see both keys used (random distribution)
+        assert "key1" in call_keys
+        assert "key2" in call_keys
 
-        # Quota exhaustion and retry behavior
+        # Retry on rate limit
         call_count = 0
 
         async def quota_test(api_key):
@@ -51,42 +56,15 @@ async def test_api_key_rotation_behavior():
                 raise Exception("You exceeded your current quota")
             return "success_after_retry"
 
+        call_count = 0
         result = await with_rotation("TEST", quota_test)
         assert result == "success_after_retry"
-        assert call_count == 2  # Auto-rotate + retry
+        assert call_count == 2  # First fails, second succeeds
 
-        # All keys exhausted scenario
+        # All keys exhausted
         async def all_exhausted(api_key):
             raise Exception("received 1011 (internal error) You exceeded your current quota")
 
         with pytest.raises(Exception) as exc_info:
             await with_rotation("TEST", all_exhausted)
         assert "quota" in str(exc_info.value).lower()
-
-    # @rotate decorator auto-detection and fresh clients
-    class MockProvider:
-        def _create_client(self, api_key):
-            return f"client_{api_key}"
-
-        @rotate
-        async def method(self, client, data):
-            if "fail_key" in client:
-                raise Exception("rate limit exceeded")
-            return f"result_{client}_{data}"
-
-    # Auto-detects MOCKPROVIDER prefix, handles missing keys
-    provider = MockProvider()
-    with pytest.raises(Exception) as exc_info:
-        await provider.method("test")
-    assert "No MOCKPROVIDER API keys found" in str(exc_info.value)
-
-    # Creates fresh clients and rotates on rate limits
-    with patch.dict(
-        os.environ,
-        {"MOCKPROVIDER_API_KEY": "fail_key", "MOCKPROVIDER_API_KEY_2": "good_key"},
-        clear=True,
-    ):
-        _rotators.clear()
-        result = await provider.method("data")
-        assert isinstance(result, str)
-        assert "good_key" in result  # Rotated from fail_key to good_key

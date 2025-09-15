@@ -1,11 +1,11 @@
-"""Web search tool."""
+"""Web search using DDGS metasearch with clean result formatting."""
 
 from ...core.protocols import Tool, ToolResult
 from ..security import safe_execute
 
 
 class WebSearch(Tool):
-    """Clean web search with intelligent output formatting."""
+    """DDGS metasearch (multiple backends) with structured result formatting."""
 
     name = "web_search"
     description = "Search the web for information"
@@ -21,15 +21,13 @@ class WebSearch(Tool):
         if not query or not query.strip():
             return ToolResult(outcome="Search query cannot be empty")
 
-        # Check dependencies
         try:
             from ddgs import DDGS
         except ImportError:
             return ToolResult(
-                outcome="DuckDuckGo search not available. Install with: pip install ddgs"
+                outcome="DDGS metasearch not available. Install with: pip install ddgs"
             )
 
-        # Use default limit
         from ..constants import SEARCH_DEFAULT_RESULTS
 
         effective_limit = SEARCH_DEFAULT_RESULTS

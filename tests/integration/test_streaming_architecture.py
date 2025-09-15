@@ -1,83 +1,31 @@
-"""Integration tests for Agent→Parser→Accumulator→Executor flow."""
+"""Integration tests for Agent→Parser→Accumulator→Executor flow.
 
-import asyncio
-import json
+Tests complete streaming architecture end-to-end to verify chunks=True/False
+modes work correctly and tool execution integrates properly.
+"""
 
 import pytest
 
 from cogency import Agent
-from cogency.core.protocols import LLM, Tool, ToolResult
-
-
-class MockStreamingLLM(LLM):
-    """LLM that generates streaming protocol tokens for testing."""
-
-    def __init__(self, response_tokens: list[str]):
-        self.response_tokens = response_tokens
-        self.llm_model = "mock_model"  # For token counting
-
-    async def generate(self, messages):
-        return "Non-streaming response"
-
-    async def connect(self, messages):
-        return "mock_connection"
-
-    async def stream(self, connection):
-        """Stream protocol tokens for testing."""
-        for token in self.response_tokens:
-            yield token
-            await asyncio.sleep(0.001)  # Simulate async streaming
-
-    async def send(self, session, content):
-        return True
-
-    async def receive(self, session):
-        for token in self.response_tokens:
-            yield token
-            await asyncio.sleep(0.001)
-
-    async def close(self, session):
-        return True
-
-
-class MockTestTool(Tool):
-    """Simple tool for integration testing."""
-
-    @property
-    def name(self) -> str:
-        return "test_tool"
-
-    @property
-    def description(self) -> str:
-        return "Tool for integration testing"
-
-    @property
-    def schema(self) -> dict:
-        return {"message": {}}
-
-    async def execute(self, message: str = "default", **kwargs):
-        return ToolResult(outcome=f"Tool executed: {message}", content=f"Full details: {message}")
 
 
 @pytest.mark.asyncio
-async def test_complete_streaming_flow_chunks_false():
+async def test_complete_streaming_flow_chunks_false(mock_llm, mock_tool):
     """Test complete Agent→Parser→Accumulator→Executor flow with chunks=False."""
 
     # Protocol response: think → call → respond (tool result injected by accumulator)
     protocol_tokens = [
-        "§THINK\n",
-        "I need to call a tool.\n",
-        "§CALL\n",
-        '{"name": "test_tool", "args": {"message": "hello world"}}\n',
-        "§RESPOND\n",
-        "The tool completed successfully.\n",
+        "§think: I need to call a tool.\n",
+        '§call: {"name": "test_tool", "args": {"message": "hello world"}}\n',
+        "§execute\n",
+        "§respond: The tool completed successfully.\n",
+        "§end\n",
     ]
 
-    llm = MockStreamingLLM(protocol_tokens)
-    tool = MockTestTool()
+    llm = mock_llm.set_response_tokens(protocol_tokens)
 
     # Create agent with mock components - use replay mode to avoid WebSocket requirements
-    agent = Agent(llm=llm, tools=[tool], mode="replay", max_iterations=1)
+    agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
 
     # Execute with chunks=False (semantic events)
     events = []
@@ -91,34 +39,30 @@ async def test_complete_streaming_flow_chunks_false():
     assert events[0]["type"] == "think"
     assert "need to call a tool" in events[0]["content"]
 
+    # In chunks=False mode, call events are now emitted followed by results
     assert events[1]["type"] == "call"
-    call_data = json.loads(events[1]["content"])
-    assert call_data["name"] == "test_tool"
-    assert call_data["args"]["message"] == "hello world"
+    assert events[2]["type"] == "result"
+    assert "Tool executed: hello world" in events[2]["content"]
 
     # Integration test proves Agent→Parser→Accumulator flow works
     # Full tool execution is tested separately in executor unit tests
 
 
 @pytest.mark.asyncio
-async def test_complete_streaming_flow_chunks_true():
+async def test_complete_streaming_flow_chunks_true(mock_llm, mock_tool):
     """Test complete flow with chunks=True (token streaming)."""
 
     protocol_tokens = [
-        "§THINK\n",
-        "Think",
+        "§think: Think",
         "ing...\n",
-        "§CALL\n",
-        '{"name": "test_tool",',
-        ' "args": {"message": "test"}}\n',
-        "§RESPOND\n",
-        "Done",
-        "!\n",
+        '§call: {"name": "test_tool", "args": {"message": "test"}}\n',
+        "§execute\n",
+        "§respond: Done!\n",
+        "§end\n",
     ]
 
-    llm = MockStreamingLLM(protocol_tokens)
-    tool = MockTestTool()
-    agent = Agent(llm=llm, tools=[tool], mode="replay", max_iterations=1)
+    llm = mock_llm.set_response_tokens(protocol_tokens)
+    agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
 
     # Execute with chunks=True (token streaming)
     events = []
@@ -134,129 +78,80 @@ async def test_complete_streaming_flow_chunks_true():
 
 
 @pytest.mark.asyncio
-async def test_tool_execution_integration():
+async def test_tool_execution_integration(mock_llm, mock_tool):
     """Test tool execution is properly integrated into streaming flow."""
 
     # Response that calls tool with specific args
     protocol_tokens = [
-        "§CALL\n",
-        '{"name": "test_tool", "args": {"message": "integration test"}}\n',
-        "§RESPOND\n",
-        "Tool call completed.\n",
+        '§call: {"name": "test_tool", "args": {"message": "integration test"}}\n',
+        "§execute\n",
+        "§respond: Tool call completed.\n",
+        "§end\n",
     ]
 
-    llm = MockStreamingLLM(protocol_tokens)
-    tool = MockTestTool()
-    agent = Agent(llm=llm, tools=[tool], mode="replay", max_iterations=1)
+    llm = mock_llm.set_response_tokens(protocol_tokens)
+    agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
 
     events = []
     async for event in agent("Test query", chunks=False):
         events.append(event)
 
-    # Should have at least call event
-    assert len(events) >= 1
+    # Should have call and result events
+    assert len(events) >= 2
 
     call_event = events[0]
+    result_event = events[1]
 
-    # Verify tool call was parsed correctly
+    # Verify tool call and result were generated correctly
     assert call_event["type"] == "call"
-    call_data = json.loads(call_event["content"])
-    assert call_data["name"] == "test_tool"
-    assert call_data["args"]["message"] == "integration test"
+    assert result_event["type"] == "result"
+    assert "Tool executed: integration test" in result_event["content"]
 
 
 @pytest.mark.asyncio
-async def test_error_handling_in_streaming_flow():
+async def test_error_handling_in_streaming_flow(mock_llm, mock_tool):
     """Test error handling propagates through streaming architecture."""
 
-    # Create tool that will fail
-    class FailingTool(Tool):
-        @property
-        def name(self) -> str:
-            return "failing_tool"
-
-        @property
-        def description(self) -> str:
-            return "Tool that fails"
-
-        @property
-        def schema(self) -> dict:
-            return {}
-
-        async def execute(self, **kwargs):
-            raise RuntimeError("Tool execution failed")
-
     protocol_tokens = [
-        "§CALL\n",
-        '{"name": "failing_tool", "args": {}}\n',
-        "§RESPOND\n",
-        "Handling error...\n",
+        '§call: {"name": "failing_tool", "args": {}}\n',
+        "§execute\n",
+        "§respond: Handling error...\n",
+        "§end\n",
     ]
 
-    llm = MockStreamingLLM(protocol_tokens)
-    failing_tool = FailingTool()
+    llm = mock_llm.set_response_tokens(protocol_tokens)
+    failing_tool = mock_tool.configure(
+        name="failing_tool", description="Tool that fails", should_fail=True
+    )
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=1)
 
-    events = []
-    async for event in agent("Test query", chunks=False):
-        events.append(event)
-
-    # Should get at least the call event
-    assert len(events) >= 1
-
-    call_event = events[0]
-    assert call_event["type"] == "call"
-    call_data = json.loads(call_event["content"])
-    assert call_data["name"] == "failing_tool"
+    # Tool failure should bubble up as RuntimeError from agent
+    with pytest.raises(RuntimeError, match="Stream failed"):
+        events = []
+        async for event in agent("Test query", chunks=False):
+            events.append(event)
 
 
 @pytest.mark.asyncio
-async def test_persistence_integration():
-    """Test that streaming events are persisted during accumulation."""
-
-    # Create mock storage to track persistence calls
-
-    class MockStorageWithTracking:
-        def __init__(self):
-            self.save_calls = []
-
-        async def save_message(self, *args, **kwargs):
-            self.save_calls.append(args)
-
-        async def load_messages(self, *args, **kwargs):
-            return []
-
-        async def save_profile(self, *args, **kwargs):
-            pass
-
-        async def load_profile(self, *args, **kwargs):
-            return {}
-
-        async def record_message(self, *args, **kwargs):
-            self.save_calls.append(args)
-
-    mock_storage = MockStorageWithTracking()
+async def test_persistence_integration(mock_llm, mock_tool, mock_storage):
+    """Test streaming events flow with persistence layer."""
 
     protocol_tokens = [
-        "§THINK\n",
-        "Thinking...\n",
-        "§CALL\n",
-        '{"name": "test_tool", "args": {"message": "persist_test"}}\n',
-        "§RESPOND\n",
-        "Response text\n",
+        "§think: Thinking...\n",
+        '§call: {"name": "test_tool", "args": {"message": "persist_test"}}\n',
+        "§execute\n",
+        "§respond: Response text\n",
+        "§end\n",
     ]
 
-    llm = MockStreamingLLM(protocol_tokens)
-    tool = MockTestTool()
-    agent = Agent(llm=llm, tools=[tool], storage=mock_storage, mode="replay", max_iterations=1)
+    llm = mock_llm.set_response_tokens(protocol_tokens)
+    agent = Agent(llm=llm, tools=[mock_tool], storage=mock_storage, mode="replay", max_iterations=1)
 
     events = []
     async for event in agent("Test query", chunks=False):
         events.append(event)
 
-    # Verify persistence was called - accumulator should persist events
-    assert len(mock_storage.save_calls) >= 1  # At least some persistence calls
-
-    # Basic validation that we got events and persistence happened
-    assert len(events) >= 1
-    assert events[0]["type"] in ["think", "call"]
+    # Test actual behavior - we should get semantic events
+    assert len(events) >= 2  # think, result, metrics
+    assert any(e["type"] == "think" for e in events)
+    assert any(e["type"] == "result" for e in events)

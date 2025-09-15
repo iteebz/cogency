@@ -1,4 +1,4 @@
-"""File writing tool."""
+"""File writing with sandbox/system mode support."""
 
 from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute

@@ -1,168 +1,184 @@
-"""Test stream-native metrics implementation."""
+"""Test metrics tracking for replay vs resume efficiency measurement."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock
-
-from cogency.core.replay import stream as replay_stream
-from cogency.core.resume import stream as resume_stream
-from cogency.lib.metrics import Tokens, count_message_tokens, count_tokens
+from cogency.lib.metrics import Metrics, count_tokens
 
 
-@pytest.mark.asyncio
-async def test_replay_metrics_emission():
-    """Test that replay mode emits metrics events correctly."""
-    # Mock config and LLM
-    config = MagicMock()
-    config.llm = MagicMock()
-    config.llm.llm_model = "gpt-4"
-    config.llm.stream = AsyncMock()
-    config.max_iterations = 3
+def test_word_count_approximation():
+    """Test that word counting provides consistent relative measurements."""
 
-    # Mock token stream that ends with §END
-    mock_tokens = ["§RESPOND: Hello world", "§END"]
-    config.llm.stream.return_value = mock_async_iter(mock_tokens)
+    # Basic word counting
+    assert count_tokens("Hello world") == 2
+    assert count_tokens("") == 0
+    assert count_tokens("Single") == 1
 
-    # Mock context assembly
-    from cogency.context import context
-    context.assemble = AsyncMock(return_value=[{"role": "user", "content": "test"}])
-
-    events = []
-    async for event in replay_stream(config, "test", "user", "conv"):
-        events.append(event)
-
-    # Should have metrics events
-    metrics_events = [e for e in events if e["type"] == "metrics"]
-    assert len(metrics_events) > 0
-
-    # Check metrics structure
-    metrics = metrics_events[0]
-    assert "step" in metrics
-    assert "total" in metrics
-    assert "input" in metrics["step"]
-    assert "output" in metrics["step"]
-    assert "duration" in metrics["step"]
-
-
-@pytest.mark.asyncio
-async def test_resume_metrics_emission():
-    """Test that resume mode emits metrics events correctly."""
-    # Mock config and LLM with WebSocket support
-    config = MagicMock()
-    config.llm = MagicMock()
-    config.llm.llm_model = "gpt-4"
-    config.llm.connect = AsyncMock()
-    config.llm.receive = AsyncMock()
-    config.llm.close = AsyncMock()
-
-    # Mock WebSocket session
-    session = MagicMock()
-    config.llm.connect.return_value = session
-
-    # Mock token stream
-    mock_tokens = ["§RESPOND: Hello world", "§END"]
-    config.llm.receive.return_value = mock_async_iter(mock_tokens)
-
-    # Mock context assembly
-    from cogency.context import context
-    context.assemble = AsyncMock(return_value=[{"role": "user", "content": "test"}])
-
-    events = []
-    async for event in resume_stream(config, "test", "user", "conv"):
-        events.append(event)
-
-    # Should have metrics events
-    metrics_events = [e for e in events if e["type"] == "metrics"]
-    assert len(metrics_events) > 0
-
-
-def test_tokens_step_metrics():
-    """Test Tokens.to_step_metrics() method."""
-    tokens = Tokens("gpt-4")
-    tokens.add_input("test input")
-    tokens.add_output("test output")
-
-    metrics = tokens.to_step_metrics(10, 20, 1.5, 5.0)
-
-    assert metrics["type"] == "metrics"
-    assert metrics["step"]["input"] == 10
-    assert metrics["step"]["output"] == 20
-    assert metrics["step"]["duration"] == 1.5
-    assert metrics["total"]["input"] == tokens.input
-    assert metrics["total"]["output"] == tokens.output
-    assert metrics["total"]["duration"] == 5.0
-
-
-async def mock_async_iter(items):
-    """Mock async iterator for testing."""
-    for item in items:
-        yield item
-
-
-# Token counting tests (merged from test_tokens.py)
-
-def test_token_counting_behavior():
-    """Token counting with model support and fallbacks."""
-
-    # Token counting behavior
-    assert count_tokens("Hello world", "gpt-4o") > 0
-    assert count_tokens("", "gpt-4o") == 0
-    assert count_tokens("test", "unknown-model") >= 0  # Fallback approximation
-
-    # Tokens class tracking
-    tracker = Tokens("gpt-4o")
-
-    input_tokens = tracker.add_input("Hello world")
-    output_tokens = tracker.add_output("Hi there")
-
-    assert tracker.input == input_tokens > 0
-    assert tracker.output == output_tokens > 0
-    assert tracker.total() == input_tokens + output_tokens
-
-    # Model validation
-    with pytest.raises(ValueError, match="Model must be specified explicitly"):
-        Tokens("")
+    # Consistent relative measurement
+    short_text = "Hello"
+    long_text = "Hello world this is much longer"
+    assert count_tokens(long_text) > count_tokens(short_text)
 
 
 def test_message_token_counting():
-    """Test tiktoken native message encoding and fallbacks."""
+    """Test message array token counting for context measurement."""
+
     messages = [
-        {"role": "system", "content": "You are a helpful assistant"},
+        {"role": "system", "content": "You are helpful"},
         {"role": "user", "content": "Hello world"},
     ]
 
-    # OpenAI models use native tiktoken encoding
-    gpt_tokens = count_message_tokens(messages, "gpt-4o")
-    assert gpt_tokens > 0
-
-    # Non-OpenAI models use concatenation fallback
-    claude_tokens = count_message_tokens(messages, "claude-sonnet-4")
-    assert claude_tokens > 0
+    tokens = count_tokens(messages)
+    assert tokens > 0
 
     # Empty messages
-    assert count_message_tokens([], "gpt-4o") == 0
-    assert count_message_tokens(None, "gpt-4o") == 0
+    assert count_tokens([]) == 0
+    assert count_tokens(None) == 0
 
-
-def test_add_input_messages():
-    """Test Tokens.add_input_messages() method."""
-    tracker = Tokens("gpt-4o")
-
-    messages = [
-        {"role": "system", "content": "System prompt"},
-        {"role": "user", "content": "User query"},
+    # Larger context should have more tokens
+    large_messages = [
+        {"role": "system", "content": "You are a very helpful assistant" * 10},
+        {"role": "user", "content": "Please help me with this complex task"},
     ]
+    assert count_tokens(large_messages) > count_tokens(messages)
 
-    # Add input tokens from messages
-    tokens = tracker.add_input_messages(messages)
-    assert tracker.input == tokens > 0
-    assert tracker.output == 0  # No output yet
 
-    # Add output tokens
-    output_tokens = tracker.add_output("Response text")
-    assert tracker.output == output_tokens > 0
-    assert tracker.total() == tokens + output_tokens
+def test_metrics_initialization():
+    """Test Metrics class initialization and basic functionality."""
 
-    # Empty messages should add 0 tokens
-    initial_input = tracker.input
-    tracker.add_input_messages([])
-    assert tracker.input == initial_input
+    metrics = Metrics.init("gpt-4")
+
+    assert metrics.input_tokens == 0
+    assert metrics.output_tokens == 0
+    assert metrics.step_input_tokens == 0
+    assert metrics.step_output_tokens == 0
+    assert metrics.task_start_time is not None
+
+
+def test_step_tracking():
+    """Test step tracking isolates per-step measurements."""
+
+    metrics = Metrics.init("gpt-4")
+
+    # Step 1
+    metrics.start_step()
+    step1_input = metrics.add_input("Large context message")
+    step1_output = metrics.add_output("Response")
+
+    assert metrics.step_input_tokens == step1_input
+    assert metrics.step_output_tokens == step1_output
+
+    # Step 2 - counters should reset
+    metrics.start_step()
+    step2_input = metrics.add_input("Small update")
+    step2_output = metrics.add_output("OK")
+
+    # Step counters reset
+    assert metrics.step_input_tokens == step2_input
+    assert metrics.step_output_tokens == step2_output
+
+    # Total counters accumulate
+    assert metrics.input_tokens == step1_input + step2_input
+    assert metrics.output_tokens == step1_output + step2_output
+
+
+def test_efficiency_measurement():
+    """Test core use case: measuring replay vs resume token efficiency."""
+
+    # Simulate replay mode - context grows each step
+    replay_metrics = Metrics.init("gpt-4")
+
+    # Step 1: Full context
+    replay_metrics.start_step()
+    replay_step1_input = replay_metrics.add_input(
+        [
+            {"role": "system", "content": "Long system prompt " * 50},
+            {"role": "user", "content": "What is 2+2?"},
+        ]
+    )
+    replay_metrics.add_output('{"name": "calculate", "args": {}}')
+
+    # Step 2: Full context + history
+    replay_metrics.start_step()
+    replay_step2_input = replay_metrics.add_input(
+        [
+            {"role": "system", "content": "Long system prompt " * 50},
+            {"role": "user", "content": "What is 2+2?"},
+            {"role": "assistant", "content": '{"name": "calculate", "args": {}}'},
+            {"role": "system", "content": "Result: 4"},
+        ]
+    )
+    replay_metrics.add_output("The answer is 4")
+
+    # Simulate resume mode - incremental context
+    resume_metrics = Metrics.init("gpt-4")
+
+    # Step 1: Same as replay
+    resume_metrics.start_step()
+    resume_step1_input = resume_metrics.add_input(
+        [
+            {"role": "system", "content": "Long system prompt " * 50},
+            {"role": "user", "content": "What is 2+2?"},
+        ]
+    )
+    resume_metrics.add_output('{"name": "calculate", "args": {}}')
+
+    # Step 2: Only incremental context (tool result)
+    resume_metrics.start_step()
+    resume_step2_input = resume_metrics.add_input("Result: 4")  # Just tool result
+    resume_metrics.add_output("The answer is 4")
+
+    # Verify efficiency measurement
+    assert replay_step1_input == resume_step1_input  # Same initial context
+    assert replay_step2_input > resume_step2_input  # Resume is more efficient
+
+    # Resume should use significantly fewer input tokens in step 2
+    efficiency_ratio = replay_step2_input / resume_step2_input
+    assert efficiency_ratio > 10  # Resume is 10x+ more efficient
+
+
+def test_metrics_event_generation():
+    """Test clean metrics event generation with zero parameters."""
+
+    metrics = Metrics.init("gpt-4")
+
+    # Simulate a complete step
+    metrics.start_step()
+    metrics.add_input("Input text")
+    metrics.add_output("Output text")
+
+    # Generate event with no parameters
+    event = metrics.event()
+
+    assert event["type"] == "metrics"
+    assert "step" in event
+    assert "total" in event
+
+    # Step metrics
+    assert event["step"]["input"] > 0
+    assert event["step"]["output"] > 0
+    assert event["step"]["duration"] >= 0
+
+    # Total metrics
+    assert event["total"]["input"] > 0
+    assert event["total"]["output"] > 0
+    assert event["total"]["duration"] >= 0
+
+
+def test_llm_content_tracking():
+    """Test tracking all LLM-generated content types."""
+
+    metrics = Metrics.init("gpt-4")
+    metrics.start_step()
+
+    # Simulate different LLM content types
+    think_tokens = metrics.add_output("I need to analyze this problem")
+    call_tokens = metrics.add_output('{"name": "file_search", "args": {"pattern": "*.py"}}')
+    respond_tokens = metrics.add_output("Found 5 Python files in the project")
+
+    # All content types should be counted
+    assert think_tokens > 0
+    assert call_tokens > 0
+    assert respond_tokens > 0
+
+    # Total should include all types
+    expected_total = think_tokens + call_tokens + respond_tokens
+    assert metrics.output_tokens == expected_total
+    assert metrics.step_output_tokens == expected_total

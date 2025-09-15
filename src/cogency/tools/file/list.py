@@ -25,7 +25,7 @@ class FileList(Tool):
 
         # Determine target directory
         if path == ".":
-            from ...lib.storage import Paths
+            from ...lib.paths import Paths
 
             target = Paths.sandbox()
         else:

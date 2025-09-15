@@ -1,4 +1,4 @@
-"""File reading tool."""
+"""File reading with sandbox/system mode and line range support."""
 
 from pathlib import Path
 

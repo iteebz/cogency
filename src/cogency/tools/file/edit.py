@@ -1,4 +1,4 @@
-"""File editing tool."""
+"""File editing with exact string replacement and duplicate detection."""
 
 from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
@@ -40,7 +40,6 @@ class FileEdit(Tool):
         if matches > 1:
             return ToolResult(outcome=f"Found {matches} matches for '{old}' - be more specific")
 
-        # Single match - perform replacement
         new_content = content.replace(old, new, 1)
 
         with open(file_path, "w", encoding="utf-8") as f:

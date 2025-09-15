@@ -7,10 +7,10 @@ from .protocols import LLM, Storage, Tool
 
 @dataclass(frozen=True)
 class Config:
-    """Immutable agent behavior configuration.
+    """Immutable agent configuration.
 
-    Config = How the agent works (persistent)
-    Runtime params = What the agent does now (per-invocation)
+    Frozen dataclass ensures configuration cannot be modified after creation.
+    Runtime parameters (query, user_id, conversation_id) are passed per call.
     """
 
     # Capabilities
@@ -18,11 +18,13 @@ class Config:
     storage: Storage
     tools: list[Tool]
 
-    # User steering layer (injection-safe)
+    # User steering layer
     instructions: str | None = None
 
     # Execution behavior
-    max_iterations: int = 3
+    max_iterations: int = 10  # [SEC-005] Prevent runaway agents
     mode: str = "auto"
     profile: bool = True
     sandbox: bool = True
+    learning_cadence: int = 5
+    history_window: int = 20  # Max conversation history messages to include

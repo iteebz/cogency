@@ -4,7 +4,7 @@ import json
 import sys
 from typing import Any
 
-from cogency.lib.storage import Paths
+from cogency.lib.paths import Paths
 
 
 def list_runs() -> list[str]:

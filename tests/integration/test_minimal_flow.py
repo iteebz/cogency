@@ -1,89 +1,39 @@
-"""Minimal integration test to debug streaming flow."""
+"""Minimal integration test - streaming flow verification.
 
-import asyncio
+Tests core Parser→Accumulator→Executor pipeline to ensure protocol tokens
+correctly flow through the complete streaming architecture.
+"""
 
 import pytest
 
 from cogency.core.accumulator import Accumulator
-from cogency.core.config import Config
 from cogency.core.parser import parse_tokens
-from cogency.core.protocols import LLM, Storage, Tool, ToolResult
-
-
-class MockLLM(LLM):
-    def __init__(self, response_tokens):
-        self.response_tokens = response_tokens
-
-    async def generate(self, messages):
-        return "Generated"
-
-    async def connect(self, messages):
-        return "connection"
-
-    async def stream(self, connection):
-        for token in self.response_tokens:
-            yield token
-            await asyncio.sleep(0.001)
-
-    async def send(self, session, content):
-        return True
-
-    async def receive(self, session):
-        for token in self.response_tokens:
-            yield token
-            await asyncio.sleep(0.001)
-
-    async def close(self, session):
-        return True
-
-
-class MockStorage(Storage):
-    async def save_message(self, *args, **kwargs):
-        pass  # Returns None like real storage
-
-    async def load_messages(self, *args, **kwargs):
-        return []
-
-    async def save_profile(self, *args, **kwargs):
-        pass  # Returns None like real storage
-
-    async def load_profile(self, *args, **kwargs):
-        return {}
-
-
-class MockTool(Tool):
-    name = "test_tool"
-    description = "Test tool"
-    schema = {"message": {}}
-
-    async def execute(self, message="test", **kwargs):
-        return ToolResult(outcome=f"Tool executed: {message}")
 
 
 @pytest.mark.asyncio
-async def test_parser_accumulator_executor_flow():
-    """Test Parser→Accumulator→Executor flow directly."""
+async def test_parser_accumulator_executor_flow(mock_llm, mock_config, mock_tool):
+    """Parser→Accumulator→Executor integration."""
 
-    protocol_tokens = [
-        "§THINK\n",
-        "I need to call a tool.\n",
-        "§CALL\n",
-        '{"name": "test_tool", "args": {"message": "hello world"}}\n',
-        "§RESPOND\n",
-        "The tool completed successfully.\n",
-    ]
+    # Set up streaming protocol
+    mock_llm.set_response_tokens(
+        [
+            "§think: I need to call a tool.\n",
+            '§call: {"name": "test_tool", "args": {"message": "hello world"}}\n',
+            "§execute\n",
+            "§respond: The tool completed successfully.\n",
+            "§end\n",
+        ]
+    )
 
-    llm = MockLLM(protocol_tokens)
-    storage = MockStorage()
-    tool = MockTool()
+    # Create config with mock_tool
+    from cogency.core.config import Config
 
-    config = Config(llm=llm, storage=storage, tools=[tool])
-
-    # Connect and get token stream
-    connection = await llm.connect([])
+    config = Config(
+        llm=mock_config.llm, storage=mock_config.storage, tools=[mock_tool], sandbox=True
+    )
 
     # Parse tokens directly
-    parser_events = parse_tokens(llm.stream(connection))
+    parser_events = parse_tokens(mock_llm.stream([]))
 
     # Process through accumulator
     accumulator = Accumulator(config, "test_user", "test_conv", chunks=False)
@@ -91,18 +41,11 @@ async def test_parser_accumulator_executor_flow():
 
     async for event in accumulator.process(parser_events):
         events.append(event)
-        content = event.get("content") or ""
-        print(f"Event: {event['type']} - {content[:50]}...")
 
-    print(f"Total events: {len(events)}")
-
-    # Basic validation
+    # Validation - semantic events only
     assert len(events) > 0
 
-    # Check we got semantic events
     event_types = [e["type"] for e in events]
-    print(f"Event types: {event_types}")
-
     assert "think" in event_types
-    assert "call" in event_types
-    assert "respond" in event_types
+    assert "result" in event_types  # Tool execution result
+    assert "end" in event_types

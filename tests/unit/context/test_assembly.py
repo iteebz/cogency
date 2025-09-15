@@ -1,15 +1,15 @@
-"""Context assembly tests."""
+"""Context assembly tests - stateless context rebuilding."""
 
 import pytest
 
-from cogency.context import context
+from cogency import context
 
 
 @pytest.mark.asyncio
-async def test_assembly():
+async def test_assembly(mock_config):
     """Assembly produces system + user messages with correct content."""
     query = "Test query"
-    messages = await context.assemble(query, "user_123", "conv_123", config=None)
+    messages = await context.assemble(query, "user_123", "conv_123", config=mock_config)
 
     # System message first
     assert messages[0]["role"] == "system"

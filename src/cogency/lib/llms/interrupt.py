@@ -23,7 +23,7 @@ def interruptible(func):
             raise  # Re-raise to propagate cancellation
         except Exception as e:
             logger.error(f"{provider_name} error: {str(e)}")
-            # Emit EXECUTE on error only
-            yield "§EXECUTE"
+            # Emit END on error to cleanly terminate
+            yield "§end"
 
     return wrapper

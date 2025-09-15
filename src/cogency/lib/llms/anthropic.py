@@ -1,19 +1,17 @@
 """Anthropic provider - LLM protocol implementation.
 
-Note: WebSocket streaming not yet supported by Anthropic API (as of August 2025).
-Uses HTTP with Server-Sent s fallback. Streaming architecture ready
-for WebSocket when Anthropic adds support.
+HTTP-only provider. WebSocket sessions not supported by Anthropic API.
 """
 
 from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM
-from ..rotation import rotate
+from ..rotation import with_rotation
 from .interrupt import interruptible
 
 
 class Anthropic(LLM):
-    """Anthropic provider implementing LLM protocol."""
+    """Anthropic provider implementing HTTP-only LLM protocol."""
 
     def __init__(
         self,
@@ -22,9 +20,11 @@ class Anthropic(LLM):
         temperature: float = 0.7,
         max_tokens: int = 1024,
     ):
-        from ..credentials import detect_api_key
+        from ..rotation import get_api_key
 
-        self.api_key = api_key or detect_api_key("anthropic")
+        self.api_key = api_key or get_api_key("anthropic")
+        if not self.api_key:
+            raise RuntimeError("No Anthropic API key found")
         self.llm_model = llm_model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -35,29 +35,32 @@ class Anthropic(LLM):
 
         return anthropic.AsyncAnthropic(api_key=api_key)
 
-    @rotate
-    async def generate(self, client, messages: list[dict]) -> str:
+    async def generate(self, messages: list[dict]) -> str:
         """Generate complete response from conversation messages."""
-        try:
-            response = await client.messages.create(
-                model=self.llm_model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-            )
 
-            return response.content[0].text
+        async def _generate_with_key(api_key: str) -> str:
+            try:
+                client = self._create_client(api_key)
+                response = await client.messages.create(
+                    model=self.llm_model,
+                    messages=messages,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature,
+                )
+                return response.content[0].text
+            except ImportError as e:
+                raise ImportError("Please install anthropic: pip install anthropic") from e
+            except Exception as e:
+                raise RuntimeError(f"Anthropic generate error: {str(e)}") from e
 
-        except ImportError as e:
-            raise ImportError("Please install anthropic: pip install anthropic") from e
-        except Exception as e:
-            raise RuntimeError(f"Anthropic Generate Error: {str(e)}") from e
+        return await with_rotation("ANTHROPIC", _generate_with_key)
 
-    @rotate
-    async def connect(self, client, messages: list[dict]) -> object:
-        """INFRASTRUCTURE: Create streaming connection with error handling."""
-        try:
-            # Create stream connection (pre-configured, ready to use)
+    @interruptible
+    async def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
+        """Generate streaming tokens from conversation messages."""
+
+        async def _stream_with_key(api_key: str):
+            client = self._create_client(api_key)
             return client.messages.stream(
                 model=self.llm_model,
                 messages=messages,
@@ -65,23 +68,25 @@ class Anthropic(LLM):
                 temperature=self.temperature,
             )
 
-        except ImportError as e:
-            raise ImportError("Please install anthropic: pip install anthropic") from e
-        except Exception as e:
-            raise RuntimeError(f"Anthropic Connection Error: {str(e)}") from e
+        # Get streaming context manager with rotation
+        stream_ctx = await with_rotation("ANTHROPIC", _stream_with_key)
 
-    @rotate
-    @interruptible
-    async def stream(self, client, messages: list[dict]) -> AsyncGenerator[str, None]:
-        """Generate streaming tokens from conversation messages."""
         try:
-            async with client.messages.stream(
-                model=self.llm_model,
-                messages=messages,
-                max_tokens=self.max_tokens,
-                temperature=self.temperature,
-            ) as stream:
+            async with stream_ctx as stream:
                 async for text in stream.text_stream:
                     yield text
         except Exception as e:
             raise RuntimeError(f"Anthropic streaming error: {str(e)}") from e
+
+    # WebSocket methods - not supported by Anthropic
+    async def connect(self, messages: list[dict]) -> "LLM":
+        """WebSocket sessions not supported by Anthropic API."""
+        raise NotImplementedError("Anthropic does not support WebSocket sessions")
+
+    async def send(self, content: str) -> AsyncGenerator[str, None]:
+        """WebSocket sessions not supported by Anthropic API."""
+        raise NotImplementedError("Anthropic does not support WebSocket sessions")
+
+    async def close(self) -> None:
+        """No-op for HTTP-only provider."""
+        pass

@@ -1,17 +1,12 @@
+"""SQLite storage layer tests - ACID properties and conversation isolation."""
+
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from cogency.lib.storage import (
-    Paths,
-    clear_messages,
-    get_cogency_dir,
-    load_messages,
-    load_profile,
-    save_message,
-    save_profile,
-)
+from cogency.lib.paths import Paths, get_cogency_dir
+from cogency.lib.storage import SQLite, clear_messages
 
 
 @pytest.fixture
@@ -23,6 +18,7 @@ def temp_dir():
 @pytest.mark.asyncio
 async def test_storage_layer_behavior(temp_dir):
     """Storage layer persists conversations and profiles with filtering and isolation."""
+    storage = SQLite(temp_dir)
 
     # Path configuration
     assert get_cogency_dir() == Path(".cogency")
@@ -33,13 +29,13 @@ async def test_storage_layer_behavior(temp_dir):
     conv_id = "test_conv"
 
     # Multiple message types saved in order
-    await save_message(conv_id, "user", "user", "Hello", temp_dir)
-    await save_message(conv_id, "user", "assistant", "Hi there", temp_dir)
-    await save_message(conv_id, "user", "thinking", "Internal thought", temp_dir)
-    await save_message(conv_id, "user", "user", "How are you?", temp_dir)
+    await storage.save_message(conv_id, "user", "user", "Hello")
+    await storage.save_message(conv_id, "user", "assistant", "Hi there")
+    await storage.save_message(conv_id, "user", "thinking", "Internal thought")
+    await storage.save_message(conv_id, "user", "user", "How are you?")
 
     # All messages loaded in chronological order
-    all_messages = await load_messages(conv_id, temp_dir)
+    all_messages = await storage.load_messages(conv_id)
     assert len(all_messages) == 4
     assert [m["content"] for m in all_messages] == [
         "Hello",
@@ -49,48 +45,48 @@ async def test_storage_layer_behavior(temp_dir):
     ]
 
     # Filtering by include/exclude
-    user_only = await load_messages(conv_id, temp_dir, include=["user"])
+    user_only = await storage.load_messages(conv_id, include=["user"])
     assert len(user_only) == 2
     assert all(m["type"] == "user" for m in user_only)
 
-    no_thinking = await load_messages(conv_id, temp_dir, exclude=["thinking"])
+    no_thinking = await storage.load_messages(conv_id, exclude=["thinking"])
     assert len(no_thinking) == 3
     assert all(m["type"] != "thinking" for m in no_thinking)
 
     # Conversation isolation
     conv2_id = "other_conv"
-    await save_message(conv2_id, "user2", "user", "Isolated message", temp_dir)
+    await storage.save_message(conv2_id, "user2", "user", "Isolated message")
 
-    conv1_msgs = await load_messages(conv_id, temp_dir)
-    conv2_msgs = await load_messages(conv2_id, temp_dir)
+    conv1_msgs = await storage.load_messages(conv_id)
+    conv2_msgs = await storage.load_messages(conv2_id)
     assert len(conv1_msgs) == 4
     assert len(conv2_msgs) == 1
     assert conv2_msgs[0]["content"] == "Isolated message"
 
     # Conversation clearing preserves isolation
     clear_messages(conv_id, temp_dir)
-    assert await load_messages(conv_id, temp_dir) == []
-    assert len(await load_messages(conv2_id, temp_dir)) == 1  # Other conversation unchanged
+    assert await storage.load_messages(conv_id) == []
+    assert len(await storage.load_messages(conv2_id)) == 1  # Other conversation unchanged
 
     # Profile versioning and metadata
     user_id = "test_user"
     initial_profile = {"setting": "old_value"}
-    await save_profile(user_id, initial_profile, temp_dir)
+    await storage.save_profile(user_id, initial_profile)
 
     updated_profile = {
         "setting": "new_value",
         "who": "Developer",
         "_meta": {"last_learned_at": 1234567890.0, "messages": 42},
     }
-    await save_profile(user_id, updated_profile, temp_dir)
+    await storage.save_profile(user_id, updated_profile)
 
     # Latest version loaded with all metadata preserved
-    loaded = await load_profile(user_id, temp_dir)
+    loaded = await storage.load_profile(user_id)
     assert loaded == updated_profile
     assert loaded["setting"] == "new_value"
     assert loaded["_meta"]["messages"] == 42
 
     # Non-existent data returns empty/success states
-    assert await load_messages("nonexistent", temp_dir) == []
-    assert await load_profile("nonexistent", temp_dir) == {}
+    assert await storage.load_messages("nonexistent") == []
+    assert await storage.load_profile("nonexistent") == {}
     clear_messages("nonexistent", temp_dir)  # Should not fail

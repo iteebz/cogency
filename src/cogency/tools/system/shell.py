@@ -1,4 +1,4 @@
-"""Shell command execution tool."""
+"""Shell command execution with security validation and sandbox isolation."""
 
 import subprocess
 from pathlib import Path
@@ -24,7 +24,7 @@ class SystemShell(Tool):
         if not command or not command.strip():
             return ToolResult(outcome="Command cannot be empty")
 
-        # Security validation handled by security layer
+        # Input validation and sanitization
         sanitized = sanitize_shell_input(command.strip())
 
         import shlex
@@ -34,16 +34,15 @@ class SystemShell(Tool):
         if not parts:
             return ToolResult(outcome="Empty command after parsing")
 
-        # Working directory
+        # Set working directory based on sandbox mode
         if sandbox:
-            from ...lib.storage import Paths
+            from ...lib.paths import Paths
 
             working_path = Paths.sandbox()
             working_path.mkdir(exist_ok=True)
         else:
             working_path = Path.cwd()
 
-        # Execute
         try:
             result = subprocess.run(
                 parts, cwd=str(working_path), capture_output=True, text=True, timeout=30

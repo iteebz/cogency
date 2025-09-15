@@ -1,30 +1,23 @@
 """Event persistence - clean separation from stream processing."""
 
 import time
-from typing import Any
-
-from ..lib.logger import logger
-from ..lib.storage import save_message
 
 
 class EventPersister:
     """Handles all conversation event persistence with uniform model."""
 
-    def __init__(self, conversation_id: str, user_id: str):
+    def __init__(self, conversation_id: str, user_id: str, storage):
         self.conversation_id = conversation_id
         self.user_id = user_id
+        self.storage = storage
 
     async def persist_event(self, event_type: str, content: str, timestamp: float = None):
         """Persist any event type uniformly."""
         if timestamp is None:
             timestamp = time.time()
-            
-        await save_message(
-            self.conversation_id,
-            self.user_id,
-            event_type,
-            content,
-            timestamp=timestamp
+
+        await self.storage.save_message(
+            self.conversation_id, self.user_id, event_type, content, timestamp
         )
         # Let storage errors bubble up - don't hide them
 

@@ -1,61 +1,48 @@
-"""Admin CLI - database management and cleanup operations."""
+"""Admin CLI - database statistics."""
 
 import json
 import sqlite3
-import sys
 import time
 
-from ..lib.storage import Paths, get_cogency_dir, load_profile
+from ..lib.paths import Paths
 
 
 def show_stats():
-    """Show database statistics and conversation analytics."""
+    """Show database statistics."""
     db_path = Paths.db()
 
     if not db_path.exists():
-        print(" No conversation database found")
+        print("No database found")
         return
 
-    print(f" Database: {db_path}")
-
     with sqlite3.connect(db_path) as db:
-        # Total records
         total = db.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
-        print(f" Total records: {total}")
+        print(f"Total records: {total}")
 
         if total == 0:
             return
 
-        # Records by conversation
         conversations = db.execute("""
-            SELECT conversation_id, COUNT(*) as records,
-                   MIN(timestamp) as first_seen, MAX(timestamp) as last_seen
-            FROM conversations
-            GROUP BY conversation_id
-            ORDER BY records DESC
-            LIMIT 10
+            SELECT conversation_id, COUNT(*) as records, MIN(timestamp) as first_seen
+            FROM conversations GROUP BY conversation_id ORDER BY records DESC LIMIT 5
         """).fetchall()
 
-        print("\n Top conversations by record count:")
-        for conv_id, count, first, _last in conversations:
+        print("\nTop conversations:")
+        for conv_id, count, first in conversations:
             age_hours = (time.time() - first) / 3600
-            print(f"  {conv_id[:20]:<20} | {count:>4} records | {age_hours:.1f}h old")
+            print(f"  {conv_id[:20]} | {count} records | {age_hours:.1f}h old")
 
-        # Records by type
         types = db.execute("""
-            SELECT type, COUNT(*) as count
-            FROM conversations
-            GROUP BY type
-            ORDER BY count DESC
+            SELECT type, COUNT(*) as count FROM conversations GROUP BY type ORDER BY count DESC
         """).fetchall()
 
-        print("\n Records by type:")
+        print("\nBy type:")
         for record_type, count in types:
-            print(f"  {record_type:<15} | {count:>4} records")
+            print(f"  {record_type}: {count}")
 
 
 def show_users():
-    """Show all user profiles."""
+    """Show user profiles."""
     db_path = Paths.db()
 
     if not db_path.exists():
@@ -65,192 +52,34 @@ def show_users():
     with sqlite3.connect(db_path) as db:
         try:
             profiles = db.execute("""
-                SELECT user_id, MAX(version) as latest_version, MAX(created_at) as last_updated, char_count
-                FROM profiles
-                GROUP BY user_id
-                ORDER BY last_updated DESC
+                SELECT user_id, MAX(version) as version, MAX(created_at) as updated, char_count
+                FROM profiles GROUP BY user_id ORDER BY updated DESC
             """).fetchall()
 
             if not profiles:
-                print(" No user profiles found")
+                print("No profiles found")
                 return
 
-            print(f" User Profiles ({len(profiles)} users):")
+            print(f"Profiles ({len(profiles)} users):")
             for user_id, version, updated, chars in profiles:
-                age = (time.time() - updated) / 3600  # hours
-                print(f"  {user_id:<20} | v{version} | {chars:>3} chars | {age:.1f}h ago")
+                age = (time.time() - updated) / 3600
+                print(f"  {user_id} | v{version} | {chars} chars | {age:.1f}h ago")
 
         except sqlite3.OperationalError:
-            print(" No profiles table found")
+            print("No profiles table")
 
 
 def show_user(user_id: str):
-    """Show specific user profile and conversations."""
-    db_path = Paths.db()
+    """Show specific user profile."""
+    import asyncio
 
-    if not db_path.exists():
-        print("No database found")
-        return
+    from ..context.profile import get
 
-    # Show profile
     try:
-        profile = load_profile(user_id)
+        profile = asyncio.run(get(user_id))
         if profile:
-            print(f" Profile for {user_id}:")
             print(json.dumps(profile, indent=2))
         else:
-            print(f" No profile found for {user_id}")
+            print("No profile found")
     except Exception as e:
-        print(f" Error fetching profile: {e}")
-
-    # Show conversations
-    with sqlite3.connect(db_path) as db:
-        conversations = db.execute(
-            """
-            SELECT conversation_id, COUNT(*) as records, MIN(timestamp) as first, MAX(timestamp) as last
-            FROM conversations
-            WHERE conversation_id LIKE ?
-            GROUP BY conversation_id
-            ORDER BY last DESC
-        """,
-            (f"{user_id}%",),
-        ).fetchall()
-
-        if conversations:
-            print(f"\n Conversations for {user_id}:")
-            for conv_id, count, _first, last in conversations:
-                age = (time.time() - last) / 3600
-                print(f"  {conv_id:<30} | {count:>3} msgs | {age:.1f}h ago")
-        else:
-            print(f"\n No conversations found for {user_id}")
-
-
-def nuke_evals():
-    """Nuclear cleanup of eval results directory."""
-    evals_path = Paths.evals()
-
-    if not evals_path.exists():
-        print(" No evals directory found")
-        return 0
-
-    # Count files before
-    file_count = sum(1 for _ in evals_path.rglob("*") if _.is_file())
-    print(f" Evals: {evals_path} ({file_count} files)")
-
-    if file_count == 0:
-        print(" Evals already empty")
-        return 0
-
-    import shutil
-
-    shutil.rmtree(evals_path)
-    evals_path.mkdir(parents=True, exist_ok=True)
-    print(f" Nuked evals - {file_count} files deleted")
-    return file_count
-
-
-def nuke_sandbox():
-    """Nuclear cleanup of sandbox directory."""
-    sandbox_path = get_cogency_dir() / "sandbox"
-
-    if not sandbox_path.exists():
-        print(" No sandbox directory found")
-        return 0
-
-    # Count files before
-    file_count = sum(1 for _ in sandbox_path.rglob("*") if _.is_file())
-    print(f" Sandbox: {sandbox_path} ({file_count} files)")
-
-    if file_count == 0:
-        print(" Sandbox already empty")
-        return 0
-
-    import shutil
-
-    shutil.rmtree(sandbox_path)
-    sandbox_path.mkdir(parents=True, exist_ok=True)
-    print(f" Nuked sandbox - {file_count} files deleted")
-    return file_count
-
-
-def nuke_db():
-    """Nuclear cleanup of database only (no confirmation)."""
-    db_path = Paths.db()
-
-    if not db_path.exists():
-        print("No database found")
-        return 0
-
-    # Count records before deletion
-    with sqlite3.connect(db_path) as db:
-        db_records = db.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
-        print(f" Database: {db_path} ({db_records} records)")
-
-    if db_records == 0:
-        print(" Database already empty")
-        return 0
-
-    db_path.unlink()
-    print(f" Nuked database - {db_records} records deleted")
-    return db_records
-
-
-def nuke_everything():
-    """Nuclear cleanup - delete everything (DB + sandbox + evals)."""
-    db_path = Paths.db()
-
-    # Count what we're about to nuke
-    db_records = 0
-    if db_path.exists():
-        with sqlite3.connect(db_path) as db:
-            db_records = db.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
-            print(f" Database: {db_path} ({db_records} records)")
-    else:
-        print(" Database: No database found")
-
-    # Count evals
-    evals_path = Paths.evals()
-    eval_files = 0
-    if evals_path.exists():
-        eval_files = sum(1 for _ in evals_path.rglob("*") if _.is_file())
-        print(f" Evals: {evals_path} ({eval_files} files)")
-    else:
-        print(" Evals: No evals directory found")
-
-    sandbox_files = nuke_sandbox()
-
-    total_items = db_records + sandbox_files + eval_files
-    if total_items == 0:
-        print(" Nothing to nuke - already clean")
-        return
-
-    print(
-        f"\n NUCLEAR CLEANUP: {db_records} DB records + {sandbox_files} sandbox files + {eval_files} eval files = {total_items} total"
-    )
-    confirm = input("Type 'yes' to confirm nuclear cleanup: ")
-
-    if confirm.lower() == "yes":
-        if db_path.exists():
-            db_path.unlink()
-            print(f" Nuked database - {db_records} records deleted")
-        if eval_files > 0:
-            nuke_evals()
-        print(f" NUCLEAR CLEANUP COMPLETE - {total_items} items deleted")
-    else:
-        print(" Nuclear cleanup cancelled")
-
-
-def users_main():
-    """Users CLI main entry."""
-    if len(sys.argv) < 3:
-        # Show all users by default
-        show_users()
-        return
-
-    user_id = sys.argv[2]
-    if user_id.startswith("--"):
-        print(f" Unknown users option: {user_id}")
-        return
-
-    # Show specific user
-    show_user(user_id)
+        print(f"Error: {e}")

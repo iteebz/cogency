@@ -1,7 +1,11 @@
-"""Tool security utilities.
+"""Tool security with semantic and pattern-based validation.
 
-Proper input sanitization and path validation for tools.
-Replaces pattern matching with actual validation.
+Security architecture combines two approaches:
+1. Pattern-based validation - catches common attacks (path traversal, shell injection)
+2. Semantic security - LLM reasoning detects sophisticated/novel attacks
+
+Pattern validation handles known attack vectors efficiently.
+Semantic security (system prompt) provides adaptive defense against novel attacks.
 """
 
 import shlex
@@ -20,7 +24,7 @@ def sanitize_shell_input(command: str) -> str:
 
     command = command.strip()
 
-    # Dangerous shell metacharacters that enable injection
+    # Shell metacharacters that enable command injection
     dangerous_chars = [
         ";",
         "&",
@@ -34,12 +38,12 @@ def sanitize_shell_input(command: str) -> str:
         "\x00",
         "；",
         "｜",
-    ]  # Include Unicode variants
+    ]
     for char in dangerous_chars:
         if char in command:
             raise ValueError("Invalid shell command syntax")
 
-    # Validate it's parseable shell syntax
+    # Validate shell syntax
     try:
         tokens = shlex.split(command)
         if not tokens:
@@ -82,7 +86,7 @@ def validate_path(file_path: str, base_dir: Path = None) -> Path:
         raise ValueError("Invalid path")
 
     if base_dir:
-        # Sandbox mode: only allow safe relative paths
+        # Sandbox mode: relative paths only
         if Path(file_path).is_absolute():
             raise ValueError("Path outside sandbox")
 
@@ -91,7 +95,7 @@ def validate_path(file_path: str, base_dir: Path = None) -> Path:
         except (OSError, ValueError):
             raise ValueError("Invalid path") from None
     else:
-        # System mode: resolve and return
+        # System mode: allow absolute paths
         try:
             return Path(file_path).resolve()
         except (OSError, ValueError):
@@ -101,7 +105,7 @@ def validate_path(file_path: str, base_dir: Path = None) -> Path:
 def resolve_file(file: str, sandbox: bool = True) -> Path:
     """Resolve file path for sandbox or system mode - eliminates duplication."""
     if sandbox:
-        from ..lib.storage import Paths
+        from ..lib.paths import Paths
 
         sandbox_dir = Paths.sandbox()
         return validate_path(file, sandbox_dir)

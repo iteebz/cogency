@@ -20,7 +20,7 @@ class FileSearch(Tool):
 
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
-        query = args.get('content') or args.get('pattern', 'files')
+        query = args.get("content") or args.get("pattern", "files")
         return f'Searching files for "{query}"'
 
     @safe_execute
@@ -33,7 +33,7 @@ class FileSearch(Tool):
 
         # Determine search directory
         if path == ".":
-            from ...lib.storage import Paths
+            from ...lib.paths import Paths
 
             search_path = Paths.sandbox()
         else:

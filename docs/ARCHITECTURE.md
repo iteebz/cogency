@@ -13,8 +13,8 @@
 - **Strategy**: Buffer until whitespace, detect delimiters on word boundaries
 
 ```python
-"§CALL: {"name":"tool"}" → [("call", '{"name":"tool"}')]
-"§THINK: analyzing data" → [("think", "analyzing"), ("think", "data")]
+"§call: {"name":"file_read","args":{"file":"test.py"}}" → [("call", '{"name":"file_read","args":{"file":"test.py"}}')]
+"§think: analyzing data" → [("think", "analyzing"), ("think", "data")]
 ```
 
 ### Accumulator (Semantic Layer)
@@ -77,15 +77,15 @@ streaming_agent() → Stream pauses → Tool executes → Results injected → S
 
 **Streaming delimiters with word-boundary parsing:**
 
-- `§THINK:` - Agent reasoning (optional)
-- `§CALL:` - Tool invocation with JSON
-- `§RESPOND:` - Human communication  
-- `§EXECUTE` - Tool execution trigger
-- `§END` - Stream termination
+- `§think:` - Agent reasoning (optional)
+- `§call:` - Tool invocation with JSON
+- `§respond:` - Human communication  
+- `§execute` - Tool execution trigger
+- `§end` - Stream termination
 
 **Edge case handling:**
-- Compact JSON: `§CALL:{"name":"tool"}` (no space after colon)
-- Split delimiters: `§THI` + `NK:` across tokens
+- Compact JSON: `§call:{"name":"file_read","args":{"file":"test.py"}}` (no space after colon)
+- Split delimiters: `§thi` + `nk:` across tokens
 - Invalid delimiters: Treated as regular content
 
 ## Functional Pipeline with Streaming State
@@ -141,10 +141,10 @@ Architectural layers:
 agent = Agent(profile=True)  # Learns user patterns automatically
 
 # Active memory (agent-controlled) 
-§CALL: {"name": "recall", "args": {"query": "previous python debugging"}}
-§EXECUTE
+§call: {"name": "recall", "args": {"query": "previous python debugging"}}
+§execute
 [SYSTEM: Found 3 previous debugging sessions...]
-§RESPOND: Based on your previous Python work, I'll check for similar patterns.
+§respond: Based on your previous Python work, I'll check for similar patterns.
 ```
 
 ## Context Assembly

@@ -1,13 +1,13 @@
-"""Streaming agents - pure stream protocol.
+"""Streaming agent with stateless context assembly.
 
 Usage:
-  agent = Agent()              # Configuration closure
-  async for event in agent(query):  # Returns event stream
+  agent = Agent()
+  async for event in agent(query):
       if event["type"] == "respond":
           result = event["content"]
 """
 
-from ..context import context
+from .. import context
 from ..lib.logger import logger
 from ..lib.storage import default_storage
 from ..tools import TOOLS
@@ -17,7 +17,7 @@ from .protocols import LLM, Storage
 
 
 class Agent:
-    """Agent as configuration closure - stateless execution."""
+    """Agent with immutable configuration and fresh context assembly per call."""
 
     def __init__(
         self,
@@ -29,10 +29,14 @@ class Agent:
         max_iterations: int = 3,
         profile: bool = True,
         sandbox: bool = True,
+        learning_cadence: int = 5,
+        debug: bool = False,
     ):
-        # Build internal config from parameters - single source of truth
-        # Agent(llm="gemini") is better DX than Agent(Config(llm="gemini"))
-        # Config is internal data structure, not user-facing API
+        if debug:
+            from ..lib.logger import set_debug
+
+            set_debug(True)
+
         self.config = Config(
             llm=self._create_llm(llm),
             storage=storage or default_storage(),
@@ -42,6 +46,7 @@ class Agent:
             max_iterations=max_iterations,
             profile=profile,
             sandbox=sandbox,
+            learning_cadence=learning_cadence,
         )
 
         # Validate mode during construction
@@ -49,11 +54,8 @@ class Agent:
         if mode not in valid_modes:
             raise ValueError(f"mode must be one of {valid_modes}, got: {mode}")
 
-        # Stateless - agent is pure function with configuration closure
-
     def _create_llm(self, llm) -> LLM:
         """Create LLM instance from string or pass through existing instance."""
-        # If already an LLM instance, use it
         from .protocols import LLM
 
         if isinstance(llm, LLM):
@@ -91,23 +93,18 @@ class Agent:
             conversation_id: Conversation identifier
             chunks: If True, stream individual tokens. If False, stream semantic events.
         """
-        conversation_id = conversation_id or f"{user_id}_session"
+        conversation_id = conversation_id or user_id
 
         try:
-            # Explicit storage handling - no silent failures
-            async def finalize_storage(conversation_id: str, user_id: str, events: list):
-                try:
-                    await self.config.storage.record_message(conversation_id, user_id, events)
-                    logger.debug("Conversation saved successfully")
-                except Exception as e:
-                    logger.warning(f"Cannot save conversation: {e}")
-                    # Notify but continue - user knows storage is unavailable
+            # Persist user message for conversation context
+            await self.config.storage.save_message(conversation_id, user_id, "user", query)
 
-            # Mode selection - no orchestrator needed
+            async def finalize_storage(conversation_id: str, user_id: str, events: list):
+                pass  # Storage finalization handled
+
             if self.config.mode == "resume":
                 mode_stream = resume.stream
             elif self.config.mode == "auto":
-                # Try WebSocket first, fallback to HTTP on any failure
                 try:
                     mode_stream = resume.stream
                 except Exception:
@@ -118,9 +115,8 @@ class Agent:
             async for event in mode_stream(self.config, query, user_id, conversation_id, chunks):
                 yield event
 
-            # Post-stream callbacks
             await finalize_storage(conversation_id, user_id, [])
-            context.learn(user_id, self.config.llm)
+            context.learn(user_id, self.config)
         except Exception as e:
-            logger.debug(f"Stream failed: {e}")
+            logger.error(f"Stream failed: {e}")
             raise RuntimeError("Stream failed") from None  # [SEC-003] No error chain leakage

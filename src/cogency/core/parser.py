@@ -1,124 +1,185 @@
-"""Word-boundary streaming parser with delimiter protocol.
+"""Token-based streaming parser for delimiter protocol.
 
-Transforms character streams into semantic events via word-boundary detection.
-Handles LLM protocol violations (compact JSON, split delimiters) robustly.
+Core responsibilities:
+1. Delimiter detection: Recognize §respond:, §think:, etc. across token boundaries
+2. Type labeling: Assign event type to subsequent content tokens
+3. Control emission: Emit §end, §execute as state boundaries for accumulator
+4. Delimiter filtering: Remove delimiter tokens from output stream
 
-Core strategy: Buffer characters until whitespace, detect delimiters on complete words.
+Simple token-to-event mapping - accumulator handles content accumulation.
 """
 
-import re
 from collections.abc import AsyncGenerator
 from typing import Any
 
-DELIMITER = "§"
+VALID_TYPES = {"think", "call", "respond", "execute", "end"}
 
 
-def _delimiter_pattern():
-    """Compile regex for delimiter detection on word boundaries."""
-    events = "|".join(["THINK", "CALL", "RESPOND", "EXECUTE", "END"])
-    return re.compile(rf"^{DELIMITER}({events})(?::.*)?$")
-
-
-def _process_word(word: str, current_state: str, delimiter_pattern) -> tuple[str, list[dict]]:
-    """Process complete word for delimiter detection and event emission.
-
-    Handles compact JSON (§CALL:{"name":"tool"}) by splitting at colon boundary.
-    Returns updated state and list of events to emit.
-    """
-    events = []
-
-    if word.startswith(DELIMITER):
-        # Extract delimiter and content
-        colon_pos = word.find(":")
-        if colon_pos > 0:
-            delimiter_part = word[: colon_pos + 1]
-            content_part = word[colon_pos + 1 :]
+async def _preprocess_tokens(token_stream: AsyncGenerator[str, None]) -> AsyncGenerator[str, None]:
+    """Split complex tokens with multiple delimiters into simple tokens."""
+    async for token in token_stream:
+        if not isinstance(token, str):
+            yield token  # Pass through non-string tokens for error handling
+        elif "\n§" in token:
+            # Split tokens containing newline + delimiter
+            parts = token.split("\n§")
+            yield parts[0] + "\n"  # First part with preserved newline
+            for part in parts[1:]:
+                yield "§" + part  # Each delimiter part
         else:
-            delimiter_part = word
-            content_part = ""
-
-        # Check if valid delimiter
-        if match := delimiter_pattern.match(delimiter_part):
-            delimiter_name = match.group(1).lower()
-
-            if delimiter_name == "execute":
-                events.append({"type": "execute", "content": ""})
-            elif delimiter_name == "end":
-                events.append({"type": "end", "content": ""})
-            else:
-                # State transition
-                current_state = delimiter_name
-                if content_part.strip():
-                    events.append(
-                        {
-                            "type": current_state,
-                            "content": content_part.strip(),
-                        }
-                    )
-        else:
-            # Invalid delimiter, treat as content
-            events.append({"type": current_state, "content": word})
-    else:
-        # Regular content
-        events.append({"type": current_state, "content": word})
-
-    return current_state, events
+            yield token
 
 
 async def parse_tokens(
     token_stream: AsyncGenerator[str, None],
 ) -> AsyncGenerator[dict[str, Any], None]:
-    """Transform character stream into semantic events via word-boundary parsing.
+    """Transform token stream into labeled events via delimiter detection.
 
-    Buffers characters until whitespace, then processes complete words for delimiter
-    detection. Handles LLM protocol violations robustly while maintaining accuracy.
-
-    Yields events: {"type": "think|call|respond|execute|end", "content": str}
+    Yields:
+    - Content events: {"type": "think|call|respond", "content": str}
+    - Control events: {"type": "execute|end"}
     """
-    word_buffer = ""
-    current_state = "respond"
-    delimiter_pattern = _delimiter_pattern()
+    delimiter_buffer = ""
+    current_type = None  # Must be set by first delimiter
 
-    async for token in token_stream:
+    async for token in _preprocess_tokens(token_stream):
         if not isinstance(token, str):
             raise RuntimeError(f"Parser expects string tokens, got {type(token)}")
 
-        for char in token:
-            if char.isspace():
-                # Word boundary reached - process accumulated word
-                if word_buffer.strip():
-                    word = word_buffer.strip()
-                    current_state, events = _process_word(word, current_state, delimiter_pattern)
+        from ..lib.logger import logger
 
-                    for event in events:
+        logger.debug(f"TOKEN: {repr(token)}")
+
+        # Delimiter processing - continue building if we have partial delimiter
+        if delimiter_buffer or token.strip().startswith("§"):
+            # For embedded delimiter preservation, use original token if single token
+            original_token = token
+            delimiter_buffer += token.strip()
+
+            # Check for complete delimiter
+            if ":" in delimiter_buffer and delimiter_buffer.startswith("§"):
+                # Extract type and content
+                colon_pos = delimiter_buffer.find(":")
+                delimiter_type = delimiter_buffer[1:colon_pos].lower()
+
+                # Use original token for content if it's a single token with embedded delimiters
+                if ":" in original_token and original_token.strip().startswith("§"):
+                    orig_colon_pos = original_token.find(":")
+                    content_part = original_token[orig_colon_pos + 1 :].lstrip()
+                else:
+                    content_part = delimiter_buffer[colon_pos + 1 :].lstrip()
+
+                if delimiter_type in VALID_TYPES:
+                    if delimiter_type == "end":
+                        event = {"type": "end"}
                         yield event
-                        if event["type"] == "end":
-                            return  # Terminate on END
+                        return  # Terminate immediately
+                    elif delimiter_type == "execute":
+                        yield {"type": "execute"}
+                    else:
+                        current_type = delimiter_type
+                        if content_part:  # Embedded content - check for more delimiters
+                            if "§" in content_part:
+                                parts = content_part.split("§", 1)
+                                clean_content = parts[0]
+                                if clean_content:
+                                    yield {"type": current_type, "content": clean_content}
+                                # Process remaining delimiter immediately
+                                remaining_delimiter = "§" + parts[1]
+                                if remaining_delimiter in [f"§{t}" for t in VALID_TYPES]:
+                                    delimiter_type = remaining_delimiter[1:].lower()
+                                    if delimiter_type in {"execute", "end"}:
+                                        yield {"type": delimiter_type}
+                                        if delimiter_type == "end":
+                                            return
+                                elif remaining_delimiter == "§":
+                                    # Incomplete delimiter - save for next token
+                                    delimiter_buffer = remaining_delimiter
+                                    continue
+                            else:
+                                yield {"type": current_type, "content": content_part}
+                    delimiter_buffer = ""
+                    continue
+                else:
+                    # Invalid delimiter - treat as content
+                    if current_type is None:
+                        current_type = "respond"
+                    yield {"type": current_type, "content": delimiter_buffer}
+                    delimiter_buffer = ""
+                    continue
 
-                word_buffer = ""
-            else:
-                word_buffer += char
-                
-                # Check for §EXECUTE in buffer without waiting for word boundary
-                if "§EXECUTE" in word_buffer:
-                    # Split at §EXECUTE
-                    parts = word_buffer.split("§EXECUTE", 1)
-                    if parts[0].strip():
-                        # Process content before §EXECUTE
-                        current_state, events = _process_word(parts[0].strip(), current_state, delimiter_pattern)
-                        for event in events:
-                            yield event
-                    
-                    # Emit execute event
-                    yield {"type": "execute", "content": ""}
-                    
-                    # Continue with remaining content
-                    word_buffer = parts[1] if len(parts) > 1 else ""
+            # Naked delimiters (only execute and end can be naked)
+            elif delimiter_buffer in ["§execute", "§end"]:
+                delimiter_type = delimiter_buffer[1:].lower()
+                event = {"type": delimiter_type}
+                yield event
+                if delimiter_type == "end":
+                    return
+                delimiter_buffer = ""
+                continue
 
-    # Process final word if stream ends without whitespace
-    if word_buffer.strip():
-        word = word_buffer.strip()
-        current_state, events = _process_word(word, current_state, delimiter_pattern)
+            # Check for malformed delimiter (too long without completion)
+            elif len(delimiter_buffer) > 10:  # Max valid delimiter is 9 chars (§respond:)
+                if current_type is None:
+                    current_type = "respond"
+                yield {"type": current_type, "content": delimiter_buffer}
+                delimiter_buffer = ""
+                continue
 
-        for event in events:
-            yield event
+            # Still building - skip
+            continue
+
+        # Content token
+        elif token and token != ":":
+            # Check if this token completes a partial delimiter in buffer
+            if delimiter_buffer == "§" and ":" in token:
+                colon_pos = token.find(":")
+                delimiter_type = token[:colon_pos].lower()
+                if delimiter_type in VALID_TYPES:
+                    # Complete delimiter found
+                    current_type = delimiter_type
+                    content_part = token[colon_pos + 1 :].lstrip()
+                    delimiter_buffer = ""
+
+                    # Handle embedded delimiters (simple case only)
+                    if "§" in content_part:
+                        parts = content_part.split("§", 1)
+                        if parts[0]:
+                            yield {"type": current_type, "content": parts[0]}
+                        remaining_delimiter = "§" + parts[1]
+                        if remaining_delimiter in [f"§{t}" for t in VALID_TYPES]:
+                            delimiter_type = remaining_delimiter[1:].lower()
+                            if delimiter_type in {"execute", "end"}:
+                                yield {"type": delimiter_type}
+                                if delimiter_type == "end":
+                                    return
+                        elif remaining_delimiter == "§":
+                            delimiter_buffer = remaining_delimiter
+                    else:
+                        if content_part:
+                            yield {"type": current_type, "content": content_part}
+                    continue
+
+            if current_type is None:
+                current_type = "respond"
+
+            # Handle embedded delimiters in content
+            if "§" in token:
+                parts = token.split("§", 1)
+                content_part = parts[0]
+
+                # Yield content if exists
+                if content_part:
+                    yield {"type": current_type, "content": content_part}
+
+                # Process remaining delimiter immediately
+                remaining_delimiter = "§" + parts[1]
+                if remaining_delimiter in [f"§{t}" for t in VALID_TYPES]:
+                    delimiter_type = remaining_delimiter[1:].lower()
+                    if delimiter_type in {"execute", "end"}:
+                        yield {"type": delimiter_type}
+                        if delimiter_type == "end":
+                            return
+                continue
+
+            yield {"type": current_type, "content": token}

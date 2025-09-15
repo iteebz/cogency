@@ -1,4 +1,4 @@
-"""Resume tests."""
+"""WebSocket resume streaming tests."""
 
 from unittest.mock import AsyncMock, Mock, patch
 
@@ -27,14 +27,20 @@ async def test_resume_stream():
     mock_llm.send = AsyncMock(return_value=True)
     mock_llm.close = AsyncMock()
 
-    # Mock successful connection
+    # Mock successful connection with proper async generator
+    async def mock_send_generator(query):
+        yield "response"
+        yield "§end"
+
     mock_session = Mock()
+    mock_session.send = Mock(return_value=mock_send_generator("test"))
+    mock_session.close = AsyncMock()
     mock_llm.connect.return_value = mock_session
     config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=1)
 
     with (
         patch("cogency.core.resume.Accumulator") as mock_accumulator,
-        patch("cogency.context.context.assemble") as mock_assemble,
+        patch("cogency.context.assemble") as mock_assemble,
         patch("cogency.core.resume.parse_tokens") as mock_parse,
     ):
         # Mock context assembly
@@ -67,6 +73,9 @@ async def test_resume_stream():
             events.append(event)
 
         mock_llm.connect.assert_called_once()
-        assert len(events) == 2
-        assert events[0]["type"] == "respond"
-        assert events[1]["type"] == "end"
+        assert len(events) >= 2  # Allow for metrics events
+        # Find the response and end events (ignoring metrics)
+        non_metric_events = [e for e in events if e["type"] != "metrics"]
+        assert len(non_metric_events) == 2
+        assert non_metric_events[0]["type"] == "respond"
+        assert non_metric_events[1]["type"] == "end"

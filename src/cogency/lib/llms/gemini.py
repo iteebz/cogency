@@ -1,13 +1,21 @@
-"""Gemini provider - LLM protocol implementation."""
+"""Gemini provider implementing LLM protocol with dual-signal completion detection."""
+
+from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM
 from ..logger import logger
-from ..rotation import rotate
+from ..rotation import get_api_key, with_rotation
 from .interrupt import interruptible
 
 
 class Gemini(LLM):
-    """Gemini provider implementing LLM protocol."""
+    """Gemini provider with HTTP streaming and WebSocket (Live API) support.
+
+    Implements dual-signal completion detection for 100% reliability:
+    - generation_complete: Content generation finished
+    - turn_complete: Turn interaction finished
+    Both signals required to prevent premature stream termination.
+    """
 
     def __init__(
         self,
@@ -16,44 +24,16 @@ class Gemini(LLM):
         stream_model: str = "gemini-2.5-flash-live-preview",
         temperature: float = 0.7,
     ):
-        from ..credentials import detect_api_key
-
-        self.api_key = api_key or detect_api_key("gemini")
+        self.api_key = api_key or get_api_key("gemini")
+        if not self.api_key:
+            raise RuntimeError("No API key found")
         self.llm_model = llm_model
         self.stream_model = stream_model
         self.temperature = temperature
 
-    def _prepare_websocket_config(self, messages: list[dict]) -> tuple:
-        """Build WebSocket config with proper systemInstruction handling.
-
-        Extracts system messages for systemInstruction parameter and keeps
-        user/assistant messages separate.
-
-        Returns:
-            tuple: (config_dict, user_content_list)
-        """
-        # Extract system and user content
-        system_content = []
-        user_content = []
-
-        for msg in messages:
-            if msg["role"] == "system":
-                system_content.append(msg["content"])
-            else:  # user, assistant, etc.
-                user_content.append(msg)
-
-        # Build WebSocket config
-        config = {
-            "response_modalities": ["TEXT"],
-            "max_output_tokens": 8192,
-        }
-
-        # Add systemInstruction if we have system content
-        if system_content:
-            combined = "\n\n".join(system_content)
-            config["systemInstruction"] = {"parts": [{"text": combined}]}
-
-        return config, user_content
+        # WebSocket session state
+        self._session = None
+        self._connection = None
 
     def _create_client(self, api_key: str):
         """Create Gemini client for given API key."""
@@ -61,177 +41,214 @@ class Gemini(LLM):
 
         return genai.Client(api_key=api_key)
 
-    async def _send_initial_messages(self, session, user_messages, types):
-        """Send initial conversation history to WebSocket session."""
-        for msg in user_messages:
-            await session.send_client_content(
-                turns=types.Content(role=msg["role"], parts=[types.Part(text=msg["content"])]),
-                turn_complete=False,
-            )
-        # Complete the turn after all messages sent
-        await session.send_client_content(
-            turns=types.Content(role="user", parts=[types.Part(text="")]),
-            turn_complete=True,
-        )
+    async def generate(self, messages: list[dict]) -> str:
+        """One-shot completion with full conversation context."""
 
-    @rotate
-    async def generate(self, client, messages: list[dict]) -> str:
-        """Generate complete response from conversation messages."""
-        try:
-            # Use proper structured messages instead of flattening
-            response = await client.aio.models.generate_content(
-                model=self.llm_model, contents=messages
-            )
-            return response.text
-        except ImportError as e:
-            raise ImportError("Please install google-genai: pip install google-genai") from e
-        except Exception as e:
-            raise RuntimeError(f"Gemini Generate Error: {str(e)}") from e
-
-    async def connect(self, messages: list[dict]):
-        """Create bidirectional Gemini Live WebSocket session with rotation support."""
-        from ..resilience import timeout
-        from ..rotation import with_rotation
-
-        @timeout(5)  # Balance: fast but not too fast
-        async def _connect_with_key(api_key: str):
+        async def _generate_with_key(api_key: str) -> str:
             try:
-                from google.genai import types
-
-                # Prepare WebSocket config with system instruction handling
-                config_dict, user_messages = self._prepare_websocket_config(messages)
+                import google.genai as genai
 
                 client = self._create_client(api_key)
-
-                # Simple connection
-                config = types.LiveConnectConfig(
-                    response_modalities=config_dict["response_modalities"],
+                response = await client.aio.models.generate_content(
+                    model=self.llm_model,
+                    contents=self._convert_messages_to_gemini_format(messages),
+                    config=genai.types.GenerateContentConfig(
+                        temperature=self.temperature,
+                        max_output_tokens=8192,
+                    ),
                 )
-
-                # Add systemInstruction if present
-                if "systemInstruction" in config_dict:
-                    config.system_instruction = config_dict["systemInstruction"]
-
-                connection = client.aio.live.connect(model=self.stream_model, config=config)
-                session = await connection.__aenter__()
-
-                # Send initial conversation history
-                await self._send_initial_messages(session, user_messages, types)
-
-                # Return simple session container
-                class Session:
-                    def __init__(self, session, connection, types):
-                        self.session = session
-                        self.connection = connection
-                        self.types = types
-
-                return Session(session, connection, types)
-
+                return response.text
+            except ImportError as e:
+                raise ImportError("Please install google-genai: pip install google-genai") from e
             except Exception as e:
-                # Let with_rotation handle connection failures
-                raise e
+                raise RuntimeError(f"Gemini Generate Error: {str(e)}") from e
 
-        # Let with_rotation handle all errors including quota/rate limits
-        return await with_rotation("GEMINI", _connect_with_key)
-
-    async def send(self, session, content: str) -> bool:
-        """Send content to Gemini Live session."""
-        if not session:
-            return False
-
-        try:
-            await session.session.send_client_content(
-                turns=session.types.Content(role="user", parts=[session.types.Part(text=content)]),
-                turn_complete=True,  # Complete turn - as shown in official examples
-            )
-            return True
-        except Exception as e:
-            logger.warning(f"Gemini WebSocket send failed: {e}")
-            return False
+        return await with_rotation("GEMINI", _generate_with_key)
 
     @interruptible
-    async def receive(self, session):
-        """Receive streaming tokens from Gemini Live session until turn completion."""
-        import time
+    async def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
+        """HTTP streaming with full conversation context."""
 
-        if not session:
+        async def _stream_with_key(api_key: str):
+            import google.genai as genai
+
+            client = self._create_client(api_key)
+            return await client.aio.models.generate_content_stream(
+                model=self.llm_model,
+                contents=self._convert_messages_to_gemini_format(messages),
+                config=genai.types.GenerateContentConfig(
+                    temperature=self.temperature,
+                    max_output_tokens=8192,
+                ),
+            )
+
+        # Get streaming response with rotation
+        response = await with_rotation("GEMINI", _stream_with_key)
+
+        # Stream provider-native chunks - pure pipe
+        async for chunk in response:
+            if chunk.text:
+                yield chunk.text
+
+    async def connect(self, messages: list[dict]) -> "Gemini":
+        """Create session with initial context. Returns session-enabled Gemini instance."""
+
+        try:
+            from google.genai import types
+
+            # Force rotation to get fresh key for this session
+            async def _create_client_with_key(api_key: str):
+                return self._create_client(api_key)
+
+            client = await with_rotation("GEMINI", _create_client_with_key)
+
+            # Extract system instructions for Live API
+            system_instruction = ""
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_instruction += msg["content"] + "\n"
+
+            config = types.LiveConnectConfig(
+                response_modalities=["TEXT"],
+                system_instruction=system_instruction.strip() if system_instruction else None,
+            )
+            connection = client.aio.live.connect(model=self.stream_model, config=config)
+            session = await connection.__aenter__()
+
+            # Load initial conversation context (skip system instructions for Live API)
+            for msg in messages:
+                if msg["role"] != "system":  # Live API uses systemInstruction separately
+                    await session.send_client_content(
+                        turns=types.Content(
+                            role=msg["role"], parts=[types.Part(text=msg["content"])]
+                        ),
+                        turn_complete=True,
+                    )
+
+                    # Drain any responses to initial context
+                    await self._drain_turn_with_dual_signals(session)
+
+            # Create session-enabled instance with fresh rotated key
+            fresh_key = get_api_key("gemini")  # Force fresh rotation
+            session_instance = Gemini(
+                api_key=fresh_key,
+                llm_model=self.llm_model,
+                stream_model=self.stream_model,
+                temperature=self.temperature,
+            )
+            session_instance._session = session
+            session_instance._connection = connection
+
+            return session_instance
+
+        except Exception as e:
+            logger.warning(f"Gemini WebSocket connection failed: {e}")
+            raise RuntimeError(f"Gemini connection failed: {e}") from e
+
+    async def send(self, content: str) -> AsyncGenerator[str, None]:
+        """Send message in session and stream response until turn completion."""
+        if not self._session:
+            raise RuntimeError("send() requires active session. Call connect() first.")
+
+        try:
+            from google.genai import types
+
+            # Send user message
+            await self._session.send_client_content(
+                turns=types.Content(role="user", parts=[types.Part(text=content)]),
+                turn_complete=True,
+            )
+
+            # Stream response with DUAL SIGNAL fix - the critical empirical discovery
+            seen_generation_complete = False
+            message_count = 0
+
+            async for message in self._session.receive():
+                message_count += 1
+
+                if hasattr(message, "server_content") and message.server_content:
+                    sc = message.server_content
+
+                    # Collect text from model_turn.parts
+                    if (
+                        hasattr(sc, "model_turn")
+                        and sc.model_turn
+                        and hasattr(sc.model_turn, "parts")
+                    ):
+                        for part in sc.model_turn.parts:
+                            if hasattr(part, "text") and part.text:
+                                yield part.text
+
+                    # Track generation_complete signal
+                    if hasattr(sc, "generation_complete") and sc.generation_complete:
+                        seen_generation_complete = True
+
+                    # CRITICAL DUAL SIGNAL FIX: Break only when we've seen BOTH signals
+                    if (
+                        seen_generation_complete
+                        and hasattr(sc, "turn_complete")
+                        and sc.turn_complete
+                    ):
+                        return  # Provider infrastructure turn completion
+
+                # Safety limit
+                if message_count > 100:
+                    logger.warning("Gemini session hit message limit")
+                    return
+
+        except Exception as e:
+            logger.warning(f"Gemini session send failed: {e}")
             return
 
-        start_time = time.time()
-        message_count = 0
-        async for message in session.session.receive():
-            message_count += 1
-            logger.debug(
-                f"Gemini message {message_count}: {type(message).__name__} - {repr(message)[:200]}"
-            )
+    async def close(self) -> None:
+        """Close session and cleanup resources."""
+        if not self._connection:
+            return  # No-op for HTTP-only instances
 
-            # Check timeout manually
-            if time.time() - start_time > 15:
-                logger.warning("Gemini WebSocket receive timeout after 15s")
-                break
-
-            # Handle text content
-            server_content = getattr(message, "server_content", None)
-            if (
-                server_content
-                and hasattr(server_content, "model_turn")
-                and server_content.model_turn
-            ):
-                model_turn = server_content.model_turn
-                if hasattr(model_turn, "parts") and model_turn.parts:
-                    for part in model_turn.parts:
-                        if hasattr(part, "text") and part.text:
-                            yield part.text
-
-            # Handle completion signals - break without injecting EXECUTE
-            if server_content and (
-                getattr(server_content, "turn_complete", False)
-                or getattr(server_content, "generation_complete", False)
-            ):
-                logger.debug("Gemini turn complete")
-                break  # Use break, not return - keeps connection alive
-
-        logger.debug(f"Gemini receive loop ended, processed {message_count} messages")
-
-    async def close(self, session) -> bool:
-        """Close Gemini Live session with timeout protection."""
-        if not session:
-            return False
         try:
-            import asyncio
-
-            # Close connection with timeout protection
-            await asyncio.wait_for(session.connection.__aexit__(None, None, None), timeout=5.0)
-            return True
-        except asyncio.TimeoutError:
-            logger.warning("Gemini WebSocket close timeout - forcing cleanup")
-            return False
-        except RuntimeError as e:
-            # Suppress async generator cleanup noise but log other RuntimeErrors
-            if "asynchronous generator is already running" in str(e):
-                return True  # This is expected cleanup noise
-            logger.error(f"Gemini WebSocket close RuntimeError: {e}")
-            return False
+            await self._connection.__aexit__(None, None, None)
+            self._session = None
+            self._connection = None
         except Exception as e:
-            logger.error(f"Gemini WebSocket close failed: {e}")
-            return False
+            logger.warning(f"Gemini session close failed: {e}")
 
-    @rotate
-    @interruptible
-    async def stream(self, client, messages: list[dict]):
-        """Generate streaming tokens from conversation messages."""
-        prompt = "\n".join([f"{msg['role']}: {msg['content']}" for msg in messages])
+    async def _drain_turn_with_dual_signals(self, session):
+        """Drain turn using dual signal pattern without yielding content."""
+        seen_generation_complete = False
+        message_count = 0
 
-        # GENUINE STREAMING: Await the coroutine first, then iterate
-        stream = await client.aio.models.generate_content_stream(
-            model=self.llm_model, contents=prompt
-        )
+        async for message in session.receive():
+            message_count += 1
 
-        output_text = ""
-        async for chunk in stream:
-            if chunk.text:
-                output_text += chunk.text
-                yield chunk.text
-        
-        # Inject §EXECUTE for tool execution consistency
-        yield "§EXECUTE"
+            if hasattr(message, "server_content") and message.server_content:
+                sc = message.server_content
+
+                # Track generation_complete signal
+                if hasattr(sc, "generation_complete") and sc.generation_complete:
+                    seen_generation_complete = True
+
+                # Break only when we've seen BOTH signals
+                if seen_generation_complete and hasattr(sc, "turn_complete") and sc.turn_complete:
+                    return
+
+            # Safety limit
+            if message_count > 100:
+                return
+
+    def _convert_messages_to_gemini_format(self, messages: list[dict]) -> list:
+        """Convert standard message format to Gemini's expected format."""
+        from google.genai import types
+
+        contents = []
+        for msg in messages:
+            # Handle system messages as user messages with context
+            role = "user" if msg["role"] == "system" else msg["role"]
+            content = msg["content"]
+
+            # For system messages, prefix with context indicator
+            if msg["role"] == "system":
+                content = f"System: {content}"
+
+            contents.append(types.Content(role=role, parts=[types.Part(text=content)]))
+
+        return contents

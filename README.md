@@ -37,12 +37,12 @@ async for event in agent("Debug this Python script and fix any issues"):
 
 **Agent signals execution state explicitly:**
 ```
-§THINK: I need to examine the code structure first
-§CALL: {"name": "read", "args": {"file": "main.py"}}  
-§EXECUTE
+§think: I need to examine the code structure first
+§call: {"name": "file_read", "args": {"file": "main.py"}}  
+§execute
 [SYSTEM: Found syntax error on line 15]
-§RESPOND: Fixed the missing semicolon. Code runs correctly now.
-§END
+§respond: Fixed the missing semicolon. Code runs correctly now.
+§end
 ```
 
 **Stream pauses for tool execution, then resumes with results injected.** No context replay needed.

@@ -35,23 +35,77 @@ class ToolResult:
 
 @runtime_checkable
 class LLM(Protocol):
-    """LLM provider interface with clean layer separation.
+    """Unified LLM interface supporting both HTTP streaming and WebSocket sessions.
 
-    Infrastructure layer: Connection setup/teardown (raises on failure)
-    Data layer: Pure token streaming (raises on failure)
+    HTTP Pattern (stateless):
+    - stream(messages) - Full conversation context each call
+    - generate(messages) - One-shot completion
+
+    WebSocket Pattern (stateful):
+    - connect(messages) -> session LLM - Create session with initial context
+    - send(content) - Send turn content, stream response (session only)
+    - close() - Close session
     """
 
-    # INFRASTRUCTURE LAYER - Direct exceptions for setup/config
-    async def generate(self, messages: list[dict]) -> str: ...
-    async def connect(self, messages: list[dict]) -> object: ...
+    # HTTP STREAMING - Stateless, full context each time
+    async def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
+        """HTTP streaming with full conversation context.
 
-    # DATA LAYER - Exception pattern for streaming
-    async def stream(self, connection) -> AsyncGenerator[str, None]: ...
+        Args:
+            messages: Complete conversation history
 
-    # WebSocket session management (infrastructure)
-    async def send(self, session, content: str) -> bool: ...
-    async def receive(self, session) -> AsyncGenerator[str, None]: ...
-    async def close(self, session) -> bool: ...
+        Yields:
+            Provider-native chunks until response complete
+        """
+        ...
+
+    async def generate(self, messages: list[dict]) -> str:
+        """One-shot completion with full conversation context.
+
+        Args:
+            messages: Complete conversation history
+
+        Returns:
+            Complete response string
+        """
+        ...
+
+    # WEBSOCKET SESSIONS - Stateful, context preserved
+    async def connect(self, messages: list[dict]) -> "LLM":
+        """Create session with initial context. Returns session-enabled LLM.
+
+        Args:
+            messages: Initial conversation history for context
+
+        Returns:
+            Session-enabled LLM instance with preserved context
+        """
+        ...
+
+    async def send(self, content: str) -> AsyncGenerator[str, None]:
+        """Send message in session and stream response until turn completion.
+
+        Only works after connect(). Session maintains conversation context.
+
+        Args:
+            content: User message for this turn
+
+        Yields:
+            Provider-native chunks until turn complete
+
+        Turn completion is dual-channel:
+        1. LLM semantic markers (§execute, §end)
+        2. Provider infrastructure signals
+
+        Provider-specific turn detection:
+        - Gemini: requires both generation_complete AND turn_complete signals
+        - OpenAI: response.done event
+        """
+        ...
+
+    async def close(self) -> None:
+        """Close session and cleanup resources. No-op for HTTP-only providers."""
+        ...
 
 
 @runtime_checkable
@@ -78,6 +132,10 @@ class Storage(Protocol):
         """Load latest user profile."""
         ...
 
+    async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int:
+        """Count user messages since timestamp for learning cadence."""
+        ...
+
 
 class Tool(ABC):
     """Tool interface - clean attribute access."""
@@ -86,9 +144,13 @@ class Tool(ABC):
     name: str
     description: str
     schema: dict = {}
-    examples: list[dict] = []
 
     @abstractmethod
     async def execute(self, **kwargs) -> ToolResult:
         """Execute tool and return result. Handle errors internally."""
+        pass
+
+    @abstractmethod
+    def describe(self, args: dict) -> str:
+        """Human-readable action description for tool call."""
         pass

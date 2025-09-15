@@ -4,7 +4,7 @@ import asyncio
 import shutil
 from pathlib import Path
 
-from .config import CONFIG
+from .config import config
 
 
 async def evaluate_category(category: str, generator) -> dict:
@@ -12,12 +12,12 @@ async def evaluate_category(category: str, generator) -> dict:
     # Apply seed for reproducible sampling
     import random
 
-    random.seed(CONFIG.seed)
+    random.seed(config.seed)
 
-    tests = generator(CONFIG.sample_size)
+    tests = generator(config.sample_size)
 
     # Parallel execution with semaphore to limit concurrency
-    semaphore = asyncio.Semaphore(CONFIG.max_concurrent_tests)
+    semaphore = asyncio.Semaphore(config.max_concurrent_tests)
 
     async def run_test(i, test):
         async with semaphore:
@@ -33,7 +33,9 @@ async def evaluate_category(category: str, generator) -> dict:
     final_results = []
     for i, result in enumerate(results):
         if isinstance(result, Exception):
-            final_results.append({"test_id": f"{category}_{i:02d}", "error": str(result), "passed": False})
+            final_results.append(
+                {"test_id": f"{category}_{i:02d}", "error": str(result), "passed": False}
+            )
         else:
             final_results.append(result)
 
@@ -43,7 +45,7 @@ async def evaluate_category(category: str, generator) -> dict:
         if result.get("error"):
             result["passed"] = False
             judged_results.append(result)
-        elif CONFIG.judge_llm:
+        elif config.judge:
             judgment = await _simple_judge(result)
             result.update(judgment)
             judged_results.append(result)
@@ -72,15 +74,19 @@ async def _execute_test(i, test, category):
     if sandbox.exists():
         shutil.rmtree(sandbox)
     sandbox.mkdir(exist_ok=True)
+    
 
     print(f"🧪 Test {i + 1}: {test.get('complexity', 'unknown')}")
 
-    agent = CONFIG.agent()
+    # Check for custom agent configuration (optional)
+    agent_config = test.get("agent_config", {})
+    agent = config.agent(**agent_config)
 
     try:
         import time
 
-        user_id = f"eval_{category}_{i:02d}_{int(time.time())}"
+        import uuid
+        user_id = str(uuid.uuid4())  # Ensure truly unique conversation ID
         start_time = time.time()
         total_input_tokens = 0
         total_output_tokens = 0
@@ -92,23 +98,24 @@ async def _execute_test(i, test, category):
             async for event in store_stream:
                 if event["type"] == "metrics":
                     total = event["total"]
-                    total_input_tokens = total["input"]
-                    total_output_tokens = total["output"]
+                    total_input_tokens += total["input"]
+                    total_output_tokens += total["output"]
 
             if test.get("requires_agent_destruction"):
                 del agent
                 import gc
+
                 gc.collect()
-                agent = CONFIG.agent()
+                agent = config.agent(**agent_config)
 
             recall_stream = agent(test["recall_prompt"], user_id=user_id)
             stream = []
-            
+
             async for event in recall_stream:
                 if event["type"] == "metrics":
                     total = event["total"]
-                    total_input_tokens = total["input"]
-                    total_output_tokens = total["output"]
+                    total_input_tokens += total["input"]
+                    total_output_tokens += total["output"]
                 else:
                     # Convert to readable stream format
                     event_type = event["type"].upper()
@@ -131,17 +138,18 @@ async def _execute_test(i, test, category):
             # Agent destruction to test persistence
             del agent
             import gc
+
             gc.collect()
-            agent = CONFIG.agent()
+            agent = config.agent(**agent_config)
 
             final_stream = agent(test["final_prompt"], user_id=user_id)
             stream = []
-            
+
             async for event in final_stream:
                 if event["type"] == "metrics":
                     total = event["total"]
-                    total_input_tokens = total["input"]
-                    total_output_tokens = total["output"]
+                    total_input_tokens += total["input"]
+                    total_output_tokens += total["output"]
                 else:
                     # Convert to readable stream format
                     event_type = event["type"].upper()
@@ -149,6 +157,32 @@ async def _execute_test(i, test, category):
                     stream.append(f"{event_type}: {content}")
 
             prompt_used = test["final_prompt"]
+
+        elif "conversation_prompts" in test:
+            # Multi-turn conversation test
+            full_stream = []
+
+            for i, prompt in enumerate(test["conversation_prompts"]):
+                turn_stream = agent(prompt, user_id=user_id)
+                full_stream.append(f"USER: {prompt}")
+
+                async for event in turn_stream:
+                    if event["type"] == "metrics":
+                        total = event["total"]
+                        total_input_tokens = total["input"]
+                        total_output_tokens = total["output"]
+                    else:
+                        # Convert to readable stream format
+                        event_type = event["type"].upper()
+                        content = str(event.get("content", ""))
+                        full_stream.append(f"{event_type}: {content}")
+
+                # Add separator between turns
+                if i < len(test["conversation_prompts"]) - 1:
+                    full_stream.append("---")
+
+            stream = full_stream
+            prompt_used = " → ".join(test["conversation_prompts"])
 
         elif "context_prompts" in test:
             # Complex synthesis test
@@ -163,17 +197,18 @@ async def _execute_test(i, test, category):
 
             del agent
             import gc
+
             gc.collect()
-            agent = CONFIG.agent()
+            agent = config.agent(**agent_config)
 
             synthesis_stream = agent(test["synthesis_prompt"], user_id=user_id)
             stream = []
-            
+
             async for event in synthesis_stream:
                 if event["type"] == "metrics":
                     total = event["total"]
-                    total_input_tokens = total["input"]
-                    total_output_tokens = total["output"]
+                    total_input_tokens += total["input"]
+                    total_output_tokens += total["output"]
                 else:
                     # Convert to readable stream format
                     event_type = event["type"].upper()
@@ -186,12 +221,12 @@ async def _execute_test(i, test, category):
             # Standard test - capture all events except metrics
             stream_events = agent(test["prompt"], user_id=user_id)
             stream = []
-            
+
             async for event in stream_events:
                 if event["type"] == "metrics":
                     total = event["total"]
-                    total_input_tokens = total["input"]
-                    total_output_tokens = total["output"]
+                    total_input_tokens += total["input"]
+                    total_output_tokens += total["output"]
                 else:
                     # Convert to readable stream format
                     event_type = event["type"].upper()
@@ -199,7 +234,6 @@ async def _execute_test(i, test, category):
                     stream.append(f"{event_type}: {content}")
 
             prompt_used = test["prompt"]
-
 
         total_seconds = time.time() - start_time
 
@@ -216,6 +250,14 @@ async def _execute_test(i, test, category):
         return {"test_id": f"{category}_{i:02d}", "error": "Timeout", "passed": False}
     except Exception as e:
         return {"test_id": f"{category}_{i:02d}", "error": str(e), "passed": False}
+    finally:
+        # Ensure agent cleanup to close any open sessions
+        try:
+            del agent
+            import gc
+            gc.collect()
+        except Exception:
+            pass  # Ignore cleanup errors
 
 
 async def _simple_judge(result):
@@ -238,19 +280,20 @@ Format: PASS: reason | FAIL: reason"""
 
     try:
         # Create judge LLM
-        if CONFIG.judge_llm == "openai":
+        if config.judge == "openai":
             judge = OpenAI()
-        elif CONFIG.judge_llm == "anthropic":
+        elif config.judge == "anthropic":
             judge = Anthropic()
-        elif CONFIG.judge_llm == "gemini":
+        elif config.judge == "gemini":
             judge = Gemini()
         else:
-            return {"passed": False, "judge_reason": f"Unknown judge LLM: {CONFIG.judge_llm}"}
+            return {"passed": False, "judge_reason": f"Unknown judge: {config.judge}"}
 
         # Make simple LLM call - handle different message formats
-        if CONFIG.judge_llm == "gemini":
-            # Gemini expects simple string content, not role-based messages
-            response = await judge.generate([prompt])
+        if config.judge == "gemini":
+            # Gemini expects structured messages like other providers
+            messages = [{"role": "user", "content": prompt}]
+            response = await judge.generate(messages)
         else:
             # OpenAI/Anthropic expect structured messages
             messages = [{"role": "user", "content": prompt}]
@@ -260,10 +303,9 @@ Format: PASS: reason | FAIL: reason"""
         clean_response = response.strip().upper()
         if clean_response.startswith("PASS"):
             return {"passed": True, "judge_reason": response.strip()}
-        elif clean_response.startswith("FAIL"):
+        if clean_response.startswith("FAIL"):
             return {"passed": False, "judge_reason": response.strip()}
-        else:
-            return {"passed": False, "judge_reason": f"Invalid judge response: {response}"}
+        return {"passed": False, "judge_reason": f"Invalid judge response: {response}"}
 
     except Exception as e:
         return {"passed": False, "judge_reason": f"Judge error: {str(e)}"}

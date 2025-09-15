@@ -1,7 +1,7 @@
-"""CLI display - console rendering for agent consciousness."""
+"""CLI display - console rendering for streaming agents."""
 
-from ..core.formatter import Formatter
 from ..core.protocols import ToolCall
+from ..tools.format import format_call_human
 
 
 def _render_metrics(input_tokens: int, output_tokens: int, duration: float, verbose: bool = False):
@@ -22,54 +22,49 @@ class Renderer:
 
     def show_metrics(self, metrics: dict):
         """Display metrics after stream completion."""
-        _render_metrics(metrics["input_tokens"], metrics["output_tokens"], metrics["duration"], self.verbose)
+        _render_metrics(
+            metrics["input_tokens"], metrics["output_tokens"], metrics["duration"], self.verbose
+        )
 
     async def render_stream(self, agent_stream):
         """Consume agent events and render to console."""
-        final_metrics = None
-        
+
         async for event in agent_stream:
             match event["type"]:
                 case "think":
                     if event["content"]:
                         if self.current_state != "think":
-                            print("\n~ ", end="", flush=True)
+                            print("\n\n~ ", end="", flush=True)
                             self.current_state = "think"
-                        print(event["content"] + " ", end="", flush=True)
+                        print(event["content"], end="", flush=True)
                 case "call":
                     # Tool call started - show action
-                    if self.current_state:
-                        print()  # Newline after streaming content
                     self.current_state = None
 
                     # Parse call and format display using Formatter
                     try:
                         tool_call = ToolCall.from_json(event["content"])
-                        action_display = Formatter.tool_call_human(tool_call)
+                        action_display = format_call_human(tool_call)
                     except Exception:
                         action_display = "Tool execution"
 
-                    print(f"○ {action_display}")
+                    print(f"\n\n○ {action_display}")
 
                 case "result":
                     # Tool result - show outcome using event data
-                    outcome = event.get("outcome", "Tool completed")
-                    print(f"● {outcome}")
-                    print()  # Gap for readability
+                    outcome = event.get("content", "Tool completed")
+                    print(f"\n● {outcome}")
                 case "respond":
                     if event["content"]:
                         if self.current_state != "respond":
-                            print("\n> ", end="", flush=True)
+                            print("\n\n> ", end="", flush=True)
                             self.current_state = "respond"
-                        print(event["content"] + " ", end="", flush=True)
+                        print(event["content"], end="", flush=True)
                 case "metrics":
-                    # Store latest metrics, display at end
-                    final_metrics = event
+                    # Display metrics immediately
+                    if "total" in event:
+                        total = event["total"]
+                        print(f"\n\n% {total['input']}➜{total['output']}|{total['duration']:.1f}s")
                 case "cancelled":
                     print(f"\n{event['content']}")
                     return
-                    
-        # Display final metrics if available
-        if final_metrics:
-            total = final_metrics["total"]
-            _render_metrics(total["input"], total["output"], total["duration"], self.verbose)

@@ -1,49 +1,52 @@
 """CLI interface for Cogency."""
 
 import asyncio
-import json
 
 import typer
 
 app = typer.Typer(
-    name="cogency", help="Streaming agents", no_args_is_help=False
+    help="""Streaming agents that resume after tool calls.
+
+Direct usage: cogency "question" --new
+Conversations continue by default, use --new for fresh start.
+Test configurations: --llm (gemini/openai) --mode (resume/replay)"""
 )
 
 
 @app.command()
-def ask(
-    question: str = typer.Argument(help="Question for the agent"),
+def run(
+    question: str = typer.Argument(..., help="Question for the agent"),
     llm: str = typer.Option("gemini", "--llm", help="LLM provider (openai, gemini, anthropic)"),
     mode: str = typer.Option("auto", "--mode", help="Stream mode (auto, resume, replay)"),
-    user: str = typer.Option("ask_user", "--user", help="User identity"),
-    instructions: str = typer.Option(None, "--instructions", help="Custom agent instructions"),
-    max_iterations: int = typer.Option(10, "--max-iterations", help="Maximum reasoning iterations"),
-    no_tools: bool = typer.Option(False, "--no-tools", help="Disable tools"),
-    no_profile: bool = typer.Option(False, "--no-profile", help="Disable user memory"),
-    no_sandbox: bool = typer.Option(False, "--no-sandbox", help="Disable security sandbox"),
-    new: bool = typer.Option(False, "--new", help="Start fresh conversation"),
-    debug: bool = typer.Option(False, "--debug", help="Show execution traces"),
-    verbose: bool = typer.Option(False, "--verbose", help="Show detailed debug events"),
+    new: bool = typer.Option(False, "--new", help="Start fresh conversation (default: continue)"),
+    debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
 ):
-    """Ask the agent a question."""
+    """Ask the agent a question (continues conversation by default)."""
     from .ask import run_agent
 
     asyncio.run(
         run_agent(
             question,
-            llm,
-            mode,
-            user,
-            instructions,
-            max_iterations,
-            no_tools,
-            no_profile,
-            no_sandbox,
-            new,
-            debug,
-            verbose,
+            llm=llm,
+            mode=mode,
+            new=new,
+            debug=debug,
         )
     )
+
+
+@app.command()
+def context(
+    target: str = typer.Argument("last", help="Target: 'system' or conversation ID"),
+):
+    """Show assembled context."""
+    from .debug import show_context, show_system_prompt
+
+    if target == "system":
+        show_system_prompt()
+    else:
+        conversation_id = None if target == "last" else target
+        show_context(conversation_id)
 
 
 @app.command()
@@ -55,22 +58,6 @@ def last(conv_id: str = typer.Argument(None, help="Conversation ID")):
 
 
 @app.command()
-def context(conv_id: str = typer.Argument(None, help="Conversation ID")):
-    """Show assembled context."""
-    from .debug import show_context
-
-    show_context(conv_id)
-
-
-@app.command()
-def db():
-    """Database inspection."""
-    from .debug import query_main
-
-    query_main()
-
-
-@app.command()
 def stats():
     """Database statistics."""
     from .admin import show_stats
@@ -79,72 +66,44 @@ def stats():
 
 
 @app.command()
-def users():
+def users(user_id: str = typer.Argument(None, help="Specific user ID to show (optional)")):
     """User profiles."""
-    from .admin import users_main
+    from .admin import show_user, show_users
 
-    users_main()
+    if user_id:
+        show_user(user_id)
+    else:
+        show_users()
 
 
 @app.command()
-def profile():
-    """Show user profile."""
-    import asyncio
-    from ..context.profile import get
+def nuke():
+    """Delete .cogency folder completely."""
+    import shutil
+    from pathlib import Path
 
-    async def _show_profile():
-        user_id = "ask_user"  # Default CLI user
-        user_profile = await get(user_id)
-        if user_profile:
-            print(json.dumps(user_profile))
+    try:
+        cogency_dir = Path(".cogency")  # Don't call get_cogency_dir() - it creates the dir!
+        if cogency_dir.exists():
+            shutil.rmtree(cogency_dir)
+            print(f"✓ Deleted {cogency_dir}")
         else:
-            print("{}")
-
-    asyncio.run(_show_profile())
-
-
-nuke_app = typer.Typer(help="Nuclear cleanup commands")
-
-
-@nuke_app.command("all")
-def nuke_all():
-    """Delete all data (with confirmation)."""
-    from .admin import nuke_everything
-
-    nuke_everything()
-
-
-@nuke_app.command("sandbox")
-def nuke_sandbox_cmd():
-    """Delete sandbox only."""
-    from .admin import nuke_sandbox
-
-    nuke_sandbox()
-
-
-@nuke_app.command("db")
-def nuke_db_cmd():
-    """Delete database only."""
-    from .admin import nuke_db
-
-    nuke_db()
-
-
-app.add_typer(nuke_app, name="nuke")
+            print("✓ No .cogency folder to delete")
+    except Exception as e:
+        print(f"✗ Error during nuke: {e}")
+        raise typer.Exit(1) from e
 
 
 def main():
-    """CLI entry point with smart argument handling."""
-    import sys
-    
-    # If first arg doesn't match a command, treat as direct question
-    if len(sys.argv) > 1 and sys.argv[1] not in [
-        "ask", "last", "context", "db", "stats", "users", "profile", "nuke", "--help", "-h"
-    ]:
-        # Insert 'ask' command for direct questions
-        sys.argv.insert(1, "ask")
-    
-    app()
+    """CLI entry point."""
+    try:
+        app()
+    except Exception as e:
+        print(f"CLI Error: {e}")
+        import traceback
+
+        traceback.print_exc()
+        raise
 
 
 if __name__ == "__main__":

@@ -1,8 +1,12 @@
-"""Memory recall tool for fuzzy search of past user messages.
+"""Memory recall with SQLite fuzzy search instead of embeddings.
 
-NOTE: Uses SQLite LIKE patterns instead of embeddings.
-Fuzzy search gives 80% of semantic value for 20% of complexity.
-Embeddings would add ~15% better matching at 4x complexity cost.
+Architectural decision: SQLite LIKE patterns over vector embeddings.
+
+Tradeoffs:
+- 80% of semantic value for 20% of complexity
+- No vector database infrastructure required
+- Transparent search - users can understand and debug the queries
+- No embedding model dependencies or API costs
 """
 
 import sqlite3
@@ -11,7 +15,7 @@ from typing import NamedTuple
 
 from ...core.protocols import Tool, ToolResult
 from ...lib.logger import logger
-from ...lib.storage import Paths
+from ...lib.paths import Paths
 from ..security import safe_execute
 
 
@@ -41,7 +45,7 @@ class MemoryRecall(Tool):
 
     @safe_execute
     async def execute(
-        self, query: str, conversation_id: str = None, user_id: str = None
+        self, query: str, conversation_id: str = None, user_id: str = None, **kwargs
     ) -> ToolResult:
         """Execute fuzzy search on past user messages."""
         if not query or not query.strip():

@@ -1,4 +1,4 @@
-"""Config tests."""
+"""Immutable configuration validation tests."""
 
 from unittest.mock import Mock
 
@@ -19,7 +19,7 @@ def test_config(mock_llm):
         config.mode = "different"
 
     # Defaults
-    assert config.max_iterations == 3
+    assert config.max_iterations == 10
     assert config.mode == "auto"
     assert config.profile is True
     assert config.sandbox is True

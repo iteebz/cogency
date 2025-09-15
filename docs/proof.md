@@ -131,7 +131,7 @@ Each additional turn increases efficiency advantage by k tokens.
 
 ## Architectural Significance
 
-This mathematical proof demonstrates why streaming consciousness is essential for:
+This mathematical proof demonstrates why streaming agents are essential for:
 
 1. **Extended agent autonomy** - Linear scaling enables hour/day-level conversations
 2. **Multi-agent coordination** - Quadratic costs make swarm communication prohibitive  
@@ -142,4 +142,4 @@ This mathematical proof demonstrates why streaming consciousness is essential fo
 
 ---
 
-*Mathematical validation of streaming consciousness architecture claims through first-principles token analysis.*
+*Mathematical validation of streaming agents architecture claims through first-principles token analysis.*

@@ -1,10 +1,12 @@
+"""Security validation tests - pattern blocking and timeout enforcement."""
+
 import os
 import tempfile
 from pathlib import Path
 
 import pytest
 
-from cogency.tools.security import validate_path, sanitize_shell_input, timeout_context
+from cogency.tools.security import sanitize_shell_input, timeout_context, validate_path
 
 # Comprehensive attack vectors for systematic security coverage
 SHELL_INJECTION_ATTACKS = [
@@ -82,8 +84,8 @@ LEGITIMATE_INPUTS = {
 }
 
 
-def test_security_layer_comprehensive_attack_blocking():
-    """Security layer blocks comprehensive attack vectors while allowing legitimate operations."""
+def test_attack_blocking():
+    """Security layer blocks shell injection, path traversal, and system file access while allowing legitimate file operations."""
 
     # Shell injection attacks must be blocked
     for attack in SHELL_INJECTION_ATTACKS:
@@ -129,7 +131,7 @@ def test_security_layer_comprehensive_attack_blocking():
                 sanitize_shell_input(invalid_input)
 
 
-def test_timeout_enforcement_cross_platform():
+def test_timeout_enforcement():
     """Timeout enforcement works correctly across platforms."""
     import time
 
@@ -149,7 +151,7 @@ def test_timeout_enforcement_cross_platform():
                 time.sleep(2)
 
 
-def test_semantic_security_boundary_documentation():
+def test_semantic_security_boundaries():
     """Document attacks that pass through to semantic security layer."""
 
     # Shell injection blocked at security layer

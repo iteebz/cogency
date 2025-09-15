@@ -13,8 +13,8 @@ Features:
 
 import time
 
-from ..context import context
-from ..lib.metrics import Tokens
+from .. import context
+from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .parser import parse_tokens
 
@@ -24,15 +24,21 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
     if config.llm is None:
         raise ValueError("LLM provider required")
 
-    # Initialize token tracking
-    tokens = Tokens.init(config.llm)
-    task_start_time = time.time()
+    # Initialize metrics tracking
+    metrics = Metrics.init(config.llm.llm_model)
+    time.time()
 
     try:
         # Assemble context from storage (exclude current cycle to prevent duplication)
         messages = await context.assemble(query, user_id, conversation_id, config)
 
-        for iteration in range(1, config.max_iterations + 1):
+        complete = False
+
+        for iteration in range(1, config.max_iterations + 1):  # [SEC-005] Prevent runaway agents
+            # Exit early if previous iteration completed
+            if complete:
+                break
+
             # Add final iteration guidance
             if iteration == config.max_iterations:
                 messages.append(
@@ -42,8 +48,6 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
                     }
                 )
 
-            complete = False
-
             accumulator = Accumulator(
                 config,
                 user_id,
@@ -52,24 +56,39 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
             )
 
             # Track this LLM call
-            step_start_time = time.time()
-            if tokens:
-                step_input_tokens = tokens.add_input_messages(messages)
+            if metrics:
+                metrics.start_step()
+                metrics.add_input(messages)
             else:
-                step_input_tokens = 0
+                pass
 
             step_output_tokens = 0
-            
+
             try:
                 async for event in accumulator.process(parse_tokens(config.llm.stream(messages))):
-                    # Track output tokens for content events
-                    if event["type"] in ["think", "respond"] and tokens and event.get("content"):
-                        step_output_tokens += tokens.add_output(event["content"])
-                    
+                    # Track output tokens for all LLM-generated content
+                    if (
+                        event["type"] in ["think", "call", "respond"]
+                        and metrics
+                        and event.get("content")
+                    ):
+                        step_output_tokens += metrics.add_output(event["content"])
+
                     match event["type"]:
                         case "end":
                             # Agent finished - actual termination
                             complete = True
+                            from ..lib.logger import logger
+
+                            logger.debug(f"REPLAY: Set complete=True on iteration {iteration}")
+
+                        case "execute":
+                            # Emit metrics when LLM pauses for tool execution
+                            if metrics:
+                                yield metrics.event()
+                                metrics.start_step()
+                            yield event
+                            break
 
                         case "result":
                             # Tool result - add to context for next HTTP iteration
@@ -85,16 +104,11 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
                             break
                         case _:
                             yield event
-                            
+
                 # Emit metrics after LLM call completes
-                if tokens:
-                    step_duration = time.time() - step_start_time
-                    total_duration = time.time() - task_start_time
-                    metrics_event = tokens.to_step_metrics(
-                        step_input_tokens, step_output_tokens, step_duration, total_duration
-                    )
-                    yield metrics_event
-                    
+                if metrics:
+                    yield metrics.event()
+
             except Exception:
                 raise
 

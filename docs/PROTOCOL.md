@@ -6,52 +6,52 @@
 **Solution:** Agents explicitly signal execution state
 
 ```
-§THINK: I need to examine the code structure first
-§CALL: {"name": "read", "args": {"file": "main.py"}}
-§EXECUTE
+§think: I need to examine the code structure first
+§call: {"name": "file_read", "args": {"file": "main.py"}}
+§execute
 [SYSTEM: Found syntax error on line 15]
-§RESPOND: Fixed the missing semicolon. Code runs correctly now.
-§END
+§respond: Fixed the missing semicolon. Code runs correctly now.
+§end
 ```
 
 Agent controls timing. Parser handles execution.
 
 ## Delimiters
 
-- `§THINK:` Internal reasoning scratchpad
-- `§CALL:` Single tool call as JSON object
-- `§EXECUTE` Pause signal for tool execution
-- `§RESPOND:` Communication with human
-- `§END` Task completion signal
+- `§think:` Internal reasoning scratchpad
+- `§call:` Single tool call as JSON object
+- `§execute` Pause signal for tool execution
+- `§respond:` Communication with human
+- `§end` Task completion signal
 
 ## Examples
 
 **Simple response (no tools):**
 ```
-§RESPOND: Python is a programming language created by Guido van Rossum.
-§END
+§respond: Python is a programming language created by Guido van Rossum.
+§end
 ```
 
 **Single tool call:**
 ```
-§THINK: I should check what files exist first.
-§CALL: {"name": "list", "args": {}}
-§EXECUTE
+§think: I should check what files exist first.
+§call: {"name": "file_list", "args": {"path": "."}}
+§execute
 [SYSTEM: Found 3 files: main.py, config.json, README.md]
-§RESPOND: I found 3 files: main.py, config.json, README.md
-§END
+§respond: I found 3 files: main.py, config.json, README.md
+§end
 ```
 
 **Multiple sequential tools:**
 ```
-§CALL: {"name": "list", "args": {}}
-§EXECUTE
+§call: {"name": "file_list", "args": {"path": "."}}
+§execute
 [SYSTEM: Found: main.py, config.json]
-§CALL: {"name": "read", "args": {"file": "config.json"}}
-§EXECUTE
+§call: {"name": "file_read", "args": {"file": "config.json"}}
+§execute
 [SYSTEM: {"debug": false, "timeout": 30}]
-§RESPOND: This is a Node.js project with Express configuration.
-§END
+§respond: This is a Node.js project with Express configuration.
+§end
 ```
 
 ## Parser Events
@@ -60,7 +60,7 @@ Protocol generates structured events:
 
 ```python
 {"type": "think", "content": "reasoning text", "timestamp": 1234567890.0}
-{"type": "call", "content": "{\"name\": \"tool\"}", "timestamp": 1234567890.0}
+{"type": "call", "content": "{\"name\": \"file_read\", \"args\": {\"file\": \"main.py\"}}", "timestamp": 1234567890.0}
 {"type": "execute", "content": "", "timestamp": 1234567890.0}
 {"type": "respond", "content": "final response", "timestamp": 1234567890.0}
 {"type": "end", "content": "", "timestamp": 1234567890.0}
@@ -68,7 +68,7 @@ Protocol generates structured events:
 
 ## Rules
 
-1. **Tool calls must be valid JSON object:** `{"name": "tool_name", "args": {...}}`
-2. **EXECUTE required after CALL:** Parser waits for tool execution
+1. **Tool calls must be valid JSON object:** `{"name": "file_read", "args": {"file": "example.py"}}`
+2. **execute required after call:** Parser waits for tool execution
 3. **Invalid JSON treated as content:** Parser continues with malformed calls as regular content
-4. **END terminates stream:** Final event, no further processing
+4. **end terminates stream:** Final event, no further processing

@@ -1,4 +1,4 @@
-"""Agent tests."""
+"""Agent configuration and execution tests."""
 
 from unittest.mock import MagicMock, patch
 
@@ -26,7 +26,7 @@ def test_config():
     assert hasattr(agent.config.llm, "generate")
 
     tool_names = {tool.name for tool in agent.config.tools}
-    assert "list" in tool_names
+    assert "file_list" in tool_names
     assert "recall" in tool_names
 
     # Custom tools
@@ -38,21 +38,11 @@ def test_config():
 
 
 @pytest.mark.asyncio
-async def test_execution():
+async def test_execution(mock_llm):
     """Agent executes with proper streaming, context, and error handling."""
     agent = Agent()
 
-    # Successful execution - use mock LLM to avoid real API calls
-    from cogency.core.protocols import LLM
-
-    class MockLLM(LLM):
-        async def generate(self, messages):
-            pass
-
-        async def stream(self, messages):
-            pass
-
-    agent = Agent(llm=MockLLM(), mode="replay")  # Force replay mode to avoid WebSocket
+    agent = Agent(llm=mock_llm, mode="replay")  # Force replay mode to avoid WebSocket
 
     with patch("cogency.core.replay.stream") as mock_stream:
 
@@ -75,7 +65,7 @@ async def test_execution():
         assert user_id == "test_user"
 
     # Error handling
-    error_agent = Agent(llm=MockLLM(), mode="replay")
+    error_agent = Agent(llm=mock_llm, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
 
@@ -90,7 +80,7 @@ async def test_execution():
                 pass
 
     # Empty response should just stream events as-is
-    empty_agent = Agent(llm=MockLLM(), mode="replay")
+    empty_agent = Agent(llm=mock_llm, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
 
@@ -105,3 +95,27 @@ async def test_execution():
 
         assert len(events) == 1
         assert events[0]["type"] == "think"
+
+
+@pytest.mark.asyncio
+async def test_user_message_persistence(mock_llm, mock_storage):
+    """Agent persists user messages for conversation context."""
+    from unittest.mock import AsyncMock
+
+    # Mock the save_message method to track calls
+    mock_storage.save_message = AsyncMock()
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_events():
+            yield {"type": "respond", "content": "Response"}
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
+
+        # Execute agent call
+        async for _ in agent("Test query", user_id="test_user", conversation_id="conv_123"):
+            pass
+
+        # Verify user message was persisted
+        mock_storage.save_message.assert_called_with("conv_123", "test_user", "user", "Test query")

@@ -1,97 +1,78 @@
 """Token counting for streaming agents."""
 
+import time
+
 import tiktoken
 
-from .logger import logger
 
-
-def count_tokens(text: str, model: str) -> int:
-    """Count tokens in text using model-appropriate encoding."""
-    if not text:
+def count_tokens(content) -> int:
+    """Count tokens using tiktoken - gpt-4 approximation for all providers."""
+    if not content:
         return 0
 
-    try:
-        enc = tiktoken.encoding_for_model(model)
-        return len(enc.encode(text))
-    except KeyError:
-        # Use cl100k_base encoding for unknown models (GPT-4 compatible)
-        enc = tiktoken.get_encoding("cl100k_base")
-        return len(enc.encode(text))
+    # Convert messages to text if needed
+    if isinstance(content, list):
+        content = "\n".join(f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in content)
+
+    # Use gpt-4 tokenizer for all providers
+    enc = tiktoken.encoding_for_model("gpt-4")
+    return len(enc.encode(content))
 
 
-def count_message_tokens(messages: list[dict], model: str) -> int:
-    """Count tokens in message array using tiktoken's native message encoding."""
-    if not messages:
-        return 0
-
-    # Use tiktoken's native message encoding for OpenAI models
-    if model.startswith("gpt") or "gpt" in model.lower():
-        try:
-            enc = tiktoken.encoding_for_model(model)
-            return len(enc.encode_messages(messages))
-        except (KeyError, AttributeError):
-            pass
-
-    # For non-OpenAI models, format messages and count with cl100k_base
-    total_text = ""
-    for msg in messages:
-        role = msg.get("role", "")
-        content = msg.get("content", "")
-        total_text += f"{role}: {content}\n"
-
-    return count_tokens(total_text, model)
-
-
-class Tokens:
-    """Track input/output tokens for streaming agents."""
+class Metrics:
+    """Track comprehensive metrics for streaming agents."""
 
     def __init__(self, model: str):
-        if not model:
-            raise ValueError("Model must be specified explicitly. No defaults allowed.")
         self.model = model
-        self.input = 0
-        self.output = 0
+        self.input_tokens = 0
+        self.output_tokens = 0
+        self.step_input_tokens = 0
+        self.step_output_tokens = 0
+        self.step_start_time = None
+        self.task_start_time = None
 
     @classmethod
-    def init(cls, llm):
-        """Initialize token tracking from LLM."""
-        try:
-            return cls(getattr(llm, "llm_model", "unknown"))
-        except Exception as e:
-            logger.warning(f"Token tracking init failed: {e}")
-            return None
+    def init(cls, model: str):
+        """Initialize metrics tracking."""
+        metrics = cls(model)
+        metrics.task_start_time = time.time()
+        return metrics
 
-    def add_input(self, text: str):
-        tokens = count_tokens(text, self.model)
-        self.input += tokens
-        return tokens
+    def start_step(self):
+        """Start timing a new step and reset step counters."""
+        self.step_start_time = time.time()
+        self.step_input_tokens = 0
+        self.step_output_tokens = 0
+        return self.step_start_time
 
-    def add_input_messages(self, messages: list[dict]):
-        """Add input tokens from message array."""
-        tokens = count_message_tokens(messages, self.model)
-        self.input += tokens
+    def add_input(self, text):
+        tokens = count_tokens(text)
+        self.input_tokens += tokens
+        self.step_input_tokens += tokens
         return tokens
 
     def add_output(self, text: str):
-        tokens = count_tokens(text, self.model)
-        self.output += tokens
+        tokens = count_tokens(text)
+        self.output_tokens += tokens
+        self.step_output_tokens += tokens
         return tokens
 
-    def total(self):
-        return self.input + self.output
+    def total_tokens(self):
+        return self.input_tokens + self.output_tokens
 
-    def to_step_metrics(self, step_input: int, step_output: int, step_duration: float, total_duration: float) -> dict:
-        """Create metrics event with step and total data."""
+    def event(self) -> dict:
+        """Create clean metrics event."""
+        now = time.time()
         return {
             "type": "metrics",
             "step": {
-                "input": step_input,
-                "output": step_output, 
-                "duration": step_duration
+                "input": self.step_input_tokens,
+                "output": self.step_output_tokens,
+                "duration": now - self.step_start_time,
             },
             "total": {
-                "input": self.input,
-                "output": self.output,
-                "duration": total_duration
-            }
+                "input": self.input_tokens,
+                "output": self.output_tokens,
+                "duration": now - self.task_start_time,
+            },
         }

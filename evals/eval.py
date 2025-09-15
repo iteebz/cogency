@@ -5,27 +5,31 @@ import json
 import sys
 from datetime import datetime
 
-from cogency.lib.storage import Paths
+from cogency.lib.paths import Paths
 
-from .config import CONFIG
+from .config import config
 from .core import evaluate_category
-from .generate import coding, memory, reasoning, research, security
+from .generate import coding, continuity, conversation, integrity, reasoning, research, security
 
 
 async def run(category=None, samples=None):
     """Run evaluation category or full suite."""
-    samples = samples or CONFIG.sample_size
+    samples = samples or config.sample_size
 
     if category == "reasoning":
         return await _run_category("reasoning", reasoning, samples)
-    if category == "memory":
-        return await _run_category("memory", memory, samples)
+    if category == "conversation":
+        return await _run_category("conversation", conversation, samples)
+    if category == "continuity":
+        return await _run_category("continuity", continuity, samples)
     if category == "coding":
         return await _run_category("coding", coding, samples)
     if category == "research":
         return await _run_category("research", research, samples)
     if category == "security":
         return await _run_category("security", security, samples)
+    if category == "integrity":
+        return await _run_category("integrity", integrity, samples)
     return await _run_all(samples)
 
 
@@ -35,24 +39,24 @@ async def _run_category(name, generator, samples):
     print("=" * 40)
 
     # Override config temporarily
-    original_size = CONFIG.sample_size
-    CONFIG.sample_size = samples
+    original_size = config.sample_size
+    config.sample_size = samples
 
     try:
         result = await evaluate_category(name, generator)
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
+        run_id = f"{timestamp}_{config.llm}_{config.mode}"
 
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
         config_data = {
-            "llm": CONFIG.agent().config.llm.llm_model,
-            "mode": CONFIG.mode,
-            "sandbox": CONFIG.sandbox,
+            "llm": config.agent().config.llm.llm_model,
+            "mode": config.mode,
+            "sandbox": config.sandbox,
             "sample_size": samples,
-            "judge_llm": CONFIG.judge_llm,
-            "seed": CONFIG.seed,
+            "judge": config.judge,
+            "seed": config.seed,
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -72,7 +76,7 @@ async def _run_category(name, generator, samples):
         return result
 
     finally:
-        CONFIG.sample_size = original_size
+        config.sample_size = original_size
 
 
 async def _run_all(samples):
@@ -82,15 +86,17 @@ async def _run_all(samples):
 
     categories = {
         "reasoning": reasoning,
-        "memory": memory,
+        "conversation": conversation,
+        "continuity": continuity,
         "coding": coding,
         "research": research,
         "security": security,
+        "integrity": integrity,
     }
 
     # Override config temporarily
-    original_size = CONFIG.sample_size
-    CONFIG.sample_size = samples
+    original_size = config.sample_size
+    config.sample_size = samples
 
     try:
         results = await asyncio.gather(
@@ -102,17 +108,17 @@ async def _run_all(samples):
         rate = passed / total if total else 0
 
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        run_id = f"{timestamp}-{CONFIG.agent().config.llm.llm_model}_{CONFIG.mode}"
+        run_id = f"{timestamp}_{config.llm}_{config.mode}"
 
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
         config_data = {
-            "llm": CONFIG.agent().config.llm.llm_model,
-            "mode": CONFIG.mode,
-            "sandbox": CONFIG.sandbox,
+            "llm": config.agent().config.llm.llm_model,
+            "mode": config.mode,
+            "sandbox": config.sandbox,
             "sample_size": samples,
-            "judge_llm": CONFIG.judge_llm,
-            "seed": CONFIG.seed,
+            "judge": config.judge,
+            "seed": config.seed,
             "timestamp": datetime.now().isoformat(),
         }
 
@@ -150,7 +156,7 @@ async def _run_all(samples):
         return summary
 
     finally:
-        CONFIG.sample_size = original_size
+        config.sample_size = original_size
 
 
 def latest():
@@ -174,7 +180,7 @@ async def cli():
     """CLI entry point."""
     args = sys.argv[1:]
 
-    samples = CONFIG.sample_size
+    samples = config.sample_size
 
     if "--samples" in args:
         idx = args.index("--samples")
@@ -183,26 +189,26 @@ async def cli():
 
     if "--seed" in args:
         idx = args.index("--seed")
-        CONFIG.seed = int(args[idx + 1])
+        config.seed = int(args[idx + 1])
         args = [a for i, a in enumerate(args) if i not in [idx, idx + 1]]
-        print(f"🎲 Using seed: {CONFIG.seed}")
+        print(f"🎲 Using seed: {config.seed}")
 
     if "--mode" in args:
         idx = args.index("--mode")
-        CONFIG.mode = args[idx + 1]
+        config.mode = args[idx + 1]
         args = [a for i, a in enumerate(args) if i not in [idx, idx + 1]]
-        if CONFIG.mode == "resume":
+        if config.mode == "resume":
             print("🔄 Resume mode - strict WebSocket, no fallback")
-        elif CONFIG.mode == "replay":
+        elif config.mode == "replay":
             print("🔁 Replay mode - HTTP only")
-        elif CONFIG.mode == "auto":
+        elif config.mode == "auto":
             print("🤖 Auto mode - WebSocket with HTTP fallback")
 
     if "--concurrency" in args:
         idx = args.index("--concurrency")
-        CONFIG.max_concurrent_tests = int(args[idx + 1])
+        config.max_concurrent_tests = int(args[idx + 1])
         args = [a for i, a in enumerate(args) if i not in [idx, idx + 1]]
-        print(f"⚡ Concurrency: {CONFIG.max_concurrent_tests} parallel tests")
+        print(f"⚡ Concurrency: {config.max_concurrent_tests} parallel tests")
 
     if "--llm" in args:
         idx = args.index("--llm")
@@ -211,10 +217,10 @@ async def cli():
 
         # Auto-configure cross-model judging
         if llm_choice == "gemini":
-            CONFIG.judge_llm = "openai"  # Cross-judge with OpenAI
+            config.judge = "openai"  # Cross-judge with OpenAI
             print("🧠 Gemini agent + OpenAI judge")
         elif llm_choice == "openai":
-            CONFIG.judge_llm = "gemini"  # Cross-judge with Gemini
+            config.judge = "gemini"  # Cross-judge with Gemini
             print("🤖 OpenAI agent + Gemini judge")
         else:
             print(f"⚠️  Unknown LLM: {llm_choice}, using default")
@@ -223,9 +229,9 @@ async def cli():
         # Override agent factory
         from cogency import Agent
 
-        CONFIG.agent = lambda llm=None, mode=None: Agent(
+        config.agent = lambda llm=None, mode=None: Agent(
             llm=llm or llm_choice,
-            mode=mode or CONFIG.mode,
+            mode=mode or config.mode,
             sandbox=True,  # Always sandbox for safety
         )
 

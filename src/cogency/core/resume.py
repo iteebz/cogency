@@ -1,23 +1,18 @@
-"""WebSocket mode with persistent session and tool injection.
+"""WebSocket streaming with tool injection and session persistence.
 
-WebSocket pattern:
-1. Single session → continuous token stream
-2. Parser detects §EXECUTE → pause session → execute tools
-3. Inject results → resume same stream
-4. Repeat within same session
+Algorithm:
+1. Establish WebSocket session with initial context
+2. Stream tokens continuously from LLM
+3. When parser detects §execute → pause stream → execute tool
+4. Inject tool result back into same session → resume streaming
+5. Repeat until §end or natural completion
 
-Features:
-- Persistent WebSocket connection
-- Stream pauses/resumes without context loss
-- LLM maintains conversation state
-- Requires WebSocket support (GPT-4o Realtime, Gemini Live)
-- Maximum token efficiency
+Enables maximum token efficiency by maintaining conversation state
+in LLM memory rather than resending full context each turn.
 """
 
-import time
-
-from ..context import context
-from ..lib.metrics import Tokens
+from .. import context
+from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .parser import parse_tokens
 
@@ -27,30 +22,24 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
     if config.llm is None:
         raise ValueError("LLM provider required")
 
-    # Duck typing - if it doesn't have WebSocket methods, fail fast
+    # Verify WebSocket capability
     if not hasattr(config.llm, "connect"):
         raise RuntimeError(
             f"Resume mode requires WebSocket support. Provider {type(config.llm).__name__} missing connect() method. "
             f"Use mode='auto' for fallback behavior or mode='replay' for HTTP-only."
         )
 
-    # Initialize token tracking
-    tokens = Tokens.init(config.llm)
-    task_start_time = time.time()
-    step_start_time = time.time()
-    step_input_tokens = 0
-    step_output_tokens = 0
+    # Initialize metrics tracking
+    metrics = Metrics.init(config.llm.llm_model)
 
     session = None
     try:
-        # Assemble initial context
         messages = await context.assemble(query, user_id, conversation_id, config)
-        
-        # Track initial input tokens
-        if tokens:
-            step_input_tokens = tokens.add_input_messages(messages)
 
-        # Establish persistent WebSocket session
+        if metrics:
+            metrics.start_step()
+            metrics.add_input(messages)
+
         session = await config.llm.connect(messages)
 
         complete = False
@@ -63,62 +52,61 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
         )
 
         try:
-            async for event in accumulator.process(parse_tokens(config.llm.receive(session))):
-                # Track output tokens for content events
-                if event["type"] in ["think", "respond"] and tokens and event.get("content"):
-                    step_output_tokens += tokens.add_output(event["content"])
-                
+            async for event in accumulator.process(parse_tokens(session.send(query))):
+                if (
+                    event["type"] in ["think", "call", "respond"]
+                    and metrics
+                    and event.get("content")
+                ):
+                    metrics.add_output(event["content"])
+
                 match event["type"]:
                     case "end":
-                        # Agent finished - actual termination
                         complete = True
-                        
-                        # Emit final metrics
-                        if tokens:
-                            step_duration = time.time() - step_start_time
-                            total_duration = time.time() - task_start_time
-                            metrics_event = tokens.to_step_metrics(
-                                step_input_tokens, step_output_tokens, step_duration, total_duration
-                            )
-                            yield metrics_event
+                        # Close session on task completion
+                        await session.close()
+                        if metrics:
+                            yield metrics.event()
+
+                    case "execute":
+                        # Emit metrics when LLM pauses for tool execution
+                        if metrics:
+                            yield metrics.event()
+                            metrics.start_step()
 
                     case "result":
-                        # Tool result - inject into WebSocket session
-                        success = await config.llm.send(session, event["content"])
-                        if not success:
-                            raise RuntimeError("Failed to inject tool result into WebSocket")
-                        
-                        # Emit metrics after tool result injection (end of LLM step)
-                        if tokens:
-                            step_duration = time.time() - step_start_time
-                            total_duration = time.time() - task_start_time
-                            metrics_event = tokens.to_step_metrics(
-                                step_input_tokens, step_output_tokens, step_duration, total_duration
-                            )
-                            yield metrics_event
-                            
-                            # Reset for next step
-                            step_start_time = time.time()
-                            step_input_tokens = 0
-                            step_output_tokens = 0
+                        # Send tool result to session to continue generation
+                        try:
+                            # Continue streaming after tool result injection
+                            async for continuation_event in accumulator.process(
+                                parse_tokens(session.send(event["content"]))
+                            ):
+                                yield continuation_event
+                                if continuation_event.get("type") == "end":
+                                    complete = True
+                                    break
+                        except Exception as e:
+                            raise RuntimeError(f"WebSocket continuation failed: {e}") from e
+
+                        if metrics:
+                            yield metrics.event()
+                            metrics.start_step()
 
                 yield event
 
-                # Stop after completion
                 if complete:
                     break
         except Exception:
             raise
 
-        # Handle incomplete sessions
+        # Handle natural WebSocket completion
         if not complete:
-            # Stream ended without §END - this is natural completion for resume mode
-            # WebSocket streams end when provider decides, not when agent decides
+            # Stream ended without §end - provider-driven completion
             complete = True
 
     except Exception as e:
         raise RuntimeError(f"WebSocket failed: {str(e)}") from e
     finally:
-        # Always cleanup session - success or failure
+        # Always cleanup WebSocket session
         if session:
-            await config.llm.close(session)
+            await session.close()

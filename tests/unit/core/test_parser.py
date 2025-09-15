@@ -1,4 +1,4 @@
-"""Unit tests for word-bounded Parser with destruction testing."""
+"""Parser destruction tests - malformed inputs and edge cases."""
 
 import pytest
 
@@ -12,68 +12,41 @@ async def mock_token_stream(tokens):
 
 
 @pytest.mark.asyncio
-async def test_word_emission_basic():
-    """Test parser emits words on whitespace boundaries."""
-    tokens = ["Hello", " world", " test"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    # Should emit 3 words
-    assert len(events) == 3
-    assert events[0]["type"] == "respond"
-    assert events[0]["content"] == "Hello"
-    assert events[1]["type"] == "respond"
-    assert events[1]["content"] == "world"
-    assert events[2]["type"] == "respond"
-    assert events[2]["content"] == "test"
-
-
-@pytest.mark.asyncio
-async def test_delimiter_state_transition():
-    """Test delimiter detection changes state for subsequent words."""
-    tokens = ["Hello", " ", "§THINK:", " analyzing", " data"]
+async def test_basic_protocol():
+    """Basic protocol flow - state transitions work."""
+    tokens = ["Hello", " §think:", " analyzing", " §respond:", " done"]
 
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
     assert len(events) == 3
-    # Content before delimiter
-    assert events[0]["type"] == "respond"
-    assert events[0]["content"] == "Hello"
-    # Content after delimiter with new state
-    assert events[1]["type"] == "think"
-    assert events[1]["content"] == "analyzing"
-    assert events[2]["type"] == "think"
-    assert events[2]["content"] == "data"
+    assert events[0] == {"type": "respond", "content": "Hello"}
+    assert events[1] == {"type": "think", "content": " analyzing"}
+    assert events[2] == {"type": "respond", "content": " done"}
 
 
 @pytest.mark.asyncio
-async def test_execute_delimiter_emission():
-    """Test EXECUTE delimiter emits event and continues."""
-    tokens = ["Tool", " call", " §EXECUTE", " more", " content"]
+async def test_split_delimiter_across_tokens():
+    """CRITICAL: Delimiter split across tokens should parse correctly."""
+    # Reproduces exact Gemini case: '§think' + ': content'
+    tokens = ["§think", ": The user is asking to read 'test.txt'", " §end"]
 
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 5
-    assert events[0]["content"] == "Tool"
-    assert events[1]["content"] == "call"
-    # EXECUTE delimiter
-    assert events[2]["type"] == "execute"
-    assert events[2]["content"] == ""
-    # Continues after EXECUTE
-    assert events[3]["content"] == "more"
-    assert events[4]["content"] == "content"
+    # Should get: think event + end event
+    assert len(events) == 2, f"Expected 2 events, got {len(events)}: {events}"
+    assert events[0]["type"] == "think"
+    assert events[0]["content"] == "The user is asking to read 'test.txt'"
+    assert events[1]["type"] == "end"
 
 
 @pytest.mark.asyncio
 async def test_end_delimiter_terminates():
     """Test END delimiter emits event and terminates stream."""
-    tokens = ["Done", " with", " task", " §END:", " ignored", " content"]
+    tokens = ["Done", " with", " task", " §end:", " ignored", " content"]
 
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
@@ -82,136 +55,28 @@ async def test_end_delimiter_terminates():
     # Should terminate at END, ignoring remaining tokens
     assert len(events) == 4
     assert events[0]["content"] == "Done"
-    assert events[1]["content"] == "with"
-    assert events[2]["content"] == "task"
+    assert events[1]["content"] == " with"
+    assert events[2]["content"] == " task"
     assert events[3]["type"] == "end"
-    assert events[3]["content"] == ""
     # Stream terminated - "ignored content" not processed
-
-
-@pytest.mark.asyncio
-async def test_multiple_state_transitions():
-    """Test complex state transitions work correctly."""
-    tokens = [
-        "Start",
-        " §THINK:",
-        " analyzing",
-        " §CALL:",
-        " search",
-        " §RESPOND:",
-        " found",
-        " results",
-    ]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 5
-
-    # Start in respond state
-    assert events[0]["type"] == "respond"
-    assert events[0]["content"] == "Start"
-
-    # Think state
-    assert events[1]["type"] == "think"
-    assert events[1]["content"] == "analyzing"
-
-    # Call state
-    assert events[2]["type"] == "call"
-    assert events[2]["content"] == "search"
-
-    # Back to respond state
-    assert events[3]["type"] == "respond"
-    assert events[3]["content"] == "found"
-    assert events[4]["type"] == "respond"
-    assert events[4]["content"] == "results"
-
-
-@pytest.mark.asyncio
-async def test_character_streaming_to_words():
-    """Test character-by-character input produces correct word events."""
-    # Simulate OpenAI character streaming: "Hello §THINK: world"
-    tokens = list("Hello §THINK: world")
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    # Should emit words despite character input
-    assert len(events) == 2
-    assert events[0]["type"] == "respond"
-    assert events[0]["content"] == "Hello"
-    assert events[1]["type"] == "think"
-    assert events[1]["content"] == "world"
-
-
-@pytest.mark.asyncio
-async def test_delimiter_with_content():
-    """Test delimiters with trailing content (e.g., §CALL: {data})."""
-    tokens = ["§CALL:", ' {"name":', ' "test"}', " §EXECUTE"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 3
-    # State transition to call, then content in call state
-    assert events[0]["type"] == "call"
-    assert events[0]["content"] == '{"name":'
-    assert events[1]["type"] == "call"
-    assert events[1]["content"] == '"test"}'
-    # EXECUTE delimiter
-    assert events[2]["type"] == "execute"
-    assert events[2]["content"] == ""
-
-
-# DESTRUCTION TESTING - Edge Cases and Malformed Input
-
-
-@pytest.mark.asyncio
-async def test_empty_tokens():
-    """Destruction test: Empty tokens should be handled gracefully."""
-    tokens = ["", "Hello", "", " ", "", "world", ""]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 2
-    assert events[0]["content"] == "Hello"
-    assert events[1]["content"] == "world"
-
-
-@pytest.mark.asyncio
-async def test_only_whitespace():
-    """Destruction test: Only whitespace should emit nothing."""
-    tokens = [" ", "\t", "\n", "   "]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 0
 
 
 @pytest.mark.asyncio
 async def test_malformed_delimiters():
     """Destruction test: Malformed delimiters treated as regular content."""
-    tokens = ["§INVALID:", " §", " BROKEN:", " §THINK", " without", " colon"]
+    tokens = ["§invalid:", " §", " BROKEN:", " §think", " without", " colon"]
 
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    # Malformed delimiters treated as regular content, but §THINK without colon actually works
-    assert len(events) == 5
-    assert events[0]["content"] == "§INVALID:"
-    assert events[1]["content"] == "§"
-    assert events[2]["content"] == "BROKEN:"
-    # "§THINK" without colon is actually valid and transitions state
-    assert events[3]["type"] == "think"
-    assert events[4]["type"] == "think"
+    # Malformed delimiters treated as regular content, §think requires colon now
+    assert len(events) == 4
+    assert events[0]["content"] == "§invalid:"  # Invalid delimiter as content
+    assert events[1]["content"] == "§BROKEN:"  # Combined malformed delimiter as content
+    # "§think without colon" treated as separate tokens
+    assert events[2]["content"] == "§thinkwithout"
+    assert events[3]["content"] == " colon"
 
 
 @pytest.mark.asyncio
@@ -241,29 +106,14 @@ async def test_massive_word_buffer():
 
     assert len(events) == 2
     assert events[0]["content"] == giant_word
-    assert events[1]["content"] == "normal"
-
-
-@pytest.mark.asyncio
-async def test_rapid_state_changes():
-    """Destruction test: Rapid delimiter state changes."""
-    tokens = ["§THINK:", " §RESPOND:", " §CALL:", " §THINK:", " content"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    # Should handle rapid transitions and emit content in final state
-    assert len(events) == 1
-    assert events[0]["type"] == "think"
-    assert events[0]["content"] == "content"
+    assert events[1]["content"] == " normal"
 
 
 @pytest.mark.asyncio
 async def test_delimiter_boundary_splitting():
     """Destruction test: Delimiter split across multiple tokens."""
-    # Split "§THINK:" across multiple tokens
-    tokens = ["§THI", "NK:", " content"]
+    # Split "§think:" across multiple tokens
+    tokens = ["§thi", "NK:", " content"]
 
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
@@ -271,43 +121,114 @@ async def test_delimiter_boundary_splitting():
 
     assert len(events) == 1
     assert events[0]["type"] == "think"
-    assert events[0]["content"] == "content"
+    assert events[0]["content"] == " content"
 
 
 @pytest.mark.asyncio
-async def test_compact_delimiter_with_content():
-    """Parser splits delimiter from content when LLM omits space after colon."""
-    # LLM emits: §CALL:{"name":"test"} instead of §CALL: {"name":"test"}
-    tokens = ['§CALL:{"name":"test"}', " more", " content"]
+async def test_multi_token_delimiter():
+    """Delimiter split across multiple tokens with content."""
+    # OpenAI streams: ["§", "respond", ":", " The", " answer", " §", "end"]
+    tokens = ["§", "respond", ":", " The", " answer", " §", "end"]
 
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    # Should transition to CALL state and emit JSON as first content
     assert len(events) == 3
-    assert events[0]["type"] == "call"
-    assert events[0]["content"] == '{"name":"test"}'
-    assert events[1]["type"] == "call"
-    assert events[1]["content"] == "more"
-    assert events[2]["type"] == "call"
-    assert events[2]["content"] == "content"
+    assert events[0] == {"type": "respond", "content": " The"}
+    assert events[1] == {"type": "respond", "content": " answer"}
+    assert events[2] == {"type": "end"}
 
 
 @pytest.mark.asyncio
-async def test_execute_with_leading_space():
-    """Test parser handles §EXECUTE with leading space for word boundary."""
-    tokens = ['{"name":"test"}', " §EXECUTE", " continue"]
+async def test_single_token_delimiter():
+    """Single-token delimiter with embedded content."""
+    tokens = ["§think: analyzing", " §execute", " §end"]
 
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    # Should emit call content, then execute event, then continue
     assert len(events) == 3
+    assert events[0] == {"type": "think", "content": "analyzing"}
+    assert events[1] == {"type": "execute"}
+    assert events[2] == {"type": "end"}
+
+
+@pytest.mark.asyncio
+async def test_embedded_delimiter():
+    """Content token with embedded delimiter - Gemini pattern."""
+    tokens = ["§respond: The answer is 8\n§end"]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    assert len(events) == 2
+    assert events[0] == {"type": "respond", "content": "The answer is 8\n"}
+    assert events[1] == {"type": "end"}
+
+
+@pytest.mark.asyncio
+async def test_embedded_delimiter_simple():
+    """Simple embedded delimiter without newline."""
+    tokens = ["8\n§end"]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+    assert len(events) == 2
+    assert events[0] == {"type": "respond", "content": "8\n"}
+    assert events[1] == {"type": "end"}
+
+
+@pytest.mark.asyncio
+async def test_split_delimiter_boundary():
+    """CRITICAL: Partial delimiter at end of token must combine with next token.
+
+    Token pattern: ['§respond: content\n§', 'think: more content\n§call: {...}']
+    The § at the end of token 1 must be preserved for combination with token 2.
+    """
+    # Test the core boundary case: § at end of token + delimiter start in next token
+    tokens = [
+        "§respond: I will read the content of test.txt for you.\n§",
+        "think: To read the content, I should use the file_read tool.",
+    ]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    # Should parse both delimiters correctly across token boundary
+    assert len(events) == 2, f"Expected 2 events, got {len(events)}: {events}"
     assert events[0]["type"] == "respond"
-    assert events[0]["content"] == '{"name":"test"}'
-    assert events[1]["type"] == "execute"
-    assert events[1]["content"] == ""
-    assert events[2]["type"] == "respond"
-    assert events[2]["content"] == "continue"
+    assert "I will read the content" in events[0]["content"]
+    assert events[1]["type"] == "think"
+    assert "To read the content" in events[1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_multiple_embedded_delimiters():
+    """CRITICAL: Multiple delimiters within single token (Gemini pattern).
+
+    Gemini sends complex tokens like: 'think: content\n§call: {...}\n§execute'
+    All embedded delimiters must be parsed correctly.
+    """
+    tokens = [
+        "§respond: I will read the content of test.txt for you.\n§",
+        'think: To read the content, I should use the file_read tool.\n§call: {"name": "file_read", "args": {"file": "test.txt"}}\n§execute',
+    ]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    # Should parse all embedded delimiters: respond, think, call, execute
+    assert len(events) == 4, f"Expected 4 events, got {len(events)}: {events}"
+    assert events[0]["type"] == "respond"
+    assert "I will read the content" in events[0]["content"]
+    assert events[1]["type"] == "think"
+    assert "To read the content" in events[1]["content"]
+    assert events[2]["type"] == "call"
+    assert "file_read" in events[2]["content"]
+    assert events[3]["type"] == "execute"

@@ -1,140 +1,106 @@
-"""Conversation history construction for context assembly."""
+"""Canonical conversation context construction."""
 
 import json
 
-from ..lib.storage import load_messages
-from .constants import DEFAULT_CONVERSATION_ID, HISTORY_LIMIT
+from ..core.protocols import Storage, ToolCall, ToolResult
+from ..tools.format import format_call_agent, format_result_agent
+from .constants import DEFAULT_CONVERSATION_ID
 
 
-async def history(conversation_id: str) -> str:
-    """Context assembly algorithm:
-
-    - Single system message with all context
-    - History: Last N user/assistant/tools messages before current cycle
-    - Format: USER:/ASSISTANT:/TOOLS: (reference markers)
-    - Filtering: Skip 'think' events, truncate tool results
-    - Prevents hallucination by excluding current cycle from history
-    """
+async def history(conversation_id: str, storage: Storage, history_window: int) -> str:
+    """Past conversation excluding current cycle and think events."""
     if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
         return ""
 
-    all_messages = await load_messages(conversation_id)
-    if not all_messages:
+    messages = await storage.load_messages(conversation_id)
+    if not messages:
         return ""
 
-    # Find last user message to get cycle boundary
-    last_user_idx = None
-    for i in range(len(all_messages) - 1, -1, -1):
-        if all_messages[i]["type"] == "user":
-            last_user_idx = i
-            break
-
-    if last_user_idx is None or last_user_idx == 0:
-        return ""  # No history or only current message
-
-    # Get past messages (before current cycle) and filter out 'think'
-    past_messages = all_messages[:last_user_idx]
-    conversational_messages = [msg for msg in past_messages if msg["type"] != "think"]
-    if not conversational_messages:
+    last_user = _last_user_index(messages)
+    if last_user is None or last_user == 0:
         return ""
 
-    # Take last N conversational messages (user/assistant/tools only)
-    history_messages = conversational_messages[-HISTORY_LIMIT:]
+    # Filter think events and take last N efficiently - ONLY applies to history
+    history_msgs = []
+    for msg in reversed(messages[:last_user]):
+        if msg["type"] != "think":
+            history_msgs.append(msg)
+            if len(history_msgs) >= history_window:
+                break
 
-    # Format messages with call/result pairing
+    if not history_msgs:
+        return ""
+
+    return _format_section("HISTORY", list(reversed(history_msgs)))
+
+
+async def current(conversation_id: str, storage: Storage) -> str:
+    """Current cycle including think events - ALL current context included."""
+    if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
+        return ""
+
+    messages = await storage.load_messages(conversation_id)
+    if not messages:
+        return ""
+
+    last_user = _last_user_index(messages)
+    if last_user is None:
+        return ""
+
+    current_msgs = messages[last_user:]
+    return _format_section("CURRENT", current_msgs) if len(current_msgs) > 1 else ""
+
+
+async def full_context(conversation_id: str, storage: Storage, history_window: int) -> str:
+    """HISTORY + CURRENT sections."""
+    h = await history(conversation_id, storage, history_window)
+    c = await current(conversation_id, storage)
+
+    if h and c:
+        return f"{h}\n\n{c}"
+    return c or h
+
+
+def _last_user_index(messages: list[dict]) -> int | None:
+    """Find index of last user message."""
+    for i in range(len(messages) - 1, -1, -1):
+        if messages[i]["type"] == "user":
+            return i
+    return None
+
+
+def _format_section(name: str, messages: list[dict]) -> str:
+    """Format section with header and protocol delimiters."""
     formatted = []
-    i = 0
-    while i < len(history_messages):
-        msg = history_messages[i]
-        msg_type = msg["type"]
-        content = msg["content"]
 
-        if msg_type == "call":
-            calls = json.loads(content) if content else []
-            results = []
+    for msg in messages:
+        msg_type, content = msg["type"], msg["content"]
 
-            # Grab matching results from next message
-            if i + 1 < len(history_messages) and history_messages[i + 1]["type"] == "result":
-                results_content = history_messages[i + 1]["content"]
-                results = json.loads(results_content) if results_content else []
-                i += 1  # Skip results message
+        if msg_type in ["user", "respond"] or (msg_type == "think" and name == "CURRENT"):
+            formatted.extend([f"${msg_type}: {content}", ""])
 
-            # Pair calls with results
-            if calls:
-                pairs = []
-                for j, call in enumerate(calls):
-                    result = results[j] if j < len(results) else "No result"
-                    pairs.append({"call": call, "result": result})
-
-                from ..lib.format import format_tools
-
-                tools_display = format_tools(json.dumps(pairs), truncate=True)
-                formatted.append(f"TOOLS: {tools_display}")
-
-        elif msg_type == "result":
-            pass  # Skip standalone results
-        elif msg_type == "respond":
-            formatted.append(f"ASSISTANT: {content}")
-        else:
-            formatted.append(f"{msg_type.upper()}: {content}")
-
-        i += 1
-
-    return "\n".join(formatted) if formatted else ""
-
-
-async def current_cycle_messages(conversation_id: str) -> list[dict]:
-    """Get current cycle messages for replay mode continuity.
-
-    Current cycle reconstruction:
-    - Everything after last user message
-    - Format as assistant/system conversation messages
-    - Enables multi-iteration cycle memory
-    """
-    if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
-        return []
-
-    all_messages = await load_messages(conversation_id)
-    if not all_messages:
-        return []
-
-    # Find last user message to get current cycle boundary
-    last_user_idx = None
-    for i in range(len(all_messages) - 1, -1, -1):
-        if all_messages[i]["type"] == "user":
-            last_user_idx = i
-            break
-
-    if last_user_idx is None or last_user_idx == len(all_messages) - 1:
-        return []  # No current cycle or user message is last
-
-    # Get current cycle messages (after last user message)
-    current_cycle = all_messages[last_user_idx + 1 :]
-    if not current_cycle:
-        return []
-
-    # Format current cycle into natural conversation
-    lines = []
-    for record in current_cycle:
-        msg_type = record["type"]
-        content = record["content"]
-
-        if msg_type == "think":
-            lines.append(f"Thinking: {content}")
         elif msg_type == "call":
             try:
-                tools = json.loads(content) if content else []
-                if tools:
-                    tool_names = [tool.get("name", "unknown") for tool in tools]
-                    lines.append(f"Used tools: {', '.join(tool_names)}")
-            except json.JSONDecodeError:
-                lines.append(f"Used tools: {content}")
-        elif msg_type == "result":
-            lines.append(f"Observed: {content}")
-        elif msg_type == "respond":
-            lines.append(f"Responded: {content}")
+                calls = json.loads(content) if content else []
+                for call_data in calls:
+                    call_obj = ToolCall(name=call_data["name"], args=call_data["args"])
+                    formatted.extend([f"$call: {format_call_agent(call_obj)}", ""])
+            except (json.JSONDecodeError, KeyError, TypeError):
+                formatted.extend([f"$call: {content}", ""])
 
-    natural_history = "\n".join(lines)
-    if natural_history:
-        return [{"role": "assistant", "content": f"Previous cycle:\n{natural_history}"}]
-    return []
+        elif msg_type == "result":
+            try:
+                results = json.loads(content) if content else []
+                for result_data in results:
+                    if isinstance(result_data, dict):
+                        result_obj = ToolResult(
+                            outcome=result_data.get("outcome", ""),
+                            content=result_data.get("content", ""),
+                        )
+                    else:
+                        result_obj = ToolResult(outcome=str(result_data), content="")
+                    formatted.extend([f"$result: {format_result_agent(result_obj)}", ""])
+            except (json.JSONDecodeError, KeyError, TypeError):
+                formatted.extend([f"$result: {content}", ""])
+
+    return f"=== {name} ===\n\n" + "\n".join(formatted)
