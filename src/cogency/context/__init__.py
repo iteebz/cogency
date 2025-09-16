@@ -36,7 +36,7 @@ async def assemble(query: str, user_id: str, conversation_id: str, config: Confi
     if config.profile:
         profile_content = await profile_format(user_id, config.storage)
         if profile_content:
-            system_sections.append(f"USER PROFILE:\n{profile_content}")
+            system_sections.append(profile_content)
 
     # Add conversation context (HISTORY + CURRENT) if any exists
     conversation_context = await conversation.full_context(

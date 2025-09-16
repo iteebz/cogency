@@ -29,6 +29,40 @@ def test_config():
     assert "file_list" in tool_names
     assert "recall" in tool_names
 
+
+@pytest.mark.asyncio
+async def test_auto_mode_profile_learning(mock_config):
+    """Test that auto mode triggers profile learning when falling back to replay."""
+    agent = Agent(mode="auto", storage=mock_config.storage)
+
+    # Mock resume.stream to fail, triggering fallback
+    with (
+        patch("cogency.core.resume.stream") as mock_resume,
+        patch("cogency.core.replay.stream") as mock_replay,
+        patch("cogency.context.learn") as mock_learn,
+    ):
+        # Make resume fail to trigger fallback
+        mock_resume.side_effect = Exception("WebSocket failed")
+
+        async def mock_replay_stream(*args):
+            yield {"type": "respond", "content": "test"}
+
+        mock_replay.return_value = mock_replay_stream()
+
+        # Execute agent
+        events = []
+        async for event in agent("test query", user_id="test_user"):
+            events.append(event)
+
+        # Verify storage received user message
+        messages = await mock_config.storage.load_messages("test_user")
+        user_messages = [m for m in messages if m["type"] == "user"]
+        assert len(user_messages) > 0, "Agent must save user message to storage"
+        assert any("test query" in m["content"] for m in user_messages)
+
+        # Verify learning was called (part of finalization)
+        mock_learn.assert_called_once()
+
     # Custom tools
     mock_tool = MagicMock()
     mock_tool.name = "custom_tool"
@@ -75,7 +109,7 @@ async def test_execution(mock_llm):
 
         mock_stream.return_value = mock_failing_events()
 
-        with pytest.raises(RuntimeError, match="Stream failed"):
+        with pytest.raises(RuntimeError, match="Stream execution failed"):
             async for _ in error_agent("Test query"):
                 pass
 

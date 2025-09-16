@@ -5,11 +5,11 @@ import json
 import sys
 from datetime import datetime
 
-from cogency.lib.paths import Paths
+from .config import config
+from .core import evaluate_category
+from .generate import coding, continuity, conversation, integrity, reasoning, research, security
 
-from config import config
-from core import evaluate_category
-from generate import coding, continuity, conversation, integrity, reasoning, research, security
+from cogency.lib.paths import Paths
 
 
 async def run(category=None, samples=None):
@@ -51,7 +51,7 @@ async def _run_category(name, generator, samples):
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
         config_data = {
-            "llm": config.agent().config.llm.llm_model,
+            "llm": config.agent().config.llm.http_model,
             "mode": config.mode,
             "sandbox": config.sandbox,
             "sample_size": samples,
@@ -113,7 +113,7 @@ async def _run_all(samples):
         run_dir = Paths.evals(f"runs/{run_id}")
         run_dir.mkdir(parents=True, exist_ok=True)
         config_data = {
-            "llm": config.agent().config.llm.llm_model,
+            "llm": config.agent().config.llm.http_model,
             "mode": config.mode,
             "sandbox": config.sandbox,
             "sample_size": samples,
@@ -229,10 +229,11 @@ async def cli():
         # Override agent factory
         from cogency import Agent
 
-        config.agent = lambda llm=None, mode=None: Agent(
+        config.agent = lambda llm=None, mode=None, **kwargs: Agent(
             llm=llm or llm_choice,
             mode=mode or config.mode,
             sandbox=True,  # Always sandbox for safety
+            **kwargs,  # Pass through any overrides
         )
 
     # Remove dangerous --no-sandbox option

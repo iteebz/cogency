@@ -14,16 +14,16 @@ class OpenAI(LLM):
     def __init__(
         self,
         api_key: str = None,
-        llm_model: str = "gpt-4o-mini",
-        stream_model: str = "gpt-4o-mini-realtime-preview",
+        http_model: str = "gpt-4o-mini",
+        websocket_model: str = "gpt-4o-mini-realtime-preview",
         temperature: float = 1.0,
         max_tokens: int = 2000,
     ):
         self.api_key = api_key or get_api_key("openai")
         if not self.api_key:
             raise RuntimeError("No API key found")
-        self.llm_model = llm_model
-        self.stream_model = stream_model
+        self.http_model = http_model
+        self.websocket_model = websocket_model
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -44,7 +44,7 @@ class OpenAI(LLM):
             try:
                 client = self._create_client(api_key)
                 response = await client.chat.completions.create(
-                    model=self.llm_model,
+                    model=self.http_model,
                     messages=messages,
                     max_completion_tokens=self.max_tokens,
                     temperature=self.temperature,
@@ -65,7 +65,7 @@ class OpenAI(LLM):
         async def _stream_with_key(api_key: str):
             client = self._create_client(api_key)
             return await client.chat.completions.create(
-                model=self.llm_model,
+                model=self.http_model,
                 messages=messages,
                 max_completion_tokens=self.max_tokens,
                 temperature=self.temperature,
@@ -92,7 +92,7 @@ class OpenAI(LLM):
                 return self._create_client(api_key)
 
             client = await with_rotation("OPENAI", _create_client_with_key)
-            connection_manager = client.beta.realtime.connect(model=self.stream_model)
+            connection_manager = client.beta.realtime.connect(model=self.websocket_model)
             connection = await connection_manager.__aenter__()
 
             # Configure for text responses with proper system instructions
@@ -130,8 +130,8 @@ class OpenAI(LLM):
             fresh_key = client.api_key
             session_instance = OpenAI(
                 api_key=fresh_key,
-                llm_model=self.llm_model,
-                stream_model=self.stream_model,
+                http_model=self.http_model,
+                websocket_model=self.websocket_model,
                 temperature=self.temperature,
                 max_tokens=self.max_tokens,
             )
@@ -150,15 +150,16 @@ class OpenAI(LLM):
             raise RuntimeError("send() requires active session. Call connect() first.")
 
         try:
-            # Add tool result as conversation item
-            await self._connection.conversation.item.create(
-                item={
-                    "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": content}],
-                }
-            )
-            
+            # Only add message if content is provided (avoid double-send after connect)
+            if content.strip():
+                await self._connection.conversation.item.create(
+                    item={
+                        "type": "message",
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": content}],
+                    }
+                )
+
             # Try to create response, but handle active response gracefully
             try:
                 await self._connection.response.create()
@@ -196,11 +197,11 @@ class OpenAI(LLM):
 
             # Force close connection first
             if self._connection:
-                try:
+                import contextlib
+
+                with contextlib.suppress(Exception):
                     await self._connection.close()
-                except Exception:
-                    pass  # Ignore close errors
-            
+
             await asyncio.wait_for(
                 self._connection_manager.__aexit__(None, None, None), timeout=5.0
             )

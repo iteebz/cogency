@@ -30,7 +30,7 @@ def sanitize_shell_input(command: str) -> str:
         "&",
         "|",
         "`",
-        "$",
+        "$",  # Prevents variable expansion attacks: $HOME, $(cmd), ${IFS}
         ">",
         "<",
         "\n",

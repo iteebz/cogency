@@ -72,10 +72,18 @@ class Accumulator:
                             tool_call, self.config, self.user_id, self.conversation_id
                         )
 
-                        from ..tools.format import format_result_human
+                        import json
 
-                        result_content = format_result_human(result)
-                        await self.persister.persist_result(result_content, timestamp)
+                        from ..tools.format import format_result_agent
+
+                        # Store as JSON array for conversation parsing, display as formatted string
+                        result_json = json.dumps(
+                            [{"outcome": result.outcome, "content": result.content}]
+                        )
+                        await self.persister.persist_result(result_json, timestamp)
+
+                        # But emit formatted string for streaming display
+                        result_content = format_result_agent(result)
 
                         event = {
                             "type": "result",

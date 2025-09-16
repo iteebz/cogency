@@ -1,16 +1,16 @@
 # Architecture
 
-**Key innovations:** Word-boundary parsing, delimiter protocol, streaming accumulation, dual-mode execution
+**Key innovations:** Token-based delimiter protocol, streaming accumulation, dual-mode execution
 
 ## Core Pipeline
 
 **Tokens → Parser → Accumulator → Executor → Results**
 
 ### Parser (Lexical Layer)
-- **Function**: Word-boundary delimiter detection
-- **Input**: Character stream from LLM
+- **Function**: Token-based delimiter detection
+- **Input**: Token stream from LLM
 - **Output**: Semantic events with type labels
-- **Strategy**: Buffer until whitespace, detect delimiters on word boundaries
+- **Strategy**: Detect delimiters across token boundaries, preprocess complex tokens
 
 ```python
 "§call: {"name":"file_read","args":{"file":"test.py"}}" → [("call", '{"name":"file_read","args":{"file":"test.py"}}')]
@@ -75,7 +75,7 @@ streaming_agent() → Stream pauses → Tool executes → Results injected → S
 
 ## Delimiter Protocol
 
-**Streaming delimiters with word-boundary parsing:**
+**Streaming delimiters with token-based parsing:**
 
 - `§think:` - Agent reasoning (optional)
 - `§call:` - Tool invocation with JSON

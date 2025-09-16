@@ -1,5 +1,6 @@
 """API key rotation with automatic rate limit handling and service aliases."""
 
+import asyncio
 import os
 import random
 from collections.abc import Callable
@@ -67,7 +68,10 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
             # Only retry on rate limits
             if not is_rate_limit_error(str(e)):
                 raise e
-            # Continue to next key if rate limited
-            if offset == len(keys) - 1:  # Last key
+            
+            # Simple backoff: wait before trying next key
+            if offset < len(keys) - 1:  # Not last key
+                await asyncio.sleep(1.0 + random.uniform(0, 1))  # 1-2s jitter
+            else:  # Last key
                 raise e  # All keys exhausted
     return None

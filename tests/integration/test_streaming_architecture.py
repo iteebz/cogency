@@ -126,7 +126,7 @@ async def test_error_handling_in_streaming_flow(mock_llm, mock_tool):
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=1)
 
     # Tool failure should bubble up as RuntimeError from agent
-    with pytest.raises(RuntimeError, match="Stream failed"):
+    with pytest.raises(RuntimeError, match="Stream execution failed"):
         events = []
         async for event in agent("Test query", chunks=False):
             events.append(event)

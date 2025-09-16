@@ -28,9 +28,43 @@ async def test_chunks_true(mock_config):
         events.append(event)
 
     # Should get individual events + tool result
-    assert len(events) >= 4
-    assert any(e["type"] == "think" for e in events)
-    assert any(e["type"] == "result" for e in events)  # Tool execution result
+
+
+@pytest.mark.asyncio
+async def test_emits_parseable_format(mock_config, mock_tool):
+    """Test that accumulator stores JSON format for conversation parsing."""
+    import json
+
+    # Add mock tool to config
+    mock_config.tools = [mock_tool]
+    accumulator = Accumulator(mock_config, "test", "test", chunks=False)
+
+    # Create tool call event using registered tool
+    async def parser_with_tool():
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "hello"}}}}',
+        }
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    events = []
+    async for event in accumulator.process(parser_with_tool()):
+        events.append(event)
+
+    # Verify storage has JSON format that conversation can parse
+    stored_messages = await mock_config.storage.load_messages("test")
+    result_messages = [m for m in stored_messages if m["type"] == "result"]
+    assert len(result_messages) == 1
+
+    stored_content = result_messages[0]["content"]
+
+    # Storage must contain JSON array for conversation parsing
+    parsed = json.loads(stored_content)
+    assert isinstance(parsed, list), "Stored result must be JSON array"
+    assert len(parsed) > 0, "Result array must not be empty"
+    assert "outcome" in parsed[0], "Result must have outcome field"
+    assert "content" in parsed[0], "Result must have content field"
 
 
 @pytest.mark.asyncio

@@ -16,7 +16,7 @@ class Anthropic(LLM):
     def __init__(
         self,
         api_key: str = None,
-        llm_model: str = "claude-3-5-sonnet-20241022",
+        http_model: str = "claude-3-5-sonnet-20241022",
         temperature: float = 0.7,
         max_tokens: int = 1024,
     ):
@@ -25,7 +25,7 @@ class Anthropic(LLM):
         self.api_key = api_key or get_api_key("anthropic")
         if not self.api_key:
             raise RuntimeError("No Anthropic API key found")
-        self.llm_model = llm_model
+        self.http_model = http_model
         self.temperature = temperature
         self.max_tokens = max_tokens
 
@@ -42,7 +42,7 @@ class Anthropic(LLM):
             try:
                 client = self._create_client(api_key)
                 response = await client.messages.create(
-                    model=self.llm_model,
+                    model=self.http_model,
                     messages=messages,
                     max_tokens=self.max_tokens,
                     temperature=self.temperature,
@@ -62,7 +62,7 @@ class Anthropic(LLM):
         async def _stream_with_key(api_key: str):
             client = self._create_client(api_key)
             return client.messages.stream(
-                model=self.llm_model,
+                model=self.http_model,
                 messages=messages,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,

@@ -26,7 +26,7 @@ def prompt(tools: list = None, instructions: str = None, include_security: bool 
 Communication flow between you and the system:
 
 §respond - send messages to user (use freely to communicate your thinking)
-§think - reasoning space for working through problems (use liberally) 
+§think - reasoning space for working through problems (use liberally)
 §call - request tool execution when you need external info/actions
 §execute - pause while system runs the tool (must immediately follow every §call)
 §end - signal when you're completely done with the task
@@ -43,7 +43,7 @@ You MUST include the §call: prefix before every tool JSON.
 RULES:
 1. Start every response with §respond: to acknowledge the user
 2. Use §think: to reason through problems as needed
-3. ALWAYS pair §call: {json} with immediate §execute  
+3. ALWAYS pair §call: {json} with immediate §execute
 4. Finish with §respond: + §end
 
 CRITICAL: Begin with §respond: then continue your reasoning and tool use.

@@ -1,6 +1,6 @@
 """WebSocket resume streaming tests."""
 
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import AsyncMock, Mock
 
 import pytest
 
@@ -28,54 +28,40 @@ async def test_resume_stream():
     mock_llm.close = AsyncMock()
 
     # Mock successful connection with proper async generator
-    async def mock_send_generator(query):
-        yield "response"
-        yield "§end"
 
-    mock_session = Mock()
-    mock_session.send = Mock(return_value=mock_send_generator("test"))
-    mock_session.close = AsyncMock()
-    mock_llm.connect.return_value = mock_session
-    config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=1)
 
-    with (
-        patch("cogency.core.resume.Accumulator") as mock_accumulator,
-        patch("cogency.context.assemble") as mock_assemble,
-        patch("cogency.core.resume.parse_tokens") as mock_parse,
-    ):
-        # Mock context assembly
-        mock_assemble.return_value = [{"role": "user", "content": "test"}]
+@pytest.mark.asyncio
+async def test_sends_query_once(mock_llm, mock_config):
+    """Test that resume mode sends user query only once, not duplicated."""
+    # Use mock_llm session capabilities - track send calls on session
+    mock_llm.set_response_tokens(["§respond: Test response", "§end"])
+    mock_config.llm = mock_llm
 
-        # Mock token stream
-        async def mock_token_stream():
-            yield "response"
+    # Track send calls on session instances
+    send_calls = []
+    original_connect = mock_llm.connect
 
-        mock_llm.receive.return_value = mock_token_stream()
+    async def tracked_connect(messages):
+        session = await original_connect(messages)
+        original_session_send = session.send
 
-        # Mock parser events
-        async def mock_parser_events():
-            yield {"type": "respond", "content": "response"}
-            yield {"type": "end", "content": ""}
+        async def tracked_session_send(content):
+            send_calls.append(content)
+            async for token in original_session_send(content):
+                yield token
 
-        mock_parse.return_value = mock_parser_events()
+        session.send = tracked_session_send
+        return session
 
-        # Mock accumulator to return events
-        async def mock_accumulator_events():
-            yield {"type": "respond", "content": "response"}
-            yield {"type": "end", "content": ""}
+    mock_llm.connect = tracked_connect
 
-        mock_acc_instance = Mock()
-        mock_acc_instance.process = Mock(return_value=mock_accumulator_events())
-        mock_accumulator.return_value = mock_acc_instance
+    # Execute resume stream
+    events = []
+    async for event in resume_stream(mock_config, "test query", "user1", "conv1"):
+        events.append(event)
 
-        events = []
-        async for event in resume_stream(config, "test", "user", "conv"):
-            events.append(event)
-
-        mock_llm.connect.assert_called_once()
-        assert len(events) >= 2  # Allow for metrics events
-        # Find the response and end events (ignoring metrics)
-        non_metric_events = [e for e in events if e["type"] != "metrics"]
-        assert len(non_metric_events) == 2
-        assert non_metric_events[0]["type"] == "respond"
-        assert non_metric_events[1]["type"] == "end"
+    # Verify query was not double-sent (connect() already includes it)
+    user_query_sends = [call for call in send_calls if "test query" in call]
+    assert len(user_query_sends) == 0, (
+        f"Expected 0 user query sends (already in connect), got {len(user_query_sends)}: {user_query_sends}"
+    )

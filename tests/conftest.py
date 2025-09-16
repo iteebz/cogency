@@ -34,7 +34,7 @@ def mock_llm():
     from cogency.core.protocols import LLM
 
     class MockLLM(LLM):
-        llm_model = "gpt-4"  # For token counting with tiktoken
+        http_model = "gpt-4"  # For token counting with tiktoken
         resumable = False
 
         def __init__(self, response_tokens=None):

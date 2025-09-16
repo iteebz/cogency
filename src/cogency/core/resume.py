@@ -30,7 +30,8 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
         )
 
     # Initialize metrics tracking
-    metrics = Metrics.init(config.llm.llm_model)
+    model_name = getattr(config.llm, "http_model", "unknown")
+    metrics = Metrics.init(model_name)
 
     session = None
     try:
@@ -52,7 +53,8 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
         )
 
         try:
-            async for event in accumulator.process(parse_tokens(session.send(query))):
+            # Query already sent via connect() - just trigger response generation
+            async for event in accumulator.process(parse_tokens(session.send(""))):
                 if (
                     event["type"] in ["think", "call", "respond"]
                     and metrics

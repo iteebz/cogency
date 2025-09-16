@@ -4,7 +4,7 @@ import asyncio
 import shutil
 from pathlib import Path
 
-from config import config
+from .config import config
 
 
 async def evaluate_category(category: str, generator) -> dict:
@@ -74,26 +74,31 @@ async def _execute_test(i, test, category):
     if sandbox.exists():
         shutil.rmtree(sandbox)
     sandbox.mkdir(exist_ok=True)
-    
 
     print(f"🧪 Test {i + 1}: {test.get('complexity', 'unknown')}")
 
-    # Check for custom agent configuration (optional)
-    agent_config = test.get("agent_config", {})
-    agent = config.agent(**agent_config)
+    # Create agent - inline overrides for specific test cases
+    chunks = test.get("chunks", False)
+    if test.get("empty_tools"):
+        agent = config.agent(tools=[])
+    elif test.get("profile"):
+        agent = config.agent(profile=True)
+    else:
+        agent = config.agent()
 
     try:
         import time
-
         import uuid
-        user_id = str(uuid.uuid4())  # Ensure truly unique conversation ID
+
+        # Generate unique IDs for proper test isolation
+        user_id = str(uuid.uuid4())  # Unique user per test
         start_time = time.time()
         total_input_tokens = 0
         total_output_tokens = 0
 
         if "store_prompt" in test:
             # Memory test with agent destruction
-            store_stream = agent(test["store_prompt"], user_id=user_id)
+            store_stream = agent(test["store_prompt"], user_id=user_id, chunks=chunks)
 
             async for event in store_stream:
                 if event["type"] == "metrics":
@@ -106,9 +111,14 @@ async def _execute_test(i, test, category):
                 import gc
 
                 gc.collect()
-                agent = config.agent(**agent_config)
+                if test.get("empty_tools"):
+                    agent = config.agent(tools=[])
+                elif test.get("profile"):
+                    agent = config.agent(profile=True)
+                else:
+                    agent = config.agent()
 
-            recall_stream = agent(test["recall_prompt"], user_id=user_id)
+            recall_stream = agent(test["recall_prompt"], user_id=user_id, chunks=chunks)
             stream = []
 
             async for event in recall_stream:
@@ -127,7 +137,7 @@ async def _execute_test(i, test, category):
         elif "evolution_prompts" in test:
             # Context evolution test - multiple interactions
             for prompt in test["evolution_prompts"]:
-                evolution_stream = agent(prompt, user_id=user_id)
+                evolution_stream = agent(prompt, user_id=user_id, chunks=chunks)
 
                 async for event in evolution_stream:
                     if event["type"] == "metrics":
@@ -140,9 +150,14 @@ async def _execute_test(i, test, category):
             import gc
 
             gc.collect()
-            agent = config.agent(**agent_config)
+            if test.get("empty_tools"):
+                agent = config.agent(tools=[])
+            elif test.get("profile"):
+                agent = config.agent(profile=True)
+            else:
+                agent = config.agent()
 
-            final_stream = agent(test["final_prompt"], user_id=user_id)
+            final_stream = agent(test["final_prompt"], user_id=user_id, chunks=chunks)
             stream = []
 
             async for event in final_stream:
@@ -159,11 +174,12 @@ async def _execute_test(i, test, category):
             prompt_used = test["final_prompt"]
 
         elif "conversation_prompts" in test:
-            # Multi-turn conversation test
+            # Multi-turn conversation test - use fresh conversation_id for isolation
             full_stream = []
+            conversation_id = str(uuid.uuid4())  # Fresh conversation_id to avoid history pollution
 
             for i, prompt in enumerate(test["conversation_prompts"]):
-                turn_stream = agent(prompt, user_id=user_id)
+                turn_stream = agent(prompt, user_id=user_id, conversation_id=conversation_id, chunks=chunks)
                 full_stream.append(f"USER: {prompt}")
 
                 async for event in turn_stream:
@@ -187,7 +203,7 @@ async def _execute_test(i, test, category):
         elif "context_prompts" in test:
             # Complex synthesis test
             for prompt in test["context_prompts"]:
-                context_stream = agent(prompt, user_id=user_id)
+                context_stream = agent(prompt, user_id=user_id, chunks=chunks)
 
                 async for event in context_stream:
                     if event["type"] == "metrics":
@@ -199,9 +215,14 @@ async def _execute_test(i, test, category):
             import gc
 
             gc.collect()
-            agent = config.agent(**agent_config)
+            if test.get("empty_tools"):
+                agent = config.agent(tools=[])
+            elif test.get("profile"):
+                agent = config.agent(profile=True)
+            else:
+                agent = config.agent()
 
-            synthesis_stream = agent(test["synthesis_prompt"], user_id=user_id)
+            synthesis_stream = agent(test["synthesis_prompt"], user_id=user_id, chunks=chunks)
             stream = []
 
             async for event in synthesis_stream:
@@ -219,7 +240,7 @@ async def _execute_test(i, test, category):
 
         else:
             # Standard test - capture all events except metrics
-            stream_events = agent(test["prompt"], user_id=user_id)
+            stream_events = agent(test["prompt"], user_id=user_id, chunks=chunks)
             stream = []
 
             async for event in stream_events:
@@ -253,10 +274,15 @@ async def _execute_test(i, test, category):
     finally:
         # Async-aware agent cleanup for WebSocket sessions
         try:
-            if hasattr(agent, 'config') and hasattr(agent.config, 'llm') and hasattr(agent.config.llm, 'close'):
+            if (
+                hasattr(agent, "config")
+                and hasattr(agent.config, "llm")
+                and hasattr(agent.config.llm, "close")
+            ):
                 await agent.config.llm.close()
             del agent
             import gc
+
             gc.collect()
         except Exception:
             pass  # Ignore cleanup errors

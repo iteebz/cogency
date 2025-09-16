@@ -139,7 +139,7 @@ class MemoryRecall(Tool):
                 """
                 # Add relevance scoring query and user_id pattern as first parameters
                 params.insert(0, query.lower())  # For relevance scoring
-                params.insert(1, f"{user_id}_%")  # For user scoping
+                params.insert(1, f"{user_id}%")  # For user scoping - includes exact match
                 params.append(limit)
 
                 rows = db.execute(query_sql, params).fetchall()

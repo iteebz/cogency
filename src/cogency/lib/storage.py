@@ -1,4 +1,12 @@
-"""SQLite storage with ACID properties for conversation persistence."""
+"""SQLite storage with ACID properties for conversation persistence.
+
+Operational characteristics:
+- Auto-schema initialization per database path
+- ACID transactions with retry logic for transient failures
+- Async/sync bridging via thread executors
+- Optimized indexes for conversation queries and profile lookups
+- Thread-safe connection management
+"""
 
 import json
 import sqlite3

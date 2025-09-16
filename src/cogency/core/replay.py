@@ -25,7 +25,8 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
         raise ValueError("LLM provider required")
 
     # Initialize metrics tracking
-    metrics = Metrics.init(config.llm.llm_model)
+    model_name = getattr(config.llm, "http_model", "unknown")
+    metrics = Metrics.init(model_name)
     time.time()
 
     try:

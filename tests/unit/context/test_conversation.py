@@ -30,6 +30,34 @@ async def test_basic_history_formatting(mock_storage):
 
 
 @pytest.mark.asyncio
+async def test_handles_mixed_formats(mock_storage):
+    """Test conversation handles both JSON arrays and string formats gracefully."""
+    # Add messages with mixed call/result formats
+    await mock_storage.save_message("conv_123", "user_1", "user", "Test mixed formats")
+
+    # JSON format (expected)
+    call_json = json.dumps([{"name": "test_tool", "args": {"msg": "hello"}}])
+    result_json = json.dumps([{"outcome": "Success", "content": "Tool output"}])
+    await mock_storage.save_message("conv_123", "user_1", "call", call_json)
+    await mock_storage.save_message("conv_123", "user_1", "result", result_json)
+
+    # String format (current accumulator output)
+    await mock_storage.save_message(
+        "conv_123", "user_1", "call", '{"name": "other_tool", "args": {}}'
+    )
+    await mock_storage.save_message("conv_123", "user_1", "result", "Read file.txt\nContent here")
+
+    result = await conversation.current("conv_123", mock_storage)
+
+    # Should handle both formats without crashing
+    assert "=== CURRENT ===" in result
+    assert "$call:" in result
+    assert "$result:" in result
+    # Should not crash on mixed formats
+    assert len(result) > 0
+
+
+@pytest.mark.asyncio
 async def test_current_cycle_formatting(mock_storage):
     """Current cycle includes think events, no truncation."""
     await mock_storage.save_message("conv_123", "user_1", "user", "Question")

@@ -20,15 +20,15 @@ class Gemini(LLM):
     def __init__(
         self,
         api_key: str = None,
-        llm_model: str = "gemini-2.5-flash",
-        stream_model: str = "gemini-2.5-flash-live-preview",
+        http_model: str = "gemini-2.5-flash",
+        websocket_model: str = "gemini-2.5-flash-live-preview",
         temperature: float = 0.7,
     ):
         self.api_key = api_key or get_api_key("gemini")
         if not self.api_key:
             raise RuntimeError("No API key found")
-        self.llm_model = llm_model
-        self.stream_model = stream_model
+        self.http_model = http_model
+        self.websocket_model = websocket_model
         self.temperature = temperature
 
         # WebSocket session state
@@ -50,7 +50,7 @@ class Gemini(LLM):
 
                 client = self._create_client(api_key)
                 response = await client.aio.models.generate_content(
-                    model=self.llm_model,
+                    model=self.http_model,
                     contents=self._convert_messages_to_gemini_format(messages),
                     config=genai.types.GenerateContentConfig(
                         temperature=self.temperature,
@@ -74,7 +74,7 @@ class Gemini(LLM):
 
             client = self._create_client(api_key)
             return await client.aio.models.generate_content_stream(
-                model=self.llm_model,
+                model=self.http_model,
                 contents=self._convert_messages_to_gemini_format(messages),
                 config=genai.types.GenerateContentConfig(
                     temperature=self.temperature,
@@ -112,7 +112,7 @@ class Gemini(LLM):
                 response_modalities=["TEXT"],
                 system_instruction=system_instruction.strip() if system_instruction else None,
             )
-            connection = client.aio.live.connect(model=self.stream_model, config=config)
+            connection = client.aio.live.connect(model=self.websocket_model, config=config)
             session = await connection.__aenter__()
 
             # Load initial conversation context (skip system instructions for Live API)
@@ -132,8 +132,8 @@ class Gemini(LLM):
             fresh_key = get_api_key("gemini")  # Force fresh rotation
             session_instance = Gemini(
                 api_key=fresh_key,
-                llm_model=self.llm_model,
-                stream_model=self.stream_model,
+                http_model=self.http_model,
+                websocket_model=self.websocket_model,
                 temperature=self.temperature,
             )
             session_instance._session = session
