@@ -45,6 +45,7 @@ anthropic = "^0.67.0"
 tiktoken = "^0.11.0"
 numpy = "^2.3.3"
 typer = "^0.17.4"
+websockets = "^15.0.1"
 
 
 

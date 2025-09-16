@@ -82,6 +82,10 @@ class OpenAI(LLM):
     async def connect(self, messages: list[dict]) -> "OpenAI":
         """Create session with initial context. Returns session-enabled OpenAI instance."""
 
+        # Close any existing session first
+        if self._connection_manager:
+            await self.close()
+
         try:
             # Get fresh API key for WebSocket session
             async def _create_client_with_key(api_key: str):
@@ -146,7 +150,7 @@ class OpenAI(LLM):
             raise RuntimeError("send() requires active session. Call connect() first.")
 
         try:
-            # Send user message
+            # Add tool result as conversation item
             await self._connection.conversation.item.create(
                 item={
                     "type": "message",
@@ -154,16 +158,27 @@ class OpenAI(LLM):
                     "content": [{"type": "input_text", "text": content}],
                 }
             )
-            await self._connection.response.create()
+            
+            # Try to create response, but handle active response gracefully
+            try:
+                await self._connection.response.create()
+            except Exception as e:
+                if "already has an active response" in str(e):
+                    # Continue with existing response stream
+                    pass
+                else:
+                    raise
 
             # Stream response chunks until turn completion
             async for event in self._connection:
                 if event.type == "response.text.delta" and event.delta:
                     yield event.delta
                 elif event.type == "response.done":
-                    # Provider infrastructure turn completion
                     return
                 elif event.type == "error":
+                    if "already has an active response" in str(event):
+                        # Ignore this error and continue
+                        continue
                     logger.warning(f"OpenAI session error: {event}")
                     return
 

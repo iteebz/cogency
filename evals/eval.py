@@ -7,9 +7,9 @@ from datetime import datetime
 
 from cogency.lib.paths import Paths
 
-from .config import config
-from .core import evaluate_category
-from .generate import coding, continuity, conversation, integrity, reasoning, research, security
+from config import config
+from core import evaluate_category
+from generate import coding, continuity, conversation, integrity, reasoning, research, security
 
 
 async def run(category=None, samples=None):

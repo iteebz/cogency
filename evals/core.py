@@ -4,7 +4,7 @@ import asyncio
 import shutil
 from pathlib import Path
 
-from .config import config
+from config import config
 
 
 async def evaluate_category(category: str, generator) -> dict:
@@ -251,8 +251,10 @@ async def _execute_test(i, test, category):
     except Exception as e:
         return {"test_id": f"{category}_{i:02d}", "error": str(e), "passed": False}
     finally:
-        # Ensure agent cleanup to close any open sessions
+        # Async-aware agent cleanup for WebSocket sessions
         try:
+            if hasattr(agent, 'config') and hasattr(agent.config, 'llm') and hasattr(agent.config.llm, 'close'):
+                await agent.config.llm.close()
             del agent
             import gc
             gc.collect()
