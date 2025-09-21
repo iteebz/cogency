@@ -9,14 +9,14 @@ app = typer.Typer(
 
 Direct usage: cogency "question" --new
 Conversations continue by default, use --new for fresh start.
-Test configurations: --llm (gemini/openai) --mode (resume/replay)"""
+Test configurations: --llm (openai/gemini) --mode (resume/replay)"""
 )
 
 
 @app.command()
 def run(
     question: str = typer.Argument(..., help="Question for the agent"),
-    llm: str = typer.Option("gemini", "--llm", help="LLM provider (openai, gemini, anthropic)"),
+    llm: str = typer.Option("openai", "--llm", help="LLM provider (openai, gemini, anthropic)"),
     mode: str = typer.Option("auto", "--mode", help="Stream mode (auto, resume, replay)"),
     new: bool = typer.Option(False, "--new", help="Start fresh conversation (default: continue)"),
     debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),

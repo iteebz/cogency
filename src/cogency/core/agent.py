@@ -8,28 +8,55 @@ Usage:
 """
 
 from .. import context
+from ..context.constants import DEFAULT_USER_ID
 from ..lib.storage import default_storage
-from ..tools import TOOLS
+from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config
-from .protocols import LLM
+from .exceptions import AgentError
+from .protocols import LLM, Tool
 
 
 class Agent:
-    """Agent with immutable configuration and fresh context assembly per call."""
+    """Agent with immutable configuration and fresh context assembly per call.
 
-    def __init__(self, llm: str | LLM = "gemini", **kwargs):
+    Parameters
+    ----------
+    llm:
+        Provider identifier (``"openai"`` by default) or an ``LLM`` implementation.
+    mode:
+        Coordination mode (``"auto"`` | ``"resume"`` | ``"replay"``). Defaults to ``"auto"``.
+    tools:
+        A list of `Tool` instances. Defaults to all auto-discovered tools if not provided.
+    storage:
+        ``Storage`` implementation used for conversation history.
+    profile:
+        Enable automatic profile learning for long-lived conversations. Enabled by default.
+
+    Additional keyword arguments are forwarded to :class:`cogency.core.config.Config`.
+    """
+
+    def __init__(self, llm: str | LLM = "openai", tools: list[Tool] | None = None, **kwargs):
         if kwargs.pop("debug", False):
             from ..lib.logger import set_debug
 
             set_debug(True)
 
-        # Handle special processing for some fields, but keep in kwargs for Config
-        if "tools" not in kwargs:
-            kwargs["tools"] = TOOLS
+        # Handle sandbox parameter for backward compatibility
+        sandbox = kwargs.pop("sandbox", None)
+        if sandbox is not None:
+            from .config import Security
+            kwargs["security"] = Security(sandbox=sandbox)
+
+        # Set the tools for the agent's configuration.
+        if tools is None:
+            kwargs["tools"] = default_tools()
+        else:
+            kwargs["tools"] = tools
+
         if "storage" not in kwargs:
             kwargs["storage"] = default_storage()
-        
+
         self.config = Config(
             llm=self._create_llm(llm),
             **kwargs,  # All fields pass through to Config
@@ -47,27 +74,23 @@ class Agent:
         if isinstance(llm, LLM):
             return llm
 
-        # String → built-in LLM
-        if llm == "gemini":
-            from ..lib.llms import Gemini
+        # Dictionary dispatch for LLM creation
+        llm_factories = {
+            "gemini": lambda: __import__("cogency.lib.llms", fromlist=["Gemini"]).Gemini(),
+            "openai": lambda: __import__("cogency.lib.llms", fromlist=["OpenAI"]).OpenAI(),
+            "anthropic": lambda: __import__("cogency.lib.llms", fromlist=["Anthropic"]).Anthropic(),
+        }
 
-            return Gemini()
-        if llm == "openai":
-            from ..lib.llms import OpenAI
+        if llm not in llm_factories:
+            valid = list(llm_factories.keys())
+            raise ValueError(f"Unknown LLM '{llm}'. Valid options: {', '.join(valid)}")
 
-            return OpenAI()
-        if llm == "anthropic":
-            from ..lib.llms import Anthropic
-
-            return Anthropic()
-
-        valid = ["openai", "gemini", "anthropic"]
-        raise ValueError(f"Unknown LLM '{llm}'. Valid options: {', '.join(valid)}")
+        return llm_factories[llm]()
 
     async def __call__(
         self,
         query: str,
-        user_id: str = "default",
+        user_id: str = DEFAULT_USER_ID,
         conversation_id: str | None = None,
         chunks: bool = False,
     ):
@@ -112,10 +135,10 @@ class Agent:
             # Trigger profile learning if enabled
             if self.config.profile:
                 context.learn(user_id, self.config)
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - defensive logging path
             from ..lib.logger import logger
 
             logger.error(f"Stream execution failed: {type(e).__name__}: {e}")
-            raise RuntimeError(
-                f"Stream execution failed: {type(e).__name__}"
+            raise AgentError(
+                f"Stream execution failed: {type(e).__name__}", cause=e
             ) from None  # [SEC-003] No error chain leakage

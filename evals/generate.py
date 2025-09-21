@@ -40,20 +40,29 @@ def coding(size=None):
 def continuity(size=None):
     """Memory persistence via profile + recall tool - cross-session continuity."""
 
-    # Simple memory scenarios - agent destruction forces recall tool usage
+    # Memory scenarios - store then recall
     scenarios = [
-        "Store: My project is Phoenix AI. Then ask: What's my project name?",
-        "Store: I prefer Python programming. Then ask: What language do I prefer?",
-        "Store: I work best in mornings. Then ask: When do I work best?",
-        "Store: I debugged auth bug in Session A. Then ask: What bug did I fix?",
-        "Store: API endpoint is /api/v2/users. Then ask: What's the users endpoint?",
-        "Store: Meeting discussed React migration. Then ask: What did we discuss?",
+        ("My project is Phoenix AI", "What's my project name?"),
+        ("I prefer Python programming", "What language do I prefer?"),
+        ("I work best in mornings", "When do I work best?"),
+        ("I debugged auth bug in Session A", "What bug did I fix?"),
+        ("API endpoint is /api/v2/users", "What's the users endpoint?"),
+        ("Meeting discussed React migration", "What did we discuss?"),
     ]
 
-    tests = _sample(scenarios, size, "Recalled stored information correctly after agent destruction")
-    # Continuity tests require profile=True for memory persistence
-    for test in tests:
-        test["profile"] = True
+    tests = []
+    selected = scenarios if size is None else random.choices(scenarios, k=size)
+    
+    for store_info, recall_question in selected:
+        test = {
+            "store_prompt": store_info,
+            "recall_prompt": recall_question,
+            "criteria": "Recalled stored information correctly after agent destruction",
+            "profile": True,
+            "requires_agent_destruction": True,
+        }
+        tests.append(test)
+    
     return tests
 
 

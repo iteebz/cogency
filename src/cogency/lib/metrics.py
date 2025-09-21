@@ -2,21 +2,72 @@
 
 import time
 
-import tiktoken
+from ..lib.logger import logger
+
+try:  # pragma: no cover - exercised indirectly in tests
+    import tiktoken
+except Exception:  # pragma: no cover - optional dependency failure
+    tiktoken = None  # type: ignore[assignment]
+
+# Cache encoder to avoid rebuilding on every call
+_gpt4_encoder = None
+_encoder_load_failed = False
 
 
 def count_tokens(content) -> int:
-    """Count tokens using tiktoken - gpt-4 approximation for all providers."""
+    """Count tokens using tiktoken when available, otherwise fall back to word count."""
+
     if not content:
         return 0
 
-    # Convert messages to text if needed
-    if isinstance(content, list):
-        content = "\n".join(f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in content)
+    normalized = _normalize(content)
 
-    # Use gpt-4 tokenizer for all providers
-    enc = tiktoken.encoding_for_model("gpt-4")
-    return len(enc.encode(content))
+    encoder = _encoder()
+    if encoder is not None:
+        try:
+            return len(encoder.encode(normalized))
+        except Exception as exc:  # pragma: no cover - defensive path
+            logger.debug("tiktoken encode failed (%s); falling back to word count", exc)
+
+    return _approx_tokens(normalized)
+
+
+def _normalize(content) -> str:
+    """Normalize arbitrary message structures into a single string."""
+
+    if isinstance(content, list):
+        return "\n".join(f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in content)
+    return str(content)
+
+
+def _encoder():
+    """Lazy-load the GPT-4 encoder, caching failures for offline environments."""
+
+    global _gpt4_encoder, _encoder_load_failed
+
+    if _encoder_load_failed or tiktoken is None:
+        return None
+
+    if _gpt4_encoder is None:
+        try:
+            _gpt4_encoder = tiktoken.get_encoding("cl100k_base")
+        except Exception as exc:  # pragma: no cover - dependence on external blob
+            _encoder_load_failed = True
+            logger.debug("Unable to load tiktoken encoder (%s); using word-count fallback", exc)
+            return None
+
+    return _gpt4_encoder
+
+
+def _approx_tokens(text: str) -> int:
+    """Heuristic token approximation when tiktoken is unavailable."""
+
+    stripped = text.strip()
+    if not stripped:
+        return 0
+    words = len(stripped.split())
+    approx = int((words * 3 + 3) // 4)
+    return max(1, approx)
 
 
 class Metrics:

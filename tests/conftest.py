@@ -128,6 +128,8 @@ def mock_config(mock_llm, mock_storage):
 
     class TestConfig:
         def __init__(self, llm, storage):
+            from cogency.core.config import Security
+            
             # Capabilities
             self.llm = llm
             self.storage = storage
@@ -140,9 +142,9 @@ def mock_config(mock_llm, mock_storage):
             self.max_iterations = 3
             self.mode = "auto"
             self.profile = True
-            self.sandbox = True
-            self.learning_cadence = 5
+            self.learn_every = 5
             self.history_window = 20
+            self.security = Security()
 
     return TestConfig(mock_llm, mock_storage)
 

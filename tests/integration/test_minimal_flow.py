@@ -26,10 +26,10 @@ async def test_parser_accumulator_executor_flow(mock_llm, mock_config, mock_tool
     )
 
     # Create config with mock_tool
-    from cogency.core.config import Config
+    from cogency.core.config import Config, Security
 
     config = Config(
-        llm=mock_config.llm, storage=mock_config.storage, tools=[mock_tool], sandbox=True
+        llm=mock_config.llm, storage=mock_config.storage, tools=[mock_tool], security=Security(sandbox=True)
     )
 
     # Parse tokens directly

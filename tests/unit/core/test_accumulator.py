@@ -152,14 +152,14 @@ async def test_contaminated_call_content(mock_config):
 async def test_storage_failure(mock_llm):
     """Destruction: Storage failures should not crash accumulator."""
 
-    from cogency.core.config import Config
+    from cogency.core.config import Config, Security
 
     class FailingStorage:
         async def save_message(self, *args, **kwargs):
             raise RuntimeError("Storage failed")
 
     failing_config = Config(
-        llm=mock_llm, storage=FailingStorage(), tools=[], sandbox=True, learning_cadence=5
+        llm=mock_llm, storage=FailingStorage(), tools=[], security=Security(sandbox=True), learn_every=5
     )
     accumulator = Accumulator(failing_config, "test", "test", chunks=True)
 

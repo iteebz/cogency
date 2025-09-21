@@ -65,6 +65,7 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
 
             step_output_tokens = 0
 
+            # Track output tokens for all LLM-generated content
             try:
                 async for event in accumulator.process(parse_tokens(config.llm.stream(messages))):
                     # Track output tokens for all LLM-generated content

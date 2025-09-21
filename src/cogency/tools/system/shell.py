@@ -19,7 +19,9 @@ class SystemShell(Tool):
         return f"Running {args.get('command', 'command')}"
 
     @safe_execute
-    async def execute(self, command: str, sandbox: bool = True, **kwargs) -> ToolResult:
+    async def execute(
+        self, command: str, sandbox: bool = True, timeout: int = 30, **kwargs
+    ) -> ToolResult:
         """Execute command with proper security validation."""
         if not command or not command.strip():
             return ToolResult(outcome="Command cannot be empty")
@@ -45,7 +47,7 @@ class SystemShell(Tool):
 
         try:
             result = subprocess.run(
-                parts, cwd=str(working_path), capture_output=True, text=True, timeout=30
+                parts, cwd=str(working_path), capture_output=True, text=True, timeout=timeout
             )
 
             if result.returncode == 0:
@@ -65,6 +67,6 @@ class SystemShell(Tool):
             return ToolResult(outcome=f"Command failed (exit {result.returncode}): {error_output}")
 
         except subprocess.TimeoutExpired:
-            return ToolResult(outcome="Command timed out after 30 seconds")
+            return ToolResult(outcome=f"Command timed out after {timeout} seconds")
         except FileNotFoundError:
             return ToolResult(outcome=f"Command not found: {parts[0]}")

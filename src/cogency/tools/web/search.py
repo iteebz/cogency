@@ -28,9 +28,7 @@ class WebSearch(Tool):
                 outcome="DDGS metasearch not available. Install with: pip install ddgs"
             )
 
-        from ..constants import SEARCH_DEFAULT_RESULTS
-
-        effective_limit = SEARCH_DEFAULT_RESULTS
+        effective_limit = 5  # Default search results
 
         results = DDGS().text(query.strip(), max_results=effective_limit)
 

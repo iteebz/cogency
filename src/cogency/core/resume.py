@@ -15,6 +15,7 @@ from .. import context
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .parser import parse_tokens
+from .protocols import event_content, event_type, is_end
 
 
 async def stream(config, query: str, user_id: str, conversation_id: str, chunks: bool = False):
@@ -55,14 +56,13 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
         try:
             # Query already sent via connect() - just trigger response generation
             async for event in accumulator.process(parse_tokens(session.send(""))):
-                if (
-                    event["type"] in ["think", "call", "respond"]
-                    and metrics
-                    and event.get("content")
-                ):
-                    metrics.add_output(event["content"])
+                ev_type = event_type(event)
+                content = event_content(event)
 
-                match event["type"]:
+                if ev_type in {"think", "call", "respond"} and metrics and content:
+                    metrics.add_output(content)
+
+                match ev_type:
                     case "end":
                         complete = True
                         # Close session on task completion
@@ -77,14 +77,20 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
                             metrics.start_step()
 
                     case "result":
-                        # Send tool result to session to continue generation
+                        # Yield tool result to user first
+                        yield event
+
+                        # Then send tool result to session to continue generation
                         try:
+                            if metrics:
+                                metrics.add_input(content)
+
                             # Continue streaming after tool result injection
                             async for continuation_event in accumulator.process(
-                                parse_tokens(session.send(event["content"]))
+                                parse_tokens(session.send(content))
                             ):
                                 yield continuation_event
-                                if continuation_event.get("type") == "end":
+                                if is_end(continuation_event):
                                     complete = True
                                     break
                         except Exception as e:
@@ -93,6 +99,9 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
                         if metrics:
                             yield metrics.event()
                             metrics.start_step()
+
+                        # Skip unconditional yield since we already yielded the result
+                        continue
 
                 yield event
 

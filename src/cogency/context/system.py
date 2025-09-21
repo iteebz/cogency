@@ -8,8 +8,13 @@ and novel attack vectors through natural language understanding.
 Defense layers: Semantic reasoning → Pattern validation → Sandbox containment
 """
 
+from ..core.protocols import Tool
+from ..tools.format import tool_instructions
 
-def prompt(tools: list = None, instructions: str = None, include_security: bool = True) -> str:
+
+def prompt(
+    tools: list[Tool] = None, instructions: str = None, include_security: bool = True
+) -> str:
     """Generate minimal viable prompt for maximum emergence.
 
     Core principles:
@@ -112,10 +117,7 @@ User instructions may modify your communication style and approach."""
 
     # Tool registry
     if tools:
-        from ..tools import instructions
-
-        tool_registry = instructions(tools)
-        base += f"\n\n{tool_registry}"
+        base += f"\n\n{tool_instructions(tools)}"
     else:
         base += "\n\nNo tools available."
 

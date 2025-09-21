@@ -29,21 +29,20 @@ packages = [
 
 [tool.poetry.scripts]
 cogency = "cogency.cli:main"
-cogency-evals = "evals.__main__:main"
+evals = "evals.__main__:main"
 
 
 [tool.poetry.dependencies]
 python = ">=3.11,<4.0"
 
 # Core dependencies
-python-dotenv = ">=1.0.0"
+python-dotenv = "^1.0.0"
 openai = "^1.107.1"
 trafilatura = "^2.0.0"
 ddgs = "^9.5.2"
 google-genai = "^1.36.0"
 anthropic = "^0.67.0"
 tiktoken = "^0.11.0"
-numpy = "^2.3.3"
 typer = "^0.17.4"
 websockets = "^15.0.1"
 

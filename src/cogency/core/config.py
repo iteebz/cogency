@@ -6,6 +6,14 @@ from .protocols import LLM, Storage, Tool
 
 
 @dataclass(frozen=True)
+class Security:
+    """Security policies for agent execution."""
+    sandbox: bool = True
+    shell_timeout: int = 30  # Shell command timeout in seconds
+    api_timeout: float = 30.0  # HTTP/LLM call timeout
+
+
+@dataclass(frozen=True)
 class Config:
     """Immutable agent configuration.
 
@@ -18,15 +26,16 @@ class Config:
     storage: Storage
     tools: list[Tool]
 
-    # User personalization
-    profile: bool = True
-    learning_cadence: int = 5
-    history_window: int = 20  # Max conversation history messages to include
+    # Policies
+    security: Security = Security()
 
-    # Execution control
-    mode: str = "auto"
-    max_iterations: int = 10  # [SEC-005] Prevent runaway agents
-    sandbox: bool = True
-
-    # User steering
-    instructions: str | None = None
+    # Execution behavior
+    instructions: str | None = None  # User steering
+    mode: str = "auto"  # Execution mode
+    max_iterations: int = 10  # Execution bounds
+    history_window: int = 20  # Context scope
+    profile: bool = True  # Learning enabled
+    learn_every: int = 5  # Learning frequency
+    
+    # Tool configuration
+    scrape_limit: int = 3000  # Web content character limit

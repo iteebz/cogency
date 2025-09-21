@@ -1,13 +1,31 @@
 """Formatting for tool calls and results with human/agent variants."""
 
-from ..core.protocols import ToolCall, ToolResult
+from ..core.protocols import Tool, ToolCall, ToolResult
+
+
+def tool_instructions(tools: list[Tool]) -> str:
+    """Generate dynamic tool instructions for LLM context."""
+    lines = []
+
+    for tool in tools:
+        params = []
+        if hasattr(tool, "schema") and tool.schema:
+            for param, info in tool.schema.items():
+                if info.get("required", True):
+                    params.append(param)
+                else:
+                    params.append(f"{param}?")
+            param_str = ", ".join(params)
+            lines.append(f"{tool.name}({param_str}) - {tool.description}")
+
+    return "TOOLBOX:\n" + "\n".join(lines)
 
 
 def format_call_human(call: ToolCall) -> str:
     """Format tool call for human display - semantic action."""
-    from ..tools import TOOLS
+    from . import tools
 
-    tool_instance = next((t for t in TOOLS if t.name == call.name), None)
+    tool_instance = tools.get(call.name)
     if not tool_instance:
         return f"Tool {call.name} not available"
 

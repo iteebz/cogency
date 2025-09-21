@@ -4,7 +4,55 @@ import json
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Literal, NotRequired, Protocol, TypedDict, runtime_checkable
+
+
+class Event(TypedDict):
+    type: Literal["think", "call", "result", "respond", "chunk", "metric", "execute", "end"]
+    content: NotRequired[str]
+    payload: NotRequired[dict[str, Any]]
+    audience: NotRequired[Literal["broadcast", "internal", "observability"]]
+    timestamp: NotRequired[float]
+
+
+EventType = Literal[
+    "think",
+    "call",
+    "result",
+    "respond",
+    "chunk",
+    "metric",
+    "execute",
+    "end",
+]
+
+_CONTROL_EVENT_TYPES: set[EventType] = {"execute", "end"}
+
+
+def event_type(event: Event) -> EventType:
+    """Return the canonical type for an event."""
+
+    return event["type"]
+
+
+def event_content(event: Event) -> str:
+    """Get the human-readable content payload if present."""
+
+    return event.get("content", "") or ""
+
+
+def is_control_event(event: Event) -> bool:
+    """True when the event should stay inside parser/accumulator (execute/end)."""
+
+    return event_type(event) in _CONTROL_EVENT_TYPES
+
+
+def is_execute(event: Event) -> bool:
+    return event_type(event) == "execute"
+
+
+def is_end(event: Event) -> bool:
+    return event_type(event) == "end"
 
 
 @dataclass

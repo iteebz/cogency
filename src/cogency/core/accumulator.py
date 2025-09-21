@@ -10,14 +10,14 @@ Core algorithm:
    Both modes accumulate for tool execution (§call content must be complete JSON)
 """
 
+import json
 import time
 from collections.abc import AsyncGenerator
-from typing import Any
 
 from ..lib.logger import logger
 from .executor import execute
 from .persister import EventPersister
-from .protocols import ToolCall
+from .protocols import Event, ToolCall, event_content, event_type
 
 
 class Accumulator:
@@ -38,13 +38,13 @@ class Accumulator:
         self.end_flushed = False  # Track if we already flushed on §end
 
     async def process(
-        self, parser_events: AsyncGenerator[dict[str, Any], None]
-    ) -> AsyncGenerator[dict[str, Any], None]:
+        self, parser_events: AsyncGenerator[Event, None]
+    ) -> AsyncGenerator[Event, None]:
         """Process events with clean tool execution."""
 
         async for event in parser_events:
-            event_type = event["type"]
-            content = event.get("content", "")
+            ev_type = event_type(event)
+            content = event_content(event)
             timestamp = time.time()
 
             # chunks=True: Yield individual events immediately (AND still accumulate below for tools)
@@ -52,18 +52,26 @@ class Accumulator:
                 yield event
 
             # Control flow events
-            if event_type == "execute":
+            if ev_type == "execute":
                 if self.current_type == "call" and self.content.strip():
-                    await self.persister.persist_call(self.content, self.start_time)
+                    # Parse tool call and wrap in array for formatter compatibility
+                    try:
+                        tool_call = ToolCall.from_json(self.content.strip())
+                        call_array = [{"name": tool_call.name, "args": tool_call.args}]
+                        await self.persister.persist_call(json.dumps(call_array), self.start_time)
+                    except (json.JSONDecodeError, KeyError) as e:
+                        logger.warning(f"Failed to parse tool call JSON: {e}")
+                        # Fallback: persist as-is for debugging
+                        await self.persister.persist_call(self.content.strip(), self.start_time)
 
                     # Emit call event for display
-                    event = {
+                    call_event = {
                         "type": "call",
                         "content": self.content.strip(),
                         "timestamp": self.start_time,
                     }
-                    logger.debug(f"EVENT: {event}")
-                    yield event
+                    logger.debug(f"EVENT: {call_event}")
+                    yield call_event
 
                     # Execute tool and persist result
                     try:
@@ -71,8 +79,6 @@ class Accumulator:
                         result = await execute(
                             tool_call, self.config, self.user_id, self.conversation_id
                         )
-
-                        import json
 
                         from ..tools.format import format_result_agent
 
@@ -110,7 +116,7 @@ class Accumulator:
                     self.start_time = None
                 continue
 
-            elif event_type == "end":
+            elif ev_type == "end":
                 # Flush any accumulated content before emitting end signal
                 if self.current_type and self.content.strip():
                     # Persist final events
@@ -136,7 +142,7 @@ class Accumulator:
                 break
 
             # State transitions
-            if event_type != self.current_type:
+            if ev_type != self.current_type:
                 # Flush accumulated content from previous state
                 if self.current_type and self.content.strip():
                     if self.current_type == "think":
@@ -152,7 +158,7 @@ class Accumulator:
                             "timestamp": self.start_time,
                         }
 
-                self.current_type = event_type
+                self.current_type = ev_type
                 self.content = content
                 self.start_time = timestamp
             else:

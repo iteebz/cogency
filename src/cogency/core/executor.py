@@ -17,8 +17,11 @@ async def execute(call: ToolCall, config, user_id: str, conversation_id: str) ->
         return ToolResult(outcome=f"{tool_name} not found: Tool '{tool_name}' not registered")
 
     args = call.args
-    if hasattr(config, "sandbox"):
-        args["sandbox"] = config.sandbox
+    args["sandbox"] = config.security.sandbox
+    if tool_name == "shell":
+        args["timeout"] = config.security.shell_timeout
+    if tool_name == "web_scrape":
+        args["scrape_limit"] = config.scrape_limit
     if user_id:
         args["user_id"] = user_id
 

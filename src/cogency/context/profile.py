@@ -18,6 +18,7 @@ import json
 from typing import TYPE_CHECKING
 
 from ..lib.logger import logger
+from .constants import DEFAULT_USER_ID
 
 if TYPE_CHECKING:
     from ..core.config import Config
@@ -48,7 +49,7 @@ def prompt(profile: dict, user_messages: list, compact: bool = False) -> str:
 
 async def get(user_id: str, storage=None) -> dict | None:
     """Get latest user profile."""
-    if not user_id or user_id == "default":
+    if not user_id or user_id == DEFAULT_USER_ID:
         return None
     if storage is None:
         from ..lib.storage import SQLite
@@ -78,6 +79,10 @@ async def should_learn(user_id: str, config: "Config") -> bool:
     """Check if profile learning needed based on message cadence or size threshold."""
     current = await get(user_id, config.storage)
     if not current:
+        unlearned = await config.storage.count_user_messages(user_id, 0)
+        if unlearned >= config.learn_every:
+            logger.debug(f"📊 INITIAL LEARNING: {unlearned} messages for {user_id}")
+            return True
         return False
 
     # Size-based compaction check
@@ -90,7 +95,7 @@ async def should_learn(user_id: str, config: "Config") -> bool:
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
     unlearned = await config.storage.count_user_messages(user_id, last_learned)
 
-    if unlearned >= config.learning_cadence:
+    if unlearned >= config.learn_every:
         logger.debug(f"📊 LEARNING: {unlearned} new messages")
         return True
 
@@ -99,7 +104,7 @@ async def should_learn(user_id: str, config: "Config") -> bool:
 
 def learn(user_id: str, config: "Config"):
     """Trigger profile learning in background (fire and forget)."""
-    if not user_id or user_id == "default" or not config.llm:
+    if not user_id or user_id == DEFAULT_USER_ID or not config.llm:
         return
 
     # Skip in test environments
@@ -137,7 +142,7 @@ async def learn_async(user_id: str, config: "Config") -> bool:
     import time
 
     # Get 2x learning cadence for better pattern detection
-    limit = config.learning_cadence * 2
+    limit = config.learn_every * 2
 
     message_texts = await config.storage.load_user_messages(user_id, last_learned, limit)
 

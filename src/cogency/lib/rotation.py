@@ -46,7 +46,7 @@ def get_api_key(service: str) -> str | None:
 
 def is_rate_limit_error(error: str) -> bool:
     """Detect rate limit errors."""
-    rate_signals = ["quota", "rate limit", "429", "throttle", "exceeded", "503", "unavailable"]
+    rate_signals = ["quota", "rate limit", "429", "throttle", "exceeded", "503", "unavailable", "resource_exhausted"]
     return any(signal in error.lower() for signal in rate_signals)
 
 
@@ -68,7 +68,7 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
             # Only retry on rate limits
             if not is_rate_limit_error(str(e)):
                 raise e
-            
+
             # Simple backoff: wait before trying next key
             if offset < len(keys) - 1:  # Not last key
                 await asyncio.sleep(1.0 + random.uniform(0, 1))  # 1-2s jitter

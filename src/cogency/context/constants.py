@@ -9,6 +9,7 @@ Message structure:
 
 # CONVERSATION: Context constants
 DEFAULT_CONVERSATION_ID = "ephemeral"  # Fallback for stateless contexts
+DEFAULT_USER_ID = "default"  # Fallback user identifier
 
 
 # CONTEXT: Token limits per model family (leave 20% headroom for generation)

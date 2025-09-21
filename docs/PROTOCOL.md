@@ -66,6 +66,9 @@ Protocol generates structured events:
 {"type": "end", "content": "", "timestamp": 1234567890.0}
 ```
 
+The canonical schema lives in `src/cogency/core/protocols.py` as the `Event` TypedDict. All parser, accumulator, and
+bus consumers import that definition so changes propagate from a single source.
+
 ## Rules
 
 1. **Tool calls must be valid JSON object:** `{"name": "file_read", "args": {"file": "example.py"}}`

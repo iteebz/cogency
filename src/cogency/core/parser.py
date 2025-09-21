@@ -10,9 +10,17 @@ Simple token-to-event mapping - accumulator handles content accumulation.
 """
 
 from collections.abc import AsyncGenerator
-from typing import Any
 
-VALID_TYPES = {"think", "call", "respond", "execute", "end"}
+from ..lib.logger import logger
+from .protocols import Event
+
+CONTENT_DELIMITERS = {"think", "call", "respond"}
+CONTROL_DELIMITERS = {"execute", "end"}
+VALID_DELIMITERS = CONTENT_DELIMITERS | CONTROL_DELIMITERS
+VALID_DELIMITER_TOKENS = {f"§{delimiter}" for delimiter in VALID_DELIMITERS}
+CONTROL_DELIMITER_TOKENS = {"§execute", "§end"}
+DEFAULT_CONTENT_TYPE = "respond"
+MAX_DELIMITER_LENGTH = 10  # Max valid delimiter is 9 chars (§respond:)
 
 
 async def _preprocess_tokens(token_stream: AsyncGenerator[str, None]) -> AsyncGenerator[str, None]:
@@ -32,21 +40,20 @@ async def _preprocess_tokens(token_stream: AsyncGenerator[str, None]) -> AsyncGe
 
 async def parse_tokens(
     token_stream: AsyncGenerator[str, None],
-) -> AsyncGenerator[dict[str, Any], None]:
+) -> AsyncGenerator[Event, None]:
     """Transform token stream into labeled events via delimiter detection.
 
     Yields:
     - Content events: {"type": "think|call|respond", "content": str}
     - Control events: {"type": "execute|end"}
     """
+    # Accumulates partial delimiter tokens across streaming boundaries (e.g. "§res" + "pond:").
     delimiter_buffer = ""
     current_type = None  # Must be set by first delimiter
 
     async for token in _preprocess_tokens(token_stream):
         if not isinstance(token, str):
             raise RuntimeError(f"Parser expects string tokens, got {type(token)}")
-
-        from ..lib.logger import logger
 
         logger.debug(f"TOKEN: {repr(token)}")
 
@@ -69,9 +76,9 @@ async def parse_tokens(
                 else:
                     content_part = delimiter_buffer[colon_pos + 1 :].lstrip()
 
-                if delimiter_type in VALID_TYPES:
+                if delimiter_type in VALID_DELIMITERS:
                     if delimiter_type == "end":
-                        event = {"type": "end"}
+                        event: Event = {"type": "end"}
                         yield event
                         return  # Terminate immediately
                     elif delimiter_type == "execute":
@@ -86,9 +93,12 @@ async def parse_tokens(
                                     yield {"type": current_type, "content": clean_content}
                                 # Process remaining delimiter immediately
                                 remaining_delimiter = "§" + parts[1]
-                                if remaining_delimiter in [f"§{t}" for t in VALID_TYPES]:
+                                if remaining_delimiter in VALID_DELIMITER_TOKENS:
                                     delimiter_type = remaining_delimiter[1:].lower()
-                                    if delimiter_type in {"execute", "end"}:
+                                    if delimiter_type in {
+                                        "execute",
+                                        "end",
+                                    }:
                                         yield {"type": delimiter_type}
                                         if delimiter_type == "end":
                                             return
@@ -103,13 +113,17 @@ async def parse_tokens(
                 else:
                     # Invalid delimiter - treat as content
                     if current_type is None:
-                        current_type = "respond"
+                        logger.debug(
+                            "Parser fallback to default event type; reason=invalid_delimiter snippet=%r",
+                            delimiter_buffer,
+                        )
+                        current_type = DEFAULT_CONTENT_TYPE
                     yield {"type": current_type, "content": delimiter_buffer}
                     delimiter_buffer = ""
                     continue
 
             # Naked delimiters (only execute and end can be naked)
-            elif delimiter_buffer in ["§execute", "§end"]:
+            elif delimiter_buffer in CONTROL_DELIMITER_TOKENS:
                 delimiter_type = delimiter_buffer[1:].lower()
                 event = {"type": delimiter_type}
                 yield event
@@ -119,9 +133,13 @@ async def parse_tokens(
                 continue
 
             # Check for malformed delimiter (too long without completion)
-            elif len(delimiter_buffer) > 10:  # Max valid delimiter is 9 chars (§respond:)
+            elif len(delimiter_buffer) > MAX_DELIMITER_LENGTH:
                 if current_type is None:
-                    current_type = "respond"
+                    logger.debug(
+                        "Parser fallback to default event type; reason=delimiter_overflow snippet=%r",
+                        delimiter_buffer,
+                    )
+                    current_type = DEFAULT_CONTENT_TYPE
                 yield {"type": current_type, "content": delimiter_buffer}
                 delimiter_buffer = ""
                 continue
@@ -135,7 +153,7 @@ async def parse_tokens(
             if delimiter_buffer == "§" and ":" in token:
                 colon_pos = token.find(":")
                 delimiter_type = token[:colon_pos].lower()
-                if delimiter_type in VALID_TYPES:
+                if delimiter_type in VALID_DELIMITERS:
                     # Complete delimiter found
                     current_type = delimiter_type
                     content_part = token[colon_pos + 1 :].lstrip()
@@ -147,9 +165,12 @@ async def parse_tokens(
                         if parts[0]:
                             yield {"type": current_type, "content": parts[0]}
                         remaining_delimiter = "§" + parts[1]
-                        if remaining_delimiter in [f"§{t}" for t in VALID_TYPES]:
+                        if remaining_delimiter in VALID_DELIMITER_TOKENS:
                             delimiter_type = remaining_delimiter[1:].lower()
-                            if delimiter_type in {"execute", "end"}:
+                            if delimiter_type in {
+                                "execute",
+                                "end",
+                            }:
                                 yield {"type": delimiter_type}
                                 if delimiter_type == "end":
                                     return
@@ -161,7 +182,11 @@ async def parse_tokens(
                     continue
 
             if current_type is None:
-                current_type = "respond"
+                logger.debug(
+                    "Parser fallback to default event type; reason=content_without_delimiter snippet=%r",
+                    token,
+                )
+                current_type = DEFAULT_CONTENT_TYPE
 
             # Handle embedded delimiters in content
             if "§" in token:
@@ -174,7 +199,7 @@ async def parse_tokens(
 
                 # Process remaining delimiter immediately
                 remaining_delimiter = "§" + parts[1]
-                if remaining_delimiter in [f"§{t}" for t in VALID_TYPES]:
+                if remaining_delimiter in VALID_DELIMITER_TOKENS:
                     delimiter_type = remaining_delimiter[1:].lower()
                     if delimiter_type in {"execute", "end"}:
                         yield {"type": delimiter_type}

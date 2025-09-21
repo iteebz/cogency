@@ -30,7 +30,7 @@ class Config:
             mode=mode or self.mode,
             sandbox=True,
             max_iterations=self.max_iterations,
-            profile=False,  # Default off for evals
+            profile=kwargs.pop("profile", False),  # Default off for evals
             **kwargs,  # Direct parameter pass-through
         )
 

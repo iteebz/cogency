@@ -5,11 +5,11 @@ import json
 import sys
 from datetime import datetime
 
-from .config import config
-from .core import evaluate_category
-from .generate import coding, continuity, conversation, integrity, reasoning, research, security
-
 from cogency.lib.paths import Paths
+
+from .config import config
+from .runner import evaluate_category
+from .generate import coding, continuity, conversation, integrity, reasoning, research, security
 
 
 async def run(category=None, samples=None):

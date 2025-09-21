@@ -8,10 +8,22 @@ try:
 except ImportError:
     pass
 
-from .core import Tool
+from .core import LLM, Storage, Tool, ToolResult
 from .core.agent import Agent
-from .core.protocols import ToolResult
-from .tools import TOOLS
+from .core.exceptions import AgentError, CogencyError, ProfileError, ProviderError, ToolError
+from .tools import tools
 
 __version__ = "3.0.0"
-__all__ = ["Agent", "Tool", "ToolResult", "TOOLS"]
+__all__ = [
+    "Agent",
+    "AgentError",
+    "CogencyError",
+    "LLM",
+    "ProfileError",
+    "ProviderError",
+    "Storage",
+    "Tool",
+    "ToolError",
+    "ToolResult",
+    "tools",
+]
