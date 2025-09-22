@@ -13,8 +13,12 @@ import signal
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from ..core.protocols import ToolResult
+
+if TYPE_CHECKING:
+    from ..core.config import Access
 
 
 def sanitize_shell_input(command: str) -> str:
@@ -102,14 +106,17 @@ def validate_path(file_path: str, base_dir: Path = None) -> Path:
             raise ValueError("Invalid path") from None
 
 
-def resolve_file(file: str, sandbox: bool = True) -> Path:
-    """Resolve file path for sandbox or system mode - eliminates duplication."""
-    if sandbox:
-        from ..lib.paths import Paths
+def resolve_file(file: str, access: "Access") -> Path:
+    """Resolve file path based on access level."""
+    from ..lib.paths import Paths
 
-        sandbox_dir = Paths.sandbox()
-        return validate_path(file, sandbox_dir)
-    return validate_path(file)
+    if access == "sandbox":
+        return validate_path(file, Paths.sandbox())
+    if access == "project":
+        return validate_path(file, Path.cwd())
+    if access == "system":
+        return validate_path(file)
+    raise ValueError(f"Invalid access level: {access}")
 
 
 @contextmanager

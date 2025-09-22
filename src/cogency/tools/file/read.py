@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from ...core.config import Access
 from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
 
@@ -17,18 +18,19 @@ class FileRead(Tool):
         "lines": {"type": "integer", "optional": True},
     }
 
+    def __init__(self, access: Access = "sandbox"):
+        self.access = access
+
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         return f"Reading {args.get('file', 'file')}"
 
     @safe_execute
-    async def execute(
-        self, file: str, start: int = 0, lines: int = 100, sandbox: bool = True, **kwargs
-    ) -> ToolResult:
+    async def execute(self, file: str, start: int = 0, lines: int = 100, **kwargs) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty")
 
-        file_path = resolve_file(file, sandbox)
+        file_path = resolve_file(file, self.access)
 
         try:
             if start > 0 or lines != 100:

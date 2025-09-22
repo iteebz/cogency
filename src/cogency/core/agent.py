@@ -42,15 +42,37 @@ class Agent:
 
             set_debug(True)
 
-        # Handle sandbox parameter for backward compatibility
-        sandbox = kwargs.pop("sandbox", None)
-        if sandbox is not None:
+        # Handle access parameter
+        access = kwargs.pop("access", None)
+        if access is not None:
             from .config import Security
-            kwargs["security"] = Security(sandbox=sandbox)
+
+            kwargs["security"] = Security(access=access)
 
         # Set the tools for the agent's configuration.
         if tools is None:
-            kwargs["tools"] = default_tools()
+            from ..tools import FileEdit, FileList, FileRead, FileSearch, FileWrite
+
+            # Get access level from config or default
+            tool_access = access or "sandbox"
+
+            # Create tools with appropriate access level
+            file_tools = [
+                FileRead(access=tool_access),
+                FileWrite(access=tool_access),
+                FileEdit(access=tool_access),
+                FileList(access=tool_access),
+                FileSearch(access=tool_access),
+            ]
+
+            # Get non-file tools from registry
+            other_tools = [
+                tool
+                for tool in default_tools()
+                if not isinstance(tool, (FileRead, FileWrite, FileEdit, FileList, FileSearch))
+            ]
+
+            kwargs["tools"] = file_tools + other_tools
         else:
             kwargs["tools"] = tools
 

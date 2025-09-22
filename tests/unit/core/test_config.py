@@ -22,10 +22,11 @@ def test_config(mock_llm):
     assert config.max_iterations == 10
     assert config.mode == "auto"
     assert config.profile is True
-    assert config.security.sandbox is True
+    assert config.security.access == "sandbox"
 
     # Custom values + tools
     from cogency.core.config import Security
+
     config = Config(
         llm=mock_llm,
         storage=mock_storage,
@@ -33,7 +34,7 @@ def test_config(mock_llm):
         max_iterations=5,
         mode="replay",
         profile=False,
-        security=Security(sandbox=False),
+        security=Security(access="system"),
     )
     assert config.llm is mock_llm
     assert len(config.tools) == 1
@@ -41,4 +42,4 @@ def test_config(mock_llm):
     assert config.max_iterations == 5
     assert config.mode == "replay"
     assert config.profile is False
-    assert config.security.sandbox is False
+    assert config.security.access == "system"

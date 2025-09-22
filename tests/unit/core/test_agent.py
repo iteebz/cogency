@@ -11,16 +11,16 @@ from cogency.core.config import Config
 def test_config():
     """Agent handles configuration, defaults, tools, and providers correctly."""
     # Custom config
-    agent = Agent(llm="gemini", tools=[], profile=False, sandbox=False, max_iterations=5)
+    agent = Agent(llm="gemini", tools=[], profile=False, access="system", max_iterations=5)
     assert agent.config.profile is False
-    assert agent.config.security.sandbox is False
+    assert agent.config.security.access == "system"
     assert agent.config.max_iterations == 5
     assert len(agent.config.tools) == 0
 
     # Defaults
     agent = Agent()
     assert agent.config.profile is True
-    assert agent.config.security.sandbox is True
+    assert agent.config.security.access == "sandbox"
     assert agent.config.max_iterations > 0
     assert len(agent.config.tools) > 0
     assert hasattr(agent.config.llm, "generate")

@@ -19,7 +19,7 @@ def shell_tool():
 
 @pytest.fixture
 def file_tool():
-    return FileRead()
+    return FileRead(access="sandbox")
 
 
 @pytest.mark.asyncio
@@ -35,7 +35,7 @@ async def test_shell_injection_blocked(shell_tool):
     ]
 
     for attack in injection_attacks:
-        result = await shell_tool.execute(attack, sandbox=True)
+        result = await shell_tool.execute(attack)
         assert "Invalid shell command syntax" in result.outcome
 
 
@@ -50,7 +50,7 @@ async def test_path_traversal_blocked(file_tool):
     ]
 
     for attack in traversal_attacks:
-        result = await file_tool.execute(attack, sandbox=True)
+        result = await file_tool.execute(attack)
         assert "Invalid path" in result.outcome
 
 
@@ -67,7 +67,7 @@ async def test_system_paths_blocked(file_tool):
     ]
 
     for path in system_paths:
-        result = await file_tool.execute(path, sandbox=True)
+        result = await file_tool.execute(path)
         assert "Invalid path" in result.outcome
 
 
@@ -82,7 +82,7 @@ async def test_sandbox_boundaries_enforced(file_tool):
     ]
 
     for path in absolute_paths:
-        result = await file_tool.execute(path, sandbox=True)
+        result = await file_tool.execute(path)
         assert (
             "Path outside sandbox" in result.outcome or "Invalid path" in result.outcome
         )  # Security layer blocks absolute paths
@@ -92,12 +92,12 @@ async def test_sandbox_boundaries_enforced(file_tool):
 async def test_legitimate_operations_allowed(shell_tool, file_tool):
     """Legitimate operations pass through security layers."""
     # Safe shell commands
-    shell_result = await shell_tool.execute("echo hello", sandbox=True)
+    shell_result = await shell_tool.execute("echo hello")
     assert "Command completed" in shell_result.outcome
 
     # Safe file operations (relative paths in sandbox)
     try:
-        file_result = await file_tool.execute("test.txt", sandbox=True)
+        file_result = await file_tool.execute("test.txt")
         # If we get a result, security allowed it (no security violation)
         assert (
             "Invalid path" not in file_result.outcome
@@ -109,12 +109,45 @@ async def test_legitimate_operations_allowed(shell_tool, file_tool):
 
 
 @pytest.mark.asyncio
-async def test_security_in_non_sandbox_mode(file_tool):
-    """Security validation works in non-sandbox mode too."""
+async def test_project_access_mode():
+    """PROJECT access allows project files but blocks system paths."""
+    project_tool = FileRead(access="project")
+
+    # System paths still blocked in project mode
+    result1 = await project_tool.execute("/etc/passwd")
+    assert "Invalid path" in result1.outcome
+
+    # Path traversal still blocked
+    result2 = await project_tool.execute("../../../etc/passwd")
+    assert "Invalid path" in result2.outcome
+
+    # Project-relative paths should work (if they exist)
+    try:
+        result3 = await project_tool.execute("README.md")
+        assert "Invalid path" not in result3.outcome
+    except FileNotFoundError:
+        pass  # File doesn't exist, but security allowed it
+
+
+@pytest.mark.asyncio
+async def test_system_access_mode():
+    """SYSTEM access blocks dangerous paths but allows absolute paths."""
+    system_tool = FileRead(access="system")
+
     # System paths still blocked
-    result1 = await file_tool.execute("/etc/passwd", sandbox=False)
+    result1 = await system_tool.execute("/etc/passwd")
     assert "Invalid path" in result1.outcome
 
     # Traversal still blocked
-    result2 = await file_tool.execute("../../../etc/passwd", sandbox=False)
+    result2 = await system_tool.execute("../../../etc/passwd")
     assert "Invalid path" in result2.outcome
+
+    # Legitimate absolute paths should work
+    try:
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(delete=False) as tmp:
+            result3 = await system_tool.execute(tmp.name)
+            assert "Invalid path" not in result3.outcome
+    except FileNotFoundError:
+        pass

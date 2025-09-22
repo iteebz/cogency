@@ -22,8 +22,8 @@ class WebScrape(Tool):
     @safe_execute
     async def execute(self, url: str, **kwargs) -> ToolResult:
         """Execute clean web scraping."""
-        scrape_limit = kwargs.get('scrape_limit', 3000)
-        
+        scrape_limit = kwargs.get("scrape_limit", 3000)
+
         if not url or not url.strip():
             return ToolResult(outcome="URL cannot be empty")
 

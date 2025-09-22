@@ -59,6 +59,4 @@ async def test_context_injection(mock_config):
 
     await execute(call, mock_config, "test_user", "test_conv")
 
-    mock_tool.execute.assert_called_once_with(
-        explicit_arg="value", sandbox=True, user_id="test_user"
-    )
+    mock_tool.execute.assert_called_once_with(explicit_arg="value", user_id="test_user")

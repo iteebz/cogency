@@ -52,7 +52,7 @@ def continuity(size=None):
 
     tests = []
     selected = scenarios if size is None else random.choices(scenarios, k=size)
-    
+
     for store_info, recall_question in selected:
         test = {
             "store_prompt": store_info,
@@ -62,7 +62,7 @@ def continuity(size=None):
             "requires_agent_destruction": True,
         }
         tests.append(test)
-    
+
     return tests
 
 

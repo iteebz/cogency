@@ -3,6 +3,7 @@
 import re
 from pathlib import Path
 
+from ...core.config import Access
 from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
 
@@ -18,6 +19,9 @@ class FileSearch(Tool):
         "path": {"optional": True},
     }
 
+    def __init__(self, access: Access = "sandbox"):
+        self.access = access
+
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         query = args.get("content") or args.get("pattern", "files")
@@ -25,7 +29,11 @@ class FileSearch(Tool):
 
     @safe_execute
     async def execute(
-        self, pattern: str = None, content: str = None, path: str = ".", **kwargs
+        self,
+        pattern: str = None,
+        content: str = None,
+        path: str = ".",
+        **kwargs,
     ) -> ToolResult:
         """Search files with visual results."""
         if not pattern and not content:
@@ -35,9 +43,13 @@ class FileSearch(Tool):
         if path == ".":
             from ...lib.paths import Paths
 
-            search_path = Paths.sandbox()
+            search_path = (
+                Paths.sandbox()
+                if self.access == "sandbox"
+                else (Path.cwd() if self.access == "project" else Path("."))
+            )
         else:
-            search_path = resolve_file(path, sandbox=True)
+            search_path = resolve_file(path, self.access)
 
         if not search_path.exists():
             return ToolResult(outcome=f"Directory '{path}' does not exist")

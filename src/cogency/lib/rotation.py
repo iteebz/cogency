@@ -46,7 +46,16 @@ def get_api_key(service: str) -> str | None:
 
 def is_rate_limit_error(error: str) -> bool:
     """Detect rate limit errors."""
-    rate_signals = ["quota", "rate limit", "429", "throttle", "exceeded", "503", "unavailable", "resource_exhausted"]
+    rate_signals = [
+        "quota",
+        "rate limit",
+        "429",
+        "throttle",
+        "exceeded",
+        "503",
+        "unavailable",
+        "resource_exhausted",
+    ]
     return any(signal in error.lower() for signal in rate_signals)
 
 

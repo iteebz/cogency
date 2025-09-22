@@ -6,7 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools.security import sanitize_shell_input, timeout_context, validate_path
+from cogency.tools.security import (
+    resolve_file,
+    sanitize_shell_input,
+    timeout_context,
+    validate_path,
+)
 
 # Comprehensive attack vectors for systematic security coverage
 SHELL_INJECTION_ATTACKS = [
@@ -196,3 +201,43 @@ def test_shell_input_sanitization():
     for cmd in safe_commands:
         result = sanitize_shell_input(cmd)
         assert result == cmd
+
+
+def test_resolve_file_access_levels():
+    """Test resolve_file with three access levels."""
+    import tempfile
+
+    # SANDBOX access - restricts to sandbox directory
+    with pytest.raises(ValueError, match="Invalid path"):
+        resolve_file("/etc/passwd", "sandbox")
+
+    with pytest.raises(ValueError, match="Invalid path"):
+        resolve_file("../../../etc/passwd", "sandbox")
+
+    # Should work for relative paths in sandbox
+    result = resolve_file("test.txt", "sandbox")
+    assert isinstance(result, Path)
+    assert ".cogency/sandbox" in str(result)
+
+    # PROJECT access - restricts to project directory
+    with pytest.raises(ValueError, match="Invalid path"):
+        resolve_file("/etc/passwd", "project")
+
+    with pytest.raises(ValueError, match="Invalid path"):
+        resolve_file("../../../etc/passwd", "project")
+
+    # Should work for relative paths in project
+    result = resolve_file("test.txt", "project")
+    assert isinstance(result, Path)
+
+    # SYSTEM access - blocks dangerous paths but allows absolute paths
+    with pytest.raises(ValueError, match="Invalid path"):
+        resolve_file("/etc/passwd", "system")
+
+    with pytest.raises(ValueError, match="Invalid path"):
+        resolve_file("../../../etc/passwd", "system")
+
+    # Should work for safe absolute paths
+    with tempfile.NamedTemporaryFile() as tmp:
+        result = resolve_file(tmp.name, "system")
+        assert isinstance(result, Path)

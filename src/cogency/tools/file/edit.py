@@ -1,5 +1,6 @@
 """File editing with exact string replacement and duplicate detection."""
 
+from ...core.config import Access
 from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
 
@@ -11,21 +12,22 @@ class FileEdit(Tool):
     description = "Replace text in file"
     schema = {"file": {}, "old": {}, "new": {}}
 
+    def __init__(self, access: Access = "sandbox"):
+        self.access = access
+
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         return f"Editing {args.get('file', 'file')}"
 
     @safe_execute
-    async def execute(
-        self, file: str, old: str, new: str, sandbox: bool = True, **kwargs
-    ) -> ToolResult:
+    async def execute(self, file: str, old: str, new: str, **kwargs) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty")
 
         if not old:
             return ToolResult(outcome="Old text cannot be empty")
 
-        file_path = resolve_file(file, sandbox)
+        file_path = resolve_file(file, self.access)
 
         if not file_path.exists():
             return ToolResult(outcome=f"File '{file}' does not exist")

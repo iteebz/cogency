@@ -159,7 +159,11 @@ async def test_storage_failure(mock_llm):
             raise RuntimeError("Storage failed")
 
     failing_config = Config(
-        llm=mock_llm, storage=FailingStorage(), tools=[], security=Security(sandbox=True), learn_every=5
+        llm=mock_llm,
+        storage=FailingStorage(),
+        tools=[],
+        security=Security(),
+        learn_every=5,
     )
     accumulator = Accumulator(failing_config, "test", "test", chunks=True)
 

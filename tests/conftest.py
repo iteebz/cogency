@@ -129,7 +129,7 @@ def mock_config(mock_llm, mock_storage):
     class TestConfig:
         def __init__(self, llm, storage):
             from cogency.core.config import Security
-            
+
             # Capabilities
             self.llm = llm
             self.storage = storage
