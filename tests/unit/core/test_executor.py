@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from cogency.core.executor import execute
+from cogency.core.executor import execute_tool
 from cogency.core.protocols import ToolCall, ToolResult
 
 
@@ -14,7 +14,12 @@ async def test_successful_execution(mock_config, mock_tool):
     mock_config.tools = [mock_tool.configure(name="test_tool")]
     call = ToolCall(name="test_tool", args={"message": "test_value"})
 
-    result = await execute(call, mock_config, "user1", "conv1")
+    result = await execute_tool(
+        call,
+        execution=mock_config.execution,
+        user_id="user1",
+        conversation_id="conv1",
+    )
 
     assert isinstance(result, ToolResult)
     assert "Tool executed: test_value" in result.outcome
@@ -25,7 +30,12 @@ async def test_tool_not_found(mock_config):
     """Missing tool returns proper error."""
     call = ToolCall(name="nonexistent", args={})
 
-    result = await execute(call, mock_config, "user1", "conv1")
+    result = await execute_tool(
+        call,
+        execution=mock_config.execution,
+        user_id="user1",
+        conversation_id="conv1",
+    )
 
     assert result.outcome == "nonexistent not found: Tool 'nonexistent' not registered"
 
@@ -41,7 +51,12 @@ async def test_tool_execution_failure(mock_config, mock_tool):
 
     # Tool execution fails - should bubble up as system error
     with pytest.raises(RuntimeError, match="Tool execution failed"):
-        await execute(call, mock_config, "user1", "conv1")
+        await execute_tool(
+            call,
+            execution=mock_config.execution,
+            user_id="user1",
+            conversation_id="conv1",
+        )
 
 
 # Removed - covered by test_tool_execution_failure
@@ -57,6 +72,11 @@ async def test_context_injection(mock_config):
     mock_config.tools = [mock_tool]
     call = ToolCall(name="context_tool", args={"explicit_arg": "value"})
 
-    await execute(call, mock_config, "test_user", "test_conv")
+    await execute_tool(
+        call,
+        execution=mock_config.execution,
+        user_id="test_user",
+        conversation_id="test_conv",
+    )
 
     mock_tool.execute.assert_called_once_with(explicit_arg="value", user_id="test_user")

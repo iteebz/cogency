@@ -1,5 +1,6 @@
 """Agent execution configuration."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
@@ -7,6 +8,16 @@ from .protocols import LLM, Storage, Tool
 
 # Security access levels for file and shell operations
 Access = Literal["sandbox", "project", "system"]
+
+
+@dataclass(frozen=True)
+class Execution:
+    """Execution dependencies exposed as an immutable value object."""
+
+    storage: Storage
+    tools: Sequence[Tool]
+    shell_timeout: int
+    scrape_limit: int
 
 
 @dataclass(frozen=True)
@@ -44,3 +55,14 @@ class Config:
 
     # Tool configuration
     scrape_limit: int = 3000  # Web content character limit
+
+    @property
+    def execution(self) -> Execution:
+        """Return cohesive execution dependencies for downstream consumers."""
+
+        return Execution(
+            storage=self.storage,
+            tools=tuple(self.tools),
+            shell_timeout=self.security.shell_timeout,
+            scrape_limit=self.scrape_limit,
+        )

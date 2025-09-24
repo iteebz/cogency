@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from cogency import Agent
-from cogency.core.config import Config
 
 
 def test_config():
@@ -44,7 +43,7 @@ async def test_auto_mode_profile_learning(mock_config):
         # Make resume fail to trigger fallback
         mock_resume.side_effect = Exception("WebSocket failed")
 
-        async def mock_replay_stream(*args):
+        async def mock_replay_stream(*args, **kwargs):
             yield {"type": "respond", "content": "test"}
 
         mock_replay.return_value = mock_replay_stream()
@@ -93,10 +92,8 @@ async def test_execution(mock_llm):
 
         mock_stream.assert_called_once()
         call_args = mock_stream.call_args
-        config = call_args[0][0]
-        user_id = call_args[0][2]
-        assert isinstance(config, Config)
-        assert user_id == "test_user"
+        assert call_args.args[:3] == ("Hello", "test_user", "test_user")
+        assert call_args.kwargs["config"] is agent.config
 
     # Error handling
     error_agent = Agent(llm=mock_llm, mode="replay")

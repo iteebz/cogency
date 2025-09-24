@@ -14,42 +14,59 @@ in LLM memory rather than resending full context each turn.
 from .. import context
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
+from .config import Config
 from .parser import parse_tokens
 from .protocols import event_content, event_type, is_end
 
 
-async def stream(config, query: str, user_id: str, conversation_id: str, chunks: bool = False):
+async def stream(
+    query: str,
+    user_id: str,
+    conversation_id: str,
+    *,
+    config: Config,
+    chunks: bool = False,
+):
     """WebSocket streaming with tool injection and session continuity."""
-    if config.llm is None:
+    llm = config.llm
+    if llm is None:
         raise ValueError("LLM provider required")
 
     # Verify WebSocket capability
-    if not hasattr(config.llm, "connect"):
+    if not hasattr(llm, "connect"):
         raise RuntimeError(
-            f"Resume mode requires WebSocket support. Provider {type(config.llm).__name__} missing connect() method. "
+            f"Resume mode requires WebSocket support. Provider {type(llm).__name__} missing connect() method. "
             f"Use mode='auto' for fallback behavior or mode='replay' for HTTP-only."
         )
 
     # Initialize metrics tracking
-    model_name = getattr(config.llm, "http_model", "unknown")
+    model_name = getattr(llm, "http_model", "unknown")
     metrics = Metrics.init(model_name)
 
     session = None
     try:
-        messages = await context.assemble(query, user_id, conversation_id, config)
+        messages = await context.assemble(
+            query,
+            user_id,
+            conversation_id,
+            tools=config.tools,
+            storage=config.storage,
+            history_window=config.history_window,
+            profile_enabled=config.profile,
+        )
 
         if metrics:
             metrics.start_step()
             metrics.add_input(messages)
 
-        session = await config.llm.connect(messages)
+        session = await llm.connect(messages)
 
         complete = False
 
         accumulator = Accumulator(
-            config,
             user_id,
             conversation_id,
+            execution=config.execution,
             chunks=chunks,
         )
 

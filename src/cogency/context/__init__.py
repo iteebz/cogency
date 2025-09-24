@@ -19,29 +19,38 @@ Agent flow:
 - Always call context.assemble() - it handles everything automatically
 """
 
-from ..core.config import Config
+from collections.abc import Sequence
+
+from ..core.protocols import Storage, Tool
 from .profile import format as profile_format
 from .profile import learn
 from .system import prompt as system_prompt
 
 
-async def assemble(query: str, user_id: str, conversation_id: str, config: Config) -> list[dict]:
+async def assemble(
+    query: str,
+    user_id: str,
+    conversation_id: str,
+    *,
+    tools: Sequence[Tool],
+    storage: Storage,
+    history_window: int,
+    profile_enabled: bool,
+) -> list[dict]:
     """Assemble complete context: system prompt + conversation context + user query."""
     from . import conversation
 
     # Build system sections
-    system_sections = [system_prompt(config.tools)]
+    system_sections = [system_prompt(tools)]
 
     # Add user profile if available
-    if config.profile:
-        profile_content = await profile_format(user_id, config.storage)
+    if profile_enabled:
+        profile_content = await profile_format(user_id, storage)
         if profile_content:
             system_sections.append(profile_content)
 
     # Add conversation context (HISTORY + CURRENT) if any exists
-    conversation_context = await conversation.full_context(
-        conversation_id, config.storage, config.history_window
-    )
+    conversation_context = await conversation.full_context(conversation_id, storage, history_window)
     if conversation_context:
         system_sections.append(conversation_context)
 

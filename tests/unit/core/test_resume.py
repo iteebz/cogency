@@ -17,7 +17,12 @@ async def test_resume_stream():
     config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=1)
 
     with pytest.raises(RuntimeError, match="Resume mode requires WebSocket support"):
-        async for _ in resume_stream(config, "test", "user", "conv"):
+        async for _ in resume_stream(
+            "test",
+            "user",
+            "conv",
+            config=config,
+        ):
             pass
 
     # WebSocket available - should connect and stream
@@ -57,7 +62,12 @@ async def test_sends_query_once(mock_llm, mock_config):
 
     # Execute resume stream
     events = []
-    async for event in resume_stream(mock_config, "test query", "user1", "conv1"):
+    async for event in resume_stream(
+        "test query",
+        "user1",
+        "conv1",
+        config=mock_config,
+    ):
         events.append(event)
 
     # Verify query was not double-sent (connect() already includes it)

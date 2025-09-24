@@ -136,18 +136,23 @@ def show_context(conversation_id: str = None):
     print(f"CONTEXT: {conversation_id}")
     print(f"Query: {query}")
 
-    # Assemble context exactly like the agent does
-    from ..context.assembly import context
-    from ..core.config import Config
-    from ..lib.llms import Gemini
-    from ..tools import TOOLS
-
-    config = Config(llm=Gemini(), storage=storage, tools=TOOLS)
-
     try:
         import asyncio
 
-        messages = asyncio.run(context.assemble(query, "ask_user", conversation_id, config))
+        from ..context import assemble
+        from ..tools import TOOLS
+
+        messages = asyncio.run(
+            assemble(
+                query,
+                "ask_user",
+                conversation_id,
+                tools=TOOLS,
+                storage=storage,
+                history_window=20,
+                profile_enabled=True,
+            )
+        )
 
         for i, msg in enumerate(messages):
             print(f"\nMESSAGE {i + 1} [{msg['role'].upper()}]")

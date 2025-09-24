@@ -15,7 +15,8 @@ import time
 from collections.abc import AsyncGenerator
 
 from ..lib.logger import logger
-from .executor import execute
+from .config import Execution
+from .executor import execute_tool
 from .persister import EventPersister
 from .protocols import Event, ToolCall, event_content, event_type
 
@@ -23,13 +24,21 @@ from .protocols import Event, ToolCall, event_content, event_type
 class Accumulator:
     """Stream processor focused on event accumulation and tool execution."""
 
-    def __init__(self, config, user_id: str, conversation_id: str, *, chunks: bool = False):
-        self.config = config
+    def __init__(
+        self,
+        user_id: str,
+        conversation_id: str,
+        *,
+        execution: Execution,
+        chunks: bool = False,
+    ):
         self.user_id = user_id
         self.conversation_id = conversation_id
         self.chunks = chunks
 
-        self.persister = EventPersister(conversation_id, user_id, config.storage)
+        self._execution = execution
+
+        self.persister = EventPersister(conversation_id, user_id, execution.storage)
 
         # Accumulation state
         self.current_type = None
@@ -76,8 +85,11 @@ class Accumulator:
                     # Execute tool and persist result
                     try:
                         tool_call = ToolCall.from_json(self.content.strip())
-                        result = await execute(
-                            tool_call, self.config, self.user_id, self.conversation_id
+                        result = await execute_tool(
+                            tool_call,
+                            execution=self._execution,
+                            user_id=self.user_id,
+                            conversation_id=self.conversation_id,
                         )
 
                         from ..tools.format import format_result_agent

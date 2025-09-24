@@ -30,7 +30,11 @@ async def test_should_learn_logic(mock_config):
     with tempfile.TemporaryDirectory():
         # No profile = no learning
         with patch("cogency.context.profile.get", return_value=None):
-            assert not await profile.should_learn("user1", mock_config)
+            assert not await profile.should_learn(
+                "user1",
+                storage=mock_config.storage,
+                learn_every=mock_config.learn_every,
+            )
 
         # Mock profile exists
         mock_profile = {"who": "Alice", "_meta": {"last_learned_at": 100}}
@@ -42,7 +46,11 @@ async def test_should_learn_logic(mock_config):
                     "conv1", "user1", "user", f"message {i}", timestamp=110 + i
                 )
 
-            result = await profile.should_learn("user1", mock_config)
+            result = await profile.should_learn(
+                "user1",
+                storage=mock_config.storage,
+                learn_every=mock_config.learn_every,
+            )
             assert result
 
 
@@ -74,7 +82,12 @@ async def test_learn_async_logic(mock_config):
                 mock_save = AsyncMock()
                 storage.save_profile = mock_save
 
-                result = await profile.learn_async("user1", mock_config)
+                result = await profile.learn_async(
+                    "user1",
+                    storage=mock_config.storage,
+                    learn_every=mock_config.learn_every,
+                    llm=mock_config.llm,
+                )
 
                 assert result is True
                 mock_config.llm.generate.assert_called_once()
@@ -90,5 +103,11 @@ async def test_learn_async_logic(mock_config):
 def test_learn_pytest_detection(mock_config):
     """Learn detects pytest environment and returns early."""
     # This should return None due to pytest detection
-    result = profile.learn("user123", mock_config)
+    result = profile.learn(
+        "user123",
+        profile_enabled=mock_config.profile,
+        storage=mock_config.storage,
+        learn_every=mock_config.learn_every,
+        llm=mock_config.llm,
+    )
     assert result is None

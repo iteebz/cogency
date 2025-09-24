@@ -9,7 +9,15 @@ from cogency import context
 async def test_assembly(mock_config):
     """Assembly produces system + user messages with correct content."""
     query = "Test query"
-    messages = await context.assemble(query, "user_123", "conv_123", config=mock_config)
+    messages = await context.assemble(
+        query,
+        "user_123",
+        "conv_123",
+        tools=mock_config.tools,
+        storage=mock_config.storage,
+        history_window=mock_config.history_window,
+        profile_enabled=mock_config.profile,
+    )
 
     # System message first
     assert messages[0]["role"] == "system"

@@ -39,7 +39,12 @@ async def test_parser_accumulator_executor_flow(mock_llm, mock_config, mock_tool
     parser_events = parse_tokens(mock_llm.stream([]))
 
     # Process through accumulator
-    accumulator = Accumulator(config, "test_user", "test_conv", chunks=False)
+    accumulator = Accumulator(
+        "test_user",
+        "test_conv",
+        execution=config.execution,
+        chunks=False,
+    )
     events = []
 
     async for event in accumulator.process(parser_events):

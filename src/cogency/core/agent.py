@@ -128,7 +128,8 @@ class Agent:
 
         try:
             # Persist user message for conversation context
-            await self.config.storage.save_message(conversation_id, user_id, "user", query)
+            storage = self.config.storage
+            await storage.save_message(conversation_id, user_id, "user", query)
 
             if self.config.mode == "resume":
                 mode_stream = resume.stream
@@ -136,12 +137,22 @@ class Agent:
                 # Try resume first, fall back to replay on failure
                 try:
                     async for event in resume.stream(
-                        self.config, query, user_id, conversation_id, chunks
+                        query,
+                        user_id,
+                        conversation_id,
+                        config=self.config,
+                        chunks=chunks,
                     ):
                         yield event
                     # Trigger profile learning if enabled
                     if self.config.profile:
-                        context.learn(user_id, self.config)
+                        context.learn(
+                            user_id,
+                            profile_enabled=self.config.profile,
+                            storage=storage,
+                            learn_every=self.config.learn_every,
+                            llm=self.config.llm,
+                        )
                     return
                 except Exception as e:
                     from ..lib.logger import logger
@@ -151,12 +162,24 @@ class Agent:
             else:
                 mode_stream = replay.stream
 
-            async for event in mode_stream(self.config, query, user_id, conversation_id, chunks):
+            async for event in mode_stream(
+                query,
+                user_id,
+                conversation_id,
+                config=self.config,
+                chunks=chunks,
+            ):
                 yield event
 
             # Trigger profile learning if enabled
             if self.config.profile:
-                context.learn(user_id, self.config)
+                context.learn(
+                    user_id,
+                    profile_enabled=self.config.profile,
+                    storage=storage,
+                    learn_every=self.config.learn_every,
+                    llm=self.config.llm,
+                )
         except Exception as e:  # pragma: no cover - defensive logging path
             from ..lib.logger import logger
 

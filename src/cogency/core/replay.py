@@ -16,22 +16,39 @@ import time
 from .. import context
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
+from .config import Config
 from .parser import parse_tokens
 
 
-async def stream(config, query: str, user_id: str, conversation_id: str, chunks: bool = False):
+async def stream(
+    query: str,
+    user_id: str,
+    conversation_id: str,
+    *,
+    config: Config,
+    chunks: bool = False,
+):
     """Stateless HTTP iterations with context rebuild per request."""
-    if config.llm is None:
+    llm = config.llm
+    if llm is None:
         raise ValueError("LLM provider required")
 
     # Initialize metrics tracking
-    model_name = getattr(config.llm, "http_model", "unknown")
+    model_name = getattr(llm, "http_model", "unknown")
     metrics = Metrics.init(model_name)
     time.time()
 
     try:
         # Assemble context from storage (exclude current cycle to prevent duplication)
-        messages = await context.assemble(query, user_id, conversation_id, config)
+        messages = await context.assemble(
+            query,
+            user_id,
+            conversation_id,
+            tools=config.tools,
+            storage=config.storage,
+            history_window=config.history_window,
+            profile_enabled=config.profile,
+        )
 
         complete = False
 
@@ -50,9 +67,9 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
                 )
 
             accumulator = Accumulator(
-                config,
                 user_id,
                 conversation_id,
+                execution=config.execution,
                 chunks=chunks,
             )
 
@@ -67,7 +84,7 @@ async def stream(config, query: str, user_id: str, conversation_id: str, chunks:
 
             # Track output tokens for all LLM-generated content
             try:
-                async for event in accumulator.process(parse_tokens(config.llm.stream(messages))):
+                async for event in accumulator.process(parse_tokens(llm.stream(messages))):
                     # Track output tokens for all LLM-generated content
                     if (
                         event["type"] in ["think", "call", "respond"]

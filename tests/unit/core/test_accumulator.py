@@ -21,7 +21,12 @@ async def mock_parser_basic():
 @pytest.mark.asyncio
 async def test_chunks_true(mock_config):
     """Chunks=True: Stream individual parser events."""
-    accumulator = Accumulator(mock_config, "test", "test", chunks=True)
+    accumulator = Accumulator(
+        "test",
+        "test",
+        execution=mock_config.execution,
+        chunks=True,
+    )
 
     events = []
     async for event in accumulator.process(mock_parser_basic()):
@@ -37,7 +42,12 @@ async def test_emits_parseable_format(mock_config, mock_tool):
 
     # Add mock tool to config
     mock_config.tools = [mock_tool]
-    accumulator = Accumulator(mock_config, "test", "test", chunks=False)
+    accumulator = Accumulator(
+        "test",
+        "test",
+        execution=mock_config.execution,
+        chunks=False,
+    )
 
     # Create tool call event using registered tool
     async def parser_with_tool():
@@ -70,7 +80,12 @@ async def test_emits_parseable_format(mock_config, mock_tool):
 @pytest.mark.asyncio
 async def test_chunks_false(mock_config):
     """Chunks=False: Accumulate semantic events."""
-    accumulator = Accumulator(mock_config, "test", "test", chunks=False)
+    accumulator = Accumulator(
+        "test",
+        "test",
+        execution=mock_config.execution,
+        chunks=False,
+    )
 
     events = []
     async for event in accumulator.process(mock_parser_basic()):
@@ -97,7 +112,12 @@ async def test_end_termination_accumulates_content(mock_config):
         yield {"type": "respond", "content": " 42"}
         yield {"type": "end"}
 
-    accumulator = Accumulator(mock_config, "test", "test", chunks=False)
+    accumulator = Accumulator(
+        "test",
+        "test",
+        execution=mock_config.execution,
+        chunks=False,
+    )
     events = []
     async for event in accumulator.process(simple_respond_with_end()):
         events.append(event)
@@ -112,7 +132,12 @@ async def test_end_termination_accumulates_content(mock_config):
 @pytest.mark.asyncio
 async def test_malformed_call_json(mock_config):
     """Destruction: Malformed call JSON should not crash."""
-    accumulator = Accumulator(mock_config, "test", "test", chunks=False)
+    accumulator = Accumulator(
+        "test",
+        "test",
+        execution=mock_config.execution,
+        chunks=False,
+    )
 
     async def malformed_parser():
         yield {"type": "call", "content": '{"name":"tool", "invalid": }'}
@@ -131,7 +156,12 @@ async def test_malformed_call_json(mock_config):
 @pytest.mark.asyncio
 async def test_contaminated_call_content(mock_config):
     """Destruction: Contaminated call content with delimiters."""
-    accumulator = Accumulator(mock_config, "test", "test", chunks=False)
+    accumulator = Accumulator(
+        "test",
+        "test",
+        execution=mock_config.execution,
+        chunks=False,
+    )
 
     async def contaminated_parser():
         yield {"type": "call", "content": '{"name": "test"}'}
@@ -165,7 +195,12 @@ async def test_storage_failure(mock_llm):
         security=Security(),
         learn_every=5,
     )
-    accumulator = Accumulator(failing_config, "test", "test", chunks=True)
+    accumulator = Accumulator(
+        "test",
+        "test",
+        execution=failing_config.execution,
+        chunks=True,
+    )
 
     async def simple_parser():
         yield {"type": "respond", "content": "test"}

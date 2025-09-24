@@ -21,7 +21,7 @@ from ..lib.logger import logger
 from .constants import DEFAULT_USER_ID
 
 if TYPE_CHECKING:
-    from ..core.config import Config
+    from ..core.protocols import LLM, Storage
 
 # Profile configuration
 PROFILE_COMPACT_THRESHOLD = 2000  # Character limit triggering compaction
@@ -75,12 +75,17 @@ async def format(user_id: str, storage=None) -> str:
         return ""
 
 
-async def should_learn(user_id: str, config: "Config") -> bool:
+async def should_learn(
+    user_id: str,
+    *,
+    storage: "Storage",
+    learn_every: int,
+) -> bool:
     """Check if profile learning needed based on message cadence or size threshold."""
-    current = await get(user_id, config.storage)
+    current = await get(user_id, storage)
     if not current:
-        unlearned = await config.storage.count_user_messages(user_id, 0)
-        if unlearned >= config.learn_every:
+        unlearned = await storage.count_user_messages(user_id, 0)
+        if unlearned >= learn_every:
             logger.debug(f"📊 INITIAL LEARNING: {unlearned} messages for {user_id}")
             return True
         return False
@@ -93,18 +98,25 @@ async def should_learn(user_id: str, config: "Config") -> bool:
 
     # Message cadence check
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
-    unlearned = await config.storage.count_user_messages(user_id, last_learned)
+    unlearned = await storage.count_user_messages(user_id, last_learned)
 
-    if unlearned >= config.learn_every:
+    if unlearned >= learn_every:
         logger.debug(f"📊 LEARNING: {unlearned} new messages")
         return True
 
     return False
 
 
-def learn(user_id: str, config: "Config"):
+def learn(
+    user_id: str,
+    *,
+    profile_enabled: bool,
+    storage: "Storage",
+    learn_every: int,
+    llm: "LLM",
+):
     """Trigger profile learning in background (fire and forget)."""
-    if not user_id or user_id == DEFAULT_USER_ID or not config.llm:
+    if not profile_enabled or not user_id or user_id == DEFAULT_USER_ID or not llm:
         return
 
     # Skip in test environments
@@ -117,18 +129,35 @@ def learn(user_id: str, config: "Config"):
 
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(learn_async(user_id, config))
+        loop.create_task(
+            learn_async(
+                user_id,
+                storage=storage,
+                learn_every=learn_every,
+                llm=llm,
+            )
+        )
     except RuntimeError:
         pass
 
 
-async def learn_async(user_id: str, config: "Config") -> bool:
+async def learn_async(
+    user_id: str,
+    *,
+    storage: "Storage",
+    learn_every: int,
+    llm: "LLM",
+) -> bool:
     """Learn user patterns from recent messages using LLM analysis."""
 
-    if not await should_learn(user_id, config):
+    if not await should_learn(
+        user_id,
+        storage=storage,
+        learn_every=learn_every,
+    ):
         return False
 
-    current = await get(user_id, config.storage) or {
+    current = await get(user_id, storage) or {
         "who": "",
         "style": "",
         "focus": "",
@@ -142,9 +171,9 @@ async def learn_async(user_id: str, config: "Config") -> bool:
     import time
 
     # Get 2x learning cadence for better pattern detection
-    limit = config.learn_every * 2
+    limit = learn_every * 2
 
-    message_texts = await config.storage.load_user_messages(user_id, last_learned, limit)
+    message_texts = await storage.load_user_messages(user_id, last_learned, limit)
 
     if not message_texts:
         return False
@@ -153,14 +182,14 @@ async def learn_async(user_id: str, config: "Config") -> bool:
 
     # Check size and update
     compact = len(json.dumps(current)) > PROFILE_COMPACT_THRESHOLD
-    updated = await update_profile(current, message_texts, config.llm, compact=compact)
+    updated = await update_profile(current, message_texts, llm, compact=compact)
 
     if updated and updated != current:
         updated["_meta"] = {
             "last_learned_at": time.time(),
             "messages_processed": len(message_texts),
         }
-        await config.storage.save_profile(user_id, updated)
+        await storage.save_profile(user_id, updated)
         logger.debug(f"💾 SAVED: {len(json.dumps(updated))} chars")
         return True
 

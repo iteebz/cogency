@@ -128,12 +128,13 @@ def mock_config(mock_llm, mock_storage):
 
     class TestConfig:
         def __init__(self, llm, storage):
-            from cogency.core.config import Security
+            from cogency.core.config import Execution, Security
 
             # Capabilities
             self.llm = llm
             self.storage = storage
             self.tools = []
+            self.scrape_limit = 3000
 
             # User steering layer
             self.instructions = None
@@ -145,6 +146,17 @@ def mock_config(mock_llm, mock_storage):
             self.learn_every = 5
             self.history_window = 20
             self.security = Security()
+
+            self._execution_cls = Execution
+
+        @property
+        def execution(self):
+            return self._execution_cls(
+                storage=self.storage,
+                tools=tuple(self.tools),
+                shell_timeout=self.security.shell_timeout,
+                scrape_limit=self.scrape_limit,
+            )
 
     return TestConfig(mock_llm, mock_storage)
 
