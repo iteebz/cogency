@@ -1,7 +1,7 @@
 """Streaming agent with stateless context assembly.
 
 Usage:
-  agent = Agent()
+  agent = Agent(llm="openai")
   async for event in agent(query):
       if event["type"] == "respond":
           result = event["content"]
@@ -12,76 +12,100 @@ from ..context.constants import DEFAULT_USER_ID
 from ..lib.storage import default_storage
 from ..tools import tools as default_tools
 from . import replay, resume
-from .config import Config
+from .config import Config, Security
 from .exceptions import AgentError
-from .protocols import LLM, Tool
+from .protocols import LLM, Storage, Tool
 
 
 class Agent:
-    """Agent with immutable configuration and fresh context assembly per call.
+    """Agent with a clear, explicit, and immutable configuration.
 
-    Parameters
-    ----------
-    llm:
-        Provider identifier (``"openai"`` by default) or an ``LLM`` implementation.
-    mode:
-        Coordination mode (``"auto"`` | ``"resume"`` | ``"replay"``). Defaults to ``"auto"``.
-    tools:
-        A list of `Tool` instances. Defaults to all auto-discovered tools if not provided.
-    storage:
-        ``Storage`` implementation used for conversation history.
-    profile:
-        Enable automatic profile learning for long-lived conversations. Enabled by default.
+    The Agent is the primary interface for interacting with the Cogency framework.
+    Its constructor is the single point of configuration, providing a self-documenting
+    and type-safe way to set up agent behavior.
 
-    Additional keyword arguments are forwarded to :class:`cogency.core.config.Config`.
+    Usage:
+      agent = Agent(llm="openai", storage=default_storage())
+      async for event in agent("What is the capital of France?"):
+          print(event)
     """
 
-    def __init__(self, llm: str | LLM = "openai", tools: list[Tool] | None = None, **kwargs):
-        if kwargs.pop("debug", False):
+    def __init__(
+        self,
+        llm: str | LLM,
+        storage: Storage | None = None,
+        *,
+        tools: list[Tool] | None = None,
+        mode: str = "auto",
+        instructions: str | None = None,
+        max_iterations: int = 10,
+        history_window: int = 20,
+        profile: bool = True,
+        learn_every: int = 5,
+        scrape_limit: int = 3000,
+        security: Security | None = None,
+        debug: bool = False,
+    ):
+        """Initializes the Agent with an explicit configuration.
+
+        Args:
+            llm: An LLM instance or a string identifier ("openai", "gemini", "anthropic").
+            storage: A Storage implementation. Defaults to a local file-based storage.
+            tools: A list of Tool instances. If None, a default set of file management
+                tools is provided based on the security access level.
+            mode: Coordination mode ("auto", "resume", "replay"). Defaults to "auto".
+            instructions: High-level instructions to steer the agent's behavior.
+            max_iterations: Maximum number of execution iterations to prevent runaways.
+            history_window: Number of historical messages to include in the context.
+            profile: Enable automatic profile learning. Defaults to True.
+            learn_every: Cadence (in number of messages) for triggering profile learning.
+            scrape_limit: Character limit for web scraping tools.
+            security: A Security object defining access levels and timeouts.
+                Defaults to a sandbox environment.
+            debug: Enable verbose debug logging.
+        """
+        if debug:
             from ..lib.logger import set_debug
 
             set_debug(True)
 
-        # Handle access parameter
-        access = kwargs.pop("access", None)
-        if access is not None:
-            from .config import Security
+        final_security = security or Security()
+        final_storage = storage or default_storage()
 
-            kwargs["security"] = Security(access=access)
-
-        # Set the tools for the agent's configuration.
         if tools is None:
             from ..tools import FileEdit, FileList, FileRead, FileSearch, FileWrite
 
-            # Get access level from config or default
-            tool_access = access or "sandbox"
-
-            # Create tools with appropriate access level
+            access = final_security.access
             file_tools = [
-                FileRead(access=tool_access),
-                FileWrite(access=tool_access),
-                FileEdit(access=tool_access),
-                FileList(access=tool_access),
-                FileSearch(access=tool_access),
+                FileRead(access=access),
+                FileWrite(access=access),
+                FileEdit(access=access),
+                FileList(access=access),
+                FileSearch(access=access),
             ]
-
-            # Get non-file tools from registry
             other_tools = [
                 tool
                 for tool in default_tools()
                 if not isinstance(tool, (FileRead, FileWrite, FileEdit, FileList, FileSearch))
             ]
-
-            kwargs["tools"] = file_tools + other_tools
+            final_tools = file_tools + other_tools
         else:
-            kwargs["tools"] = tools
+            final_tools = tools
 
-        if "storage" not in kwargs:
-            kwargs["storage"] = default_storage()
-
+        # The internal Config object is now a private implementation detail,
+        # assembled from the clear, explicit arguments of this constructor.
         self.config = Config(
             llm=self._create_llm(llm),
-            **kwargs,  # All fields pass through to Config
+            storage=final_storage,
+            tools=final_tools,
+            mode=mode,
+            instructions=instructions,
+            max_iterations=max_iterations,
+            history_window=history_window,
+            profile=profile,
+            learn_every=learn_every,
+            scrape_limit=scrape_limit,
+            security=final_security,
         )
 
         # Validate mode during construction

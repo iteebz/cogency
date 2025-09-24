@@ -29,7 +29,7 @@ Turn 32: 20,400 tokens
 ```python
 from cogency import Agent
 
-agent = Agent()
+agent = Agent(llm="openai")
 async for event in agent("Debug this Python script and fix any issues"):
     if event["type"] == "respond":
         print(event["content"])
@@ -72,13 +72,13 @@ python -c "from cogency import Agent; print('✓ Cogency installed')"
 
 ```python
 # Resume: WebSocket streaming (default)
-agent = Agent(mode="resume")     # Persistent session, O(n) scaling
+agent = Agent(llm="openai", mode="resume")     # Persistent session, O(n) scaling
 
 # Replay: HTTP requests  
-agent = Agent(mode="replay")     # Universal compatibility, O(n²) scaling
+agent = Agent(llm="openai", mode="replay")     # Universal compatibility, O(n²) scaling
 
 # Auto: Resume with HTTP fallback
-agent = Agent(mode="auto")       # Production recommended
+agent = Agent(llm="openai", mode="auto")       # Production recommended
 ```
 
 ## Multi-Provider
@@ -95,7 +95,7 @@ agent = Agent(llm="anthropic")  # Claude HTTP
 from cogency import Agent
 
 # Basic usage
-agent = Agent()
+agent = Agent(llm="openai")
 async for event in agent("What files are in this directory?"):
     if event["type"] == "respond":
         print(event["content"])
@@ -124,7 +124,7 @@ class DatabaseTool(Tool):
         # Your implementation
         return ToolResult(outcome="Query executed successfully", content="Query results...")
 
-agent = Agent(tools=[DatabaseTool()])
+agent = Agent(llm="openai", tools=[DatabaseTool()])
 ```
 
 ## Streaming Control

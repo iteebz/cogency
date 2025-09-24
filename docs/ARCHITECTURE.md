@@ -95,7 +95,7 @@ streaming_agent() → Stream pauses → Tool executes → Results injected → S
 **Context assembly:** Rebuilt from storage per execution (functional)
 
 ```python
-agent = Agent()  # Configuration closure - stateless
+agent = Agent(llm="openai")  # Configuration closure - stateless
 async for event in agent(query):  # Functional execution with streaming state
     process(event)
 ```
@@ -138,7 +138,7 @@ Architectural layers:
 
 ```python
 # Passive memory (automatic)
-agent = Agent(profile=True)  # Learns user patterns automatically
+agent = Agent(llm="openai", profile=True)  # Learns user patterns automatically
 
 # Active memory (agent-controlled) 
 §call: {"name": "recall", "args": {"query": "previous python debugging"}}

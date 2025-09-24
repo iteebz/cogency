@@ -5,19 +5,27 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from cogency import Agent
+from cogency.core.config import Security
 
 
-def test_config():
+def test_config(mock_llm, mock_storage):
     """Agent handles configuration, defaults, tools, and providers correctly."""
     # Custom config
-    agent = Agent(llm="gemini", tools=[], profile=False, access="system", max_iterations=5)
+    agent = Agent(
+        llm="gemini",
+        storage=mock_storage,
+        tools=[],
+        profile=False,
+        security=Security(access="system"),
+        max_iterations=5,
+    )
     assert agent.config.profile is False
     assert agent.config.security.access == "system"
     assert agent.config.max_iterations == 5
     assert len(agent.config.tools) == 0
 
     # Defaults
-    agent = Agent()
+    agent = Agent(llm=mock_llm, storage=mock_storage)
     assert agent.config.profile is True
     assert agent.config.security.access == "sandbox"
     assert agent.config.max_iterations > 0
@@ -30,9 +38,9 @@ def test_config():
 
 
 @pytest.mark.asyncio
-async def test_auto_mode_profile_learning(mock_config):
+async def test_auto_mode_profile_learning(mock_config, mock_llm, mock_storage):
     """Test that auto mode triggers profile learning when falling back to replay."""
-    agent = Agent(mode="auto", storage=mock_config.storage)
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto")
 
     # Mock resume.stream to fail, triggering fallback
     with (
@@ -54,7 +62,7 @@ async def test_auto_mode_profile_learning(mock_config):
             events.append(event)
 
         # Verify storage received user message
-        messages = await mock_config.storage.load_messages("test_user")
+        messages = await mock_storage.load_messages("test_user")
         user_messages = [m for m in messages if m["type"] == "user"]
         assert len(user_messages) > 0, "Agent must save user message to storage"
         assert any("test query" in m["content"] for m in user_messages)
@@ -65,17 +73,15 @@ async def test_auto_mode_profile_learning(mock_config):
     # Custom tools
     mock_tool = MagicMock()
     mock_tool.name = "custom_tool"
-    agent = Agent(tools=[mock_tool])
+    agent = Agent(llm=mock_llm, storage=mock_storage, tools=[mock_tool])
     assert len(agent.config.tools) == 1
     assert agent.config.tools[0].name == "custom_tool"
 
 
 @pytest.mark.asyncio
-async def test_execution(mock_llm):
+async def test_execution(mock_llm, mock_storage):
     """Agent executes with proper streaming, context, and error handling."""
-    agent = Agent()
-
-    agent = Agent(llm=mock_llm, mode="replay")  # Force replay mode to avoid WebSocket
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
 
@@ -96,7 +102,7 @@ async def test_execution(mock_llm):
         assert call_args.kwargs["config"] is agent.config
 
     # Error handling
-    error_agent = Agent(llm=mock_llm, mode="replay")
+    error_agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
 
@@ -111,7 +117,7 @@ async def test_execution(mock_llm):
                 pass
 
     # Empty response should just stream events as-is
-    empty_agent = Agent(llm=mock_llm, mode="replay")
+    empty_agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
 
