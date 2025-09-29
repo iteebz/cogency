@@ -4,6 +4,7 @@ import json
 
 from ..core.protocols import Storage, ToolCall, ToolResult
 from ..tools.format import format_call_agent, format_result_agent
+from ..tools.parse import parse_tool_result
 from .constants import DEFAULT_CONVERSATION_ID
 
 
@@ -89,18 +90,16 @@ def _format_section(name: str, messages: list[dict]) -> str:
                 formatted.extend([f"$call: {content}", ""])
 
         elif msg_type == "result":
-            try:
-                results = json.loads(content) if content else []
-                for result_data in results:
-                    if isinstance(result_data, dict):
-                        result_obj = ToolResult(
-                            outcome=result_data.get("outcome", ""),
-                            content=result_data.get("content", ""),
-                        )
-                    else:
-                        result_obj = ToolResult(outcome=str(result_data), content="")
+            payload = msg.get("payload")
+            if isinstance(payload, dict):
+                result_obj = ToolResult(
+                    outcome=payload.get("outcome", ""),
+                    content=payload.get("content", ""),
+                )
+                formatted.extend([f"$result: {format_result_agent(result_obj)}", ""])
+            elif content:  # Fallback for old format
+                results = parse_tool_result(content)
+                for result_obj in results:
                     formatted.extend([f"$result: {format_result_agent(result_obj)}", ""])
-            except (json.JSONDecodeError, KeyError, TypeError):
-                formatted.extend([f"$result: {content}", ""])
 
     return f"=== {name} ===\n\n" + "\n".join(formatted)

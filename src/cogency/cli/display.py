@@ -1,6 +1,5 @@
 """CLI display - console rendering for streaming agents."""
 
-from ..core.protocols import ToolCall
 from ..tools.format import format_call_human
 
 
@@ -43,7 +42,9 @@ class Renderer:
 
                     # Parse call and format display using Formatter
                     try:
-                        tool_call = ToolCall.from_json(event["content"])
+                        from ..tools.parse import parse_tool_call
+
+                        tool_call = parse_tool_call(event["content"])
                         action_display = format_call_human(tool_call)
                     except Exception:
                         action_display = "Tool execution"
@@ -51,8 +52,9 @@ class Renderer:
                     print(f"\n\n○ {action_display}")
 
                 case "result":
-                    # Tool result - show outcome using event data
-                    outcome = event.get("content", "Tool completed")
+                    # Tool result - show outcome from pure event payload
+                    payload = event.get("payload", {})
+                    outcome = payload.get("outcome", "Tool completed")
                     print(f"\n● {outcome}")
                 case "respond":
                     if event["content"]:

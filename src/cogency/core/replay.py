@@ -110,11 +110,13 @@ async def stream(
                             break
 
                         case "result":
-                            # Tool result - add to context for next HTTP iteration
+                            payload = event.get("payload", {})
+                            outcome = payload.get("outcome", "Tool completed")
+                            content = payload.get("content", "")
                             messages.append(
                                 {
                                     "role": "system",
-                                    "content": f"COMPLETED ACTION: {event['content']}",
+                                    "content": f"COMPLETED ACTION: {outcome}\n{content}",
                                 }
                             )
                             # Yield result to user before breaking

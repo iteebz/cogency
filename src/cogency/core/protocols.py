@@ -1,6 +1,5 @@
 """Core protocols for provider abstraction."""
 
-import json
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
@@ -61,16 +60,6 @@ class ToolCall:
 
     name: str
     args: dict[str, Any]
-
-    @classmethod
-    def from_json(cls, json_str: str) -> "ToolCall":
-        """Parse ToolCall from JSON string."""
-        data = json.loads(json_str)
-        return cls(name=data["name"], args=data.get("args", {}))
-
-    def to_json(self) -> str:
-        """Serialize ToolCall to JSON string."""
-        return json.dumps({"name": self.name, "args": self.args})
 
 
 @dataclass

@@ -69,12 +69,11 @@ async def test_emits_parseable_format(mock_config, mock_tool):
 
     stored_content = result_messages[0]["content"]
 
-    # Storage must contain JSON array for conversation parsing
+    # Storage must contain a JSON object for conversation parsing
     parsed = json.loads(stored_content)
-    assert isinstance(parsed, list), "Stored result must be JSON array"
-    assert len(parsed) > 0, "Result array must not be empty"
-    assert "outcome" in parsed[0], "Result must have outcome field"
-    assert "content" in parsed[0], "Result must have content field"
+    assert isinstance(parsed, dict), "Stored result must be a JSON object"
+    assert "outcome" in parsed, "Result must have an outcome field"
+    assert "content" in parsed, "Result must have a content field"
 
 
 @pytest.mark.asyncio
@@ -150,7 +149,7 @@ async def test_malformed_call_json(mock_config):
     # Should handle gracefully - gets result event with error
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
-    assert "Invalid" in result_events[0]["content"]
+    assert "Invalid" in result_events[0]["payload"]["outcome"]
 
 
 @pytest.mark.asyncio
@@ -164,7 +163,7 @@ async def test_contaminated_call_content(mock_config):
     )
 
     async def contaminated_parser():
-        yield {"type": "call", "content": '{"name": "test"}'}
+        yield {"type": "call", "content": '{"name": "file_write", "args": {"file": "test.py"}'}
         yield {"type": "call", "content": " §execute§execute"}  # Contamination
         yield {"type": "execute"}
 
@@ -175,7 +174,7 @@ async def test_contaminated_call_content(mock_config):
     # Should handle contamination and produce error result
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
-    assert "Invalid" in result_events[0]["content"]
+    assert "Invalid" in result_events[0]["payload"]["outcome"]
 
 
 @pytest.mark.asyncio

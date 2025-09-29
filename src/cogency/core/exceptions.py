@@ -6,9 +6,12 @@ from __future__ import annotations
 class CogencyError(RuntimeError):
     """Base class for all cogency errors."""
 
-    def __init__(self, message: str, *, cause: Exception | None = None) -> None:
+    def __init__(
+        self, message: str, *, cause: Exception | None = None, original_json: str | None = None
+    ) -> None:
         super().__init__(message)
         self.cause = cause
+        self.original_json = original_json
 
 
 class AgentError(CogencyError):
@@ -25,3 +28,7 @@ class ProviderError(CogencyError):
 
 class ProfileError(CogencyError):
     """Raised when profile learning cannot complete."""
+
+
+class ProtocolError(CogencyError):
+    """Raised when protocol parsing fails."""

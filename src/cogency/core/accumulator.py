@@ -15,10 +15,12 @@ import time
 from collections.abc import AsyncGenerator
 
 from ..lib.logger import logger
+from ..tools.parse import parse_tool_call
 from .config import Execution
+from .exceptions import ProtocolError
 from .executor import execute_tool
 from .persister import EventPersister
-from .protocols import Event, ToolCall, event_content, event_type
+from .protocols import Event, event_content, event_type
 
 
 class Accumulator:
@@ -65,10 +67,10 @@ class Accumulator:
                 if self.current_type == "call" and self.content.strip():
                     # Parse tool call and wrap in array for formatter compatibility
                     try:
-                        tool_call = ToolCall.from_json(self.content.strip())
+                        tool_call = parse_tool_call(self.content.strip())
                         call_array = [{"name": tool_call.name, "args": tool_call.args}]
                         await self.persister.persist_call(json.dumps(call_array), self.start_time)
-                    except (json.JSONDecodeError, KeyError) as e:
+                    except (json.JSONDecodeError, KeyError, ProtocolError) as e:
                         logger.warning(f"Failed to parse tool call JSON: {e}")
                         # Fallback: persist as-is for debugging
                         await self.persister.persist_call(self.content.strip(), self.start_time)
@@ -84,7 +86,7 @@ class Accumulator:
 
                     # Execute tool and persist result
                     try:
-                        tool_call = ToolCall.from_json(self.content.strip())
+                        tool_call = parse_tool_call(self.content.strip())
                         result = await execute_tool(
                             tool_call,
                             execution=self._execution,
@@ -92,32 +94,34 @@ class Accumulator:
                             conversation_id=self.conversation_id,
                         )
 
-                        from ..tools.format import format_result_agent
-
-                        # Store as JSON array for conversation parsing, display as formatted string
-                        result_json = json.dumps(
-                            [{"outcome": result.outcome, "content": result.content}]
-                        )
+                        # Persist the raw ToolResult object as JSON
+                        result_json = json.dumps(result.__dict__)
                         await self.persister.persist_result(result_json, timestamp)
 
-                        # But emit formatted string for streaming display
-                        result_content = format_result_agent(result)
-
+                        # Yield a pure event with the structured data in the payload
                         event = {
                             "type": "result",
-                            "content": result_content,
+                            "payload": {
+                                "outcome": result.outcome,
+                                "content": result.content,
+                            },
                             "timestamp": timestamp,
                         }
                         logger.debug(f"EVENT: {event}")
                         yield event
-                    except (ValueError, TypeError, KeyError) as e:
+                    except (ValueError, TypeError, KeyError, ProtocolError) as e:
                         # JSON parsing error - send feedback to LLM
-                        error_content = f"Invalid tool call: {str(e)}"
-                        await self.persister.persist_result(error_content, timestamp)
+                        error_outcome = (
+                            f"Invalid tool call: {str(e)}. Original: {self.content.strip()}"
+                        )
+                        await self.persister.persist_result(error_outcome, timestamp)
 
                         yield {
                             "type": "result",
-                            "content": error_content,
+                            "payload": {
+                                "outcome": error_outcome,
+                                "content": "",
+                            },
                             "timestamp": timestamp,
                         }
                     # System errors (OSError, ConnectionError) bubble up

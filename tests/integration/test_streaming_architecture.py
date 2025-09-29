@@ -42,7 +42,7 @@ async def test_complete_streaming_flow_chunks_false(mock_llm, mock_tool):
     # In chunks=False mode, call events are now emitted followed by results
     assert events[1]["type"] == "call"
     assert events[2]["type"] == "result"
-    assert "Tool executed: hello world" in events[2]["content"]
+    assert "Tool executed: hello world" in events[2]["payload"]["outcome"]
 
     # Integration test proves Agent→Parser→Accumulator flow works
     # Full tool execution is tested separately in executor unit tests
@@ -105,7 +105,7 @@ async def test_tool_execution_integration(mock_llm, mock_tool):
     # Verify tool call and result were generated correctly
     assert call_event["type"] == "call"
     assert result_event["type"] == "result"
-    assert "Tool executed: integration test" in result_event["content"]
+    assert "Tool executed: integration test" in result_event["payload"]["outcome"]
 
 
 @pytest.mark.asyncio

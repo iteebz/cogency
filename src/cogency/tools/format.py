@@ -1,5 +1,7 @@
 """Formatting for tool calls and results with human/agent variants."""
 
+import json
+
 from ..core.protocols import Tool, ToolCall, ToolResult
 
 
@@ -34,7 +36,7 @@ def format_call_human(call: ToolCall) -> str:
 
 def format_call_agent(call: ToolCall) -> str:
     """Format tool call for agent consumption - full JSON context."""
-    return call.to_json()
+    return json.dumps({"name": call.name, "args": call.args})
 
 
 def format_result_human(result: ToolResult) -> str:

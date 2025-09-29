@@ -39,9 +39,17 @@ Communication flow between you and the system:
 CRITICAL: ALL tool calls MUST use exact format: §call: {"name": "tool_name", "args": {...}}
 NEVER output raw JSON without the §call: delimiter prefix.
 
+JSON RULES:
+- Quote all keys: {"name": "value"} NOT {name: "value"}
+- Use double quotes: {"key": "value"} NOT {'key': 'value'}
+- Complete all braces: every { needs }
+
 WRONG: {"file": "test.txt", "content": "hello"}
-WRONG: {"name": "file_write", "args": {"file": "test.txt", "content": "hello"}}
+WRONG: {"name": "file_write", "args": {file: "test.txt", "content": "hello"}}
 RIGHT: §call: {"name": "file_write", "args": {"file": "test.txt", "content": "hello"}}
+RIGHT: §call: {"name": "file_write", "args": {"file": "app.py", "content": "print(\"hi\")"}}
+
+Content escaping is handled automatically - write natural content.
 
 You MUST include the §call: prefix before every tool JSON.
 

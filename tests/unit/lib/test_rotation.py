@@ -38,9 +38,11 @@ async def test_rotation():
 
     with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
         # Multiple calls should use random starting positions
-        for _ in range(10):
-            result = await with_rotation("TEST", capture_key)
-            assert result.startswith("response_")
+        with patch("random.randint") as mock_randint:
+            mock_randint.side_effect = [0, 1] * 5
+            for _ in range(10):
+                result = await with_rotation("TEST", capture_key)
+                assert result.startswith("response_")
 
         # Should see both keys used (random distribution)
         assert "key1" in call_keys
