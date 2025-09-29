@@ -42,6 +42,9 @@ class Config:
     storage: Storage
     tools: list[Tool]
 
+    # Runtime Environment
+    base_dir: str | None = None  # Base directory for sandboxing and storage
+
     # Policies
     security: Security = Security()
 

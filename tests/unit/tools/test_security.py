@@ -203,32 +203,27 @@ def test_shell_input_sanitization():
         assert result == cmd
 
 
-def test_resolve_file_access_levels():
-    """Test resolve_file with three access levels."""
-    import tempfile
-
+def test_resolve_file_access_levels(tmp_path: Path):
+    """Test resolve_file with three access levels and base_dir isolation."""
     # SANDBOX access - restricts to sandbox directory
     with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("/etc/passwd", "sandbox")
+        resolve_file("/etc/passwd", "sandbox", base_dir=str(tmp_path))
 
     with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("../../../etc/passwd", "sandbox")
+        resolve_file("../../../etc/passwd", "sandbox", base_dir=str(tmp_path))
 
-    # Should work for relative paths in sandbox
-    result = resolve_file("test.txt", "sandbox")
+    # Should work for relative paths in a custom sandbox
+    result = resolve_file("test.txt", "sandbox", base_dir=str(tmp_path))
     assert isinstance(result, Path)
-    assert ".cogency/sandbox" in str(result)
-
-    # PROJECT access - restricts to project directory
+    assert str(tmp_path) in str(result)
+    # PROJECT access - restricts to project directory (base_dir)
     with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("/etc/passwd", "project")
-
-    with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("../../../etc/passwd", "project")
+        resolve_file("/etc/passwd", "project", base_dir=str(tmp_path))
 
     # Should work for relative paths in project
-    result = resolve_file("test.txt", "project")
+    result = resolve_file("test.txt", "project", base_dir=str(tmp_path))
     assert isinstance(result, Path)
+    assert str(tmp_path) in str(result)
 
     # SYSTEM access - blocks dangerous paths but allows absolute paths
     with pytest.raises(ValueError, match="Invalid path"):

@@ -12,8 +12,9 @@ class FileEdit(Tool):
     description = "Replace text in file"
     schema = {"file": {}, "old": {}, "new": {}}
 
-    def __init__(self, access: Access = "sandbox"):
+    def __init__(self, access: Access = "sandbox", base_dir: str | None = None):
         self.access = access
+        self.base_dir = base_dir
 
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
@@ -27,7 +28,7 @@ class FileEdit(Tool):
         if not old:
             return ToolResult(outcome="Old text cannot be empty")
 
-        file_path = resolve_file(file, self.access)
+        file_path = resolve_file(file, self.access, self.base_dir)
 
         if not file_path.exists():
             return ToolResult(outcome=f"File '{file}' does not exist")

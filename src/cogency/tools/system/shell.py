@@ -14,6 +14,9 @@ class SystemShell(Tool):
     description = "Execute system commands"
     schema = {"command": {}}
 
+    def __init__(self, base_dir: str | None = None):
+        self.base_dir = base_dir
+
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         return f"Running {args.get('command', 'command')}"
@@ -40,10 +43,10 @@ class SystemShell(Tool):
         if sandbox:
             from ...lib.paths import Paths
 
-            working_path = Paths.sandbox()
+            working_path = Paths.sandbox(base_dir=self.base_dir)
             working_path.mkdir(exist_ok=True)
         else:
-            working_path = Path.cwd()
+            working_path = Path(self.base_dir) if self.base_dir else Path.cwd()
 
         try:
             result = subprocess.run(

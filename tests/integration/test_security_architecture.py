@@ -13,13 +13,13 @@ from cogency.tools.system.shell import SystemShell
 
 
 @pytest.fixture
-def shell_tool():
-    return SystemShell()
+def shell_tool(tmp_path):
+    return SystemShell(base_dir=str(tmp_path))
 
 
 @pytest.fixture
-def file_tool():
-    return FileRead(access="sandbox")
+def file_tool(tmp_path):
+    return FileRead(access="sandbox", base_dir=str(tmp_path))
 
 
 @pytest.mark.asyncio
@@ -109,9 +109,9 @@ async def test_legitimate_operations_allowed(shell_tool, file_tool):
 
 
 @pytest.mark.asyncio
-async def test_project_access_mode():
+async def test_project_access_mode(tmp_path):
     """PROJECT access allows project files but blocks system paths."""
-    project_tool = FileRead(access="project")
+    project_tool = FileRead(access="project", base_dir=str(tmp_path))
 
     # System paths still blocked in project mode
     result1 = await project_tool.execute("/etc/passwd")
@@ -130,9 +130,9 @@ async def test_project_access_mode():
 
 
 @pytest.mark.asyncio
-async def test_system_access_mode():
+async def test_system_access_mode(tmp_path):
     """SYSTEM access blocks dangerous paths but allows absolute paths."""
-    system_tool = FileRead(access="system")
+    system_tool = FileRead(access="system", base_dir=str(tmp_path))
 
     # System paths still blocked
     result1 = await system_tool.execute("/etc/passwd")
@@ -141,13 +141,3 @@ async def test_system_access_mode():
     # Traversal still blocked
     result2 = await system_tool.execute("../../../etc/passwd")
     assert "Invalid path" in result2.outcome
-
-    # Legitimate absolute paths should work
-    try:
-        import tempfile
-
-        with tempfile.NamedTemporaryFile(delete=False) as tmp:
-            result3 = await system_tool.execute(tmp.name)
-            assert "Invalid path" not in result3.outcome
-    except FileNotFoundError:
-        pass

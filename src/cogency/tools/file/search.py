@@ -19,8 +19,9 @@ class FileSearch(Tool):
         "path": {"optional": True},
     }
 
-    def __init__(self, access: Access = "sandbox"):
+    def __init__(self, access: Access = "sandbox", base_dir: str | None = None):
         self.access = access
+        self.base_dir = base_dir
 
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
@@ -44,12 +45,12 @@ class FileSearch(Tool):
             from ...lib.paths import Paths
 
             search_path = (
-                Paths.sandbox()
+                Paths.sandbox(base_dir=self.base_dir)
                 if self.access == "sandbox"
-                else (Path.cwd() if self.access == "project" else Path("."))
+                else (Path(self.base_dir) if self.base_dir else Path.cwd())
             )
         else:
-            search_path = resolve_file(path, self.access)
+            search_path = resolve_file(path, self.access, self.base_dir)
 
         if not search_path.exists():
             return ToolResult(outcome=f"Directory '{path}' does not exist")

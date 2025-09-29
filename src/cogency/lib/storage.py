@@ -199,5 +199,5 @@ def clear_messages(conversation_id: str, base_dir: str = None) -> None:
         db.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
 
 
-def default_storage():
-    return SQLite()
+def default_storage(base_dir: str | None = None):
+    return SQLite(base_dir=base_dir)

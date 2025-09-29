@@ -18,8 +18,9 @@ class FileRead(Tool):
         "lines": {"type": "integer", "optional": True},
     }
 
-    def __init__(self, access: Access = "sandbox"):
+    def __init__(self, access: Access = "sandbox", base_dir: str | None = None):
         self.access = access
+        self.base_dir = base_dir
 
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
@@ -30,9 +31,12 @@ class FileRead(Tool):
         if not file:
             return ToolResult(outcome="File cannot be empty")
 
-        file_path = resolve_file(file, self.access)
+        file_path = resolve_file(file, self.access, self.base_dir)
 
         try:
+            if not file_path.exists():
+                return ToolResult(outcome=f"File '{file}' does not exist")
+
             if start > 0 or lines != 100:
                 content = self._read_lines(file_path, start, lines)
             else:

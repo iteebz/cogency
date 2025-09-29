@@ -10,7 +10,6 @@ Usage:
 from .. import context
 from ..context.constants import DEFAULT_USER_ID
 from ..lib.storage import default_storage
-from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config, Security
 from .exceptions import AgentError
@@ -34,6 +33,7 @@ class Agent:
         self,
         llm: str | LLM,
         storage: Storage | None = None,
+        base_dir: str | None = None,
         *,
         tools: list[Tool] | None = None,
         mode: str = "auto",
@@ -49,19 +49,19 @@ class Agent:
         """Initializes the Agent with an explicit configuration.
 
         Args:
-            llm: An LLM instance or a string identifier ("openai", "gemini", "anthropic").
-            storage: A Storage implementation. Defaults to a local file-based storage.
-            tools: A list of Tool instances. If None, a default set of file management
-                tools is provided based on the security access level.
+            llm: An LLM instance or a string identifier (e.g., "openai", "gemini").
+            storage: A Storage implementation. Defaults to local file-based storage.
+            base_dir: The base directory for all file operations and storage.
+                If provided, isolates the agent's sandbox and database.
+            tools: A list of Tool instances. Defaults to a standard set.
             mode: Coordination mode ("auto", "resume", "replay"). Defaults to "auto".
             instructions: High-level instructions to steer the agent's behavior.
-            max_iterations: Maximum number of execution iterations to prevent runaways.
-            history_window: Number of historical messages to include in the context.
+            max_iterations: Maximum number of execution iterations.
+            history_window: Number of historical messages to include in context.
             profile: Enable automatic profile learning. Defaults to True.
-            learn_every: Cadence (in number of messages) for triggering profile learning.
+            learn_every: Cadence for triggering profile learning.
             scrape_limit: Character limit for web scraping tools.
             security: A Security object defining access levels and timeouts.
-                Defaults to a sandbox environment.
             debug: Enable verbose debug logging.
         """
         if debug:
@@ -70,25 +70,33 @@ class Agent:
             set_debug(True)
 
         final_security = security or Security()
-        final_storage = storage or default_storage()
+        final_storage = storage or default_storage(base_dir=base_dir)
 
         if tools is None:
-            from ..tools import FileEdit, FileList, FileRead, FileSearch, FileWrite
+            from ..tools import (
+                FileEdit,
+                FileList,
+                FileRead,
+                FileSearch,
+                FileWrite,
+                MemoryRecall,
+                SystemShell,
+                WebScrape,
+                WebSearch,
+            )
 
             access = final_security.access
-            file_tools = [
-                FileRead(access=access),
-                FileWrite(access=access),
-                FileEdit(access=access),
-                FileList(access=access),
-                FileSearch(access=access),
+            final_tools = [
+                FileRead(access=access, base_dir=base_dir),
+                FileWrite(access=access, base_dir=base_dir),
+                FileEdit(access=access, base_dir=base_dir),
+                FileList(access=access, base_dir=base_dir),
+                FileSearch(access=access, base_dir=base_dir),
+                SystemShell(base_dir=base_dir),
+                WebScrape(),
+                WebSearch(),
+                MemoryRecall(),
             ]
-            other_tools = [
-                tool
-                for tool in default_tools()
-                if not isinstance(tool, (FileRead, FileWrite, FileEdit, FileList, FileSearch))
-            ]
-            final_tools = file_tools + other_tools
         else:
             final_tools = tools
 
@@ -98,6 +106,7 @@ class Agent:
             llm=self._create_llm(llm),
             storage=final_storage,
             tools=final_tools,
+            base_dir=base_dir,
             mode=mode,
             instructions=instructions,
             max_iterations=max_iterations,

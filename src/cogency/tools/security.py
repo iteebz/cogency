@@ -106,14 +106,16 @@ def validate_path(file_path: str, base_dir: Path = None) -> Path:
             raise ValueError("Invalid path") from None
 
 
-def resolve_file(file: str, access: "Access") -> Path:
+def resolve_file(file: str, access: "Access", base_dir: str | None = None) -> Path:
     """Resolve file path based on access level."""
     from ..lib.paths import Paths
 
     if access == "sandbox":
-        return validate_path(file, Paths.sandbox())
+        return validate_path(file, Paths.sandbox(base_dir=base_dir))
     if access == "project":
-        return validate_path(file, Path.cwd())
+        # Project access is relative to the base_dir if provided, otherwise current working directory
+        project_root = Path(base_dir) if base_dir else Path.cwd()
+        return validate_path(file, project_root)
     if access == "system":
         return validate_path(file)
     raise ValueError(f"Invalid access level: {access}")

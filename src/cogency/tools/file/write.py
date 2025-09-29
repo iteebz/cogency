@@ -12,8 +12,9 @@ class FileWrite(Tool):
     description = "Write content to file"
     schema = {"file": {}, "content": {}}
 
-    def __init__(self, access: Access = "sandbox"):
+    def __init__(self, access: Access = "sandbox", base_dir: str | None = None):
         self.access = access
+        self.base_dir = base_dir
 
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
@@ -24,7 +25,7 @@ class FileWrite(Tool):
         if not file:
             return ToolResult(outcome="File cannot be empty")
 
-        file_path = resolve_file(file, self.access)
+        file_path = resolve_file(file, self.access, self.base_dir)
 
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
