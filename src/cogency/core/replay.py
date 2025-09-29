@@ -48,6 +48,8 @@ async def stream(
             storage=config.storage,
             history_window=config.history_window,
             profile_enabled=config.profile,
+            identity=config.identity,
+            instructions=config.instructions,
         )
 
         complete = False

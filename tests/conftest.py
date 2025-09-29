@@ -137,6 +137,7 @@ def mock_config(mock_llm, mock_storage):
             self.scrape_limit = 3000
 
             # User steering layer
+            self.identity = None
             self.instructions = None
 
             # Execution behavior

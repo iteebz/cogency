@@ -36,12 +36,14 @@ async def assemble(
     storage: Storage,
     history_window: int,
     profile_enabled: bool,
+    identity: str | None = None,
+    instructions: str | None = None,
 ) -> list[dict]:
     """Assemble complete context: system prompt + conversation context + user query."""
     from . import conversation
 
     # Build system sections
-    system_sections = [system_prompt(tools)]
+    system_sections = [system_prompt(tools=tools, identity=identity, instructions=instructions)]
 
     # Add user profile if available
     if profile_enabled:

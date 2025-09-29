@@ -127,7 +127,7 @@ async def _run_all(samples):
 
         summary = {
             "run_id": run_id,
-            "version": "v3.0.0",
+            "version": "v3.0.1",
             "total": total,
             "passed": passed,
             "rate": f"{rate:.1%}",

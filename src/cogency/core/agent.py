@@ -35,9 +35,10 @@ class Agent:
         storage: Storage | None = None,
         base_dir: str | None = None,
         *,
+        identity: str | None = None,
+        instructions: str | None = None,
         tools: list[Tool] | None = None,
         mode: str = "auto",
-        instructions: str | None = None,
         max_iterations: int = 10,
         history_window: int = 20,
         profile: bool = True,
@@ -52,10 +53,10 @@ class Agent:
             llm: An LLM instance or a string identifier (e.g., "openai", "gemini").
             storage: A Storage implementation. Defaults to local file-based storage.
             base_dir: The base directory for all file operations and storage.
-                If provided, isolates the agent's sandbox and database.
+            identity: Core agent identity (who you are). Overrides default Cogency identity.
+            instructions: Additional instructions to steer the agent's behavior.
             tools: A list of Tool instances. Defaults to a standard set.
             mode: Coordination mode ("auto", "resume", "replay"). Defaults to "auto".
-            instructions: High-level instructions to steer the agent's behavior.
             max_iterations: Maximum number of execution iterations.
             history_window: Number of historical messages to include in context.
             profile: Enable automatic profile learning. Defaults to True.
@@ -107,8 +108,9 @@ class Agent:
             storage=final_storage,
             tools=final_tools,
             base_dir=base_dir,
-            mode=mode,
+            identity=identity,
             instructions=instructions,
+            mode=mode,
             max_iterations=max_iterations,
             history_window=history_window,
             profile=profile,

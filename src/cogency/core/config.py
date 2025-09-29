@@ -49,6 +49,7 @@ class Config:
     security: Security = Security()
 
     # Execution behavior
+    identity: str | None = None  # Core agent identity
     instructions: str | None = None  # User steering
     mode: str = "auto"  # Execution mode
     max_iterations: int = 10  # Execution bounds

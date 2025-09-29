@@ -13,7 +13,7 @@ from .core.agent import Agent
 from .core.exceptions import AgentError, CogencyError, ProfileError, ProviderError, ToolError
 from .tools import tools
 
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 __all__ = [
     "Agent",
     "AgentError",
