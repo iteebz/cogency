@@ -32,7 +32,7 @@ async def test_chunks_false(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_end_flushes_accumulated_content(mock_config):
+async def test_end_flushes(mock_config):
     async def respond_with_end():
         yield {"type": "respond", "content": "The"}
         yield {"type": "respond", "content": " answer"}
@@ -50,7 +50,7 @@ async def test_end_flushes_accumulated_content(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_result_format_for_storage(mock_config, mock_tool):
+async def test_storage_format(mock_config, mock_tool):
     import json
 
     mock_config.tools = [mock_tool]
@@ -91,7 +91,7 @@ async def test_malformed_call_json(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_contaminated_call_content(mock_config):
+async def test_contaminated_content(mock_config):
     accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
 
     async def contaminated_parser():

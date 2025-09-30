@@ -12,7 +12,7 @@ async def test_empty_conversation(mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_basic_history_formatting(mock_storage):
+async def test_history_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Past question")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Past answer")
     await mock_storage.save_message("conv_123", "user_1", "user", "Current question")
@@ -25,7 +25,7 @@ async def test_basic_history_formatting(mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_handles_mixed_formats(mock_storage):
+async def test_mixed_formats(mock_storage):
     # Add messages with mixed call/result formats
     await mock_storage.save_message("conv_123", "user_1", "user", "Test mixed formats")
 
@@ -49,7 +49,7 @@ async def test_handles_mixed_formats(mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_current_cycle_formatting(mock_storage):
+async def test_current_cycle(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Question")
     await mock_storage.save_message("conv_123", "user_1", "think", "Reasoning")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Answer")
@@ -58,7 +58,7 @@ async def test_current_cycle_formatting(mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_tool_call_agent_formatting(mock_storage):
+async def test_tool_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Test tools")
 
     call_content = json.dumps([{"name": "test_tool", "args": {"param": "value"}}])
@@ -74,7 +74,7 @@ async def test_tool_call_agent_formatting(mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_think_events_excluded_from_history(mock_storage):
+async def test_think_excluded(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Question")
     await mock_storage.save_message("conv_123", "user_1", "think", "Internal reasoning")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Answer")
@@ -104,7 +104,7 @@ async def test_full_context_assembly(mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_protocol_delimiter_consistency(mock_storage):
+async def test_delimiters(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Test")
     await mock_storage.save_message("conv_123", "user_1", "think", "Think")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Respond")

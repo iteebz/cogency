@@ -15,7 +15,7 @@ def file_tool(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_shell_injection_blocked(shell_tool):
+async def test_shell_injection(shell_tool):
     tool, base_dir = shell_tool
     injection_attacks = [
         "ls; rm -rf /",
@@ -32,7 +32,7 @@ async def test_shell_injection_blocked(shell_tool):
 
 
 @pytest.mark.asyncio
-async def test_path_traversal_blocked(file_tool):
+async def test_path_traversal(file_tool):
     tool, base_dir, access = file_tool
     traversal_attacks = [
         "../../../etc/passwd",
@@ -47,7 +47,7 @@ async def test_path_traversal_blocked(file_tool):
 
 
 @pytest.mark.asyncio
-async def test_system_paths_blocked(file_tool):
+async def test_system_paths(file_tool):
     tool, base_dir, access = file_tool
     system_paths = [
         "/etc/passwd",
@@ -64,7 +64,7 @@ async def test_system_paths_blocked(file_tool):
 
 
 @pytest.mark.asyncio
-async def test_sandbox_boundaries_enforced(file_tool):
+async def test_sandbox_boundaries(file_tool):
     tool, base_dir, access = file_tool
     absolute_paths = [
         "/home/user/file.txt",
@@ -79,7 +79,7 @@ async def test_sandbox_boundaries_enforced(file_tool):
 
 
 @pytest.mark.asyncio
-async def test_legitimate_operations_allowed(shell_tool, file_tool):
+async def test_legitimate_ops(shell_tool, file_tool):
     shell, shell_base = shell_tool
     shell_result = await shell.execute("echo hello", base_dir=shell_base)
     assert "Command completed" in shell_result.outcome
@@ -96,7 +96,7 @@ async def test_legitimate_operations_allowed(shell_tool, file_tool):
 
 
 @pytest.mark.asyncio
-async def test_project_access_mode(tmp_path):
+async def test_project_access(tmp_path):
     project_tool = FileRead()
     base_dir = str(tmp_path)
 
@@ -114,7 +114,7 @@ async def test_project_access_mode(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_system_access_mode(tmp_path):
+async def test_system_access(tmp_path):
     system_tool = FileRead()
     base_dir = str(tmp_path)
 

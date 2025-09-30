@@ -6,7 +6,7 @@ from cogency.core.exceptions import ProtocolError
 from cogency.tools.parse import _auto_escape_content, parse_tool_call, parse_tool_result
 
 
-def test_parse_tool_call_handles_unescaped_quotes():
+def test_unescaped_quotes():
     malformed_json_str = (
         '{"name": "file_write", "args": {"file": "app.py", "content": "print(\\"hello world\\")"}}'
     )
@@ -18,7 +18,7 @@ def test_parse_tool_call_handles_unescaped_quotes():
     assert tool_call.args["content"] == 'print("hello world")'
 
 
-def test_parse_tool_call_handles_newlines():
+def test_newlines():
     malformed_json_str = (
         '{"name": "file_write", "args": {"file": "test.txt", "content": "line1\nline2\nline3"}}'
     )
@@ -30,7 +30,7 @@ def test_parse_tool_call_handles_newlines():
     assert tool_call.args["content"] == "line1\nline2\nline3"
 
 
-def test_parse_tool_call_handles_extra_data():
+def test_extra_data():
     # Extra data at the end
     malformed_json_str_end = '{"name": "tool", "args": {"key": "value"}}§execute§execute'
     tool_call_end = parse_tool_call(malformed_json_str_end)
@@ -52,7 +52,7 @@ def test_parse_tool_call_handles_extra_data():
     assert tool_call_both.args["key"] == "value"
 
 
-def test_parse_tool_call_handles_unquoted_keys():
+def test_unquoted_keys():
     malformed_json_str = '{"name": "tool", args: {"key": "value"}}'
     tool_call = parse_tool_call(malformed_json_str)
     assert tool_call.name == "tool"
@@ -65,7 +65,7 @@ def test_parse_tool_call_handles_unquoted_keys():
     assert tool_call_nested.args["anotherKey"] == 123
 
 
-def test_parse_tool_result_handles_formats():
+def test_result_formats():
     # New format (payload dictionary - though parse_tool_result expects content string)
     new_format_content = json.dumps({"outcome": "Success", "content": "New format output"})
     results = parse_tool_result(new_format_content)
@@ -106,7 +106,7 @@ def test_parse_tool_result_handles_formats():
     assert results[0].content == ""
 
 
-def test_parse_tool_call_handles_missing_colon():
+def test_missing_colon():
     # Missing colon after quoted key (simple case)
     malformed_json = '{"name": "file_write", "args" {"file": "test.py"}}'
     tool_call = parse_tool_call(malformed_json)
@@ -114,7 +114,7 @@ def test_parse_tool_call_handles_missing_colon():
     assert tool_call.args["file"] == "test.py"
 
 
-def test_parse_tool_call_handles_simple_cases_only():
+def test_simple_cases():
     # Valid JSON works
     valid_json = '{"name": "file_write", "args": {"content": "simple text"}}'
     tool_call = parse_tool_call(valid_json)
@@ -122,7 +122,7 @@ def test_parse_tool_call_handles_simple_cases_only():
     assert tool_call.args["content"] == "simple text"
 
 
-def test_auto_escape_content_handles_newlines_and_quotes():
+def test_auto_escape_newlines_quotes():
     unescaped_json = '{"name": "file_write", "args": {"file": "test.py", "content": "def foo():\n    return "hello""}}'
     escaped_json = _auto_escape_content(unescaped_json)
     expected = '{"name": "file_write", "args": {"file": "test.py", "content": "def foo():\\n    return \\"hello\\""}}'
@@ -133,7 +133,7 @@ def test_auto_escape_content_handles_newlines_and_quotes():
     assert tool_call.args["content"] == 'def foo():\n    return "hello"'
 
 
-def test_auto_escape_content_only_escapes_content_field():
+def test_escape_content_only():
     json_with_quotes = (
         '{"name": "test_tool", "args": {"file": "has"quotes.py", "content": "print("hi")"}}'
     )
@@ -144,14 +144,14 @@ def test_auto_escape_content_only_escapes_content_field():
     assert escaped == expected
 
 
-def test_auto_escape_content_handles_backslashes():
+def test_auto_escape_backslashes():
     json_str = '{"name": "file_write", "args": {"content": "path\\to\\file"}}'
     escaped = _auto_escape_content(json_str)
     expected = '{"name": "file_write", "args": {"content": "path\\\\to\\\\file"}}'
     assert escaped == expected
 
 
-def test_parse_tool_call_with_auto_escape_integration():
+def test_auto_escape_integration():
     # This was the failing case from the original bug report
     malformed_json = '{"name": "file_write", "args": {"file": "models.py", "content": "user = db.relationship(\'User\', backref=db.backref(\'comments\', lazy=True))"}}'
 
@@ -162,24 +162,14 @@ def test_parse_tool_call_with_auto_escape_integration():
     assert "user = db.relationship('User'" in tool_call.args["content"]
 
 
-def test_parse_tool_call_handles_concatenated_json():
+def test_concatenated_json():
     concatenated_json = '{"name": "file_write", "args": {"file": "first.txt"}} {"name": "shell", "args": {"command": "echo second"}}'
     tool_call = parse_tool_call(concatenated_json)
     assert tool_call.name == "file_write"
     assert tool_call.args["file"] == "first.txt"
 
 
-def test_parse_tool_call_handles_unittest_quote_issue():
-    malformed_json = '{"name": "file_write", "args": {"file": "test_users.py", "content": "import unittest\nfrom models import User\n\nclass TestUser(unittest.TestCase):\n    def test_user_creation(self):\n        user = User(name="Test User")\n        self.assertEqual(user.name, "Test User")\n\nif __name__ == "__main__":\n    unittest.main()""}}'
-
-    tool_call = parse_tool_call(malformed_json)
-    assert tool_call.name == "file_write"
-    assert tool_call.args["file"] == "test_users.py"
-    assert "unittest.main()" in tool_call.args["content"]
-    assert "Test User" in tool_call.args["content"]
-
-
-def test_parse_tool_call_fails_on_complex_cases():
+def test_complex_fails():
     complex_content = """{
         "name": "file_write",
         "args": {

@@ -21,7 +21,7 @@ async def test_format():
 
 
 @pytest.mark.asyncio
-async def test_should_learn_logic(mock_config):
+async def test_should_learn(mock_config):
     with tempfile.TemporaryDirectory():
         # No profile = no learning
         with patch("cogency.context.profile.get", return_value=None):
@@ -50,7 +50,7 @@ async def test_should_learn_logic(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_learn_async_logic(mock_config):
+async def test_learn_async(mock_config):
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mock LLM response
         mock_config.llm.generate.return_value = (
@@ -93,7 +93,7 @@ async def test_learn_async_logic(mock_config):
                 assert "Can you help with algorithms?" in prompt_text
 
 
-def test_learn_pytest_detection(mock_config):
+def test_learn_pytest(mock_config):
     # This should return None due to pytest detection
     result = profile.learn(
         "user123",

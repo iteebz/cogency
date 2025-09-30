@@ -43,7 +43,7 @@ def test_custom_tools(mock_llm, mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_auto_fallback_triggers_learning(mock_llm, mock_storage):
+async def test_fallback_learns(mock_llm, mock_storage):
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto")
 
     with (

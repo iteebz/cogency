@@ -10,7 +10,7 @@ def test_default_identity():
     assert "autonomous reasoning agent" in result
 
 
-def test_custom_identity_override():
+def test_identity_override():
     custom_identity = "You are a Zealot. Skeptical cothinking partner."
     result = prompt(identity=custom_identity)
 

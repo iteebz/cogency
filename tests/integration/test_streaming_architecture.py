@@ -4,7 +4,7 @@ from cogency import Agent
 
 
 @pytest.mark.asyncio
-async def test_complete_streaming_flow_chunks_false(mock_llm, mock_tool):
+async def test_streaming_no_chunks(mock_llm, mock_tool):
     protocol_tokens = [
         "§think: I need to call a tool.\n",
         '§call: {"name": "test_tool", "args": {"message": "hello world"}}\n',
@@ -26,7 +26,7 @@ async def test_complete_streaming_flow_chunks_false(mock_llm, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_complete_streaming_flow_chunks_true(mock_llm, mock_tool):
+async def test_streaming_chunks(mock_llm, mock_tool):
     protocol_tokens = [
         "§think: Think",
         "ing...\n",
@@ -46,7 +46,7 @@ async def test_complete_streaming_flow_chunks_true(mock_llm, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_tool_execution_integration(mock_llm, mock_tool):
+async def test_tool_execution(mock_llm, mock_tool):
     protocol_tokens = [
         '§call: {"name": "test_tool", "args": {"message": "integration test"}}\n',
         "§execute\n",
@@ -67,7 +67,7 @@ async def test_tool_execution_integration(mock_llm, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_error_handling_in_streaming_flow(mock_llm, mock_tool):
+async def test_error_handling(mock_llm, mock_tool):
     protocol_tokens = [
         '§call: {"name": "failing_tool", "args": {}}\n',
         "§execute\n",
@@ -86,7 +86,7 @@ async def test_error_handling_in_streaming_flow(mock_llm, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_persistence_integration(mock_llm, mock_tool, mock_storage):
+async def test_persistence(mock_llm, mock_tool, mock_storage):
     protocol_tokens = [
         "§think: Thinking...\n",
         '§call: {"name": "test_tool", "args": {"message": "persist_test"}}\n',
