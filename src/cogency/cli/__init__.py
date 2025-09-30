@@ -79,16 +79,10 @@ def users(user_id: str = typer.Argument(None, help="Specific user ID to show (op
 @app.command()
 def nuke():
     """Delete .cogency folder completely."""
-    import shutil
-    from pathlib import Path
+    from .admin import nuke as nuke_impl
 
     try:
-        cogency_dir = Path(".cogency")  # Don't call get_cogency_dir() - it creates the dir!
-        if cogency_dir.exists():
-            shutil.rmtree(cogency_dir)
-            print(f"✓ Deleted {cogency_dir}")
-        else:
-            print("✓ No .cogency folder to delete")
+        nuke_impl()
     except Exception as e:
         print(f"✗ Error during nuke: {e}")
         raise typer.Exit(1) from e
@@ -96,14 +90,7 @@ def nuke():
 
 def main():
     """CLI entry point."""
-    try:
-        app()
-    except Exception as e:
-        print(f"CLI Error: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise
+    app()
 
 
 if __name__ == "__main__":

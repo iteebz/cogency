@@ -1,8 +1,10 @@
 """Admin CLI - database statistics."""
 
 import json
+import shutil
 import sqlite3
 import time
+from pathlib import Path
 
 from ..lib.paths import Paths
 
@@ -83,3 +85,13 @@ def show_user(user_id: str):
             print("No profile found")
     except Exception as e:
         print(f"Error: {e}")
+
+
+def nuke():
+    """Delete .cogency folder completely."""
+    cogency_dir = Path(".cogency")
+    if cogency_dir.exists():
+        shutil.rmtree(cogency_dir)
+        print(f"✓ Deleted {cogency_dir}")
+    else:
+        print("✓ No .cogency folder to delete")

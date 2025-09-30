@@ -1,14 +1,10 @@
-#!/usr/bin/env python3
 """Cogency CLI with conversation continuity and cancellation handling."""
 
 import asyncio
 import sqlite3
-import warnings
 
 from .. import Agent
 from ..lib.paths import Paths
-
-warnings.filterwarnings("ignore", category=RuntimeWarning, module="asyncio")
 
 
 def get_last_conversation_id(user_id: str) -> str:
@@ -86,14 +82,3 @@ async def run_agent(
         pass
     except Exception as e:
         print(f"Error: {e}")
-
-
-async def main():
-    """Legacy main function for backwards compatibility."""
-    from . import main as cli_main
-
-    cli_main()
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

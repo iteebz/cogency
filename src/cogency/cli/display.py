@@ -3,27 +3,12 @@
 from ..tools.format import format_call_human
 
 
-def _render_metrics(input_tokens: int, output_tokens: int, duration: float, verbose: bool = False):
-    """Render final execution metrics subtly."""
-    if verbose:
-        print(f"\n[{input_tokens}→{output_tokens} tokens, {duration:.1f}s]")
-    else:
-        # Just a subtle hint, no jarring separators
-        print(f"[{input_tokens}→{output_tokens} tokens, {duration:.1f}s]")
-
-
 class Renderer:
     """Stream consumer + console display."""
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
-        self.current_state = None  # Track if we're in think/respond mode
-
-    def show_metrics(self, metrics: dict):
-        """Display metrics after stream completion."""
-        _render_metrics(
-            metrics["input_tokens"], metrics["output_tokens"], metrics["duration"], self.verbose
-        )
+        self.current_state = None
 
     async def render_stream(self, agent_stream):
         """Consume agent events and render to console."""
