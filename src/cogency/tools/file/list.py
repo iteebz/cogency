@@ -17,7 +17,14 @@ class FileList(Tool):
         return f"Listing {args.get('path', '.')}"
 
     @safe_execute
-    async def execute(self, path: str = ".", pattern: str = None, base_dir: str | None = None, access: Access = "sandbox", **kwargs) -> ToolResult:
+    async def execute(
+        self,
+        path: str = ".",
+        pattern: str = None,
+        base_dir: str | None = None,
+        access: Access = "sandbox",
+        **kwargs,
+    ) -> ToolResult:
         """List files in clean tree format."""
         if pattern is None:
             pattern = "*"

@@ -11,8 +11,6 @@ Features:
 - No WebSocket dependencies
 """
 
-import time
-
 from .. import context
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator

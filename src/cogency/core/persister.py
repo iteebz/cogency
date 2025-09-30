@@ -2,7 +2,6 @@ import time
 
 
 class EventPersister:
-
     def __init__(self, conversation_id: str, user_id: str, storage):
         self.conversation_id = conversation_id
         self.user_id = user_id
@@ -15,6 +14,7 @@ class EventPersister:
         await self.storage.save_message(
             self.conversation_id, self.user_id, event_type, content, timestamp
         )
+
     async def persist_think(self, content: str, timestamp: float = None):
         await self.persist_event("think", content, timestamp)
 

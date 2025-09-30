@@ -1,9 +1,7 @@
 import tempfile
-from pathlib import Path
 
 import pytest
 
-from cogency.lib.paths import Paths, get_cogency_dir
 from cogency.lib.storage import SQLite
 
 

@@ -76,11 +76,13 @@ async def test_error_handling_in_streaming_flow(mock_llm, mock_tool):
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
-    failing_tool = mock_tool.configure(name="failing_tool", description="Tool that fails", should_fail=True)
+    failing_tool = mock_tool.configure(
+        name="failing_tool", description="Tool that fails", should_fail=True
+    )
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=1)
 
     with pytest.raises(RuntimeError, match="Stream execution failed"):
-        events = [event async for event in agent("Test query", chunks=False)]
+        [event async for event in agent("Test query", chunks=False)]
 
 
 @pytest.mark.asyncio

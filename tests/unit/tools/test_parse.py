@@ -170,7 +170,7 @@ def test_parse_tool_call_handles_concatenated_json():
 
 
 def test_parse_tool_call_handles_unittest_quote_issue():
-    malformed_json = '{"name": "file_write", "args": {"file": "test_users.py", "content": "import unittest\nfrom models import User\n\nclass TestUser(unittest.TestCase):\n    def test_user_creation(self):\n        user = User(name=\"Test User\")\n        self.assertEqual(user.name, \"Test User\")\n\nif __name__ == \"__main__\":\n    unittest.main()\""}}'
+    malformed_json = '{"name": "file_write", "args": {"file": "test_users.py", "content": "import unittest\nfrom models import User\n\nclass TestUser(unittest.TestCase):\n    def test_user_creation(self):\n        user = User(name="Test User")\n        self.assertEqual(user.name, "Test User")\n\nif __name__ == "__main__":\n    unittest.main()""}}'
 
     tool_call = parse_tool_call(malformed_json)
     assert tool_call.name == "file_write"

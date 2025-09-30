@@ -16,7 +16,7 @@ class Case:
 class Memory(Case):
     store: str = ""
     recall: str = ""
-    
+
     def __post_init__(self):
         self.prompt = ""
         self.profile = True
@@ -25,6 +25,6 @@ class Memory(Case):
 @dataclass
 class Multi(Case):
     prompts: list[str] = field(default_factory=list)
-    
+
     def __post_init__(self):
         self.prompt = ""

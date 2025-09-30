@@ -57,11 +57,14 @@ async def test_result_format_for_storage(mock_config, mock_tool):
     accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
 
     async def parser_with_tool():
-        yield {"type": "call", "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "hello"}}}}'}
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "hello"}}}}',
+        }
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    events = [event async for event in accumulator.process(parser_with_tool())]
+    [event async for event in accumulator.process(parser_with_tool())]
 
     stored_messages = await mock_config.storage.load_messages("test")
     result_messages = [m for m in stored_messages if m["type"] == "result"]
@@ -108,12 +111,14 @@ async def test_storage_failure_propagates(mock_llm):
         async def save_message(self, *args, **kwargs):
             raise RuntimeError("Storage failed")
 
-    config = Config(llm=mock_llm, storage=FailingStorage(), tools=[], security=Security(), learn_every=5)
+    config = Config(
+        llm=mock_llm, storage=FailingStorage(), tools=[], security=Security(), learn_every=5
+    )
     accumulator = Accumulator("test", "test", execution=config.execution, chunks=True)
 
     async def simple_parser():
         yield {"type": "respond", "content": "test"}
 
     with pytest.raises(RuntimeError):
-        async for event in accumulator.process(simple_parser()):
+        async for _event in accumulator.process(simple_parser()):
             pass

@@ -1,4 +1,3 @@
-
 import os
 from unittest.mock import patch
 
@@ -9,7 +8,6 @@ from cogency.lib.rotation import get_api_key, is_rate_limit_error, load_keys, wi
 
 @pytest.mark.asyncio
 async def test_rotation():
-
     # Key loading with numbered and single patterns
     with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
         keys = load_keys("TEST")

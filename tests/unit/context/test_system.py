@@ -1,4 +1,3 @@
-
 from cogency.context.system import prompt
 from cogency.tools.file.write import FileWrite
 
@@ -107,9 +106,7 @@ def test_tools_section():
 
 def test_backward_compatibility():
     # This should work exactly as before
-    result = prompt(
-        tools=[FileWrite()], instructions="Some instructions", include_security=True
-    )
+    result = prompt(tools=[FileWrite()], instructions="Some instructions", include_security=True)
 
     # Should have default Cogency identity
     assert "You are Cogency" in result

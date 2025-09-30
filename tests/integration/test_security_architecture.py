@@ -87,7 +87,10 @@ async def test_legitimate_operations_allowed(shell_tool, file_tool):
     file, file_base, access = file_tool
     try:
         file_result = await file.execute("test.txt", base_dir=file_base, access=access)
-        assert "Invalid path" not in file_result.outcome and "Security violation" not in file_result.outcome
+        assert (
+            "Invalid path" not in file_result.outcome
+            and "Security violation" not in file_result.outcome
+        )
     except FileNotFoundError:
         pass
 

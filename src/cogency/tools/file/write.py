@@ -15,7 +15,14 @@ class FileWrite(Tool):
         return f"Creating {args.get('file', 'file')}"
 
     @safe_execute
-    async def execute(self, file: str, content: str, base_dir: str | None = None, access: Access = "sandbox", **kwargs) -> ToolResult:
+    async def execute(
+        self,
+        file: str,
+        content: str,
+        base_dir: str | None = None,
+        access: Access = "sandbox",
+        **kwargs,
+    ) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty")
 

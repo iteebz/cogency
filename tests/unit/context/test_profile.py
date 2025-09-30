@@ -1,4 +1,3 @@
-
 import tempfile
 from unittest.mock import AsyncMock, patch
 
@@ -52,7 +51,6 @@ async def test_should_learn_logic(mock_config):
 
 @pytest.mark.asyncio
 async def test_learn_async_logic(mock_config):
-
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mock LLM response
         mock_config.llm.generate.return_value = (

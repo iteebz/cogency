@@ -1,9 +1,7 @@
-
 from cogency.lib.metrics import Metrics, count_tokens
 
 
 def test_word_count_approximation():
-
     # Basic word counting
     assert count_tokens("Hello world") == 2
     assert count_tokens("") == 0
@@ -16,7 +14,6 @@ def test_word_count_approximation():
 
 
 def test_message_token_counting():
-
     messages = [
         {"role": "system", "content": "You are helpful"},
         {"role": "user", "content": "Hello world"},
@@ -38,7 +35,6 @@ def test_message_token_counting():
 
 
 def test_metrics_initialization():
-
     metrics = Metrics.init("gpt-4")
 
     assert metrics.input_tokens == 0
@@ -49,7 +45,6 @@ def test_metrics_initialization():
 
 
 def test_step_tracking():
-
     metrics = Metrics.init("gpt-4")
 
     # Step 1
@@ -75,7 +70,6 @@ def test_step_tracking():
 
 
 def test_efficiency_measurement():
-
     # Simulate replay mode - context grows each step
     replay_metrics = Metrics.init("gpt-4")
 
@@ -129,7 +123,6 @@ def test_efficiency_measurement():
 
 
 def test_metrics_event_generation():
-
     metrics = Metrics.init("gpt-4")
 
     # Simulate a complete step
@@ -156,7 +149,6 @@ def test_metrics_event_generation():
 
 
 def test_llm_content_tracking():
-
     metrics = Metrics.init("gpt-4")
     metrics.start_step()
 

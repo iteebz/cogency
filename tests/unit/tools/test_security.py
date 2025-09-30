@@ -1,4 +1,3 @@
-
 import os
 import tempfile
 from pathlib import Path
@@ -89,7 +88,6 @@ LEGITIMATE_INPUTS = {
 
 
 def test_attack_blocking():
-
     # Shell injection attacks must be blocked
     for attack in SHELL_INJECTION_ATTACKS:
         with pytest.raises(ValueError, match="Invalid shell command syntax"):
@@ -154,7 +152,6 @@ def test_timeout_enforcement():
 
 
 def test_semantic_security_boundaries():
-
     # Shell injection blocked at security layer
     shell_attacks_with_paths = [
         "ls `cat /etc/passwd`",

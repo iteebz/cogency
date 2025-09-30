@@ -21,7 +21,15 @@ class FileRead(Tool):
         return f"Reading {args.get('file', 'file')}"
 
     @safe_execute
-    async def execute(self, file: str, start: int = 0, lines: int = 100, base_dir: str | None = None, access: Access = "sandbox", **kwargs) -> ToolResult:
+    async def execute(
+        self,
+        file: str,
+        start: int = 0,
+        lines: int = 100,
+        base_dir: str | None = None,
+        access: Access = "sandbox",
+        **kwargs,
+    ) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty")
 

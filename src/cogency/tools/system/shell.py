@@ -18,7 +18,12 @@ class SystemShell(Tool):
 
     @safe_execute
     async def execute(
-        self, command: str, sandbox: bool = True, timeout: int = 30, base_dir: str | None = None, **kwargs
+        self,
+        command: str,
+        sandbox: bool = True,
+        timeout: int = 30,
+        base_dir: str | None = None,
+        **kwargs,
     ) -> ToolResult:
         """Execute command with proper security validation."""
         if not command or not command.strip():

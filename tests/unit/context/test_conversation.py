@@ -1,4 +1,3 @@
-
 import json
 
 import pytest
@@ -43,9 +42,9 @@ async def test_handles_mixed_formats(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "result", "Read file.txt\nContent here")
 
     result = await conversation.current("conv_123", "user_1", mock_storage)
-    assert "$call: {\"name\": \"test_tool\"" in result
+    assert '$call: {"name": "test_tool"' in result
     assert "$result: Success" in result
-    assert "$call: {\"name\": \"other_tool\"" in result
+    assert '$call: {"name": "other_tool"' in result
     assert "$result: Read file.txt" in result
 
 
@@ -55,7 +54,7 @@ async def test_current_cycle_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "think", "Reasoning")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Answer")
 
-    result = await conversation.current("conv_123", "user_1", mock_storage)
+    await conversation.current("conv_123", "user_1", mock_storage)
 
 
 @pytest.mark.asyncio

@@ -21,9 +21,10 @@ def _auto_escape_content(json_str: str) -> str:
             bracket_depth += 1
         elif char == "}":
             bracket_depth -= 1
-        elif char == '"' and i + 1 < len(json_str):
-            if json_str[i + 1] in ",}" and bracket_depth <= 0:
-                break
+        elif (
+            char == '"' and i + 1 < len(json_str) and json_str[i + 1] in ",}" and bracket_depth <= 0
+        ):
+            break
         i += 1
 
     if i >= len(json_str):
@@ -83,7 +84,9 @@ def parse_tool_call(json_str: str) -> ToolCall:
             data = json.loads(json_str)
             return ToolCall(name=data["name"], args=data.get("args", {}))
         except (json.JSONDecodeError, KeyError) as retry_e:
-            raise ProtocolError(f"JSON repair failed: {retry_e}", original_json=json_str) from retry_e
+            raise ProtocolError(
+                f"JSON repair failed: {retry_e}", original_json=json_str
+            ) from retry_e
 
     except KeyError as e:
         raise ProtocolError(f"Missing required field: {e}", original_json=json_str) from e

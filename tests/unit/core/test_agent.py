@@ -58,7 +58,7 @@ async def test_auto_fallback_triggers_learning(mock_llm, mock_storage):
 
         mock_replay.return_value = mock_replay_stream()
 
-        async for event in agent("test query", user_id="test_user"):
+        async for _event in agent("test query", user_id="test_user"):
             pass
 
         messages = await mock_storage.load_messages("test_user")

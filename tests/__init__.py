@@ -1,1 +1,0 @@
-"""Streaming agents test suite."""

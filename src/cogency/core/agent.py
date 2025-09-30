@@ -75,6 +75,7 @@ class Agent:
 
         if tools is None:
             from ..tools import tools as tool_registry
+
             final_tools = tool_registry()
         else:
             final_tools = tools

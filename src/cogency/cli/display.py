@@ -2,7 +2,6 @@ from ..tools.format import format_call_human
 
 
 class Renderer:
-
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
         self.current_state = None
