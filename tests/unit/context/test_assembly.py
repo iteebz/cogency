@@ -1,4 +1,3 @@
-"""Context assembly tests - stateless context rebuilding."""
 
 import pytest
 
@@ -7,7 +6,6 @@ from cogency import context
 
 @pytest.mark.asyncio
 async def test_assembly(mock_config):
-    """Assembly produces system + user messages with correct content."""
     query = "Test query"
     messages = await context.assemble(
         query,

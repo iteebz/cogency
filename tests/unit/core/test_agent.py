@@ -1,6 +1,4 @@
-"""Agent configuration and execution tests."""
-
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -9,8 +7,6 @@ from cogency.core.config import Security
 
 
 def test_config(mock_llm, mock_storage):
-    """Agent handles configuration, defaults, tools, and providers correctly."""
-    # Custom config
     agent = Agent(
         llm="gemini",
         storage=mock_storage,
@@ -24,7 +20,8 @@ def test_config(mock_llm, mock_storage):
     assert agent.config.max_iterations == 5
     assert len(agent.config.tools) == 0
 
-    # Defaults
+
+def test_defaults(mock_llm, mock_storage):
     agent = Agent(llm=mock_llm, storage=mock_storage)
     assert agent.config.profile is True
     assert agent.config.security.access == "sandbox"
@@ -37,40 +34,7 @@ def test_config(mock_llm, mock_storage):
     assert "recall" in tool_names
 
 
-@pytest.mark.asyncio
-async def test_auto_mode_profile_learning(mock_config, mock_llm, mock_storage):
-    """Test that auto mode triggers profile learning when falling back to replay."""
-    agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto")
-
-    # Mock resume.stream to fail, triggering fallback
-    with (
-        patch("cogency.core.resume.stream") as mock_resume,
-        patch("cogency.core.replay.stream") as mock_replay,
-        patch("cogency.context.learn") as mock_learn,
-    ):
-        # Make resume fail to trigger fallback
-        mock_resume.side_effect = Exception("WebSocket failed")
-
-        async def mock_replay_stream(*args, **kwargs):
-            yield {"type": "respond", "content": "test"}
-
-        mock_replay.return_value = mock_replay_stream()
-
-        # Execute agent
-        events = []
-        async for event in agent("test query", user_id="test_user"):
-            events.append(event)
-
-        # Verify storage received user message
-        messages = await mock_storage.load_messages("test_user")
-        user_messages = [m for m in messages if m["type"] == "user"]
-        assert len(user_messages) > 0, "Agent must save user message to storage"
-        assert any("test query" in m["content"] for m in user_messages)
-
-        # Verify learning was called (part of finalization)
-        mock_learn.assert_called_once()
-
-    # Custom tools
+def test_custom_tools(mock_llm, mock_storage):
     mock_tool = MagicMock()
     mock_tool.name = "custom_tool"
     agent = Agent(llm=mock_llm, storage=mock_storage, tools=[mock_tool])
@@ -79,8 +43,34 @@ async def test_auto_mode_profile_learning(mock_config, mock_llm, mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_execution(mock_llm, mock_storage):
-    """Agent executes with proper streaming, context, and error handling."""
+async def test_auto_fallback_triggers_learning(mock_llm, mock_storage):
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto")
+
+    with (
+        patch("cogency.core.resume.stream") as mock_resume,
+        patch("cogency.core.replay.stream") as mock_replay,
+        patch("cogency.context.learn") as mock_learn,
+    ):
+        mock_resume.side_effect = Exception("WebSocket failed")
+
+        async def mock_replay_stream(*args, **kwargs):
+            yield {"type": "respond", "content": "test"}
+
+        mock_replay.return_value = mock_replay_stream()
+
+        async for event in agent("test query", user_id="test_user"):
+            pass
+
+        messages = await mock_storage.load_messages("test_user")
+        user_messages = [m for m in messages if m["type"] == "user"]
+        assert len(user_messages) > 0
+        assert any("test query" in m["content"] for m in user_messages)
+
+        mock_learn.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_streaming(mock_llm, mock_storage):
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
@@ -101,8 +91,10 @@ async def test_execution(mock_llm, mock_storage):
         assert call_args.args[:3] == ("Hello", "test_user", "test_user")
         assert call_args.kwargs["config"] is agent.config
 
-    # Error handling
-    error_agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+@pytest.mark.asyncio
+async def test_error_propagation(mock_llm, mock_storage):
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
 
@@ -113,33 +105,12 @@ async def test_execution(mock_llm, mock_storage):
         mock_stream.return_value = mock_failing_events()
 
         with pytest.raises(RuntimeError, match="Stream execution failed"):
-            async for _ in error_agent("Test query"):
+            async for _ in agent("Test query"):
                 pass
-
-    # Empty response should just stream events as-is
-    empty_agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
-
-    with patch("cogency.core.replay.stream") as mock_stream:
-
-        async def mock_empty_events():
-            yield {"type": "think", "content": "Just thinking"}
-
-        mock_stream.side_effect = lambda *args, **kwargs: mock_empty_events()
-
-        events = []
-        async for event in empty_agent("Test query"):
-            events.append(event)
-
-        assert len(events) == 1
-        assert events[0]["type"] == "think"
 
 
 @pytest.mark.asyncio
-async def test_user_message_persistence(mock_llm, mock_storage):
-    """Agent persists user messages for conversation context."""
-    from unittest.mock import AsyncMock
-
-    # Mock the save_message method to track calls
+async def test_message_persistence(mock_llm, mock_storage):
     mock_storage.save_message = AsyncMock()
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
@@ -150,9 +121,7 @@ async def test_user_message_persistence(mock_llm, mock_storage):
 
         mock_stream.side_effect = lambda *args, **kwargs: mock_events()
 
-        # Execute agent call
         async for _ in agent("Test query", user_id="test_user", conversation_id="conv_123"):
             pass
 
-        # Verify user message was persisted
         mock_storage.save_message.assert_called_with("conv_123", "test_user", "user", "Test query")

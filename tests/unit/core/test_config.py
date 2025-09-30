@@ -1,4 +1,3 @@
-"""Immutable configuration validation tests."""
 
 from unittest.mock import Mock
 
@@ -8,7 +7,6 @@ from cogency.core.config import Config
 
 
 def test_config(mock_llm):
-    """Config is immutable, handles tools/flags, validates modes."""
     mock_storage = Mock()
     mock_tool = Mock()
     mock_tool.name = "test_tool"

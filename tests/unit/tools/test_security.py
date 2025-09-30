@@ -1,4 +1,3 @@
-"""Security validation tests - pattern blocking and timeout enforcement."""
 
 import os
 import tempfile
@@ -90,7 +89,6 @@ LEGITIMATE_INPUTS = {
 
 
 def test_attack_blocking():
-    """Security layer blocks shell injection, path traversal, and system file access while allowing legitimate file operations."""
 
     # Shell injection attacks must be blocked
     for attack in SHELL_INJECTION_ATTACKS:
@@ -137,7 +135,6 @@ def test_attack_blocking():
 
 
 def test_timeout_enforcement():
-    """Timeout enforcement works correctly across platforms."""
     import time
 
     # Fast operations complete normally
@@ -157,7 +154,6 @@ def test_timeout_enforcement():
 
 
 def test_semantic_security_boundaries():
-    """Document attacks that pass through to semantic security layer."""
 
     # Shell injection blocked at security layer
     shell_attacks_with_paths = [
@@ -188,7 +184,6 @@ def test_semantic_security_boundaries():
 
 
 def test_shell_input_sanitization():
-    """Shell input sanitization blocks dangerous patterns."""
     from cogency.tools.security import sanitize_shell_input
 
     # Test dangerous commands are blocked
@@ -204,7 +199,6 @@ def test_shell_input_sanitization():
 
 
 def test_resolve_file_access_levels(tmp_path: Path):
-    """Test resolve_file with three access levels and base_dir isolation."""
     # SANDBOX access - restricts to sandbox directory
     with pytest.raises(ValueError, match="Invalid path"):
         resolve_file("/etc/passwd", "sandbox", base_dir=str(tmp_path))

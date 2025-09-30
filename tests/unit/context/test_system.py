@@ -1,11 +1,9 @@
-"""Tests for system prompt generation."""
 
 from cogency.context.system import prompt
 from cogency.tools.file.write import FileWrite
 
 
 def test_default_identity():
-    """Test that default Cogency identity is used when none provided."""
     result = prompt()
 
     assert "IDENTITY" in result
@@ -14,7 +12,6 @@ def test_default_identity():
 
 
 def test_custom_identity_override():
-    """Test that custom identity completely replaces default identity."""
     custom_identity = "You are a Zealot. Skeptical cothinking partner."
     result = prompt(identity=custom_identity)
 
@@ -28,7 +25,6 @@ def test_custom_identity_override():
 
 
 def test_prompt_section_order():
-    """Test that prompt sections are in correct order: identity + protocol + examples + security + instructions + tools."""
     custom_identity = "CUSTOM IDENTITY SECTION"
     custom_instructions = "CUSTOM INSTRUCTIONS SECTION"
     tools = [FileWrite()]
@@ -57,7 +53,6 @@ def test_prompt_section_order():
 
 
 def test_instructions_optional():
-    """Test that instructions are optional and don't break prompt generation."""
     # Without instructions
     result_without = prompt(identity="Custom identity")
     assert "INSTRUCTIONS:" not in result_without
@@ -68,7 +63,6 @@ def test_instructions_optional():
 
 
 def test_security_conditional():
-    """Test that security section can be excluded."""
     # With security (default)
     result_with_security = prompt()
     assert "SECURITY" in result_with_security
@@ -81,7 +75,6 @@ def test_security_conditional():
 
 
 def test_protocol_always_present():
-    """Test that protocol section is always present regardless of other parameters."""
     # Various combinations should all include protocol
     test_cases = [
         prompt(),
@@ -100,7 +93,6 @@ def test_protocol_always_present():
 
 
 def test_tools_section():
-    """Test that tools section is properly generated."""
     tools = [FileWrite()]
 
     # With tools
@@ -114,7 +106,6 @@ def test_tools_section():
 
 
 def test_backward_compatibility():
-    """Test that existing calls without identity parameter still work."""
     # This should work exactly as before
     result = prompt(
         tools=[FileWrite()], instructions="Some instructions", include_security=True

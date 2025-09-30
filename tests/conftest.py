@@ -1,10 +1,7 @@
-"""Essential test machinery - WebSocket mocking and async generators."""
-
 import pytest
 
 
 async def get_agent_response(agent, query, **kwargs):
-    """Helper to extract final response from agent stream - maintains test compatibility."""
     response_content = ""
     async for event in agent(query, **kwargs):
         if event["type"] == "respond":
@@ -16,8 +13,6 @@ pytest_plugins = ["pytest_asyncio"]
 
 
 def mock_generator(items):
-    """Fresh async generator per call - eliminates dead coroutine ceremony."""
-
     async def async_gen():
         for item in items:
             yield item
@@ -27,7 +22,6 @@ def mock_generator(items):
 
 @pytest.fixture
 def mock_llm():
-    """Universal LLM mock with streaming, WebSocket, and customizable response support."""
     import asyncio
     from unittest.mock import AsyncMock
 
@@ -43,24 +37,20 @@ def mock_llm():
             self.generate = AsyncMock(return_value="Test response")
 
         def set_response_tokens(self, tokens: list[str]):
-            """Dynamically set response tokens for streaming."""
             self.response_tokens = tokens
             return self
 
         async def connect(self, messages):
-            """WebSocket session creation."""
             session_instance = MockLLM(self.response_tokens)
             session_instance._is_session = True
             return session_instance
 
         async def stream(self, messages):
-            """HTTP streaming with full conversation context."""
             for token in self.response_tokens:
                 yield token
                 await asyncio.sleep(0.001)  # Simulate async streaming
 
         async def send(self, content):
-            """Send message in WebSocket session and stream response."""
             if not self._is_session:
                 raise RuntimeError("send() requires active session. Call connect() first.")
 
@@ -69,12 +59,10 @@ def mock_llm():
                 await asyncio.sleep(0.001)
 
         async def receive(self, session):
-            """Legacy WebSocket receive method."""
             yield "token1"
             yield "token2"
 
         async def close(self):
-            """Close WebSocket session."""
             self._is_session = False
             return True
 
@@ -83,8 +71,6 @@ def mock_llm():
 
 @pytest.fixture
 def mock_storage():
-    """Mutable storage test double."""
-
     class TestStorage:
         def __init__(self):
             self.messages = []
@@ -112,7 +98,6 @@ def mock_storage():
             return self.profiles.get(user_id, {})
 
         async def count_user_messages(self, user_id, since_timestamp=0):
-            """Count user messages since timestamp."""
             count = 0
             for msg in self.messages:
                 if msg["user_id"] == user_id and msg.get("timestamp", 0) > since_timestamp:
@@ -124,8 +109,6 @@ def mock_storage():
 
 @pytest.fixture
 def mock_config(mock_llm, mock_storage):
-    """Mutable config test double - NOT frozen production Config."""
-
     class TestConfig:
         def __init__(self, llm, storage):
             from cogency.core.config import Execution, Security
@@ -167,12 +150,9 @@ def mock_config(mock_llm, mock_storage):
 
 @pytest.fixture
 def mock_tool():
-    """Universal tool mock that can be customized for different test scenarios."""
     from cogency.core.protocols import Tool, ToolResult
 
     class MockTool(Tool):
-        """Universal tool for testing."""
-
         def __init__(
             self, name="test_tool", description="Tool for testing", schema=None, should_fail=False
         ):
@@ -197,7 +177,6 @@ def mock_tool():
             return f"Executing {self._name} with {args}"
 
         def configure(self, name=None, description=None, schema=None, should_fail=None):
-            """Dynamically configure the mock tool."""
             if name is not None:
                 self._name = name
             if description is not None:

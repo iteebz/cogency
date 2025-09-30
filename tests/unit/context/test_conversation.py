@@ -1,4 +1,3 @@
-"""Conversation context tests - canonical formatting specification."""
 
 import json
 
@@ -9,14 +8,12 @@ from cogency.context import conversation
 
 @pytest.mark.asyncio
 async def test_empty_conversation(mock_storage):
-    """Empty conversation returns empty history."""
     result = await conversation.history("conv_123", "user_1", mock_storage, 20)
     assert result == ""
 
 
 @pytest.mark.asyncio
 async def test_basic_history_formatting(mock_storage):
-    """History uses canonical protocol delimiters, excludes current cycle."""
     await mock_storage.save_message("conv_123", "user_1", "user", "Past question")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Past answer")
     await mock_storage.save_message("conv_123", "user_1", "user", "Current question")
@@ -30,7 +27,6 @@ async def test_basic_history_formatting(mock_storage):
 
 @pytest.mark.asyncio
 async def test_handles_mixed_formats(mock_storage):
-    """Test conversation handles both JSON arrays and string formats gracefully."""
     # Add messages with mixed call/result formats
     await mock_storage.save_message("conv_123", "user_1", "user", "Test mixed formats")
 
@@ -55,7 +51,6 @@ async def test_handles_mixed_formats(mock_storage):
 
 @pytest.mark.asyncio
 async def test_current_cycle_formatting(mock_storage):
-    """Current cycle includes think events, no truncation."""
     await mock_storage.save_message("conv_123", "user_1", "user", "Question")
     await mock_storage.save_message("conv_123", "user_1", "think", "Reasoning")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Answer")
@@ -65,7 +60,6 @@ async def test_current_cycle_formatting(mock_storage):
 
 @pytest.mark.asyncio
 async def test_tool_call_agent_formatting(mock_storage):
-    """Tool calls use JSON agent format with call/result pairing."""
     await mock_storage.save_message("conv_123", "user_1", "user", "Test tools")
 
     call_content = json.dumps([{"name": "test_tool", "args": {"param": "value"}}])
@@ -82,7 +76,6 @@ async def test_tool_call_agent_formatting(mock_storage):
 
 @pytest.mark.asyncio
 async def test_think_events_excluded_from_history(mock_storage):
-    """Think events filtered from history, included in current."""
     await mock_storage.save_message("conv_123", "user_1", "user", "Question")
     await mock_storage.save_message("conv_123", "user_1", "think", "Internal reasoning")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Answer")
@@ -98,7 +91,6 @@ async def test_think_events_excluded_from_history(mock_storage):
 
 @pytest.mark.asyncio
 async def test_full_context_assembly(mock_storage):
-    """Full context combines history and current sections."""
     await mock_storage.save_message("conv_123", "user_1", "user", "Past")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Past answer")
     await mock_storage.save_message("conv_123", "user_1", "user", "Current")
@@ -114,7 +106,6 @@ async def test_full_context_assembly(mock_storage):
 
 @pytest.mark.asyncio
 async def test_protocol_delimiter_consistency(mock_storage):
-    """Protocol uses exact $ prefixed delimiters."""
     await mock_storage.save_message("conv_123", "user_1", "user", "Test")
     await mock_storage.save_message("conv_123", "user_1", "think", "Think")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Respond")
@@ -135,7 +126,6 @@ async def test_protocol_delimiter_consistency(mock_storage):
 
 @pytest.mark.asyncio
 async def test_edge_cases(mock_storage):
-    """Handle malformed JSON, missing results, empty conversations."""
     from cogency.context.constants import DEFAULT_CONVERSATION_ID
 
     # Default conversation ID

@@ -1,10 +1,8 @@
-"""Test metrics tracking for replay vs resume efficiency measurement."""
 
 from cogency.lib.metrics import Metrics, count_tokens
 
 
 def test_word_count_approximation():
-    """Test that word counting provides consistent relative measurements."""
 
     # Basic word counting
     assert count_tokens("Hello world") == 2
@@ -18,7 +16,6 @@ def test_word_count_approximation():
 
 
 def test_message_token_counting():
-    """Test message array token counting for context measurement."""
 
     messages = [
         {"role": "system", "content": "You are helpful"},
@@ -41,7 +38,6 @@ def test_message_token_counting():
 
 
 def test_metrics_initialization():
-    """Test Metrics class initialization and basic functionality."""
 
     metrics = Metrics.init("gpt-4")
 
@@ -53,7 +49,6 @@ def test_metrics_initialization():
 
 
 def test_step_tracking():
-    """Test step tracking isolates per-step measurements."""
 
     metrics = Metrics.init("gpt-4")
 
@@ -80,7 +75,6 @@ def test_step_tracking():
 
 
 def test_efficiency_measurement():
-    """Test core use case: measuring replay vs resume token efficiency."""
 
     # Simulate replay mode - context grows each step
     replay_metrics = Metrics.init("gpt-4")
@@ -135,7 +129,6 @@ def test_efficiency_measurement():
 
 
 def test_metrics_event_generation():
-    """Test clean metrics event generation with zero parameters."""
 
     metrics = Metrics.init("gpt-4")
 
@@ -163,7 +156,6 @@ def test_metrics_event_generation():
 
 
 def test_llm_content_tracking():
-    """Test tracking all LLM-generated content types."""
 
     metrics = Metrics.init("gpt-4")
     metrics.start_step()

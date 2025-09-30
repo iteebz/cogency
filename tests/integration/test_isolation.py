@@ -1,4 +1,3 @@
-"""Pragmatic test for base_dir isolation contract."""
 
 import pytest
 
@@ -26,7 +25,6 @@ class MockLLM(LLM):
 
 @pytest.mark.asyncio
 async def test_base_dir_isolates_runs(tmp_path):
-    """Verify that two agents with different base_dirs have isolated sandboxes."""
     # Create two separate base directories
     run1_dir = tmp_path / "run1"
     run1_dir.mkdir()

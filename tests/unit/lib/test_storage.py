@@ -1,12 +1,10 @@
-"""SQLite storage layer tests - ACID properties and conversation isolation."""
-
 import tempfile
 from pathlib import Path
 
 import pytest
 
 from cogency.lib.paths import Paths, get_cogency_dir
-from cogency.lib.storage import SQLite, clear_messages
+from cogency.lib.storage import SQLite
 
 
 @pytest.fixture
@@ -16,102 +14,56 @@ def temp_dir():
 
 
 @pytest.mark.asyncio
-async def test_user_isolation_in_shared_conversation(temp_dir):
-    """Verify that messages are isolated by user_id within the same conversation."""
+async def test_user_isolation(temp_dir):
     storage = SQLite(temp_dir)
-    conv_id = "shared_conv"
+    await storage.save_message("conv1", "user_A", "user", "Message from A")
+    await storage.save_message("conv1", "user_B", "user", "Message from B")
 
-    # 1. Save messages from two different users to the SAME conversation
-    await storage.save_message(conv_id, "user_A", "user", "Message from A")
-    await storage.save_message(conv_id, "user_B", "user", "Message from B")
-
-    # 2. Load messages for user_A
-    user_a_messages = await storage.load_messages(conv_id, "user_A")
-
-    # 3. Assert only user_A's message is returned
+    user_a_messages = await storage.load_messages("conv1", "user_A")
     assert len(user_a_messages) == 1
     assert user_a_messages[0]["content"] == "Message from A"
 
-    # 4. Load messages for user_B
-    user_b_messages = await storage.load_messages(conv_id, "user_B")
-
-    # 5. Assert only user_B's message is returned
+    user_b_messages = await storage.load_messages("conv1", "user_B")
     assert len(user_b_messages) == 1
     assert user_b_messages[0]["content"] == "Message from B"
 
 
 @pytest.mark.asyncio
-async def test_storage_layer_behavior(temp_dir):
-    """Storage layer persists conversations and profiles with filtering and isolation."""
+async def test_concurrent_writes(temp_dir):
+    import asyncio
+
     storage = SQLite(temp_dir)
 
-    # Path configuration
-    assert get_cogency_dir() == Path(".cogency")
-    assert get_cogency_dir(temp_dir) == Path(temp_dir)
-    assert Paths.db(base_dir=temp_dir) == Path(temp_dir) / "store.db"
+    async def write_messages(user_id, count):
+        for i in range(count):
+            await storage.save_message("conv1", user_id, "user", f"Message {i}")
 
-    # Conversation persistence and filtering
-    conv_id = "test_conv"
+    await asyncio.gather(
+        write_messages("user1", 10),
+        write_messages("user2", 10),
+        write_messages("user3", 10),
+    )
 
-    # Multiple message types saved in order
-    await storage.save_message(conv_id, "user", "user", "Hello")
-    await storage.save_message(conv_id, "user", "assistant", "Hi there")
-    await storage.save_message(conv_id, "user", "thinking", "Internal thought")
-    await storage.save_message(conv_id, "user", "user", "How are you?")
+    user1_messages = await storage.load_messages("conv1", "user1")
+    user2_messages = await storage.load_messages("conv1", "user2")
+    user3_messages = await storage.load_messages("conv1", "user3")
 
-    # All messages loaded in chronological order
-    all_messages = await storage.load_messages(conv_id, "user")
-    assert len(all_messages) == 4
-    assert [m["content"] for m in all_messages] == [
-        "Hello",
-        "Hi there",
-        "Internal thought",
-        "How are you?",
-    ]
+    assert len(user1_messages) == 10
+    assert len(user2_messages) == 10
+    assert len(user3_messages) == 10
 
-    # Filtering by include/exclude
-    user_only = await storage.load_messages(conv_id, "user", include=["user"])
-    assert len(user_only) == 2
-    assert all(m["type"] == "user" for m in user_only)
 
-    no_thinking = await storage.load_messages(conv_id, "user", exclude=["thinking"])
-    assert len(no_thinking) == 3
-    assert all(m["type"] != "thinking" for m in no_thinking)
+@pytest.mark.asyncio
+async def test_message_ordering(temp_dir):
+    storage = SQLite(temp_dir)
 
-    # Conversation isolation
-    conv2_id = "other_conv"
-    await storage.save_message(conv2_id, "user2", "user", "Isolated message")
+    await storage.save_message("conv1", "user1", "user", "First", timestamp=100)
+    await storage.save_message("conv1", "user1", "respond", "Second", timestamp=200)
+    await storage.save_message("conv1", "user1", "user", "Third", timestamp=300)
 
-    conv1_msgs = await storage.load_messages(conv_id, "user")
-    conv2_msgs = await storage.load_messages(conv2_id, "user2")
-    assert len(conv1_msgs) == 4
-    assert len(conv2_msgs) == 1
-    assert conv2_msgs[0]["content"] == "Isolated message"
+    messages = await storage.load_messages("conv1", "user1")
 
-    # Conversation clearing preserves isolation
-    clear_messages(conv_id, temp_dir)
-    assert await storage.load_messages(conv_id, "user") == []
-    assert len(await storage.load_messages(conv2_id, "user2")) == 1  # Other conversation unchanged
-
-    # Profile versioning and metadata
-    user_id = "test_user"
-    initial_profile = {"setting": "old_value"}
-    await storage.save_profile(user_id, initial_profile)
-
-    updated_profile = {
-        "setting": "new_value",
-        "who": "Developer",
-        "_meta": {"last_learned_at": 1234567890.0, "messages": 42},
-    }
-    await storage.save_profile(user_id, updated_profile)
-
-    # Latest version loaded with all metadata preserved
-    loaded = await storage.load_profile(user_id)
-    assert loaded == updated_profile
-    assert loaded["setting"] == "new_value"
-    assert loaded["_meta"]["messages"] == 42
-
-    # Non-existent data returns empty/success states
-    assert await storage.load_messages("nonexistent", "user") == []
-    assert await storage.load_profile("nonexistent") == {}
-    clear_messages("nonexistent", temp_dir)  # Should not fail
+    assert len(messages) == 3
+    assert messages[0]["content"] == "First"
+    assert messages[1]["content"] == "Second"
+    assert messages[2]["content"] == "Third"

@@ -1,4 +1,3 @@
-"""API key rotation tests - rate limit handling and service aliases."""
 
 import os
 from unittest.mock import patch
@@ -10,7 +9,6 @@ from cogency.lib.rotation import get_api_key, is_rate_limit_error, load_keys, wi
 
 @pytest.mark.asyncio
 async def test_rotation():
-    """API keys rotate correctly when rate limits are hit, supports service aliases like GEMINI→GOOGLE, and distributes load randomly across available keys."""
 
     # Key loading with numbered and single patterns
     with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):

@@ -1,4 +1,3 @@
-"""Profile learning and persistence tests."""
 
 import tempfile
 from unittest.mock import AsyncMock, patch
@@ -11,14 +10,12 @@ from cogency.lib.storage import SQLite
 
 @pytest.mark.asyncio
 async def test_get():
-    """Get returns None for None/default user_ids."""
     assert await profile.get(None) is None
     assert await profile.get("default") is None
 
 
 @pytest.mark.asyncio
 async def test_format():
-    """Format returns empty string for empty profile."""
     with patch("cogency.context.profile.get", return_value={}):
         result = await profile.format("user123")
         assert result == ""
@@ -26,7 +23,6 @@ async def test_format():
 
 @pytest.mark.asyncio
 async def test_should_learn_logic(mock_config):
-    """Should learn triggers on message count and compression threshold."""
     with tempfile.TemporaryDirectory():
         # No profile = no learning
         with patch("cogency.context.profile.get", return_value=None):
@@ -56,7 +52,6 @@ async def test_should_learn_logic(mock_config):
 
 @pytest.mark.asyncio
 async def test_learn_async_logic(mock_config):
-    """Learn async generates profile from messages."""
 
     with tempfile.TemporaryDirectory() as temp_dir:
         # Mock LLM response
@@ -101,7 +96,6 @@ async def test_learn_async_logic(mock_config):
 
 
 def test_learn_pytest_detection(mock_config):
-    """Learn detects pytest environment and returns early."""
     # This should return None due to pytest detection
     result = profile.learn(
         "user123",

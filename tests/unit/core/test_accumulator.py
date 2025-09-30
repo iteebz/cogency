@@ -1,152 +1,87 @@
-"""Accumulator destruction tests - malformed inputs and edge cases."""
-
 import pytest
 
 from cogency.core.accumulator import Accumulator
+from cogency.core.config import Config, Security
 
 
-async def mock_parser_basic():
-    """Basic parser events for testing."""
-    events = [
-        {"type": "think", "content": "analyzing"},
-        {"type": "call", "content": '{"name": "search"}'},
-        {"type": "execute"},  # No content for control events
-        {"type": "respond", "content": "done"},
-        {"type": "end"},  # Real LLM termination - CRITICAL
-    ]
-    for event in events:
-        yield event
+async def basic_parser():
+    yield {"type": "think", "content": "analyzing"}
+    yield {"type": "call", "content": '{"name": "search"}'}
+    yield {"type": "execute"}
+    yield {"type": "respond", "content": "done"}
+    yield {"type": "end"}
 
 
 @pytest.mark.asyncio
 async def test_chunks_true(mock_config):
-    """Chunks=True: Stream individual parser events."""
-    accumulator = Accumulator(
-        "test",
-        "test",
-        execution=mock_config.execution,
-        chunks=True,
-    )
-
-    events = []
-    async for event in accumulator.process(mock_parser_basic()):
-        events.append(event)
-
-    # Should get individual events + tool result
-
-
-@pytest.mark.asyncio
-async def test_emits_parseable_format(mock_config, mock_tool):
-    """Test that accumulator stores JSON format for conversation parsing."""
-    import json
-
-    # Add mock tool to config
-    mock_config.tools = [mock_tool]
-    accumulator = Accumulator(
-        "test",
-        "test",
-        execution=mock_config.execution,
-        chunks=False,
-    )
-
-    # Create tool call event using registered tool
-    async def parser_with_tool():
-        yield {
-            "type": "call",
-            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "hello"}}}}',
-        }
-        yield {"type": "execute"}
-        yield {"type": "end"}
-
-    events = []
-    async for event in accumulator.process(parser_with_tool()):
-        events.append(event)
-
-    # Verify storage has JSON format that conversation can parse
-    stored_messages = await mock_config.storage.load_messages("test")
-    result_messages = [m for m in stored_messages if m["type"] == "result"]
-    assert len(result_messages) == 1
-
-    stored_content = result_messages[0]["content"]
-
-    # Storage must contain a JSON object for conversation parsing
-    parsed = json.loads(stored_content)
-    assert isinstance(parsed, dict), "Stored result must be a JSON object"
-    assert "outcome" in parsed, "Result must have an outcome field"
-    assert "content" in parsed, "Result must have a content field"
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=True)
+    events = [event async for event in accumulator.process(basic_parser())]
+    assert len(events) > 0
 
 
 @pytest.mark.asyncio
 async def test_chunks_false(mock_config):
-    """Chunks=False: Accumulate semantic events."""
-    accumulator = Accumulator(
-        "test",
-        "test",
-        execution=mock_config.execution,
-        chunks=False,
-    )
-
-    events = []
-    async for event in accumulator.process(mock_parser_basic()):
-        events.append(event)
-
-    # Should get accumulated events: think, call, result, respond, end
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    events = [event async for event in accumulator.process(basic_parser())]
     assert len(events) == 5
     assert events[0]["type"] == "think"
     assert events[1]["type"] == "call"
-    assert events[2]["type"] == "result"  # Tool execution
+    assert events[2]["type"] == "result"
     assert events[3]["type"] == "respond"
     assert events[4]["type"] == "end"
 
 
 @pytest.mark.asyncio
-async def test_end_termination_accumulates_content(mock_config):
-    """CRITICAL: §end should flush accumulated content before terminating."""
-
-    async def simple_respond_with_end():
-        """Realistic simple response ending with §end."""
+async def test_end_flushes_accumulated_content(mock_config):
+    async def respond_with_end():
         yield {"type": "respond", "content": "The"}
         yield {"type": "respond", "content": " answer"}
         yield {"type": "respond", "content": " is"}
         yield {"type": "respond", "content": " 42"}
         yield {"type": "end"}
 
-    accumulator = Accumulator(
-        "test",
-        "test",
-        execution=mock_config.execution,
-        chunks=False,
-    )
-    events = []
-    async for event in accumulator.process(simple_respond_with_end()):
-        events.append(event)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    events = [event async for event in accumulator.process(respond_with_end())]
 
-    # MUST get: 1 accumulated respond event + 1 end event
-    assert len(events) == 2, f"Expected 2 events, got {len(events)}: {events}"
+    assert len(events) == 2
     assert events[0]["type"] == "respond"
-    assert events[0]["content"] == "The answer is 42"  # Accumulated content
+    assert events[0]["content"] == "The answer is 42"
     assert events[1]["type"] == "end"
 
 
 @pytest.mark.asyncio
+async def test_result_format_for_storage(mock_config, mock_tool):
+    import json
+
+    mock_config.tools = [mock_tool]
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+
+    async def parser_with_tool():
+        yield {"type": "call", "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "hello"}}}}'}
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    events = [event async for event in accumulator.process(parser_with_tool())]
+
+    stored_messages = await mock_config.storage.load_messages("test")
+    result_messages = [m for m in stored_messages if m["type"] == "result"]
+    assert len(result_messages) == 1
+
+    parsed = json.loads(result_messages[0]["content"])
+    assert isinstance(parsed, dict)
+    assert "outcome" in parsed
+    assert "content" in parsed
+
+
+@pytest.mark.asyncio
 async def test_malformed_call_json(mock_config):
-    """Destruction: Malformed call JSON should not crash."""
-    accumulator = Accumulator(
-        "test",
-        "test",
-        execution=mock_config.execution,
-        chunks=False,
-    )
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
 
     async def malformed_parser():
         yield {"type": "call", "content": '{"name":"tool", "invalid": }'}
         yield {"type": "execute"}
 
-    events = []
-    async for event in accumulator.process(malformed_parser()):
-        events.append(event)
-
-    # Should handle gracefully - gets result event with error
+    events = [event async for event in accumulator.process(malformed_parser())]
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
     assert "Invalid" in result_events[0]["payload"]["outcome"]
@@ -154,62 +89,31 @@ async def test_malformed_call_json(mock_config):
 
 @pytest.mark.asyncio
 async def test_contaminated_call_content(mock_config):
-    """Destruction: Contaminated call content with delimiters."""
-    accumulator = Accumulator(
-        "test",
-        "test",
-        execution=mock_config.execution,
-        chunks=False,
-    )
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
 
     async def contaminated_parser():
         yield {"type": "call", "content": '{"name": "file_write", "args": {"file": "test.py"}'}
-        yield {"type": "call", "content": " §execute§execute"}  # Contamination
+        yield {"type": "call", "content": " §execute§execute"}
         yield {"type": "execute"}
 
-    events = []
-    async for event in accumulator.process(contaminated_parser()):
-        events.append(event)
-
-    # Should handle contamination and produce error result
+    events = [event async for event in accumulator.process(contaminated_parser())]
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
     assert "Invalid" in result_events[0]["payload"]["outcome"]
 
 
 @pytest.mark.asyncio
-async def test_storage_failure(mock_llm):
-    """Destruction: Storage failures should not crash accumulator."""
-
-    from cogency.core.config import Config, Security
-
+async def test_storage_failure_propagates(mock_llm):
     class FailingStorage:
         async def save_message(self, *args, **kwargs):
             raise RuntimeError("Storage failed")
 
-    failing_config = Config(
-        llm=mock_llm,
-        storage=FailingStorage(),
-        tools=[],
-        security=Security(),
-        learn_every=5,
-    )
-    accumulator = Accumulator(
-        "test",
-        "test",
-        execution=failing_config.execution,
-        chunks=True,
-    )
+    config = Config(llm=mock_llm, storage=FailingStorage(), tools=[], security=Security(), learn_every=5)
+    accumulator = Accumulator("test", "test", execution=config.execution, chunks=True)
 
     async def simple_parser():
         yield {"type": "respond", "content": "test"}
 
-    events = []
-    try:
+    with pytest.raises(RuntimeError):
         async for event in accumulator.process(simple_parser()):
-            events.append(event)
-    except RuntimeError:
-        pass  # Expected - storage failure should propagate
-
-    # Test passes if we don't crash unexpectedly
-    assert True
+            pass

@@ -1,4 +1,3 @@
-"""LLM provider protocol compliance and behavioral tests."""
 
 from unittest.mock import patch
 
@@ -10,7 +9,6 @@ from cogency.lib.llms import Gemini, OpenAI
 
 
 def test_protocol_compliance():
-    """All providers implement the LLM protocol interface."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         providers = [
             ("OpenAI", OpenAI()),
@@ -27,7 +25,6 @@ def test_protocol_compliance():
 
 
 def test_provider_factory_integration():
-    """Agent factory creates correct provider instances."""
     with patch("cogency.lib.rotation.get_api_key", return_value="factory-key"):
         openai_agent = Agent(llm="openai")
         gemini_agent = Agent(llm="gemini")
@@ -38,14 +35,12 @@ def test_provider_factory_integration():
 
 
 def test_invalid_provider_handling():
-    """Factory handles invalid providers gracefully."""
     with pytest.raises((ValueError, ImportError, KeyError)):
         Agent(llm="nonexistent_provider")
 
 
 @pytest.mark.asyncio
 async def test_session_state_requirements():
-    """send() requires active session, close() is safe."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         providers = [OpenAI(), Gemini()]
 
@@ -60,7 +55,6 @@ async def test_session_state_requirements():
 
 
 def test_initial_session_state():
-    """Providers start in HTTP-only mode."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         openai = OpenAI()
         gemini = Gemini()
@@ -76,7 +70,6 @@ def test_initial_session_state():
 
 @pytest.mark.asyncio
 async def test_http_methods_use_rotation():
-    """HTTP methods (generate, stream) use rotation for fresh keys."""
     with patch("cogency.lib.rotation.get_api_key", return_value="base-key"):
         openai = OpenAI()
 
@@ -94,7 +87,6 @@ async def test_http_methods_use_rotation():
 
 @pytest.mark.asyncio
 async def test_connect_forces_rotation():
-    """connect() forces rotation to get fresh session key."""
     with patch("cogency.lib.rotation.get_api_key", return_value="base-key"):
         openai = OpenAI()
 
@@ -113,7 +105,6 @@ async def test_connect_forces_rotation():
 
 
 def test_no_semantic_interpretation():
-    """Providers don't interpret §execute or §end markers."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         providers = [
             ("OpenAI", OpenAI()),
@@ -134,7 +125,6 @@ def test_no_semantic_interpretation():
 
 
 def test_native_chunking_only():
-    """Providers use native chunking, no artificial character splitting."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         providers = [
             ("OpenAI", OpenAI()),
@@ -154,7 +144,6 @@ def test_native_chunking_only():
 
 
 def test_gemini_dual_signal_implementation():
-    """Gemini implements dual-signal fix for 100% reliability."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         gemini = Gemini()
 
@@ -175,7 +164,6 @@ def test_gemini_dual_signal_implementation():
 
 
 def test_session_persistence_capability():
-    """Providers support O(n) session persistence vs O(n²) context rebuilding."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         openai = OpenAI()
         gemini = Gemini()
@@ -188,7 +176,6 @@ def test_session_persistence_capability():
 
 
 def test_protocol_method_ordering():
-    """Methods follow canonical order: generate, stream, connect, send, close."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         providers = [OpenAI(), Gemini()]
 
@@ -215,7 +202,6 @@ def test_protocol_method_ordering():
 
 
 def test_fresh_key_rotation_architecture():
-    """Architecture supports fresh key per session for concurrent isolation."""
     with patch("cogency.lib.rotation.get_api_key", return_value="base-key"):
         openai = OpenAI()
 
@@ -233,7 +219,6 @@ def test_fresh_key_rotation_architecture():
 
 
 def test_provider_error_handling():
-    """Providers handle errors gracefully with proper logging."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         providers = [
             ("OpenAI", OpenAI()),
@@ -251,7 +236,6 @@ def test_provider_error_handling():
 
 
 def test_independent_instance_state():
-    """Multiple provider instances maintain independent state."""
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         openai1 = OpenAI()
         openai2 = OpenAI()
@@ -269,7 +253,6 @@ def test_independent_instance_state():
 
 @pytest.mark.asyncio
 async def test_rotation_call_independence():
-    """Multiple connect() calls each trigger independent rotation."""
     with patch("cogency.lib.rotation.get_api_key", return_value="base-key"):
         openai = OpenAI()
 
