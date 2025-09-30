@@ -1,45 +1,34 @@
-"""
-A simple, beautiful, and self-updating toolkit for all agent tools.
-"""
+"""Simple tool registry for name-based tool lookup."""
 
-import importlib.util as iu
-import inspect
 from collections import defaultdict
-from pathlib import Path
 
 from ..core.protocols import Tool
 
 
 class ToolRegistry:
-    """
-    A callable toolkit that auto-discovers and provides tools.
-    """
+    """Tool registry for name-based lookup and categorization."""
 
-    def __init__(self, discover: bool = True):
+    def __init__(self):
         self.by_category = defaultdict(list)
         self.by_name = {}
-        if discover:
-            self._discover()
+        self._register_builtins()
 
-    def _discover(self, root: Path | None = None):
-        """Finds and registers all Tool classes from a root directory."""
-        if root is None:
-            root = Path(__file__).parent
+    def _register_builtins(self):
+        """Register built-in tools explicitly."""
+        from .file import FileEdit, FileList, FileRead, FileSearch, FileWrite
+        from .memory import MemoryRecall
+        from .system import SystemShell
+        from .web import WebScrape, WebSearch
 
-        for path in root.glob("*/*.py"):
-            if path.name.startswith("__"):
-                continue
-
-            category = path.parent.name
-            name = f"cogency.tools.{category}.{path.stem}"
-
-            spec = iu.spec_from_file_location(name, path)
-            mod = iu.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-
-            for _, cls in inspect.getmembers(mod, inspect.isclass):
-                if issubclass(cls, Tool) and cls is not Tool:
-                    self.register(cls(), category)
+        self.register(FileRead(), "file")
+        self.register(FileWrite(), "file")
+        self.register(FileEdit(), "file")
+        self.register(FileList(), "file")
+        self.register(FileSearch(), "file")
+        self.register(SystemShell(), "system")
+        self.register(WebScrape(), "web")
+        self.register(WebSearch(), "web")
+        self.register(MemoryRecall(), "memory")
 
     def register(self, tool_instance: Tool, category: str):
         """Registers a tool instance, indexing it by category and its declared name."""

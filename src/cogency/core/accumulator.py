@@ -46,7 +46,92 @@ class Accumulator:
         self.current_type = None
         self.content = ""
         self.start_time = None
-        self.end_flushed = False  # Track if we already flushed on §end
+
+    async def _flush_accumulated(self) -> Event | None:
+        """Flush accumulated content, persist and return event if needed."""
+        if not self.current_type or not self.content.strip():
+            return None
+
+        # Persist based on type
+        if self.current_type == "think":
+            await self.persister.persist_think(self.content, self.start_time)
+        elif self.current_type == "respond":
+            await self.persister.persist_respond(self.content, self.start_time)
+
+        # Emit event in semantic mode (skip calls - handled by execute)
+        if not self.chunks and self.current_type != "call":
+            return {
+                "type": self.current_type,
+                "content": self.content.strip(),
+                "timestamp": self.start_time,
+            }
+        return None
+
+    async def _handle_execute(self, timestamp: float) -> AsyncGenerator[Event, None]:
+        """Handle tool execution with persistence."""
+        if self.current_type != "call" or not self.content.strip():
+            return
+
+        call_text = self.content.strip()
+
+        # Parse and persist call
+        try:
+            tool_call = parse_tool_call(call_text)
+            call_array = [{"name": tool_call.name, "args": tool_call.args}]
+            await self.persister.persist_call(json.dumps(call_array), self.start_time)
+        except (json.JSONDecodeError, KeyError, ProtocolError) as e:
+            logger.warning(f"Failed to parse tool call JSON: {e}")
+            await self.persister.persist_call(call_text, self.start_time)
+
+        # Emit call event
+        call_event = {
+            "type": "call",
+            "content": call_text,
+            "timestamp": self.start_time,
+        }
+        logger.debug(f"EVENT: {call_event}")
+        yield call_event
+
+        # Execute tool
+        try:
+            tool_call = parse_tool_call(call_text)
+            result = await execute_tool(
+                tool_call,
+                execution=self._execution,
+                user_id=self.user_id,
+                conversation_id=self.conversation_id,
+            )
+
+            result_json = json.dumps(result.__dict__)
+            await self.persister.persist_result(result_json, timestamp)
+
+            event = {
+                "type": "result",
+                "payload": {
+                    "outcome": result.outcome,
+                    "content": result.content,
+                },
+                "timestamp": timestamp,
+            }
+            logger.debug(f"EVENT: {event}")
+            yield event
+        except (ValueError, TypeError, KeyError, ProtocolError) as e:
+            error_outcome = f"Invalid tool call: {str(e)}. Original: {call_text}"
+            await self.persister.persist_result(error_outcome, timestamp)
+
+            yield {
+                "type": "result",
+                "payload": {
+                    "outcome": error_outcome,
+                    "content": "",
+                },
+                "timestamp": timestamp,
+            }
+
+        # Reset state
+        self.current_type = None
+        self.content = ""
+        self.start_time = None
 
     async def process(
         self, parser_events: AsyncGenerator[Event, None]
@@ -58,141 +143,43 @@ class Accumulator:
             content = event_content(event)
             timestamp = time.time()
 
-            # chunks=True: Yield individual events immediately (AND still accumulate below for tools)
+            # chunks=True: Yield events immediately
             if self.chunks:
                 yield event
 
-            # Control flow events
+            # Handle control events
             if ev_type == "execute":
-                if self.current_type == "call" and self.content.strip():
-                    # Parse tool call and wrap in array for formatter compatibility
-                    try:
-                        tool_call = parse_tool_call(self.content.strip())
-                        call_array = [{"name": tool_call.name, "args": tool_call.args}]
-                        await self.persister.persist_call(json.dumps(call_array), self.start_time)
-                    except (json.JSONDecodeError, KeyError, ProtocolError) as e:
-                        logger.warning(f"Failed to parse tool call JSON: {e}")
-                        # Fallback: persist as-is for debugging
-                        await self.persister.persist_call(self.content.strip(), self.start_time)
-
-                    # Emit call event for display
-                    call_event = {
-                        "type": "call",
-                        "content": self.content.strip(),
-                        "timestamp": self.start_time,
-                    }
-                    logger.debug(f"EVENT: {call_event}")
-                    yield call_event
-
-                    # Execute tool and persist result
-                    try:
-                        tool_call = parse_tool_call(self.content.strip())
-                        result = await execute_tool(
-                            tool_call,
-                            execution=self._execution,
-                            user_id=self.user_id,
-                            conversation_id=self.conversation_id,
-                        )
-
-                        # Persist the raw ToolResult object as JSON
-                        result_json = json.dumps(result.__dict__)
-                        await self.persister.persist_result(result_json, timestamp)
-
-                        # Yield a pure event with the structured data in the payload
-                        event = {
-                            "type": "result",
-                            "payload": {
-                                "outcome": result.outcome,
-                                "content": result.content,
-                            },
-                            "timestamp": timestamp,
-                        }
-                        logger.debug(f"EVENT: {event}")
-                        yield event
-                    except (ValueError, TypeError, KeyError, ProtocolError) as e:
-                        # JSON parsing error - send feedback to LLM
-                        error_outcome = (
-                            f"Invalid tool call: {str(e)}. Original: {self.content.strip()}"
-                        )
-                        await self.persister.persist_result(error_outcome, timestamp)
-
-                        yield {
-                            "type": "result",
-                            "payload": {
-                                "outcome": error_outcome,
-                                "content": "",
-                            },
-                            "timestamp": timestamp,
-                        }
-                    # System errors (OSError, ConnectionError) bubble up
-
-                    # Reset accumulation state
-                    self.current_type = None
-                    self.content = ""
-                    self.start_time = None
+                async for result_event in self._handle_execute(timestamp):
+                    yield result_event
                 continue
 
-            elif ev_type == "end":
-                # Flush any accumulated content before emitting end signal
-                if self.current_type and self.content.strip():
-                    # Persist final events
-                    if self.current_type == "think":
-                        await self.persister.persist_think(self.content, self.start_time)
-                    elif self.current_type == "respond":
-                        await self.persister.persist_respond(self.content, self.start_time)
+            if ev_type == "end":
+                # Flush accumulated content before terminating
+                flushed = await self._flush_accumulated()
+                if flushed:
+                    logger.debug(f"EVENT: {flushed}")
+                    yield flushed
 
-                    # Emit accumulated content (non-chunks mode, skip calls)
-                    if not self.chunks and self.current_type != "call":
-                        accumulated_event = {
-                            "type": self.current_type,
-                            "content": self.content.strip(),
-                            "timestamp": self.start_time,
-                        }
-                        logger.debug(f"EVENT: {accumulated_event}")
-                        yield accumulated_event
+                # Emit end and terminate
+                yield event
+                return
 
-                    self.end_flushed = True  # Mark as flushed
-
-                # Control signal - yield end event then terminate
-                yield event  # Original parser event
-                break
-
-            # State transitions
+            # Handle type transitions
             if ev_type != self.current_type:
-                # Flush accumulated content from previous state
-                if self.current_type and self.content.strip():
-                    if self.current_type == "think":
-                        await self.persister.persist_think(self.content, self.start_time)
-                    elif self.current_type == "respond":
-                        await self.persister.persist_respond(self.content, self.start_time)
+                # Flush previous accumulation
+                flushed = await self._flush_accumulated()
+                if flushed:
+                    yield flushed
 
-                    # Emit accumulated event (semantic mode only, calls handled by execute)
-                    if not self.chunks and self.current_type != "call":
-                        yield {
-                            "type": self.current_type,
-                            "content": self.content.strip(),
-                            "timestamp": self.start_time,
-                        }
-
+                # Start new accumulation
                 self.current_type = ev_type
                 self.content = content
                 self.start_time = timestamp
             else:
-                # Same type - continue accumulating
+                # Continue accumulating same type
                 self.content += content
 
-        # Final flush (only reached if stream ends without §end - should be rare)
-        if self.current_type and self.content.strip() and not self.end_flushed:
-            # Persist final events
-            if self.current_type == "think":
-                await self.persister.persist_think(self.content, self.start_time)
-            elif self.current_type == "respond":
-                await self.persister.persist_respond(self.content, self.start_time)
-
-            # Emit final event (non-chunks mode, skip calls)
-            if not self.chunks and self.current_type != "call":
-                yield {
-                    "type": self.current_type,
-                    "content": self.content.strip(),
-                    "timestamp": self.start_time,
-                }
+        # Stream ended without §end - flush remaining content
+        flushed = await self._flush_accumulated()
+        if flushed:
+            yield flushed

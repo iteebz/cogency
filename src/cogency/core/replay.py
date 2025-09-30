@@ -36,7 +36,6 @@ async def stream(
     # Initialize metrics tracking
     model_name = getattr(llm, "http_model", "unknown")
     metrics = Metrics.init(model_name)
-    time.time()
 
     try:
         # Assemble context from storage (exclude current cycle to prevent duplication)

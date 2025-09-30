@@ -8,10 +8,10 @@ from cogency.context import conversation
 
 
 @pytest.mark.asyncio
-    async def test_empty_conversation(mock_storage):
-        """Empty conversation returns empty history."""
-        result = await conversation.history("conv_123", "user_1", mock_storage, 20)
-        assert result == ""
+async def test_empty_conversation(mock_storage):
+    """Empty conversation returns empty history."""
+    result = await conversation.history("conv_123", "user_1", mock_storage, 20)
+    assert result == ""
 
 
 @pytest.mark.asyncio
@@ -41,10 +41,10 @@ async def test_handles_mixed_formats(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "result", result_json)
 
     # String format (current accumulator output)
-        await mock_storage.save_message(
-            "conv_123", "user_1", "call", '{"name": "other_tool", "args": {}}'
-        )
-        await mock_storage.save_message("conv_123", "user_1", "result", "Read file.txt\nContent here")
+    await mock_storage.save_message(
+        "conv_123", "user_1", "call", '{"name": "other_tool", "args": {}}'
+    )
+    await mock_storage.save_message("conv_123", "user_1", "result", "Read file.txt\nContent here")
 
     result = await conversation.current("conv_123", "user_1", mock_storage)
     assert "$call: {\"name\": \"test_tool\"" in result
@@ -71,10 +71,10 @@ async def test_tool_call_agent_formatting(mock_storage):
     call_content = json.dumps([{"name": "test_tool", "args": {"param": "value"}}])
     result_content = json.dumps([{"outcome": "Success", "content": "Tool output"}])
 
-            await mock_storage.save_message("conv_123", "user_1", "call", call_content)
-            await mock_storage.save_message("conv_123", "user_1", "result", result_content)
-    
-        result = await conversation.current("conv_123", "user_1", mock_storage)
+    await mock_storage.save_message("conv_123", "user_1", "call", call_content)
+    await mock_storage.save_message("conv_123", "user_1", "result", result_content)
+
+    result = await conversation.current("conv_123", "user_1", mock_storage)
     assert '$call: {"name": "test_tool", "args": {"param": "value"}}' in result
     assert "$result: Success" in result
     assert "Tool output" in result
@@ -119,7 +119,7 @@ async def test_protocol_delimiter_consistency(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "think", "Think")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Respond")
 
-    result = await conversation.current("conv_123", mock_storage)
+    result = await conversation.current("conv_123", "user_1", mock_storage)
     lines = result.split("\n")
 
     # Verify exact delimiters
@@ -139,11 +139,11 @@ async def test_edge_cases(mock_storage):
     from cogency.context.constants import DEFAULT_CONVERSATION_ID
 
     # Default conversation ID
-    assert await conversation.history(DEFAULT_CONVERSATION_ID, mock_storage, 20) == ""
+    assert await conversation.history(DEFAULT_CONVERSATION_ID, "user_1", mock_storage, 20) == ""
 
     # Malformed JSON
     await mock_storage.save_message("conv_123", "user_1", "call", "not-json")
     await mock_storage.save_message("conv_123", "user_1", "user", "Current")
 
-    result = await conversation.history("conv_123", mock_storage, 20)
+    result = await conversation.history("conv_123", "user_1", mock_storage, 20)
     assert "$call: not-json" in result
