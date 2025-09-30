@@ -1,4 +1,4 @@
-"""Test execution engine - canonical implementation."""
+"""Test execution engine."""
 
 import asyncio
 import shutil
@@ -6,122 +6,142 @@ import time
 import uuid
 from pathlib import Path
 
-from .config import config
+from cogency import Agent
+
+from .case import Case, Memory, Multi
+from .judge import judge
 
 
-async def evaluate_category(category: str, generator) -> dict:
+async def run_category(category: str, cases: list[Case], agent_kwargs: dict, judge_llm) -> dict:
     """Run evaluation category."""
-    import random
-
-    random.seed(config.seed)
-
-    tests = generator(config.sample_size)
-    semaphore = asyncio.Semaphore(config.max_concurrent_tests)
-
-    async def run_test(i, test):
+    semaphore = asyncio.Semaphore(agent_kwargs.pop("concurrency", 2))
+    
+    async def run_test(i, case):
         async with semaphore:
-            await asyncio.sleep(i * 0.2)  # Stagger requests
-            return await _execute_test(i, test, category)
-
+            await asyncio.sleep(i * 0.2)
+            return await _execute(i, case, category, agent_kwargs)
+    
     results = await asyncio.gather(
-        *[run_test(i, test) for i, test in enumerate(tests)], return_exceptions=True
+        *[run_test(i, case) for i, case in enumerate(cases)], return_exceptions=True
     )
-
-    # Process results
+    
     final_results = [
         {"test_id": f"{category}_{i:02d}", "error": str(result), "passed": False}
         if isinstance(result, Exception)
         else result
         for i, result in enumerate(results)
     ]
-
-    # Judge results
+    
     judged_results = []
     for result in final_results:
-        judgment = await _judge_result(result)
-        result.update(judgment)
+        judgment = await judge(result, judge_llm)
+        result["passed"] = judgment.passed
+        result["judge_reason"] = judgment.reason
         judged_results.append(result)
-
+    
     passed_count = len([r for r in judged_results if r.get("passed") is True])
-
+    
+    total_tokens = sum(sum(r.get("tokens", [0, 0])) for r in judged_results)
+    total_runtime = sum(r.get("seconds", 0) for r in judged_results)
+    avg_tokens = total_tokens / len(judged_results) if judged_results else 0
+    avg_runtime = total_runtime / len(judged_results) if judged_results else 0
+    
     return {
         "category": category,
         "passed": passed_count,
         "total": len(judged_results),
         "rate": passed_count / len(judged_results) if judged_results else 0,
+        "tokens": {"total": total_tokens, "avg": int(avg_tokens)},
+        "runtime": {"total": round(total_runtime, 2), "avg": round(avg_runtime, 2)},
         "results": judged_results,
     }
 
 
-async def _execute_test(i, test, category):
+async def _execute(i, case: Case, category: str, agent_kwargs: dict):
     """Execute individual test."""
-    _prepare_sandbox()
+    _clean_sandbox()
     test_id = f"{category}_{i + 1:02d}"
     print(f"🧪 {test_id}")
-
+    
     user_id = str(uuid.uuid4())
     start_time = time.time()
-    agent = _create_agent(test)
-
+    
+    kwargs = agent_kwargs.copy()
+    if case.empty_tools:
+        kwargs["tools"] = []
+    if case.profile:
+        kwargs["profile"] = True
+    
+    agent = Agent(**kwargs)
+    
     try:
-        events, prompt_used = await _run_test(test, agent, user_id)
-
-        tokens = _extract_metrics(events)
+        if isinstance(case, Memory):
+            events, prompt_used = await _run_memory(case, agent, user_id)
+        elif isinstance(case, Multi):
+            events, prompt_used = await _run_multi(case, agent, user_id)
+        else:
+            events, prompt_used = await _run_single(case, agent, user_id)
+        
+        tokens = _extract_tokens(events)
         stream = _format_stream(events)
-
+        
         return {
             "test_id": f"{category}_{i:02d}",
             "prompt": prompt_used,
             "stream": stream,
             "tokens": tokens,
             "seconds": round(time.time() - start_time, 2),
-            "criteria": test["criteria"],
+            "criteria": case.criteria,
         }
-
+        
     except asyncio.TimeoutError:
         return {"test_id": f"{category}_{i:02d}", "error": "Timeout", "passed": False}
     except Exception as e:
         return {"test_id": f"{category}_{i:02d}", "error": str(e), "passed": False}
     finally:
-        await _cleanup_agent(agent)
+        await _cleanup(agent)
 
 
-async def _run_test(test, agent, user_id):
-    """Execute test based on structure."""
-    chunks = test.get("chunks", False)
-
-    if "store_prompt" in test:
-        # Memory test: store -> destroy -> recall
-        await _consume_stream(agent(test["store_prompt"], user_id=user_id, chunks=chunks))
-
-        if test.get("requires_agent_destruction"):
-            agent = _recreate_agent(test)
-
-        stream = agent(test["recall_prompt"], user_id=user_id, chunks=chunks)
-        return [event async for event in stream], test["recall_prompt"]
-
-    if "conversation_prompts" in test:
-        # Multi-turn conversation
-        events = []
-        conversation_id = str(uuid.uuid4())
-
-        for i, prompt in enumerate(test["conversation_prompts"]):
-            events.append({"type": "user", "content": prompt})
-            stream = agent(prompt, user_id=user_id, conversation_id=conversation_id, chunks=chunks)
-            async for event in stream:
-                events.append(event)
-
-            if i < len(test["conversation_prompts"]) - 1:
-                events.append({"type": "separator", "content": "---"})
-
-        return events, " → ".join(test["conversation_prompts"])
-
-    # Standard single prompt
-    stream = agent(test["prompt"], user_id=user_id, chunks=chunks)
-    return [event async for event in stream], test["prompt"]
+async def _run_single(case: Case, agent: Agent, user_id: str):
+    """Run single prompt test."""
+    stream = agent(case.prompt, user_id=user_id, chunks=case.chunks)
+    return [event async for event in stream], case.prompt
 
 
-def _prepare_sandbox():
+async def _run_memory(case: Memory, agent: Agent, user_id: str):
+    """Run memory test: store -> destroy -> recall."""
+    await _consume(agent(case.store, user_id=user_id, chunks=case.chunks))
+    
+    agent = Agent(
+        llm=agent.config.llm,
+        storage=agent.config.storage,
+        tools=agent.config.tools,
+        mode=agent.config.mode,
+        profile=True,
+    )
+    
+    stream = agent(case.recall, user_id=user_id, chunks=case.chunks)
+    return [event async for event in stream], case.recall
+
+
+async def _run_multi(case: Multi, agent: Agent, user_id: str):
+    """Run multi-turn conversation."""
+    events = []
+    conversation_id = str(uuid.uuid4())
+    
+    for i, prompt in enumerate(case.prompts):
+        events.append({"type": "user", "content": prompt})
+        stream = agent(prompt, user_id=user_id, conversation_id=conversation_id, chunks=case.chunks)
+        async for event in stream:
+            events.append(event)
+        
+        if i < len(case.prompts) - 1:
+            events.append({"type": "separator", "content": "---"})
+    
+    return events, " → ".join(case.prompts)
+
+
+def _clean_sandbox():
     """Clean sandbox between tests."""
     sandbox = Path(".sandbox")
     if sandbox.exists():
@@ -129,103 +149,27 @@ def _prepare_sandbox():
     sandbox.mkdir(exist_ok=True)
 
 
-def _create_agent(test):
-    """Create agent with test configuration."""
-    if test.get("empty_tools"):
-        return config.agent(tools=[])
-    if test.get("profile"):
-        return config.agent(profile=True)
-    return config.agent()
-
-
-def _recreate_agent(test):
-    """Recreate agent after destruction."""
-    import gc
-
-    gc.collect()
-    return _create_agent(test)
-
-
-async def _consume_stream(stream):
+async def _consume(stream):
     """Consume stream without processing."""
     async for _ in stream:
         pass
 
 
-def _extract_metrics(events):
+def _extract_tokens(events):
     """Extract token counts from events."""
-    total_input = 0
-    total_output = 0
-
-    for event in events:
-        if isinstance(event, dict) and event.get("type") == "metrics":
-            total = event["total"]
-            total_input += total["input"]
-            total_output += total["output"]
-
-    return [total_input, total_output]
+    metrics = [e["total"] for e in events if isinstance(e, dict) and e.get("type") == "metrics"]
+    return [sum(m["input"] for m in metrics), sum(m["output"] for m in metrics)] if metrics else [0, 0]
 
 
 def _format_stream(events):
     """Convert events to readable format."""
-    return [
-        f"{event['type'].upper()}: {event.get('content', '')}"
-        for event in events
-        if isinstance(event, dict) and event.get("type") != "metrics"
-    ]
+    return [f"{e['type'].upper()}: {e.get('content', '')}" for e in events if isinstance(e, dict) and e.get("type") != "metrics"]
 
 
-async def _judge_result(result):
-    """Judge test result."""
-    if result.get("error"):
-        return {"passed": False, "judge_reason": f"Test error: {result['error']}"}
-
-    if not config.judge:
-        return {"passed": None, "judge_reason": "Manual review required"}
-
-    from cogency.lib.llms import Anthropic, Gemini, OpenAI
-
-    stream_text = "\n".join(result.get("stream", []))
-
-    prompt = f"""Evaluate this test result:
-
-CRITERIA: {result["criteria"]}
-PROMPT: {result["prompt"]}
-AGENT_STREAM:
-{stream_text}
-
-Did the agent meet the criteria? Answer PASS or FAIL with brief reason.
-
-Format: PASS: reason | FAIL: reason"""
-
-    try:
-        judge_llms = {"openai": OpenAI, "anthropic": Anthropic, "gemini": Gemini}
-        if config.judge not in judge_llms:
-            return {"passed": False, "judge_reason": f"Unknown judge: {config.judge}"}
-
-        judge = judge_llms[config.judge]()
-        messages = [{"role": "user", "content": prompt}]
-        response = await judge.generate(messages)
-
-        clean = response.strip().upper()
-        if clean.startswith("PASS"):
-            return {"passed": True, "judge_reason": response.strip()}
-        if clean.startswith("FAIL"):
-            return {"passed": False, "judge_reason": response.strip()}
-        return {"passed": False, "judge_reason": f"Invalid response: {response}"}
-
-    except Exception as e:
-        return {"passed": False, "judge_reason": f"Judge error: {str(e)}"}
-
-
-async def _cleanup_agent(agent):
+async def _cleanup(agent):
     """Clean up agent resources."""
     try:
-        if (
-            hasattr(agent, "config")
-            and hasattr(agent.config, "llm")
-            and hasattr(agent.config.llm, "close")
-        ):
+        if hasattr(agent, "config") and hasattr(agent.config, "llm") and hasattr(agent.config.llm, "close"):
             await agent.config.llm.close()
     except Exception:
         pass
