@@ -138,15 +138,11 @@ def test_parse_tool_call_handles_simple_cases_only():
 
 def test_auto_escape_content_handles_newlines_and_quotes():
     """Test that auto-escape handles common LLM failures."""
-    # Unescaped newlines in content field
     unescaped_json = '{"name": "file_write", "args": {"file": "test.py", "content": "def foo():\n    return "hello""}}'
     escaped_json = _auto_escape_content(unescaped_json)
-
-    # Should escape newlines and quotes in content field only
     expected = '{"name": "file_write", "args": {"file": "test.py", "content": "def foo():\\n    return \\"hello\\""}}'
     assert escaped_json == expected
 
-    # Should parse successfully now
     tool_call = parse_tool_call(unescaped_json)
     assert tool_call.name == "file_write"
     assert tool_call.args["content"] == 'def foo():\n    return "hello"'
@@ -158,8 +154,6 @@ def test_auto_escape_content_only_escapes_content_field():
         '{"name": "test_tool", "args": {"file": "has"quotes.py", "content": "print("hi")"}}'
     )
     escaped = _auto_escape_content(json_with_quotes)
-
-    # File field should remain unchanged, content field should be escaped
     expected = (
         '{"name": "test_tool", "args": {"file": "has"quotes.py", "content": "print(\\"hi\\")"}}'
     )
@@ -170,7 +164,6 @@ def test_auto_escape_content_handles_backslashes():
     """Test backslash escaping in content."""
     json_str = '{"name": "file_write", "args": {"content": "path\\to\\file"}}'
     escaped = _auto_escape_content(json_str)
-
     expected = '{"name": "file_write", "args": {"content": "path\\\\to\\\\file"}}'
     assert escaped == expected
 
@@ -193,6 +186,17 @@ def test_parse_tool_call_handles_concatenated_json():
     tool_call = parse_tool_call(concatenated_json)
     assert tool_call.name == "file_write"
     assert tool_call.args["file"] == "first.txt"
+
+
+def test_parse_tool_call_handles_unittest_quote_issue():
+    """Test the specific failure case from the protoss trial."""
+    malformed_json = '{"name": "file_write", "args": {"file": "test_users.py", "content": "import unittest\nfrom models import User\n\nclass TestUser(unittest.TestCase):\n    def test_user_creation(self):\n        user = User(name=\"Test User\")\n        self.assertEqual(user.name, \"Test User\")\n\nif __name__ == \"__main__\":\n    unittest.main()\""}}'
+
+    tool_call = parse_tool_call(malformed_json)
+    assert tool_call.name == "file_write"
+    assert tool_call.args["file"] == "test_users.py"
+    assert "unittest.main()" in tool_call.args["content"]
+    assert "Test User" in tool_call.args["content"]
 
 
 def test_parse_tool_call_fails_on_complex_cases():

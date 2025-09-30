@@ -91,7 +91,11 @@ class SQLite:
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
     async def load_messages(
-        self, conversation_id: str, include: list[str] = None, exclude: list[str] = None
+        self,
+        conversation_id: str,
+        user_id: str,
+        include: list[str] = None,
+        exclude: list[str] = None,
     ) -> list[dict]:
         """Load conversation messages with optional type filtering."""
         import asyncio
@@ -100,8 +104,8 @@ class SQLite:
             with DB.connect(self.base_dir) as db:
                 db.row_factory = sqlite3.Row
 
-                query = "SELECT type, content FROM conversations WHERE conversation_id = ?"
-                params = [conversation_id]
+                query = "SELECT type, content FROM conversations WHERE conversation_id = ? AND user_id = ?"
+                params = [conversation_id, user_id]
 
                 if include:
                     placeholders = ",".join("?" for _ in include)

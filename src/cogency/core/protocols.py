@@ -156,7 +156,11 @@ class Storage(Protocol):
         ...
 
     async def load_messages(
-        self, conversation_id: str, include: list[str] = None, exclude: list[str] = None
+        self,
+        conversation_id: str,
+        user_id: str,
+        include: list[str] = None,
+        exclude: list[str] = None,
     ) -> list[dict]:
         """Load conversation messages with optional type filtering."""
         ...

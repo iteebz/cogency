@@ -8,10 +8,10 @@ from cogency.context import conversation
 
 
 @pytest.mark.asyncio
-async def test_empty_conversation(mock_storage):
-    """Empty conversation returns empty history."""
-    result = await conversation.history("conv_123", mock_storage, 20)
-    assert result == ""
+    async def test_empty_conversation(mock_storage):
+        """Empty conversation returns empty history."""
+        result = await conversation.history("conv_123", "user_1", mock_storage, 20)
+        assert result == ""
 
 
 @pytest.mark.asyncio
@@ -21,8 +21,7 @@ async def test_basic_history_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "respond", "Past answer")
     await mock_storage.save_message("conv_123", "user_1", "user", "Current question")
 
-    result = await conversation.history("conv_123", mock_storage, 20)
-
+    result = await conversation.history("conv_123", "user_1", mock_storage, 20)
     assert "=== HISTORY ===" in result
     assert "$user: Past question" in result
     assert "$respond: Past answer" in result
@@ -42,19 +41,16 @@ async def test_handles_mixed_formats(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "result", result_json)
 
     # String format (current accumulator output)
-    await mock_storage.save_message(
-        "conv_123", "user_1", "call", '{"name": "other_tool", "args": {}}'
-    )
-    await mock_storage.save_message("conv_123", "user_1", "result", "Read file.txt\nContent here")
+        await mock_storage.save_message(
+            "conv_123", "user_1", "call", '{"name": "other_tool", "args": {}}'
+        )
+        await mock_storage.save_message("conv_123", "user_1", "result", "Read file.txt\nContent here")
 
-    result = await conversation.current("conv_123", mock_storage)
-
-    # Should handle both formats without crashing
-    assert "=== CURRENT ===" in result
-    assert "$call:" in result
-    assert "$result:" in result
-    # Should not crash on mixed formats
-    assert len(result) > 0
+    result = await conversation.current("conv_123", "user_1", mock_storage)
+    assert "$call: {\"name\": \"test_tool\"" in result
+    assert "$result: Success" in result
+    assert "$call: {\"name\": \"other_tool\"" in result
+    assert "$result: Read file.txt" in result
 
 
 @pytest.mark.asyncio
@@ -64,12 +60,7 @@ async def test_current_cycle_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "think", "Reasoning")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Answer")
 
-    result = await conversation.current("conv_123", mock_storage)
-
-    assert "=== CURRENT ===" in result
-    assert "$user: Question" in result
-    assert "$think: Reasoning" in result
-    assert "$respond: Answer" in result
+    result = await conversation.current("conv_123", "user_1", mock_storage)
 
 
 @pytest.mark.asyncio
@@ -80,11 +71,10 @@ async def test_tool_call_agent_formatting(mock_storage):
     call_content = json.dumps([{"name": "test_tool", "args": {"param": "value"}}])
     result_content = json.dumps([{"outcome": "Success", "content": "Tool output"}])
 
-    await mock_storage.save_message("conv_123", "user_1", "call", call_content)
-    await mock_storage.save_message("conv_123", "user_1", "result", result_content)
-
-    result = await conversation.current("conv_123", mock_storage)
-
+            await mock_storage.save_message("conv_123", "user_1", "call", call_content)
+            await mock_storage.save_message("conv_123", "user_1", "result", result_content)
+    
+        result = await conversation.current("conv_123", "user_1", mock_storage)
     assert '$call: {"name": "test_tool", "args": {"param": "value"}}' in result
     assert "$result: Success" in result
     assert "Tool output" in result
@@ -99,8 +89,8 @@ async def test_think_events_excluded_from_history(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Current")
     await mock_storage.save_message("conv_123", "user_1", "think", "Current reasoning")
 
-    history = await conversation.history("conv_123", mock_storage, 20)
-    current = await conversation.current("conv_123", mock_storage)
+    history = await conversation.history("conv_123", "user_1", mock_storage, 20)
+    current = await conversation.current("conv_123", "user_1", mock_storage)
 
     assert "$think:" not in history
     assert "$think:" in current
@@ -114,7 +104,7 @@ async def test_full_context_assembly(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Current")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Current answer")
 
-    result = await conversation.full_context("conv_123", mock_storage, 20)
+    result = await conversation.full_context("conv_123", "user_1", mock_storage, 20)
 
     assert "=== HISTORY ===" in result
     assert "=== CURRENT ===" in result

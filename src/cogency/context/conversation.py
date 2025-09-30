@@ -8,12 +8,12 @@ from ..tools.parse import parse_tool_result
 from .constants import DEFAULT_CONVERSATION_ID
 
 
-async def history(conversation_id: str, storage: Storage, history_window: int) -> str:
+async def history(conversation_id: str, user_id: str, storage: Storage, history_window: int) -> str:
     """Past conversation excluding current cycle and think events."""
     if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
         return ""
 
-    messages = await storage.load_messages(conversation_id)
+    messages = await storage.load_messages(conversation_id, user_id)
     if not messages:
         return ""
 
@@ -35,12 +35,12 @@ async def history(conversation_id: str, storage: Storage, history_window: int) -
     return _format_section("HISTORY", list(reversed(history_msgs)))
 
 
-async def current(conversation_id: str, storage: Storage) -> str:
+async def current(conversation_id: str, user_id: str, storage: Storage) -> str:
     """Current cycle including think events - ALL current context included."""
     if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
         return ""
 
-    messages = await storage.load_messages(conversation_id)
+    messages = await storage.load_messages(conversation_id, user_id)
     if not messages:
         return ""
 
@@ -52,10 +52,12 @@ async def current(conversation_id: str, storage: Storage) -> str:
     return _format_section("CURRENT", current_msgs) if len(current_msgs) > 1 else ""
 
 
-async def full_context(conversation_id: str, storage: Storage, history_window: int) -> str:
+async def full_context(
+    conversation_id: str, user_id: str, storage: Storage, history_window: int
+) -> str:
     """HISTORY + CURRENT sections."""
-    h = await history(conversation_id, storage, history_window)
-    c = await current(conversation_id, storage)
+    h = await history(conversation_id, user_id, storage, history_window)
+    c = await current(conversation_id, user_id, storage)
 
     if h and c:
         return f"{h}\n\n{c}"

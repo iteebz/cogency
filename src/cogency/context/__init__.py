@@ -52,7 +52,9 @@ async def assemble(
             system_sections.append(profile_content)
 
     # Add conversation context (HISTORY + CURRENT) if any exists
-    conversation_context = await conversation.full_context(conversation_id, storage, history_window)
+    conversation_context = await conversation.full_context(
+        conversation_id, user_id, storage, history_window
+    )
     if conversation_context:
         system_sections.append(conversation_context)
 

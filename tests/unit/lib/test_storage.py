@@ -16,6 +16,31 @@ def temp_dir():
 
 
 @pytest.mark.asyncio
+async def test_user_isolation_in_shared_conversation(temp_dir):
+    """Verify that messages are isolated by user_id within the same conversation."""
+    storage = SQLite(temp_dir)
+    conv_id = "shared_conv"
+
+    # 1. Save messages from two different users to the SAME conversation
+    await storage.save_message(conv_id, "user_A", "user", "Message from A")
+    await storage.save_message(conv_id, "user_B", "user", "Message from B")
+
+    # 2. Load messages for user_A
+    user_a_messages = await storage.load_messages(conv_id, "user_A")
+
+    # 3. Assert only user_A's message is returned
+    assert len(user_a_messages) == 1
+    assert user_a_messages[0]["content"] == "Message from A"
+
+    # 4. Load messages for user_B
+    user_b_messages = await storage.load_messages(conv_id, "user_B")
+
+    # 5. Assert only user_B's message is returned
+    assert len(user_b_messages) == 1
+    assert user_b_messages[0]["content"] == "Message from B"
+
+
+@pytest.mark.asyncio
 async def test_storage_layer_behavior(temp_dir):
     """Storage layer persists conversations and profiles with filtering and isolation."""
     storage = SQLite(temp_dir)
@@ -35,7 +60,7 @@ async def test_storage_layer_behavior(temp_dir):
     await storage.save_message(conv_id, "user", "user", "How are you?")
 
     # All messages loaded in chronological order
-    all_messages = await storage.load_messages(conv_id)
+    all_messages = await storage.load_messages(conv_id, "user")
     assert len(all_messages) == 4
     assert [m["content"] for m in all_messages] == [
         "Hello",
@@ -45,11 +70,11 @@ async def test_storage_layer_behavior(temp_dir):
     ]
 
     # Filtering by include/exclude
-    user_only = await storage.load_messages(conv_id, include=["user"])
+    user_only = await storage.load_messages(conv_id, "user", include=["user"])
     assert len(user_only) == 2
     assert all(m["type"] == "user" for m in user_only)
 
-    no_thinking = await storage.load_messages(conv_id, exclude=["thinking"])
+    no_thinking = await storage.load_messages(conv_id, "user", exclude=["thinking"])
     assert len(no_thinking) == 3
     assert all(m["type"] != "thinking" for m in no_thinking)
 
@@ -57,16 +82,16 @@ async def test_storage_layer_behavior(temp_dir):
     conv2_id = "other_conv"
     await storage.save_message(conv2_id, "user2", "user", "Isolated message")
 
-    conv1_msgs = await storage.load_messages(conv_id)
-    conv2_msgs = await storage.load_messages(conv2_id)
+    conv1_msgs = await storage.load_messages(conv_id, "user")
+    conv2_msgs = await storage.load_messages(conv2_id, "user2")
     assert len(conv1_msgs) == 4
     assert len(conv2_msgs) == 1
     assert conv2_msgs[0]["content"] == "Isolated message"
 
     # Conversation clearing preserves isolation
     clear_messages(conv_id, temp_dir)
-    assert await storage.load_messages(conv_id) == []
-    assert len(await storage.load_messages(conv2_id)) == 1  # Other conversation unchanged
+    assert await storage.load_messages(conv_id, "user") == []
+    assert len(await storage.load_messages(conv2_id, "user2")) == 1  # Other conversation unchanged
 
     # Profile versioning and metadata
     user_id = "test_user"
@@ -87,6 +112,6 @@ async def test_storage_layer_behavior(temp_dir):
     assert loaded["_meta"]["messages"] == 42
 
     # Non-existent data returns empty/success states
-    assert await storage.load_messages("nonexistent") == []
+    assert await storage.load_messages("nonexistent", "user") == []
     assert await storage.load_profile("nonexistent") == {}
     clear_messages("nonexistent", temp_dir)  # Should not fail
