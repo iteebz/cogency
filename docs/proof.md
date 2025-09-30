@@ -28,7 +28,7 @@ RESPONSE = 150 tokens   # Final user response (conversation end only)
 
 *These values approximate observable Claude Code system prompts (~1200-1800 tokens) and typical agent interactions.*
 
-**Note:** Real-world token consumption varies significantly based on tool complexity, file sizes, and agent reasoning depth. These simplified assumptions enable mathematical demonstration of the core efficiency principle - the quadratic-to-linear optimization advantage remains valid regardless of specific token counts.
+**Note:** Real-world token consumption varies by tool complexity and reasoning depth. These assumptions demonstrate the efficiency principle.
 
 ## Conversation Flow Pattern
 
@@ -129,17 +129,12 @@ Each additional turn increases efficiency advantage by k tokens.
 - **Streaming:** 20,400 tokens  
 - **Savings:** 334,800 tokens (94% reduction)
 
-## Architectural Significance
+## Significance
 
-This mathematical proof demonstrates why streaming agents are essential for:
+Resume mode (WebSocket session persistence) enables:
+- Extended agent autonomy through constant token usage
+- Multi-agent coordination without quadratic cost explosion
+- Order-of-magnitude token savings at scale
+- Faster responses from smaller payloads
 
-1. **Extended agent autonomy** - Linear scaling enables hour/day-level conversations
-2. **Multi-agent coordination** - Quadratic costs make swarm communication prohibitive  
-3. **Cost efficiency** - Order-of-magnitude token savings at production scale
-4. **Latency reduction** - Smaller payloads = faster responses
-
-**Bottom Line:** The O(n²) vs O(n) difference isn't just optimization—it's the architectural foundation that might make sophisticated agent coordination economically viable.
-
----
-
-*Mathematical validation of streaming agents architecture claims through first-principles token analysis.*
+The efficiency advantage grows linearly with conversation depth.

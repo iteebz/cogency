@@ -1,7 +1,5 @@
 # Architecture
 
-**Key innovations:** Token-based delimiter protocol, streaming accumulation, dual-mode execution
-
 ## Core Pipeline
 
 **Tokens → Parser → Accumulator → Executor → Results**
@@ -59,18 +57,18 @@ for await (const event of agent.stream(query, {chunks: false})) {
 - **Strategy**: Single tool execution with error handling
 - **Tools**: file_read, file_write, file_edit, file_list, file_search, web_search, web_scrape, recall, shell
 
-## Context Replay Elimination
+## Context Management
 
-**Traditional:** Full context replay every tool call
-```python
-traditional_agent.run() → [Messages 1-50] → Tool → [Messages 1-51] → Tool
-# Token cost: Quadratic growth with conversation length
-```
-
-**Cogency:** Stream injection maintains context  
+**Resume mode:** WebSocket session persists, tool results injected into same stream
 ```python
 streaming_agent() → Stream pauses → Tool executes → Results injected → Stream resumes
-# Token cost: Linear scaling with conversation length
+# Constant token usage per iteration
+```
+
+**Replay mode:** Fresh HTTP request per iteration, context rebuilt from storage
+```python
+traditional_agent.run() → [Messages 1-50] → Tool → [Messages 1-51] → Tool
+# Context grows with conversation
 ```
 
 ## Delimiter Protocol
@@ -88,23 +86,21 @@ streaming_agent() → Stream pauses → Tool executes → Results injected → S
 - Split delimiters: `§thi` + `nk:` across tokens
 - Invalid delimiters: Treated as regular content
 
-## Functional Pipeline with Streaming State
+## Stateless Design
 
-**Agent execution:** Pure configuration closure (stateless)
-**Stream processing:** Functional pipeline with necessary state accumulation
-**Context assembly:** Rebuilt from storage per execution (functional)
+Agent and context assembly are pure functions. All state externalized to storage.
 
 ```python
-agent = Agent(llm="openai")  # Configuration closure - stateless
-async for event in agent(query):  # Functional execution with streaming state
+agent = Agent(llm="openai")  # Configuration only
+async for event in agent(query):  # Rebuilds context from storage
     process(event)
 ```
 
-Architectural layers:
-- **Agent layer:** Stateless configuration closure
-- **Stream processing:** Functional pipeline with accumulation state
-- **Context assembly:** Pure function rebuild from storage
-- **Resume mode:** WebSocket session persistence
+**Persist-then-rebuild:**
+- Parser emits events from token stream
+- Accumulator persists every event to storage immediately
+- Context assembly rebuilds from storage on each execution
+- Single source of truth eliminates stale state bugs
 
 ## Execution Modes
 
@@ -180,16 +176,16 @@ async def close(self, session) -> bool
 | Gemini | Live API | All models |
 | Anthropic | None | All models |
 
-## Performance Characteristics
+## Performance
 
-**Token efficiency** (mathematical proof in docs/proof.md):
-- Resume: O(n) linear scaling 
-- Replay: O(n²) quadratic context growth
-- 5.2x efficiency at 8 turns, 9.3x at 16 turns, 17.4x at 32 turns
+**Token usage:**
+- Resume: Constant per iteration (session state maintained)
+- Replay: Grows with conversation (context rebuilt each time)
+- Mathematical analysis in proof.md
 
 **Latency:**
 - Resume: Sub-second tool injection
-- Replay: Full request cycle per tool
+- Replay: Full request cycle per iteration
 
 ## Security Architecture
 
@@ -222,4 +218,4 @@ def validate_file_path(path: str) -> bool:
     return not any(path.startswith(danger) for danger in dangerous_paths)
 ```
 
-**Defense in depth: Semantic reasoning + execution validation prevents both sophisticated attacks and operational accidents.**
+Defense in depth: Semantic reasoning catches intent, execution validation catches mistakes.

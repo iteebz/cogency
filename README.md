@@ -1,60 +1,51 @@
 # Cogency
 
-**Streaming agents that resume execution after tool calls**
+**Streaming agents with stateless context assembly**
 
-Break free from quadratic context replay. **Linear token scaling** enables conversations of unlimited depth.
+## Architecture
 
-## Performance Breakthrough
+Cogency enables stateful agent execution through:
 
-**Traditional frameworks replay entire context every tool call:**
-```
-Turn 8: 31,200 tokens (5.2x cost)
-Turn 16: 100,800 tokens (9.3x cost) 
-Turn 32: 355,200 tokens (17.4x cost)
-```
+1. **Persist-then-rebuild**: Write every LLM output event to storage immediately, rebuild context from storage on each execution
+2. **Delimiter protocol**: Explicit state signaling (`§think`, `§call`, `§execute`, `§respond`, `§end`)
+3. **Stateless design**: Agent and context assembly are pure functions, all state externalized to storage
 
-**Cogency maintains streaming state:**
-```
-Turn 8: 6,000 tokens
-Turn 16: 10,800 tokens  
-Turn 32: 20,400 tokens
-```
+This eliminates stale state bugs, enables crash recovery, and provides concurrent safety by treating storage as single source of truth.
 
-**Result: 94% token reduction at 32 turns.** The deeper the conversation, the greater the savings.
+## Execution Modes
 
-## Core Innovation
-
-**Stream injection with delimiter protocol:**
-
+**Resume:** WebSocket session persists between tool calls
 ```python
-from cogency import Agent
-
-agent = Agent(llm="openai")
-async for event in agent("Debug this Python script and fix any issues"):
-    if event["type"] == "respond":
-        print(event["content"])
+agent = Agent(llm="openai", mode="resume")
+# Maintains LLM session, injects tool results without context replay
+# Constant token usage per turn
 ```
 
-**Agent signals execution state explicitly:**
-```
-§think: I need to examine the code structure first
-§call: {"name": "file_read", "args": {"file": "main.py"}}  
-§execute
-[SYSTEM: Found syntax error on line 15]
-§respond: Fixed the missing semicolon. Code runs correctly now.
-§end
+**Replay:** Fresh HTTP request per iteration
+```python
+agent = Agent(llm="openai", mode="replay")
+# Rebuilds context from storage each iteration
+# Context grows with conversation
+# Universal LLM compatibility
 ```
 
-**Stream pauses for tool execution, then resumes with results injected.** No context replay needed.
+**Auto:** Resume with fallback to Replay
+```python
+agent = Agent(llm="openai", mode="auto")  # Default
+# Uses WebSocket when available, falls back to HTTP
+```
 
-## Key Features
+## Token Efficiency
 
-**🚀 Stream Resumption**: WebSocket sessions maintain context across tool calls  
-**💾 Dual Memory**: Passive profiles + active recall across conversations  
-**🔒 Layered Security**: Semantic reasoning + execution-level validation  
-**🔌 Multi-Provider**: OpenAI Realtime, Gemini Live, Claude HTTP  
-**⚡ Real-time Streaming**: Word-level or semantic-level event control  
-**🔍 9 Built-in Tools**: Complete file_, web_, memory_, and system_ operations
+Resume mode maintains LLM session state, eliminating context replay on every tool call:
+
+| Turns | Replay (context replay) | Resume (session state) | Efficiency |
+|-------|------------------------|------------------------|------------|
+| 8     | 31,200 tokens         | 6,000 tokens          | 5.2x       |
+| 16    | 100,800 tokens        | 10,800 tokens         | 9.3x       |
+| 32    | 355,200 tokens        | 20,400 tokens         | 17.4x      |
+
+Mathematical proof: [docs/proof.md](docs/proof.md)
 
 ## Installation
 
@@ -63,57 +54,57 @@ pip install cogency
 export OPENAI_API_KEY="your-key"
 ```
 
-Verify installation:
-```bash
-python -c "from cogency import Agent; print('✓ Cogency installed')"
-```
-
-## Execution Modes
-
-```python
-# Resume: WebSocket streaming (default)
-agent = Agent(llm="openai", mode="resume")     # Persistent session, O(n) scaling
-
-# Replay: HTTP requests  
-agent = Agent(llm="openai", mode="replay")     # Universal compatibility, O(n²) scaling
-
-# Auto: Resume with HTTP fallback
-agent = Agent(llm="openai", mode="auto")       # Production recommended
-```
-
-## Multi-Provider
-
-```python
-agent = Agent(llm="openai")     # GPT-4o Realtime API
-agent = Agent(llm="gemini")     # Gemini Live WebSocket  
-agent = Agent(llm="anthropic")  # Claude HTTP
-```
-
 ## Usage
 
 ```python
 from cogency import Agent
 
-# Basic usage
 agent = Agent(llm="openai")
 async for event in agent("What files are in this directory?"):
     if event["type"] == "respond":
         print(event["content"])
+```
 
-# Multi-turn conversations
+### Event Streaming
+
+**Semantic mode (default):** Complete thoughts
+```python
+async for event in agent("Debug this code", chunks=False):
+    if event["type"] == "think":
+        print(f"~ {event['content']}")
+    elif event["type"] == "respond":
+        print(f"> {event['content']}")
+```
+
+**Token mode:** Real-time streaming
+```python
+async for event in agent("Debug this code", chunks=True):
+    if event["type"] == "respond":
+        print(event["content"], end="", flush=True)
+```
+
+### Multi-turn Conversations
+
+```python
 async for event in agent(
     "Continue our code review",
-    user_id="developer", 
+    user_id="developer",
     conversation_id="review_session"
 ):
     if event["type"] == "respond":
         print(event["content"])
+```
 
-# 9 built-in tools:
-# file_read, file_write, file_edit, file_list, file_search
-# web_search, web_scrape, recall, shell
+### Built-in Tools
 
-# Custom tools
+- `file_read`, `file_write`, `file_edit`, `file_list`, `file_search`
+- `web_search`, `web_scrape`
+- `recall` (cross-conversation memory)
+- `shell`
+
+### Custom Tools
+
+```python
 from cogency import Tool, ToolResult
 
 class DatabaseTool(Tool):
@@ -122,49 +113,113 @@ class DatabaseTool(Tool):
     
     async def execute(self, sql: str, user_id: str):
         # Your implementation
-        return ToolResult(outcome="Query executed successfully", content="Query results...")
+        return ToolResult(
+            outcome="Query executed",
+            content="Results..."
+        )
 
 agent = Agent(llm="openai", tools=[DatabaseTool()])
 ```
 
-## Streaming Control
+### Configuration
 
-**chunks=False (default):** Complete semantic units
 ```python
-async for event in agent("Debug this code", chunks=False):
-    if event["type"] == "think":
-        print(f"🤔 {event['content']}")  # "I need to analyze this code structure"
-    elif event["type"] == "respond":
-        print(f"💬 {event['content']}")  # "The syntax error is on line 15"
+agent = Agent(
+    llm="openai",                    # or "gemini", "anthropic"
+    mode="auto",                     # "resume", "replay", or "auto"
+    storage=custom_storage,          # Custom Storage implementation
+    identity="Custom agent identity",
+    instructions="Additional context",
+    tools=[CustomTool()],
+    max_iterations=10,
+    history_window=20,
+    profile=True,                    # Enable automatic user learning
+    learn_every=5,                   # Profile update frequency
+    debug=False
+)
 ```
 
-**chunks=True:** Real-time event streaming
-```python  
-async for event in agent("Debug this code", chunks=True):
-    if event["type"] == "think":
-        print(event["content"], end="")  # "I need" " to" " analyze"...
-    elif event["type"] == "respond":  
-        print(event["content"], end="")  # "The" " syntax" " error"...
+## Multi-Provider Support
+
+```python
+agent = Agent(llm="openai")     # GPT-4o Realtime API (WebSocket)
+agent = Agent(llm="gemini")     # Gemini Live (WebSocket)
+agent = Agent(llm="anthropic")  # Claude (HTTP only)
 ```
 
-See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed streaming behavior and frontend integration patterns.
+## CLI
 
-## Performance
+```bash
+# Install with poetry
+poetry install
 
-Token efficiency scales exponentially with conversation depth:
+# Ask a question
+cogency run "What files are in this directory?"
 
-| Turns | Traditional O(n²) | Streaming O(n) | Efficiency |
-|-------|------------------|----------------|------------|
-| 1     | 1,800           | 1,800          | 1.0x       |
-| 2     | 4,200           | 2,400          | 1.8x       |
-| 4     | 10,800          | 3,600          | 3.0x       |
-| 8     | 31,200          | 6,000          | **5.2x**   |
-| 16    | 100,800         | 10,800         | **9.3x**   |
-| 32    | 355,200         | 20,400         | **17.4x**  |
+# Continue conversation
+cogency run "Tell me about the first file"
 
-**Longer agents = exponentially better efficiency**
+# Start fresh conversation
+cogency run "New task" --new
 
-Mathematical proof: [docs/proof.md](docs/proof.md)
+# Debug commands
+cogency last              # Show last conversation
+cogency context           # Show assembled context
+cogency stats             # Database statistics
+cogency users             # User profiles
+
+# Clean up
+cogency nuke              # Delete .cogency folder
+```
+
+**Display format:**
+```
+> Agent response to user
+~ Internal reasoning
+○ Tool execution begins
+● Tool execution complete
+% 890➜67|4.8s (input→output tokens|duration)
+```
+
+## Memory System
+
+**Passive profile:** Automatic user preference learning
+```python
+agent = Agent(llm="openai", profile=True)
+# Learns patterns from interactions, embedded in system prompt
+```
+
+**Active recall:** Cross-conversation search
+```python
+# Agent uses recall tool to query past interactions
+§call: {"name": "recall", "args": {"query": "previous python debugging"}}
+§execute
+[SYSTEM: Found 3 previous debugging sessions...]
+§respond: Based on your previous Python work...
+```
+
+## Streaming Protocol
+
+Agents signal execution state explicitly:
+
+```
+§think: I need to examine the code structure first
+§call: {"name": "file_read", "args": {"file": "main.py"}}
+§execute
+[SYSTEM: Found syntax error on line 15]
+§respond: Fixed the missing semicolon. Code runs correctly now.
+§end
+```
+
+Parser detects delimiters, accumulator handles tool execution, persister writes to storage.
+
+See [docs/protocol.md](docs/protocol.md) for complete specification.
+
+## Documentation
+
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Core pipeline and design decisions
+- [protocol.md](docs/protocol.md) - Delimiter protocol specification
+- [proof.md](docs/proof.md) - Mathematical efficiency analysis
 
 ## License
 
