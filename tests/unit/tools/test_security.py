@@ -216,6 +216,13 @@ def test_resolve_file_access_levels(tmp_path: Path):
     result = resolve_file("test.txt", "sandbox", base_dir=str(tmp_path))
     assert isinstance(result, Path)
     assert str(tmp_path) in str(result)
+
+    # Should prevent path doubling when 'sandbox/' is in the file path
+    result_doubling = resolve_file("sandbox/app.py", "sandbox", base_dir=str(tmp_path))
+    assert isinstance(result_doubling, Path)
+    assert str(tmp_path) in str(result_doubling)
+    assert "sandbox/sandbox" not in str(result_doubling)
+    assert str(result_doubling).endswith("sandbox/app.py")
     # PROJECT access - restricts to project directory (base_dir)
     with pytest.raises(ValueError, match="Invalid path"):
         resolve_file("/etc/passwd", "project", base_dir=str(tmp_path))

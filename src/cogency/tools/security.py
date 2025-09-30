@@ -111,6 +111,9 @@ def resolve_file(file: str, access: "Access", base_dir: str | None = None) -> Pa
     from ..lib.paths import Paths
 
     if access == "sandbox":
+        parts = Path(file).parts
+        if parts and parts[0] == "sandbox":
+            file = str(Path(*parts[1:])) if len(parts) > 1 else "."
         return validate_path(file, Paths.sandbox(base_dir=base_dir))
     if access == "project":
         # Project access is relative to the base_dir if provided, otherwise current working directory

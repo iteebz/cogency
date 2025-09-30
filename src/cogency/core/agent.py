@@ -74,30 +74,8 @@ class Agent:
         final_storage = storage or default_storage(base_dir=base_dir)
 
         if tools is None:
-            from ..tools import (
-                FileEdit,
-                FileList,
-                FileRead,
-                FileSearch,
-                FileWrite,
-                MemoryRecall,
-                SystemShell,
-                WebScrape,
-                WebSearch,
-            )
-
-            access = final_security.access
-            final_tools = [
-                FileRead(access=access, base_dir=base_dir),
-                FileWrite(access=access, base_dir=base_dir),
-                FileEdit(access=access, base_dir=base_dir),
-                FileList(access=access, base_dir=base_dir),
-                FileSearch(access=access, base_dir=base_dir),
-                SystemShell(base_dir=base_dir),
-                WebScrape(),
-                WebSearch(),
-                MemoryRecall(),
-            ]
+            from ..tools import tools as tool_registry
+            final_tools = tool_registry()
         else:
             final_tools = tools
 

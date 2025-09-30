@@ -135,6 +135,7 @@ def mock_config(mock_llm, mock_storage):
             self.storage = storage
             self.tools = []
             self.scrape_limit = 3000
+            self.base_dir = None
 
             # User steering layer
             self.identity = None
@@ -157,6 +158,8 @@ def mock_config(mock_llm, mock_storage):
                 tools=tuple(self.tools),
                 shell_timeout=self.security.shell_timeout,
                 scrape_limit=self.scrape_limit,
+                base_dir=self.base_dir,
+                access=self.security.access,
             )
 
     return TestConfig(mock_llm, mock_storage)

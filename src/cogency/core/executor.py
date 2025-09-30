@@ -18,6 +18,12 @@ async def execute_tool(
         return ToolResult(outcome=f"{tool_name} not found: Tool '{tool_name}' not registered")
 
     args = dict(call.args)
+    
+    # Inject runtime execution context
+    args["base_dir"] = execution.base_dir
+    args["access"] = execution.access
+    
+    # Tool-specific params
     if tool_name == "shell":
         args["timeout"] = execution.shell_timeout
     if tool_name == "web_scrape":

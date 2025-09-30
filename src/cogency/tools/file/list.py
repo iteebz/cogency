@@ -14,16 +14,12 @@ class FileList(Tool):
     description = "List files and directories"
     schema = {"path": {"optional": True}, "pattern": {"optional": True}}
 
-    def __init__(self, access: Access = "sandbox", base_dir: str | None = None):
-        self.access = access
-        self.base_dir = base_dir
-
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         return f"Listing {args.get('path', '.')}"
 
     @safe_execute
-    async def execute(self, path: str = ".", pattern: str = None, **kwargs) -> ToolResult:
+    async def execute(self, path: str = ".", pattern: str = None, base_dir: str | None = None, access: Access = "sandbox", **kwargs) -> ToolResult:
         """List files in clean tree format."""
         if pattern is None:
             pattern = "*"
@@ -33,12 +29,12 @@ class FileList(Tool):
             from ...lib.paths import Paths
 
             target = (
-                Paths.sandbox(base_dir=self.base_dir)
-                if self.access == "sandbox"
-                else (Path(self.base_dir) if self.base_dir else Path.cwd())
+                Paths.sandbox(base_dir=base_dir)
+                if access == "sandbox"
+                else (Path(base_dir) if base_dir else Path.cwd())
             )
         else:
-            target = resolve_file(path, self.access, self.base_dir)
+            target = resolve_file(path, access, base_dir)
 
         if not target.exists():
             return ToolResult(outcome=f"Directory '{path}' does not exist")

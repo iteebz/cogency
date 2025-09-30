@@ -31,7 +31,7 @@ def test_prompt_section_order():
     """Test that prompt sections are in correct order: identity + protocol + examples + security + instructions + tools."""
     custom_identity = "CUSTOM IDENTITY SECTION"
     custom_instructions = "CUSTOM INSTRUCTIONS SECTION"
-    tools = [FileWrite(access="sandbox")]
+    tools = [FileWrite()]
 
     result = prompt(
         identity=custom_identity,
@@ -101,7 +101,7 @@ def test_protocol_always_present():
 
 def test_tools_section():
     """Test that tools section is properly generated."""
-    tools = [FileWrite(access="sandbox")]
+    tools = [FileWrite()]
 
     # With tools
     result_with_tools = prompt(tools=tools)
@@ -117,7 +117,7 @@ def test_backward_compatibility():
     """Test that existing calls without identity parameter still work."""
     # This should work exactly as before
     result = prompt(
-        tools=[FileWrite(access="sandbox")], instructions="Some instructions", include_security=True
+        tools=[FileWrite()], instructions="Some instructions", include_security=True
     )
 
     # Should have default Cogency identity

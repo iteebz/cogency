@@ -18,6 +18,8 @@ class Execution:
     tools: Sequence[Tool]
     shell_timeout: int
     scrape_limit: int
+    base_dir: str | None
+    access: Access
 
 
 @dataclass(frozen=True)
@@ -69,4 +71,6 @@ class Config:
             tools=tuple(self.tools),
             shell_timeout=self.security.shell_timeout,
             scrape_limit=self.scrape_limit,
+            base_dir=self.base_dir,
+            access=self.security.access,
         )

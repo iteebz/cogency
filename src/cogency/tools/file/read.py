@@ -18,20 +18,16 @@ class FileRead(Tool):
         "lines": {"type": "integer", "optional": True},
     }
 
-    def __init__(self, access: Access = "sandbox", base_dir: str | None = None):
-        self.access = access
-        self.base_dir = base_dir
-
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         return f"Reading {args.get('file', 'file')}"
 
     @safe_execute
-    async def execute(self, file: str, start: int = 0, lines: int = 100, **kwargs) -> ToolResult:
+    async def execute(self, file: str, start: int = 0, lines: int = 100, base_dir: str | None = None, access: Access = "sandbox", **kwargs) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty")
 
-        file_path = resolve_file(file, self.access, self.base_dir)
+        file_path = resolve_file(file, access, base_dir)
 
         try:
             if not file_path.exists():

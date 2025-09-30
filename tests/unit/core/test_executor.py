@@ -64,7 +64,7 @@ async def test_tool_execution_failure(mock_config, mock_tool):
 
 @pytest.mark.asyncio
 async def test_context_injection(mock_config):
-    """Global context (sandbox, user_id) injected into tool args."""
+    """Global context (base_dir, access, user_id) injected into tool args."""
     mock_tool = MagicMock()
     mock_tool.name = "context_tool"
     mock_tool.execute = AsyncMock(return_value=ToolResult(outcome="success"))
@@ -79,4 +79,9 @@ async def test_context_injection(mock_config):
         conversation_id="test_conv",
     )
 
-    mock_tool.execute.assert_called_once_with(explicit_arg="value", user_id="test_user")
+    mock_tool.execute.assert_called_once_with(
+        explicit_arg="value", 
+        base_dir=None, 
+        access="sandbox", 
+        user_id="test_user"
+    )

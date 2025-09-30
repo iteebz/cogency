@@ -14,7 +14,7 @@ class ToolRegistry:
         self._register_builtins()
 
     def _register_builtins(self):
-        """Register built-in tools explicitly."""
+        """Register built-in tools without construction params - context injected at runtime."""
         from .file import FileEdit, FileList, FileRead, FileSearch, FileWrite
         from .memory import MemoryRecall
         from .system import SystemShell

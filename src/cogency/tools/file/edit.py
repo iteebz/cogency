@@ -12,23 +12,19 @@ class FileEdit(Tool):
     description = "Replace text in file"
     schema = {"file": {}, "old": {}, "new": {}}
 
-    def __init__(self, access: Access = "sandbox", base_dir: str | None = None):
-        self.access = access
-        self.base_dir = base_dir
-
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         return f"Editing {args.get('file', 'file')}"
 
     @safe_execute
-    async def execute(self, file: str, old: str, new: str, **kwargs) -> ToolResult:
+    async def execute(self, file: str, old: str, new: str, base_dir: str | None = None, access: Access = "sandbox", **kwargs) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty")
 
         if not old:
             return ToolResult(outcome="Old text cannot be empty")
 
-        file_path = resolve_file(file, self.access, self.base_dir)
+        file_path = resolve_file(file, access, base_dir)
 
         if not file_path.exists():
             return ToolResult(outcome=f"File '{file}' does not exist")
