@@ -1,5 +1,3 @@
-"""File writing with sandbox/system mode support."""
-
 from ...core.config import Access
 from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute

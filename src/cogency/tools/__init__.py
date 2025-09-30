@@ -1,5 +1,3 @@
-"""Cogency tools with individual exports and convenience factory."""
-
 # File tools
 from .file import FileEdit, FileList, FileRead, FileSearch, FileWrite
 

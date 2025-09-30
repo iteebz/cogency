@@ -1,5 +1,3 @@
-"""Consolidated error handling for LLM providers."""
-
 import asyncio
 from functools import wraps
 

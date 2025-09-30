@@ -1,5 +1,3 @@
-"""Gemini provider implementing LLM protocol with dual-signal completion detection."""
-
 from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM

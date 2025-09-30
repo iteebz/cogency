@@ -1,5 +1,3 @@
-"""Token counting for streaming agents."""
-
 import time
 
 from ..lib.logger import logger

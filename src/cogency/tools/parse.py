@@ -1,5 +1,3 @@
-"""Tool parsing - minimal resilience for common LLM errors."""
-
 import json
 import re
 

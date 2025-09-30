@@ -1,5 +1,3 @@
-"""File reading with sandbox/system mode and line range support."""
-
 from pathlib import Path
 
 from ...core.config import Access

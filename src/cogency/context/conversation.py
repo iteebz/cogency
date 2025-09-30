@@ -1,5 +1,3 @@
-"""Canonical conversation context construction."""
-
 import json
 
 from ..core.protocols import Storage, ToolCall, ToolResult
@@ -9,7 +7,6 @@ from .constants import DEFAULT_CONVERSATION_ID
 
 
 async def history(conversation_id: str, user_id: str, storage: Storage, history_window: int) -> str:
-    """Past conversation excluding current cycle and think events."""
     if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
         return ""
 
@@ -36,7 +33,6 @@ async def history(conversation_id: str, user_id: str, storage: Storage, history_
 
 
 async def current(conversation_id: str, user_id: str, storage: Storage) -> str:
-    """Current cycle including think events - ALL current context included."""
     if not conversation_id or conversation_id == DEFAULT_CONVERSATION_ID:
         return ""
 
@@ -55,7 +51,6 @@ async def current(conversation_id: str, user_id: str, storage: Storage) -> str:
 async def full_context(
     conversation_id: str, user_id: str, storage: Storage, history_window: int
 ) -> str:
-    """HISTORY + CURRENT sections."""
     h = await history(conversation_id, user_id, storage, history_window)
     c = await current(conversation_id, user_id, storage)
 
@@ -65,7 +60,6 @@ async def full_context(
 
 
 def _last_user_index(messages: list[dict]) -> int | None:
-    """Find index of last user message."""
     for i in range(len(messages) - 1, -1, -1):
         if messages[i]["type"] == "user":
             return i
@@ -73,7 +67,6 @@ def _last_user_index(messages: list[dict]) -> int | None:
 
 
 def _format_section(name: str, messages: list[dict]) -> str:
-    """Format section with header and protocol delimiters."""
     formatted = []
 
     for msg in messages:

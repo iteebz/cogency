@@ -1,5 +1,3 @@
-"""Resilient operations - ripped from resilient-result, simplified."""
-
 import asyncio
 from functools import wraps
 

@@ -1,5 +1,3 @@
-"""Admin CLI - database statistics."""
-
 import json
 import shutil
 import sqlite3

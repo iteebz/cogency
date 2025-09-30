@@ -1,5 +1,3 @@
-"""OpenAI provider implementing LLM protocol with WebSocket support."""
-
 from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM

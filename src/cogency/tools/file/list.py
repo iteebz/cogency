@@ -1,5 +1,3 @@
-"""File listing tool with clean tree output."""
-
 from pathlib import Path
 
 from ...core.config import Access

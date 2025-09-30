@@ -1,5 +1,3 @@
-"""File operation tools."""
-
 from .edit import FileEdit
 from .list import FileList
 from .read import FileRead

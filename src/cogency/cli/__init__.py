@@ -1,5 +1,3 @@
-"""CLI interface for Cogency."""
-
 import asyncio
 
 import typer

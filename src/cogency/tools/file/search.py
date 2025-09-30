@@ -1,5 +1,3 @@
-"""File search tool with clean visual output."""
-
 import re
 from pathlib import Path
 

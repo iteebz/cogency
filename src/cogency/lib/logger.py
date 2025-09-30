@@ -1,9 +1,6 @@
-"""Simple logging interface."""
-
 import logging
 import sys
 
-# Configure logger once
 logger = logging.getLogger("cogency")
 if not logger.handlers:
     handler = logging.StreamHandler(sys.stdout)
@@ -13,5 +10,4 @@ if not logger.handlers:
 
 
 def set_debug(enabled: bool = True):
-    """Enable/disable debug logging."""
     logger.setLevel(logging.DEBUG if enabled else logging.INFO)

@@ -1,5 +1,3 @@
-"""Web search using DDGS metasearch with clean result formatting."""
-
 from ...core.protocols import Tool, ToolResult
 from ..security import safe_execute
 

@@ -1,20 +1,15 @@
-"""Simple tool registry for name-based tool lookup."""
-
 from collections import defaultdict
 
 from ..core.protocols import Tool
 
 
 class ToolRegistry:
-    """Tool registry for name-based lookup and categorization."""
-
     def __init__(self):
         self.by_category = defaultdict(list)
         self.by_name = {}
         self._register_builtins()
 
     def _register_builtins(self):
-        """Register built-in tools without construction params - context injected at runtime."""
         from .file import FileEdit, FileList, FileRead, FileSearch, FileWrite
         from .memory import MemoryRecall
         from .system import SystemShell
@@ -31,7 +26,6 @@ class ToolRegistry:
         self.register(MemoryRecall(), "memory")
 
     def register(self, tool_instance: Tool, category: str):
-        """Registers a tool instance, indexing it by category and its declared name."""
         if not isinstance(tool_instance, Tool):
             raise TypeError("Tool must be an instance of a Tool subclass.")
 
@@ -45,14 +39,10 @@ class ToolRegistry:
         self.by_name[tool_instance.name] = type(tool_instance)
 
     def __call__(self) -> list[Tool]:
-        """Returns a list of all tool instances in the registry."""
         classes = {c for cat_classes in self.by_category.values() for c in cat_classes}
         return [cls() for cls in classes]
 
     def category(self, categories: str | list[str]) -> list[Tool]:
-        """
-        Returns a list of tool instances filtered by category.
-        """
         if isinstance(categories, str):
             categories = [categories]
 
@@ -64,9 +54,6 @@ class ToolRegistry:
         return [cls() for cls in filtered_classes]
 
     def name(self, names: str | list[str]) -> list[Tool]:
-        """
-        Returns a list of tool instances filtered by name.
-        """
         if isinstance(names, str):
             names = [names]
 
@@ -77,7 +64,6 @@ class ToolRegistry:
         return [cls() for cls in filtered_classes]
 
     def get(self, name: str) -> Tool | None:
-        """Retrieves a tool instance by its name."""
         tool_class = self.by_name.get(name)
         if tool_class:
             return tool_class()

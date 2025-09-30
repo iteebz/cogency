@@ -1,5 +1,3 @@
-"""Formatting for tool calls and results with human/agent variants."""
-
 import json
 
 from ..core.protocols import Tool, ToolCall, ToolResult

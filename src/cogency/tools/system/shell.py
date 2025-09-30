@@ -1,5 +1,3 @@
-"""Shell command execution with security validation and sandbox isolation."""
-
 import subprocess
 from pathlib import Path
 

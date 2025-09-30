@@ -1,5 +1,3 @@
-"""API key rotation with automatic rate limit handling and service aliases."""
-
 import asyncio
 import os
 import random

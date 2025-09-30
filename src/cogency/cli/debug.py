@@ -1,5 +1,3 @@
-"""Core debugging - what agent did vs what should have happened."""
-
 import json
 import sqlite3
 import time

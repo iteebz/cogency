@@ -1,5 +1,3 @@
-"""Cogency CLI with conversation continuity and cancellation handling."""
-
 import asyncio
 import sqlite3
 
@@ -8,7 +6,6 @@ from ..lib.paths import Paths
 
 
 def get_last_conversation_id(user_id: str) -> str:
-    """Get the last conversation ID for continuation, or create new one."""
     db_path = Paths.db()
 
     if not db_path.exists():
@@ -42,8 +39,6 @@ async def run_agent(
     new: bool = False,
     debug: bool = False,
 ):
-    """Run agent with given parameters."""
-
     agent = Agent(
         llm=llm,
         mode=mode,

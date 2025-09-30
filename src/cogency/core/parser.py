@@ -1,5 +1,3 @@
-"""Streaming parser for §-delimited agent protocol."""
-
 from __future__ import annotations
 
 import re

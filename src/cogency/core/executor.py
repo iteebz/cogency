@@ -1,5 +1,3 @@
-"""Tool execution helpers with cohesive execution context."""
-
 from .config import Execution
 from .protocols import ToolCall, ToolResult
 
