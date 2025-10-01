@@ -19,8 +19,8 @@ async def test_history_formatting(mock_storage):
 
     result = await conversation.history("conv_123", "user_1", mock_storage, 20)
     assert "=== HISTORY ===" in result
-    assert "$user: Past question" in result
-    assert "$respond: Past answer" in result
+    assert "§user: Past question" in result
+    assert "§respond: Past answer" in result
     assert "Current question" not in result
 
 
@@ -42,10 +42,10 @@ async def test_mixed_formats(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "result", "Read file.txt\nContent here")
 
     result = await conversation.current("conv_123", "user_1", mock_storage)
-    assert '$call: {"name": "test_tool"' in result
-    assert "$result: Success" in result
-    assert '$call: {"name": "other_tool"' in result
-    assert "$result: Read file.txt" in result
+    assert '§call: {"name": "test_tool"' in result
+    assert "§result: Success" in result
+    assert '§call: {"name": "other_tool"' in result
+    assert "§result: Read file.txt" in result
 
 
 @pytest.mark.asyncio
@@ -68,8 +68,8 @@ async def test_tool_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "result", result_content)
 
     result = await conversation.current("conv_123", "user_1", mock_storage)
-    assert '$call: {"name": "test_tool", "args": {"param": "value"}}' in result
-    assert "$result: Success" in result
+    assert '§call: {"name": "test_tool", "args": {"param": "value"}}' in result
+    assert "§result: Success" in result
     assert "Tool output" in result
 
 
@@ -84,8 +84,8 @@ async def test_think_excluded(mock_storage):
     history = await conversation.history("conv_123", "user_1", mock_storage, 20)
     current = await conversation.current("conv_123", "user_1", mock_storage)
 
-    assert "$think:" not in history
-    assert "$think:" in current
+    assert "§think:" not in history
+    assert "§think:" in current
 
 
 @pytest.mark.asyncio
@@ -113,9 +113,9 @@ async def test_delimiters(mock_storage):
     lines = result.split("\n")
 
     # Verify exact delimiters
-    assert any(line.startswith("$user:") for line in lines)
-    assert any(line.startswith("$think:") for line in lines)
-    assert any(line.startswith("$respond:") for line in lines)
+    assert any(line.startswith("§user:") for line in lines)
+    assert any(line.startswith("§think:") for line in lines)
+    assert any(line.startswith("§respond:") for line in lines)
 
     # Verify no alternative formats
     for line in lines:
@@ -125,14 +125,12 @@ async def test_delimiters(mock_storage):
 
 @pytest.mark.asyncio
 async def test_edge_cases(mock_storage):
-    from cogency.context.constants import DEFAULT_CONVERSATION_ID
-
-    # Default conversation ID
-    assert await conversation.history(DEFAULT_CONVERSATION_ID, "user_1", mock_storage, 20) == ""
+    # None conversation ID
+    assert await conversation.history(None, "user_1", mock_storage, 20) == ""
 
     # Malformed JSON
     await mock_storage.save_message("conv_123", "user_1", "call", "not-json")
     await mock_storage.save_message("conv_123", "user_1", "user", "Current")
 
     result = await conversation.history("conv_123", "user_1", mock_storage, 20)
-    assert "$call: not-json" in result
+    assert "§call: not-json" in result

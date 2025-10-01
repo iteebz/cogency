@@ -18,7 +18,6 @@ import json
 from typing import TYPE_CHECKING
 
 from ..lib.logger import logger
-from .constants import DEFAULT_USER_ID
 
 if TYPE_CHECKING:
     from ..core.protocols import LLM, Storage
@@ -47,9 +46,9 @@ def prompt(profile: dict, user_messages: list, compact: bool = False) -> str:
     )
 
 
-async def get(user_id: str, storage=None) -> dict | None:
+async def get(user_id: str | None, storage=None) -> dict | None:
     """Get latest user profile."""
-    if not user_id or user_id == DEFAULT_USER_ID:
+    if not user_id:
         return None
     if storage is None:
         from ..lib.storage import SQLite
@@ -62,7 +61,7 @@ async def get(user_id: str, storage=None) -> dict | None:
         return None
 
 
-async def format(user_id: str, storage=None) -> str:
+async def format(user_id: str | None, storage=None) -> str:
     """Format user profile for context display."""
     try:
         profile_data = await get(user_id, storage)
@@ -108,7 +107,7 @@ async def should_learn(
 
 
 def learn(
-    user_id: str,
+    user_id: str | None,
     *,
     profile_enabled: bool,
     storage: "Storage",
@@ -116,7 +115,7 @@ def learn(
     llm: "LLM",
 ):
     """Trigger profile learning in background (fire and forget)."""
-    if not profile_enabled or not user_id or user_id == DEFAULT_USER_ID or not llm:
+    if not profile_enabled or not user_id or not llm:
         return
 
     # Skip in test environments

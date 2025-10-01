@@ -5,9 +5,9 @@ import typer
 app = typer.Typer(
     help="""Streaming agents that resume after tool calls.
 
-Direct usage: cogency "question" --new
-Conversations continue by default, use --new for fresh start.
-Test configurations: --llm (openai/gemini) --mode (resume/replay)"""
+Direct usage: cogency "question"
+Stateless by default. Use --conv for multi-turn conversations.
+Test configurations: --llm (openai/gemini/anthropic) --mode (auto/resume/replay)"""
 )
 
 
@@ -16,10 +16,14 @@ def run(
     question: str = typer.Argument(..., help="Question for the agent"),
     llm: str = typer.Option("openai", "--llm", help="LLM provider (openai, gemini, anthropic)"),
     mode: str = typer.Option("auto", "--mode", help="Stream mode (auto, resume, replay)"),
-    new: bool = typer.Option(False, "--new", help="Start fresh conversation (default: continue)"),
+    user: str = typer.Option("cli", "--user", help="User ID for profile learning"),
+    conv: str = typer.Option(None, "--conv", help="Conversation ID for multi-turn context"),
+    agent: str = typer.Option(
+        None, "--agent", help="Path to custom agent module (e.g., myagent.py)"
+    ),
     debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
 ):
-    """Ask the agent a question (continues conversation by default)."""
+    """Ask the agent a question (stateless by default)."""
     from .ask import run_agent
 
     asyncio.run(
@@ -27,7 +31,9 @@ def run(
             question,
             llm=llm,
             mode=mode,
-            new=new,
+            user=user,
+            conv=conv,
+            agent_path=agent,
             debug=debug,
         )
     )
@@ -48,11 +54,11 @@ def context(
 
 
 @app.command()
-def last(conv_id: str = typer.Argument(None, help="Conversation ID")):
-    """Show last conversation flow."""
-    from .debug import show_conversation
+def conv(conv_id: str = typer.Argument(..., help="Conversation ID to view")):
+    """View conversation history."""
+    from .conversation import show_conversation
 
-    show_conversation(conv_id)
+    asyncio.run(show_conversation(conv_id))
 
 
 @app.command()

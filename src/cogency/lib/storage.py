@@ -38,7 +38,7 @@ class DB:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS conversations (
                     conversation_id TEXT NOT NULL,
-                    user_id TEXT NOT NULL,
+                    user_id TEXT,
                     type TEXT NOT NULL,
                     content TEXT NOT NULL,
                     timestamp REAL NOT NULL,
@@ -104,8 +104,12 @@ class SQLite:
             with DB.connect(self.base_dir) as db:
                 db.row_factory = sqlite3.Row
 
-                query = "SELECT type, content FROM conversations WHERE conversation_id = ? AND user_id = ?"
-                params = [conversation_id, user_id]
+                query = "SELECT type, content FROM conversations WHERE conversation_id = ?"
+                params = [conversation_id]
+
+                if user_id:
+                    query += " AND user_id = ?"
+                    params.append(user_id)
 
                 if include:
                     placeholders = ",".join("?" for _ in include)

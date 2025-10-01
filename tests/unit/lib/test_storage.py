@@ -12,18 +12,18 @@ def temp_dir():
 
 
 @pytest.mark.asyncio
-async def test_user_isolation(temp_dir):
+async def test_conversation_isolation(temp_dir):
     storage = SQLite(temp_dir)
-    await storage.save_message("conv1", "user_A", "user", "Message from A")
-    await storage.save_message("conv1", "user_B", "user", "Message from B")
+    await storage.save_message("conv_a", "user1", "user", "Message in conv A")
+    await storage.save_message("conv_b", "user1", "user", "Message in conv B")
 
-    user_a_messages = await storage.load_messages("conv1", "user_A")
-    assert len(user_a_messages) == 1
-    assert user_a_messages[0]["content"] == "Message from A"
+    conv_a_messages = await storage.load_messages("conv_a", "user1")
+    assert len(conv_a_messages) == 1
+    assert conv_a_messages[0]["content"] == "Message in conv A"
 
-    user_b_messages = await storage.load_messages("conv1", "user_B")
-    assert len(user_b_messages) == 1
-    assert user_b_messages[0]["content"] == "Message from B"
+    conv_b_messages = await storage.load_messages("conv_b", "user1")
+    assert len(conv_b_messages) == 1
+    assert conv_b_messages[0]["content"] == "Message in conv B"
 
 
 @pytest.mark.asyncio
@@ -32,23 +32,42 @@ async def test_concurrent_writes(temp_dir):
 
     storage = SQLite(temp_dir)
 
-    async def write_messages(user_id, count):
+    async def write_messages(conv_id, count):
         for i in range(count):
-            await storage.save_message("conv1", user_id, "user", f"Message {i}")
+            await storage.save_message(conv_id, "user1", "user", f"Message {i}")
 
     await asyncio.gather(
-        write_messages("user1", 10),
-        write_messages("user2", 10),
-        write_messages("user3", 10),
+        write_messages("conv1", 10),
+        write_messages("conv2", 10),
+        write_messages("conv3", 10),
     )
 
-    user1_messages = await storage.load_messages("conv1", "user1")
-    user2_messages = await storage.load_messages("conv1", "user2")
-    user3_messages = await storage.load_messages("conv1", "user3")
+    conv1_messages = await storage.load_messages("conv1", "user1")
+    conv2_messages = await storage.load_messages("conv2", "user1")
+    conv3_messages = await storage.load_messages("conv3", "user1")
 
-    assert len(user1_messages) == 10
-    assert len(user2_messages) == 10
-    assert len(user3_messages) == 10
+    assert len(conv1_messages) == 10
+    assert len(conv2_messages) == 10
+    assert len(conv3_messages) == 10
+
+
+@pytest.mark.asyncio
+async def test_multi_agent_isolation(temp_dir):
+    storage = SQLite(temp_dir)
+    await storage.save_message("shared-channel", "agent_1", "user", "Agent 1 message")
+    await storage.save_message("shared-channel", "agent_2", "user", "Agent 2 message")
+    await storage.save_message("shared-channel", None, "user", "Broadcast message")
+
+    agent1_messages = await storage.load_messages("shared-channel", "agent_1")
+    assert len(agent1_messages) == 1
+    assert agent1_messages[0]["content"] == "Agent 1 message"
+
+    agent2_messages = await storage.load_messages("shared-channel", "agent_2")
+    assert len(agent2_messages) == 1
+    assert agent2_messages[0]["content"] == "Agent 2 message"
+
+    all_messages = await storage.load_messages("shared-channel", None)
+    assert len(all_messages) == 3
 
 
 @pytest.mark.asyncio

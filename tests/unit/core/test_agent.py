@@ -58,10 +58,10 @@ async def test_fallback_learns(mock_llm, mock_storage):
 
         mock_replay.return_value = mock_replay_stream()
 
-        async for _event in agent("test query", user_id="test_user"):
+        async for _event in agent("test query", user_id="test_user", conversation_id="test_convo"):
             pass
 
-        messages = await mock_storage.load_messages("test_user")
+        messages = await mock_storage.load_messages("test_convo", "test_user")
         user_messages = [m for m in messages if m["type"] == "user"]
         assert len(user_messages) > 0
         assert any("test query" in m["content"] for m in user_messages)
@@ -81,14 +81,14 @@ async def test_streaming(mock_llm, mock_storage):
         mock_stream.side_effect = lambda *args, **kwargs: mock_events()
 
         response = None
-        async for event in agent("Hello", user_id="test_user"):
+        async for event in agent("Hello", user_id="test_user", conversation_id="test_convo"):
             if event["type"] == "respond":
                 response = event["content"]
         assert response == "Test response"
 
         mock_stream.assert_called_once()
         call_args = mock_stream.call_args
-        assert call_args.args[:3] == ("Hello", "test_user", "test_user")
+        assert call_args.args[:3] == ("Hello", "test_user", "test_convo")
         assert call_args.kwargs["config"] is agent.config
 
 

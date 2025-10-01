@@ -13,11 +13,9 @@ from .system import SystemShell
 # Web tools
 from .web import WebScrape, WebSearch
 
-# Create convenience instance
 tools = ToolRegistry()
 
 __all__ = [
-    # Individual tools for configuration
     "FileRead",
     "FileWrite",
     "FileEdit",
@@ -27,6 +25,5 @@ __all__ = [
     "WebScrape",
     "WebSearch",
     "MemoryRecall",
-    # Convenience factory
     "tools",
 ]

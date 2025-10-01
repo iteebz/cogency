@@ -8,8 +8,9 @@ Usage:
 """
 
 from .. import context
-from ..context.constants import DEFAULT_USER_ID
+from ..lib import llms
 from ..lib.storage import default_storage
+from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config, Security
 from .exceptions import AgentError
@@ -72,18 +73,11 @@ class Agent:
 
         final_security = security or Security()
         final_storage = storage or default_storage(base_dir=base_dir)
+        final_tools = default_tools() if tools is None else tools
+        final_llm = llms.create(llm) if isinstance(llm, str) else llm
 
-        if tools is None:
-            from ..tools import tools as tool_registry
-
-            final_tools = tool_registry()
-        else:
-            final_tools = tools
-
-        # The internal Config object is now a private implementation detail,
-        # assembled from the clear, explicit arguments of this constructor.
         self.config = Config(
-            llm=self._create_llm(llm),
+            llm=final_llm,
             storage=final_storage,
             tools=final_tools,
             base_dir=base_dir,
@@ -103,30 +97,10 @@ class Agent:
         if self.config.mode not in valid_modes:
             raise ValueError(f"mode must be one of {valid_modes}, got: {self.config.mode}")
 
-    def _create_llm(self, llm) -> LLM:
-        """Create LLM instance from string or pass through existing instance."""
-        from .protocols import LLM
-
-        if isinstance(llm, LLM):
-            return llm
-
-        # Dictionary dispatch for LLM creation
-        llm_factories = {
-            "gemini": lambda: __import__("cogency.lib.llms", fromlist=["Gemini"]).Gemini(),
-            "openai": lambda: __import__("cogency.lib.llms", fromlist=["OpenAI"]).OpenAI(),
-            "anthropic": lambda: __import__("cogency.lib.llms", fromlist=["Anthropic"]).Anthropic(),
-        }
-
-        if llm not in llm_factories:
-            valid = list(llm_factories.keys())
-            raise ValueError(f"Unknown LLM '{llm}'. Valid options: {', '.join(valid)}")
-
-        return llm_factories[llm]()
-
     async def __call__(
         self,
         query: str,
-        user_id: str = DEFAULT_USER_ID,
+        user_id: str | None = None,
         conversation_id: str | None = None,
         chunks: bool = False,
     ):
@@ -134,16 +108,15 @@ class Agent:
 
         Args:
             query: User query
-            user_id: User identifier
-            conversation_id: Conversation identifier
+            user_id: User identifier (None = no profile)
+            conversation_id: Conversation identifier (None = stateless/ephemeral)
             chunks: If True, stream individual tokens. If False, stream semantic events.
         """
-        conversation_id = conversation_id or user_id
-
         try:
-            # Persist user message for conversation context
+            # Persist user message for conversation context (if conversation_id provided)
             storage = self.config.storage
-            await storage.save_message(conversation_id, user_id, "user", query)
+            if conversation_id:
+                await storage.save_message(conversation_id, user_id, "user", query)
 
             if self.config.mode == "resume":
                 mode_stream = resume.stream

@@ -10,7 +10,6 @@ from cogency.lib.storage import SQLite
 @pytest.mark.asyncio
 async def test_get():
     assert await profile.get(None) is None
-    assert await profile.get("default") is None
 
 
 @pytest.mark.asyncio

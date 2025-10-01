@@ -86,10 +86,16 @@ async for event in agent("Debug this code", chunks=True):
 ### Multi-turn Conversations
 
 ```python
+# Stateless (default)
+async for event in agent("What's in this directory?"):
+    if event["type"] == "respond":
+        print(event["content"])
+
+# Stateful with profile learning
 async for event in agent(
     "Continue our code review",
-    user_id="developer",
-    conversation_id="review_session"
+    conversation_id="review_session",
+    user_id="developer"  # For profile learning and multi-tenancy
 ):
     if event["type"] == "respond":
         print(event["content"])
@@ -147,28 +153,49 @@ agent = Agent(llm="gemini")     # Gemini Live (WebSocket)
 agent = Agent(llm="anthropic")  # Claude (HTTP only)
 ```
 
+## Custom CLI
+
+Build your own CLI with the exported `Renderer`:
+
+```python
+from cogency import Agent, Renderer
+
+agent = Agent(llm="anthropic", tools=my_tools())
+renderer = Renderer()
+
+async def main():
+    await renderer.render_stream(
+        agent("your query", conversation_id="session")
+    )
+```
+
 ## CLI
 
 ```bash
 # Install with poetry
 poetry install
 
-# Ask a question
+# Stateless (default)
 cogency run "What files are in this directory?"
 
-# Continue conversation
-cogency run "Tell me about the first file"
+# Multi-turn conversation
+cogency run "hi" --conv session1
+cogency run "what did i say?" --conv session1
 
-# Start fresh conversation
-cogency run "New task" --new
+# Custom user for profile learning
+cogency run "help me code" --user alice
+
+# Custom agent
+cogency run "analyze this" --agent my_agent.py
+
+# View conversation history
+cogency conv session1
 
 # Debug commands
-cogency last              # Show last conversation
-cogency context           # Show assembled context
+cogency context system    # Show system prompt
+cogency context <id>      # Show assembled context
 cogency stats             # Database statistics
 cogency users             # User profiles
-
-# Clean up
 cogency nuke              # Delete .cogency folder
 ```
 

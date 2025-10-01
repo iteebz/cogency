@@ -8,6 +8,7 @@ try:
 except ImportError:
     pass
 
+from .cli.display import Renderer
 from .core import LLM, Storage, Tool, ToolResult
 from .core.agent import Agent
 from .core.exceptions import AgentError, CogencyError, ProfileError, ProviderError, ToolError
@@ -21,6 +22,7 @@ __all__ = [
     "LLM",
     "ProfileError",
     "ProviderError",
+    "Renderer",
     "Storage",
     "Tool",
     "ToolError",

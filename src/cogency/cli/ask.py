@@ -1,57 +1,43 @@
 import asyncio
-import sqlite3
 
 from .. import Agent
-from ..lib.paths import Paths
-
-
-def get_last_conversation_id(user_id: str) -> str:
-    db_path = Paths.db()
-
-    if not db_path.exists():
-        import uuid
-
-        return str(uuid.uuid4())
-
-    try:
-        with sqlite3.connect(db_path) as db:
-            result = db.execute(
-                "SELECT conversation_id FROM conversations WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1",
-                (user_id,),
-            ).fetchone()
-
-            if result:
-                return result[0]
-            import uuid
-
-            return str(uuid.uuid4())
-
-    except Exception:
-        import uuid
-
-        return str(uuid.uuid4())
 
 
 async def run_agent(
     question: str,
     llm: str = "gemini",
     mode: str = "auto",
-    new: bool = False,
+    user: str = "cli",
+    conv: str | None = None,
+    agent_path: str | None = None,
     debug: bool = False,
 ):
-    agent = Agent(
-        llm=llm,
-        mode=mode,
-        debug=debug,
-    )
+    if agent_path:
+        import importlib.util
+        import sys
+        from pathlib import Path
 
-    user = "ask_user"
-    if new:
-        import uuid
+        path = Path(agent_path).resolve()
+        if not path.exists():
+            print(f"Agent file not found: {agent_path}")
+            return
 
-        conversation_id = str(uuid.uuid4())
+        spec = importlib.util.spec_from_file_location("custom_agent", path)
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["custom_agent"] = module
+        spec.loader.exec_module(module)
+
+        if not hasattr(module, "agent"):
+            print(f"Error: {agent_path} must define an 'agent' variable")
+            return
+
+        agent = module.agent
     else:
-        conversation_id = get_last_conversation_id(user)
+        agent = Agent(
+            llm=llm,
+            mode=mode,
+            debug=debug,
+        )
 
     try:
         from .display import Renderer
@@ -59,7 +45,7 @@ async def run_agent(
         async def stream_with_cancellation():
             try:
                 async for event in agent(
-                    question, user_id=user, conversation_id=conversation_id, chunks=False
+                    question, user_id=user, conversation_id=conv, chunks=False
                 ):
                     yield event
             except asyncio.CancelledError:

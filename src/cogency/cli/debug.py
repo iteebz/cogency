@@ -1,75 +1,9 @@
-import json
 import sqlite3
-import time
 
 from ..context.system import prompt
 from ..lib.paths import Paths
 from ..lib.storage import SQLite
-from ..tools import TOOLS
-
-
-def show_conversation(conversation_id: str = None):
-    """Show last conversation flow."""
-    SQLite()
-
-    if not conversation_id:
-        # Get last conversation ID from database
-
-        db_path = Paths.db()
-        if not db_path.exists():
-            print("No conversations found")
-            return
-
-        with sqlite3.connect(db_path) as db:
-            result = db.execute(
-                "SELECT conversation_id FROM conversations ORDER BY timestamp DESC LIMIT 1"
-            ).fetchone()
-            if not result:
-                print("No conversations found")
-                return
-            conversation_id = result[0]
-
-    # Load messages using storage abstraction
-    try:
-        messages = []
-
-        with sqlite3.connect(Paths.db()) as db:
-            rows = db.execute(
-                "SELECT type, content, timestamp FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
-                (conversation_id,),
-            ).fetchall()
-            messages = [(row[0], row[1], row[2]) for row in rows]
-    except Exception:
-        print(f"No messages found for {conversation_id}")
-        return
-
-    if not messages:
-        print(f"No messages found for {conversation_id}")
-        return
-
-    print(f"LAST: {conversation_id}")
-
-    for msg_type, content, timestamp in messages:
-        age = int(time.time() - timestamp)
-
-        if msg_type == "user":
-            print(f"\nUSER ({age}s ago): {content}")
-        elif msg_type == "think":
-            print(f"\nTHINK: {content}")
-        elif msg_type == "call":
-            print("\nTOOL:")
-            try:
-                tool = json.loads(content)
-                name = tool.get("name", "unknown")
-                args = tool.get("args", {})
-                print(f"  {name}({', '.join(f'{k}={repr(v)}' for k, v in args.items())})")
-            except json.JSONDecodeError:
-                print(f"  Invalid JSON: {content}")
-        elif msg_type == "respond":
-            print(f"\nASSISTANT: {content}")
-
-    tool_count = len([m for m in messages if m[0] == "call"])
-    print(f"SUMMARY: {len(messages)} messages, {tool_count} tool executions")
+from ..tools import tools
 
 
 def show_system_prompt():
@@ -78,7 +12,7 @@ def show_system_prompt():
     print("CURRENT SYSTEM PROMPT")
     print("=" * 50)
 
-    system_prompt = prompt(tools=TOOLS, include_security=True)
+    system_prompt = prompt(tools=tools(), include_security=True)
     print(system_prompt)
     print("\n" + "=" * 50)
     print(f"Total length: {len(system_prompt)} characters")
@@ -138,14 +72,14 @@ def show_context(conversation_id: str = None):
         import asyncio
 
         from ..context import assemble
-        from ..tools import TOOLS
+        from ..tools import tools
 
         messages = asyncio.run(
             assemble(
                 query,
                 "ask_user",
                 conversation_id,
-                tools=TOOLS,
+                tools=tools(),
                 storage=storage,
                 history_window=20,
                 profile_enabled=True,
