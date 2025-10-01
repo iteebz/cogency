@@ -14,10 +14,6 @@ class AgentError(CogencyError):
     pass
 
 
-class ToolError(CogencyError):
-    pass
-
-
 class ProviderError(CogencyError):
     pass
 

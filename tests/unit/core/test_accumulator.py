@@ -122,3 +122,24 @@ async def test_storage_failure_propagates(mock_llm):
     with pytest.raises(RuntimeError):
         async for _event in accumulator.process(simple_parser()):
             pass
+
+
+@pytest.mark.asyncio
+async def test_circuit_breaker_terminates(mock_config, mock_tool):
+    mock_config.tools = [mock_tool]
+    accumulator = Accumulator(
+        "test", "test", execution=mock_config.execution, chunks=False, max_failures=3
+    )
+
+    async def failing_parser():
+        for _ in range(5):
+            yield {"type": "call", "content": '{"name": "invalid_tool", "args": {}}'}
+            yield {"type": "execute"}
+
+    events = [event async for event in accumulator.process(failing_parser())]
+    result_events = [e for e in events if e["type"] == "result"]
+    end_events = [e for e in events if e["type"] == "end"]
+
+    assert len(end_events) == 1
+    assert len(result_events) <= 4
+    assert "Max failures" in result_events[-1]["payload"]["outcome"]

@@ -13,7 +13,7 @@ async def execute_tool(
 
     tool = next((t for t in execution.tools if t.name == tool_name), None)
     if not tool:
-        return ToolResult(outcome=f"{tool_name} not found: Tool '{tool_name}' not registered")
+        return ToolResult(outcome=f"Tool '{tool_name}' not registered", error=True)
 
     args = dict(call.args)
 

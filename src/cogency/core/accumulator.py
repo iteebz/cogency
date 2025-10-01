@@ -15,12 +15,13 @@ import time
 from collections.abc import AsyncGenerator
 
 from ..lib.logger import logger
+from ..lib.resilience import CircuitBreaker
 from ..tools.parse import parse_tool_call
 from .config import Execution
 from .exceptions import ProtocolError
 from .executor import execute_tool
 from .persister import EventPersister
-from .protocols import Event, event_content, event_type
+from .protocols import Event, ToolResult, event_content, event_type
 
 
 class Accumulator:
@@ -33,6 +34,7 @@ class Accumulator:
         *,
         execution: Execution,
         chunks: bool = False,
+        max_failures: int = 3,
     ):
         self.user_id = user_id
         self.conversation_id = conversation_id
@@ -41,6 +43,7 @@ class Accumulator:
         self._execution = execution
 
         self.persister = EventPersister(conversation_id, user_id, execution.storage)
+        self.circuit_breaker = CircuitBreaker(max_failures=max_failures)
 
         # Accumulation state
         self.current_type = None
@@ -83,14 +86,7 @@ class Accumulator:
             logger.warning(f"Failed to parse tool call JSON: {e}")
             await self.persister.persist_call(call_text, self.start_time)
 
-        # Emit call event
-        call_event = {
-            "type": "call",
-            "content": call_text,
-            "timestamp": self.start_time,
-        }
-        logger.debug(f"EVENT: {call_event}")
-        yield call_event
+        yield {"type": "call", "content": call_text, "timestamp": self.start_time}
 
         # Execute tool
         try:
@@ -101,34 +97,38 @@ class Accumulator:
                 user_id=self.user_id,
                 conversation_id=self.conversation_id,
             )
-
-            result_json = json.dumps(result.__dict__)
-            await self.persister.persist_result(result_json, timestamp)
-
-            event = {
-                "type": "result",
-                "payload": {
-                    "outcome": result.outcome,
-                    "content": result.content,
-                },
-                "timestamp": timestamp,
-            }
-            logger.debug(f"EVENT: {event}")
-            yield event
         except (ValueError, TypeError, KeyError, ProtocolError) as e:
-            error_outcome = f"Invalid tool call: {str(e)}. Original: {call_text}"
-            await self.persister.persist_result(error_outcome, timestamp)
+            result = ToolResult(
+                outcome=f"Invalid tool call: {str(e)}", content=call_text, error=True
+            )
 
+        await self.persister.persist_result(json.dumps(result.__dict__), timestamp)
+
+        # Track failures
+        if result.error:
+            self.circuit_breaker.record_failure()
+        else:
+            self.circuit_breaker.record_success()
+
+        if self.circuit_breaker.is_open():
             yield {
                 "type": "result",
-                "payload": {
-                    "outcome": error_outcome,
-                    "content": "",
-                },
+                "payload": {"outcome": "Max failures. Terminating.", "content": "", "error": True},
                 "timestamp": timestamp,
             }
+            yield {"type": "end", "timestamp": timestamp}
+            return
 
-        # Reset state
+        yield {
+            "type": "result",
+            "payload": {
+                "outcome": result.outcome,
+                "content": result.content,
+                "error": result.error,
+            },
+            "timestamp": timestamp,
+        }
+
         self.current_type = None
         self.content = ""
         self.start_time = None
@@ -151,6 +151,8 @@ class Accumulator:
             if ev_type == "execute":
                 async for result_event in self._handle_execute(timestamp):
                     yield result_event
+                    if event_type(result_event) == "end":
+                        return
                 continue
 
             if ev_type == "end":

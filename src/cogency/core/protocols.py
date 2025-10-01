@@ -66,6 +66,7 @@ class ToolResult:
 
     outcome: str  # Natural language completion: "Found 12 search results"
     content: str | None = None  # Optional detailed data for LLM context
+    error: bool = False  # True if tool execution failed
 
 
 @runtime_checkable

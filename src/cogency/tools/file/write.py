@@ -28,6 +28,8 @@ class FileWrite(Tool):
 
         file_path = resolve_file(file, access, base_dir)
 
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
         return ToolResult(outcome=f"Created {file}")

@@ -33,7 +33,8 @@ async def test_tool_not_found(mock_config):
         conversation_id="conv1",
     )
 
-    assert result.outcome == "nonexistent not found: Tool 'nonexistent' not registered"
+    assert result.outcome == "Tool 'nonexistent' not registered"
+    assert result.error is True
 
 
 # These validation tests removed - ToolCall structure guarantees valid format

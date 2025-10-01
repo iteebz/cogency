@@ -11,7 +11,7 @@ except ImportError:
 from .cli.display import Renderer
 from .core import LLM, Storage, Tool, ToolResult
 from .core.agent import Agent
-from .core.exceptions import AgentError, CogencyError, ProfileError, ProviderError, ToolError
+from .core.exceptions import AgentError, CogencyError, ProfileError, ProviderError
 from .tools import tools
 
 __version__ = "3.0.1"
@@ -25,7 +25,6 @@ __all__ = [
     "Renderer",
     "Storage",
     "Tool",
-    "ToolError",
     "ToolResult",
     "tools",
 ]

@@ -156,7 +156,7 @@ def safe_execute(func):
             return await func(*args, **kwargs)
         except ValueError as e:
             # Input validation error - return as tool result
-            return ToolResult(outcome=f"Invalid input: {str(e)}")
+            return ToolResult(outcome=f"Invalid input: {str(e)}", error=True)
         # Let system errors (OSError, PermissionError, etc) bubble up
         # These should halt processing, not become tool results
 

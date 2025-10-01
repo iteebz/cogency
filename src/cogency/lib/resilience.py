@@ -48,3 +48,24 @@ def timeout(seconds: float = 30):
         return wrapper
 
     return decorator
+
+
+class CircuitBreaker:
+    """Tracks consecutive failures and forces termination after threshold."""
+
+    def __init__(self, max_failures: int = 3):
+        self.max_failures = max_failures
+        self.consecutive_failures = 0
+
+    def record_success(self):
+        """Reset failure counter on success."""
+        self.consecutive_failures = 0
+
+    def record_failure(self) -> bool:
+        """Record failure. Returns True if circuit should break."""
+        self.consecutive_failures += 1
+        return self.consecutive_failures >= self.max_failures
+
+    def is_open(self) -> bool:
+        """Check if circuit is open (should stop execution)."""
+        return self.consecutive_failures >= self.max_failures
