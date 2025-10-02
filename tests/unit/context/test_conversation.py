@@ -26,16 +26,13 @@ async def test_history_formatting(mock_storage):
 
 @pytest.mark.asyncio
 async def test_mixed_formats(mock_storage):
-    # Add messages with mixed call/result formats
     await mock_storage.save_message("conv_123", "user_1", "user", "Test mixed formats")
 
-    # JSON format (expected)
-    call_json = json.dumps([{"name": "test_tool", "args": {"msg": "hello"}}])
-    result_json = json.dumps([{"outcome": "Success", "content": "Tool output"}])
+    call_json = json.dumps({"name": "test_tool", "args": {"msg": "hello"}})
+    result_json = json.dumps({"outcome": "Success", "content": "Tool output"})
     await mock_storage.save_message("conv_123", "user_1", "call", call_json)
     await mock_storage.save_message("conv_123", "user_1", "result", result_json)
 
-    # String format (current accumulator output)
     await mock_storage.save_message(
         "conv_123", "user_1", "call", '{"name": "other_tool", "args": {}}'
     )
@@ -61,8 +58,8 @@ async def test_current_cycle(mock_storage):
 async def test_tool_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Test tools")
 
-    call_content = json.dumps([{"name": "test_tool", "args": {"param": "value"}}])
-    result_content = json.dumps([{"outcome": "Success", "content": "Tool output"}])
+    call_content = json.dumps({"name": "test_tool", "args": {"param": "value"}})
+    result_content = json.dumps({"outcome": "Success", "content": "Tool output"})
 
     await mock_storage.save_message("conv_123", "user_1", "call", call_content)
     await mock_storage.save_message("conv_123", "user_1", "result", result_content)

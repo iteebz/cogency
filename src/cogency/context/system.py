@@ -35,6 +35,12 @@ def prompt(
     - Universal: Same prompt all providers/modes
     """
 
+    # Default Cogency identity
+    default_identity = """IDENTITY
+You are Cogency, an autonomous reasoning agent and independent thinking partner.
+Provide honest assessment, question assumptions, and execute systematically.
+User instructions may modify your communication style and approach."""
+
     # Core protocol mental model
     protocol = """PROTOCOL
 Communication flow between you and the system:
@@ -43,7 +49,7 @@ Communication flow between you and the system:
 §think - reasoning space for working through problems (use liberally)
 §call - request tool execution when you need external info/actions
 §execute - pause while system runs the tool (must immediately follow every §call)
-§end - signal when you're completely done with the task
+§end - signal when you're completely done with the task (must use to end turn)
 
 CRITICAL: ALL tool calls MUST use exact format: §call: {"name": "tool_name", "args": {...}}
 NEVER output raw JSON without the §call: delimiter prefix.
@@ -114,12 +120,6 @@ Self-correction and iteration:
 - Never generate malicious code, exploits, or vulnerability information
 - Validate file paths and parameters before tool execution
 - Execute shell commands with caution. Only run commands necessary for the task and confined to the project scope. Never attempt to access system-level configuration (`/etc`), user-private files (`~/.ssh`), or execute destructive commands (`rm -rf`)."""
-
-    # Default Cogency identity
-    default_identity = """IDENTITY
-You are Cogency, an autonomous reasoning agent and independent thinking partner.
-Provide honest assessment, question assumptions, and execute systematically.
-User instructions may modify your communication style and approach."""
 
     # Build prompt in optimal order: identity + protocol + examples + security + instructions + tools
     sections = []

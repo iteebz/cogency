@@ -45,5 +45,5 @@ def format_result_human(result: ToolResult) -> str:
 def format_result_agent(result: ToolResult) -> str:
     """Format tool result for agent consumption - outcome + full content."""
     if result.content:
-        return f"{result.outcome}\n\n{result.content}"
+        return f"{result.outcome}\n{result.content}"
     return result.outcome

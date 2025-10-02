@@ -74,16 +74,16 @@ def _format_section(name: str, messages: list[dict]) -> str:
         msg_type, content = msg["type"], msg["content"]
 
         if msg_type in ["user", "respond"] or (msg_type == "think" and name == "CURRENT"):
-            formatted.extend([f"§{msg_type}: {content}", ""])
+            formatted.append(f"§{msg_type}: {content}")
 
         elif msg_type == "call":
             try:
-                calls = json.loads(content) if content else []
-                for call_data in calls:
+                call_data = json.loads(content) if content else {}
+                if call_data:
                     call_obj = ToolCall(name=call_data["name"], args=call_data["args"])
-                    formatted.extend([f"§call: {format_call_agent(call_obj)}", ""])
+                    formatted.append(f"§call: {format_call_agent(call_obj)}")
             except (json.JSONDecodeError, KeyError, TypeError):
-                formatted.extend([f"§call: {content}", ""])
+                formatted.append(f"§call: {content}")
 
         elif msg_type == "result":
             payload = msg.get("payload")
@@ -92,10 +92,10 @@ def _format_section(name: str, messages: list[dict]) -> str:
                     outcome=payload.get("outcome", ""),
                     content=payload.get("content", ""),
                 )
-                formatted.extend([f"§result: {format_result_agent(result_obj)}", ""])
+                formatted.append(f"§result: {format_result_agent(result_obj)}")
             elif content:
                 results = parse_tool_result(content)
                 for result_obj in results:
-                    formatted.extend([f"§result: {format_result_agent(result_obj)}", ""])
+                    formatted.append(f"§result: {format_result_agent(result_obj)}")
 
-    return f"=== {name} ===\n\n" + "\n".join(formatted)
+    return f"=== {name} ===\n" + "\n".join(formatted)

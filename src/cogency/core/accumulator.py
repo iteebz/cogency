@@ -80,8 +80,9 @@ class Accumulator:
         # Parse and persist call
         try:
             tool_call = parse_tool_call(call_text)
-            call_array = [{"name": tool_call.name, "args": tool_call.args}]
-            await self.persister.persist_call(json.dumps(call_array), self.start_time)
+            await self.persister.persist_call(
+                json.dumps({"name": tool_call.name, "args": tool_call.args}), self.start_time
+            )
         except (json.JSONDecodeError, KeyError, ProtocolError) as e:
             logger.warning(f"Failed to parse tool call JSON: {e}")
             await self.persister.persist_call(call_text, self.start_time)
