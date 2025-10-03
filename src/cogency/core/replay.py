@@ -39,14 +39,12 @@ async def stream(
 
     try:
         complete = False
-        user_persisted = False
 
         for iteration in range(1, config.max_iterations + 1):  # [SEC-005] Prevent runaway agents
             # Exit early if previous iteration completed
             if complete:
                 break
 
-            # Rebuild context from storage each iteration
             messages = await context.assemble(
                 user_id,
                 conversation_id,
@@ -73,13 +71,6 @@ async def stream(
                 execution=config.execution,
                 chunks=chunks,
             )
-
-            # Persist user event once on first iteration
-            if not user_persisted:
-                await config.execution.storage.save_message(
-                    conversation_id, user_id, "user", query, time.time()
-                )
-                user_persisted = True
 
             # Track this LLM call
             if metrics:

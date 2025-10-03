@@ -23,7 +23,8 @@ from .executor import execute_tool
 from .protocols import Event, ToolResult, event_content, event_type
 
 # Conversation events that get persisted to storage
-PERSISTABLE_EVENTS = {"user", "think", "call", "result", "respond"}
+# "user" omitted - handled by resume/replay before agent stream
+PERSISTABLE_EVENTS = {"think", "call", "result", "respond"}
 
 
 class Accumulator:

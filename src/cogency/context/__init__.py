@@ -63,10 +63,7 @@ async def assemble(
         "Previous responses are context only - do not assume prior completion."
     )
 
-    return [
-        {"role": "system", "content": "\n\n".join(system_sections)},
-        {"role": "user", "content": "continue"},
-    ]
+    return [{"role": "user", "content": "\n\n".join(system_sections)}]
 
 
 __all__ = ["assemble", "learn"]

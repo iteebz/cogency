@@ -121,8 +121,12 @@ class Agent:
 
                 conversation_id = str(uuid.uuid4())
 
+            # Persist user message once at agent entry
+            timestamp = time.time()
+            await self.config.storage.save_message(conversation_id, user_id, "user", query, timestamp)
+
             # Emit user event - first event in conversation turn
-            yield {"type": "user", "content": query, "timestamp": time.time()}
+            yield {"type": "user", "content": query, "timestamp": timestamp}
 
             storage = self.config.storage
 

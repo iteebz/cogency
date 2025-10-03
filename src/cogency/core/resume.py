@@ -47,9 +47,6 @@ async def stream(
 
     session = None
     try:
-        # Persist user message FIRST so context.assemble can find it
-        await config.storage.save_message(conversation_id, user_id, "user", query, time.time())
-
         messages = await context.assemble(
             user_id,
             conversation_id,
