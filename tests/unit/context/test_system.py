@@ -41,7 +41,7 @@ def test_prompt_section_order():
     examples_pos = result.find("EXAMPLES")
     security_pos = result.find("SECURITY")
     instructions_pos = result.find("CUSTOM INSTRUCTIONS SECTION")
-    tools_pos = result.find("TOOLBOX:")  # Look for the actual tools section
+    tools_pos = result.find("TOOLS:")  # Look for the actual tools section
 
     # Verify order: identity < protocol < examples < security < instructions < tools
     assert identity_pos < protocol_pos
@@ -97,7 +97,7 @@ def test_tools_section():
     # With tools
     result_with_tools = prompt(tools=tools)
     assert "file_write" in result_with_tools
-    assert "Write content to file" in result_with_tools
+    assert "Write new file" in result_with_tools
 
     # Without tools
     result_without_tools = prompt(tools=None)

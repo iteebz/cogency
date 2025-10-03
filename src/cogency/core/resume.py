@@ -46,7 +46,6 @@ async def stream(
     session = None
     try:
         messages = await context.assemble(
-            query,
             user_id,
             conversation_id,
             tools=config.tools,

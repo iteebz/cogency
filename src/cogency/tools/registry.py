@@ -39,8 +39,13 @@ class ToolRegistry:
         self.by_name[tool_instance.name] = type(tool_instance)
 
     def __call__(self) -> list[Tool]:
-        classes = {c for cat_classes in self.by_category.values() for c in cat_classes}
-        return [cls() for cls in classes]
+        seen = set()
+        return [
+            cls()
+            for cat_classes in self.by_category.values()
+            for cls in cat_classes
+            if not (cls in seen or seen.add(cls))
+        ]
 
     def category(self, categories: str | list[str]) -> list[Tool]:
         if isinstance(categories, str):

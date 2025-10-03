@@ -27,7 +27,7 @@ class SystemShell(Tool):
     ) -> ToolResult:
         """Execute command with proper security validation."""
         if not command or not command.strip():
-            return ToolResult(outcome="Command cannot be empty")
+            return ToolResult(outcome="Command cannot be empty", error=True)
 
         # Input validation and sanitization
         sanitized = sanitize_shell_input(command.strip())
@@ -37,7 +37,7 @@ class SystemShell(Tool):
         parts = shlex.split(sanitized)
 
         if not parts:
-            return ToolResult(outcome="Empty command after parsing")
+            return ToolResult(outcome="Empty command after parsing", error=True)
 
         # Set working directory based on sandbox mode
         if sandbox:
@@ -67,9 +67,11 @@ class SystemShell(Tool):
 
                 return ToolResult(outcome=outcome, content=content)
             error_output = result.stderr.strip() or "Command failed"
-            return ToolResult(outcome=f"Command failed (exit {result.returncode}): {error_output}")
+            return ToolResult(
+                outcome=f"Command failed (exit {result.returncode}): {error_output}", error=True
+            )
 
         except subprocess.TimeoutExpired:
-            return ToolResult(outcome=f"Command timed out after {timeout} seconds")
+            return ToolResult(outcome=f"Command timed out after {timeout} seconds", error=True)
         except FileNotFoundError:
-            return ToolResult(outcome=f"Command not found: {parts[0]}")
+            return ToolResult(outcome=f"Command not found: {parts[0]}", error=True)

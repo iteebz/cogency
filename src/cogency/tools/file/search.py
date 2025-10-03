@@ -34,7 +34,7 @@ class FileSearch(Tool):
     ) -> ToolResult:
         """Search files with visual results."""
         if not pattern and not content:
-            return ToolResult(outcome="Must specify pattern or content to search")
+            return ToolResult(outcome="Must specify pattern or content to search", error=True)
 
         # Determine search directory
         if path == ".":
@@ -49,12 +49,12 @@ class FileSearch(Tool):
             search_path = resolve_file(path, access, base_dir)
 
         if not search_path.exists():
-            return ToolResult(outcome=f"Directory '{path}' does not exist")
+            return ToolResult(outcome=f"Directory '{path}' does not exist", error=True)
 
         results = self._search_files(search_path, pattern, content)
 
         if not results:
-            return ToolResult(outcome="No matches found")
+            return ToolResult(outcome="Searched files", content="No matches found")
 
         return ToolResult(outcome=f"Found {len(results)} matches", content="\n".join(results))
 

@@ -36,25 +36,24 @@ async def stream(
     metrics = Metrics.init(model_name)
 
     try:
-        # Assemble context from storage (exclude current cycle to prevent duplication)
-        messages = await context.assemble(
-            query,
-            user_id,
-            conversation_id,
-            tools=config.tools,
-            storage=config.storage,
-            history_window=config.history_window,
-            profile_enabled=config.profile,
-            identity=config.identity,
-            instructions=config.instructions,
-        )
-
         complete = False
 
         for iteration in range(1, config.max_iterations + 1):  # [SEC-005] Prevent runaway agents
             # Exit early if previous iteration completed
             if complete:
                 break
+
+            # Rebuild context from storage each iteration
+            messages = await context.assemble(
+                user_id,
+                conversation_id,
+                tools=config.tools,
+                storage=config.storage,
+                history_window=config.history_window,
+                profile_enabled=config.profile,
+                identity=config.identity,
+                instructions=config.instructions,
+            )
 
             # Add final iteration guidance
             if iteration == config.max_iterations:
@@ -109,18 +108,7 @@ async def stream(
                             break
 
                         case "result":
-                            payload = event.get("payload", {})
-                            outcome = payload.get("outcome", "Tool completed")
-                            content = payload.get("content", "")
-                            messages.append(
-                                {
-                                    "role": "system",
-                                    "content": f"COMPLETED ACTION: {outcome}\n{content}",
-                                }
-                            )
-                            # Yield result to user before breaking
                             yield event
-                            # Break to start new iteration cycle
                             break
                         case _:
                             yield event

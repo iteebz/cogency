@@ -7,7 +7,7 @@ class FileWrite(Tool):
     """Write content to file."""
 
     name = "file_write"
-    description = "Write content to file"
+    description = "Write new file"
     schema = {"file": {}, "content": {}}
 
     def describe(self, args: dict) -> str:
@@ -24,9 +24,15 @@ class FileWrite(Tool):
         **kwargs,
     ) -> ToolResult:
         if not file:
-            return ToolResult(outcome="File cannot be empty")
+            return ToolResult(outcome="File cannot be empty", error=True)
 
         file_path = resolve_file(file, access, base_dir)
+
+        if file_path.exists():
+            return ToolResult(
+                outcome=f"File {file} already exists. Use file_read first, then file_edit to modify.",
+                error=True,
+            )
 
         file_path.parent.mkdir(parents=True, exist_ok=True)
 

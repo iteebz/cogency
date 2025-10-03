@@ -49,10 +49,10 @@ class MemoryRecall(Tool):
     ) -> ToolResult:
         """Execute fuzzy search on past user messages."""
         if not query or not query.strip():
-            return ToolResult(outcome="Search query cannot be empty")
+            return ToolResult(outcome="Search query cannot be empty", error=True)
 
         if not user_id:
-            return ToolResult(outcome="User ID required for memory recall")
+            return ToolResult(outcome="User ID required for memory recall", error=True)
 
         query = query.strip()
 

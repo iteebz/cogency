@@ -25,25 +25,27 @@ class FileEdit(Tool):
         **kwargs,
     ) -> ToolResult:
         if not file:
-            return ToolResult(outcome="File cannot be empty")
+            return ToolResult(outcome="File cannot be empty", error=True)
 
         if not old:
-            return ToolResult(outcome="Old text cannot be empty")
+            return ToolResult(outcome="Old text cannot be empty", error=True)
 
         file_path = resolve_file(file, access, base_dir)
 
         if not file_path.exists():
-            return ToolResult(outcome=f"File '{file}' does not exist")
+            return ToolResult(outcome=f"File '{file}' does not exist", error=True)
 
         with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         if old not in content:
-            return ToolResult(outcome=f"Text not found: '{old}'")
+            return ToolResult(outcome=f"Text not found: '{old}'", error=True)
 
         matches = content.count(old)
         if matches > 1:
-            return ToolResult(outcome=f"Found {matches} matches for '{old}' - be more specific")
+            return ToolResult(
+                outcome=f"Found {matches} matches for '{old}' - be more specific", error=True
+            )
 
         new_content = content.replace(old, new, 1)
 

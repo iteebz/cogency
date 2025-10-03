@@ -5,9 +5,7 @@ from cogency import context
 
 @pytest.mark.asyncio
 async def test_assembly(mock_config):
-    query = "Test query"
     messages = await context.assemble(
-        query,
         "user_123",
         "conv_123",
         tools=mock_config.tools,
@@ -20,8 +18,8 @@ async def test_assembly(mock_config):
     assert messages[0]["role"] == "system"
     assert len(messages[0]["content"]) > 0
 
-    # User message last with exact query
+    # User message is ephemeral "continue" trigger
     assert messages[-1]["role"] == "user"
-    assert messages[-1]["content"] == query
+    assert messages[-1]["content"] == "continue"
 
     assert len(messages) >= 2

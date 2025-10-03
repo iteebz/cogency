@@ -42,13 +42,13 @@ class FileList(Tool):
             target = resolve_file(path, access, base_dir)
 
         if not target.exists():
-            return ToolResult(outcome=f"Directory '{path}' does not exist")
+            return ToolResult(outcome=f"Directory '{path}' does not exist", error=True)
 
         # Build tree structure
         tree_lines = self._build_tree(target, pattern, depth=2)
 
         if not tree_lines:
-            return ToolResult(outcome="No files found")
+            return ToolResult(outcome="Listed directory", content="No files found")
 
         content = "\n".join(tree_lines)
         outcome = f"Listed {len([line for line in tree_lines if not line.endswith('/')])} items"

@@ -31,13 +31,13 @@ class FileRead(Tool):
         **kwargs,
     ) -> ToolResult:
         if not file:
-            return ToolResult(outcome="File cannot be empty")
+            return ToolResult(outcome="File cannot be empty", error=True)
 
         file_path = resolve_file(file, access, base_dir)
 
         try:
             if not file_path.exists():
-                return ToolResult(outcome=f"File '{file}' does not exist")
+                return ToolResult(outcome=f"File '{file}' does not exist", error=True)
 
             if start > 0 or lines != 100:
                 content = self._read_lines(file_path, start, lines)
@@ -48,7 +48,7 @@ class FileRead(Tool):
             return ToolResult(outcome=f"Read {file}", content=content)
 
         except UnicodeDecodeError:
-            return ToolResult(outcome=f"File '{file}' contains binary data")
+            return ToolResult(outcome=f"File '{file}' contains binary data", error=True)
 
     def _read_lines(self, file_path: Path, start: int, lines: int = None) -> str:
         """Read specific lines from file."""

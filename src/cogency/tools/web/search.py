@@ -17,13 +17,13 @@ class WebSearch(Tool):
     async def execute(self, query: str, **kwargs) -> ToolResult:
         """Execute clean web search."""
         if not query or not query.strip():
-            return ToolResult(outcome="Search query cannot be empty")
+            return ToolResult(outcome="Search query cannot be empty", error=True)
 
         try:
             from ddgs import DDGS
         except ImportError:
             return ToolResult(
-                outcome="DDGS metasearch not available. Install with: pip install ddgs"
+                outcome="DDGS metasearch not available. Install with: pip install ddgs", error=True
             )
 
         effective_limit = 5  # Default search results
@@ -31,7 +31,7 @@ class WebSearch(Tool):
         results = DDGS().text(query.strip(), max_results=effective_limit)
 
         if not results:
-            return ToolResult(outcome=f"No results for '{query}'", content=None)
+            return ToolResult(outcome=f"Searched web for '{query}'", content="No results found")
 
         formatted = []
         for result in results:

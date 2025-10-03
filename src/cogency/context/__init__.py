@@ -28,7 +28,6 @@ from .system import prompt as system_prompt
 
 
 async def assemble(
-    query: str,
     user_id: str,
     conversation_id: str,
     *,
@@ -39,7 +38,7 @@ async def assemble(
     identity: str | None = None,
     instructions: str | None = None,
 ) -> list[dict]:
-    """Assemble complete context: system prompt + conversation context + user query."""
+    """Assemble complete context from storage."""
     from . import conversation
 
     # Build system sections
@@ -66,7 +65,7 @@ async def assemble(
 
     return [
         {"role": "system", "content": "\n\n".join(system_sections)},
-        {"role": "user", "content": query},
+        {"role": "user", "content": "continue"},
     ]
 
 

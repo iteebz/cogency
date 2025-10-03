@@ -23,7 +23,7 @@ class WebScrape(Tool):
         scrape_limit = kwargs.get("scrape_limit", 3000)
 
         if not url or not url.strip():
-            return ToolResult(outcome="URL cannot be empty")
+            return ToolResult(outcome="URL cannot be empty", error=True)
 
         url = url.strip()
 
@@ -31,17 +31,18 @@ class WebScrape(Tool):
             import trafilatura
         except ImportError:
             return ToolResult(
-                outcome="Web scraping not available. Install with: pip install trafilatura"
+                outcome="Web scraping not available. Install with: pip install trafilatura",
+                error=True,
             )
 
         # Fetch and extract content
         content = trafilatura.fetch_url(url)
         if not content:
-            return ToolResult(outcome=f"Failed to fetch content from: {url}")
+            return ToolResult(outcome=f"Failed to fetch content from: {url}", error=True)
 
         extracted = trafilatura.extract(content, include_tables=True)
         if not extracted:
-            return ToolResult(outcome=f"No readable content found at: {url}")
+            return ToolResult(outcome=f"Scraped {url}", content="No readable content found")
 
         domain = self._extract_domain(url)
 

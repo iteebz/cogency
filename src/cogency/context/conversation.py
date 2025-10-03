@@ -46,7 +46,7 @@ async def current(conversation_id: str | None, user_id: str | None, storage: Sto
         return ""
 
     current_msgs = messages[last_user:]
-    return _format_section("CURRENT", current_msgs) if len(current_msgs) > 1 else ""
+    return _format_section("CURRENT", current_msgs) if len(current_msgs) >= 1 else ""
 
 
 async def full_context(

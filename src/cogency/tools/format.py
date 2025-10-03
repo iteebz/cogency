@@ -18,7 +18,7 @@ def tool_instructions(tools: list[Tool]) -> str:
             param_str = ", ".join(params)
             lines.append(f"{tool.name}({param_str}) - {tool.description}")
 
-    return "TOOLBOX:\n" + "\n".join(lines)
+    return "TOOLS:\n" + "\n".join(lines)
 
 
 def format_call_human(call: ToolCall) -> str:
