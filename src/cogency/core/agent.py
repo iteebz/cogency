@@ -7,6 +7,8 @@ Usage:
           result = event["content"]
 """
 
+import asyncio
+
 from .. import context
 from ..lib import llms
 from ..lib.storage import default_storage
@@ -173,6 +175,19 @@ class Agent:
                     storage=storage,
                     llm=self.config.llm,
                 )
+        except (KeyboardInterrupt, asyncio.CancelledError):
+            import time
+
+            timestamp = time.time()
+            await self.config.storage.save_message(
+                conversation_id, user_id, "cancelled", "Task interrupted by user", timestamp
+            )
+            yield {
+                "type": "cancelled",
+                "content": "Task interrupted by user",
+                "timestamp": timestamp,
+            }
+            raise
         except Exception as e:  # pragma: no cover - defensive logging path
             from ..lib.logger import logger
 

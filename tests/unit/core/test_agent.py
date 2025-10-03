@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -127,3 +128,62 @@ async def test_user_event_emission(mock_llm, mock_storage):
         user_events = [e for e in events if e["type"] == "user"]
         assert len(user_events) == 1
         assert user_events[0]["content"] == "Test query"
+
+
+@pytest.mark.asyncio
+async def test_interrupt_persistence(mock_llm, mock_storage):
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_interrupted_events():
+            yield {"type": "think", "content": "Thinking..."}
+            raise KeyboardInterrupt()
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_interrupted_events()
+
+        events = []
+        with pytest.raises(KeyboardInterrupt):
+            async for event in agent(
+                "Test query", user_id="test_user", conversation_id="test_conv"
+            ):
+                events.append(event)
+
+        cancelled_events = [e for e in events if e["type"] == "cancelled"]
+        assert len(cancelled_events) == 1
+        assert cancelled_events[0]["content"] == "Task interrupted by user"
+
+        cancelled_msgs = [m for m in mock_storage.messages if m["type"] == "cancelled"]
+        assert len(cancelled_msgs) == 1
+        assert cancelled_msgs[0]["conversation_id"] == "test_conv"
+        assert cancelled_msgs[0]["user_id"] == "test_user"
+        assert cancelled_msgs[0]["content"] == "Task interrupted by user"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_error_persistence(mock_llm, mock_storage):
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_cancelled_events():
+            yield {"type": "respond", "content": "Response"}
+            raise asyncio.CancelledError()
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_cancelled_events()
+
+        events = []
+        with pytest.raises(asyncio.CancelledError):
+            async for event in agent(
+                "Test query", user_id="test_user", conversation_id="test_conv"
+            ):
+                events.append(event)
+
+        cancelled_events = [e for e in events if e["type"] == "cancelled"]
+        assert len(cancelled_events) == 1
+
+        cancelled_msgs = [m for m in mock_storage.messages if m["type"] == "cancelled"]
+        assert len(cancelled_msgs) == 1
+        assert cancelled_msgs[0]["conversation_id"] == "test_conv"
+        assert cancelled_msgs[0]["user_id"] == "test_user"
+        assert cancelled_msgs[0]["content"] == "Task interrupted by user"
