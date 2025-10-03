@@ -6,7 +6,7 @@ from ..tools.parse import parse_tool_result
 
 
 async def history(
-    conversation_id: str | None, user_id: str | None, storage: Storage, history_window: int
+    conversation_id: str | None, user_id: str | None, storage: Storage, history_window: int | None
 ) -> str:
     if not conversation_id:
         return ""
@@ -19,13 +19,17 @@ async def history(
     if last_user is None or last_user == 0:
         return ""
 
-    # Filter think events and take last N efficiently - ONLY applies to history
-    history_msgs = []
-    for msg in reversed(messages[:last_user]):
-        if msg["type"] != "think":
-            history_msgs.append(msg)
-            if len(history_msgs) >= history_window:
-                break
+    # If history_window is None, include all history
+    if history_window is None:
+        history_msgs = [msg for msg in messages[:last_user] if msg["type"] != "think"]
+    else:
+        # Filter think events and take last N efficiently - ONLY applies to history
+        history_msgs = []
+        for msg in reversed(messages[:last_user]):
+            if msg["type"] != "think":
+                history_msgs.append(msg)
+                if len(history_msgs) >= history_window:
+                    break
 
     if not history_msgs:
         return ""
@@ -50,7 +54,7 @@ async def current(conversation_id: str | None, user_id: str | None, storage: Sto
 
 
 async def full_context(
-    conversation_id: str | None, user_id: str | None, storage: Storage, history_window: int
+    conversation_id: str | None, user_id: str | None, storage: Storage, history_window: int | None
 ) -> str:
     h = await history(conversation_id, user_id, storage, history_window)
     c = await current(conversation_id, user_id, storage)

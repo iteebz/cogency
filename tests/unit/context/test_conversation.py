@@ -12,6 +12,12 @@ async def test_empty_conversation(mock_storage):
 
 
 @pytest.mark.asyncio
+async def test_empty_conversation_none_window(mock_storage):
+    result = await conversation.history("conv_123", "user_1", mock_storage, None)
+    assert result == ""
+
+
+@pytest.mark.asyncio
 async def test_history_formatting(mock_storage):
     await mock_storage.save_message("conv_123", "user_1", "user", "Past question")
     await mock_storage.save_message("conv_123", "user_1", "respond", "Past answer")
@@ -22,6 +28,28 @@ async def test_history_formatting(mock_storage):
     assert "§user: Past question" in result
     assert "§respond: Past answer" in result
     assert "Current question" not in result
+
+
+@pytest.mark.asyncio
+async def test_history_none_window_includes_all(mock_storage):
+    """When history_window is None, all history (excluding think) should be included."""
+    # Add many messages to test unlimited history
+    for i in range(5):
+        await mock_storage.save_message("conv_123", "user_1", "user", f"Question {i}")
+        await mock_storage.save_message("conv_123", "user_1", "respond", f"Answer {i}")
+        await mock_storage.save_message("conv_123", "user_1", "think", f"Think {i}")  # Should be excluded
+    
+    await mock_storage.save_message("conv_123", "user_1", "user", "Current question")
+    
+    # With None window, should include ALL 5 question/answer pairs (10 messages total, excluding think)
+    result = await conversation.history("conv_123", "user_1", mock_storage, None)
+    assert "=== HISTORY ===" in result
+    assert "Question 0" in result
+    assert "Answer 0" in result
+    assert "Question 4" in result
+    assert "Answer 4" in result
+    assert "Think 0" not in result  # think events should always be excluded
+    assert "Current question" not in result  # Should be in CURRENT, not HISTORY
 
 
 @pytest.mark.asyncio

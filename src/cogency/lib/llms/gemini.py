@@ -181,7 +181,7 @@ class Gemini(LLM):
                     if hasattr(sc, "generation_complete") and sc.generation_complete:
                         seen_generation_complete = True
 
-                    # CRITICAL DUAL SIGNAL FIX: Break only when we've seen BOTH signals
+                    # Wait for both Gemini stream completion signals
                     if (
                         seen_generation_complete
                         and hasattr(sc, "turn_complete")

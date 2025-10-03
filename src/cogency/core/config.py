@@ -53,7 +53,7 @@ class Config:
     instructions: str | None = None  # User steering
     mode: str = "auto"  # Execution mode
     max_iterations: int = 10  # Execution bounds
-    history_window: int = 100  # Context scope
+    history_window: int | None = None  # Context scope (None = full history)
     profile: bool = True  # Learning enabled
     learn_every: int = 5  # Learning frequency
 

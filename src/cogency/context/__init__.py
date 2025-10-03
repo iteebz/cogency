@@ -33,7 +33,7 @@ async def assemble(
     *,
     tools: Sequence[Tool],
     storage: Storage,
-    history_window: int,
+    history_window: int | None,
     profile_enabled: bool,
     identity: str | None = None,
     instructions: str | None = None,
