@@ -18,7 +18,7 @@ def test_config(mock_llm):
     # Defaults
     assert config.max_iterations == 10
     assert config.mode == "auto"
-    assert config.profile is True
+    assert config.profile is False
     assert config.security.access == "sandbox"
 
     # Custom values + tools

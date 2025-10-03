@@ -27,7 +27,6 @@ async def test_should_learn(mock_config):
             assert not await profile.should_learn(
                 "user1",
                 storage=mock_config.storage,
-                learn_every=mock_config.learn_every,
             )
 
         # Mock profile exists
@@ -43,7 +42,6 @@ async def test_should_learn(mock_config):
             result = await profile.should_learn(
                 "user1",
                 storage=mock_config.storage,
-                learn_every=mock_config.learn_every,
             )
             assert result
 
@@ -77,7 +75,6 @@ async def test_learn_async(mock_config):
                 result = await profile.learn_async(
                     "user1",
                     storage=mock_config.storage,
-                    learn_every=mock_config.learn_every,
                     llm=mock_config.llm,
                 )
 
@@ -92,13 +89,11 @@ async def test_learn_async(mock_config):
                 assert "Can you help with algorithms?" in prompt_text
 
 
-def test_learn_pytest(mock_config):
-    # This should return None due to pytest detection
+def test_learn_disabled(mock_config):
     result = profile.learn(
         "user123",
-        profile_enabled=mock_config.profile,
+        profile_enabled=False,
         storage=mock_config.storage,
-        learn_every=mock_config.learn_every,
         llm=mock_config.llm,
     )
     assert result is None

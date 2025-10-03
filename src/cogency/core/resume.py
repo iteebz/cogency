@@ -28,7 +28,6 @@ async def stream(
     chunks: bool = False,
 ):
     """WebSocket streaming with tool injection and session continuity."""
-    import time
 
     llm = config.llm
     if llm is None:

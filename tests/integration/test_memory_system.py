@@ -24,11 +24,9 @@ async def test_memory_system_integration(mock_llm):
             await storage.save_message("conv1", "user1", "user", "Fourth message", 140)
             await storage.save_message("conv1", "user1", "user", "Fifth message", 150)
 
-            should_learn = await profile.should_learn("user1", storage=storage, learn_every=5)
+            should_learn = await profile.should_learn("user1", storage=storage)
             assert should_learn
 
-            learned = await profile.learn_async(
-                "user1", storage=storage, learn_every=5, llm=mock_llm
-            )
+            learned = await profile.learn_async("user1", storage=storage, llm=mock_llm)
             assert learned is True
             mock_llm.generate.assert_called_once()

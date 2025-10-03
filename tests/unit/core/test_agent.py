@@ -23,7 +23,7 @@ def test_config(mock_llm, mock_storage):
 
 def test_defaults(mock_llm, mock_storage):
     agent = Agent(llm=mock_llm, storage=mock_storage)
-    assert agent.config.profile is True
+    assert agent.config.profile is False
     assert agent.config.security.access == "sandbox"
     assert agent.config.max_iterations > 0
     assert len(agent.config.tools) > 0
@@ -44,7 +44,7 @@ def test_custom_tools(mock_llm, mock_storage):
 
 @pytest.mark.asyncio
 async def test_fallback_learns(mock_llm, mock_storage):
-    agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto")
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto", profile=True)
 
     with (
         patch("cogency.core.resume.stream") as mock_resume,

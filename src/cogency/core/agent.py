@@ -42,9 +42,7 @@ class Agent:
         mode: str = "auto",
         max_iterations: int = 10,
         history_window: int = 20,
-        profile: bool = True,
-        learn_every: int = 5,
-        scrape_limit: int = 3000,
+        profile: bool = False,
         security: Security | None = None,
         debug: bool = False,
     ):
@@ -60,9 +58,7 @@ class Agent:
             mode: Coordination mode ("auto", "resume", "replay"). Defaults to "auto".
             max_iterations: Maximum number of execution iterations.
             history_window: Number of historical messages to include in context.
-            profile: Enable automatic profile learning. Defaults to True.
-            learn_every: Cadence for triggering profile learning.
-            scrape_limit: Character limit for web scraping tools.
+            profile: Enable automatic profile learning. Defaults to False.
             security: A Security object defining access levels and timeouts.
             debug: Enable verbose debug logging.
         """
@@ -87,8 +83,6 @@ class Agent:
             max_iterations=max_iterations,
             history_window=history_window,
             profile=profile,
-            learn_every=learn_every,
-            scrape_limit=scrape_limit,
             security=final_security,
         )
 
@@ -123,7 +117,9 @@ class Agent:
 
             # Persist user message once at agent entry
             timestamp = time.time()
-            await self.config.storage.save_message(conversation_id, user_id, "user", query, timestamp)
+            await self.config.storage.save_message(
+                conversation_id, user_id, "user", query, timestamp
+            )
 
             # Emit user event - first event in conversation turn
             yield {"type": "user", "content": query, "timestamp": timestamp}
@@ -149,7 +145,6 @@ class Agent:
                             user_id,
                             profile_enabled=self.config.profile,
                             storage=storage,
-                            learn_every=self.config.learn_every,
                             llm=self.config.llm,
                         )
                     return
@@ -176,7 +171,6 @@ class Agent:
                     user_id,
                     profile_enabled=self.config.profile,
                     storage=storage,
-                    learn_every=self.config.learn_every,
                     llm=self.config.llm,
                 )
         except Exception as e:  # pragma: no cover - defensive logging path

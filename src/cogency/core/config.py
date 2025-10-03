@@ -15,7 +15,6 @@ class Execution:
     storage: Storage
     tools: Sequence[Tool]
     shell_timeout: int
-    scrape_limit: int
     base_dir: str | None
     access: Access
 
@@ -54,11 +53,7 @@ class Config:
     mode: str = "auto"  # Execution mode
     max_iterations: int = 10  # Execution bounds
     history_window: int | None = None  # Context scope (None = full history)
-    profile: bool = True  # Learning enabled
-    learn_every: int = 5  # Learning frequency
-
-    # Tool configuration
-    scrape_limit: int = 3000  # Web content character limit
+    profile: bool = False  # Learning enabled
 
     @property
     def execution(self) -> Execution:
@@ -68,7 +63,6 @@ class Config:
             storage=self.storage,
             tools=tuple(self.tools),
             shell_timeout=self.security.shell_timeout,
-            scrape_limit=self.scrape_limit,
             base_dir=self.base_dir,
             access=self.security.access,
         )

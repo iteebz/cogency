@@ -24,8 +24,6 @@ async def execute_tool(
     # Tool-specific params
     if tool_name == "shell":
         args["timeout"] = execution.shell_timeout
-    if tool_name == "web_scrape":
-        args["scrape_limit"] = execution.scrape_limit
     if user_id:
         args["user_id"] = user_id
 

@@ -41,29 +41,20 @@ async def assemble(
     """Assemble complete context from storage."""
     from . import conversation
 
-    # Build system sections
-    system_sections = [system_prompt(tools=tools, identity=identity, instructions=instructions)]
+    prompt = [system_prompt(tools=tools, identity=identity, instructions=instructions)]
 
-    # Add user profile if available
     if profile_enabled:
         profile_content = await profile_format(user_id, storage)
         if profile_content:
-            system_sections.append(profile_content)
+            prompt.append(profile_content)
 
-    # Add conversation context (HISTORY + CURRENT) if any exists
     conversation_context = await conversation.full_context(
         conversation_id, user_id, storage, history_window
     )
     if conversation_context:
-        system_sections.append(conversation_context)
+        prompt.append(conversation_context)
 
-    # Task boundary
-    system_sections.append(
-        "CURRENT TASK: Execute the following request independently. "
-        "Previous responses are context only - do not assume prior completion."
-    )
-
-    return [{"role": "user", "content": "\n\n".join(system_sections)}]
+    return [{"role": "user", "content": "\n\n".join(prompt)}]
 
 
 __all__ = ["assemble", "learn"]

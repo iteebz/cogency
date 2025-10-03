@@ -5,6 +5,8 @@ from ...core.protocols import Tool, ToolResult
 from ...lib.logger import logger
 from ..security import safe_execute
 
+SCRAPE_LIMIT = 3000
+
 
 class WebScrape(Tool):
     """Extract and format web content with clean output."""
@@ -20,7 +22,6 @@ class WebScrape(Tool):
     @safe_execute
     async def execute(self, url: str, **kwargs) -> ToolResult:
         """Execute clean web scraping."""
-        scrape_limit = kwargs.get("scrape_limit", 3000)
 
         if not url or not url.strip():
             return ToolResult(outcome="URL cannot be empty", error=True)
@@ -46,13 +47,13 @@ class WebScrape(Tool):
 
         domain = self._extract_domain(url)
 
-        content_formatted = self._format_content(extracted, scrape_limit)
+        content_formatted = self._format_content(extracted)
         size_kb = len(content_formatted) / 1024
 
         outcome = f"Scraped {domain} ({size_kb:.1f}KB)"
         return ToolResult(outcome=outcome, content=content_formatted)
 
-    def _format_content(self, content: str, scrape_limit: int) -> str:
+    def _format_content(self, content: str) -> str:
         """Content formatting."""
         if not content:
             return "No content extracted"
@@ -61,12 +62,12 @@ class WebScrape(Tool):
         cleaned = re.sub(r"\n\s*\n\s*\n+", "\n\n", content.strip())
 
         # Handle length limits with intelligent truncation
-        if len(cleaned) > scrape_limit:
+        if len(cleaned) > SCRAPE_LIMIT:
             # Find last complete sentence/paragraph before limit
-            truncated = cleaned[:scrape_limit]
+            truncated = cleaned[:SCRAPE_LIMIT]
             last_break = max(truncated.rfind("\n\n"), truncated.rfind(". "), truncated.rfind(".\n"))
             # Only break at sentence if we don't lose too much content
-            if last_break > scrape_limit * 0.8:
+            if last_break > SCRAPE_LIMIT * 0.8:
                 truncated = truncated[: last_break + 1]
 
             return f"{truncated}\n\n[Content continues...]"

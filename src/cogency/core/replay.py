@@ -27,7 +27,6 @@ async def stream(
     chunks: bool = False,
 ):
     """Stateless HTTP iterations with context rebuild per request."""
-    import time
 
     llm = config.llm
     if llm is None:

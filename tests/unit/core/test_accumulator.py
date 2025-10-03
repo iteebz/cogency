@@ -111,9 +111,7 @@ async def test_storage_failure_propagates(mock_llm):
         async def save_message(self, *args, **kwargs):
             raise RuntimeError("Storage failed")
 
-    config = Config(
-        llm=mock_llm, storage=FailingStorage(), tools=[], security=Security(), learn_every=5
-    )
+    config = Config(llm=mock_llm, storage=FailingStorage(), tools=[], security=Security())
     accumulator = Accumulator("test", "test", execution=config.execution, chunks=True)
 
     async def simple_parser():

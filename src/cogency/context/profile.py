@@ -10,7 +10,7 @@ Why no embeddings for profiles?
 4. Direct learning - LLM analyzes patterns directly from text
 
 Learning triggers:
-- Every N messages (configurable cadence)
+- Every 5 user messages
 - Profile size exceeds threshold (triggers compaction)
 """
 
@@ -22,8 +22,8 @@ from ..lib.logger import logger
 if TYPE_CHECKING:
     from ..core.protocols import LLM, Storage
 
-# Profile configuration
-PROFILE_COMPACT_THRESHOLD = 2000  # Character limit triggering compaction
+CADENCE = 5
+COMPACT_THRESHOLD = 2000
 
 PROFILE_TEMPLATE = """Current: {profile}
 Messages: {user_messages}
@@ -78,20 +78,19 @@ async def should_learn(
     user_id: str,
     *,
     storage: "Storage",
-    learn_every: int,
 ) -> bool:
     """Check if profile learning needed based on message cadence or size threshold."""
     current = await get(user_id, storage)
     if not current:
         unlearned = await storage.count_user_messages(user_id, 0)
-        if unlearned >= learn_every:
+        if unlearned >= CADENCE:
             logger.debug(f"📊 INITIAL LEARNING: {unlearned} messages for {user_id}")
             return True
         return False
 
     # Size-based compaction check
     current_chars = len(json.dumps(current))
-    if current_chars > PROFILE_COMPACT_THRESHOLD:
+    if current_chars > COMPACT_THRESHOLD:
         logger.debug(f"🚨 COMPACT: {current_chars} chars")
         return True
 
@@ -99,7 +98,7 @@ async def should_learn(
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
     unlearned = await storage.count_user_messages(user_id, last_learned)
 
-    if unlearned >= learn_every:
+    if unlearned >= CADENCE:
         logger.debug(f"📊 LEARNING: {unlearned} new messages")
         return True
 
@@ -111,7 +110,6 @@ def learn(
     *,
     profile_enabled: bool,
     storage: "Storage",
-    learn_every: int,
     llm: "LLM",
 ):
     """Trigger profile learning in background (fire and forget)."""
@@ -132,7 +130,6 @@ def learn(
             learn_async(
                 user_id,
                 storage=storage,
-                learn_every=learn_every,
                 llm=llm,
             )
         )
@@ -144,7 +141,6 @@ async def learn_async(
     user_id: str,
     *,
     storage: "Storage",
-    learn_every: int,
     llm: "LLM",
 ) -> bool:
     """Learn user patterns from recent messages using LLM analysis."""
@@ -152,7 +148,6 @@ async def learn_async(
     if not await should_learn(
         user_id,
         storage=storage,
-        learn_every=learn_every,
     ):
         return False
 
@@ -170,7 +165,7 @@ async def learn_async(
     import time
 
     # Get 2x learning cadence for better pattern detection
-    limit = learn_every * 2
+    limit = CADENCE * 2
 
     message_texts = await storage.load_user_messages(user_id, last_learned, limit)
 
@@ -180,7 +175,7 @@ async def learn_async(
     logger.debug(f"🧠 LEARNING: {len(message_texts)} new messages for {user_id}")
 
     # Check size and update
-    compact = len(json.dumps(current)) > PROFILE_COMPACT_THRESHOLD
+    compact = len(json.dumps(current)) > COMPACT_THRESHOLD
     updated = await update_profile(current, message_texts, llm, compact=compact)
 
     if updated and updated != current:

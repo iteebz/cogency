@@ -14,12 +14,6 @@ async def test_assembly(mock_config):
         profile_enabled=mock_config.profile,
     )
 
-    # System message first
-    assert messages[0]["role"] == "system"
+    assert len(messages) == 1
+    assert messages[0]["role"] == "user"
     assert len(messages[0]["content"]) > 0
-
-    # User message is ephemeral "continue" trigger
-    assert messages[-1]["role"] == "user"
-    assert messages[-1]["content"] == "continue"
-
-    assert len(messages) >= 2
