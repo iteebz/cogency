@@ -20,9 +20,9 @@ class SystemShell(Tool):
     async def execute(
         self,
         command: str,
-        sandbox: bool = True,
         timeout: int = 30,
         base_dir: str | None = None,
+        access: str = "sandbox",
         **kwargs,
     ) -> ToolResult:
         """Execute command with proper security validation."""
@@ -39,13 +39,14 @@ class SystemShell(Tool):
         if not parts:
             return ToolResult(outcome="Empty command after parsing", error=True)
 
-        # Set working directory based on sandbox mode
-        if sandbox:
+        # Set working directory based on access level
+        if access == "sandbox":
             from ...lib.paths import Paths
 
             working_path = Paths.sandbox(base_dir=base_dir)
             working_path.mkdir(exist_ok=True)
         else:
+            # project or system access
             working_path = Path(base_dir) if base_dir else Path.cwd()
 
         try:
