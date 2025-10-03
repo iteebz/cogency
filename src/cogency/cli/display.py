@@ -37,10 +37,16 @@ class Renderer:
                     print(f"\n\n○ {action_display}")
 
                 case "result":
-                    # Tool result - show outcome from pure event payload
                     payload = event.get("payload", {})
                     outcome = payload.get("outcome", "Tool completed")
-                    print(f"\n● {outcome}")
+                    content = payload.get("content", "")
+                    error = payload.get("error", False)
+                    
+                    prefix = "✗" if error else "●"
+                    print(f"\n{prefix} {outcome}")
+                    if content:
+                        print(f"{content}")
+                    self.current_state = "result"
                 case "respond":
                     if event["content"]:
                         if self.current_state != "respond":

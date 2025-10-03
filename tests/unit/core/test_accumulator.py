@@ -20,6 +20,41 @@ async def test_chunks_true(mock_config):
 
 
 @pytest.mark.asyncio
+async def test_call_not_chunked(mock_config):
+    """call/result/cancelled/metric always complete, even when chunks=True"""
+    async def chunked_call():
+        yield {"type": "call", "content": '{"name"'}
+        yield {"type": "call", "content": ': "search"'}
+        yield {"type": "call", "content": ', "args": {}}'}
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=True)
+    events = [event async for event in accumulator.process(chunked_call())]
+    
+    call_events = [e for e in events if e["type"] == "call"]
+    assert len(call_events) == 1
+    assert call_events[0]["content"] == '{"name": "search", "args": {}}'
+
+
+@pytest.mark.asyncio
+async def test_respond_chunked_when_enabled(mock_config):
+    """respond/think stream naturally when chunks=True"""
+    async def chunked_respond():
+        yield {"type": "respond", "content": "hello"}
+        yield {"type": "respond", "content": " world"}
+        yield {"type": "end"}
+
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=True)
+    events = [event async for event in accumulator.process(chunked_respond())]
+    
+    respond_events = [e for e in events if e["type"] == "respond"]
+    assert len(respond_events) == 2
+    assert respond_events[0]["content"] == "hello"
+    assert respond_events[1]["content"] == " world"
+
+
+@pytest.mark.asyncio
 async def test_chunks_false(mock_config):
     accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
     events = [event async for event in accumulator.process(basic_parser())]

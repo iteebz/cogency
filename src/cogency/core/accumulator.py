@@ -5,9 +5,9 @@ Core algorithm:
 2. Execute tool calls when §execute encountered
 3. Persist all events via specialized EventPersister
 4. Streaming modes:
-   - chunks=True: Yield individual events immediately AND accumulate for tools
-   - chunks=False: Only accumulate, yield complete semantic units on type changes
-   Both modes accumulate for tool execution (§call content must be complete JSON)
+   - chunks=True: Stream respond/think naturally, accumulate call/result/cancelled/metric
+   - chunks=False: Accumulate all, yield complete semantic units on type changes
+   Both modes accumulate call content fully (must be complete JSON for execution)
 """
 
 import json
@@ -155,8 +155,8 @@ class Accumulator:
             content = event_content(event)
             timestamp = time.time()
 
-            # chunks=True: Yield events immediately
-            if self.chunks:
+            # chunks=True: Yield respond/think immediately, accumulate others
+            if self.chunks and ev_type in ("respond", "think"):
                 yield event
 
             # Handle control events

@@ -37,11 +37,6 @@ def format_call_agent(call: ToolCall) -> str:
     return json.dumps({"name": call.name, "args": call.args})
 
 
-def format_result_human(result: ToolResult) -> str:
-    """Format tool result for human display - clean outcome."""
-    return result.outcome
-
-
 def format_result_agent(result: ToolResult) -> str:
     """Format tool result for agent consumption - outcome + full content."""
     if result.content:
