@@ -39,13 +39,7 @@ class Renderer:
                 case "result":
                     payload = event.get("payload", {})
                     outcome = payload.get("outcome", "Tool completed")
-                    content = payload.get("content", "")
-                    error = payload.get("error", False)
-                    
-                    prefix = "✗" if error else "●"
-                    print(f"\n{prefix} {outcome}")
-                    if content:
-                        print(f"{content}")
+                    print(f"\n● {outcome}")
                     self.current_state = "result"
                 case "respond":
                     if event["content"]:

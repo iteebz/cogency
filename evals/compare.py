@@ -2,13 +2,12 @@
 
 import json
 import sys
-
-from cogency.lib.paths import Paths
+from pathlib import Path
 
 
 def list_runs() -> list[str]:
     """List available evaluation runs."""
-    runs_dir = Paths.evals("runs")
+    runs_dir = Path(".cogency/evals/runs")
     if not runs_dir.exists():
         return []
 
@@ -17,7 +16,7 @@ def list_runs() -> list[str]:
 
 def load_run(run_id: str) -> dict:
     """Load run data including summary and config."""
-    run_dir = Paths.evals(f"runs/{run_id}")
+    run_dir = Path(f".cogency/evals/runs/{run_id}")
 
     if not run_dir.exists():
         raise ValueError(f"Run {run_id} not found")

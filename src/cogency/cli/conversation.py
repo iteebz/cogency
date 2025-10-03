@@ -1,12 +1,12 @@
 import sqlite3
+from pathlib import Path
 
-from ..lib.paths import Paths
 from .display import Renderer
 
 
 async def show_conversation(conversation_id: str):
     """Render conversation history using display renderer."""
-    db_path = Paths.db()
+    db_path = Path(".cogency/store.db")
 
     if not db_path.exists():
         print("No database found")

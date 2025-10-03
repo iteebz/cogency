@@ -15,7 +15,6 @@ from typing import NamedTuple
 
 from ...core.protocols import Tool, ToolResult
 from ...lib.logger import logger
-from ...lib.paths import Paths
 from ..security import safe_execute
 
 
@@ -81,10 +80,8 @@ class MemoryRecall(Tool):
         if not conversation_id:
             return []
 
-        db_path = Paths.db()
-
         try:
-            with sqlite3.connect(db_path) as db:
+            with sqlite3.connect(".cogency/store.db") as db:
                 # Get last 20 user messages from current conversation
                 rows = db.execute(
                     """
@@ -104,15 +101,14 @@ class MemoryRecall(Tool):
     def _search_messages(
         self, query: str, user_id: str, exclude_timestamps: list[float], limit: int = 3
     ) -> list[MessageMatch]:
-        """Fuzzy search user messages with SQLite pattern matching."""
-        db_path = Paths.db()
+        """Fuzzy search user messages with SQLite pattern matching.\" """
 
         # Build fuzzy search patterns
         keywords = query.lower().split()
         like_patterns = [f"%{keyword}%" for keyword in keywords]
 
         try:
-            with sqlite3.connect(db_path) as db:
+            with sqlite3.connect(".cogency/store.db") as db:
                 # Build exclusion clause
                 exclude_clause = ""
                 params = []

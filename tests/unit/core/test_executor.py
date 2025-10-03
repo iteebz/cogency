@@ -75,5 +75,5 @@ async def test_context_injection(mock_config):
     )
 
     mock_tool.execute.assert_called_once_with(
-        explicit_arg="value", base_dir=None, access="sandbox", user_id="test_user"
+        explicit_arg="value", sandbox_dir=".cogency/sandbox", access="sandbox", user_id="test_user"
     )

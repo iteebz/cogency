@@ -31,11 +31,10 @@ class FileSearch(Tool):
         pattern: str = None,
         content: str = None,
         path: str = ".",
-        base_dir: str | None = None,
+        sandbox_dir: str = ".cogency/sandbox",
         access: Access = "sandbox",
         **kwargs,
     ) -> ToolResult:
-        """Search files with visual results."""
         if not pattern and not content:
             return ToolResult(outcome="Must specify pattern or content to search", error=True)
 
@@ -46,17 +45,14 @@ class FileSearch(Tool):
                 error=True,
             )
 
-        # Determine search directory
         if path == ".":
-            from ...lib.paths import Paths
-
-            search_path = (
-                Paths.sandbox(base_dir=base_dir)
-                if access == "sandbox"
-                else (Path(base_dir) if base_dir else Path.cwd())
-            )
+            if access == "sandbox":
+                search_path = Path(sandbox_dir)
+                search_path.mkdir(parents=True, exist_ok=True)
+            else:
+                search_path = Path.cwd()
         else:
-            search_path = resolve_file(path, access, base_dir)
+            search_path = resolve_file(path, access, sandbox_dir)
 
         if not search_path.exists():
             return ToolResult(outcome=f"Directory '{path}' does not exist", error=True)

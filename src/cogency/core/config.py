@@ -15,7 +15,7 @@ class Execution:
     storage: Storage
     tools: Sequence[Tool]
     shell_timeout: int
-    base_dir: str | None
+    sandbox_dir: str
     access: Access
 
 
@@ -24,6 +24,7 @@ class Security:
     """Security policies for agent execution."""
 
     access: Access = "sandbox"
+    sandbox_dir: str = ".cogency/sandbox"  # Sandbox directory (ignored unless access="sandbox")
     shell_timeout: int = 30  # Shell command timeout in seconds
     api_timeout: float = 30.0  # HTTP/LLM call timeout
 
@@ -40,9 +41,6 @@ class Config:
     llm: LLM
     storage: Storage
     tools: list[Tool]
-
-    # Runtime Environment
-    base_dir: str | None = None  # Base directory for sandboxing and storage
 
     # Policies
     security: Security = Security()
@@ -63,6 +61,6 @@ class Config:
             storage=self.storage,
             tools=tuple(self.tools),
             shell_timeout=self.security.shell_timeout,
-            base_dir=self.base_dir,
+            sandbox_dir=self.security.sandbox_dir,
             access=self.security.access,
         )

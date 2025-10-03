@@ -19,14 +19,14 @@ class FileWrite(Tool):
         self,
         file: str,
         content: str,
-        base_dir: str | None = None,
+        sandbox_dir: str = ".cogency/sandbox",
         access: Access = "sandbox",
         **kwargs,
     ) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty", error=True)
 
-        file_path = resolve_file(file, access, base_dir)
+        file_path = resolve_file(file, access, sandbox_dir)
 
         if file_path.exists():
             return ToolResult(

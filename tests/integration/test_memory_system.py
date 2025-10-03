@@ -10,7 +10,7 @@ from cogency.lib.storage import SQLite
 @pytest.mark.asyncio
 async def test_memory_system_integration(mock_llm):
     with tempfile.TemporaryDirectory() as temp_dir:
-        storage = SQLite(temp_dir)
+        storage = SQLite(db_path=f"{temp_dir}/test.db")
 
         mock_llm.generate.return_value = (
             '{"who": "Alice", "interests": "programming", "style": "concise"}'

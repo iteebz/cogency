@@ -36,14 +36,13 @@ class Agent:
         self,
         llm: str | LLM,
         storage: Storage | None = None,
-        base_dir: str | None = None,
         *,
         identity: str | None = None,
         instructions: str | None = None,
         tools: list[Tool] | None = None,
         mode: str = "auto",
         max_iterations: int = 10,
-        history_window: int = 20,
+        history_window: int | None = None,
         profile: bool = False,
         security: Security | None = None,
         debug: bool = False,
@@ -53,13 +52,12 @@ class Agent:
         Args:
             llm: An LLM instance or a string identifier (e.g., "openai", "gemini").
             storage: A Storage implementation. Defaults to local file-based storage.
-            base_dir: The base directory for all file operations and storage.
             identity: Core agent identity (who you are). Overrides default Cogency identity.
             instructions: Additional instructions to steer the agent's behavior.
             tools: A list of Tool instances. Defaults to a standard set.
             mode: Coordination mode ("auto", "resume", "replay"). Defaults to "auto".
             max_iterations: Maximum number of execution iterations.
-            history_window: Number of historical messages to include in context.
+            history_window: Number of historical events to include in context (None = full history).
             profile: Enable automatic profile learning. Defaults to False.
             security: A Security object defining access levels and timeouts.
             debug: Enable verbose debug logging.
@@ -70,7 +68,7 @@ class Agent:
             set_debug(True)
 
         final_security = security or Security()
-        final_storage = storage or default_storage(base_dir=base_dir)
+        final_storage = storage or default_storage()
         final_tools = default_tools() if tools is None else tools
         final_llm = llms.create(llm) if isinstance(llm, str) else llm
 
@@ -78,7 +76,6 @@ class Agent:
             llm=final_llm,
             storage=final_storage,
             tools=final_tools,
-            base_dir=base_dir,
             identity=identity,
             instructions=instructions,
             mode=mode,

@@ -8,7 +8,7 @@ async def test_creates_parent_dirs(tmp_path):
     tool = FileWrite()
 
     result = await tool.execute(
-        file="a/b/c/test.txt", content="data", base_dir=str(tmp_path), access="project"
+        file="a/b/c/test.txt", content="data", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
     assert "Created" in result.outcome
@@ -24,7 +24,7 @@ async def test_rejects_existing_file(tmp_path):
     test_file.write_text("original")
 
     result = await tool.execute(
-        file="existing.txt", content="new", base_dir=str(tmp_path), access="project"
+        file="existing.txt", content="new", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
     assert result.error is True

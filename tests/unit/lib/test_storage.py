@@ -13,7 +13,7 @@ def temp_dir():
 
 @pytest.mark.asyncio
 async def test_conversation_isolation(temp_dir):
-    storage = SQLite(temp_dir)
+    storage = SQLite(db_path=f"{temp_dir}/test.db")
     await storage.save_message("conv_a", "user1", "user", "Message in conv A")
     await storage.save_message("conv_b", "user1", "user", "Message in conv B")
 
@@ -30,7 +30,7 @@ async def test_conversation_isolation(temp_dir):
 async def test_concurrent_writes(temp_dir):
     import asyncio
 
-    storage = SQLite(temp_dir)
+    storage = SQLite(db_path=f"{temp_dir}/test.db")
 
     async def write_messages(conv_id, count):
         for i in range(count):
@@ -53,7 +53,7 @@ async def test_concurrent_writes(temp_dir):
 
 @pytest.mark.asyncio
 async def test_multi_agent_isolation(temp_dir):
-    storage = SQLite(temp_dir)
+    storage = SQLite(db_path=f"{temp_dir}/test.db")
     await storage.save_message("shared-channel", "agent_1", "user", "Agent 1 message")
     await storage.save_message("shared-channel", "agent_2", "user", "Agent 2 message")
     await storage.save_message("shared-channel", None, "user", "Broadcast message")
@@ -72,7 +72,7 @@ async def test_multi_agent_isolation(temp_dir):
 
 @pytest.mark.asyncio
 async def test_message_ordering(temp_dir):
-    storage = SQLite(temp_dir)
+    storage = SQLite(db_path=f"{temp_dir}/test.db")
 
     await storage.save_message("conv1", "user1", "user", "First", timestamp=100)
     await storage.save_message("conv1", "user1", "respond", "Second", timestamp=200)

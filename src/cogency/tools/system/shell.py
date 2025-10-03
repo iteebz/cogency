@@ -21,15 +21,13 @@ class SystemShell(Tool):
         self,
         command: str,
         timeout: int = 30,
-        base_dir: str | None = None,
+        sandbox_dir: str = ".cogency/sandbox",
         access: str = "sandbox",
         **kwargs,
     ) -> ToolResult:
-        """Execute command with proper security validation."""
         if not command or not command.strip():
             return ToolResult(outcome="Command cannot be empty", error=True)
 
-        # Input validation and sanitization
         sanitized = sanitize_shell_input(command.strip())
 
         import shlex
@@ -39,15 +37,11 @@ class SystemShell(Tool):
         if not parts:
             return ToolResult(outcome="Empty command after parsing", error=True)
 
-        # Set working directory based on access level
         if access == "sandbox":
-            from ...lib.paths import Paths
-
-            working_path = Paths.sandbox(base_dir=base_dir)
-            working_path.mkdir(exist_ok=True)
+            working_path = Path(sandbox_dir)
+            working_path.mkdir(parents=True, exist_ok=True)
         else:
-            # project or system access
-            working_path = Path(base_dir) if base_dir else Path.cwd()
+            working_path = Path.cwd()
 
         try:
             result = subprocess.run(

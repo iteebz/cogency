@@ -4,12 +4,10 @@ import sqlite3
 import time
 from pathlib import Path
 
-from ..lib.paths import Paths
-
 
 def show_stats():
     """Show database statistics."""
-    db_path = Paths.db()
+    db_path = Path(".cogency/store.db")
 
     if not db_path.exists():
         print("No database found")
@@ -43,7 +41,7 @@ def show_stats():
 
 def show_users():
     """Show user profiles."""
-    db_path = Paths.db()
+    db_path = Path(".cogency/store.db")
 
     if not db_path.exists():
         print("No database found")

@@ -196,32 +196,33 @@ def test_shell_input_sanitization():
 
 
 def test_resolve_file_access_levels(tmp_path: Path):
-    # SANDBOX access - restricts to sandbox directory
     with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("/etc/passwd", "sandbox", base_dir=str(tmp_path))
+        resolve_file("/etc/passwd", "sandbox", sandbox_dir=str(tmp_path))
 
     with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("../../../etc/passwd", "sandbox", base_dir=str(tmp_path))
+        resolve_file("../../../etc/passwd", "sandbox", sandbox_dir=str(tmp_path))
 
-    # Should work for relative paths in a custom sandbox
-    result = resolve_file("test.txt", "sandbox", base_dir=str(tmp_path))
+    result = resolve_file("test.txt", "sandbox", sandbox_dir=str(tmp_path))
     assert isinstance(result, Path)
     assert str(tmp_path) in str(result)
 
-    # Should prevent path doubling when 'sandbox/' is in the file path
-    result_doubling = resolve_file("sandbox/app.py", "sandbox", base_dir=str(tmp_path))
+    result_doubling = resolve_file("sandbox/app.py", "sandbox", sandbox_dir=str(tmp_path))
     assert isinstance(result_doubling, Path)
     assert str(tmp_path) in str(result_doubling)
     assert "sandbox/sandbox" not in str(result_doubling)
-    assert str(result_doubling).endswith("sandbox/app.py")
-    # PROJECT access - restricts to project directory (base_dir)
-    with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("/etc/passwd", "project", base_dir=str(tmp_path))
+    assert str(result_doubling).endswith("app.py")
 
-    # Should work for relative paths in project
-    result = resolve_file("test.txt", "project", base_dir=str(tmp_path))
+    with pytest.raises(ValueError, match="Invalid path"):
+        resolve_file("/etc/passwd", "project")
+
+    result = resolve_file("test.txt", "project")
     assert isinstance(result, Path)
-    assert str(tmp_path) in str(result)
+    assert str(Path.cwd()) in str(result)
+    assert result == Path.cwd() / "test.txt"
+
+    result_ignores_sandbox = resolve_file("test.txt", "project", sandbox_dir="/ignored/path")
+    assert result_ignores_sandbox == Path.cwd() / "test.txt"
+    assert "/ignored/path" not in str(result_ignores_sandbox)
 
     # SYSTEM access - blocks dangerous paths but allows absolute paths
     with pytest.raises(ValueError, match="Invalid path"):

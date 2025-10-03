@@ -20,7 +20,7 @@ class FileEdit(Tool):
         file: str,
         old: str,
         new: str,
-        base_dir: str | None = None,
+        sandbox_dir: str = ".cogency/sandbox",
         access: Access = "sandbox",
         **kwargs,
     ) -> ToolResult:
@@ -30,7 +30,7 @@ class FileEdit(Tool):
         if not old:
             return ToolResult(outcome="Old text cannot be empty", error=True)
 
-        file_path = resolve_file(file, access, base_dir)
+        file_path = resolve_file(file, access, sandbox_dir)
 
         if not file_path.exists():
             return ToolResult(outcome=f"File '{file}' does not exist", error=True)

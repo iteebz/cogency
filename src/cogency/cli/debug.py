@@ -1,7 +1,7 @@
 import sqlite3
+from pathlib import Path
 
 from ..context.system import prompt
-from ..lib.paths import Paths
 from ..lib.storage import SQLite
 from ..tools import tools
 
@@ -23,9 +23,7 @@ def show_context(conversation_id: str = None):
     storage = SQLite()
 
     if not conversation_id:
-        # Get last conversation ID
-
-        db_path = Paths.db()
+        db_path = Path(".cogency/store.db")
         if not db_path.exists():
             print("No conversations found")
             return
@@ -39,9 +37,8 @@ def show_context(conversation_id: str = None):
                 return
             conversation_id = result[0]
 
-    # Handle partial conversation ID matching
     if len(conversation_id) < 36:
-        with sqlite3.connect(Paths.db()) as db:
+        with sqlite3.connect(".cogency/store.db") as db:
             result = db.execute(
                 "SELECT conversation_id FROM messages WHERE conversation_id LIKE ? LIMIT 1",
                 (f"{conversation_id}%",),
@@ -52,9 +49,7 @@ def show_context(conversation_id: str = None):
                 print(f"No conversation found matching '{conversation_id}'")
                 return
 
-    # Get the user query
-
-    with sqlite3.connect(Paths.db()) as db:
+    with sqlite3.connect(".cogency/store.db") as db:
         user_msg = db.execute(
             "SELECT content FROM messages WHERE conversation_id = ? AND type = 'user' ORDER BY timestamp DESC LIMIT 1",
             (conversation_id,),

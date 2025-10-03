@@ -5,8 +5,7 @@ import json
 import random
 import sys
 from datetime import datetime
-
-from cogency.lib.paths import Paths
+from pathlib import Path
 
 from .generate import coding, continuity, conversation, integrity, reasoning, research, security
 from .runner import run_category
@@ -36,7 +35,7 @@ async def _run_single(category, samples, agent_kwargs, judge_llm, llm, mode, see
     run_id = _persist_run([result], samples, llm, mode, judge_llm, seed)
 
     print(f"Results: {result.get('passed', 0)}/{result['total']}")
-    print(f"Saved: {Paths.evals(f'runs/{run_id}')}")
+    print(f"Saved: .cogency/evals/runs/{run_id}")
 
     return result
 
@@ -65,7 +64,7 @@ async def _run_all(samples, agent_kwargs, judge_llm, llm, mode, seed):
     for result in results:
         rate = f"{result.get('rate', 0):.1%}" if result.get("rate") else "Raw"
         print(f"{result['category'].capitalize()}: {rate}")
-    print(f"Latest: {Paths.evals(f'runs/{run_id}')}")
+    print(f"Latest: .cogency/evals/runs/{run_id}")
 
     return {
         "run_id": run_id,
@@ -82,7 +81,7 @@ def _persist_run(results, samples, llm, mode, judge_llm, seed):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     run_id = f"{timestamp}_{llm}_{mode}"
 
-    run_dir = Paths.evals(f"runs/{run_id}")
+    run_dir = Path(f".cogency/evals/runs/{run_id}")
     run_dir.mkdir(parents=True, exist_ok=True)
 
     from cogency import Agent
@@ -117,7 +116,7 @@ def _persist_run(results, samples, llm, mode, judge_llm, seed):
         with open(run_dir / "summary.json", "w") as f:
             json.dump(summary, f, indent=2)
 
-    latest_link = Paths.evals("latest")
+    latest_link = Path(".cogency/evals/latest")
     if latest_link.exists() or latest_link.is_symlink():
         latest_link.unlink()
     latest_link.symlink_to(f"runs/{run_id}")
@@ -153,7 +152,7 @@ def _judge_for(llm: str):
 
 def latest():
     """Get latest evaluation summary."""
-    latest_link = Paths.evals("latest")
+    latest_link = Path(".cogency/evals/latest")
     if latest_link.exists():
         summary_file = latest_link / "summary.json"
         if summary_file.exists():

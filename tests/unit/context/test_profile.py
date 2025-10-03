@@ -57,8 +57,7 @@ async def test_learn_async(mock_config):
         # Set up existing profile
         mock_profile = {"who": "Bob", "_meta": {"last_learned_at": 100}}
 
-        # Add user messages
-        storage = SQLite(temp_dir)
+        storage = SQLite(db_path=f"{temp_dir}/test.db")
         await storage.save_message("conv1", "user1", "user", "I love coding Python", 110)
         await storage.save_message("conv1", "user1", "user", "Can you help with algorithms?", 120)
 

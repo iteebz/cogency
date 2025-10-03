@@ -117,8 +117,6 @@ def mock_config(mock_llm, mock_storage):
             self.llm = llm
             self.storage = storage
             self.tools = []
-            self.base_dir = None
-
             # User steering layer
             self.identity = None
             self.instructions = None
@@ -138,7 +136,7 @@ def mock_config(mock_llm, mock_storage):
                 storage=self.storage,
                 tools=tuple(self.tools),
                 shell_timeout=self.security.shell_timeout,
-                base_dir=self.base_dir,
+                sandbox_dir=self.security.sandbox_dir,
                 access=self.security.access,
             )
 

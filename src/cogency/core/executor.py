@@ -17,11 +17,9 @@ async def execute_tool(
 
     args = dict(call.args)
 
-    # Inject runtime execution context
-    args["base_dir"] = execution.base_dir
+    args["sandbox_dir"] = execution.sandbox_dir
     args["access"] = execution.access
 
-    # Tool-specific params
     if tool_name == "shell":
         args["timeout"] = execution.shell_timeout
     if user_id:
