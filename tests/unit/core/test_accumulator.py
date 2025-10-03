@@ -143,3 +143,37 @@ async def test_circuit_breaker_terminates(mock_config, mock_tool):
     assert len(end_events) == 1
     assert len(result_events) <= 4
     assert "Max failures" in result_events[-1]["payload"]["outcome"]
+
+
+@pytest.mark.asyncio
+async def test_persistence_policy(mock_config, mock_tool):
+    """Verify only conversation events are persisted (not control flow or metrics)."""
+    from cogency.core.accumulator import PERSISTABLE_EVENTS
+
+    mock_config.tools = [mock_tool]
+    accumulator = Accumulator("user_1", "conv_123", execution=mock_config.execution, chunks=False)
+
+    async def all_event_types():
+        yield {"type": "user", "content": "test query"}
+        yield {"type": "think", "content": "thinking"}
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "test"}}}}',
+        }
+        yield {"type": "execute"}
+        yield {"type": "respond", "content": "response"}
+        yield {"type": "end"}
+
+    [event async for event in accumulator.process(all_event_types())]
+
+    stored = await mock_config.storage.load_messages("conv_123")
+    stored_types = {m["type"] for m in stored}
+
+    # Verify persistence policy constant matches actual behavior
+    for event_type in PERSISTABLE_EVENTS:
+        assert event_type in stored_types, f"{event_type} should be persisted"
+
+    # Verify control flow and metrics are NOT persisted
+    assert "execute" not in stored_types
+    assert "end" not in stored_types
+    assert "metrics" not in stored_types

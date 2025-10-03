@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -58,13 +58,13 @@ async def test_fallback_learns(mock_llm, mock_storage):
 
         mock_replay.return_value = mock_replay_stream()
 
-        async for _event in agent("test query", user_id="test_user", conversation_id="test_convo"):
-            pass
+        events = [
+            e async for e in agent("test query", user_id="test_user", conversation_id="test_convo")
+        ]
 
-        messages = await mock_storage.load_messages("test_convo", "test_user")
-        user_messages = [m for m in messages if m["type"] == "user"]
-        assert len(user_messages) > 0
-        assert any("test query" in m["content"] for m in user_messages)
+        user_events = [e for e in events if e["type"] == "user"]
+        assert len(user_events) == 1
+        assert user_events[0]["content"] == "test query"
 
         mock_learn.assert_called_once()
 
@@ -110,8 +110,7 @@ async def test_error_propagation(mock_llm, mock_storage):
 
 
 @pytest.mark.asyncio
-async def test_message_persistence(mock_llm, mock_storage):
-    mock_storage.save_message = AsyncMock()
+async def test_user_event_emission(mock_llm, mock_storage):
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
     with patch("cogency.core.replay.stream") as mock_stream:
@@ -121,7 +120,10 @@ async def test_message_persistence(mock_llm, mock_storage):
 
         mock_stream.side_effect = lambda *args, **kwargs: mock_events()
 
-        async for _ in agent("Test query", user_id="test_user", conversation_id="conv_123"):
-            pass
+        events = [
+            e async for e in agent("Test query", user_id="test_user", conversation_id="conv_123")
+        ]
 
-        mock_storage.save_message.assert_called_with("conv_123", "test_user", "user", "Test query")
+        user_events = [e for e in events if e["type"] == "user"]
+        assert len(user_events) == 1
+        assert user_events[0]["content"] == "Test query"

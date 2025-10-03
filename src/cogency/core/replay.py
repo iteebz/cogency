@@ -27,6 +27,8 @@ async def stream(
     chunks: bool = False,
 ):
     """Stateless HTTP iterations with context rebuild per request."""
+    import time
+
     llm = config.llm
     if llm is None:
         raise ValueError("LLM provider required")
@@ -37,6 +39,7 @@ async def stream(
 
     try:
         complete = False
+        user_persisted = False
 
         for iteration in range(1, config.max_iterations + 1):  # [SEC-005] Prevent runaway agents
             # Exit early if previous iteration completed
@@ -70,6 +73,11 @@ async def stream(
                 execution=config.execution,
                 chunks=chunks,
             )
+
+            # Persist user event once on first iteration
+            if not user_persisted:
+                await accumulator.persister.persist("user", query, time.time())
+                user_persisted = True
 
             # Track this LLM call
             if metrics:

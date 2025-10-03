@@ -37,10 +37,12 @@ async def test_history_none_window_includes_all(mock_storage):
     for i in range(5):
         await mock_storage.save_message("conv_123", "user_1", "user", f"Question {i}")
         await mock_storage.save_message("conv_123", "user_1", "respond", f"Answer {i}")
-        await mock_storage.save_message("conv_123", "user_1", "think", f"Think {i}")  # Should be excluded
-    
+        await mock_storage.save_message(
+            "conv_123", "user_1", "think", f"Think {i}"
+        )  # Should be excluded
+
     await mock_storage.save_message("conv_123", "user_1", "user", "Current question")
-    
+
     # With None window, should include ALL 5 question/answer pairs (10 messages total, excluding think)
     result = await conversation.history("conv_123", "user_1", mock_storage, None)
     assert "=== HISTORY ===" in result

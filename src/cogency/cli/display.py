@@ -9,6 +9,12 @@ class Renderer:
     async def render_stream(self, agent_stream):
         async for event in agent_stream:
             match event["type"]:
+                case "user":
+                    if event["content"]:
+                        if self.current_state != "user":
+                            print("\n\n$ ", end="", flush=True)
+                            self.current_state = "user"
+                        print(event["content"], end="", flush=True)
                 case "think":
                     if event["content"]:
                         if self.current_state != "think":

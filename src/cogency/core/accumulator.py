@@ -23,6 +23,9 @@ from .executor import execute_tool
 from .persister import EventPersister
 from .protocols import Event, ToolResult, event_content, event_type
 
+# Conversation events that get persisted to storage
+PERSISTABLE_EVENTS = {"user", "think", "call", "result", "respond"}
+
 
 class Accumulator:
     """Stream processor focused on event accumulation and tool execution."""
@@ -55,11 +58,9 @@ class Accumulator:
         if not self.current_type or not self.content.strip():
             return None
 
-        # Persist based on type
-        if self.current_type == "think":
-            await self.persister.persist_think(self.content, self.start_time)
-        elif self.current_type == "respond":
-            await self.persister.persist_respond(self.content, self.start_time)
+        # Persist conversation events only (not control flow or metrics)
+        if self.current_type in PERSISTABLE_EVENTS:
+            await self.persister.persist(self.current_type, self.content, self.start_time)
 
         # Emit event in semantic mode (skip calls - handled by execute)
         if not self.chunks and self.current_type != "call":
@@ -80,12 +81,14 @@ class Accumulator:
         # Parse and persist call
         try:
             tool_call = parse_tool_call(call_text)
-            await self.persister.persist_call(
-                json.dumps({"name": tool_call.name, "args": tool_call.args}), self.start_time
+            await self.persister.persist(
+                "call",
+                json.dumps({"name": tool_call.name, "args": tool_call.args}),
+                self.start_time,
             )
         except (json.JSONDecodeError, KeyError, ProtocolError) as e:
             logger.warning(f"Failed to parse tool call JSON: {e}")
-            await self.persister.persist_call(call_text, self.start_time)
+            await self.persister.persist("call", call_text, self.start_time)
 
         yield {"type": "call", "content": call_text, "timestamp": self.start_time}
 
@@ -103,7 +106,7 @@ class Accumulator:
                 outcome=f"Invalid tool call: {str(e)}", content=call_text, error=True
             )
 
-        await self.persister.persist_result(json.dumps(result.__dict__), timestamp)
+        await self.persister.persist("result", json.dumps(result.__dict__), timestamp)
 
         # Track failures
         if result.error:

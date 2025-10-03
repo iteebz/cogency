@@ -113,15 +113,18 @@ class Agent:
             chunks: If True, stream individual tokens. If False, stream semantic events.
         """
         try:
+            import time
+
             # Generate ephemeral ID for iteration continuity if none provided
             if conversation_id is None:
                 import uuid
 
                 conversation_id = str(uuid.uuid4())
 
-            # Persist user message for iteration continuity
+            # Emit user event - first event in conversation turn
+            yield {"type": "user", "content": query, "timestamp": time.time()}
+
             storage = self.config.storage
-            await storage.save_message(conversation_id, user_id, "user", query)
 
             if self.config.mode == "resume":
                 mode_stream = resume.stream

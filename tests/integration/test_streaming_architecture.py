@@ -17,12 +17,14 @@ async def test_streaming_no_chunks(mock_llm, mock_tool):
     agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test query", chunks=False)]
 
-    assert len(events) >= 2
-    assert events[0]["type"] == "think"
-    assert "need to call a tool" in events[0]["content"]
-    assert events[1]["type"] == "call"
-    assert events[2]["type"] == "result"
-    assert "Tool executed: hello world" in events[2]["payload"]["outcome"]
+    assert len(events) >= 3
+    assert events[0]["type"] == "user"
+    assert events[0]["content"] == "Test query"
+    assert events[1]["type"] == "think"
+    assert "need to call a tool" in events[1]["content"]
+    assert events[2]["type"] == "call"
+    assert events[3]["type"] == "result"
+    assert "Tool executed: hello world" in events[3]["payload"]["outcome"]
 
 
 @pytest.mark.asyncio
@@ -58,9 +60,10 @@ async def test_tool_execution(mock_llm, mock_tool):
     agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test query", chunks=False)]
 
-    assert len(events) >= 2
-    call_event = events[0]
-    result_event = events[1]
+    assert len(events) >= 3
+    assert events[0]["type"] == "user"
+    call_event = events[1]
+    result_event = events[2]
     assert call_event["type"] == "call"
     assert result_event["type"] == "result"
     assert "Tool executed: integration test" in result_event["payload"]["outcome"]
@@ -99,6 +102,7 @@ async def test_persistence(mock_llm, mock_tool, mock_storage):
     agent = Agent(llm=llm, tools=[mock_tool], storage=mock_storage, mode="replay", max_iterations=1)
     events = [event async for event in agent("Test query", chunks=False)]
 
-    assert len(events) >= 2
+    assert len(events) >= 3
+    assert any(e["type"] == "user" for e in events)
     assert any(e["type"] == "think" for e in events)
     assert any(e["type"] == "result" for e in events)

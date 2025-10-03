@@ -28,6 +28,8 @@ async def stream(
     chunks: bool = False,
 ):
     """WebSocket streaming with tool injection and session continuity."""
+    import time
+
     llm = config.llm
     if llm is None:
         raise ValueError("LLM provider required")
@@ -72,6 +74,9 @@ async def stream(
         )
 
         try:
+            # Persist user event directly
+            await accumulator.persister.persist("user", query, time.time())
+
             # Query already sent via connect() - just trigger response generation
             async for event in accumulator.process(parse_tokens(session.send(""))):
                 ev_type = event_type(event)
