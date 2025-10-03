@@ -17,6 +17,9 @@ class FileSearch(Tool):
         "path": {"optional": True},
     }
 
+    MAX_RESULTS = 100
+    WARN_THRESHOLD = 50
+
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
         query = args.get("content") or args.get("pattern", "files")
@@ -35,6 +38,13 @@ class FileSearch(Tool):
         """Search files with visual results."""
         if not pattern and not content:
             return ToolResult(outcome="Must specify pattern or content to search", error=True)
+
+        if pattern == "*" and not content:
+            return ToolResult(
+                outcome="Pattern too broad",
+                content="Specify: content='...' OR pattern='*.py' OR path='subdir'",
+                error=True,
+            )
 
         # Determine search directory
         if path == ".":
@@ -56,7 +66,19 @@ class FileSearch(Tool):
         if not results:
             return ToolResult(outcome="Searched files", content="No matches found")
 
-        return ToolResult(outcome=f"Found {len(results)} matches", content="\n".join(results))
+        shown = results[: self.MAX_RESULTS]
+        truncated = len(results) > self.MAX_RESULTS
+
+        content_text = "\n".join(shown)
+        if truncated:
+            content_text += (
+                f"\n\n[Truncated: showing {self.MAX_RESULTS} of {len(results)}. Refine query.]"
+            )
+
+        return ToolResult(
+            outcome=f"Found {len(results)} matches",
+            content=content_text,
+        )
 
     def _search_files(self, search_path: Path, pattern: str, content: str) -> list:
         """Search files and return clean visual results."""
