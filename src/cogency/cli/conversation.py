@@ -14,7 +14,7 @@ async def show_conversation(conversation_id: str):
 
     with sqlite3.connect(db_path) as db:
         rows = db.execute(
-            "SELECT type, content FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
+            "SELECT type, content FROM messages WHERE conversation_id = ? ORDER BY timestamp",
             (conversation_id,),
         ).fetchall()
 

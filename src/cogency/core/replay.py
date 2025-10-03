@@ -76,7 +76,9 @@ async def stream(
 
             # Persist user event once on first iteration
             if not user_persisted:
-                await accumulator.persister.persist("user", query, time.time())
+                await config.execution.storage.save_message(
+                    conversation_id, user_id, "user", query, time.time()
+                )
                 user_persisted = True
 
             # Track this LLM call

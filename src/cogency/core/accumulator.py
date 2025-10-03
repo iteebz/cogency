@@ -20,7 +20,6 @@ from ..tools.parse import parse_tool_call
 from .config import Execution
 from .exceptions import ProtocolError
 from .executor import execute_tool
-from .persister import EventPersister
 from .protocols import Event, ToolResult, event_content, event_type
 
 # Conversation events that get persisted to storage
@@ -45,7 +44,7 @@ class Accumulator:
 
         self._execution = execution
 
-        self.persister = EventPersister(conversation_id, user_id, execution.storage)
+        self.storage = execution.storage
         self.circuit_breaker = CircuitBreaker(max_failures=max_failures)
 
         # Accumulation state
@@ -60,7 +59,9 @@ class Accumulator:
 
         # Persist conversation events only (not control flow or metrics)
         if self.current_type in PERSISTABLE_EVENTS:
-            await self.persister.persist(self.current_type, self.content, self.start_time)
+            await self.storage.save_message(
+                self.conversation_id, self.user_id, self.current_type, self.content, self.start_time
+            )
 
         # Emit event in semantic mode (skip calls - handled by execute)
         if not self.chunks and self.current_type != "call":
@@ -81,14 +82,18 @@ class Accumulator:
         # Parse and persist call
         try:
             tool_call = parse_tool_call(call_text)
-            await self.persister.persist(
+            await self.storage.save_message(
+                self.conversation_id,
+                self.user_id,
                 "call",
                 json.dumps({"name": tool_call.name, "args": tool_call.args}),
                 self.start_time,
             )
         except (json.JSONDecodeError, KeyError, ProtocolError) as e:
             logger.warning(f"Failed to parse tool call JSON: {e}")
-            await self.persister.persist("call", call_text, self.start_time)
+            await self.storage.save_message(
+                self.conversation_id, self.user_id, "call", call_text, self.start_time
+            )
 
         yield {"type": "call", "content": call_text, "timestamp": self.start_time}
 
@@ -106,7 +111,9 @@ class Accumulator:
                 outcome=f"Invalid tool call: {str(e)}", content=call_text, error=True
             )
 
-        await self.persister.persist("result", json.dumps(result.__dict__), timestamp)
+        await self.storage.save_message(
+            self.conversation_id, self.user_id, "result", json.dumps(result.__dict__), timestamp
+        )
 
         # Track failures
         if result.error:

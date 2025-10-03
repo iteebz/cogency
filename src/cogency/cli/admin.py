@@ -16,7 +16,7 @@ def show_stats():
         return
 
     with sqlite3.connect(db_path) as db:
-        total = db.execute("SELECT COUNT(*) FROM conversations").fetchone()[0]
+        total = db.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
         print(f"Total records: {total}")
 
         if total == 0:
@@ -24,7 +24,7 @@ def show_stats():
 
         conversations = db.execute("""
             SELECT conversation_id, COUNT(*) as records, MIN(timestamp) as first_seen
-            FROM conversations GROUP BY conversation_id ORDER BY records DESC LIMIT 5
+            FROM messages GROUP BY conversation_id ORDER BY records DESC LIMIT 5
         """).fetchall()
 
         print("\nTop conversations:")
@@ -33,7 +33,7 @@ def show_stats():
             print(f"  {conv_id[:20]} | {count} records | {age_hours:.1f}h old")
 
         types = db.execute("""
-            SELECT type, COUNT(*) as count FROM conversations GROUP BY type ORDER BY count DESC
+            SELECT type, COUNT(*) as count FROM messages GROUP BY type ORDER BY count DESC
         """).fetchall()
 
         print("\nBy type:")

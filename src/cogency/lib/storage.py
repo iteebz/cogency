@@ -36,7 +36,7 @@ class DB:
         """Initialize database schema."""
         with sqlite3.connect(db_path) as db:
             db.executescript("""
-                CREATE TABLE IF NOT EXISTS conversations (
+                CREATE TABLE IF NOT EXISTS messages (
                     conversation_id TEXT NOT NULL,
                     user_id TEXT,
                     type TEXT NOT NULL,
@@ -45,11 +45,11 @@ class DB:
                     PRIMARY KEY (conversation_id, timestamp)
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_conversations_id ON conversations(conversation_id);
-                CREATE INDEX IF NOT EXISTS idx_conversations_type ON conversations(type);
-                CREATE INDEX IF NOT EXISTS idx_conversations_user ON conversations(user_id);
-                CREATE INDEX IF NOT EXISTS idx_conversations_composite ON conversations(conversation_id, type, timestamp);
-                CREATE INDEX IF NOT EXISTS idx_conversations_user_type ON conversations(user_id, type, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_messages_id ON messages(conversation_id);
+                CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
+                CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
+                CREATE INDEX IF NOT EXISTS idx_messages_composite ON messages(conversation_id, type, timestamp);
+                CREATE INDEX IF NOT EXISTS idx_messages_user_type ON messages(user_id, type, timestamp);
 
                 CREATE TABLE IF NOT EXISTS profiles (
                     user_id TEXT NOT NULL,
@@ -84,7 +84,7 @@ class SQLite:
         def _sync_save():
             with DB.connect(self.base_dir) as db:
                 db.execute(
-                    "INSERT INTO conversations (conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
+                    "INSERT INTO messages (conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
                     (conversation_id, user_id, type, content, timestamp),
                 )
 
@@ -104,7 +104,7 @@ class SQLite:
             with DB.connect(self.base_dir) as db:
                 db.row_factory = sqlite3.Row
 
-                query = "SELECT type, content FROM conversations WHERE conversation_id = ?"
+                query = "SELECT type, content FROM messages WHERE conversation_id = ?"
                 params = [conversation_id]
 
                 if user_id:
@@ -175,7 +175,7 @@ class SQLite:
 
         def _sync_load():
             with DB.connect(self.base_dir) as db:
-                query = "SELECT content FROM conversations WHERE user_id = ? AND type = 'user' AND timestamp > ? ORDER BY timestamp ASC"
+                query = "SELECT content FROM messages WHERE user_id = ? AND type = 'user' AND timestamp > ? ORDER BY timestamp ASC"
                 params = [user_id, since_timestamp]
 
                 if limit is not None:
@@ -194,7 +194,7 @@ class SQLite:
         def _sync_count():
             with DB.connect(self.base_dir) as db:
                 return db.execute(
-                    "SELECT COUNT(*) FROM conversations WHERE user_id = ? AND type = 'user' AND timestamp > ?",
+                    "SELECT COUNT(*) FROM messages WHERE user_id = ? AND type = 'user' AND timestamp > ?",
                     (user_id, since_timestamp),
                 ).fetchone()[0]
 
@@ -204,7 +204,7 @@ class SQLite:
 def clear_messages(conversation_id: str, base_dir: str = None) -> None:
     """Clear conversation for testing. Raises on failure."""
     with DB.connect(base_dir) as db:
-        db.execute("DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,))
+        db.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
 
 
 def default_storage(base_dir: str | None = None):

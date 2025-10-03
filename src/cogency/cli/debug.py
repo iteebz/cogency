@@ -32,7 +32,7 @@ def show_context(conversation_id: str = None):
 
         with sqlite3.connect(db_path) as db:
             result = db.execute(
-                "SELECT conversation_id FROM conversations ORDER BY timestamp DESC LIMIT 1"
+                "SELECT conversation_id FROM messages ORDER BY timestamp DESC LIMIT 1"
             ).fetchone()
             if not result:
                 print("No conversations found")
@@ -43,7 +43,7 @@ def show_context(conversation_id: str = None):
     if len(conversation_id) < 36:
         with sqlite3.connect(Paths.db()) as db:
             result = db.execute(
-                "SELECT conversation_id FROM conversations WHERE conversation_id LIKE ? LIMIT 1",
+                "SELECT conversation_id FROM messages WHERE conversation_id LIKE ? LIMIT 1",
                 (f"{conversation_id}%",),
             ).fetchone()
             if result:
@@ -56,7 +56,7 @@ def show_context(conversation_id: str = None):
 
     with sqlite3.connect(Paths.db()) as db:
         user_msg = db.execute(
-            "SELECT content FROM conversations WHERE conversation_id = ? AND type = 'user' ORDER BY timestamp DESC LIMIT 1",
+            "SELECT content FROM messages WHERE conversation_id = ? AND type = 'user' ORDER BY timestamp DESC LIMIT 1",
             (conversation_id,),
         ).fetchone()
 

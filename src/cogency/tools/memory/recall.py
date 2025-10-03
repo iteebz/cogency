@@ -88,7 +88,7 @@ class MemoryRecall(Tool):
                 # Get last 20 user messages from current conversation
                 rows = db.execute(
                     """
-                    SELECT timestamp FROM conversations
+                    SELECT timestamp FROM messages
                     WHERE conversation_id = ? AND type = 'user'
                     ORDER BY timestamp DESC
                     LIMIT 20
@@ -129,7 +129,7 @@ class MemoryRecall(Tool):
                 query_sql = f"""
                     SELECT content, timestamp, conversation_id,
                            (LENGTH(content) - LENGTH(REPLACE(LOWER(content), ?, ''))) as relevance_score
-                    FROM conversations
+                    FROM messages
                     WHERE type = 'user'
                     AND conversation_id LIKE ?
                     {exclude_clause}
