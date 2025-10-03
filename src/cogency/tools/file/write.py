@@ -38,4 +38,6 @@ class FileWrite(Tool):
 
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(content)
-        return ToolResult(outcome=f"Created {file}")
+        
+        lines = content.count("\n") + 1 if content else 0
+        return ToolResult(outcome=f"Created {file} (+{lines}/-0)")

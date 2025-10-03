@@ -52,4 +52,6 @@ class FileEdit(Tool):
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(new_content)
 
-        return ToolResult(outcome=f"File edited: {file}")
+        added = new.count("\n") + 1
+        removed = old.count("\n") + 1
+        return ToolResult(outcome=f"Modified {file} (+{added}/-{removed})")
