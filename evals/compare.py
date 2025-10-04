@@ -142,8 +142,8 @@ def _print_categories(summary1: dict, summary2: dict):
         cat1 = categories1.get(category, {})
         cat2 = categories2.get(category, {})
 
-        rate1 = cat1.get("rate", 0) if isinstance(cat1.get("rate"), (int, float)) else 0
-        rate2 = cat2.get("rate", 0) if isinstance(cat2.get("rate"), (int, float)) else 0
+        rate1 = cat1.get("rate", 0) if isinstance(cat1.get("rate"), int | float) else 0
+        rate2 = cat2.get("rate", 0) if isinstance(cat2.get("rate"), int | float) else 0
         diff = rate2 - rate1
 
         tokens1 = cat1.get("tokens", {}).get("avg", 0)

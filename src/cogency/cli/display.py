@@ -1,41 +1,59 @@
-from ..tools.format import format_call_human
+"""CLI renderer for cogency event streams.
+
+Event symbols:
+  $ - user input
+  ~ - agent thinking
+  ○ - tool call
+  ● - tool result
+  > - agent response
+  --- - turn separator
+"""
 
 
 class Renderer:
-    def __init__(self, verbose: bool = False):
+    def __init__(self, verbose: bool = False, model: str | None = None, identity: str | None = None, messages: list | None = None):
         self.verbose = verbose
         self.current_state = None
+        self.model = model
+        self.identity = identity
+        self.messages = messages or []
+        self.header_shown = False
 
     async def render_stream(self, agent_stream):
         async for event in agent_stream:
+            if not self.header_shown:
+                parts = []
+                if self.model:
+                    parts.append(f"model: {self.model}")
+                if self.identity:
+                    parts.append(f"identity: {self.identity}")
+                if parts:
+                    print(" | ".join(parts))
+                
+                if self.messages:
+                    print(f"History ({len(self.messages)} messages):")
+                    for msg in self.messages:
+                        role = msg.get("role", "?")
+                        content = msg.get("content", "")[:80]
+                        print(f"  [{role}] {content}")
+                
+                self.header_shown = True
             match event["type"]:
                 case "user":
                     if event["content"]:
-                        if self.current_state != "user":
-                            print("\n\n$ ", end="", flush=True)
-                            self.current_state = "user"
-                        print(event["content"], end="", flush=True)
+                        print(f"---\n$ {event['content']}")
+                        self.current_state = "user"
                 case "think":
                     if event["content"]:
-                        if self.current_state != "think":
-                            print("\n\n~ ", end="", flush=True)
-                            self.current_state = "think"
-                        print(event["content"], end="", flush=True)
+                        print(f"\n~ {event['content']}")
+                        self.current_state = "think"
                 case "call":
-                    # Tool call started - show action
+                    payload = event.get("payload", {})
+                    outcome = payload.get("outcome", "Tool execution")
+                    print(f"\n○ {outcome}")
                     self.current_state = None
-
-                    # Parse call and format display using Formatter
-                    try:
-                        from ..tools.parse import parse_tool_call
-
-                        tool_call = parse_tool_call(event["content"])
-                        action_display = format_call_human(tool_call)
-                    except Exception:
-                        action_display = "Tool execution"
-
-                    print(f"\n\n○ {action_display}")
-
+                case "execute":
+                    pass
                 case "result":
                     payload = event.get("payload", {})
                     outcome = payload.get("outcome", "Tool completed")
@@ -44,17 +62,11 @@ class Renderer:
                 case "respond":
                     if event["content"]:
                         if self.current_state != "respond":
-                            print("\n\n> ", end="", flush=True)
+                            print("\n> ", end="", flush=True)
                             self.current_state = "respond"
                         print(event["content"], end="", flush=True)
-                case "execute":
-                    # Tool execution boundary - optionally show
-                    if self.verbose:
-                        print("\n[execute]", flush=True)
                 case "end":
-                    # Task completion - optionally show
-                    if self.verbose:
-                        print("\n[end]", flush=True)
+                    pass
                 case "metric":
                     if self.verbose and "total" in event:
                         total = event["total"]
@@ -62,7 +74,10 @@ class Renderer:
                 case "error":
                     payload = event.get("payload", {})
                     error_msg = payload.get("error", event.get("content", "Unknown error"))
-                    print(f"\n✗ Error: {error_msg}")
+                    print(f"\n✗ {error_msg}")
                 case "interrupt":
                     print("\n⚠ Interrupted")
                     return
+        
+        # Print final newline after stream completes
+        print()

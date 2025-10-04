@@ -18,15 +18,16 @@ import uuid
 _last_timestamp_ms = 0
 _counter = 0
 
+# Check for native uuid7 support once at module load
+_USE_NATIVE = hasattr(uuid, "uuid7")
+
 
 def uuid7() -> str:
     """Generate UUID v7 (time-ordered) for distributed-safe IDs."""
-    if hasattr(uuid, "uuid7"):
+    if _USE_NATIVE:
         return str(uuid.uuid7())
 
     global _last_timestamp_ms, _counter
-
-    # Manual UUID v7 implementation for Python < 3.13
     timestamp_ms = int(time.time() * 1000)
 
     # RFC 9562 Method 2: Monotonic counter for same-millisecond IDs

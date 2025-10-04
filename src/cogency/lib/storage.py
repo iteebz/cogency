@@ -1,3 +1,4 @@
+import asyncio
 import json
 import sqlite3
 import time
@@ -82,8 +83,6 @@ class SQLite:
     async def save_message(
         self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
     ) -> str:
-        import asyncio
-
         if timestamp is None:
             timestamp = time.time()
 
@@ -103,8 +102,6 @@ class SQLite:
     async def save_event(
         self, conversation_id: str, type: str, content: str, timestamp: float = None
     ) -> str:
-        import asyncio
-
         if timestamp is None:
             timestamp = time.time()
 
@@ -129,8 +126,6 @@ class SQLite:
         response: str = None,
         timestamp: float = None,
     ) -> str:
-        import asyncio
-
         if timestamp is None:
             timestamp = time.time()
 
@@ -153,8 +148,6 @@ class SQLite:
         include: list[str] = None,
         exclude: list[str] = None,
     ) -> list[dict]:
-        import asyncio
-
         def _sync_load():
             with DB.connect(self.db_path) as db:
                 db.row_factory = sqlite3.Row
@@ -183,8 +176,6 @@ class SQLite:
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
     async def save_profile(self, user_id: str, profile: dict) -> None:
-        import asyncio
-
         def _sync_save():
             with DB.connect(self.db_path) as db:
                 current_version = (
@@ -206,8 +197,6 @@ class SQLite:
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
     async def load_profile(self, user_id: str) -> dict:
-        import asyncio
-
         def _sync_load():
             with DB.connect(self.db_path) as db:
                 row = db.execute(
@@ -223,8 +212,6 @@ class SQLite:
     async def load_user_messages(
         self, user_id: str, since_timestamp: float = 0, limit: int | None = None
     ) -> list[str]:
-        import asyncio
-
         def _sync_load():
             with DB.connect(self.db_path) as db:
                 query = "SELECT content FROM messages WHERE user_id = ? AND type = 'user' AND timestamp > ? ORDER BY timestamp ASC"
@@ -240,8 +227,6 @@ class SQLite:
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
     async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int:
-        import asyncio
-
         def _sync_count():
             with DB.connect(self.db_path) as db:
                 return db.execute(

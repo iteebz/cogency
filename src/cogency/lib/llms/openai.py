@@ -105,24 +105,24 @@ class OpenAI(LLM):
 
             await connection.session.update(
                 session={
-                    "modalities": ["text"],
                     "temperature": self.temperature,
                     "max_response_output_tokens": 2000,
                     "instructions": system_content.strip(),
                 }
             )
 
-            # Send each user message properly and trigger response generation
+            # Add ALL history messages including last user message
+            # WebSocket needs full conversation loaded before response.create()
             for msg in user_messages:
+                # Assistant messages use "text" type, user messages use "input_text"
+                content_type = "text" if msg["role"] == "assistant" else "input_text"
                 await connection.conversation.item.create(
                     item={
                         "type": "message",
                         "role": msg["role"],
-                        "content": [{"type": "input_text", "text": msg["content"]}],
+                        "content": [{"type": content_type, "text": msg["content"]}],
                     }
                 )
-
-            # Note: send() will trigger response generation when first message is sent
 
             # Create session-enabled instance with fresh key
             fresh_key = client.api_key
@@ -171,6 +171,8 @@ class OpenAI(LLM):
             # Stream response chunks until turn completion
             async for event in self._connection:
                 if event.type == "response.text.delta" and event.delta:
+                    yield event.delta
+                elif event.type == "response.audio_transcript.delta" and event.delta:
                     yield event.delta
                 elif event.type == "response.done":
                     return

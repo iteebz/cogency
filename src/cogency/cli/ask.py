@@ -41,6 +41,19 @@ async def run_agent(
 
     try:
         from .display import Renderer
+        from ..context import assemble
+        
+        # Assemble context to show history
+        messages = await assemble(
+            user,
+            conv,
+            tools=agent.config.tools,
+            storage=agent.config.storage,
+            history_window=agent.config.history_window,
+            profile_enabled=agent.config.profile,
+            identity=agent.config.identity,
+            instructions=agent.config.instructions,
+        )
 
         async def stream_with_cancellation():
             try:
@@ -56,7 +69,14 @@ async def run_agent(
                 }
                 raise
 
-        renderer = Renderer()
+        ws_model = getattr(agent.config.llm, "websocket_model", None)
+        http_model = getattr(agent.config.llm, "http_model", llm)
+        model_name = ws_model if mode in ("auto", "resume") and ws_model else http_model
+        renderer = Renderer(
+            model=model_name,
+            identity=agent.config.identity,
+            messages=messages
+        )
         await renderer.render_stream(stream_with_cancellation())
 
     except (asyncio.CancelledError, KeyboardInterrupt):

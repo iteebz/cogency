@@ -11,9 +11,10 @@ Test configurations: --llm (openai/gemini/anthropic) --mode (auto/resume/replay)
 )
 
 
-@app.command()
+@app.callback(invoke_without_command=True)
 def run(
-    question: str = typer.Argument(..., help="Question for the agent"),
+    ctx: typer.Context,
+    question: str = typer.Argument(None, help="Question for the agent"),
     llm: str = typer.Option("openai", "--llm", help="LLM provider (openai, gemini, anthropic)"),
     mode: str = typer.Option("auto", "--mode", help="Stream mode (auto, resume, replay)"),
     user: str = typer.Option("cli", "--user", help="User ID for profile learning"),
@@ -24,6 +25,13 @@ def run(
     debug: bool = typer.Option(False, "--debug", help="Enable debug logging"),
 ):
     """Ask the agent a question (stateless by default)."""
+    if ctx.invoked_subcommand is not None:
+        return
+    
+    if question is None:
+        print(ctx.get_help())
+        raise typer.Exit(0)
+    
     from .ask import run_agent
 
     asyncio.run(

@@ -73,7 +73,8 @@ async def stream(
         )
 
         try:
-            # Query already sent via connect() - just trigger response generation
+            # All messages (including current query) loaded in connect()
+            # Send empty string to trigger response generation
             async for event in accumulator.process(parse_tokens(session.send(""))):
                 ev_type = event_type(event)
                 content = event_content(event)

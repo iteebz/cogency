@@ -59,7 +59,7 @@ class Accumulator:
             return None
 
         # Persist conversation events only (not control flow or metrics)
-        clean_content = self.content.lstrip()
+        clean_content = self.content.strip() if not self.chunks else self.content.lstrip()
 
         if self.current_type in PERSISTABLE_EVENTS:
             await self.storage.save_message(
@@ -86,49 +86,65 @@ class Accumulator:
 
         call_text = self.content.strip()
 
-        # Parse and persist call
+        # Parse once, use everywhere
         try:
             tool_call = parse_tool_call(call_text)
-            await self.storage.save_message(
-                self.conversation_id,
-                self.user_id,
-                "call",
-                json.dumps({"name": tool_call.name, "args": tool_call.args}),
-                self.start_time,
-            )
+            call_json = json.dumps({"name": tool_call.name, "args": tool_call.args})
         except (json.JSONDecodeError, KeyError, ProtocolError) as e:
-            logger.warning(f"Failed to parse tool call JSON: {e}")
+            logger.warning(f"Failed to parse tool call: {e}")
             await self.storage.save_message(
                 self.conversation_id, self.user_id, "call", call_text, self.start_time
             )
+            yield {"type": "call", "content": call_text, "timestamp": self.start_time}
+            yield {"type": "execute", "timestamp": timestamp}
+            result = ToolResult(
+                outcome=f"Invalid tool call: {str(e)}", content=call_text, error=True
+            )
+            await self.storage.save_message(
+                self.conversation_id, self.user_id, "result", json.dumps(result.__dict__), timestamp
+            )
+            yield {
+                "type": "result",
+                "payload": {"outcome": result.outcome, "content": result.content, "error": True},
+                "content": f"§result: {result.outcome}",
+                "timestamp": timestamp,
+            }
+            self.current_type = None
+            self.content = ""
+            self.start_time = None
+            return
+
+        # Persist parsed call
+        await self.storage.save_message(
+            self.conversation_id, self.user_id, "call", call_json, self.start_time
+        )
 
         yield {"type": "call", "content": call_text, "timestamp": self.start_time}
         yield {"type": "execute", "timestamp": timestamp}
 
-        # Execute tool
+        # Execute tool (already parsed)
         try:
-            tool_call = parse_tool_call(call_text)
             result = await execute_tool(
                 tool_call,
                 execution=self._execution,
                 user_id=self.user_id,
                 conversation_id=self.conversation_id,
             )
-        except (ValueError, TypeError, KeyError, ProtocolError) as e:
-            result = ToolResult(
-                outcome=f"Invalid tool call: {str(e)}", content=call_text, error=True
-            )
+        except (ValueError, TypeError, KeyError) as e:
+            result = ToolResult(outcome=f"Tool execution failed: {str(e)}", content="", error=True)
 
+        # Persist result
         await self.storage.save_message(
             self.conversation_id, self.user_id, "result", json.dumps(result.__dict__), timestamp
         )
 
-        # Track failures
+        # Track failures for circuit breaker
         if result.error:
             self.circuit_breaker.record_failure()
         else:
             self.circuit_breaker.record_success()
 
+        # Terminate on max failures
         if self.circuit_breaker.is_open():
             termination_result = ToolResult(
                 outcome="Max failures. Terminating.", content="", error=True

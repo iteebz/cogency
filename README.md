@@ -276,7 +276,7 @@ See [docs/protocol.md](docs/protocol.md) for complete specification.
 
 ## Documentation
 
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - Core pipeline and design decisions
+- [architecture.md](docs/architecture.md) - Core pipeline and design decisions
 - [protocol.md](docs/protocol.md) - Delimiter protocol specification
 - [proof.md](docs/proof.md) - Mathematical efficiency analysis
 

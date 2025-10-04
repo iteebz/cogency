@@ -79,8 +79,6 @@ async def stream(
             if metrics:
                 metrics.start_step()
                 metrics.add_input(messages)
-            else:
-                pass
 
             step_output_tokens = 0
 

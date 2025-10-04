@@ -15,13 +15,15 @@ def interruptible(func):
                 yield chunk
         except KeyboardInterrupt:
             logger.info(f"{provider_name} interrupted by user (Ctrl+C)")
-            raise  # Re-raise to propagate interrupt signal
+            raise
         except asyncio.CancelledError:
             logger.debug(f"{provider_name} cancelled")
-            raise  # Re-raise to propagate cancellation
+            raise
+        except StopAsyncIteration:
+            pass
         except Exception as e:
-            logger.error(f"{provider_name} error: {str(e)}")
-            # Emit END on error to cleanly terminate
+            if str(e):
+                logger.error(f"{provider_name} error: {str(e)}")
             yield "§end"
 
     return wrapper

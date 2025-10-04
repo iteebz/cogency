@@ -113,18 +113,24 @@ class Gemini(LLM):
             connection = client.aio.live.connect(model=self.websocket_model, config=config)
             session = await connection.__aenter__()
 
-            # Load initial conversation context (skip system instructions for Live API)
-            for msg in messages:
-                if msg["role"] != "system":  # Live API uses systemInstruction separately
-                    await session.send_client_content(
-                        turns=types.Content(
-                            role=msg["role"], parts=[types.Part(text=msg["content"])]
-                        ),
-                        turn_complete=True,
-                    )
+            # Load conversation history (skip system and last user message)
+            # Last user message will be sent via send() to trigger generation
+            non_system_msgs = [m for m in messages if m["role"] != "system"]
+            history_msgs = (
+                non_system_msgs[:-1]
+                if non_system_msgs and non_system_msgs[-1]["role"] == "user"
+                else non_system_msgs
+            )
 
-                    # Drain any responses to initial context
-                    await self._drain_turn_with_dual_signals(session)
+            for msg in history_msgs:
+                # Gemini uses "model" not "assistant"
+                role = "model" if msg["role"] == "assistant" else msg["role"]
+                await session.send_client_content(
+                    turns=types.Content(role=role, parts=[types.Part(text=msg["content"])]),
+                    turn_complete=True,
+                )
+                # Drain any responses to initial context
+                await self._drain_turn_with_dual_signals(session)
 
             # Create session-enabled instance with fresh rotated key
             fresh_key = get_api_key("gemini")  # Force fresh rotation
@@ -239,13 +245,16 @@ class Gemini(LLM):
 
         contents = []
         for msg in messages:
-            # Handle system messages as user messages with context
-            role = "user" if msg["role"] == "system" else msg["role"]
-            content = msg["content"]
-
-            # For system messages, prefix with context indicator
+            # Gemini uses "model" not "assistant", "user" for system
             if msg["role"] == "system":
-                content = f"System: {content}"
+                role = "user"
+                content = f"System: {msg['content']}"
+            elif msg["role"] == "assistant":
+                role = "model"
+                content = msg["content"]
+            else:
+                role = msg["role"]
+                content = msg["content"]
 
             contents.append(types.Content(role=role, parts=[types.Part(text=content)]))
 
