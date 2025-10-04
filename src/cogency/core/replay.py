@@ -88,10 +88,6 @@ async def stream(
             serialized_messages = json.dumps(messages)
             telemetry_events: list[dict] = []
 
-            def record_event(event: dict | None):
-                if event:
-                    telemetry_events.append(event)
-
             # Track output tokens for all LLM-generated content
             try:
                 async for event in accumulator.process(parse_tokens(llm.stream(messages))):
@@ -103,7 +99,8 @@ async def stream(
                     ):
                         step_output_tokens += metrics.add_output(event["content"])
 
-                    record_event(event)
+                    if event:
+                        telemetry_events.append(event)
 
                     match event["type"]:
                         case "end":
@@ -111,25 +108,24 @@ async def stream(
                             logger.debug(f"REPLAY: Set complete=True on iteration {iteration}")
                             yield event
 
-                        case "execute" | "result":
-                            if event["type"] == "execute" and metrics:
+                        case "execute":
+                            yield event
+                            if metrics:
                                 metrics_event = metrics.event()
-                                record_event(metrics_event)
+                                telemetry_events.append(metrics_event)
                                 yield metrics_event
                                 metrics.start_step()
+
+                        case "result":
                             yield event
 
                         case _:
                             yield event
 
-                # Stream ended without §end - treat as completion
-                if not complete:
-                    complete = True
-
                 # Emit metrics after LLM call completes
                 if metrics:
                     metrics_event = metrics.event()
-                    record_event(metrics_event)
+                    telemetry_events.append(metrics_event)
                     yield metrics_event
 
             except Exception:

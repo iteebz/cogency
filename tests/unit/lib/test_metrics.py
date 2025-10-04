@@ -133,7 +133,7 @@ def test_metrics_event_generation():
     # Generate event with no parameters
     event = metrics.event()
 
-    assert event["type"] == "metrics"
+    assert event["type"] == "metric"
     assert "step" in event
     assert "total" in event
 

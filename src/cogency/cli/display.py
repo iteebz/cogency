@@ -47,11 +47,22 @@ class Renderer:
                             print("\n\n> ", end="", flush=True)
                             self.current_state = "respond"
                         print(event["content"], end="", flush=True)
-                case "metrics":
-                    # Display metrics immediately
-                    if "total" in event:
+                case "execute":
+                    # Tool execution boundary - optionally show
+                    if self.verbose:
+                        print("\n[execute]", flush=True)
+                case "end":
+                    # Task completion - optionally show
+                    if self.verbose:
+                        print("\n[end]", flush=True)
+                case "metric":
+                    if self.verbose and "total" in event:
                         total = event["total"]
-                        print(f"\n\n% {total['input']}➜{total['output']}|{total['duration']:.1f}s")
-                case "cancelled":
-                    print(f"\n{event['content']}")
+                        print(f"\n% {total['input']}➜{total['output']}|{total['duration']:.1f}s")
+                case "error":
+                    payload = event.get("payload", {})
+                    error_msg = payload.get("error", event.get("content", "Unknown error"))
+                    print(f"\n✗ Error: {error_msg}")
+                case "interrupt":
+                    print("\n⚠ Interrupted")
                     return

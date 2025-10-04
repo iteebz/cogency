@@ -86,11 +86,12 @@ async def stream(
                         complete = True
                         # Close session on task completion
                         await session.close()
+                        yield event
                         if metrics:
                             yield metrics.event()
 
                     case "execute":
-                        # Emit metrics when LLM pauses for tool execution
+                        yield event
                         if metrics:
                             yield metrics.event()
                             metrics.start_step()

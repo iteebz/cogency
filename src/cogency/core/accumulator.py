@@ -63,7 +63,11 @@ class Accumulator:
 
         if self.current_type in PERSISTABLE_EVENTS:
             await self.storage.save_message(
-                self.conversation_id, self.user_id, self.current_type, clean_content, self.start_time
+                self.conversation_id,
+                self.user_id,
+                self.current_type,
+                clean_content,
+                self.start_time,
             )
 
         # Emit event in semantic mode (skip calls - handled by execute)
@@ -99,6 +103,7 @@ class Accumulator:
             )
 
         yield {"type": "call", "content": call_text, "timestamp": self.start_time}
+        yield {"type": "execute", "timestamp": timestamp}
 
         # Execute tool
         try:

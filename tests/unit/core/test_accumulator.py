@@ -68,12 +68,13 @@ async def test_respond_chunked_when_enabled(mock_config):
 async def test_chunks_false(mock_config):
     accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
     events = [event async for event in accumulator.process(basic_parser())]
-    assert len(events) == 5
+    assert len(events) == 6
     assert events[0]["type"] == "think"
     assert events[1]["type"] == "call"
-    assert events[2]["type"] == "result"
-    assert events[3]["type"] == "respond"
-    assert events[4]["type"] == "end"
+    assert events[2]["type"] == "execute"
+    assert events[3]["type"] == "result"
+    assert events[4]["type"] == "respond"
+    assert events[5]["type"] == "end"
 
 
 @pytest.mark.asyncio

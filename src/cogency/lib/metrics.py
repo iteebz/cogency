@@ -110,10 +110,10 @@ class Metrics:
         return self.input_tokens + self.output_tokens
 
     def event(self) -> dict:
-        """Create clean metrics event."""
+        """Create clean metric event."""
         now = time.time()
         return {
-            "type": "metrics",
+            "type": "metric",
             "step": {
                 "input": self.step_input_tokens,
                 "output": self.step_output_tokens,

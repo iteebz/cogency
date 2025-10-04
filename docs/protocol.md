@@ -5,7 +5,7 @@
 **LLM Wire Protocol:** What the LLM outputs (delimited text stream)  
 **Event Stream:** What the agent emits (structured JSON events)
 
-Parser transforms wire protocol to events. Framework injects synthetic events (user, result, metrics).
+Parser transforms wire protocol to events. Framework injects synthetic events (user, result, metric, error, interrupt).
 
 ---
 
@@ -72,29 +72,42 @@ LLM controls timing. Parser detects delimiters and emits events. Accumulator han
 
 Parser transforms LLM wire protocol into structured events. Framework injects additional events for complete conversation representation.
 
-### Event Types
+### Event Taxonomy
 
-**LLM-generated (parsed from wire protocol):**
-- `think` - Internal reasoning
-- `call` - Tool invocation request
-- `execute` - Control signal (not emitted to consumers)
-- `respond` - User-facing response
-- `end` - Control signal (not emitted to consumers)
+**Complete event types (10 total):**
 
-**Framework-generated (synthetic):**
-- `user` - User message (injected by agent before LLM call)
-- `result` - Tool execution outcome (injected by accumulator after tool runs)
-- `metrics` - Token/timing data (injected after each LLM step)
+| Event | Source | Purpose | Persisted |
+|-------|--------|---------|-----------|
+| `user` | Framework | User message | ✓ |
+| `think` | LLM | Internal reasoning | ✓ |
+| `call` | LLM | Tool invocation request | ✓ |
+| `execute` | LLM | Tool execution boundary | ✗ |
+| `result` | Framework | Tool execution outcome | ✓ |
+| `respond` | LLM | User-facing response | ✓ |
+| `end` | LLM | Task completion signal | ✗ |
+| `metric` | Framework | Token/timing observability | ✗ |
+| `error` | Framework | Execution failures | ✗ |
+| `interrupt` | Framework | Cancellation (Ctrl+C, timeout) | ✗ |
+
+**LLM-generated:** Parsed from wire protocol delimiters (§think:, §call:, §execute, §respond:, §end)  
+**Framework-generated:** Synthetic events injected by agent runtime
 
 ### Event Schema
 
 ```python
+# Conversation events
 {"type": "user", "content": "What's in main.py?", "timestamp": 1234567890.0}
 {"type": "think", "content": "reasoning text", "timestamp": 1234567890.0}
 {"type": "call", "content": "{\"name\": \"file_read\", \"args\": {\"file\": \"main.py\"}}", "timestamp": 1234567890.0}
+{"type": "execute", "timestamp": 1234567890.0}
 {"type": "result", "payload": {"outcome": "Found file", "content": "...", "error": false}, "timestamp": 1234567890.0}
 {"type": "respond", "content": "final response", "timestamp": 1234567890.0}
-{"type": "metrics", "total": {"input": 100, "output": 50, "duration": 1.5}, "timestamp": 1234567890.0}
+{"type": "end", "timestamp": 1234567890.0}
+
+# Observability events
+{"type": "metric", "step": {"input": 50, "output": 30, "duration": 0.8}, "total": {"input": 100, "output": 50, "duration": 1.5}, "timestamp": 1234567890.0}
+{"type": "error", "payload": {"error": "Tool timeout after 30s", "tool": "shell"}, "timestamp": 1234567890.0}
+{"type": "interrupt", "timestamp": 1234567890.0}
 ```
 
 Canonical schema: `src/cogency/core/protocols.py` as `Event` TypedDict.
@@ -111,9 +124,11 @@ Output:
 {"type": "user", "content": "What's in main.py?"}
 {"type": "think", "content": "I need to read the file"}
 {"type": "call", "content": "{\"name\": \"file_read\", \"args\": {\"file\": \"main.py\"}}"}
+{"type": "execute", "timestamp": 1234567890.0}
 {"type": "result", "payload": {"outcome": "Read 50 lines", "content": "...", "error": false}}
 {"type": "respond", "content": "The file contains a Flask app"}
-{"type": "metrics", "total": {"input": 120, "output": 80, "duration": 1.2}}
+{"type": "end", "timestamp": 1234567890.0}
+{"type": "metric", "step": {"input": 60, "output": 40, "duration": 0.9}, "total": {"input": 120, "output": 80, "duration": 1.2}}
 ```
 
 ### Persistence
@@ -121,7 +136,7 @@ Output:
 Only conversation events are persisted to storage:
 - `user`, `think`, `call`, `result`, `respond`
 
-Control flow (`execute`, `end`) and observability (`metrics`) are runtime-only.
+Control flow (`execute`, `end`, `interrupt`) and observability (`metric`, `error`) are runtime-only.
 
 **Storage format:** Events stored without delimiter syntax in content
 ```python

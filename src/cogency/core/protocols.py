@@ -5,7 +5,18 @@ from typing import Any, Literal, NotRequired, Protocol, TypedDict, runtime_check
 
 
 class Event(TypedDict):
-    type: Literal["user", "think", "call", "result", "respond", "chunk", "metric", "execute", "end"]
+    type: Literal[
+        "user",
+        "think",
+        "call",
+        "execute",
+        "result",
+        "respond",
+        "end",
+        "metric",
+        "error",
+        "interrupt",
+    ]
     content: NotRequired[str]
     payload: NotRequired[dict[str, Any]]
     audience: NotRequired[Literal["broadcast", "internal", "observability"]]
@@ -16,15 +27,16 @@ EventType = Literal[
     "user",
     "think",
     "call",
+    "execute",
     "result",
     "respond",
-    "chunk",
-    "metric",
-    "execute",
     "end",
+    "metric",
+    "error",
+    "interrupt",
 ]
 
-_CONTROL_EVENT_TYPES: set[EventType] = {"execute", "end"}
+_CONTROL_EVENT_TYPES: set[EventType] = {"execute", "end", "interrupt"}
 
 
 def event_type(event: Event) -> EventType:
