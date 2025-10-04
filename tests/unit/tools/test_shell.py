@@ -44,3 +44,19 @@ async def test_timeout_enforcement():
 
     assert result.error
     assert "timed out" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_glob_expansion_in_project_mode(tmp_path, monkeypatch):
+    (tmp_path / "alpha").mkdir()
+    (tmp_path / "beta").mkdir()
+
+    monkeypatch.chdir(tmp_path)
+
+    tool = SystemShell()
+
+    result = await tool.execute(command="ls -d */", access="project")
+
+    assert not result.error
+    assert "alpha/" in result.content
+    assert "beta/" in result.content

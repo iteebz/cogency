@@ -27,11 +27,11 @@ def run(
     """Ask the agent a question (stateless by default)."""
     if ctx.invoked_subcommand is not None:
         return
-    
+
     if question is None:
         print(ctx.get_help())
         raise typer.Exit(0)
-    
+
     from .ask import run_agent
 
     asyncio.run(

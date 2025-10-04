@@ -40,9 +40,9 @@ async def run_agent(
         )
 
     try:
-        from .display import Renderer
         from ..context import assemble
-        
+        from .display import Renderer
+
         # Assemble context to show history
         messages = await assemble(
             user,
@@ -72,11 +72,7 @@ async def run_agent(
         ws_model = getattr(agent.config.llm, "websocket_model", None)
         http_model = getattr(agent.config.llm, "http_model", llm)
         model_name = ws_model if mode in ("auto", "resume") and ws_model else http_model
-        renderer = Renderer(
-            model=model_name,
-            identity=agent.config.identity,
-            messages=messages
-        )
+        renderer = Renderer(model=model_name, identity=agent.config.identity, messages=messages)
         await renderer.render_stream(stream_with_cancellation())
 
     except (asyncio.CancelledError, KeyboardInterrupt):

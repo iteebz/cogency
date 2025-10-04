@@ -170,9 +170,12 @@ class OpenAI(LLM):
 
             # Stream response chunks until turn completion
             async for event in self._connection:
-                if event.type == "response.text.delta" and event.delta:
-                    yield event.delta
-                elif event.type == "response.audio_transcript.delta" and event.delta:
+                if (
+                    event.type == "response.text.delta"
+                    and event.delta
+                    or event.type == "response.audio_transcript.delta"
+                    and event.delta
+                ):
                     yield event.delta
                 elif event.type == "response.done":
                     return

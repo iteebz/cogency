@@ -1,3 +1,4 @@
+import glob
 import subprocess
 from pathlib import Path
 
@@ -43,9 +44,23 @@ class SystemShell(Tool):
         else:
             working_path = Path.cwd()
 
+        expanded_parts = [parts[0]]
+        for arg in parts[1:]:
+            if any(char in arg for char in "*?["):
+                # Expand simple glob patterns relative to the working directory
+                matches = glob.glob(arg, root_dir=str(working_path))
+                if matches:
+                    expanded_parts.extend(matches)
+                    continue
+            expanded_parts.append(arg)
+
         try:
             result = subprocess.run(
-                parts, cwd=str(working_path), capture_output=True, text=True, timeout=timeout
+                expanded_parts,
+                cwd=str(working_path),
+                capture_output=True,
+                text=True,
+                timeout=timeout,
             )
 
             if result.returncode == 0:

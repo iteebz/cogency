@@ -11,7 +11,13 @@ Event symbols:
 
 
 class Renderer:
-    def __init__(self, verbose: bool = False, model: str | None = None, identity: str | None = None, messages: list | None = None):
+    def __init__(
+        self,
+        verbose: bool = False,
+        model: str | None = None,
+        identity: str | None = None,
+        messages: list | None = None,
+    ):
         self.verbose = verbose
         self.current_state = None
         self.model = model
@@ -29,14 +35,14 @@ class Renderer:
                     parts.append(f"identity: {self.identity}")
                 if parts:
                     print(" | ".join(parts))
-                
+
                 if self.messages:
                     print(f"History ({len(self.messages)} messages):")
                     for msg in self.messages:
                         role = msg.get("role", "?")
                         content = msg.get("content", "")[:80]
                         print(f"  [{role}] {content}")
-                
+
                 self.header_shown = True
             match event["type"]:
                 case "user":
@@ -78,6 +84,6 @@ class Renderer:
                 case "interrupt":
                     print("\n⚠ Interrupted")
                     return
-        
+
         # Print final newline after stream completes
         print()
