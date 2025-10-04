@@ -68,7 +68,7 @@ async def _run_all(samples, agent_kwargs, judge_llm, llm, mode, seed):
 
     return {
         "run_id": run_id,
-        "version": "v3.0.2",
+        "version": "v3.1.0",
         "total": total,
         "passed": passed,
         "rate": f"{passed / total:.1%}" if total else "0.0%",
@@ -107,7 +107,7 @@ def _persist_run(results, samples, llm, mode, judge_llm, seed):
         passed = sum(r.get("passed", 0) for r in results)
         summary = {
             "run_id": run_id,
-            "version": "v3.0.2",
+            "version": "v3.1.0",
             "total": total,
             "passed": passed,
             "rate": f"{passed / total:.1%}" if total else "0.0%",

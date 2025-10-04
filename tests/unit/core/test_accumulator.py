@@ -60,6 +60,9 @@ async def test_respond_chunked_when_enabled(mock_config):
     assert len(respond_stored) == 1
     assert respond_stored[0]["content"] == "hello world"
 
+    # Control events are no longer persisted; only semantic turns are stored.
+    assert mock_config.storage.events == []
+
 
 @pytest.mark.asyncio
 async def test_chunks_false(mock_config):
@@ -152,6 +155,9 @@ async def test_storage_failure_propagates(mock_llm):
     class FailingStorage:
         async def save_message(self, *args, **kwargs):
             raise RuntimeError("Storage failed")
+
+        async def save_event(self, *args, **kwargs):
+            raise RuntimeError("Event storage failed")
 
     config = Config(llm=mock_llm, storage=FailingStorage(), tools=[], security=Security())
     accumulator = Accumulator("test", "test", execution=config.execution, chunks=True)

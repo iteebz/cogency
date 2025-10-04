@@ -16,10 +16,12 @@ async def test_basic_protocol():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 3
+    assert len(events) == 5
     assert events[0] == {"type": "respond", "content": "Hello"}
-    assert events[1] == {"type": "think", "content": " analyzing"}
-    assert events[2] == {"type": "respond", "content": " done"}
+    assert events[1] == {"type": "respond", "content": " "}
+    assert events[2] == {"type": "think", "content": " analyzing"}
+    assert events[3] == {"type": "think", "content": " "}
+    assert events[4] == {"type": "respond", "content": " done"}
 
 
 @pytest.mark.asyncio
@@ -31,10 +33,11 @@ async def test_split_delimiter_across_tokens():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 2
+    assert len(events) == 3
     assert events[0]["type"] == "think"
     assert events[0]["content"] == "The user is asking to read 'test.txt'"
-    assert events[1]["type"] == "end"
+    assert events[1] == {"type": "think", "content": " "}
+    assert events[2]["type"] == "end"
 
 
 @pytest.mark.asyncio
@@ -45,11 +48,12 @@ async def test_end_delimiter_terminates():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 4
+    assert len(events) == 5
     assert events[0]["content"] == "Done"
     assert events[1]["content"] == " with"
     assert events[2]["content"] == " task"
-    assert events[3]["type"] == "end"
+    assert events[3]["content"] == " "
+    assert events[4]["type"] == "end"
 
 
 @pytest.mark.asyncio
@@ -60,11 +64,13 @@ async def test_malformed_delimiters():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 4
+    assert len(events) == 6
     assert events[0]["content"] == "§invalid:"
-    assert events[1]["content"] == "§ BROKEN:"
-    assert events[2]["content"] == "§think without"
-    assert events[3]["content"] == " colon"
+    assert events[1]["content"] == " "
+    assert events[2]["content"] == "§ BROKEN:"
+    assert events[3]["content"] == " "
+    assert events[4]["content"] == "§think without"
+    assert events[5]["content"] == " colon"
 
 
 @pytest.mark.asyncio
@@ -114,10 +120,11 @@ async def test_multi_token_delimiter():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 3
+    assert len(events) == 4
     assert events[0] == {"type": "respond", "content": " The"}
     assert events[1] == {"type": "respond", "content": " answer"}
-    assert events[2] == {"type": "end"}
+    assert events[2] == {"type": "respond", "content": " "}
+    assert events[3] == {"type": "end"}
 
 
 @pytest.mark.asyncio
@@ -128,10 +135,12 @@ async def test_single_token_delimiter():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 3
+    assert len(events) == 5
     assert events[0] == {"type": "think", "content": "analyzing"}
-    assert events[1] == {"type": "execute"}
-    assert events[2] == {"type": "end"}
+    assert events[1] == {"type": "think", "content": " "}
+    assert events[2] == {"type": "execute"}
+    assert events[3] == {"type": "respond", "content": " "}
+    assert events[4] == {"type": "end"}
 
 
 @pytest.mark.asyncio
@@ -207,7 +216,9 @@ async def test_whitespace_preservation():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 3
+    assert len(events) == 5
     assert events[0]["content"] == "hello"
-    assert events[1]["content"] == "world"
-    assert events[2]["type"] == "execute"
+    assert events[1]["content"] == " "
+    assert events[2]["content"] == "world"
+    assert events[3]["content"] == " "
+    assert events[4]["type"] == "execute"

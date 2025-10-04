@@ -74,6 +74,8 @@ def mock_storage():
     class TestStorage:
         def __init__(self):
             self.messages = []
+            self.events = []
+            self.requests = []
             self.profiles = {}
             self.base_dir = None
 
@@ -84,6 +86,29 @@ def mock_storage():
                     "user_id": user_id,
                     "type": msg_type,
                     "content": content,
+                    "timestamp": timestamp,
+                }
+            )
+
+        async def save_event(self, conversation_id, msg_type, content, timestamp=None):
+            self.events.append(
+                {
+                    "conversation_id": conversation_id,
+                    "type": msg_type,
+                    "content": content,
+                    "timestamp": timestamp,
+                }
+            )
+
+        async def save_request(
+            self, conversation_id, user_id, messages, response=None, timestamp=None
+        ):
+            self.requests.append(
+                {
+                    "conversation_id": conversation_id,
+                    "user_id": user_id,
+                    "messages": messages,
+                    "response": response,
                     "timestamp": timestamp,
                 }
             )

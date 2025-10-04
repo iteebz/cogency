@@ -11,7 +11,11 @@ Features:
 - No WebSocket dependencies
 """
 
+import json
+import time
+
 from .. import context
+from ..lib.logger import logger
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
@@ -80,6 +84,14 @@ async def stream(
 
             step_output_tokens = 0
 
+            request_timestamp = time.time()
+            serialized_messages = json.dumps(messages)
+            telemetry_events: list[dict] = []
+
+            def record_event(event: dict | None):
+                if event:
+                    telemetry_events.append(event)
+
             # Track output tokens for all LLM-generated content
             try:
                 async for event in accumulator.process(parse_tokens(llm.stream(messages))):
@@ -91,34 +103,49 @@ async def stream(
                     ):
                         step_output_tokens += metrics.add_output(event["content"])
 
+                    record_event(event)
+
                     match event["type"]:
                         case "end":
-                            # Agent finished - actual termination
                             complete = True
-                            from ..lib.logger import logger
-
                             logger.debug(f"REPLAY: Set complete=True on iteration {iteration}")
+                            yield event
 
-                        case "execute":
-                            # Emit metrics when LLM pauses for tool execution
-                            if metrics:
-                                yield metrics.event()
+                        case "execute" | "result":
+                            if event["type"] == "execute" and metrics:
+                                metrics_event = metrics.event()
+                                record_event(metrics_event)
+                                yield metrics_event
                                 metrics.start_step()
                             yield event
-                            break
 
-                        case "result":
-                            yield event
-                            break
                         case _:
                             yield event
 
+                # Stream ended without §end - treat as completion
+                if not complete:
+                    complete = True
+
                 # Emit metrics after LLM call completes
                 if metrics:
-                    yield metrics.event()
+                    metrics_event = metrics.event()
+                    record_event(metrics_event)
+                    yield metrics_event
 
             except Exception:
                 raise
+            finally:
+                if hasattr(config.storage, "save_request"):
+                    try:
+                        await config.storage.save_request(
+                            conversation_id,
+                            user_id,
+                            serialized_messages,
+                            json.dumps(telemetry_events),
+                            request_timestamp,
+                        )
+                    except Exception as exc:  # pragma: no cover - defensive
+                        logger.debug(f"Failed to persist request telemetry: {exc}")
 
             # Exit iteration loop if complete
             if complete:

@@ -151,8 +151,8 @@ class Storage(Protocol):
 
     async def save_message(
         self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
-    ) -> None:
-        """Save single message to conversation. Raises on failure."""
+    ) -> str:
+        """Save single message to conversation. Returns message_id. Raises on failure."""
         ...
 
     async def load_messages(
@@ -163,6 +163,23 @@ class Storage(Protocol):
         exclude: list[str] = None,
     ) -> list[dict]:
         """Load conversation messages with optional type filtering."""
+        ...
+
+    async def save_event(
+        self, conversation_id: str, type: str, content: str, timestamp: float = None
+    ) -> str:
+        """Save runtime event for telemetry. Returns event_id. Raises on failure."""
+        ...
+
+    async def save_request(
+        self,
+        conversation_id: str,
+        user_id: str,
+        messages: str,
+        response: str = None,
+        timestamp: float = None,
+    ) -> str:
+        """Save LLM request/response for observability. Returns request_id. Raises on failure."""
         ...
 
     async def save_profile(self, user_id: str, profile: dict) -> None:

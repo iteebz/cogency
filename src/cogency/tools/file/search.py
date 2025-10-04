@@ -47,12 +47,22 @@ class FileSearch(Tool):
 
         if path == ".":
             if access == "sandbox":
-                search_path = Path(sandbox_dir)
+                search_path = Path(sandbox_dir).resolve()
                 search_path.mkdir(parents=True, exist_ok=True)
             else:
-                search_path = Path.cwd()
+                search_path = Path.cwd().resolve()
         else:
-            search_path = resolve_file(path, access, sandbox_dir)
+            search_path = resolve_file(path, access, sandbox_dir).resolve()
+
+        workspace_root = search_path if access == "sandbox" else Path.cwd().resolve()
+
+        # Ensure search never escapes the workspace root, even if the resolved
+        # path is a symlink. is_relative_to is available on Python 3.9+.
+        if not search_path.is_relative_to(workspace_root):
+            return ToolResult(
+                outcome="Directory outside workspace scope",
+                error=True,
+            )
 
         if not search_path.exists():
             return ToolResult(outcome=f"Directory '{path}' does not exist", error=True)
@@ -82,6 +92,16 @@ class FileSearch(Tool):
 
         for file_path in search_path.rglob("*"):
             if not file_path.is_file() or file_path.name.startswith("."):
+                continue
+
+            try:
+                relative_path = file_path.relative_to(search_path)
+            except ValueError:
+                # Skip paths outside the desired root (e.g., symlinks that escape)
+                continue
+
+            if any(part.startswith(".") for part in relative_path.parts[:-1]):
+                # Skip files nested under hidden directories like .git or .cogency
                 continue
 
             # Pattern matching (filename)

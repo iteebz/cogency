@@ -39,9 +39,6 @@ def _emit_content(
     if not chunk:
         return None, "", current_type
 
-    if not chunk.strip():
-        return None, "", current_type
-
     content_type = current_type or DEFAULT_CONTENT_TYPE
     event: Event = {"type": content_type, "content": chunk}
     return event, "", current_type

@@ -3,6 +3,7 @@ import sqlite3
 import time
 from pathlib import Path
 
+from .ids import uuid7
 from .resilience import retry
 
 
@@ -25,19 +26,39 @@ class DB:
         with sqlite3.connect(db_path) as db:
             db.executescript("""
                 CREATE TABLE IF NOT EXISTS messages (
+                    message_id TEXT PRIMARY KEY,
                     conversation_id TEXT NOT NULL,
                     user_id TEXT,
                     type TEXT NOT NULL,
                     content TEXT NOT NULL,
-                    timestamp REAL NOT NULL,
-                    PRIMARY KEY (conversation_id, timestamp)
+                    timestamp REAL NOT NULL
                 );
 
-                CREATE INDEX IF NOT EXISTS idx_messages_id ON messages(conversation_id);
+                CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, timestamp);
                 CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
                 CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
-                CREATE INDEX IF NOT EXISTS idx_messages_composite ON messages(conversation_id, type, timestamp);
                 CREATE INDEX IF NOT EXISTS idx_messages_user_type ON messages(user_id, type, timestamp);
+
+                CREATE TABLE IF NOT EXISTS events (
+                    event_id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL,
+                    type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    timestamp REAL NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_events_conversation ON events(conversation_id, timestamp);
+
+                CREATE TABLE IF NOT EXISTS requests (
+                    request_id TEXT PRIMARY KEY,
+                    conversation_id TEXT NOT NULL,
+                    user_id TEXT,
+                    messages TEXT NOT NULL,
+                    response TEXT,
+                    timestamp REAL NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS idx_requests_conversation ON requests(conversation_id, timestamp);
 
                 CREATE TABLE IF NOT EXISTS profiles (
                     user_id TEXT NOT NULL,
@@ -60,20 +81,70 @@ class SQLite:
     @retry(attempts=3, base_delay=0.1)
     async def save_message(
         self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
-    ) -> None:
+    ) -> str:
         import asyncio
 
         if timestamp is None:
             timestamp = time.time()
 
+        message_id = uuid7()
+
         def _sync_save():
             with DB.connect(self.db_path) as db:
                 db.execute(
-                    "INSERT INTO messages (conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
-                    (conversation_id, user_id, type, content, timestamp),
+                    "INSERT INTO messages (message_id, conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                    (message_id, conversation_id, user_id, type, content, timestamp),
                 )
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
+        return message_id
+
+    @retry(attempts=3, base_delay=0.1)
+    async def save_event(
+        self, conversation_id: str, type: str, content: str, timestamp: float = None
+    ) -> str:
+        import asyncio
+
+        if timestamp is None:
+            timestamp = time.time()
+
+        event_id = uuid7()
+
+        def _sync_save():
+            with DB.connect(self.db_path) as db:
+                db.execute(
+                    "INSERT INTO events (event_id, conversation_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
+                    (event_id, conversation_id, type, content, timestamp),
+                )
+
+        await asyncio.get_event_loop().run_in_executor(None, _sync_save)
+        return event_id
+
+    @retry(attempts=3, base_delay=0.1)
+    async def save_request(
+        self,
+        conversation_id: str,
+        user_id: str,
+        messages: str,
+        response: str = None,
+        timestamp: float = None,
+    ) -> str:
+        import asyncio
+
+        if timestamp is None:
+            timestamp = time.time()
+
+        request_id = uuid7()
+
+        def _sync_save():
+            with DB.connect(self.db_path) as db:
+                db.execute(
+                    "INSERT INTO requests (request_id, conversation_id, user_id, messages, response, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+                    (request_id, conversation_id, user_id, messages, response, timestamp),
+                )
+
+        await asyncio.get_event_loop().run_in_executor(None, _sync_save)
+        return request_id
 
     async def load_messages(
         self,
