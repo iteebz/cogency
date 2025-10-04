@@ -62,8 +62,8 @@ async def test_malformed_delimiters():
 
     assert len(events) == 4
     assert events[0]["content"] == "§invalid:"
-    assert events[1]["content"] == "§BROKEN:"
-    assert events[2]["content"] == "§thinkwithout"
+    assert events[1]["content"] == "§ BROKEN:"
+    assert events[2]["content"] == "§think without"
     assert events[3]["content"] == " colon"
 
 
@@ -196,3 +196,18 @@ async def test_multiple_embedded_delimiters():
     assert events[2]["type"] == "call"
     assert "file_read" in events[2]["content"]
     assert events[3]["type"] == "execute"
+
+
+@pytest.mark.asyncio
+async def test_whitespace_preservation():
+    """Parser preserves whitespace faithfully, no accumulation bug."""
+    tokens = ["hello", " ", "world", " §execute"]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    assert len(events) == 3
+    assert events[0]["content"] == "hello"
+    assert events[1]["content"] == "world"
+    assert events[2]["type"] == "execute"

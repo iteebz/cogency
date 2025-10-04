@@ -9,7 +9,7 @@ Public API:
 - learn() - Profile learning from user patterns
 
 Internal modules:
-- conversation.* - HISTORY + CURRENT formatting (not exposed)
+- conversation.* - Event to message conversion
 - profile.* - User pattern learning
 - system.* - Core system prompt construction
 
@@ -19,42 +19,7 @@ Agent flow:
 - Always call context.assemble() - it handles everything automatically
 """
 
-from collections.abc import Sequence
-
-from ..core.protocols import Storage, Tool
-from .profile import format as profile_format
+from .assembly import assemble
 from .profile import learn
-from .system import prompt as system_prompt
-
-
-async def assemble(
-    user_id: str,
-    conversation_id: str,
-    *,
-    tools: Sequence[Tool],
-    storage: Storage,
-    history_window: int | None,
-    profile_enabled: bool,
-    identity: str | None = None,
-    instructions: str | None = None,
-) -> list[dict]:
-    """Assemble complete context from storage."""
-    from . import conversation
-
-    prompt = [system_prompt(tools=tools, identity=identity, instructions=instructions)]
-
-    if profile_enabled:
-        profile_content = await profile_format(user_id, storage)
-        if profile_content:
-            prompt.append(profile_content)
-
-    conversation_context = await conversation.full_context(
-        conversation_id, user_id, storage, history_window
-    )
-    if conversation_context:
-        prompt.append(conversation_context)
-
-    return [{"role": "user", "content": "\n\n".join(prompt)}]
-
 
 __all__ = ["assemble", "learn"]

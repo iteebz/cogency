@@ -145,15 +145,45 @@ agent = Agent(llm="openai", profile=True)  # Learns user patterns automatically
 
 ## Context Assembly
 
-Dynamic context from:
-- System prompt + tool registry
-- User profile (passive memory)
-- Conversation history
-- Current query
-- Tool results: `recall` for active memory retrieval
+**Two-layer architecture:**
+1. **Storage layer**: Events stored as typed records (clean content, no delimiters)
+2. **Assembly layer**: Events transformed to conversational messages with synthesized delimiters
 
-**Resume mode:** Inject without context growth
-**Replay mode:** Append to message history
+### Storage Format
+```python
+# Events stored without delimiter syntax
+{"type": "user", "content": "debug this", "timestamp": ...}
+{"type": "think", "content": "checking logs", "timestamp": ...}
+{"type": "call", "content": '{"name": "file_read", ...}', "timestamp": ...}
+{"type": "result", "content": '{"outcome": "Success", ...}', "timestamp": ...}
+{"type": "respond", "content": "found the bug", "timestamp": ...}
+```
+
+### Message Assembly
+```python
+# Assembled as proper conversational structure
+[
+  {"role": "system", "content": "PROTOCOL + TOOLS + PROFILE"},
+  {"role": "user", "content": "debug this"},
+  {"role": "assistant", "content": "§think: checking logs\n§call: {...}\n§execute"},
+  {"role": "user", "content": "§result: Success..."},
+  {"role": "assistant", "content": "§respond: found the bug\n§end"}
+]
+```
+
+**Context components:**
+- System message: Protocol + tools + profile (if enabled)
+- Conversation messages: User/assistant turns from storage
+- Turn boundaries: `§execute` synthesized at call→result transitions
+- Tool results: Injected as user messages (required by Realtime/Live APIs)
+
+**Cost control:**
+- `history_window=None` - Full conversation history (default)
+- `history_window=20` - Last 20 messages only (sliding window)
+- Custom compaction: Query storage, implement app-level strategy
+
+**Resume mode:** Context sent once at connection, no replay
+**Replay mode:** Context rebuilt from storage each iteration
 
 ## Provider Interface
 

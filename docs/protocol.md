@@ -123,6 +123,13 @@ Only conversation events are persisted to storage:
 
 Control flow (`execute`, `end`) and observability (`metrics`) are runtime-only.
 
+**Storage format:** Events stored without delimiter syntax in content
+```python
+# Stored in database
+{"type": "think", "content": "analyzing data"}  # Not "§think: analyzing data"
+{"type": "call", "content": '{"name": "tool", ...}'}  # Not "§call: {...}"
+```
+
 ---
 
 ## Architecture Flow
@@ -142,6 +149,49 @@ Metrics tracker → injects metrics events
   ↓
 [Event Stream] → Display (renders all events)
               → Storage (persists conversation events only)
+
+Next iteration
+  ↓
+Storage (load events)
+  ↓
+Context Assembly (to_messages)
+  ↓
+Messages (synthesized delimiters + proper roles)
+  ↓
+LLM receives conversational structure
 ```
 
 Event stream is unified. Sources are diverse. Consumers see clean JSON events.
+
+### Storage → Messages Transformation
+
+Context assembly transforms stored events into proper conversational messages:
+
+**Input (events from storage):**
+```python
+[
+  {"type": "user", "content": "debug app.py"},
+  {"type": "think", "content": "should read file"},
+  {"type": "call", "content": '{"name": "file_read", ...}'},
+  {"type": "result", "content": '{"outcome": "Success", ...}'},
+  {"type": "respond", "content": "fixed the bug"}
+]
+```
+
+**Output (messages for LLM):**
+```python
+[
+  {"role": "system", "content": "PROTOCOL + TOOLS"},
+  {"role": "user", "content": "debug app.py"},
+  {"role": "assistant", "content": "§think: should read file\n§call: {...}\n§execute"},
+  {"role": "user", "content": "§result: Success..."},
+  {"role": "assistant", "content": "§respond: fixed the bug\n§end"}
+]
+```
+
+**Key points:**
+- Delimiters synthesized during assembly, not stored
+- Events grouped by role (user vs assistant turns)
+- `§execute` synthesized at call→result boundaries
+- Tool results become user messages (API constraint)
+- Turn structure matches LLM training distribution

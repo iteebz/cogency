@@ -1,105 +1,49 @@
 import json
 
-from ..core.protocols import Storage, ToolCall, ToolResult
-from ..tools.format import format_call_agent, format_result_agent
-from ..tools.parse import parse_tool_result
+from ..core.protocols import ToolResult
+from ..tools.format import format_result_agent
 
 
-async def history(
-    conversation_id: str | None, user_id: str | None, storage: Storage, history_window: int | None
-) -> str:
-    if not conversation_id:
-        return ""
+def to_messages(events: list[dict]) -> list[dict]:
+    """Convert event log to conversational messages."""
+    messages = []
+    assistant_turn = []
 
-    messages = await storage.load_messages(conversation_id, user_id)
-    if not messages:
-        return ""
+    for i, event in enumerate(events):
+        t = event["type"]
 
-    last_user = _last_user_index(messages)
-    if last_user is None or last_user == 0:
-        return ""
+        if t == "user":
+            if assistant_turn:
+                messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})
+                assistant_turn = []
+            messages.append({"role": "user", "content": event["content"]})
 
-    # If history_window is None, include all history
-    if history_window is None:
-        history_msgs = [msg for msg in messages[:last_user] if msg["type"] != "think"]
-    else:
-        # Filter think events and take last N efficiently - ONLY applies to history
-        history_msgs = []
-        for msg in reversed(messages[:last_user]):
-            if msg["type"] != "think":
-                history_msgs.append(msg)
-                if len(history_msgs) >= history_window:
-                    break
+        elif t in ["think", "respond"]:
+            assistant_turn.append(f"§{t}: {event['content']}")
 
-    if not history_msgs:
-        return ""
+        elif t == "call":
+            assistant_turn.append(f"§call: {event['content']}")
+            if i + 1 < len(events) and events[i + 1]["type"] == "result":
+                assistant_turn.append("§execute")
+                messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})
+                assistant_turn = []
 
-    return _format_section("HISTORY", list(reversed(history_msgs)))
-
-
-async def current(conversation_id: str | None, user_id: str | None, storage: Storage) -> str:
-    if not conversation_id:
-        return ""
-
-    messages = await storage.load_messages(conversation_id, user_id)
-    if not messages:
-        return ""
-
-    last_user = _last_user_index(messages)
-    if last_user is None:
-        return ""
-
-    current_msgs = messages[last_user:]
-    return _format_section("CURRENT", current_msgs) if len(current_msgs) >= 1 else ""
-
-
-async def full_context(
-    conversation_id: str | None, user_id: str | None, storage: Storage, history_window: int | None
-) -> str:
-    h = await history(conversation_id, user_id, storage, history_window)
-    c = await current(conversation_id, user_id, storage)
-
-    if h and c:
-        return f"{h}\n\n{c}"
-    return c or h
-
-
-def _last_user_index(messages: list[dict]) -> int | None:
-    for i in range(len(messages) - 1, -1, -1):
-        if messages[i]["type"] == "user":
-            return i
-    return None
-
-
-def _format_section(name: str, messages: list[dict]) -> str:
-    formatted = []
-
-    for msg in messages:
-        msg_type, content = msg["type"], msg["content"]
-
-        if msg_type in ["user", "respond"] or (msg_type == "think" and name == "CURRENT"):
-            formatted.append(f"§{msg_type}: {content}")
-
-        elif msg_type == "call":
+        elif t == "result":
+            content = event.get("content", "")
             try:
-                call_data = json.loads(content) if content else {}
-                if call_data:
-                    call_obj = ToolCall(name=call_data["name"], args=call_data["args"])
-                    formatted.append(f"§call: {format_call_agent(call_obj)}")
-            except (json.JSONDecodeError, KeyError, TypeError):
-                formatted.append(f"§call: {content}")
-
-        elif msg_type == "result":
-            payload = msg.get("payload")
-            if isinstance(payload, dict):
-                result_obj = ToolResult(
-                    outcome=payload.get("outcome", ""),
-                    content=payload.get("content", ""),
+                result_dict = json.loads(content)
+                result = ToolResult(
+                    outcome=result_dict.get("outcome", ""),
+                    content=result_dict.get("content", ""),
                 )
-                formatted.append(f"§result: {format_result_agent(result_obj)}")
-            elif content:
-                results = parse_tool_result(content)
-                for result_obj in results:
-                    formatted.append(f"§result: {format_result_agent(result_obj)}")
+                result_text = format_result_agent(result)
+            except (json.JSONDecodeError, TypeError):
+                result_text = content
 
-    return f"=== {name} ===\n" + "\n".join(formatted)
+            if result_text:
+                messages.append({"role": "user", "content": f"§result: {result_text}"})
+
+    if assistant_turn:
+        messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})
+
+    return messages

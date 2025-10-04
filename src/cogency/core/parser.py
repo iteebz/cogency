@@ -37,25 +37,14 @@ def _emit_content(
 ) -> tuple[Event | None, str, str | None]:
     """Prepare a content event if the chunk carries signal."""
     if not chunk:
-        return None, pending_ws, current_type
+        return None, "", current_type
 
     if not chunk.strip():
-        return None, pending_ws + chunk, current_type
-
-    stripped_leading = chunk.lstrip()
-    if stripped_leading.startswith("§"):
-        lower_candidate = stripped_leading.lower()
-        if not any(lower_candidate.startswith(token) for token in _DELIMITER_TOKENS):
-            pending_ws = ""
-            tail = stripped_leading[1:]
-            tail = "".join(tail.split())
-            chunk = "§" + tail
+        return None, "", current_type
 
     content_type = current_type or DEFAULT_CONTENT_TYPE
-    content = pending_ws + chunk
-    pending_ws = ""
-    event: Event = {"type": content_type, "content": content}
-    return event, pending_ws, content_type
+    event: Event = {"type": content_type, "content": chunk}
+    return event, "", current_type
 
 
 async def parse_tokens(token_stream: AsyncGenerator[str, None]) -> AsyncGenerator[Event, None]:

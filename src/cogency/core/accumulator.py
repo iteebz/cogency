@@ -123,13 +123,19 @@ class Accumulator:
             self.circuit_breaker.record_success()
 
         if self.circuit_breaker.is_open():
+            termination_result = ToolResult(
+                outcome="Max failures. Terminating.", content="", error=True
+            )
             yield {
                 "type": "result",
-                "payload": {"outcome": "Max failures. Terminating.", "content": "", "error": True},
+                "payload": {"outcome": termination_result.outcome, "content": "", "error": True},
+                "content": f"§result: {termination_result.outcome}",
                 "timestamp": timestamp,
             }
             yield {"type": "end", "timestamp": timestamp}
             return
+
+        from ..tools.format import format_result_agent
 
         yield {
             "type": "result",
@@ -138,6 +144,7 @@ class Accumulator:
                 "content": result.content,
                 "error": result.error,
             },
+            "content": f"§result: {format_result_agent(result)}",
             "timestamp": timestamp,
         }
 
@@ -154,10 +161,6 @@ class Accumulator:
             ev_type = event_type(event)
             content = event_content(event)
             timestamp = time.time()
-
-            # chunks=True: Yield respond/think immediately, accumulate others
-            if self.chunks and ev_type in ("respond", "think"):
-                yield event
 
             # Handle control events
             if ev_type == "execute":
@@ -192,6 +195,10 @@ class Accumulator:
             else:
                 # Continue accumulating same type
                 self.content += content
+
+            # chunks=True: Yield respond/think chunks while accumulating for persistence
+            if self.chunks and ev_type in ("respond", "think"):
+                yield event
 
         # Stream ended without §end - flush remaining content
         flushed = await self._flush_accumulated()

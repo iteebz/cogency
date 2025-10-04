@@ -40,7 +40,7 @@ async def test_call_not_chunked(mock_config):
 
 @pytest.mark.asyncio
 async def test_respond_chunked_when_enabled(mock_config):
-    """respond/think stream naturally when chunks=True"""
+    """respond/think stream naturally when chunks=True but persist only once"""
 
     async def chunked_respond():
         yield {"type": "respond", "content": "hello"}
@@ -54,6 +54,11 @@ async def test_respond_chunked_when_enabled(mock_config):
     assert len(respond_events) == 2
     assert respond_events[0]["content"] == "hello"
     assert respond_events[1]["content"] == " world"
+
+    stored = await mock_config.storage.load_messages("test")
+    respond_stored = [m for m in stored if m["type"] == "respond"]
+    assert len(respond_stored) == 1
+    assert respond_stored[0]["content"] == "hello world"
 
 
 @pytest.mark.asyncio
@@ -212,3 +217,25 @@ async def test_persistence_policy(mock_config, mock_tool):
     assert "execute" not in stored_types
     assert "end" not in stored_types
     assert "metrics" not in stored_types
+
+
+@pytest.mark.asyncio
+async def test_result_event_has_content(mock_config, mock_tool):
+    """Result events must have content field for resume mode websocket injection."""
+    mock_config.tools = [mock_tool]
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+
+    async def parser():
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "test"}}}}',
+        }
+        yield {"type": "execute"}
+
+    events = [event async for event in accumulator.process(parser())]
+    result_events = [e for e in events if e["type"] == "result"]
+
+    assert len(result_events) == 1
+    assert "content" in result_events[0]
+    assert result_events[0]["content"]
+    assert "§result:" in result_events[0]["content"]

@@ -138,12 +138,44 @@ agent = Agent(
     instructions="Additional context",
     tools=[CustomTool()],
     max_iterations=10,
-    history_window=20,
+    history_window=None,             # None = full history (default), int = sliding window
     profile=True,                    # Enable automatic user learning
     learn_every=5,                   # Profile update frequency
     debug=False
 )
 ```
+
+### Context Management
+
+Cogency uses conversational message assembly for natural LLM interaction:
+
+**Storage:** Events stored as typed records (clean content, no delimiters)
+```python
+{"type": "user", "content": "debug this"}
+{"type": "think", "content": "checking logs"}
+{"type": "call", "content": '{"name": "file_read", ...}'}
+```
+
+**Assembly:** Transforms to proper conversational structure
+```python
+[
+  {"role": "system", "content": "PROTOCOL + TOOLS"},
+  {"role": "user", "content": "debug this"},
+  {"role": "assistant", "content": "§think: checking logs\n§call: {...}\n§execute"},
+  {"role": "user", "content": "§result: ..."}
+]
+```
+
+**Cost control with `history_window`:**
+- `history_window=None` - Full conversation history (default)
+- `history_window=20` - Last 20 messages (sliding window for cost control)
+- Custom compaction: Query storage directly and implement app-level strategy
+
+**Considerations:**
+- Resume mode: Context sent once at connection, minimal impact
+- Replay mode: Context grows with conversation, windowing recommended for long sessions
+- Frontier models: Handle longer contexts better, can use `None`
+- Weaker models: May benefit from smaller windows (e.g., 10-20 messages)
 
 ## Multi-Provider Support
 
