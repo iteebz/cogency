@@ -74,7 +74,7 @@ RULES:
 2. Use §think: to reason through problems as needed
 3. ALWAYS pair §call: {json} with immediate §execute - your turn ENDS at §execute
 4. NEVER write §result: - only the system can provide results
-5. Finish with §respond: + §end
+5. STRICTLY finish turn with §end
 
 CRITICAL: Begin with §respond: then continue your reasoning and tool use.
 
