@@ -24,24 +24,21 @@ class Renderer:
         self.identity = identity
         self.messages = messages or []
         self.header_shown = False
+        self.tool_count = 0
+        self.last_metric = None
 
     async def render_stream(self, agent_stream):
         async for event in agent_stream:
             if not self.header_shown:
                 parts = []
-                if self.model:
-                    parts.append(f"model: {self.model}")
                 if self.identity:
-                    parts.append(f"identity: {self.identity}")
+                    parts.append(f"<{self.identity}>")
+                if self.messages:
+                    msg_count = len(self.messages)
+                    parts.append(f"{msg_count} msg{'s' if msg_count != 1 else ''}")
+                
                 if parts:
                     print(" | ".join(parts))
-
-                if self.messages:
-                    print(f"History ({len(self.messages)} messages):")
-                    for msg in self.messages:
-                        role = msg.get("role", "?")
-                        content = msg.get("content", "")[:80]
-                        print(f"  [{role}] {content}")
 
                 self.header_shown = True
             match event["type"]:
@@ -54,8 +51,18 @@ class Renderer:
                         print(f"\n~ {event['content']}")
                         self.current_state = "think"
                 case "call":
-                    content = event.get("content", "Tool execution")
-                    print(f"○ {content}")
+                    from ..tools import tools
+                    from ..tools.parse import parse_tool_call
+                    
+                    self.tool_count += 1
+                    try:
+                        call = parse_tool_call(event.get("content", ""))
+                        tool = tools.get(call.name)
+                        content = tool.describe(call.args) if tool else f"{call.name}({call.args})"
+                    except:
+                        content = event.get("content", "Tool execution")
+                    
+                    print(f"\n○ {content}")
                     self.current_state = None
                 case "execute":
                     pass
@@ -73,10 +80,23 @@ class Renderer:
                 case "end":
                     if self.current_state == "respond":
                         print("\n")
+                    
+                    # Show final stats
+                    parts = []
+                    if self.tool_count > 0:
+                        parts.append(f"{self.tool_count} tool{'s' if self.tool_count != 1 else ''}")
+                    if self.last_metric:
+                        tok = self.last_metric['input'] + self.last_metric['output']
+                        parts.append(f"{tok} tok")
+                    
+                    if parts:
+                        print(" | ".join(parts))
                 case "metric":
-                    if self.verbose and "total" in event:
-                        total = event["total"]
-                        print(f"% {total['input']}➜{total['output']}|{total['duration']:.1f}s")
+                    if "total" in event:
+                        self.last_metric = event["total"]
+                        if self.verbose:
+                            total = event["total"]
+                            print(f"% {total['input']}➜{total['output']}|{total['duration']:.1f}s")
                 case "error":
                     payload = event.get("payload", {})
                     error_msg = payload.get("error", event.get("content", "Unknown error"))

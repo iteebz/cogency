@@ -86,39 +86,42 @@ class FileSearch(Tool):
             content=content_text,
         )
 
+    SKIP_DIRS = {
+        ".venv", "venv", ".env", "env",
+        "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
+        "node_modules", ".git", ".hatch", ".tox", ".nox",
+        "dist", "build", ".eggs",
+    }
+
     def _search_files(self, search_path: Path, pattern: str, content: str) -> list:
         """Search files and return clean visual results."""
         results = []
 
-        for file_path in search_path.rglob("*"):
-            if not file_path.is_file() or file_path.name.startswith("."):
-                continue
-
+        def walk(p: Path):
             try:
-                relative_path = file_path.relative_to(search_path)
-            except ValueError:
-                # Skip paths outside the desired root (e.g., symlinks that escape)
-                continue
+                for item in p.iterdir():
+                    if (item.name.startswith(".") or 
+                        item.name in self.SKIP_DIRS or
+                        item.name.endswith(".egg-info")):
+                        continue
+                    
+                    if item.is_dir():
+                        walk(item)
+                    elif item.is_file():
+                        if pattern and not self._matches_pattern(item.name, pattern):
+                            continue
 
-            if any(part.startswith(".") for part in relative_path.parts[:-1]):
-                # Skip files nested under hidden directories like .git or .cogency
-                continue
+                        file_name = item.name
+                        if content:
+                            matches = self._search_content(item, content)
+                            for line_num, line_text in matches:
+                                results.append(f"{file_name}:{line_num}: {line_text.strip()}")
+                        else:
+                            results.append(file_name)
+            except PermissionError:
+                pass
 
-            # Pattern matching (filename)
-            if pattern and not self._matches_pattern(file_path.name, pattern):
-                continue
-
-            file_name = file_path.name
-
-            # Content searching
-            if content:
-                matches = self._search_content(file_path, content)
-                for line_num, line_text in matches:
-                    results.append(f"{file_name}:{line_num}: {line_text.strip()}")
-            else:
-                # Pattern-only search - just show filename
-                results.append(file_name)
-
+        walk(search_path)
         return results
 
     def _matches_pattern(self, filename: str, pattern: str) -> bool:

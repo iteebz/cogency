@@ -21,17 +21,6 @@ def tool_instructions(tools: list[Tool]) -> str:
     return "TOOLS:\n" + "\n".join(lines)
 
 
-def format_call_human(call: ToolCall) -> str:
-    """Format tool call for human display - semantic action."""
-    from . import tools
-
-    tool_instance = tools.get(call.name)
-    if not tool_instance:
-        return f"Tool {call.name} not available"
-
-    return tool_instance.describe(call.args)
-
-
 def format_call_agent(call: ToolCall) -> str:
     """Format tool call for agent consumption - full JSON context."""
     return json.dumps({"name": call.name, "args": call.args})

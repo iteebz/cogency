@@ -18,7 +18,19 @@ class FileRead(Tool):
 
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
-        return f"Reading {args.get('file', 'file')}"
+        file = args.get('file', 'file')
+        start = args.get('start')
+        lines = args.get('lines')
+        
+        if start or lines:
+            parts = []
+            if start:
+                parts.append(f"from line {start}")
+            if lines:
+                parts.append(f"{lines} lines")
+            return f"Reading {file} ({', '.join(parts)})"
+        
+        return f"Reading {file}"
 
     @safe_execute
     async def execute(
@@ -55,7 +67,7 @@ class FileRead(Tool):
             return ToolResult(outcome=f"File '{file}' contains binary data", error=True)
 
     def _read_lines(self, file_path: Path, start: int, lines: int = None) -> str:
-        """Read specific lines from file."""
+        """Read specific lines from file with line numbers."""
         result_lines = []
         with open(file_path, encoding="utf-8") as f:
             for line_num, line in enumerate(f, 0):
@@ -63,6 +75,6 @@ class FileRead(Tool):
                     continue
                 if lines and len(result_lines) >= lines:
                     break
-                result_lines.append(line.rstrip("\n"))
+                result_lines.append(f"{line_num}: {line.rstrip('\n')}")
 
         return "\n".join(result_lines)
