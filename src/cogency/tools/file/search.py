@@ -87,10 +87,22 @@ class FileSearch(Tool):
         )
 
     SKIP_DIRS = {
-        ".venv", "venv", ".env", "env",
-        "__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache",
-        "node_modules", ".git", ".hatch", ".tox", ".nox",
-        "dist", "build", ".eggs",
+        ".venv",
+        "venv",
+        ".env",
+        "env",
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        "node_modules",
+        ".git",
+        ".hatch",
+        ".tox",
+        ".nox",
+        "dist",
+        "build",
+        ".eggs",
     }
 
     def _search_files(self, search_path: Path, pattern: str, content: str) -> list:
@@ -100,11 +112,13 @@ class FileSearch(Tool):
         def walk(p: Path):
             try:
                 for item in p.iterdir():
-                    if (item.name.startswith(".") or 
-                        item.name in self.SKIP_DIRS or
-                        item.name.endswith(".egg-info")):
+                    if (
+                        item.name.startswith(".")
+                        or item.name in self.SKIP_DIRS
+                        or item.name.endswith(".egg-info")
+                    ):
                         continue
-                    
+
                     if item.is_dir():
                         walk(item)
                     elif item.is_file():

@@ -18,10 +18,10 @@ class FileRead(Tool):
 
     def describe(self, args: dict) -> str:
         """Human-readable action description."""
-        file = args.get('file', 'file')
-        start = args.get('start')
-        lines = args.get('lines')
-        
+        file = args.get("file", "file")
+        start = args.get("start")
+        lines = args.get("lines")
+
         if start or lines:
             parts = []
             if start:
@@ -29,7 +29,7 @@ class FileRead(Tool):
             if lines:
                 parts.append(f"{lines} lines")
             return f"Reading {file} ({', '.join(parts)})"
-        
+
         return f"Reading {file}"
 
     @safe_execute
@@ -75,6 +75,6 @@ class FileRead(Tool):
                     continue
                 if lines and len(result_lines) >= lines:
                     break
-                result_lines.append(f"{line_num}: {line.rstrip('\n')}")
+                result_lines.append(f"{line_num}: {line.rstrip(chr(10))}")
 
         return "\n".join(result_lines)
