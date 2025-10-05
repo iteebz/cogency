@@ -54,16 +54,15 @@ class Renderer:
                         print(f"\n~ {event['content']}")
                         self.current_state = "think"
                 case "call":
-                    payload = event.get("payload", {})
-                    outcome = payload.get("outcome", "Tool execution")
-                    print(f"\n○ {outcome}")
+                    content = event.get("content", "Tool execution")
+                    print(f"○ {content}")
                     self.current_state = None
                 case "execute":
                     pass
                 case "result":
                     payload = event.get("payload", {})
                     outcome = payload.get("outcome", "Tool completed")
-                    print(f"\n● {outcome}")
+                    print(f"● {outcome}")
                     self.current_state = "result"
                 case "respond":
                     if event["content"]:
@@ -72,18 +71,16 @@ class Renderer:
                             self.current_state = "respond"
                         print(event["content"], end="", flush=True)
                 case "end":
-                    pass
+                    if self.current_state == "respond":
+                        print("\n")
                 case "metric":
                     if self.verbose and "total" in event:
                         total = event["total"]
-                        print(f"\n% {total['input']}➜{total['output']}|{total['duration']:.1f}s")
+                        print(f"% {total['input']}➜{total['output']}|{total['duration']:.1f}s")
                 case "error":
                     payload = event.get("payload", {})
                     error_msg = payload.get("error", event.get("content", "Unknown error"))
-                    print(f"\n✗ {error_msg}")
+                    print(f"✗ {error_msg}")
                 case "interrupt":
-                    print("\n⚠ Interrupted")
+                    print("⚠ Interrupted")
                     return
-
-        # Print final newline after stream completes
-        print()

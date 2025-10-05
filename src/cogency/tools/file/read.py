@@ -41,11 +41,15 @@ class FileRead(Tool):
 
             if start > 0 or lines != 100:
                 content = self._read_lines(file_path, start, lines)
+                line_count = len(content.splitlines())
+                outcome = f"Read {file} ({line_count} lines)"
             else:
                 with open(file_path, encoding="utf-8") as f:
                     content = f.read()
+                line_count = len(content.splitlines())
+                outcome = f"Read {file} ({line_count} lines)"
 
-            return ToolResult(outcome=f"Read {file}", content=content)
+            return ToolResult(outcome=outcome, content=content)
 
         except UnicodeDecodeError:
             return ToolResult(outcome=f"File '{file}' contains binary data", error=True)
