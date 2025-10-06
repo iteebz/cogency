@@ -11,8 +11,12 @@ Enables maximum token efficiency by maintaining conversation state
 in LLM memory rather than resending full context each turn.
 """
 
+import json
+import time
+
 from .. import context
 from ..lib.metrics import Metrics
+from ..lib.logger import logger
 from .accumulator import Accumulator
 from .config import Config
 from .parser import parse_tokens
@@ -57,9 +61,14 @@ async def stream(
             instructions=config.instructions,
         )
 
+        # Track this LLM call
         if metrics:
             metrics.start_step()
             metrics.add_input(messages)
+
+        request_timestamp = time.time()
+        serialized_messages = json.dumps(messages)
+        telemetry: list[dict] = []
 
         session = await llm.connect(messages)
 
@@ -82,19 +91,22 @@ async def stream(
                 if ev_type in {"think", "call", "respond"} and metrics and content:
                     metrics.add_output(content)
 
+                if event:
+                    telemetry.append(event)
+
                 match ev_type:
                     case "end":
                         complete = True
                         # Close session on task completion
-                        await session.close()
-                        yield event
-                        if metrics:
-                            yield metrics.event()
+                            metric = metrics.event()
+                            telemetry.append(metric)
+                            yield metric
 
                     case "execute":
-                        yield event
                         if metrics:
-                            yield metrics.event()
+                            metric = metrics.event()
+                            telemetry.append(metric)
+                            yield metric
                             metrics.start_step()
 
                     case "result":
@@ -118,7 +130,9 @@ async def stream(
                             raise RuntimeError(f"WebSocket continuation failed: {e}") from e
 
                         if metrics:
-                            yield metrics.event()
+                            metric = metrics.event()
+                            telemetry.append(metric)
+                            yield metric
                             metrics.start_step()
 
                         # Skip unconditional yield since we already yielded the result
@@ -130,6 +144,19 @@ async def stream(
                     break
         except Exception:
             raise
+        finally:
+            if hasattr(config.storage, "save_request"):
+                try:
+                    await config.storage.save_request(
+                        conversation_id,
+                        user_id,
+                        serialized_messages,
+                        json.dumps(telemetry),
+                        request_timestamp,
+                    )
+                except Exception as exc:  # pragma: no cover - defensive
+                    from ..lib.logger import logger
+                    logger.debug(f"Failed to persist request telemetry: {exc}")
 
         # Handle natural WebSocket completion
         if not complete:

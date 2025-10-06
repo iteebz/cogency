@@ -55,10 +55,8 @@ class MemoryRecall(Tool):
 
         query = query.strip()
 
-        # Get current context window to exclude
         current_timestamps = self._get_timestamps(conversation_id)
 
-        # Simple SQL LIKE search of past user messages
         matches = self._search_messages(
             query=query,
             user_id=user_id,
@@ -168,7 +166,6 @@ class MemoryRecall(Tool):
             else:
                 time_ago = f"{int(time_diff / 86400)}d ago"
 
-            # Preview with highlighting (simple approach)
             content = match.content
             if len(content) > 100:
                 content = content[:100] + "..."

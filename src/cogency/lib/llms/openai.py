@@ -12,7 +12,7 @@ class OpenAI(LLM):
     def __init__(
         self,
         api_key: str = None,
-        http_model: str = "gpt-4o-mini",
+        http_model: str = "gpt-5-mini-2025-08-07",
         websocket_model: str = "gpt-4o-mini-realtime-preview",
         temperature: float = 1.0,
         max_tokens: int = 2000,

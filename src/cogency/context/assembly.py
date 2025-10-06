@@ -25,7 +25,7 @@ async def assemble(
         if profile_content:
             system_content.append(profile_content)
 
-    messages = [{"role": "system", "content": "\n\n".join(system_content)}]
+    messages = []
 
     events = await storage.load_messages(conversation_id, user_id)
     if events:
@@ -34,4 +34,4 @@ async def assemble(
             conv_messages = conv_messages[-history_window:]
         messages.extend(conv_messages)
 
-    return messages
+    return [{"role": "system", "content": "\n\n".join(system_content)}] + messages

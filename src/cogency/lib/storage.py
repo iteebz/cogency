@@ -152,7 +152,7 @@ class SQLite:
             with DB.connect(self.db_path) as db:
                 db.row_factory = sqlite3.Row
 
-                query = "SELECT type, content FROM messages WHERE conversation_id = ?"
+                query = "SELECT type, content, timestamp FROM messages WHERE conversation_id = ?"
                 params = [conversation_id]
 
                 if user_id:
@@ -171,7 +171,7 @@ class SQLite:
                 query += " ORDER BY timestamp"
 
                 rows = db.execute(query, params).fetchall()
-                return [{"type": row["type"], "content": row["content"]} for row in rows]
+                return [{"type": row["type"], "content": row["content"], "timestamp": row["timestamp"]} for row in rows]
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
@@ -235,6 +235,14 @@ class SQLite:
                 ).fetchone()[0]
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_count)
+
+    async def delete_profile(self, user_id: str) -> int:
+        def _sync_delete():
+            with DB.connect(self.db_path) as db:
+                cursor = db.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
+                return cursor.rowcount
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_delete)
 
 
 def clear_messages(conversation_id: str, db_path: str = ".cogency/store.db") -> None:
