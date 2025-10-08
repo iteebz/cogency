@@ -2,20 +2,18 @@ from ...core.protocols import Tool, ToolResult
 from ..security import safe_execute
 
 
-class WebSearch(Tool):
-    """DDGS metasearch (multiple backends) with structured result formatting."""
+class Search(Tool):
+    """Search web."""
 
-    name = "web_search"
-    description = "Search the web for information"
+    name = "search"
+    description = "Search web."
     schema = {"query": {}}
 
     def describe(self, args: dict) -> str:
-        """Human-readable action description."""
         return f'Web searching "{args.get("query", "query")}"'
 
     @safe_execute
     async def execute(self, query: str, **kwargs) -> ToolResult:
-        """Execute clean web search."""
         if not query or not query.strip():
             return ToolResult(outcome="Search query cannot be empty", error=True)
 

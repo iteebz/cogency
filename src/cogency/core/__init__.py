@@ -1,3 +1,11 @@
-from .protocols import LLM, Storage, Tool, ToolResult
+"""Core protocol exports for Cogency."""
 
-__all__ = ["LLM", "Storage", "Tool", "ToolResult"]
+from .protocols import LLM, Storage, Tool, ToolCall, ToolResult
+
+__all__ = [
+    "LLM",
+    "Storage",
+    "Tool",
+    "ToolResult",
+    "ToolCall",
+]

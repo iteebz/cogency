@@ -6,15 +6,14 @@ from ...core.protocols import Tool, ToolResult
 from ..security import safe_execute, sanitize_shell_input
 
 
-class SystemShell(Tool):
-    """Execute shell commands with security validation."""
+class Shell(Tool):
+    """Run shell command."""
 
     name = "shell"
-    description = "Execute system commands"
+    description = "Run shell command."
     schema = {"command": {}}
 
     def describe(self, args: dict) -> str:
-        """Human-readable action description."""
         return f"Running {args.get('command', 'command')}"
 
     @safe_execute

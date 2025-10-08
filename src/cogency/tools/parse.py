@@ -62,31 +62,7 @@ def parse_tool_call(json_str: str) -> ToolCall:
         data = json.loads(json_str)
         return ToolCall(name=data["name"], args=data.get("args", {}))
     except json.JSONDecodeError as e:
-        error_msg = str(e)
-
-        if "Expecting property name" in error_msg:
-            json_str = re.sub(r"([{,]\s*)(\w+)(\s*:)", r'\1"\2"\3', json_str)
-        elif "Expecting ':' delimiter" in error_msg:
-            json_str = re.sub(r'("\w+")\s+({)', r"\1: \2", json_str)
-        elif "Invalid control character" in error_msg:
-            json_str = json_str.replace("\n", "\\n").replace("\t", "\\t").replace("\r", "\\r")
-        elif "Extra data" in error_msg:
-            try:
-                decoder = json.JSONDecoder()
-                data, _ = decoder.raw_decode(json_str)
-                return ToolCall(name=data["name"], args=data.get("args", {}))
-            except json.JSONDecodeError:
-                pass
-        else:
-            raise ProtocolError(f"JSON parse failed: {error_msg}", original_json=json_str) from e
-
-        try:
-            data = json.loads(json_str)
-            return ToolCall(name=data["name"], args=data.get("args", {}))
-        except (json.JSONDecodeError, KeyError) as retry_e:
-            raise ProtocolError(
-                f"JSON repair failed: {retry_e}", original_json=json_str
-            ) from retry_e
+        raise ProtocolError(f"JSON parse failed: {e}", original_json=json_str) from e
 
     except KeyError as e:
         raise ProtocolError(f"Missing required field: {e}", original_json=json_str) from e

@@ -1,29 +1,25 @@
-# File tools
-from .file import FileEdit, FileList, FileRead, FileSearch, FileWrite
-
-# Memory tools
-from .memory import MemoryRecall
-
-# Convenience factory (registry)
+from .code.edit import Edit
+from .code.grep import Grep
+from .code.ls import Ls
+from .code.read import Read
+from .code.shell import Shell
+from .code.write import Write
+from .memory.recall import Recall
 from .registry import ToolRegistry
-
-# System tools
-from .system import SystemShell
-
-# Web tools
-from .web import WebScrape, WebSearch
+from .web.scrape import Scrape
+from .web.search import Search
 
 tools = ToolRegistry()
 
 __all__ = [
-    "FileRead",
-    "FileWrite",
-    "FileEdit",
-    "FileList",
-    "FileSearch",
-    "SystemShell",
-    "WebScrape",
-    "WebSearch",
-    "MemoryRecall",
+    "Write",
+    "Grep",
+    "Read",
+    "Edit",
+    "Shell",
+    "Ls",
+    "Scrape",
+    "Search",
+    "Recall",
     "tools",
 ]

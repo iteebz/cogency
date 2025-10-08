@@ -16,7 +16,7 @@ Parser transforms wire protocol to events. Framework injects synthetic events (u
 
 ```
 §think: I need to examine the code structure first
-§call: {"name": "file_read", "args": {"file": "main.py"}}
+§call: {"name": "read", "args": {"file": "main.py"}}
 §execute
 §respond: Fixed the missing semicolon. Code runs correctly now.
 §end
@@ -43,7 +43,7 @@ LLM controls timing. Parser detects delimiters and emits events. Accumulator han
 **Single tool call:**
 ```
 §think: I should check what files exist first.
-§call: {"name": "file_list", "args": {"path": "."}}
+§call: {"name": "list", "args": {"path": "."}}
 §execute
 §respond: I found 3 files: main.py, config.json, README.md
 §end
@@ -51,9 +51,9 @@ LLM controls timing. Parser detects delimiters and emits events. Accumulator han
 
 **Multiple sequential tools:**
 ```
-§call: {"name": "file_list", "args": {"path": "."}}
+§call: {"name": "list", "args": {"path": "."}}
 §execute
-§call: {"name": "file_read", "args": {"file": "config.json"}}
+§call: {"name": "read", "args": {"file": "config.json"}}
 §execute
 §respond: This is a Node.js project with Express configuration.
 §end
@@ -61,7 +61,7 @@ LLM controls timing. Parser detects delimiters and emits events. Accumulator han
 
 ### Rules
 
-1. **Tool calls must be valid JSON object:** `{"name": "file_read", "args": {"file": "example.py"}}`
+1. **Tool calls must be valid JSON object:** `{"name": "read", "args": {"file": "example.py"}}`
 2. **execute required after call:** Parser waits for tool execution
 3. **Invalid JSON treated as content:** Parser continues with malformed calls as regular content
 4. **end terminates stream:** Final event, no further processing
@@ -98,7 +98,7 @@ Parser transforms LLM wire protocol into structured events. Framework injects ad
 # Conversation events
 {"type": "user", "content": "What's in main.py?", "timestamp": 1234567890.0}
 {"type": "think", "content": "reasoning text", "timestamp": 1234567890.0}
-{"type": "call", "content": "{\"name\": \"file_read\", \"args\": {\"file\": \"main.py\"}}", "timestamp": 1234567890.0}
+{"type": "call", "content": "{\"name\": \"read\", \"args\": {\"file\": \"main.py\"}}", "timestamp": 1234567890.0}
 {"type": "execute", "timestamp": 1234567890.0}
 {"type": "result", "payload": {"outcome": "Found file", "content": "...", "error": false}, "timestamp": 1234567890.0}
 {"type": "respond", "content": "final response", "timestamp": 1234567890.0}
@@ -123,7 +123,7 @@ Output:
 ```python
 {"type": "user", "content": "What's in main.py?"}
 {"type": "think", "content": "I need to read the file"}
-{"type": "call", "content": "{\"name\": \"file_read\", \"args\": {\"file\": \"main.py\"}}"}
+{"type": "call", "content": "{\"name\": \"read\", \"args\": {\"file\": \"main.py\"}}"}
 {"type": "execute", "timestamp": 1234567890.0}
 {"type": "result", "payload": {"outcome": "Read 50 lines", "content": "...", "error": false}}
 {"type": "respond", "content": "The file contains a Flask app"}
@@ -187,7 +187,7 @@ Context assembly transforms stored events into proper conversational messages:
 [
   {"type": "user", "content": "debug app.py"},
   {"type": "think", "content": "should read file"},
-  {"type": "call", "content": '{"name": "file_read", ...}'},
+  {"type": "call", "content": '{"name": "read", ...}'},
   {"type": "result", "content": '{"outcome": "Success", ...}'},
   {"type": "respond", "content": "fixed the bug"}
 ]

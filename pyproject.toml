@@ -45,7 +45,7 @@ google-genai = "^1.36.0"
 anthropic = "^0.67.0"
 tiktoken = "^0.11.0"
 typer = "^0.17.4"
-websockets = "^15.0.1"
+websockets = "==15.0.0"
 
 
 
@@ -85,11 +85,11 @@ ignore = [
     "SIM108", # if-else-block-instead-of-if-exp (ternary not always clearer)
     "SIM117", # combine-multiple-isinstance (sometimes separate is clearer)
     "E501",   # line-too-long (prompts and test data often legitimately long)
+    "F841",   # unused-variable (false positive in evals/runner.py)
 ]
 
 # Allow specific patterns that are common in this codebase
 
-[tool.ruff.lint.per-file-ignores]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

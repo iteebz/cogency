@@ -15,6 +15,7 @@ import json
 import time
 
 from .. import context
+from ..lib import telemetry
 from ..lib.logger import logger
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
@@ -82,8 +83,8 @@ async def stream(
 
             step_output_tokens = 0
 
-            request_timestamp = time.time()
-            serialized_messages = json.dumps(messages)
+            time.time()
+            json.dumps(messages)
             telemetry_events: list[dict] = []
 
             # Track output tokens for all LLM-generated content
@@ -98,7 +99,7 @@ async def stream(
                         step_output_tokens += metrics.add_output(event["content"])
 
                     if event:
-                        telemetry_events.append(event)
+                        telemetry.add_event(telemetry_events, event)
 
                     match event["type"]:
                         case "end":
@@ -110,7 +111,7 @@ async def stream(
                             yield event
                             if metrics:
                                 metrics_event = metrics.event()
-                                telemetry_events.append(metrics_event)
+                                telemetry.add_event(telemetry_events, metrics_event)
                                 yield metrics_event
                                 metrics.start_step()
 
@@ -123,23 +124,14 @@ async def stream(
                 # Emit metrics after LLM call completes
                 if metrics:
                     metrics_event = metrics.event()
-                    telemetry_events.append(metrics_event)
+                    telemetry.add_event(telemetry_events, metrics_event)
                     yield metrics_event
 
             except Exception:
                 raise
             finally:
                 if hasattr(config.storage, "save_request"):
-                    try:
-                        await config.storage.save_request(
-                            conversation_id,
-                            user_id,
-                            serialized_messages,
-                            json.dumps(telemetry_events),
-                            request_timestamp,
-                        )
-                    except Exception as exc:  # pragma: no cover - defensive
-                        logger.debug(f"Failed to persist request telemetry: {exc}")
+                    telemetry.persist_events(conversation_id, telemetry_events)
 
             # Exit iteration loop if complete
             if complete:

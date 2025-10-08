@@ -171,7 +171,10 @@ class SQLite:
                 query += " ORDER BY timestamp"
 
                 rows = db.execute(query, params).fetchall()
-                return [{"type": row["type"], "content": row["content"], "timestamp": row["timestamp"]} for row in rows]
+                return [
+                    {"type": row["type"], "content": row["content"], "timestamp": row["timestamp"]}
+                    for row in rows
+                ]
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 

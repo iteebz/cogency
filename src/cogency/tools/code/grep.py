@@ -6,11 +6,11 @@ from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
 
 
-class FileSearch(Tool):
-    """Search files with clean visual results."""
+class Grep(Tool):
+    """Search files."""
 
-    name = "file_search"
-    description = "Search files by pattern and content"
+    name = "grep"
+    description = "Search files."
     schema = {
         "pattern": {"optional": True},
         "content": {"optional": True},
@@ -21,7 +21,6 @@ class FileSearch(Tool):
     WARN_THRESHOLD = 50
 
     def describe(self, args: dict) -> str:
-        """Human-readable action description."""
         query = args.get("content") or args.get("pattern", "files")
         return f'Searching files for "{query}"'
 
@@ -67,22 +66,43 @@ class FileSearch(Tool):
         if not search_path.exists():
             return ToolResult(outcome=f"Directory '{path}' does not exist", error=True)
 
-        results = self._search_files(search_path, pattern, content)
+        results = self._search_files(search_path, workspace_root, pattern, content)
+        total = len(results)
 
-        if not results:
-            return ToolResult(outcome="Searched files", content="No matches found")
+        def describe_root() -> str:
+            try:
+                relative = search_path.relative_to(workspace_root)
+                return "." if str(relative) == "." else str(relative)
+            except ValueError:
+                return "."
 
-        shown = results[: self.MAX_RESULTS]
-        truncated = len(results) > self.MAX_RESULTS
+        def describe_query() -> list[str]:
+            lines = [f"Search root: {describe_root()}"]
+            if pattern:
+                lines.append(f"Pattern: {pattern}")
+            if content:
+                lines.append(f"Content: {content}")
+            return lines
 
-        content_text = "\n".join(shown)
-        if truncated:
-            content_text += (
-                f"\n\n[Truncated: showing {self.MAX_RESULTS} of {len(results)}. Refine query.]"
+        if total == 0:
+            summary = "\n".join(describe_query())
+            return ToolResult(
+                outcome="Found 0 matches",
+                content=summary,
             )
 
+        lines = describe_query()
+        lines.append("")
+
+        shown = results[: self.MAX_RESULTS]
+        truncated = total > self.MAX_RESULTS
+
+        content_text = "\n".join(lines + shown)
+        if truncated:
+            content_text += f"\n\n[Truncated: showing {self.MAX_RESULTS} of {total}. Refine query.]"
+
         return ToolResult(
-            outcome=f"Found {len(results)} matches",
+            outcome=f"Found {total} {'match' if total == 1 else 'matches'}",
             content=content_text,
         )
 
@@ -105,9 +125,16 @@ class FileSearch(Tool):
         ".eggs",
     }
 
-    def _search_files(self, search_path: Path, pattern: str, content: str) -> list:
+    def _search_files(
+        self,
+        search_path: Path,
+        workspace_root: Path,
+        pattern: str,
+        content: str,
+    ) -> list:
         """Search files and return clean visual results."""
         results = []
+        root = workspace_root
 
         def walk(p: Path):
             try:
@@ -124,14 +151,18 @@ class FileSearch(Tool):
                     elif item.is_file():
                         if pattern and not self._matches_pattern(item.name, pattern):
                             continue
+                        try:
+                            relative_path = item.relative_to(root)
+                        except ValueError:
+                            continue
+                        path_str = str(relative_path)
 
-                        file_name = item.name
                         if content:
                             matches = self._search_content(item, content)
                             for line_num, line_text in matches:
-                                results.append(f"{file_name}:{line_num}: {line_text.strip()}")
+                                results.append(f"{path_str}:{line_num}: {line_text.strip()}")
                         else:
-                            results.append(file_name)
+                            results.append(path_str)
             except PermissionError:
                 pass
 

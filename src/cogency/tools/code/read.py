@@ -5,11 +5,11 @@ from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
 
 
-class FileRead(Tool):
-    """Read file content."""
+class Read(Tool):
+    """Read file."""
 
-    name = "file_read"
-    description = "Read file content"
+    name = "read"
+    description = "Read file."
     schema = {
         "file": {},
         "start": {"type": "integer", "optional": True},
@@ -17,7 +17,6 @@ class FileRead(Tool):
     }
 
     def describe(self, args: dict) -> str:
-        """Human-readable action description."""
         file = args.get("file", "file")
         start = args.get("start")
         lines = args.get("lines")

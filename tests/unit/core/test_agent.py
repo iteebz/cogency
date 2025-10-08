@@ -31,7 +31,7 @@ def test_defaults(mock_llm, mock_storage):
     assert hasattr(agent.config.llm, "generate")
 
     tool_names = {tool.name for tool in agent.config.tools}
-    assert "file_list" in tool_names
+    assert "write" in tool_names
     assert "recall" in tool_names
 
 

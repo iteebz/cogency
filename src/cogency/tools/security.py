@@ -21,6 +21,66 @@ if TYPE_CHECKING:
     from ..core.config import Access
 
 
+def _has_unquoted(command: str, targets: set[str]) -> bool:
+    """Return True if any char in `targets` appears outside of quotes."""
+    single = double = False
+    escaped = False
+
+    for ch in command:
+        if escaped:
+            escaped = False
+            continue
+
+        if ch == "\\":
+            # Outside single quotes, backslash escapes the next character.
+            if not single:
+                escaped = True
+            continue
+
+        if ch == "'" and not double:
+            single = not single
+            continue
+
+        if ch == '"' and not single:
+            double = not double
+            continue
+
+        if ch in targets and not single and not double:
+            return True
+
+    # Unbalanced quotes - leave detection to shlex which will error.
+    return False
+
+
+def _has_dollar_outside_single_quotes(command: str) -> bool:
+    """Detect $ that could trigger expansion (outside single quotes)."""
+    single = double = False
+    escaped = False
+
+    for ch in command:
+        if escaped:
+            escaped = False
+            continue
+
+        if ch == "\\":
+            if not single:
+                escaped = True
+            continue
+
+        if ch == "'" and not double:
+            single = not single
+            continue
+
+        if ch == '"' and not single:
+            double = not double
+            continue
+
+        if ch == "$" and not single:
+            return True
+
+    return False
+
+
 def sanitize_shell_input(command: str) -> str:
     """Validate shell input and reject dangerous patterns. [SEC-002]"""
     if not command or not command.strip():
@@ -28,23 +88,21 @@ def sanitize_shell_input(command: str) -> str:
 
     command = command.strip()
 
-    # Shell metacharacters that enable command injection
-    dangerous_chars = [
-        ";",
-        "&",
-        "|",
-        "`",
-        "$",  # Prevents variable expansion attacks: $HOME, $(cmd), ${IFS}
-        "<",
-        "\n",
-        "\r",
-        "\x00",
-        "；",
-        "｜",
-    ]
-    for char in dangerous_chars:
-        if char in command:
-            raise ValueError("Invalid shell command syntax")
+    # Characters that must never appear, even inside quotes.
+    hard_blocked = {"\n", "\r", "\x00"}
+    if any(char in command for char in hard_blocked):
+        raise ValueError("Invalid shell command syntax")
+
+    # Reject metacharacters if they appear outside of quotes.
+    # - `;`, `&`, `|`, `` ` ``, `<`, `>` perform command chaining/redirection.
+    # - `；`, `｜` are full-width variants.
+    # - `$` enables expansion unless wrapped in single quotes.
+    if _has_unquoted(command, {";", "&", "|", "`", "<", ">", "；", "｜"}):
+        raise ValueError("Invalid shell command syntax")
+
+    # Allow `$` inside single quotes (no expansion), block otherwise.
+    if _has_dollar_outside_single_quotes(command):
+        raise ValueError("Invalid shell command syntax")
 
     # Validate shell syntax
     try:

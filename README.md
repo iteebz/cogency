@@ -103,9 +103,9 @@ async for event in agent(
 
 ### Built-in Tools
 
-- `file_read`, `file_write`, `file_edit`, `file_list`, `file_search`
-- `web_search`, `web_scrape`
-- `recall` (cross-conversation memory)
+- `read`, `write`, `edit`, `list`, `grep`
+- `search`, `scrape`
+- `recall`
 - `shell`
 
 ### Custom Tools
@@ -153,7 +153,7 @@ Cogency uses conversational message assembly for natural LLM interaction:
 ```python
 {"type": "user", "content": "debug this"}
 {"type": "think", "content": "checking logs"}
-{"type": "call", "content": '{"name": "file_read", ...}'}
+{"type": "call", "content": '{"name": "read", ...}'}
 ```
 
 **Assembly:** Transforms to proper conversational structure
@@ -263,7 +263,7 @@ Agents signal execution state explicitly:
 
 ```
 §think: I need to examine the code structure first
-§call: {"name": "file_read", "args": {"file": "main.py"}}
+§call: {"name": "read", "args": {"file": "main.py"}}
 §execute
 [SYSTEM: Found syntax error on line 15]
 §respond: Fixed the missing semicolon. Code runs correctly now.
