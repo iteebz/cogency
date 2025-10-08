@@ -8,21 +8,18 @@ from ..security import safe_execute
 SCRAPE_LIMIT = 3000
 
 
-class WebScrape(Tool):
-    """Extract and format web content with clean output."""
+class Scrape(Tool):
+    """Scrape webpage."""
 
-    name = "web_scrape"
-    description = "Extract web content"
+    name = "scrape"
+    description = "Scrape webpage."
     schema = {"url": {}}
 
     def describe(self, args: dict) -> str:
-        """Human-readable action description."""
         return f"Scraping {args.get('url', 'url')}"
 
     @safe_execute
     async def execute(self, url: str, **kwargs) -> ToolResult:
-        """Execute clean web scraping."""
-
         if not url or not url.strip():
             return ToolResult(outcome="URL cannot be empty", error=True)
 
@@ -41,11 +38,11 @@ class WebScrape(Tool):
         if not content:
             return ToolResult(outcome=f"Failed to fetch content from: {url}", error=True)
 
+        domain = self._extract_domain(url)
+
         extracted = trafilatura.extract(content, include_tables=True)
         if not extracted:
-            return ToolResult(outcome=f"Scraped {url}", content="No readable content found")
-
-        domain = self._extract_domain(url)
+            return ToolResult(outcome=f"Scraped {domain}", content="No readable content found")
 
         content_formatted = self._format_content(extracted)
         size_kb = len(content_formatted) / 1024
@@ -54,7 +51,6 @@ class WebScrape(Tool):
         return ToolResult(outcome=outcome, content=content_formatted)
 
     def _format_content(self, content: str) -> str:
-        """Content formatting."""
         if not content:
             return "No content extracted"
 
@@ -75,7 +71,6 @@ class WebScrape(Tool):
         return cleaned
 
     def _extract_domain(self, url: str) -> str:
-        """Extract clean domain from URL."""
         try:
             domain = urlparse(url).netloc.lower()
             if domain.startswith("www."):

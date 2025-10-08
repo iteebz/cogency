@@ -10,20 +10,25 @@ class ToolRegistry:
         self._register_builtins()
 
     def _register_builtins(self):
-        from .file import FileEdit, FileList, FileRead, FileSearch, FileWrite
-        from .memory import MemoryRecall
-        from .system import SystemShell
-        from .web import WebScrape, WebSearch
+        from .code.edit import Edit
+        from .code.grep import Grep
+        from .code.ls import Ls
+        from .code.read import Read
+        from .code.shell import Shell
+        from .code.write import Write
+        from .memory.recall import Recall
+        from .web.scrape import Scrape
+        from .web.search import Search
 
-        self.register(FileRead(), "file")
-        self.register(FileWrite(), "file")
-        self.register(FileEdit(), "file")
-        self.register(FileList(), "file")
-        self.register(FileSearch(), "file")
-        self.register(SystemShell(), "system")
-        self.register(WebScrape(), "web")
-        self.register(WebSearch(), "web")
-        self.register(MemoryRecall(), "memory")
+        self.register(Read(), "code")
+        self.register(Write(), "code")
+        self.register(Edit(), "code")
+        self.register(Ls(), "code")
+        self.register(Grep(), "code")
+        self.register(Shell(), "code")
+        self.register(Scrape(), "web")
+        self.register(Search(), "web")
+        self.register(Recall(), "memory")
 
     def register(self, tool_instance: Tool, category: str):
         if not isinstance(tool_instance, Tool):

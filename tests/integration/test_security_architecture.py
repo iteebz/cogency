@@ -1,17 +1,16 @@
 import pytest
 
-from cogency.tools.file.read import FileRead
-from cogency.tools.system.shell import SystemShell
+from cogency.tools import Read, Shell
 
 
 @pytest.fixture
 def shell_tool(tmp_path):
-    return SystemShell(), str(tmp_path)
+    return Shell(), str(tmp_path)
 
 
 @pytest.fixture
 def file_tool(tmp_path):
-    return FileRead(), str(tmp_path), "sandbox"
+    return Read(), str(tmp_path), "sandbox"
 
 
 @pytest.mark.asyncio
@@ -97,7 +96,7 @@ async def test_legitimate_ops(shell_tool, file_tool):
 
 @pytest.mark.asyncio
 async def test_project_access(tmp_path):
-    project_tool = FileRead()
+    project_tool = Read()
     base_dir = str(tmp_path)
 
     result1 = await project_tool.execute("/etc/passwd", base_dir=base_dir, access="project")
@@ -115,7 +114,7 @@ async def test_project_access(tmp_path):
 
 @pytest.mark.asyncio
 async def test_system_access(tmp_path):
-    system_tool = FileRead()
+    system_tool = Read()
     base_dir = str(tmp_path)
 
     result1 = await system_tool.execute("/etc/passwd", base_dir=base_dir, access="system")

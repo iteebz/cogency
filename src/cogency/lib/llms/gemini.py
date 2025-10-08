@@ -47,7 +47,8 @@ class Gemini(LLM):
                 import google.genai as genai
 
                 client = self._create_client(api_key)
-                response = await client.aio.models.generate_content(
+                aclient = client.aio
+                response = await aclient.models.generate_content(
                     model=self.http_model,
                     contents=self._convert_messages_to_gemini_format(messages),
                     config=genai.types.GenerateContentConfig(
@@ -71,7 +72,8 @@ class Gemini(LLM):
             import google.genai as genai
 
             client = self._create_client(api_key)
-            return await client.aio.models.generate_content_stream(
+            aclient = client.aio
+            return await aclient.models.generate_content_stream(
                 model=self.http_model,
                 contents=self._convert_messages_to_gemini_format(messages),
                 config=genai.types.GenerateContentConfig(
@@ -108,7 +110,7 @@ class Gemini(LLM):
 
             config = types.LiveConnectConfig(
                 response_modalities=["TEXT"],
-                system_instruction=system_instruction.strip() if system_instruction else None,
+                system_instruction=system_instruction.strip() if system_instruction else "",
             )
             connection = client.aio.live.connect(model=self.websocket_model, config=config)
             session = await connection.__aenter__()
@@ -164,7 +166,9 @@ class Gemini(LLM):
             )
 
             # Stream response with DUAL SIGNAL fix - the critical empirical discovery
+
             seen_generation_complete = False
+
             message_count = 0
 
             async for message in self._session.receive():
@@ -245,13 +249,11 @@ class Gemini(LLM):
 
         contents = []
         for msg in messages:
-            # Gemini uses "model" not "assistant", "user" for system
-            if msg["role"] == "system":
-                role = "user"
-                content = f"System: {msg['content']}"
-            elif msg["role"] == "assistant":
+            if msg["role"] == "assistant":
                 role = "model"
                 content = msg["content"]
+            elif msg["role"] == "system":
+                continue  # System messages are handled by system_instruction in Live API
             else:
                 role = msg["role"]
                 content = msg["content"]

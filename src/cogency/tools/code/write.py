@@ -3,16 +3,15 @@ from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
 
 
-class FileWrite(Tool):
-    """Write content to file."""
+class Write(Tool):
+    """Write file."""
 
-    name = "file_write"
-    description = "Write new file"
+    name = "write"
+    description = "Write file."
     schema = {"file": {}, "content": {}}
 
     def describe(self, args: dict) -> str:
-        """Human-readable action description."""
-        return f"Creating {args.get('file', 'file')}"
+        return f"Writing {args.get('file', 'file')}"
 
     @safe_execute
     async def execute(
@@ -30,7 +29,10 @@ class FileWrite(Tool):
 
         if file_path.exists():
             return ToolResult(
-                outcome=f"File {file} already exists. Use file_read first, then file_edit to modify.",
+                outcome=(
+                    f"File {file} already exists. "
+                    'Use edit (old="...") or edit (old="") to overwrite.'
+                ),
                 error=True,
             )
 
@@ -40,4 +42,4 @@ class FileWrite(Tool):
             f.write(content)
 
         lines = content.count("\n") + 1 if content else 0
-        return ToolResult(outcome=f"Created {file} (+{lines}/-0)")
+        return ToolResult(outcome=f"Wrote {file} (+{lines}/-0)")

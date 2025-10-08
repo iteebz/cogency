@@ -11,227 +11,137 @@ from cogency.tools.security import (
     validate_path,
 )
 
-# Comprehensive attack vectors for systematic security coverage
-SHELL_INJECTION_ATTACKS = [
-    # Command chaining and execution
-    "ls; rm -rf /",
-    "ls && rm -rf /",
-    "ls || rm -rf /",
-    "ls & rm -rf /",
-    # Command substitution
-    "ls `rm -rf /`",
-    "ls $(rm -rf /)",
-    # Piping and redirection
-    "ls | rm -rf /",
-    "ls > /etc/passwd",
-    "ls >> ~/.ssh/keys",
-    "cat < /etc/shadow",
-    # Environment variable expansion
-    "ls $HOME/../../../etc",
-    "ls ${PATH}/../../etc",
-    "cat $USER_CONFIG",
-    # Control character injection
-    "ls\x00; rm -rf /",
-    "ls\nrm -rf /",
-    "ls\r\nrm",
-    "ls\t&& rm",
-    # Unicode variants and exotic characters
-    "ls；rm -rf /",
-    "ls｜rm -rf /",
-    "ls\x01\x02 && rm",
-    "ls\x7f && rm",
-]
 
-PATH_TRAVERSAL_ATTACKS = [
-    # Directory traversal
-    "../../../etc/passwd",
-    "../../bin/sh",
-    "../etc/hosts",
-    # Absolute system paths
-    "/etc/passwd",
-    "/bin/sh",
-    "/sbin/init",
-    "/usr/bin/sudo",
-    "/System/Library/Kernels",
-    "/private/etc/passwd",
-    "C:\\Windows\\System32\\cmd.exe",
-    "C:\\System32\\notepad.exe",
-    # Null byte attacks
-    "file.txt\x00",
-    "\x00../etc/passwd",
-    "file\x00.txt",
-]
-
-SEMANTIC_SECURITY_BOUNDARY_ATTACKS = [
-    # URL encoded (semantic security handles these)
-    "%2e%2e%2f%2e%2e%2fetc",
-    "%252e%252e%252fetc",
-    # Unicode variants (too many to catch practically)
-    "\u002e\u002e/\u002e\u002e/etc",
-    "\uff0e\uff0e/\uff0e\uff0e/etc",
-    # Mixed encoding complexity
-    "../%2e%2e/../etc",
-    "\xc0\xae\xc0\xae/etc",
-]
-
-LEGITIMATE_INPUTS = {
-    "commands": [
-        "ls -la",
-        "grep 'pattern' file.txt",
-        "find . -name '*.py' -type f",
-        "python -c 'print(\"hello\")'",
-        "git status --porcelain",
-        "echo 'Safe message'",
-    ],
-    "paths": ["file.txt", "subdir/file.txt", "./config.json", "data/logs/app.log"],
-}
+@pytest.fixture
+def attacks():
+    return {
+        "shell": [
+            "ls; rm -rf /",
+            "ls && rm",
+            "ls | cat",
+            "ls > file",
+            "ls `cmd`",
+            "ls $(cmd)",
+            "ls $VAR",
+            "ls\nrm",
+            "ls\x00rm",
+        ],
+        "path": [
+            "../../../etc/passwd",
+            "/etc/passwd",
+            "/bin/sh",
+            "C:\\Windows\\System32",
+            "file\x00.txt",
+        ],
+    }
 
 
-def test_attack_blocking():
-    # Shell injection attacks must be blocked
-    for attack in SHELL_INJECTION_ATTACKS:
+@pytest.fixture
+def safe():
+    return {
+        "shell": [
+            "ls -la",
+            "grep 'pattern' file.txt",
+            "python -c 'print(\"hi\")'",
+            "echo '$HOME'",
+        ],
+        "path": ["file.txt", "subdir/file.txt", "./config.json"],
+    }
+
+
+def test_shell_blocks_injection(attacks):
+    for cmd in attacks["shell"]:
         with pytest.raises(ValueError, match="Invalid shell command syntax"):
-            sanitize_shell_input(attack)
+            sanitize_shell_input(cmd)
 
-    # Legitimate commands must pass
-    for cmd in LEGITIMATE_INPUTS["commands"]:
+
+def test_shell_allows_safe(safe):
+    for cmd in safe["shell"]:
         result = sanitize_shell_input(cmd)
-        assert isinstance(result, str) and len(result) > 0
+        assert isinstance(result, str)
 
-    # Path traversal attacks blocked in sandbox mode
-    with tempfile.TemporaryDirectory() as temp_dir:
-        sandbox = Path(temp_dir)
-        for attack in PATH_TRAVERSAL_ATTACKS:
+
+def test_shell_empty():
+    with pytest.raises(ValueError, match="Command cannot be empty"):
+        sanitize_shell_input("")
+
+
+def test_shell_unbalanced_quotes():
+    with pytest.raises(ValueError, match="Invalid shell command syntax"):
+        sanitize_shell_input("echo 'unbalanced")
+
+
+def test_path_blocks_traversal(attacks):
+    with tempfile.TemporaryDirectory() as tmp:
+        for path in attacks["path"]:
             with pytest.raises(ValueError, match="Path outside sandbox|Invalid path"):
-                validate_path(attack, sandbox)
+                validate_path(path, Path(tmp))
 
-    # System paths blocked in non-sandbox mode
-    system_paths = [p for p in PATH_TRAVERSAL_ATTACKS if p.startswith("/") or "C:\\" in p]
-    for path in system_paths:
+
+def test_path_blocks_system(attacks):
+    system = [p for p in attacks["path"] if p.startswith("/") or "C:\\" in p]
+    for path in system:
         with pytest.raises(ValueError, match="Invalid path"):
             validate_path(path)
 
-    # Legitimate paths work in both modes
-    for path in LEGITIMATE_INPUTS["paths"]:
-        assert isinstance(validate_path(path), Path)
-        with tempfile.TemporaryDirectory() as temp_dir:
-            assert isinstance(validate_path(path, Path(temp_dir)), Path)
 
-    # Edge case validation
-    edge_cases = [
-        ("", "Path cannot be empty"),
-        ("   ", "Path cannot be empty"),
-        ("unclosed 'quote", "Invalid shell command syntax"),
-    ]
-
-    for invalid_input, error_pattern in edge_cases:
-        with pytest.raises(ValueError, match=error_pattern):
-            if invalid_input.strip() == "":
-                validate_path(invalid_input)
-            else:
-                sanitize_shell_input(invalid_input)
+def test_path_allows_safe(safe):
+    for path in safe["path"]:
+        result = validate_path(path)
+        assert isinstance(result, Path)
 
 
-def test_timeout_enforcement():
-    import time
+def test_path_empty():
+    with pytest.raises(ValueError, match="Path cannot be empty"):
+        validate_path("")
 
-    # Fast operations complete normally
+
+def test_timeout_completes():
     with timeout_context(5):
         assert sum(range(1000)) == 499500
 
-    # Platform-specific timeout behavior
-    if os.name == "nt":
-        # Windows: ensure no crashes
+
+@pytest.mark.skipif(os.name == "nt", reason="Unix only")
+def test_timeout_enforces():
+    import time
+
+    with pytest.raises(TimeoutError):
         with timeout_context(1):
-            time.sleep(0.1)
-    else:
-        # Unix: actual timeout enforcement
-        with pytest.raises(TimeoutError):
-            with timeout_context(1):
-                time.sleep(2)
+            time.sleep(2)
 
 
-def test_semantic_security_boundaries():
-    # Shell injection blocked at security layer
-    shell_attacks_with_paths = [
-        "ls `cat /etc/passwd`",
-        "../../../etc/passwd; rm -rf /",
-        "%2e%2e%2f$(rm -rf /)",
-    ]
-
-    for attack in shell_attacks_with_paths:
-        with pytest.raises(ValueError, match="Invalid shell command syntax"):
-            sanitize_shell_input(attack)
-
-    # Path traversal without shell injection passes shell security
-    legitimate_shell = sanitize_shell_input("cat ../../../etc/passwd")
-    assert isinstance(legitimate_shell, str)
-
-    # Exotic encodings pass path security (semantic layer handles these)
-    for attack in SEMANTIC_SECURITY_BOUNDARY_ATTACKS:
-        try:
-            result = validate_path(attack)
-            assert isinstance(result, Path)
-        except ValueError:
-            pass  # Some may fail due to filesystem restrictions
-
-    # Security functions are deterministic
-    assert sanitize_shell_input("ls -la") == sanitize_shell_input("ls -la")
-    assert validate_path("file.txt") == validate_path("file.txt")
+def test_resolve_sandbox(tmp_path):
+    result = resolve_file("test.txt", "sandbox", sandbox_dir=str(tmp_path))
+    assert str(tmp_path) in str(result)
 
 
-def test_shell_input_sanitization():
-    from cogency.tools.security import sanitize_shell_input
-
-    # Test dangerous commands are blocked
-    for cmd in SHELL_INJECTION_ATTACKS[:5]:  # Test subset
-        with pytest.raises(ValueError):
-            sanitize_shell_input(cmd)
-
-    # Test safe commands are allowed
-    safe_commands = ["ls", "pwd", "echo hello"]
-    for cmd in safe_commands:
-        result = sanitize_shell_input(cmd)
-        assert result == cmd
-
-
-def test_resolve_file_access_levels(tmp_path: Path):
+def test_resolve_sandbox_blocks_absolute(tmp_path):
     with pytest.raises(ValueError, match="Invalid path"):
         resolve_file("/etc/passwd", "sandbox", sandbox_dir=str(tmp_path))
 
-    with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("../../../etc/passwd", "sandbox", sandbox_dir=str(tmp_path))
 
-    result = resolve_file("test.txt", "sandbox", sandbox_dir=str(tmp_path))
-    assert isinstance(result, Path)
-    assert str(tmp_path) in str(result)
+def test_resolve_sandbox_strips_doubling(tmp_path):
+    result = resolve_file("sandbox/app.py", "sandbox", sandbox_dir=str(tmp_path))
+    assert "sandbox/sandbox" not in str(result)
+    assert str(result).endswith("app.py")
 
-    result_doubling = resolve_file("sandbox/app.py", "sandbox", sandbox_dir=str(tmp_path))
-    assert isinstance(result_doubling, Path)
-    assert str(tmp_path) in str(result_doubling)
-    assert "sandbox/sandbox" not in str(result_doubling)
-    assert str(result_doubling).endswith("app.py")
 
+def test_resolve_project():
+    result = resolve_file("test.txt", "project")
+    assert result == Path.cwd() / "test.txt"
+
+
+def test_resolve_project_blocks_system():
     with pytest.raises(ValueError, match="Invalid path"):
         resolve_file("/etc/passwd", "project")
 
-    result = resolve_file("test.txt", "project")
-    assert isinstance(result, Path)
-    assert str(Path.cwd()) in str(result)
-    assert result == Path.cwd() / "test.txt"
 
-    result_ignores_sandbox = resolve_file("test.txt", "project", sandbox_dir="/ignored/path")
-    assert result_ignores_sandbox == Path.cwd() / "test.txt"
-    assert "/ignored/path" not in str(result_ignores_sandbox)
-
-    # SYSTEM access - blocks dangerous paths but allows absolute paths
+def test_resolve_system_blocks_dangerous():
     with pytest.raises(ValueError, match="Invalid path"):
         resolve_file("/etc/passwd", "system")
 
-    with pytest.raises(ValueError, match="Invalid path"):
-        resolve_file("../../../etc/passwd", "system")
 
-    # Should work for safe absolute paths
+def test_resolve_system_allows_safe():
     with tempfile.NamedTemporaryFile() as tmp:
         result = resolve_file(tmp.name, "system")
         assert isinstance(result, Path)

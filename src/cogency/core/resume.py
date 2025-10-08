@@ -15,8 +15,8 @@ import json
 import time
 
 from .. import context
+from ..lib import telemetry
 from ..lib.metrics import Metrics
-from ..lib.logger import logger
 from .accumulator import Accumulator
 from .config import Config
 from .parser import parse_tokens
@@ -66,9 +66,9 @@ async def stream(
             metrics.start_step()
             metrics.add_input(messages)
 
-        request_timestamp = time.time()
-        serialized_messages = json.dumps(messages)
-        telemetry: list[dict] = []
+        time.time()
+        json.dumps(messages)
+        telemetry_events: list[dict] = []
 
         session = await llm.connect(messages)
 
@@ -92,20 +92,20 @@ async def stream(
                     metrics.add_output(content)
 
                 if event:
-                    telemetry.append(event)
+                    telemetry.add_event(telemetry_events, event)
 
                 match ev_type:
                     case "end":
                         complete = True
                         # Close session on task completion
-                            metric = metrics.event()
-                            telemetry.append(metric)
-                            yield metric
+                        metric = metrics.event()
+                        telemetry.add_event(telemetry_events, metric)
+                        yield metric
 
                     case "execute":
                         if metrics:
                             metric = metrics.event()
-                            telemetry.append(metric)
+                            telemetry.add_event(telemetry_events, metric)
                             yield metric
                             metrics.start_step()
 
@@ -131,7 +131,7 @@ async def stream(
 
                         if metrics:
                             metric = metrics.event()
-                            telemetry.append(metric)
+                            telemetry.add_event(telemetry_events, metric)
                             yield metric
                             metrics.start_step()
 
@@ -146,17 +146,7 @@ async def stream(
             raise
         finally:
             if hasattr(config.storage, "save_request"):
-                try:
-                    await config.storage.save_request(
-                        conversation_id,
-                        user_id,
-                        serialized_messages,
-                        json.dumps(telemetry),
-                        request_timestamp,
-                    )
-                except Exception as exc:  # pragma: no cover - defensive
-                    from ..lib.logger import logger
-                    logger.debug(f"Failed to persist request telemetry: {exc}")
+                telemetry.persist_events(conversation_id, telemetry_events)
 
         # Handle natural WebSocket completion
         if not complete:

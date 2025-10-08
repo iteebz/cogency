@@ -2,12 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools.system.shell import SystemShell
+from cogency.tools import Shell
 
 
 @pytest.mark.asyncio
 async def test_sandbox_mode_runs_in_sandbox_dir(tmp_path):
-    tool = SystemShell()
+    tool = Shell()
 
     result = await tool.execute(command="pwd", sandbox_dir=str(tmp_path), access="sandbox")
 
@@ -17,7 +17,7 @@ async def test_sandbox_mode_runs_in_sandbox_dir(tmp_path):
 
 @pytest.mark.asyncio
 async def test_project_mode_runs_in_cwd():
-    tool = SystemShell()
+    tool = Shell()
 
     result = await tool.execute(command="pwd", access="project")
 
@@ -27,7 +27,7 @@ async def test_project_mode_runs_in_cwd():
 
 @pytest.mark.asyncio
 async def test_sandbox_dir_ignored_when_not_sandbox(tmp_path):
-    tool = SystemShell()
+    tool = Shell()
 
     result = await tool.execute(command="pwd", sandbox_dir=str(tmp_path), access="project")
 
@@ -38,9 +38,9 @@ async def test_sandbox_dir_ignored_when_not_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_timeout_enforcement():
-    tool = SystemShell()
+    tool = Shell()
 
-    result = await tool.execute(command="sleep 5", timeout=1, access="sandbox")
+    result = await tool.execute(command="/bin/sleep 5", timeout=1, access="sandbox")
 
     assert result.error
     assert "timed out" in result.outcome
@@ -53,7 +53,7 @@ async def test_glob_expansion_in_project_mode(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    tool = SystemShell()
+    tool = Shell()
 
     result = await tool.execute(command="ls -d */", access="project")
 

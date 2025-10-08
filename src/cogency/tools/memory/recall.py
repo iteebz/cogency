@@ -26,11 +26,11 @@ class MessageMatch(NamedTuple):
     conversation_id: str
 
 
-class MemoryRecall(Tool):
-    """Recall past user messages outside current context window using fuzzy search."""
+class Recall(Tool):
+    """Search memory."""
 
     name = "recall"
-    description = "Search past user messages for context outside current conversation"
+    description = "Search memory."
     schema = {
         "query": {
             "description": "Keywords to search for in past user messages",
@@ -39,7 +39,6 @@ class MemoryRecall(Tool):
     }
 
     def describe(self, args: dict) -> str:
-        """Human-readable action description."""
         return f'Recalling "{args.get("query", "query")}"'
 
     @safe_execute
@@ -65,7 +64,7 @@ class MemoryRecall(Tool):
         )
 
         if not matches:
-            outcome = f"Memory searched for '{query}'"
+            outcome = f"Memory searched for '{query}' (0 matches)"
             content = "No past references found outside current conversation"
             return ToolResult(outcome=outcome, content=content)
 
