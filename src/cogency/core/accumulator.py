@@ -59,7 +59,7 @@ class Accumulator:
             return None
 
         # Persist conversation events only (not control flow or metrics)
-        clean_content = self.content.strip() if not self.chunks else self.content.lstrip()
+        clean_content = self.content.strip() if not self.chunks else self.content
 
         if self.current_type in PERSISTABLE_EVENTS:
             await self.storage.save_message(

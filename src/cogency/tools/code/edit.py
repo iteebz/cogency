@@ -9,7 +9,7 @@ class Edit(Tool):
     """Edit file."""
 
     name = "edit"
-    description = "Edit file. old=\"\" overwrites entire file. Match must be unique."
+    description = 'Edit file. old="" overwrites entire file. Match must be unique.'
     schema = {"file": {}, "old": {}, "new": {}}
 
     def describe(self, args: dict) -> str:

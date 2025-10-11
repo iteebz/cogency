@@ -28,7 +28,6 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-cogency = "cogency.cli:main"
 evals = "evals.__main__:main"
 pytest = "pytest:main"
 

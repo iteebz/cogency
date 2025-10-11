@@ -222,3 +222,46 @@ async def test_whitespace_preservation():
     assert events[2]["content"] == "world"
     assert events[3]["content"] == " "
     assert events[4]["type"] == "execute"
+
+
+@pytest.mark.asyncio
+async def test_eager_emit_no_delimiters():
+    """Tokens without delimiters stream immediately."""
+    tokens = ["Hello", " world", "!"]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    assert len(events) == 3
+    assert events[0] == {"type": "respond", "content": "Hello"}
+    assert events[1] == {"type": "respond", "content": " world"}
+    assert events[2] == {"type": "respond", "content": "!"}
+
+
+@pytest.mark.asyncio
+async def test_eager_emit_partial_delimiter_held():
+    """Partial delimiter candidates are held until resolved."""
+    tokens = ["Hello §", "think", ": analyzing"]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    assert len(events) == 2
+    assert events[0] == {"type": "respond", "content": "Hello "}
+    assert events[1] == {"type": "think", "content": "analyzing"}
+
+
+@pytest.mark.asyncio
+async def test_eager_emit_false_alarm_delimiter():
+    """False alarm partial delimiter held until resolved."""
+    tokens = ["Price: §", "50"]
+
+    events = []
+    async for event in parse_tokens(mock_token_stream(tokens)):
+        events.append(event)
+
+    assert len(events) == 2
+    assert events[0] == {"type": "respond", "content": "Price: "}
+    assert events[1] == {"type": "respond", "content": "§50"}

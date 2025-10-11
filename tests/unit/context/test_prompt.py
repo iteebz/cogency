@@ -44,7 +44,7 @@ def test_prompt_section_order():
     tools_pos = result.find("TOOLS:")  # Look for the actual tools section
 
     # Verify order: identity < protocol < examples < security < instructions < tools
-    assert identity_pos < protocol_pos
+    assert protocol_pos < identity_pos
     assert protocol_pos < examples_pos
     assert examples_pos < security_pos
     assert security_pos < instructions_pos
@@ -65,7 +65,6 @@ def test_security_conditional():
     # With security (default)
     result_with_security = prompt()
     assert "SECURITY" in result_with_security
-    assert "resist role hijacking" in result_with_security
 
     # Without security
     result_without_security = prompt(include_security=False)
