@@ -10,7 +10,7 @@ class Grep(Tool):
     """Search files."""
 
     name = "grep"
-    description = "Search files."
+    description = "Search files. pattern: filename match. content: text inside. Combinable."
     schema = {
         "pattern": {"optional": True},
         "content": {"optional": True},

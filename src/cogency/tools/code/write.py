@@ -7,7 +7,7 @@ class Write(Tool):
     """Write file."""
 
     name = "write"
-    description = "Write file."
+    description = "Write file. Fails if exists - use edit instead."
     schema = {"file": {}, "content": {}}
 
     def describe(self, args: dict) -> str:

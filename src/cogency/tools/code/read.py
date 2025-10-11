@@ -9,7 +9,7 @@ class Read(Tool):
     """Read file."""
 
     name = "read"
-    description = "Read file."
+    description = "Read file. start/lines for pagination."
     schema = {
         "file": {},
         "start": {"type": "integer", "optional": True},

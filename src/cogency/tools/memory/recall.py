@@ -30,7 +30,7 @@ class Recall(Tool):
     """Search memory."""
 
     name = "recall"
-    description = "Search memory."
+    description = "Search memory. Fuzzy search past user messages, 3 matches."
     schema = {
         "query": {
             "description": "Keywords to search for in past user messages",

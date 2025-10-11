@@ -24,7 +24,7 @@ class Ls(Tool):
     """List files."""
 
     name = "ls"
-    description = "List files."
+    description = "List files. Tree view, depth 3. pattern filters filenames."
     schema = {"path": {"optional": True}, "pattern": {"optional": True}}
 
     def describe(self, args: dict) -> str:

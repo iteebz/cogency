@@ -6,7 +6,7 @@ class Search(Tool):
     """Search web."""
 
     name = "search"
-    description = "Search web."
+    description = "Search web. Returns 5 results with title/body/url."
     schema = {"query": {}}
 
     def describe(self, args: dict) -> str:

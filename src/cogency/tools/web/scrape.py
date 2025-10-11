@@ -12,7 +12,7 @@ class Scrape(Tool):
     """Scrape webpage."""
 
     name = "scrape"
-    description = "Scrape webpage."
+    description = "Scrape webpage. Extracts readable text, 3KB limit."
     schema = {"url": {}}
 
     def describe(self, args: dict) -> str:
