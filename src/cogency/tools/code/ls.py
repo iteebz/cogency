@@ -6,6 +6,18 @@ from ...core.protocols import Tool, ToolResult
 from ..security import resolve_file, safe_execute
 
 DEFAULT_TREE_DEPTH = 3
+DEFAULT_IGNORED_DIRS = [
+    "node_modules",
+    ".venv",
+    "__pycache__",
+    "dist",
+    ".git",
+    ".pytest_cache",
+    ".ruff_cache",
+    ".mypy_cache",
+    ".vscode",
+    ".idea",
+]
 
 
 class Ls(Tool):
@@ -81,13 +93,12 @@ class Ls(Tool):
             items = sorted(path.iterdir(), key=lambda x: (x.is_file(), x.name))
 
             for item in items:
-                if item.name.startswith("."):
+                if item.name.startswith(".") or item.name in DEFAULT_IGNORED_DIRS:
                     continue
 
                 if item.is_dir():
                     stats["dirs"] += 1
-                    if item.name != "dist":
-                        lines.append(f"{prefix}{item.name}/")
+                    lines.append(f"{prefix}{item.name}/")
                     sub_lines = self._build_tree(
                         item,
                         pattern,
