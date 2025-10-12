@@ -11,7 +11,7 @@ class Shell(Tool):
 
     name = "shell"
     description = "Run shell command. 30s timeout. Runs in workspace or sandbox."
-    schema = {"command": {}}
+    schema = {"command": {}, "cwd": {}}
 
     def describe(self, args: dict) -> str:
         return f"Running {args.get('command', 'command')}"
@@ -23,6 +23,7 @@ class Shell(Tool):
         timeout: int = 30,
         sandbox_dir: str = ".cogency/sandbox",
         access: str = "sandbox",
+        cwd: str | None = None,
         **kwargs,
     ) -> ToolResult:
         if not command or not command.strip():
@@ -37,11 +38,17 @@ class Shell(Tool):
         if not parts:
             return ToolResult(outcome="Empty command after parsing", error=True)
 
-        if access == "sandbox":
+        if cwd:
+            working_path = Path(cwd)
+            if not working_path.is_absolute():
+                base = Path(sandbox_dir) if access == "sandbox" else Path.cwd()
+                working_path = (base / working_path).resolve()
+        elif access == "sandbox":
             working_path = Path(sandbox_dir)
-            working_path.mkdir(parents=True, exist_ok=True)
         else:
             working_path = Path.cwd()
+
+        working_path.mkdir(parents=True, exist_ok=True)
 
         expanded_parts = [parts[0]]
         for arg in parts[1:]:

@@ -106,7 +106,7 @@ class Accumulator:
             yield {
                 "type": "result",
                 "payload": {"outcome": result.outcome, "content": result.content, "error": True},
-                "content": f"§result: {result.outcome}",
+                "content": f"{result.outcome}",
                 "timestamp": timestamp,
             }
             self.current_type = None
@@ -152,7 +152,7 @@ class Accumulator:
             yield {
                 "type": "result",
                 "payload": {"outcome": termination_result.outcome, "content": "", "error": True},
-                "content": f"§result: {termination_result.outcome}",
+                "content": f"{termination_result.outcome}",
                 "timestamp": timestamp,
             }
             yield {"type": "end", "timestamp": timestamp}
@@ -167,7 +167,7 @@ class Accumulator:
                 "content": result.content,
                 "error": result.error,
             },
-            "content": f"§result: {format_result_agent(result)}",
+            "content": f"{format_result_agent(result)}",
             "timestamp": timestamp,
         }
 

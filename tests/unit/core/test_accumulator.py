@@ -245,4 +245,3 @@ async def test_result_event_has_content(mock_config, mock_tool):
     assert len(result_events) == 1
     assert "content" in result_events[0]
     assert result_events[0]["content"]
-    assert "§result:" in result_events[0]["content"]

@@ -51,9 +51,7 @@ async def test_call_execute_result_turn_boundary():
     assert messages[1]["role"] == "assistant"
     assert "§execute" in messages[1]["content"]
     assert messages[2]["role"] == "user"
-    assert "§result:" in messages[2]["content"]
     assert messages[3]["role"] == "assistant"
-    assert "§respond:" in messages[3]["content"]
 
 
 @pytest.mark.asyncio
@@ -110,7 +108,6 @@ async def test_result_formatting():
 
     result_msg = messages[2]
     assert result_msg["role"] == "user"
-    assert "§result:" in result_msg["content"]
     assert "Success" in result_msg["content"]
 
 

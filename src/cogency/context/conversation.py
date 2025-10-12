@@ -41,7 +41,7 @@ def to_messages(events: list[dict]) -> list[dict]:
                 result_text = content
 
             if result_text:
-                messages.append({"role": "user", "content": f"§result: {result_text}"})
+                messages.append({"role": "user", "content": f"{result_text}"})
 
     if assistant_turn:
         messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})

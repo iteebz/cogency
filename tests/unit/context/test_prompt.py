@@ -6,7 +6,7 @@ def test_default_identity():
     result = prompt()
 
     assert "IDENTITY" in result
-    assert "You are Cogency" in result
+    assert "Cogency: autonomous reasoning agent" in result
     assert "autonomous reasoning agent" in result
 
 

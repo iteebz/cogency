@@ -21,8 +21,8 @@ if TYPE_CHECKING:
     from ..core.config import Access
 
 
-def _has_unquoted(command: str, targets: set[str]) -> bool:
-    """Return True if any char in `targets` appears outside of quotes."""
+def _has_unquoted(command: str, targets: set[str]) -> str | None:
+    """Return the first char in `targets` that appears outside of quotes."""
     single = double = False
     escaped = False
 
@@ -46,13 +46,13 @@ def _has_unquoted(command: str, targets: set[str]) -> bool:
             continue
 
         if ch in targets and not single and not double:
-            return True
+            return ch
 
     # Unbalanced quotes - leave detection to shlex which will error.
-    return False
+    return None
 
 
-def _has_dollar_outside_single_quotes(command: str) -> bool:
+def _has_dollar_outside_single_quotes(command: str) -> str | None:
     """Detect $ that could trigger expansion (outside single quotes)."""
     single = double = False
     escaped = False
@@ -76,9 +76,9 @@ def _has_dollar_outside_single_quotes(command: str) -> bool:
             continue
 
         if ch == "$" and not single:
-            return True
+            return ch
 
-    return False
+    return None
 
 
 def sanitize_shell_input(command: str) -> str:
@@ -97,12 +97,12 @@ def sanitize_shell_input(command: str) -> str:
     # - `;`, `&`, `|`, `` ` ``, `<`, `>` perform command chaining/redirection.
     # - `；`, `｜` are full-width variants.
     # - `$` enables expansion unless wrapped in single quotes.
-    if _has_unquoted(command, {";", "&", "|", "`", "<", ">", "；", "｜"}):
-        raise ValueError("Invalid shell command syntax")
+    if char := _has_unquoted(command, {";", "&", "|", "`", "<", ">", "；", "｜"}):
+        raise ValueError(f"Invalid shell command syntax: character '{char}' is not allowed")
 
     # Allow `$` inside single quotes (no expansion), block otherwise.
-    if _has_dollar_outside_single_quotes(command):
-        raise ValueError("Invalid shell command syntax")
+    if char := _has_dollar_outside_single_quotes(command):
+        raise ValueError(f"Invalid shell command syntax: character '{char}' is not allowed")
 
     # Validate shell syntax
     try:

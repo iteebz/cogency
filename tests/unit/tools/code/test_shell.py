@@ -60,3 +60,37 @@ async def test_glob_expansion_in_project_mode(tmp_path, monkeypatch):
     assert not result.error
     assert "alpha/" in result.content
     assert "beta/" in result.content
+
+
+@pytest.mark.asyncio
+async def test_cwd_absolute_path(tmp_path):
+    tool = Shell()
+    subdir = tmp_path / "custom"
+    subdir.mkdir()
+
+    result = await tool.execute(command="pwd", cwd=str(subdir), access="sandbox")
+
+    assert not result.error
+    assert str(subdir) in result.content
+
+
+@pytest.mark.asyncio
+async def test_cwd_relative_path_sandbox(tmp_path):
+    tool = Shell()
+
+    result = await tool.execute(
+        command="pwd", cwd="subdir", sandbox_dir=str(tmp_path), access="sandbox"
+    )
+
+    assert not result.error
+    assert str(tmp_path / "subdir") in result.content
+
+
+@pytest.mark.asyncio
+async def test_cwd_relative_path_project():
+    tool = Shell()
+
+    result = await tool.execute(command="pwd", cwd="tests", access="project")
+
+    assert not result.error
+    assert str(Path.cwd() / "tests") in result.content

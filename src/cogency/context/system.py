@@ -72,6 +72,7 @@ Simple:
 §end
 
 Tool chain (your emissions only):
+§think: I need to understand this file.
 §call: {"name": "ls", "args": {"path": "."}}
 §execute
 §call: {"name": "read", "args": {"file": "src/handler.py"}}
