@@ -2,7 +2,7 @@ import json
 import time
 from pathlib import Path
 
-from .ids import uuid7
+from .uuid7 import uuid7
 
 
 def log_response(conversation_id: str, model: str, response: str):

@@ -5,8 +5,8 @@ import time
 from pathlib import Path
 from typing import Any, NamedTuple, Protocol, runtime_checkable
 
-from .ids import uuid7
 from .resilience import retry
+from .uuid7 import uuid7
 
 
 class MessageMatch(NamedTuple):

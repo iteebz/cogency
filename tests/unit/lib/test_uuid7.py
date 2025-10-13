@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from cogency.lib.ids import uuid7
+from cogency.lib.uuid7 import uuid7
 
 
 @pytest.mark.asyncio
@@ -56,3 +56,24 @@ async def test_uniqueness():
     """UUID v7 generates unique IDs even in tight loop."""
     ids = [uuid7() for _ in range(1000)]
     assert len(ids) == len(set(ids))
+
+
+@pytest.mark.asyncio
+async def test_thread_safety():
+    """UUID v7 generates unique IDs across multiple threads."""
+    import concurrent.futures
+
+    num_threads = 10
+    num_ids_per_thread = 1000
+    all_ids = []
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [
+            executor.submit(lambda: [uuid7() for _ in range(num_ids_per_thread)])
+            for _ in range(num_threads)
+        ]
+        for future in concurrent.futures.as_completed(futures):
+            all_ids.extend(future.result())
+
+    assert len(all_ids) == num_threads * num_ids_per_thread
+    assert len(all_ids) == len(set(all_ids))
