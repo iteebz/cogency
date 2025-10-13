@@ -136,6 +136,26 @@ class Grep(Tool):
         results = []
         root = workspace_root
 
+        def process_file(item: Path):
+            if pattern and not self._matches_pattern(item.name, pattern):
+                return
+            try:
+                relative_path = item.relative_to(root)
+            except ValueError:
+                return
+            path_str = str(relative_path)
+
+            if content:
+                matches = self._search_content(item, content)
+                for line_num, line_text in matches:
+                    results.append(f"{path_str}:{line_num}: {line_text.strip()}")
+            else:
+                results.append(path_str)
+
+        if search_path.is_file():
+            process_file(search_path)
+            return results
+
         def walk(p: Path):
             try:
                 for item in p.iterdir():
@@ -149,20 +169,7 @@ class Grep(Tool):
                     if item.is_dir():
                         walk(item)
                     elif item.is_file():
-                        if pattern and not self._matches_pattern(item.name, pattern):
-                            continue
-                        try:
-                            relative_path = item.relative_to(root)
-                        except ValueError:
-                            continue
-                        path_str = str(relative_path)
-
-                        if content:
-                            matches = self._search_content(item, content)
-                            for line_num, line_text in matches:
-                                results.append(f"{path_str}:{line_num}: {line_text.strip()}")
-                        else:
-                            results.append(path_str)
+                        process_file(item)
             except PermissionError:
                 pass
 

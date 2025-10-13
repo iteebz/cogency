@@ -10,7 +10,7 @@ class Shell(Tool):
     """Run shell command."""
 
     name = "shell"
-    description = "Run shell command. 30s timeout. Include cwd for relative paths."
+    description = "Run shell command. 30s timeout. Each call starts in project root - use cwd arg for other dirs."
     schema = {"command": {}, "cwd": {}}
 
     def describe(self, args: dict) -> str:
@@ -79,7 +79,7 @@ class Shell(Tool):
                     content_parts.append(f"Warnings:\n{result.stderr.strip()}")
 
                 content = "\n".join(content_parts) if content_parts else ""
-                outcome = "Command completed"
+                outcome = ""
 
                 return ToolResult(outcome=outcome, content=content)
             error_output = result.stderr.strip() or "Command failed"

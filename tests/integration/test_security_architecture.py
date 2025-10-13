@@ -81,7 +81,8 @@ async def test_sandbox_boundaries(file_tool):
 async def test_legitimate_ops(shell_tool, file_tool):
     shell, shell_base = shell_tool
     shell_result = await shell.execute("echo hello", base_dir=shell_base)
-    assert "Command completed" in shell_result.outcome
+    assert not shell_result.error
+    assert shell_result.content == "hello"
 
     file, file_base, access = file_tool
     try:

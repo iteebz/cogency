@@ -21,11 +21,11 @@ class Read(Tool):
         start = args.get("start")
         lines = args.get("lines")
 
-        if start or lines:
+        if start is not None or lines is not None:
             parts = []
-            if start:
+            if start is not None:
                 parts.append(f"from line {start}")
-            if lines:
+            if lines is not None:
                 parts.append(f"{lines} lines")
             return f"Reading {file} ({', '.join(parts)})"
 
@@ -36,7 +36,7 @@ class Read(Tool):
         self,
         file: str,
         start: int = 0,
-        lines: int = 100,
+        lines: int | None = None,
         sandbox_dir: str = ".cogency/sandbox",
         access: Access = "sandbox",
         **kwargs,
@@ -50,7 +50,7 @@ class Read(Tool):
             if not file_path.exists():
                 return ToolResult(outcome="File does not exist, try ls first", error=True)
 
-            if start > 0 or lines != 100:
+            if start > 0 or lines is not None:
                 content = self._read_lines(file_path, start, lines)
                 line_count = len(content.splitlines())
                 outcome = f"Read {file} ({line_count} lines)"
