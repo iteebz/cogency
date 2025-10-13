@@ -1,4 +1,65 @@
+from unittest.mock import AsyncMock, Mock
+
 import pytest
+
+from cogency.core.protocols import LLM, Tool, ToolResult
+
+
+class TestStorage:
+    def __init__(self):
+        self.messages = []
+        self.events = []
+        self.requests = []
+        self.profiles = {}
+        self.base_dir = None
+
+    async def save_message(self, conversation_id, user_id, msg_type, content, timestamp=None):
+        self.messages.append(
+            {
+                "conversation_id": conversation_id,
+                "user_id": user_id,
+                "type": msg_type,
+                "content": content,
+                "timestamp": timestamp,
+            }
+        )
+
+    async def save_event(self, conversation_id, msg_type, content, timestamp=None):
+        self.events.append(
+            {
+                "conversation_id": conversation_id,
+                "type": msg_type,
+                "content": content,
+                "timestamp": timestamp,
+            }
+        )
+
+    async def save_request(self, conversation_id, user_id, messages, response=None, timestamp=None):
+        self.requests.append(
+            {
+                "conversation_id": conversation_id,
+                "user_id": user_id,
+                "messages": messages,
+                "response": response,
+                "timestamp": timestamp,
+            }
+        )
+
+    async def load_messages(self, conversation_id, include=None, exclude=None):
+        return [msg for msg in self.messages if msg["conversation_id"] == conversation_id]
+
+    async def save_profile(self, user_id, profile):
+        self.profiles[user_id] = profile
+
+    async def load_profile(self, user_id):
+        return self.profiles.get(user_id, {})
+
+    async def count_user_messages(self, user_id, since_timestamp=0):
+        count = 0
+        for msg in self.messages:
+            if msg["user_id"] == user_id and msg.get("timestamp", 0) > since_timestamp:
+                count += 1
+        return count
 
 
 async def get_agent_response(agent, query, **kwargs):
@@ -23,9 +84,6 @@ def mock_generator(items):
 @pytest.fixture
 def mock_llm():
     import asyncio
-    from unittest.mock import AsyncMock
-
-    from cogency.core.protocols import LLM
 
     class MockLLM(LLM):
         http_model = "gpt-4"  # For token counting with tiktoken
@@ -54,9 +112,12 @@ def mock_llm():
             if not self._is_session:
                 raise RuntimeError("send() requires active session. Call connect() first.")
 
-            for token in self.response_tokens:
-                yield token
-                await asyncio.sleep(0.001)
+            async def async_gen():
+                for token in self.response_tokens:
+                    yield token
+                    await asyncio.sleep(0.001)
+
+            return async_gen()
 
         async def receive(self, session):
             yield "token1"
@@ -71,65 +132,16 @@ def mock_llm():
 
 @pytest.fixture
 def mock_storage():
-    class TestStorage:
-        def __init__(self):
-            self.messages = []
-            self.events = []
-            self.requests = []
-            self.profiles = {}
-            self.base_dir = None
-
-        async def save_message(self, conversation_id, user_id, msg_type, content, timestamp=None):
-            self.messages.append(
-                {
-                    "conversation_id": conversation_id,
-                    "user_id": user_id,
-                    "type": msg_type,
-                    "content": content,
-                    "timestamp": timestamp,
-                }
-            )
-
-        async def save_event(self, conversation_id, msg_type, content, timestamp=None):
-            self.events.append(
-                {
-                    "conversation_id": conversation_id,
-                    "type": msg_type,
-                    "content": content,
-                    "timestamp": timestamp,
-                }
-            )
-
-        async def save_request(
-            self, conversation_id, user_id, messages, response=None, timestamp=None
-        ):
-            self.requests.append(
-                {
-                    "conversation_id": conversation_id,
-                    "user_id": user_id,
-                    "messages": messages,
-                    "response": response,
-                    "timestamp": timestamp,
-                }
-            )
-
-        async def load_messages(self, conversation_id, include=None, exclude=None):
-            return [msg for msg in self.messages if msg["conversation_id"] == conversation_id]
-
-        async def save_profile(self, user_id, profile):
-            self.profiles[user_id] = profile
-
-        async def load_profile(self, user_id):
-            return self.profiles.get(user_id, {})
-
-        async def count_user_messages(self, user_id, since_timestamp=0):
-            count = 0
-            for msg in self.messages:
-                if msg["user_id"] == user_id and msg.get("timestamp", 0) > since_timestamp:
-                    count += 1
-            return count
-
     return TestStorage()
+
+
+@pytest.fixture
+def failing_storage():
+    class FailingStorage(TestStorage):
+        async def save_message(self, *args, **kwargs):
+            raise RuntimeError("Storage write failed")
+
+    return FailingStorage()
 
 
 @pytest.fixture
@@ -152,6 +164,7 @@ def mock_config(mock_llm, mock_storage):
             self.profile = False
             self.history_window = 20
             self.security = Security()
+            self.debug = False
 
             self._execution_cls = Execution
 
@@ -169,9 +182,16 @@ def mock_config(mock_llm, mock_storage):
 
 
 @pytest.fixture
-def mock_tool():
-    from cogency.core.protocols import Tool, ToolResult
+def mock_stream_context():
+    mock_context = Mock()
+    mock_context.telemetry_events = []
+    mock_context.metrics = Mock()
+    mock_context.complete = False
+    return mock_context
 
+
+@pytest.fixture
+def mock_tool():
     class MockTool(Tool):
         def __init__(
             self, name="test_tool", description="Tool for testing", schema=None, should_fail=False
@@ -193,8 +213,12 @@ def mock_tool():
         def schema(self) -> dict:
             return self._schema
 
-        def describe(self, args: dict) -> str:
-            return f"Executing {self._name} with {args}"
+        def describe(self) -> dict:
+            return {
+                "name": self._name,
+                "description": self._description,
+                "schema": self._schema,
+            }
 
         def configure(self, name=None, description=None, schema=None, should_fail=None):
             if name is not None:
@@ -214,4 +238,4 @@ def mock_tool():
                 outcome=f"Tool executed: {message}", content=f"Full details: {message}"
             )
 
-    return MockTool()
+    return MockTool

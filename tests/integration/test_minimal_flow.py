@@ -6,7 +6,7 @@ from cogency.core.parser import parse_tokens
 
 
 @pytest.mark.asyncio
-async def test_parser_accumulator_executor_flow(mock_llm, mock_config, mock_tool):
+async def test_flow(mock_llm, mock_config, mock_tool):
     mock_llm.set_response_tokens(
         [
             "§think: I need to call a tool.\n",
@@ -20,7 +20,7 @@ async def test_parser_accumulator_executor_flow(mock_llm, mock_config, mock_tool
     config = Config(
         llm=mock_config.llm,
         storage=mock_config.storage,
-        tools=[mock_tool],
+        tools=[mock_tool()],
         security=Security(),
     )
 

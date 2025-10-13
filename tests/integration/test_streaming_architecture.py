@@ -4,7 +4,7 @@ from cogency import Agent
 
 
 @pytest.mark.asyncio
-async def test_streaming_no_chunks(mock_llm, mock_tool):
+async def test_no_chunks(mock_llm, mock_tool):
     protocol_tokens = [
         "§think: I need to call a tool.\n",
         '§call: {"name": "test_tool", "args": {"message": "hello world"}}\n',
@@ -14,7 +14,7 @@ async def test_streaming_no_chunks(mock_llm, mock_tool):
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
-    agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
+    agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test query", chunks=False)]
 
     assert len(events) >= 5
@@ -30,7 +30,7 @@ async def test_streaming_no_chunks(mock_llm, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_streaming_chunks(mock_llm, mock_tool):
+async def test_chunks(mock_llm, mock_tool):
     protocol_tokens = [
         "§think: Think",
         "ing...\n",
@@ -41,7 +41,7 @@ async def test_streaming_chunks(mock_llm, mock_tool):
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
-    agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
+    agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test query", chunks=True)]
 
     assert len(events) >= 5
@@ -59,7 +59,7 @@ async def test_tool_execution(mock_llm, mock_tool):
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
-    agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
+    agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test query", chunks=False)]
 
     assert len(events) >= 5
@@ -85,7 +85,7 @@ async def test_error_handling(mock_llm, mock_tool):
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
-    failing_tool = mock_tool.configure(
+    failing_tool = mock_tool().configure(
         name="failing_tool", description="Tool that fails", should_fail=True
     )
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=1)
@@ -105,7 +105,9 @@ async def test_persistence(mock_llm, mock_tool, mock_storage):
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
-    agent = Agent(llm=llm, tools=[mock_tool], storage=mock_storage, mode="replay", max_iterations=1)
+    agent = Agent(
+        llm=llm, tools=[mock_tool()], storage=mock_storage, mode="replay", max_iterations=1
+    )
     events = [event async for event in agent("Test query", chunks=False)]
 
     assert len(events) >= 3
@@ -126,7 +128,7 @@ async def test_event_taxonomy(mock_llm, mock_tool):
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
-    agent = Agent(llm=llm, tools=[mock_tool], mode="replay", max_iterations=1)
+    agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test", chunks=False)]
 
     event_types = [e["type"] for e in events]

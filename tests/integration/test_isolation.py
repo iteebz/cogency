@@ -2,41 +2,23 @@ import pytest
 
 from cogency import Agent
 from cogency.core.config import Security
-from cogency.core.protocols import LLM
 from cogency.lib.storage import SQLite
 
 
-class MockLLM(LLM):
-    async def stream(self, messages):
-        yield
-
-    async def generate(self, messages):
-        return ""
-
-    async def connect(self, messages):
-        return self
-
-    async def send(self, content):
-        yield
-
-    async def close(self):
-        pass
-
-
 @pytest.mark.asyncio
-async def test_sandbox_isolates_agents(tmp_path):
+async def test_isolates_agents(tmp_path, mock_llm):
     run1_sandbox = tmp_path / "run1_sandbox"
     run1_sandbox.mkdir()
     run2_sandbox = tmp_path / "run2_sandbox"
     run2_sandbox.mkdir()
 
     agent1 = Agent(
-        llm=MockLLM(),
+        llm=mock_llm,
         storage=SQLite(db_path=str(tmp_path / "run1.db")),
         security=Security(access="sandbox", sandbox_dir=str(run1_sandbox)),
     )
     agent2 = Agent(
-        llm=MockLLM(),
+        llm=mock_llm,
         storage=SQLite(db_path=str(tmp_path / "run2.db")),
         security=Security(access="sandbox", sandbox_dir=str(run2_sandbox)),
     )
@@ -57,8 +39,7 @@ async def test_sandbox_isolates_agents(tmp_path):
         access=agent2.config.security.access,
     )
 
-    assert "File 'isolated_file.txt' does not exist" in read_result_agent2.outcome
-
+    assert "File does not exist, try ls first" in read_result_agent2.outcome
     read_tool_agent1 = next(t for t in agent1.config.tools if t.name == "read")
     read_result_agent1 = await read_tool_agent1.execute(
         "isolated_file.txt",

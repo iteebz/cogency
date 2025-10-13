@@ -1,65 +1,39 @@
 import pytest
 
-from cogency.core.protocols import Tool, ToolResult
+from cogency.core.protocols import Tool
 from cogency.tools.registry import ToolRegistry
 
 
-class MockA(Tool):
-    name = "mock_a"
-    description = "Mock A"
-
-    def describe(self) -> dict:
-        return {
-            "name": self.name,
-            "description": self.description,
-            "schema": {},
-        }
-
-    async def execute(self, **kwargs):
-        return ToolResult(outcome="a")
-
-
-class MockB(Tool):
-    name = "mock_b"
-    description = "Mock B"
-
-    def describe(self) -> dict:
-        return {
-            "name": self.name,
-            "description": self.description,
-            "schema": {},
-        }
-
-    async def execute(self, **kwargs):
-        return ToolResult(outcome="b")
-
-
-def test_register():
-    registry = ToolRegistry()
+def test_register(mock_tool, mock_storage):
+    registry = ToolRegistry(mock_storage)
     initial_count = len(registry.by_name)
 
-    registry.register(MockA(), "test")
+    mock_a = mock_tool(name="mock_a")
+    registry.register(mock_a, "test")
     assert "mock_a" in registry.by_name
     assert len(registry.by_name) == initial_count + 1
 
 
-def test_register_duplicate():
-    registry = ToolRegistry()
-    registry.register(MockA(), "test")
+def test_register_duplicate(mock_tool, mock_storage):
+    registry = ToolRegistry(mock_storage)
+    mock_a = mock_tool(name="mock_a")
+    registry.register(mock_a, "test")
     with pytest.raises(ValueError, match="already registered"):
-        registry.register(MockA(), "test")
+        registry.register(mock_a, "test")
 
 
-def test_register_invalid():
-    registry = ToolRegistry()
+def test_register_invalid(mock_storage):
+    registry = ToolRegistry(mock_storage)
     with pytest.raises(TypeError):
         registry.register("not a tool", "test")
 
 
-def test_category():
-    registry = ToolRegistry()
-    registry.register(MockA(), "cat1")
-    registry.register(MockB(), "cat2")
+def test_category(mock_tool, mock_storage):
+    registry = ToolRegistry(mock_storage)
+    mock_a = mock_tool(name="mock_a")
+    mock_b = mock_tool(name="mock_b")
+    registry.register(mock_a, "cat1")
+    registry.register(mock_b, "cat2")
 
     cat1_tools = registry.category("cat1")
     assert len(cat1_tools) == 1
@@ -69,10 +43,12 @@ def test_category():
     assert len(multi_tools) == 2
 
 
-def test_name():
-    registry = ToolRegistry()
-    registry.register(MockA(), "test")
-    registry.register(MockB(), "test")
+def test_name(mock_tool, mock_storage):
+    registry = ToolRegistry(mock_storage)
+    mock_a = mock_tool(name="mock_a")
+    mock_b = mock_tool(name="mock_b")
+    registry.register(mock_a, "test")
+    registry.register(mock_b, "test")
 
     tools = registry.name("mock_a")
     assert len(tools) == 1
@@ -82,9 +58,10 @@ def test_name():
     assert len(multi_tools) == 2
 
 
-def test_get():
-    registry = ToolRegistry()
-    registry.register(MockA(), "test")
+def test_get(mock_tool, mock_storage):
+    registry = ToolRegistry(mock_storage)
+    mock_a = mock_tool(name="mock_a")
+    registry.register(mock_a, "test")
 
     tool = registry.get("mock_a")
     assert tool.name == "mock_a"
@@ -93,8 +70,8 @@ def test_get():
     assert missing is None
 
 
-def test_call():
-    registry = ToolRegistry()
+def test_call(mock_storage):
+    registry = ToolRegistry(mock_storage)
     all_tools = registry()
     assert len(all_tools) > 0
     assert all(isinstance(t, Tool) for t in all_tools)

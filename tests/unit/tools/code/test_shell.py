@@ -6,7 +6,7 @@ from cogency.tools import Shell
 
 
 @pytest.mark.asyncio
-async def test_sandbox_mode_runs_in_sandbox_dir(tmp_path):
+async def test_runs_in_sandbox_dir(tmp_path):
     tool = Shell()
 
     result = await tool.execute(command="pwd", sandbox_dir=str(tmp_path), access="sandbox")
@@ -16,7 +16,7 @@ async def test_sandbox_mode_runs_in_sandbox_dir(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_project_mode_runs_in_cwd():
+async def test_runs_in_cwd():
     tool = Shell()
 
     result = await tool.execute(command="pwd", access="project")
@@ -26,7 +26,7 @@ async def test_project_mode_runs_in_cwd():
 
 
 @pytest.mark.asyncio
-async def test_sandbox_dir_ignored_when_not_sandbox(tmp_path):
+async def test_sandbox_ignored_when_not_sandbox(tmp_path):
     tool = Shell()
 
     result = await tool.execute(command="pwd", sandbox_dir=str(tmp_path), access="project")
@@ -47,7 +47,7 @@ async def test_timeout_enforcement():
 
 
 @pytest.mark.asyncio
-async def test_glob_expansion_in_project_mode(tmp_path, monkeypatch):
+async def test_glob_expansion_in_project(tmp_path, monkeypatch):
     (tmp_path / "alpha").mkdir()
     (tmp_path / "beta").mkdir()
 
@@ -63,7 +63,7 @@ async def test_glob_expansion_in_project_mode(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_cwd_absolute_path(tmp_path):
+async def test_cwd_absolute(tmp_path):
     tool = Shell()
     subdir = tmp_path / "custom"
     subdir.mkdir()
@@ -75,7 +75,7 @@ async def test_cwd_absolute_path(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_cwd_relative_path_sandbox(tmp_path):
+async def test_cwd_relative_sandbox(tmp_path):
     tool = Shell()
 
     result = await tool.execute(
@@ -87,7 +87,7 @@ async def test_cwd_relative_path_sandbox(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_cwd_relative_path_project():
+async def test_cwd_relative_project():
     tool = Shell()
 
     result = await tool.execute(command="pwd", cwd="tests", access="project")

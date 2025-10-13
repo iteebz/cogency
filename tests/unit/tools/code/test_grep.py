@@ -6,7 +6,7 @@ from cogency.tools import Grep
 
 
 @pytest.mark.asyncio
-async def test_grep_reports_zero_matches(tmp_path, monkeypatch):
+async def test_reports_zero_matches(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     (workspace / "app.py").write_text("print('hello world')\n", encoding="utf-8")
@@ -21,7 +21,7 @@ async def test_grep_reports_zero_matches(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_grep_returns_relative_paths_with_counts(tmp_path, monkeypatch):
+async def test_returns_relative_paths_with_counts(tmp_path, monkeypatch):
     workspace = tmp_path / "workspace"
     workspace.mkdir()
     pkg_dir = workspace / "pkg"

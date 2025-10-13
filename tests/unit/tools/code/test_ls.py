@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from cogency.tools import Ls
@@ -30,8 +32,11 @@ def setup_test_dir(tmp_path):
     return tmp_path
 
 
+# --- Basic Listing & Ignore Logic ---
+
+
 @pytest.mark.asyncio
-async def test_ls_hides_ignored_directories(setup_test_dir):
+async def test_hides_ignored_directories(setup_test_dir):
     tool = Ls()
     result = await tool.execute(path=str(setup_test_dir), access="system")
 
@@ -60,7 +65,7 @@ async def test_ls_hides_ignored_directories(setup_test_dir):
 
 
 @pytest.mark.asyncio
-async def test_ls_hides_ignored_directories_recursive(setup_test_dir):
+async def test_hides_ignored_directories_recursive(setup_test_dir):
     # Create a nested ignored directory
     (setup_test_dir / "regular_dir" / "node_modules").mkdir()
     (setup_test_dir / "regular_dir" / "node_modules" / "nested_package.json").write_text("{}")
@@ -80,25 +85,7 @@ async def test_ls_hides_ignored_directories_recursive(setup_test_dir):
 
 
 @pytest.mark.asyncio
-async def test_ls_pattern_does_not_override_ignored_dirs(setup_test_dir):
-    # Try to list a file within an ignored directory using a pattern
-    (setup_test_dir / "node_modules" / "important.js").write_text("console.log('important');")
-
-    tool = Ls()
-    result = await tool.execute(path=str(setup_test_dir), pattern="*.js", access="system")
-
-    assert not result.error
-    content = result.content
-
-    # Assert that the file within the ignored directory is NOT in the output
-    assert "important.js" not in content
-
-    # Assert that other files matching the pattern (if any) would be listed
-    # (For this test, we don't have other .js files outside ignored dirs, so this is implicitly tested)
-
-
-@pytest.mark.asyncio
-async def test_ls_empty_directory_with_ignored_dirs(tmp_path):
+async def test_empty_directory_with_ignored_dirs(tmp_path):
     # Create an empty directory, then add an ignored dir inside
     (tmp_path / "empty_but_ignored").mkdir()
     (tmp_path / "empty_but_ignored" / "node_modules").mkdir()
@@ -112,7 +99,7 @@ async def test_ls_empty_directory_with_ignored_dirs(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_ls_only_ignored_dirs_in_root(tmp_path):
+async def test_only_ignored_dirs_in_root(tmp_path):
     # Create a directory containing only ignored directories
     (tmp_path / "only_ignored").mkdir()
     (tmp_path / "only_ignored" / "node_modules").mkdir()
@@ -125,3 +112,59 @@ async def test_ls_only_ignored_dirs_in_root(tmp_path):
     assert "No files found" in result.content or not result.content.strip()
     assert "node_modules/" not in result.content
     assert ".venv/" not in result.content
+
+
+# --- Pattern Matching ---
+
+
+@pytest.mark.asyncio
+async def test_simple_pattern_matching(tmp_path: Path):
+    """The ls tool should correctly filter files by glob pattern."""
+    tool = Ls()
+    (tmp_path / "file1.py").write_text("content")
+    (tmp_path / "file2.txt").write_text("content")
+    sub_dir = tmp_path / "sub"
+    sub_dir.mkdir()
+    (sub_dir / "file3.py").write_text("content")
+
+    result = await tool.execute(
+        path=".", pattern="*.py", access="sandbox", sandbox_dir=str(tmp_path)
+    )
+
+    assert not result.error
+    assert "files" in result.outcome.lower()
+    assert "dirs" in result.outcome.lower()
+    assert "file1.py" in result.content
+    assert "file2.txt" not in result.content
+    assert "sub/" in result.content
+    assert "file3.py" in result.content
+
+
+@pytest.mark.asyncio
+async def test_complex_pattern_matching(tmp_path: Path):
+    """The ls tool should correctly filter files by glob pattern with multiple asterisks."""
+    tool = Ls()
+    (tmp_path / "file1.py").write_text("content")
+
+    result = await tool.execute(
+        path=".", pattern="f*1*.py", access="sandbox", sandbox_dir=str(tmp_path)
+    )
+
+    assert not result.error
+    assert result.outcome.startswith("Listed 1")
+    assert "file1.py" in result.content
+
+
+@pytest.mark.asyncio
+async def test_pattern_does_not_override_ignored_dirs(setup_test_dir):
+    # Try to list a file within an ignored directory using a pattern
+    (setup_test_dir / "node_modules" / "important.js").write_text("console.log('important');")
+
+    tool = Ls()
+    result = await tool.execute(path=str(setup_test_dir), pattern="*.js", access="system")
+
+    assert not result.error
+    content = result.content
+
+    # Assert that the file within the ignored directory is NOT in the output
+    assert "important.js" not in content

@@ -6,26 +6,34 @@ import pytest
 from cogency.lib.rotation import get_api_key, is_rate_limit_error, load_keys, with_rotation
 
 
-@pytest.mark.asyncio
-async def test_rotation():
-    # Key loading with numbered and single patterns
+def test_load_keys():
+    """Tests key loading with numbered and single patterns."""
     with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
         keys = load_keys("TEST")
         assert keys == ["key1", "key2"]
 
-        # get_api_key returns first key
+
+def test_get_api_key():
+    """Tests basic key retrieval and service alias support."""
+    with patch.dict(os.environ, {"TEST_API_KEY_1": "key1"}, clear=True):
         assert get_api_key("test") == "key1"
 
-    # Service alias support
     with patch.dict(os.environ, {"GOOGLE_API_KEY": "google_key"}, clear=True):
         assert get_api_key("gemini") == "google_key"
 
-    # Rate limit detection
+
+def test_is_rate_limit_error():
+    """Tests the rate limit error detection logic."""
     assert is_rate_limit_error("Rate limit exceeded") is True
     assert is_rate_limit_error("quota exceeded") is True
+    assert is_rate_limit_error("API key exhausted") is True
     assert is_rate_limit_error("invalid key") is False
+    assert is_rate_limit_error("An unknown error occurred") is False
 
-    # Rotation with multiple keys
+
+@pytest.mark.asyncio
+async def test_cycles_keys():
+    """Tests that with_rotation cycles through the available keys."""
     call_keys = []
 
     async def capture_key(api_key):
@@ -33,36 +41,46 @@ async def test_rotation():
         return f"response_{api_key}"
 
     with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
-        # Multiple calls should use random starting positions
         with patch("random.randint") as mock_randint:
-            mock_randint.side_effect = [0, 1] * 5
-            for _ in range(10):
-                result = await with_rotation("TEST", capture_key)
-                assert result.startswith("response_")
+            mock_randint.side_effect = [0, 1, 0, 1]  # Ensure predictable cycling
+            for _ in range(4):
+                await with_rotation("TEST", capture_key)
 
-        # Should see both keys used (random distribution)
         assert "key1" in call_keys
         assert "key2" in call_keys
+        # With predictable randint, we can check for exact cycling
+        assert call_keys == ["key1", "key2", "key1", "key2"]
 
-        # Retry on rate limit
-        call_count = 0
 
-        async def quota_test(api_key):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
-                raise Exception("You exceeded your current quota")
-            return "success_after_retry"
+@pytest.mark.asyncio
+async def test_retries_on_rate_limit():
+    """Tests that with_rotation retries with the next key upon a rate limit error."""
+    call_count = 0
 
-        call_count = 0
-        result = await with_rotation("TEST", quota_test)
-        assert result == "success_after_retry"
-        assert call_count == 2  # First fails, second succeeds
+    async def quota_test(api_key):
+        nonlocal call_count
+        call_count += 1
+        if api_key == "key1":
+            raise Exception("You exceeded your current quota")
+        return "success_after_retry"
 
-        # All keys exhausted
-        async def all_exhausted(api_key):
-            raise Exception("received 1011 (internal error) You exceeded your current quota")
+    with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
+        with patch("random.randint") as mock_randint:
+            mock_randint.return_value = 0
+            result = await with_rotation("TEST", quota_test)
+            assert result == "success_after_retry"
+            assert call_count == 2  # First key fails, second succeeds
 
+
+@pytest.mark.asyncio
+async def test_fails_when_all_keys_exhausted():
+    """Tests that with_rotation raises the last error when all keys are exhausted."""
+
+    async def all_exhausted(api_key):
+        raise Exception(f"Quota exceeded for {api_key}")
+
+    with patch.dict(os.environ, {"TEST_API_KEY_1": "key1", "TEST_API_KEY_2": "key2"}, clear=True):
         with pytest.raises(Exception) as exc_info:
             await with_rotation("TEST", all_exhausted)
-        assert "quota" in str(exc_info.value).lower()
+        # The final exception (from the last key tried) should be raised
+        assert "Quota exceeded for" in str(exc_info.value)

@@ -19,7 +19,7 @@ async def test_single_user_message():
 
 
 @pytest.mark.asyncio
-async def test_user_with_think_respond():
+async def test_user_think_respond():
     events = [
         {"type": "user", "content": "debug this"},
         {"type": "think", "content": "need to check logs"},
@@ -36,7 +36,7 @@ async def test_user_with_think_respond():
 
 
 @pytest.mark.asyncio
-async def test_call_execute_result_turn_boundary():
+async def test_call_execute_result_boundary():
     events = [
         {"type": "user", "content": "read app.py"},
         {"type": "think", "content": "reading file"},
@@ -55,7 +55,7 @@ async def test_call_execute_result_turn_boundary():
 
 
 @pytest.mark.asyncio
-async def test_execute_synthesized_at_call_result_boundary():
+async def test_execute_synthesized_boundary():
     events = [
         {"type": "user", "content": "test"},
         {"type": "call", "content": '{"name": "tool", "args": {}}'},
@@ -69,7 +69,7 @@ async def test_execute_synthesized_at_call_result_boundary():
 
 
 @pytest.mark.asyncio
-async def test_no_execute_when_call_not_followed_by_result():
+async def test_no_execute_without_result():
     events = [
         {"type": "user", "content": "test"},
         {"type": "call", "content": '{"name": "tool", "args": {}}'},
@@ -112,7 +112,7 @@ async def test_result_formatting():
 
 
 @pytest.mark.asyncio
-async def test_delimiters_synthesized_not_stored():
+async def test_delimiters_not_stored():
     events = [
         {"type": "user", "content": "test"},
         {"type": "think", "content": "analyzing"},
@@ -125,7 +125,7 @@ async def test_delimiters_synthesized_not_stored():
 
 
 @pytest.mark.asyncio
-async def test_complex_conversation_flow():
+async def test_complex_flow():
     events = [
         {"type": "user", "content": "debug app.py"},
         {"type": "think", "content": "should read file first"},

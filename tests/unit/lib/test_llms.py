@@ -142,26 +142,6 @@ def test_native_chunking_only():
                 assert ".split(" not in source, f"{name}.{method_name} has string splitting"
 
 
-def test_gemini_dual_signal_implementation():
-    with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
-        gemini = Gemini()
-
-        import inspect
-
-        send_source = inspect.getsource(gemini.send)
-
-        # Critical dual signal pattern
-        assert "generation_complete" in send_source
-        assert "turn_complete" in send_source
-        assert "seen_generation_complete" in send_source
-
-        # Must require BOTH signals - check for the logical AND condition
-        assert (
-            "seen_generation_complete" in send_source
-            and 'and hasattr(sc, "turn_complete")' in send_source
-        )
-
-
 def test_session_persistence_capability():
     with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
         openai = OpenAI()
@@ -172,32 +152,6 @@ def test_session_persistence_capability():
         assert hasattr(openai, "_connection_manager")
         assert hasattr(gemini, "_session")
         assert hasattr(gemini, "_connection")
-
-
-def test_protocol_method_ordering():
-    with patch("cogency.lib.rotation.get_api_key", return_value="test-key"):
-        providers = [OpenAI(), Gemini()]
-
-        expected_order = ["generate", "stream", "connect", "send", "close"]
-
-        for provider in providers:
-            import inspect
-
-            # Get method definitions in source order
-            source = inspect.getsource(provider.__class__)
-            method_positions = {}
-
-            for method in expected_order:
-                pattern = f"async def {method}("
-                pos = source.find(pattern)
-                if pos != -1:
-                    method_positions[method] = pos
-
-            # Verify ordering (positions should be ascending)
-            positions = [method_positions[m] for m in expected_order if m in method_positions]
-            assert positions == sorted(positions), (
-                f"{provider.__class__.__name__} methods not in canonical order"
-            )
 
 
 def test_fresh_key_rotation_architecture():

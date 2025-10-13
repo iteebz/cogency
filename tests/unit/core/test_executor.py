@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -8,7 +8,8 @@ from cogency.core.protocols import ToolCall, ToolResult
 
 @pytest.mark.asyncio
 async def test_successful_execution(mock_config, mock_tool):
-    mock_config.tools = [mock_tool.configure(name="test_tool")]
+    mock_tool = mock_tool(name="test_tool")
+    mock_config.tools = [mock_tool]
     call = ToolCall(name="test_tool", args={"message": "test_value"})
 
     result = await execute_tool(
@@ -42,7 +43,8 @@ async def test_tool_not_found(mock_config):
 
 @pytest.mark.asyncio
 async def test_tool_execution_failure(mock_config, mock_tool):
-    mock_config.tools = [mock_tool.configure(name="failing_tool", should_fail=True)]
+    mock_tool = mock_tool(name="failing_tool", should_fail=True)
+    mock_config.tools = [mock_tool]
     call = ToolCall(name="failing_tool", args={"message": "fail"})
 
     # Tool execution fails - should bubble up as system error
@@ -59,9 +61,8 @@ async def test_tool_execution_failure(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_context_injection(mock_config):
-    mock_tool = MagicMock()
-    mock_tool.name = "context_tool"
+async def test_context_injection(mock_config, mock_tool):
+    mock_tool = mock_tool(name="context_tool")
     mock_tool.execute = AsyncMock(return_value=ToolResult(outcome="success"))
 
     mock_config.tools = [mock_tool]

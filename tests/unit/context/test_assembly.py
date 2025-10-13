@@ -4,7 +4,7 @@ from cogency import context
 
 
 @pytest.mark.asyncio
-async def test_assembly_empty_conversation(mock_config):
+async def test_empty_conversation(mock_config):
     messages = await context.assemble(
         "user_123",
         "conv_123",
@@ -20,7 +20,7 @@ async def test_assembly_empty_conversation(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_assembly_with_conversation(mock_config):
+async def test_with_conversation(mock_config):
     storage = mock_config.storage
     await storage.save_message("conv_123", "user_123", "user", "hello")
     await storage.save_message("conv_123", "user_123", "respond", "hi there")
@@ -43,7 +43,7 @@ async def test_assembly_with_conversation(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_assembly_with_profile(mock_config):
+async def test_with_profile(mock_config):
     storage = mock_config.storage
     await storage.save_profile("user_123", {"test_key": "test_value"})
 
@@ -63,7 +63,7 @@ async def test_assembly_with_profile(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_assembly_system_message_structure(mock_config):
+async def test_system_message_structure(mock_config):
     messages = await context.assemble(
         "user_123",
         "conv_123",
@@ -82,7 +82,7 @@ async def test_assembly_system_message_structure(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_assembly_preserves_turn_structure(mock_config):
+async def test_preserves_turn_structure(mock_config):
     import json
 
     storage = mock_config.storage
@@ -112,7 +112,7 @@ async def test_assembly_preserves_turn_structure(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_assembly_history_window(mock_config):
+async def test_history_window(mock_config):
     storage = mock_config.storage
     await storage.save_message("conv_123", "user_123", "user", "msg1")
     await storage.save_message("conv_123", "user_123", "respond", "resp1")

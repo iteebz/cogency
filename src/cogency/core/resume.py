@@ -76,10 +76,16 @@ async def stream(
         )
 
         llm_output_chunks_send_empty = []
+        iteration = 0  # Initialize iteration counter
         try:
             # All messages (including current query) loaded in connect()
             # Send empty string to trigger response generation
             async for event in accumulator.process(parse_tokens(await session.send(""))):
+                iteration += 1  # Increment iteration counter
+                if iteration > config.max_iterations:
+                    # [SEC-005] Prevent runaway agents
+                    raise RuntimeError(f"Max iterations ({config.max_iterations}) exceeded in resume mode.")
+
                 ev_type = event_type(event)
                 content = event_content(event)
 
@@ -119,6 +125,11 @@ async def stream(
                             async for continuation_event in accumulator.process(
                                 parse_tokens(await session.send(content))
                             ):
+                                iteration += 1  # Increment iteration counter for continuation events
+                                if iteration > config.max_iterations:
+                                    # [SEC-005] Prevent runaway agents
+                                    raise RuntimeError(f"Max iterations ({config.max_iterations}) exceeded in resume mode during continuation.")
+
                                 if (
                                     continuation_event["type"] in ["think", "call", "respond"]
                                     and metrics

@@ -39,7 +39,7 @@ async def test_call_not_chunked(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_respond_chunked_when_enabled(mock_config):
+async def test_respond_chunked_enabled(mock_config):
     """respond/think stream naturally when chunks=True but persist only once"""
 
     async def chunked_respond():
@@ -99,13 +99,14 @@ async def test_end_flushes(mock_config):
 async def test_storage_format(mock_config, mock_tool):
     import json
 
-    mock_config.tools = [mock_tool]
+    tool_instance = mock_tool()
+    mock_config.tools = [tool_instance]
     accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
 
     async def parser_with_tool():
         yield {
             "type": "call",
-            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "hello"}}}}',
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "hello"}}}}',
         }
         yield {"type": "execute"}
         yield {"type": "end"}
@@ -152,15 +153,8 @@ async def test_contaminated_content(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_storage_failure_propagates(mock_llm):
-    class FailingStorage:
-        async def save_message(self, *args, **kwargs):
-            raise RuntimeError("Storage failed")
-
-        async def save_event(self, *args, **kwargs):
-            raise RuntimeError("Event storage failed")
-
-    config = Config(llm=mock_llm, storage=FailingStorage(), tools=[], security=Security())
+async def test_storage_failure_propagates(mock_llm, failing_storage):
+    config = Config(llm=mock_llm, storage=failing_storage, tools=[], security=Security())
     accumulator = Accumulator("test", "test", execution=config.execution, chunks=True)
 
     async def simple_parser():
@@ -173,7 +167,7 @@ async def test_storage_failure_propagates(mock_llm):
 
 @pytest.mark.asyncio
 async def test_circuit_breaker_terminates(mock_config, mock_tool):
-    mock_config.tools = [mock_tool]
+    mock_config.tools = [mock_tool()]
     accumulator = Accumulator(
         "test", "test", execution=mock_config.execution, chunks=False, max_failures=3
     )
@@ -197,7 +191,8 @@ async def test_persistence_policy(mock_config, mock_tool):
     """Verify only conversation events are persisted (not control flow or metrics)."""
     from cogency.core.accumulator import PERSISTABLE_EVENTS
 
-    mock_config.tools = [mock_tool]
+    tool_instance = mock_tool()
+    mock_config.tools = [tool_instance]
     accumulator = Accumulator("user_1", "conv_123", execution=mock_config.execution, chunks=False)
 
     async def all_event_types():
@@ -205,7 +200,7 @@ async def test_persistence_policy(mock_config, mock_tool):
         yield {"type": "think", "content": "thinking"}
         yield {
             "type": "call",
-            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "test"}}}}',
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "test"}}}}',
         }
         yield {"type": "execute"}
         yield {"type": "respond", "content": "response"}
@@ -229,13 +224,14 @@ async def test_persistence_policy(mock_config, mock_tool):
 @pytest.mark.asyncio
 async def test_result_event_has_content(mock_config, mock_tool):
     """Result events must have content field for resume mode websocket injection."""
-    mock_config.tools = [mock_tool]
+    tool_instance = mock_tool()
+    mock_config.tools = [tool_instance]
     accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
 
     async def parser():
         yield {
             "type": "call",
-            "content": f'{{"name": "{mock_tool.name}", "args": {{"message": "test"}}}}',
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "test"}}}}',
         }
         yield {"type": "execute"}
 

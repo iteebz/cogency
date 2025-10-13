@@ -12,7 +12,7 @@ def mock_ddgs():
 
 
 @pytest.mark.asyncio
-async def test_search_success(mock_ddgs):
+async def test_finds_results(mock_ddgs):
     tool = Search()
     mock_ddgs.return_value.text.return_value = [
         {"title": "Result 1", "body": "Body 1", "href": "http://link1.com"},
@@ -29,7 +29,7 @@ async def test_search_success(mock_ddgs):
 
 
 @pytest.mark.asyncio
-async def test_search_empty_query():
+async def test_empty_query():
     tool = Search()
     result = await tool.execute(query="")
 
@@ -38,7 +38,7 @@ async def test_search_empty_query():
 
 
 @pytest.mark.asyncio
-async def test_search_no_results(mock_ddgs):
+async def test_no_results(mock_ddgs):
     tool = Search()
     mock_ddgs.return_value.text.return_value = []
 
@@ -49,7 +49,7 @@ async def test_search_no_results(mock_ddgs):
 
 
 @pytest.mark.asyncio
-async def test_search_ddgs_import_error():
+async def test_ddgs_import_error():
     with patch.dict("sys.modules", {"ddgs": None}):
         tool = Search()
         result = await tool.execute(query="test")

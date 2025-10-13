@@ -7,7 +7,7 @@ from cogency.lib.ids import uuid7
 
 
 @pytest.mark.asyncio
-async def test_uuid7_generation():
+async def test_generation():
     """UUID v7 generates time-ordered unique IDs."""
     id1 = uuid7()
     id2 = uuid7()
@@ -28,7 +28,7 @@ async def test_uuid7_generation():
 
 
 @pytest.mark.asyncio
-async def test_uuid7_timestamp_ordering():
+async def test_timestamp_ordering():
     """UUID v7 embeds millisecond timestamp for chronological sorting."""
     before = int(time.time() * 1000)
     id1 = uuid7()
@@ -52,7 +52,7 @@ async def test_uuid7_timestamp_ordering():
 
 
 @pytest.mark.asyncio
-async def test_uuid7_uniqueness():
+async def test_uniqueness():
     """UUID v7 generates unique IDs even in tight loop."""
     ids = [uuid7() for _ in range(1000)]
     assert len(ids) == len(set(ids))
