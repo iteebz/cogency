@@ -3,9 +3,59 @@ import json
 import sqlite3
 import time
 from pathlib import Path
+from typing import Any, NamedTuple, Protocol, runtime_checkable
 
 from .ids import uuid7
 from .resilience import retry
+
+
+class MessageMatch(NamedTuple):
+    """Past message match result."""
+
+    content: str
+    timestamp: float
+    conversation_id: str
+
+
+@runtime_checkable
+class Storage(Protocol):
+    async def load_messages_by_conversation_id(
+        self, conversation_id: str, limit: int
+    ) -> list[dict[str, Any]]: ...
+
+    async def search_messages(
+        self, query: str, user_id: str, exclude_timestamps: list[float], limit: int
+    ) -> list[MessageMatch]: ...
+
+    async def save_message(
+        self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
+    ) -> str: ...
+
+    async def save_event(
+        self, conversation_id: str, type: str, content: str, timestamp: float = None
+    ) -> str: ...
+
+    async def load_messages(
+        self,
+        conversation_id: str,
+        user_id: str,
+        include: list[str] = None,
+        exclude: list[str] = None,
+    ) -> list[dict]: ...
+
+    async def save_profile(self, user_id: str, profile: dict) -> None: ...
+
+    async def load_profile(self, user_id: str) -> dict: ...
+
+    async def load_user_messages(
+        self, user_id: str, since_timestamp: float = 0, limit: int | None = None
+    ) -> list[str]: ...
+
+    async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int: ...
+
+    async def delete_profile(self, user_id: str) -> int: ...
+
+    async def load_latest_metric(self, conversation_id: str) -> dict | None: ...
 
 
 class DB:
@@ -49,17 +99,6 @@ class DB:
                 );
 
                 CREATE INDEX IF NOT EXISTS idx_events_conversation ON events(conversation_id, timestamp);
-
-                CREATE TABLE IF NOT EXISTS requests (
-                    request_id TEXT PRIMARY KEY,
-                    conversation_id TEXT NOT NULL,
-                    user_id TEXT,
-                    messages TEXT NOT NULL,
-                    response TEXT,
-                    timestamp REAL NOT NULL
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_requests_conversation ON requests(conversation_id, timestamp);
 
                 CREATE TABLE IF NOT EXISTS profiles (
                     user_id TEXT NOT NULL,
@@ -116,30 +155,6 @@ class SQLite:
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
         return event_id
-
-    @retry(attempts=3, base_delay=0.1)
-    async def save_request(
-        self,
-        conversation_id: str,
-        user_id: str,
-        messages: str,
-        response: str = None,
-        timestamp: float = None,
-    ) -> str:
-        if timestamp is None:
-            timestamp = time.time()
-
-        request_id = uuid7()
-
-        def _sync_save():
-            with DB.connect(self.db_path) as db:
-                db.execute(
-                    "INSERT INTO requests (request_id, conversation_id, user_id, messages, response, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
-                    (request_id, conversation_id, user_id, messages, response, timestamp),
-                )
-
-        await asyncio.get_event_loop().run_in_executor(None, _sync_save)
-        return request_id
 
     async def load_messages(
         self,
@@ -246,6 +261,91 @@ class SQLite:
                 return cursor.rowcount
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_delete)
+
+    async def load_latest_metric(self, conversation_id: str) -> dict | None:
+        def _sync_load():
+            with DB.connect(self.db_path) as db:
+                row = db.execute(
+                    "SELECT content FROM events WHERE conversation_id = ? AND type = 'metric' ORDER BY timestamp DESC LIMIT 1",
+                    (conversation_id,),
+                ).fetchone()
+                if row and row[0]:
+                    return json.loads(row[0])
+                return None
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+
+    @retry(attempts=3, base_delay=0.1)
+    async def load_messages_by_conversation_id(
+        self, conversation_id: str, limit: int
+    ) -> list[dict[str, Any]]:
+        def _sync_load():
+            with DB.connect(self.db_path) as db:
+                db.row_factory = sqlite3.Row
+                rows = db.execute(
+                    """
+                    SELECT timestamp, content FROM messages
+                    WHERE conversation_id = ? AND type = 'user'
+                    ORDER BY timestamp DESC
+                    LIMIT ?
+                    """,
+                    (conversation_id, limit),
+                ).fetchall()
+                return [{"timestamp": row["timestamp"], "content": row["content"]} for row in rows]
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+
+    @retry(attempts=3, base_delay=0.1)
+    async def search_messages(
+        self, query: str, user_id: str, exclude_timestamps: list[float], limit: int = 3
+    ) -> list[MessageMatch]:
+        def _sync_search():
+            with DB.connect(self.db_path) as db:
+                # Build fuzzy search patterns
+                keywords = query.lower().split()
+                like_patterns = [f"%{keyword}%" for keyword in keywords]
+
+                # Build exclusion clause
+                exclude_clause = ""
+                params = []
+
+                if exclude_timestamps:
+                    placeholders = ",".join("?" for _ in exclude_timestamps)
+                    exclude_clause = f"AND timestamp NOT IN ({placeholders})"
+                    params.extend(exclude_timestamps)
+
+                # Build LIKE clause for fuzzy matching
+                like_clause = " OR ".join("LOWER(content) LIKE ?" for _ in like_patterns)
+                params.extend(like_patterns)
+
+                query_sql = f"""
+                    SELECT content, timestamp, conversation_id,
+                           (LENGTH(content) - LENGTH(REPLACE(LOWER(content), ?, ''))) as relevance_score
+                    FROM messages
+                    WHERE type = 'user'
+                    AND user_id LIKE ?
+                    {exclude_clause}
+                    AND ({like_clause})
+                    ORDER BY relevance_score DESC, timestamp DESC
+                    LIMIT ?
+                """
+                # Add relevance scoring query and user_id pattern as first parameters
+                params.insert(0, query.lower())  # For relevance scoring
+                params.insert(1, f"{user_id}%")  # For user scoping - includes exact match
+                params.append(limit)
+
+                rows = db.execute(query_sql, params).fetchall()
+
+                return [
+                    MessageMatch(
+                        content=row[0],
+                        timestamp=row[1],
+                        conversation_id=row[2],
+                    )
+                    for row in rows
+                ]
+
+        return await asyncio.get_event_loop().run_in_executor(None, _sync_search)
 
 
 def clear_messages(conversation_id: str, db_path: str = ".cogency/store.db") -> None:

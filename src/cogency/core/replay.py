@@ -11,9 +11,6 @@ Features:
 - No WebSocket dependencies
 """
 
-import json
-import time
-
 from .. import context
 from ..lib import telemetry
 from ..lib.logger import logger
@@ -36,6 +33,8 @@ async def stream(
     llm = config.llm
     if llm is None:
         raise ValueError("LLM provider required")
+
+    storage = config.storage
 
     # Initialize metrics tracking
     model_name = getattr(llm, "http_model", "unknown")
@@ -81,22 +80,18 @@ async def stream(
                 metrics.start_step()
                 metrics.add_input(messages)
 
-            step_output_tokens = 0
-
-            time.time()
-            json.dumps(messages)
             telemetry_events: list[dict] = []
+            llm_output_chunks = []
 
-            # Track output tokens for all LLM-generated content
             try:
                 async for event in accumulator.process(parse_tokens(llm.stream(messages))):
-                    # Track output tokens for all LLM-generated content
                     if (
                         event["type"] in ["think", "call", "respond"]
                         and metrics
                         and event.get("content")
                     ):
-                        step_output_tokens += metrics.add_output(event["content"])
+                        metrics.add_output(event["content"])
+                        llm_output_chunks.append(event["content"])
 
                     if event:
                         telemetry.add_event(telemetry_events, event)
@@ -130,8 +125,11 @@ async def stream(
             except Exception:
                 raise
             finally:
-                if hasattr(config.storage, "save_request"):
-                    telemetry.persist_events(conversation_id, telemetry_events)
+                if config.debug:
+                    from ..lib.debug import log_response
+
+                    log_response(conversation_id, model_name, "".join(llm_output_chunks))
+                await telemetry.persist_events(conversation_id, telemetry_events)
 
             # Exit iteration loop if complete
             if complete:

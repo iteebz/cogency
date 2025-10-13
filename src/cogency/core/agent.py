@@ -83,6 +83,7 @@ class Agent:
             history_window=history_window,
             profile=profile,
             security=final_security,
+            debug=debug,
         )
 
         # Validate mode during construction

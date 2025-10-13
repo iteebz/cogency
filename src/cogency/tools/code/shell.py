@@ -10,7 +10,7 @@ class Shell(Tool):
     """Run shell command."""
 
     name = "shell"
-    description = "Run shell command. 30s timeout. Runs in workspace or sandbox."
+    description = "Run shell command. 30s timeout. Include cwd for relative paths."
     schema = {"command": {}, "cwd": {}}
 
     def describe(self, args: dict) -> str:

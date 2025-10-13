@@ -1,3 +1,4 @@
+from ..lib.storage import default_storage
 from .code.edit import Edit
 from .code.grep import Grep
 from .code.ls import Ls
@@ -9,7 +10,8 @@ from .registry import ToolRegistry
 from .web.scrape import Scrape
 from .web.search import Search
 
-tools = ToolRegistry()
+storage = default_storage()
+tools = ToolRegistry(storage)
 
 __all__ = [
     "Write",

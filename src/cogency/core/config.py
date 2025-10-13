@@ -52,6 +52,7 @@ class Config:
     max_iterations: int = 10  # Execution bounds
     history_window: int | None = None  # Context scope (None = full history)
     profile: bool = False  # Learning enabled
+    debug: bool = False  # Debug logging to .cogency/debug/
 
     @property
     def execution(self) -> Execution:

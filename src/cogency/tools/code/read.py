@@ -48,7 +48,7 @@ class Read(Tool):
 
         try:
             if not file_path.exists():
-                return ToolResult(outcome=f"File '{file}' does not exist", error=True)
+                return ToolResult(outcome="File does not exist, try ls first", error=True)
 
             if start > 0 or lines != 100:
                 content = self._read_lines(file_path, start, lines)

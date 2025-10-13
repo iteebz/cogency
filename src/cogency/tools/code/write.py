@@ -7,8 +7,8 @@ class Write(Tool):
     """Write file."""
 
     name = "write"
-    description = "Write file. Fails if exists - use edit instead."
-    schema = {"file": {}, "content": {}}
+    description = "Write file. Can be configured to overwrite."
+    schema = {"file": {}, "content": {}, "overwrite": {"type": "boolean", "default": False}}
 
     def describe(self, args: dict) -> str:
         return f"Writing {args.get('file', 'file')}"
@@ -18,21 +18,18 @@ class Write(Tool):
         self,
         file: str,
         content: str,
+        overwrite: bool = False,
         sandbox_dir: str = ".cogency/sandbox",
         access: Access = "sandbox",
-        **kwargs,
     ) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty", error=True)
 
         file_path = resolve_file(file, access, sandbox_dir)
 
-        if file_path.exists():
+        if file_path.exists() and not overwrite:
             return ToolResult(
-                outcome=(
-                    f"File {file} already exists. "
-                    'Use edit (old="...") or edit (old="") to overwrite.'
-                ),
+                outcome=(f"File {file} already exists. Use overwrite=True to overwrite."),
                 error=True,
             )
 

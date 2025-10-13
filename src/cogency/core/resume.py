@@ -11,9 +11,6 @@ Enables maximum token efficiency by maintaining conversation state
 in LLM memory rather than resending full context each turn.
 """
 
-import json
-import time
-
 from .. import context
 from ..lib import telemetry
 from ..lib.metrics import Metrics
@@ -66,10 +63,7 @@ async def stream(
             metrics.start_step()
             metrics.add_input(messages)
 
-        time.time()
-        json.dumps(messages)
         telemetry_events: list[dict] = []
-
         session = await llm.connect(messages)
 
         complete = False
@@ -81,15 +75,17 @@ async def stream(
             chunks=chunks,
         )
 
+        llm_output_chunks_send_empty = []
         try:
             # All messages (including current query) loaded in connect()
             # Send empty string to trigger response generation
-            async for event in accumulator.process(parse_tokens(session.send(""))):
+            async for event in accumulator.process(parse_tokens(await session.send(""))):
                 ev_type = event_type(event)
                 content = event_content(event)
 
                 if ev_type in {"think", "call", "respond"} and metrics and content:
                     metrics.add_output(content)
+                    llm_output_chunks_send_empty.append(content)
 
                 if event:
                     telemetry.add_event(telemetry_events, event)
@@ -114,29 +110,45 @@ async def stream(
                         yield event
 
                         # Then send tool result to session to continue generation
+                        llm_output_chunks_send_content = []
                         try:
                             if metrics:
                                 metrics.add_input(content)
 
                             # Continue streaming after tool result injection
                             async for continuation_event in accumulator.process(
-                                parse_tokens(session.send(content))
+                                parse_tokens(await session.send(content))
                             ):
+                                if (
+                                    continuation_event["type"] in ["think", "call", "respond"]
+                                    and metrics
+                                    and continuation_event.get("content")
+                                ):
+                                    llm_output_chunks_send_content.append(
+                                        continuation_event["content"]
+                                    )
+
                                 yield continuation_event
                                 if is_end(continuation_event):
                                     complete = True
                                     break
                         except Exception as e:
                             raise RuntimeError(f"WebSocket continuation failed: {e}") from e
+                        finally:
+                            if config.debug:
+                                from ..lib.debug import log_response
+
+                                log_response(
+                                    conversation_id,
+                                    model_name,
+                                    "".join(llm_output_chunks_send_content),
+                                )
 
                         if metrics:
                             metric = metrics.event()
                             telemetry.add_event(telemetry_events, metric)
                             yield metric
                             metrics.start_step()
-
-                        # Skip unconditional yield since we already yielded the result
-                        continue
 
                 yield event
 
@@ -145,9 +157,15 @@ async def stream(
         except Exception:
             raise
         finally:
-            if hasattr(config.storage, "save_request"):
-                telemetry.persist_events(conversation_id, telemetry_events)
+            if config.debug:
+                from ..lib.debug import log_response
 
+                log_response(
+                    conversation_id,
+                    model_name,
+                    "".join(llm_output_chunks_send_empty),
+                )
+            await telemetry.persist_events(conversation_id, telemetry_events)
         # Handle natural WebSocket completion
         if not complete:
             # Stream ended without §end - provider-driven completion

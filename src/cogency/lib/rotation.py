@@ -53,6 +53,7 @@ def is_rate_limit_error(error: str) -> bool:
         "503",
         "unavailable",
         "resource_exhausted",
+        "exhausted",
     ]
     return any(signal in error.lower() for signal in rate_signals)
 
