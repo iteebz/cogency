@@ -1,7 +1,7 @@
 from collections import defaultdict
 
 from ..core.protocols import Tool
-from ..lib.storage import Storage
+from ..lib.sqlite import Storage
 
 
 class ToolRegistry:

@@ -51,14 +51,13 @@ async def get(user_id: str | None, storage=None) -> dict | None:
     if not user_id:
         return None
     if storage is None:
-        from ..lib.storage import SQLite
+        from ..lib.sqlite import SQLite
 
         storage = SQLite()
     try:
         return await storage.load_profile(user_id)
     except Exception as e:
-        logger.debug(f"⚠️ Profile fetch failed for {user_id}: {e}")
-        return None
+        raise RuntimeError(f"Profile fetch failed for {user_id}: {e}", cause=e) from e
 
 
 async def format(user_id: str | None, storage=None) -> str:
@@ -70,8 +69,7 @@ async def format(user_id: str | None, storage=None) -> str:
 
         return f"USER PROFILE:\n{json.dumps(profile_data, indent=2)}"
     except Exception as e:
-        logger.debug(f"⚠️ Profile format failed for {user_id}: {e}")
-        return ""
+        raise RuntimeError(f"Profile format failed for {user_id}: {e}", cause=e) from e
 
 
 async def should_learn(
@@ -207,8 +205,10 @@ async def update_profile(
         parsed = json.loads(clean)
         if compact or result.strip().upper() != "SKIP":
             return parsed
-    except json.JSONDecodeError:
-        logger.debug(f"🚨 JSON ERROR: {result[:50]}...")
+    except json.JSONDecodeError as e:
+        raise RuntimeError(
+            f"JSON parse error during profile update: {result[:50]}...", cause=e
+        ) from e
 
     return current if compact else None
 

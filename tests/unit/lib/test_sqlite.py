@@ -3,7 +3,7 @@ import uuid
 
 import pytest
 
-from cogency.lib.storage import DB, SQLite
+from cogency.lib.sqlite import DB, SQLite
 
 
 @pytest.mark.asyncio

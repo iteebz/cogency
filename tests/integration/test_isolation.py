@@ -2,7 +2,7 @@ import pytest
 
 from cogency import Agent
 from cogency.core.config import Security
-from cogency.lib.storage import SQLite
+from cogency.lib.sqlite import SQLite
 
 
 @pytest.mark.asyncio

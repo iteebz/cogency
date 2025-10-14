@@ -6,7 +6,7 @@ import pytest
 from cogency.core import replay, resume
 from cogency.core.config import Config
 from cogency.core.protocols import LLM
-from cogency.lib.storage import SQLite
+from cogency.lib.sqlite import SQLite
 
 
 # Mock for replay (HTTP streaming) integration tests

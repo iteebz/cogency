@@ -76,6 +76,8 @@ class DB:
     def _init_schema(cls, db_path: Path):
         with sqlite3.connect(db_path) as db:
             db.executescript("""
+                PRAGMA journal_mode=WAL;
+
                 CREATE TABLE IF NOT EXISTS messages (
                     message_id TEXT PRIMARY KEY,
                     conversation_id TEXT NOT NULL,

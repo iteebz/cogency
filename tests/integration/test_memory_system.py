@@ -3,7 +3,7 @@ from unittest.mock import patch
 import pytest
 
 from cogency.context import profile
-from cogency.lib.storage import SQLite
+from cogency.lib.sqlite import SQLite
 
 
 @pytest.mark.asyncio

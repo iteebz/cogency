@@ -13,7 +13,7 @@ import time
 
 from ...core.protocols import Tool, ToolResult
 from ...lib.logger import logger
-from ...lib.storage import MessageMatch, Storage
+from ...lib.sqlite import MessageMatch, Storage
 from ..security import safe_execute
 
 

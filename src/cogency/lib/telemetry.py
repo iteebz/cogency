@@ -2,7 +2,7 @@ import asyncio
 import json
 
 from ..lib.logger import logger
-from ..lib.storage import default_storage
+from ..lib.sqlite import default_storage
 
 
 def add_event(events_list: list[dict], event: dict):

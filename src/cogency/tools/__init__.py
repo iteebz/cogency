@@ -1,4 +1,4 @@
-from ..lib.storage import default_storage
+from ..lib.sqlite import default_storage
 from .code.edit import Edit
 from .code.grep import Grep
 from .code.ls import Ls
