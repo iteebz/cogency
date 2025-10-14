@@ -13,6 +13,7 @@ load_dotenv(override=True)
 def load_keys(prefix: str) -> list[str]:
     """Load API keys supporting numbered keys and service aliases (e.g., GEMINI→GOOGLE)."""
     keys = []
+    print(f"DEBUG: Loading keys for prefix: {prefix}")  # Added debug print
 
     patterns = [
         f"{prefix}_API_KEY",
@@ -33,6 +34,7 @@ def load_keys(prefix: str) -> list[str]:
         if key and key not in keys:
             keys.append(key)
 
+    print(f"DEBUG: Found {len(keys)} keys for prefix: {prefix}")  # Added debug print
     return keys
 
 
@@ -76,6 +78,10 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
             # Only retry on rate limits
             if not is_rate_limit_error(str(e)):
                 raise e
+
+            print(
+                f"DEBUG: Rate limit error detected for key. Attempting to rotate. Offset: {offset}, Total keys: {len(keys)}"
+            )  # Added debug print
 
             # Simple backoff: wait before trying next key
             if offset < len(keys) - 1:  # Not last key

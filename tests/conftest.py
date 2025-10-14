@@ -112,12 +112,9 @@ def mock_llm():
             if not self._is_session:
                 raise RuntimeError("send() requires active session. Call connect() first.")
 
-            async def async_gen():
-                for token in self.response_tokens:
-                    yield token
-                    await asyncio.sleep(0.001)
-
-            return async_gen()
+            for token in self.response_tokens:
+                yield token
+                await asyncio.sleep(0.001)  # Simulate async streaming
 
         async def receive(self, session):
             yield "token1"

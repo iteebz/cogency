@@ -6,8 +6,8 @@ HTTP-only provider. WebSocket sessions not supported by Anthropic API.
 from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM
-from ..rotation import with_rotation
 from .interrupt import interruptible
+from .rotation import with_rotation
 
 
 class Anthropic(LLM):
@@ -18,9 +18,9 @@ class Anthropic(LLM):
         api_key: str = None,
         http_model: str = "claude-3-5-sonnet-20241022",
         temperature: float = 0.7,
-        max_tokens: int = 1024,
+        max_tokens: int = 4096,
     ):
-        from ..rotation import get_api_key
+        from .rotation import get_api_key
 
         self.api_key = api_key or get_api_key("anthropic")
         if not self.api_key:
@@ -59,7 +59,7 @@ class Anthropic(LLM):
 
         async def _stream_with_key(api_key: str):
             client = self._create_client(api_key)
-            return client.messages.stream(
+            return await client.messages.stream(
                 model=self.http_model,
                 messages=messages,
                 max_tokens=self.max_tokens,
@@ -67,10 +67,11 @@ class Anthropic(LLM):
             )
 
         # Get streaming context manager with rotation
-        stream_ctx = await with_rotation("ANTHROPIC", _stream_with_key)
+        stream_context_manager = await with_rotation("ANTHROPIC", _stream_with_key)
 
-        async with stream_ctx as stream:
-            async for text in stream.text_stream:
+        # Enter the context manager to get the stream object
+        async with stream_context_manager as stream_object:
+            async for text in stream_object.text_stream:
                 yield text
 
     # WebSocket methods - not supported by Anthropic

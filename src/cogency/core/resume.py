@@ -16,7 +16,6 @@ from ..lib import telemetry
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
-from .parser import parse_tokens
 from .protocols import event_content, event_type, is_end
 
 
@@ -75,12 +74,14 @@ async def stream(
             chunks=chunks,
         )
 
+        from . import parser
+
         llm_output_chunks_send_empty = []
         iteration = 0  # Initialize iteration counter
         try:
             # All messages (including current query) loaded in connect()
             # Send empty string to trigger response generation
-            async for event in accumulator.process(parse_tokens(await session.send(""))):
+            async for event in accumulator.process(parser.parse_tokens(session.send(""))):
                 iteration += 1  # Increment iteration counter
                 if iteration > config.max_iterations:
                     # [SEC-005] Prevent runaway agents
@@ -125,7 +126,7 @@ async def stream(
 
                             # Continue streaming after tool result injection
                             async for continuation_event in accumulator.process(
-                                parse_tokens(await session.send(content))
+                                parser.parse_tokens(session.send(content))
                             ):
                                 iteration += (
                                     1  # Increment iteration counter for continuation events

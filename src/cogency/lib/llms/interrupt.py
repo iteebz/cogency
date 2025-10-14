@@ -24,6 +24,6 @@ def interruptible(func):
         except Exception as e:
             if str(e):
                 logger.error(f"{provider_name} error: {str(e)}")
-            yield "§end"
+            raise  # Re-raise the exception
 
     return wrapper

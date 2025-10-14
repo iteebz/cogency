@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.lib.rotation import get_api_key, is_rate_limit_error, load_keys, with_rotation
+from cogency.lib.llms.rotation import get_api_key, is_rate_limit_error, load_keys, with_rotation
 
 
 def test_load_keys():

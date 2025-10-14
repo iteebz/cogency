@@ -2,8 +2,8 @@ from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM
 from ..logger import logger
-from ..rotation import get_api_key, with_rotation
 from .interrupt import interruptible
+from .rotation import get_api_key, with_rotation
 
 
 class Gemini(LLM):
@@ -53,7 +53,7 @@ class Gemini(LLM):
                     contents=self._convert_messages_to_gemini_format(messages),
                     config=genai.types.GenerateContentConfig(
                         temperature=self.temperature,
-                        max_output_tokens=8192,
+                        max_output_tokens=4096,
                     ),
                 )
                 return response.text
@@ -76,7 +76,7 @@ class Gemini(LLM):
                 contents=self._convert_messages_to_gemini_format(messages),
                 config=genai.types.GenerateContentConfig(
                     temperature=self.temperature,
-                    max_output_tokens=8192,
+                    max_output_tokens=4096,
                 ),
             )
 

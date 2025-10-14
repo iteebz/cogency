@@ -42,19 +42,19 @@ class MockResumeLLM(LLM):
         mock_session = MagicMock()
         send_responses_iter = iter(self.send_responses)
 
-        async def send_generator_func(content):
+        async def _send_side_effect(content):
             try:
                 responses = next(send_responses_iter)
                 for response_chunk in responses:
                     if isinstance(response_chunk, dict):
-                        yield f"§{response_chunk['type']}: {json.dumps(response_chunk['content'])}"
+                        yield response_chunk
                     else:
-                        yield f"§respond: {response_chunk}"
-                yield "§end"
+                        yield {"type": "respond", "content": response_chunk}
+                yield {"type": "end"}
             except StopIteration:
-                yield "§end"
+                yield {"type": "end"}
 
-        mock_session.send = AsyncMock(side_effect=lambda content: send_generator_func(content))
+        mock_session.send = _send_side_effect
         mock_session.close = AsyncMock()
         return mock_session
 
@@ -180,7 +180,7 @@ async def test_resume_debug_logging_enabled(tmp_path, mock_resume_llm, monkeypat
 
     log_entry = logs[0]
     assert log_entry["model"] == llm.http_model
-    assert log_entry["response"] == '"First part."'
+    assert log_entry["response"] == "First part."
     assert "request_id" in log_entry
 
 
