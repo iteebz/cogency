@@ -13,9 +13,11 @@ in LLM memory rather than resending full context each turn.
 
 from .. import context
 from ..lib import telemetry
+from ..lib.debug import log_response
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
+from .parser import parse_tokens
 from .protocols import event_content, event_type, is_end
 
 
@@ -45,6 +47,8 @@ async def stream(
     metrics = Metrics.init(model_name)
 
     session = None
+    iteration = 0  # Initialize iteration counter
+    llm_output_chunks_send_empty = []  # Initialize list
     try:
         messages = await context.assemble(
             user_id,
@@ -74,14 +78,10 @@ async def stream(
             chunks=chunks,
         )
 
-        from . import parser
-
-        llm_output_chunks_send_empty = []
-        iteration = 0  # Initialize iteration counter
         try:
             # All messages (including current query) loaded in connect()
             # Send empty string to trigger response generation
-            async for event in accumulator.process(parser.parse_tokens(session.send(""))):
+            async for event in accumulator.process(parse_tokens(session.send(""))):
                 iteration += 1  # Increment iteration counter
                 if iteration > config.max_iterations:
                     # [SEC-005] Prevent runaway agents
@@ -126,7 +126,7 @@ async def stream(
 
                             # Continue streaming after tool result injection
                             async for continuation_event in accumulator.process(
-                                parser.parse_tokens(session.send(content))
+                                parse_tokens(session.send(content))
                             ):
                                 iteration += (
                                     1  # Increment iteration counter for continuation events
@@ -154,14 +154,11 @@ async def stream(
                             raise RuntimeError(f"WebSocket continuation failed: {e}") from e
                         finally:
                             if config.debug:
-                                from ..lib.debug import log_response
-
                                 log_response(
                                     conversation_id,
                                     model_name,
                                     "".join(llm_output_chunks_send_content),
                                 )
-
                         if metrics:
                             metric = metrics.event()
                             telemetry.add_event(telemetry_events, metric)
@@ -176,8 +173,6 @@ async def stream(
             raise
         finally:
             if config.debug:
-                from ..lib.debug import log_response
-
                 log_response(
                     conversation_id,
                     model_name,

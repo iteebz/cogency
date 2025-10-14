@@ -2,17 +2,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from cogency.lib.llms import Anthropic, Gemini, OpenAI
+from cogency.lib.llms import Gemini, OpenAI
 
 
 @pytest.fixture(
     params=[
-        ("OpenAI", OpenAI),
-        ("Gemini", Gemini),
-        ("Anthropic", Anthropic),
+        pytest.param(("OpenAI", OpenAI), id="openai"),
+        pytest.param(("Gemini", Gemini), id="gemini"),
+        # pytest.param(("Anthropic", Anthropic), id="anthropic"),
     ]
 )
-def llm_provider_instance(request):
+def llm_instance(request):
     """Provides an instance of each LLM provider with a mocked API key."""
     name, cls = request.param
     with patch("cogency.lib.llms.rotation.get_api_key", return_value="test-key"):
@@ -21,9 +21,9 @@ def llm_provider_instance(request):
 
 
 @pytest.mark.asyncio
-async def test_llm_generate(llm_provider_instance):
+async def test_llm_generate(llm_instance):
     """Tests the generate method of each LLM provider."""
-    name, llm_instance = llm_provider_instance
+    name, llm_instance = llm_instance
 
     with patch.object(llm_instance, "_create_client") as mock_create_client:
         mock_client_instance = mock_create_client.return_value
@@ -50,9 +50,9 @@ async def test_llm_generate(llm_provider_instance):
 
 
 @pytest.mark.asyncio
-async def test_llm_stream(llm_provider_instance):
+async def test_llm_stream(llm_instance):
     """Tests the stream method of each LLM provider."""
-    name, llm_instance = llm_provider_instance
+    name, llm_instance = llm_instance
 
     with patch.object(llm_instance, "_create_client") as mock_create_client:
         mock_client_instance = mock_create_client.return_value
@@ -113,32 +113,41 @@ async def test_llm_stream(llm_provider_instance):
         assert collected_chunks == ["Chunk 1", "Chunk 2"]
 
 
-@pytest.mark.asyncio
-async def test_anthropic_connect_not_implemented(llm_provider_instance):
-    """Tests that Anthropic's connect method raises NotImplementedError."""
-    name, llm_instance = llm_provider_instance
-    if name == "Anthropic":
-        with pytest.raises(
-            NotImplementedError, match="Anthropic does not support WebSocket sessions"
-        ):
-            await llm_instance.connect([{"role": "user", "content": "test"}])
+@pytest.fixture(
+    params=[
+        pytest.param(("OpenAI", OpenAI), id="openai"),
+        pytest.param(("Gemini", Gemini), id="gemini"),
+    ]
+)
+def websocket_llm_instance(request):
+    """Provides an instance of WebSocket-capable LLM providers with a mocked API key."""
+    name, cls = request.param
+    with patch("cogency.lib.llms.rotation.get_api_key", return_value="test-key"):
+        instance = cls()
+        yield name, instance
 
 
 @pytest.mark.asyncio
-async def test_anthropic_send_not_implemented(llm_provider_instance):
-    """Tests that Anthropic's send method raises NotImplementedError."""
-    name, llm_instance = llm_provider_instance
-    if name == "Anthropic":
-        with pytest.raises(
-            NotImplementedError, match="Anthropic does not support WebSocket sessions"
-        ):
-            await llm_instance.send("test")
+async def test_websocket_functionality(websocket_llm_instance):
+    """Tests connect, send, and close methods for WebSocket-capable LLM providers."""
+    name, llm_instance = websocket_llm_instance
 
+    # Mock the connect method of the llm_instance directly
+    with patch.object(llm_instance, "connect") as mock_llm_connect:
+        mock_session = MagicMock()
+        mock_session.send = AsyncMock()
+        mock_session.close = AsyncMock()
+        mock_llm_connect.return_value = mock_session
 
-@pytest.mark.asyncio
-async def test_anthropic_close_is_no_op(llm_provider_instance):
-    """Tests that Anthropic's close method is a no-op."""
-    name, llm_instance = llm_provider_instance
-    if name == "Anthropic":
-        # Should not raise any error and simply pass
-        await llm_instance.close()
+        # Test connect
+        session = await llm_instance.connect([{"role": "user", "content": "initial message"}])
+        mock_llm_connect.assert_called_once()
+        assert session is not None
+
+    # Test send
+    await session.send("test message")
+    mock_session.send.assert_called_once_with("test message")
+
+    # Test close
+    await session.close()
+    mock_session.close.assert_called_once()

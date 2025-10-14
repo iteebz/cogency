@@ -12,19 +12,15 @@ async def main():
     # Use a unique conversation ID for the test
     test_conversation_id = f"smoke-test-{asyncio.get_event_loop().time()}"
 
-    agent = Agent(
-        llm="gemini",
-        mode="resume",
-        instructions="You are a helpful assistant. Answer questions directly and concisely, without using any tools.",
-    )
+    agent = Agent(llm="openai", mode="resume")
 
     print("--- Test Run 1: Initial Question ---")
     print(f"Conversation ID: {test_conversation_id}")
-    print("User: My favorite color is blue. What is the capital of France?")
+    print("User: What is the capital of France?")
 
     response_1 = []
     async for event in agent(
-        "My favorite color is blue. What is the capital of France?",
+        "What is the capital of France?",
         conversation_id=test_conversation_id,
         user_id="smoke-tester",
     ):
@@ -39,22 +35,20 @@ async def main():
         return
 
     print("\n--- Test Run 2: Follow-up Question ---")
-    print("User: What is my favorite color?")
+    print("User: What about Germany?")
 
     response_2 = []
     # Continue the *same* conversation
     async for event in agent(
-        "What is my favorite color?", conversation_id=test_conversation_id, user_id="smoke-tester"
+        "What about Germany?", conversation_id=test_conversation_id, user_id="smoke-tester"
     ):
         if event["type"] == "respond":
             response_2.append(event["content"])
             print(f"Agent: {event['content']}")
 
     full_response_2 = "".join(response_2)
-    if "blue" not in full_response_2.lower():
-        print(
-            "!!! TEST FAILED: Did not receive expected response for follow-up question (continuity)."
-        )
+    if "berlin" not in full_response_2.lower():
+        print("!!! TEST FAILED: Did not receive expected response for follow-up question.")
         return
 
     print("\n--- Smoke Test Passed! ---")

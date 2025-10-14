@@ -47,12 +47,20 @@ class MockResumeLLM(LLM):
                 responses = next(send_responses_iter)
                 for response_chunk in responses:
                     if isinstance(response_chunk, dict):
-                        yield response_chunk
+                        # Convert dictionary to protocol string
+                        if response_chunk.get("type") == "end":
+                            yield "§end"
+                        elif response_chunk.get("type") and response_chunk.get("content"):
+                            yield f"§{response_chunk['type']}: {response_chunk['content']}"
+                        else:
+                            # Fallback for unexpected dict format, yield as string representation
+                            yield str(response_chunk)
                     else:
-                        yield {"type": "respond", "content": response_chunk}
-                yield {"type": "end"}
+                        # Assume it's already a string in protocol format or plain content
+                        yield response_chunk
+                yield "§end"  # Ensure an end token is always sent
             except StopIteration:
-                yield {"type": "end"}
+                yield "§end"  # Ensure an end token is always sent
 
         mock_session.send = _send_side_effect
         mock_session.close = AsyncMock()
@@ -163,7 +171,6 @@ async def test_resume_debug_logging_enabled(tmp_path, mock_resume_llm, monkeypat
 
     monkeypatch.chdir(tmp_path)
 
-    # Mock context.assemble to return a simple message list
     with patch("cogency.context.assemble", new_callable=AsyncMock) as mock_assemble:
         mock_assemble.return_value = [{"role": "user", "content": "initial query"}]
         # Run resume stream

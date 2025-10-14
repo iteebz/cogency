@@ -6,7 +6,7 @@ from cogency.tools import Edit
 
 
 @pytest.mark.asyncio
-async def test_replaces_content_simple(tmp_path):
+async def test_replace(tmp_path):
     tool = Edit()
     target = tmp_path / "test.txt"
     target.write_text("previous content")
@@ -25,10 +25,13 @@ async def test_replaces_content_simple(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_reports_correct_diff_counts(tmp_path):
+async def test_diff_report(tmp_path):
     tool = Edit()
     target = tmp_path / "test.txt"
-    initial_content = "line 1\nline 2 old\nline 3\n"
+    initial_content = """line 1
+line 2 old
+line 3
+"""
     target.write_text(initial_content)
 
     result = await tool.execute(
@@ -41,14 +44,23 @@ async def test_reports_correct_diff_counts(tmp_path):
 
     assert not result.error, f"Tool error: {result.outcome}"
     assert "Edited test.txt (+1/-1)" in result.outcome
-    assert target.read_text() == "line 1\nline 2 new\nline 3\n"
+    assert (
+        target.read_text()
+        == """line 1
+line 2 new
+line 3
+"""
+    )
 
 
 @pytest.mark.asyncio
-async def test_no_replacement_when_old_equals_new(tmp_path):
+async def test_no_op_when_same(tmp_path):
     tool = Edit()
     target = tmp_path / "test.txt"
-    initial_content = "line 1\nline 2\nline 3\n"
+    initial_content = """line 1
+line 2
+line 3
+"""
     target.write_text(initial_content)
 
     result = await tool.execute(
@@ -68,10 +80,13 @@ async def test_no_replacement_when_old_equals_new(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_fails_when_old_string_not_found(tmp_path):
+async def test_fail_when_not_found(tmp_path):
     tool = Edit()
     target = tmp_path / "test.txt"
-    initial_content = "line 1\nline 2\nline 3\n"
+    initial_content = """line 1
+line 2
+line 3
+"""
     target.write_text(initial_content)
 
     result = await tool.execute(
@@ -88,7 +103,7 @@ async def test_fails_when_old_string_not_found(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_fails_when_old_blank_on_empty_file(tmp_path):
+async def test_fail_blank_on_empty(tmp_path):
     tool = Edit()
     target = tmp_path / "test.txt"
     target.write_text("")
@@ -103,7 +118,7 @@ async def test_fails_when_old_blank_on_empty_file(tmp_path):
 
 
 @pytest.mark.asyncio
-async def test_fails_when_old_blank_on_existing_file(tmp_path):
+async def test_fail_blank_on_existing(tmp_path):
     tool = Edit()
     target = tmp_path / "test.txt"
     target.write_text("previous")

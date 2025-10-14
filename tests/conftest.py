@@ -93,14 +93,20 @@ def mock_llm():
             self.response_tokens = response_tokens or ["§respond: Test response\n", "§end\n"]
             self._is_session = False
             self.generate = AsyncMock(return_value="Test response")
+            self._continuation_error = None
 
         def set_response_tokens(self, tokens: list[str]):
             self.response_tokens = tokens
             return self
 
+        def set_continuation_error(self, error: Exception):
+            self._continuation_error = error
+            return self
+
         async def connect(self, messages):
             session_instance = MockLLM(self.response_tokens)
             session_instance._is_session = True
+            session_instance._continuation_error = self._continuation_error  # Pass error to session
             return session_instance
 
         async def stream(self, messages):
@@ -115,6 +121,9 @@ def mock_llm():
             for token in self.response_tokens:
                 yield token
                 await asyncio.sleep(0.001)  # Simulate async streaming
+
+            if self._continuation_error:
+                raise self._continuation_error
 
         async def receive(self, session):
             yield "token1"
