@@ -12,7 +12,7 @@ class OpenAI(LLM):
     def __init__(
         self,
         api_key: str = None,
-        http_model: str = "gpt-5-mini-2025-08-07",
+        http_model: str = "gpt-4o-mini",
         websocket_model: str = "gpt-4o-mini-realtime-preview",
         temperature: float = 1.0,
         max_tokens: int = 2000,
@@ -41,14 +41,30 @@ class OpenAI(LLM):
         async def _generate_with_key(api_key: str) -> str:
             try:
                 client = self._create_client(api_key)
-                response = await client.chat.completions.create(
+                
+                system_instructions = ""
+                user_input = ""
+                
+                for msg in messages:
+                    if msg["role"] == "system":
+                        system_instructions += msg["content"] + "\n"
+                    elif msg["role"] == "user":
+                        user_input = msg["content"]
+                
+                response = await client.responses.create(
                     model=self.http_model,
-                    messages=messages,
-                    max_completion_tokens=self.max_tokens,
+                    instructions=system_instructions.strip(),
+                    input=[{"role": "user", "content": user_input}],
                     temperature=self.temperature,
                     stream=False,
                 )
-                return response.choices[0].message.content
+
+                generated_text = ""
+                for item in response.output:
+                    if hasattr(item, 'content') and len(item.content) > 0 and hasattr(item.content[0], 'text'):
+                        generated_text = item.content[0].text
+                        break
+                return generated_text
             except ImportError as e:
                 raise ImportError("Please install openai: pip install openai") from e
 
@@ -60,10 +76,20 @@ class OpenAI(LLM):
 
         async def _stream_with_key(api_key: str):
             client = self._create_client(api_key)
-            return await client.chat.completions.create(
+
+            system_instructions = ""
+            user_input = ""
+
+            for msg in messages:
+                if msg["role"] == "system":
+                    system_instructions += msg["content"] + "\n"
+                elif msg["role"] == "user":
+                    user_input = msg["content"]
+
+            return await client.responses.create(
                 model=self.http_model,
-                messages=messages,
-                max_completion_tokens=self.max_tokens,
+                instructions=system_instructions.strip(),
+                input=[{"role": "user", "content": user_input}],
                 temperature=self.temperature,
                 stream=True,
             )
@@ -71,9 +97,9 @@ class OpenAI(LLM):
         response = await with_rotation("OPENAI", _stream_with_key)
 
         # Stream native chunks without modification
-        async for chunk in response:
-            if chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+        async for event in response:
+            if event.type == "response.output_text.delta" and event.delta:
+                yield event.delta
 
     async def connect(self, messages: list[dict]) -> "OpenAI":
         """Create session with initial context. Returns session-enabled OpenAI instance."""
@@ -139,6 +165,7 @@ class OpenAI(LLM):
             logger.warning(f"OpenAI connection failed: {e}")
             raise RuntimeError("OpenAI connection failed") from e
 
+    @interruptible
     async def send(self, content: str) -> AsyncGenerator[str, None]:
         """Send message in session and stream response until turn completion."""
         if not self._connection:
