@@ -185,60 +185,9 @@ agent = Agent(llm="gemini")     # Gemini Live (WebSocket)
 agent = Agent(llm="anthropic")  # Claude (HTTP only)
 ```
 
-## Custom CLI
 
-Build your own CLI with the exported `Renderer`:
 
-```python
-from cogency import Agent, Renderer
 
-agent = Agent(llm="anthropic", tools=my_tools())
-renderer = Renderer()
-
-async def main():
-    await renderer.render_stream(
-        agent("your query", conversation_id="session")
-    )
-```
-
-## CLI
-
-```bash
-# Install with poetry
-poetry install
-
-# Stateless (default)
-cogency run "What files are in this directory?"
-
-# Multi-turn conversation
-cogency run "hi" --conv session1
-cogency run "what did i say?" --conv session1
-
-# Custom user for profile learning
-cogency run "help me code" --user alice
-
-# Custom agent
-cogency run "analyze this" --agent my_agent.py
-
-# View conversation history
-cogency conv session1
-
-# Debug commands
-cogency context system    # Show system prompt
-cogency context <id>      # Show assembled context
-cogency stats             # Database statistics
-cogency users             # User profiles
-cogency nuke              # Delete .cogency folder
-```
-
-**Display format:**
-```
-> Agent response to user
-~ Internal reasoning
-○ Tool execution begins
-● Tool execution complete
-% 890➜67|4.8s (input→output tokens|duration)
-```
 
 ## Memory System
 

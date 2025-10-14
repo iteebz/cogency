@@ -1,6 +1,6 @@
 import pytest
 
-from cogency import Agent
+from cogency import Agent, AgentError
 
 
 @pytest.mark.asyncio
@@ -90,7 +90,7 @@ async def test_error_handling(mock_llm, mock_tool):
     )
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=1)
 
-    with pytest.raises(RuntimeError, match="Stream execution failed"):
+    with pytest.raises(AgentError, match=r"Tool execution failed"):
         [event async for event in agent("Test query", chunks=False)]
 
 

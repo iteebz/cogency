@@ -1,6 +1,5 @@
 import pytest
 
-from cogency.core.exceptions import ProtocolError
 from cogency.tools.parse import _auto_escape_content, parse_tool_call, parse_tool_result
 
 
@@ -16,12 +15,12 @@ def test_extra_data():
 
 
 def test_unquoted_keys():
-    with pytest.raises(ProtocolError):
+    with pytest.raises(ValueError):
         parse_tool_call('{"name": "tool", args: {key: "val"}}')
 
 
 def test_missing_colon():
-    with pytest.raises(ProtocolError):
+    with pytest.raises(ValueError):
         parse_tool_call('{"name": "tool", "args" {"key": "val"}}')
 
 
@@ -43,7 +42,7 @@ def test_auto_escape_backslashes():
 
 
 def test_complex_fails():
-    with pytest.raises(ProtocolError):
+    with pytest.raises(ValueError):
         parse_tool_call('{"name": "w", "args": {"c": "unclosed string}}')
 
 

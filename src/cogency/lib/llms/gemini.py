@@ -24,7 +24,7 @@ class Gemini(LLM):
     ):
         self.api_key = api_key or get_api_key("gemini")
         if not self.api_key:
-            raise RuntimeError("No API key found")
+            raise ValueError("No API key found")
         self.http_model = http_model
         self.websocket_model = websocket_model
         self.temperature = temperature
@@ -59,8 +59,6 @@ class Gemini(LLM):
                 return response.text
             except ImportError as e:
                 raise ImportError("Please install google-genai: pip install google-genai") from e
-            except Exception as e:
-                raise RuntimeError(f"Gemini Generate Error: {str(e)}") from e
 
         return await with_rotation("GEMINI", _generate_with_key)
 
@@ -146,13 +144,13 @@ class Gemini(LLM):
             session_instance._connection = connection
 
             return session_instance
-
         except Exception as e:
-            logger.warning(f"Gemini WebSocket connection failed: {e}")
-            raise RuntimeError(f"Gemini connection failed: {e}") from e
+            logger.warning(f"Gemini connection failed: {e}")
+            raise RuntimeError("Gemini connection failed") from e
 
     async def send(self, content: str) -> AsyncGenerator[str, None]:
         """Send message in session and stream response until turn completion."""
+
         if not self._session:
             raise RuntimeError("send() requires active session. Call connect() first.")
 
@@ -164,72 +162,59 @@ class Gemini(LLM):
                 turns=types.Content(role="user", parts=[types.Part(text=content)]),
                 turn_complete=True,
             )
-
-            # Stream response with DUAL SIGNAL fix - the critical empirical discovery
-
-            seen_generation_complete = False
-
-            message_count = 0
-
-            async for message in self._session.receive():
-                message_count += 1
-
-                if hasattr(message, "server_content") and message.server_content:
-                    sc = message.server_content
-
-                    # Collect text from model_turn.parts
-                    if (
-                        hasattr(sc, "model_turn")
-                        and sc.model_turn
-                        and hasattr(sc.model_turn, "parts")
-                    ):
-                        for part in sc.model_turn.parts:
-                            if hasattr(part, "text") and part.text:
-                                yield part.text
-
-                    # Track generation_complete signal
-                    if hasattr(sc, "generation_complete") and sc.generation_complete:
-                        seen_generation_complete = True
-
-                    # Wait for both Gemini stream completion signals
-                    if (
-                        seen_generation_complete
-                        and hasattr(sc, "turn_complete")
-                        and sc.turn_complete
-                    ):
-                        return  # Provider infrastructure turn completion
-
-                # Safety limit
-                if message_count > 100:
-                    logger.warning("Gemini session hit message limit")
-                    return
-
         except Exception as e:
-            logger.warning(f"Gemini session send failed: {e}")
-            return
+            logger.error(f"Error sending message in Gemini session: {e}")
+
+        # Stream response with DUAL SIGNAL fix - the critical empirical discovery
+
+        seen_generation_complete = False
+
+        message_count = 0
+
+        async for _message in self._session.receive():
+            message_count += 1
+
+            if hasattr(_message, "server_content") and _message.server_content:
+                sc = _message.server_content
+
+                # Collect text from model_turn.parts
+                if hasattr(sc, "model_turn") and sc.model_turn and hasattr(sc.model_turn, "parts"):
+                    for part in sc.model_turn.parts:
+                        if hasattr(part, "text") and part.text:
+                            yield part.text
+
+                # Track generation_complete signal
+                if hasattr(sc, "generation_complete") and sc.generation_complete:
+                    seen_generation_complete = True
+
+                # Wait for both Gemini stream completion signals
+                if seen_generation_complete and hasattr(sc, "turn_complete") and sc.turn_complete:
+                    return  # Provider infrastructure turn completion
+
+            # Safety limit
+            if message_count > 100:
+                logger.warning("Gemini session hit message limit")
+                return
 
     async def close(self) -> None:
         """Close session and cleanup resources."""
         if not self._connection:
             return  # No-op for HTTP-only instances
 
-        try:
-            await self._connection.__aexit__(None, None, None)
-            self._session = None
-            self._connection = None
-        except Exception as e:
-            logger.warning(f"Gemini session close failed: {e}")
+        await self._connection.__aexit__(None, None, None)
+        self._session = None
+        self._connection = None
 
     async def _drain_turn_with_dual_signals(self, session):
         """Drain turn using dual signal pattern without yielding content."""
         seen_generation_complete = False
         message_count = 0
 
-        async for message in session.receive():
+        async for _message in session.receive():
             message_count += 1
 
-            if hasattr(message, "server_content") and message.server_content:
-                sc = message.server_content
+            if hasattr(_message, "server_content") and _message.server_content:
+                sc = _message.server_content
 
                 # Track generation_complete signal
                 if hasattr(sc, "generation_complete") and sc.generation_complete:

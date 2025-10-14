@@ -1,8 +1,13 @@
 import json
 import re
 
-from ..core.exceptions import ProtocolError
 from ..core.protocols import ToolCall, ToolResult
+
+
+class ToolParseError(ValueError):
+    def __init__(self, message: str, original_json: str | None = None) -> None:
+        super().__init__(message)
+        self.original_json = original_json
 
 
 def _auto_escape_content(json_str: str) -> str:
@@ -62,10 +67,10 @@ def parse_tool_call(json_str: str) -> ToolCall:
         data = json.loads(json_str)
         return ToolCall(name=data["name"], args=data.get("args", {}))
     except json.JSONDecodeError as e:
-        raise ProtocolError(f"JSON parse failed: {e}", original_json=json_str) from e
+        raise ToolParseError(f"JSON parse failed: {e}", original_json=json_str) from e
 
     except KeyError as e:
-        raise ProtocolError(f"Missing required field: {e}", original_json=json_str) from e
+        raise ToolParseError(f"Missing required field: {e}", original_json=json_str) from e
 
 
 def parse_tool_result(content: str) -> list[ToolResult]:

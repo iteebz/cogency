@@ -21,6 +21,7 @@ class Write(Tool):
         overwrite: bool = False,
         sandbox_dir: str = ".cogency/sandbox",
         access: Access = "sandbox",
+        **kwargs,
     ) -> ToolResult:
         if not file:
             return ToolResult(outcome="File cannot be empty", error=True)

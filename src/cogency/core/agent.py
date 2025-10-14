@@ -9,14 +9,28 @@ Usage:
 
 import asyncio
 
+import anthropic
+import google.api_core.exceptions
+import google.genai
+import httpx
+import openai
+
 from .. import context
 from ..lib import llms
-from ..lib.storage import default_storage
+from ..lib.sqlite import default_storage
 from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config, Security
-from .exceptions import AgentError
 from .protocols import LLM, Storage, Tool
+
+
+class AgentError(RuntimeError):
+    def __init__(
+        self, message: str, *, cause: Exception | None = None, original_json: str | None = None
+    ) -> None:
+        super().__init__(message)
+        self.cause = cause
+        self.original_json = original_json
 
 
 class Agent:
@@ -186,10 +200,20 @@ class Agent:
                 "timestamp": timestamp,
             }
             raise
-        except Exception as e:  # pragma: no cover - defensive logging path
+        except (
+            anthropic.APIError,
+            openai.APIError,
+            google.api_core.exceptions.GoogleAPIError,
+            httpx.RequestError,
+            ValueError,  # For API key not found
+            RuntimeError,  # For send() requires active session
+        ) as e:
             from ..lib.logger import logger
 
-            logger.error(f"Stream execution failed: {type(e).__name__}: {e}")
-            raise AgentError(
-                f"Stream execution failed: {type(e).__name__}", cause=e
-            ) from None  # [SEC-003] No error chain leakage
+            logger.error(f"LLM or network error: {type(e).__name__}: {e}", exc_info=True)
+            raise AgentError(f"LLM or network error: {e}", cause=e) from e
+        except Exception as e:  # Fallback for any other unexpected errors
+            from ..lib.logger import logger
+
+            logger.error(f"Stream execution failed: {type(e).__name__}: {e}", exc_info=True)
+            raise AgentError(f"Stream execution failed: {e}", cause=e) from e

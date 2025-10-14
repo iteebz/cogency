@@ -2,6 +2,7 @@ import pytest
 
 from cogency.core.accumulator import Accumulator
 from cogency.core.config import Config, Security
+from cogency.tools.parse import ToolParseError
 
 
 async def basic_parser():
@@ -131,10 +132,8 @@ async def test_malformed_call_json(mock_config):
         yield {"type": "call", "content": '{"name":"tool", "invalid": }'}
         yield {"type": "execute"}
 
-    events = [event async for event in accumulator.process(malformed_parser())]
-    result_events = [e for e in events if e["type"] == "result"]
-    assert len(result_events) == 1
-    assert "Invalid" in result_events[0]["payload"]["outcome"]
+    with pytest.raises(ToolParseError):
+        [event async for event in accumulator.process(malformed_parser())]
 
 
 @pytest.mark.asyncio
@@ -146,10 +145,8 @@ async def test_contaminated_content(mock_config):
         yield {"type": "call", "content": " §execute§execute"}
         yield {"type": "execute"}
 
-    events = [event async for event in accumulator.process(contaminated_parser())]
-    result_events = [e for e in events if e["type"] == "result"]
-    assert len(result_events) == 1
-    assert "Invalid" in result_events[0]["payload"]["outcome"]
+    with pytest.raises(ToolParseError):
+        [event async for event in accumulator.process(contaminated_parser())]
 
 
 @pytest.mark.asyncio

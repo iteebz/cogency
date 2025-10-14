@@ -19,7 +19,7 @@ class OpenAI(LLM):
     ):
         self.api_key = api_key or get_api_key("openai")
         if not self.api_key:
-            raise RuntimeError("No API key found")
+            raise ValueError("No API key found")
         self.http_model = http_model
         self.websocket_model = websocket_model
         self.temperature = temperature
@@ -51,8 +51,6 @@ class OpenAI(LLM):
                 return response.choices[0].message.content
             except ImportError as e:
                 raise ImportError("Please install openai: pip install openai") from e
-            except Exception as e:
-                raise RuntimeError(f"OpenAI Generate Error: {str(e)}") from e
 
         return await with_rotation("OPENAI", _generate_with_key)
 
@@ -84,11 +82,11 @@ class OpenAI(LLM):
         if self._connection_manager:
             await self.close()
 
-        try:
-            # Get fresh API key for WebSocket session
-            async def _create_client_with_key(api_key: str):
-                return self._create_client(api_key)
+        # Get fresh API key for WebSocket session
+        async def _create_client_with_key(api_key: str):
+            return self._create_client(api_key)
 
+        try:
             client = await with_rotation("OPENAI", _create_client_with_key)
             connection_manager = client.beta.realtime.connect(model=self.websocket_model)
             connection = await connection_manager.__aenter__()
@@ -137,10 +135,9 @@ class OpenAI(LLM):
             session_instance._connection_manager = connection_manager
 
             return session_instance
-
         except Exception as e:
-            logger.warning(f"OpenAI WebSocket connection failed: {e}")
-            raise RuntimeError(f"OpenAI connection failed: {e}") from e
+            logger.warning(f"OpenAI connection failed: {e}")
+            raise RuntimeError("OpenAI connection failed") from e
 
     async def send(self, content: str) -> AsyncGenerator[str, None]:
         """Send message in session and stream response until turn completion."""
@@ -153,65 +150,63 @@ class OpenAI(LLM):
                 await self._connection.conversation.item.create(
                     item={
                         "type": "message",
-                        "role": "user",
-                        "content": [{"type": "input_text", "text": content}],
+                        "message": {
+                            "content": {"content_type": "text/markdown", "parts": [content]}
+                        },
                     }
                 )
-
-            # Try to create response, but handle active response gracefully
-            try:
-                await self._connection.response.create()
-            except Exception as e:
-                if "already has an active response" in str(e):
-                    # Continue with existing response stream
-                    pass
-                else:
-                    raise
-
-            # Stream response chunks until turn completion
-            async for event in self._connection:
-                if (
-                    event.type == "response.text.delta"
-                    and event.delta
-                    or event.type == "response.audio_transcript.delta"
-                    and event.delta
-                ):
-                    yield event.delta
-                elif event.type == "response.done":
-                    return
-                elif event.type == "error":
-                    if "already has an active response" in str(event):
-                        # Ignore this error and continue
-                        continue
-                    logger.warning(f"OpenAI session error: {event}")
-                    return
-
         except Exception as e:
-            logger.warning(f"OpenAI session send failed: {e}")
-            return
+            logger.error(f"Error sending message in OpenAI session: {e}")
+
+        # Try to create response, but handle active response gracefully
+        try:
+            await self._connection.response.create()
+        except Exception as e:
+            if "already has an active response" in str(e):
+                # Continue with existing response stream
+                pass
+            else:
+                raise
+
+        # Stream response chunks until turn completion
+        async for event in self._connection:
+            if (
+                event.type == "response.text.delta"
+                and event.delta
+                or event.type == "response.audio_transcript.delta"
+                and event.delta
+            ):
+                yield event.delta
+            elif event.type == "response.done":
+                return
+            elif event.type == "error":
+                if "already has an active response" in str(event):
+                    # Ignore this error and continue
+                    continue
+                logger.warning(f"OpenAI session error: {event}")
+                return
 
     async def close(self) -> None:
         """Close session and cleanup resources."""
         if not self._connection_manager:
             return  # No-op for HTTP-only instances
 
+        import asyncio
+
+        # Force close connection first
+        if self._connection:
+            import contextlib
+
+            with contextlib.suppress(Exception):
+                await self._connection.close()
+
         try:
-            import asyncio
-
-            # Force close connection first
-            if self._connection:
-                import contextlib
-
-                with contextlib.suppress(Exception):
-                    await self._connection.close()
-
             await asyncio.wait_for(
                 self._connection_manager.__aexit__(None, None, None), timeout=5.0
             )
             self._connection = None
             self._connection_manager = None
-        except Exception as e:
-            logger.warning(f"OpenAI session close failed: {e}")
-            # Force cleanup even if close fails
             self._connection = None
             self._connection_manager = None
+        finally:
+            pass  # Ensure cleanup happens

@@ -55,7 +55,9 @@ Delimiter-driven runtime. Delimiters = opcodes, English = data.
 §execute: halt → system runs tool → resume
 §end: terminate turn
 
-Stream think/respond freely. Execute/end halt."""
+Stream think/respond freely. Execute/end halt.
+
+If a tool call fails, analyze the error and attempt a different approach; do not repeat the same failed call."""
 
     examples = """EXAMPLES
 

@@ -18,7 +18,6 @@ from ..lib.logger import logger
 from ..lib.resilience import CircuitBreaker
 from ..tools.parse import parse_tool_call
 from .config import Execution
-from .exceptions import ProtocolError
 from .executor import execute_tool
 from .protocols import Event, ToolResult, event_content, event_type
 
@@ -90,7 +89,7 @@ class Accumulator:
         try:
             tool_call = parse_tool_call(call_text)
             call_json = json.dumps({"name": tool_call.name, "args": tool_call.args})
-        except (json.JSONDecodeError, KeyError, ProtocolError) as e:
+        except (json.JSONDecodeError, KeyError) as e:
             logger.warning(f"Failed to parse tool call: {e}")
             await self.storage.save_message(
                 self.conversation_id, self.user_id, "call", call_text, self.start_time

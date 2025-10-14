@@ -24,7 +24,7 @@ class Anthropic(LLM):
 
         self.api_key = api_key or get_api_key("anthropic")
         if not self.api_key:
-            raise RuntimeError("No Anthropic API key found")
+            raise ValueError("No Anthropic API key found")
         self.http_model = http_model
         self.temperature = temperature
         self.max_tokens = max_tokens
@@ -50,8 +50,6 @@ class Anthropic(LLM):
                 return response.content[0].text
             except ImportError as e:
                 raise ImportError("Please install anthropic: pip install anthropic") from e
-            except Exception as e:
-                raise RuntimeError(f"Anthropic generate error: {str(e)}") from e
 
         return await with_rotation("ANTHROPIC", _generate_with_key)
 
@@ -71,12 +69,9 @@ class Anthropic(LLM):
         # Get streaming context manager with rotation
         stream_ctx = await with_rotation("ANTHROPIC", _stream_with_key)
 
-        try:
-            async with stream_ctx as stream:
-                async for text in stream.text_stream:
-                    yield text
-        except Exception as e:
-            raise RuntimeError(f"Anthropic streaming error: {str(e)}") from e
+        async with stream_ctx as stream:
+            async for text in stream.text_stream:
+                yield text
 
     # WebSocket methods - not supported by Anthropic
     async def connect(self, messages: list[dict]) -> "LLM":
