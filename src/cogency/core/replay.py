@@ -27,8 +27,14 @@ async def stream(
     *,
     config: Config,
     chunks: bool = False,
+    generate: bool = False,
 ):
-    """Stateless HTTP iterations with context rebuild per request."""
+    """Stateless HTTP iterations with context rebuild per request.
+    
+    Args:
+        generate: If True, use LLM.generate() for complete response.
+                 If False, use LLM.stream() for token-by-token streaming.
+    """
 
     llm = config.llm
     if llm is None:
@@ -84,7 +90,13 @@ async def stream(
             llm_output_chunks = []
 
             try:
-                async for event in accumulator.process(parse_tokens(llm.stream(messages))):
+                if generate:
+                    completion = await llm.generate(messages)
+                    token_source = completion
+                else:
+                    token_source = llm.stream(messages)
+
+                async for event in accumulator.process(parse_tokens(token_source)):
                     if (
                         event["type"] in ["think", "call", "respond"]
                         and metrics

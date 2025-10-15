@@ -111,6 +111,7 @@ class Agent:
         user_id: str | None = None,
         conversation_id: str | None = None,
         chunks: bool = False,
+        generate: bool = False,
     ):
         """Stream events for query.
 
@@ -119,6 +120,7 @@ class Agent:
             user_id: User identifier (None = no profile)
             conversation_id: Conversation identifier (None = stateless/ephemeral)
             chunks: If True, stream individual tokens. If False, stream semantic events.
+            generate: If True, use LLM.generate() for complete response (replay mode only).
         """
         try:
             import time
@@ -151,6 +153,7 @@ class Agent:
                         conversation_id,
                         config=self.config,
                         chunks=chunks,
+                        generate=generate,
                     ):
                         yield event
                     # Trigger profile learning if enabled
@@ -176,6 +179,7 @@ class Agent:
                 conversation_id,
                 config=self.config,
                 chunks=chunks,
+                generate=generate,
             ):
                 yield event
 

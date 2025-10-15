@@ -12,7 +12,7 @@ async def main():
     # Use a unique conversation ID for the test
     test_conversation_id = f"smoke-test-{asyncio.get_event_loop().time()}"
 
-    agent = Agent(llm="openai", mode="resume")
+    agent = Agent(llm="gemini", mode="resume")
 
     print("--- Test Run 1: Initial Question ---")
     print(f"Conversation ID: {test_conversation_id}")

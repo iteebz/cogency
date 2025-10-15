@@ -13,8 +13,6 @@ load_dotenv(override=True)
 def load_keys(prefix: str) -> list[str]:
     """Load API keys supporting numbered keys and service aliases (e.g., GEMINI→GOOGLE)."""
     keys = []
-    print(f"DEBUG: Loading keys for prefix: {prefix}")  # Added debug print
-
     patterns = [
         f"{prefix}_API_KEY",
         f"{prefix}_KEY",

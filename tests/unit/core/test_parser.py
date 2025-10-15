@@ -265,3 +265,42 @@ async def test_eager_emit_false_alarm_delimiter():
     assert len(events) == 2
     assert events[0] == {"type": "respond", "content": "Price: "}
     assert events[1] == {"type": "respond", "content": "§50"}
+
+
+@pytest.mark.asyncio
+async def test_parse_complete_string():
+    """Parser accepts complete string (generate mode)."""
+    completion = "§think: analyzing request §respond: The answer is 42 §end"
+
+    events = []
+    async for event in parse_tokens(completion):
+        events.append(event)
+
+    assert len(events) == 3
+    assert events[0] == {"type": "think", "content": "analyzing request "}
+    assert events[1] == {"type": "respond", "content": "The answer is 42 "}
+    assert events[2] == {"type": "end"}
+
+
+@pytest.mark.asyncio
+async def test_parse_complete_string_multiline():
+    """Parser handles complete multi-delimiter string."""
+    completion = (
+        "§respond: I'll help you.\n"
+        '§think: Need to call tool\n'
+        '§call: {"name": "read", "args": {"file": "test.txt"}}\n'
+        "§execute"
+    )
+
+    events = []
+    async for event in parse_tokens(completion):
+        events.append(event)
+
+    assert len(events) == 4
+    assert events[0]["type"] == "respond"
+    assert "I'll help you" in events[0]["content"]
+    assert events[1]["type"] == "think"
+    assert "Need to call tool" in events[1]["content"]
+    assert events[2]["type"] == "call"
+    assert "read" in events[2]["content"]
+    assert events[3]["type"] == "execute"

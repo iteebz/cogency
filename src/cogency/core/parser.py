@@ -6,6 +6,11 @@ from collections.abc import AsyncGenerator
 from ..lib.logger import logger
 from .protocols import Event
 
+
+async def _wrap_string(text: str) -> AsyncGenerator[str, None]:
+    """Wrap complete string as single-yield generator."""
+    yield text
+
 CONTENT_DELIMITERS = ("think", "call", "respond")
 CONTROL_DELIMITERS = ("execute", "end")
 DEFAULT_CONTENT_TYPE = "respond"
@@ -44,8 +49,13 @@ def _emit_content(
     return event, "", current_type
 
 
-async def parse_tokens(token_stream: AsyncGenerator[str, None]) -> AsyncGenerator[Event, None]:
-    """Transform raw token stream into structured protocol events."""
+async def parse_tokens(
+    token_stream: AsyncGenerator[str, None] | str,
+) -> AsyncGenerator[Event, None]:
+    """Transform raw token stream or complete string into structured protocol events."""
+
+    if isinstance(token_stream, str):
+        token_stream = _wrap_string(token_stream)
 
     buffer = ""
     current_type: str | None = None

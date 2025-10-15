@@ -51,7 +51,13 @@ class OpenAI(LLM):
                     temperature=self.temperature,
                     stream=False,
                 )
-                return response.choices[0].message.content or ""
+                if response.output_text:
+                    return response.output_text
+                if response.output and len(response.output) > 0:
+                    output_msg = response.output[0]
+                    if output_msg.content and len(output_msg.content) > 0:
+                        return output_msg.content[0].text or ""
+                return ""
             except ImportError as e:
                 raise ImportError("Please install openai: pip install openai") from e
 
@@ -76,10 +82,10 @@ class OpenAI(LLM):
 
         response_stream = await with_rotation("OPENAI", _stream_with_key)
 
-        # Stream native chunks without modification
         async for chunk in response_stream:
-            if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
-                yield chunk.choices[0].delta.content
+            content = chunk.choices[0].delta.content
+            if content:
+                yield content
 
     async def connect(self, messages: list[dict]) -> "OpenAI":
         """Create session with initial context. Returns session-enabled OpenAI instance."""
@@ -177,13 +183,11 @@ class OpenAI(LLM):
         # Stream response chunks until turn completion
         async for event in self._connection:
             if event.type == "response.output_audio_transcript.delta" and event.delta:
-                yield {"type": "respond", "content": event.delta}
+                yield event.delta
             elif event.type == "response.done":
-                yield {"type": "end"}
                 return
             elif event.type == "error":
                 if "already has an active response" in str(event):
-                    # Ignore this error and continue
                     continue
                 logger.warning(f"OpenAI session error: {event}")
                 return
@@ -208,10 +212,8 @@ class OpenAI(LLM):
             )
             self._connection = None
             self._connection_manager = None
-            self._connection = None
-            self._connection_manager = None
         finally:
-            pass  # Ensure cleanup happens
+            pass
 
     def _format_messages(self, messages: list[dict]) -> tuple[str, list[dict]]:
         """Converts cogency's message format to OpenAI Responses API's instructions and input format."""
