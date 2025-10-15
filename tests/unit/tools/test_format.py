@@ -1,7 +1,7 @@
 import json
 
+from cogency.core.codec import format_call_agent, format_result_agent, tool_instructions
 from cogency.core.protocols import ToolCall, ToolResult
-from cogency.tools.format import format_call_agent, format_result_agent, tool_instructions
 
 
 def test_tool_instructions(mock_tool):

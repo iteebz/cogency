@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools.code.read import Read
+from cogency.tools import Read
 
 
 @pytest.fixture

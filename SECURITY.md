@@ -17,7 +17,7 @@ Include description, reproduction steps, and impact assessment.
 
 **Implementation Files:**
 - `src/cogency/context/system.py` - Semantic security prompts
-- `src/cogency/tools/security.py` - Input validation and path resolution  
+- `src/cogency/core/security.py` - Input validation and path resolution  
 - `src/cogency/core/executor.py` - Context injection (sandbox mode)
 - `src/cogency/lib/paths.py` - Sandbox directory management
 
@@ -29,7 +29,7 @@ Include description, reproduction steps, and impact assessment.
 - **Impact:** Role hijacking, system prompt override, reasoning context manipulation
 - **Status:** ✅ Mitigated - Semantic security (LLM reasoning as first defense layer)
 - **Implementation:** `src/cogency/context/system.py` - Security section in agent prompt
-- **Code Reference:** `[SEC-001]` in `tools/security.py:62`
+- **Code Reference:** `[SEC-001]` in `core/security.py:62`
 - **Severity:** Critical
 
 #### SEC-002: Command Injection
@@ -37,8 +37,8 @@ Include description, reproduction steps, and impact assessment.
 - **Vector:** Unsanitized tool parameters enable shell injection and file system access
 - **Impact:** Execution of dangerous commands (rm -rf, fork bombs), sensitive path access
 - **Status:** ✅ Mitigated - Input sanitization with dangerous character blocking
-- **Implementation:** `sanitize_shell_input()` in `src/cogency/tools/security.py`
-- **Code Reference:** `[SEC-002]` in `tools/security.py:17,69`
+- **Implementation:** `sanitize_shell_input()` in `src/cogency/core/security.py`
+- **Code Reference:** `[SEC-002]` in `core/security.py:17,69`
 - **Tests:** `tests/unit/tools/test_security.py`, `tests/integration/test_security_architecture.py`
 - **Severity:** High
 
@@ -56,8 +56,8 @@ Include description, reproduction steps, and impact assessment.
 - **Vector:** Malicious file paths in tool parameters (`../../../etc/passwd`)
 - **Impact:** Access to sensitive system files (/etc/passwd, /bin/sh, etc.)
 - **Status:** ✅ Mitigated - Path validation with traversal prevention
-- **Implementation:** `validate_path()` in `src/cogency/tools/security.py`
-- **Code Reference:** `[SEC-004]` in `tools/security.py:53,69`
+- **Implementation:** `validate_path()` in `src/cogency/core/security.py`
+- **Code Reference:** `[SEC-004]` in `core/security.py:53,69`
 - **Tests:** `tests/unit/tools/test_security.py`, `tests/integration/test_security_architecture.py`
 - **Severity:** High
 

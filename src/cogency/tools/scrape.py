@@ -1,9 +1,9 @@
 import re
 from urllib.parse import urlparse
 
-from ...core.protocols import Tool, ToolResult
-from ...lib.logger import logger
-from ..security import safe_execute
+from ..core.protocols import Tool, ToolResult
+from ..core.security import safe_execute
+from ..lib.logger import logger
 
 SCRAPE_LIMIT = 3000
 

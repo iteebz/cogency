@@ -8,8 +8,8 @@ and novel attack vectors through natural language understanding.
 Defense layers: Semantic reasoning → Pattern validation → Sandbox containment
 """
 
+from ..core.codec import tool_instructions
 from ..core.protocols import Tool
-from ..tools.format import tool_instructions
 
 
 def prompt(

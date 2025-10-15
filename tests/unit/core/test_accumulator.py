@@ -1,8 +1,8 @@
 import pytest
 
 from cogency.core.accumulator import Accumulator
+from cogency.core.codec import ToolParseError
 from cogency.core.config import Config, Security
-from cogency.tools.parse import ToolParseError
 
 
 async def basic_parser():

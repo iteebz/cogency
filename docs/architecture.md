@@ -238,7 +238,7 @@ SECURITY_SECTION = """
 - **Function**: Input validation and resource limits at execution boundary
 - **Strategy**: Path safety, command sanitization, resource constraints
 - **Coverage**: File access, command execution, network operations
-- **Implementation**: Per-tool validation in `tools/security.py`
+- **Implementation**: Per-tool validation in `core/security.py`
 
 ```python
 # Example tool-level validation

@@ -2,8 +2,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from cogency.lib.sqlite import MessageMatch
 from cogency.tools import Recall
-from cogency.tools.memory.recall import MessageMatch
 
 
 @pytest.fixture

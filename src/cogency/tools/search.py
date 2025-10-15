@@ -1,12 +1,12 @@
-from ...core.protocols import Tool, ToolResult
-from ..security import safe_execute
+from ..core.protocols import Tool, ToolResult
+from ..core.security import safe_execute
 
 
 class Search(Tool):
-    """Search web."""
+    """Search the web for high-signal summaries."""
 
     name = "search"
-    description = "Search web. Returns 5 results with title/body/url."
+    description = "Search web. Returns up to 5 results with title/body/url."
     schema = {"query": {}}
 
     def describe(self, args: dict) -> str:

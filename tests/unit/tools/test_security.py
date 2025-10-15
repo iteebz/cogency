@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools.security import (
+from cogency.core.security import (
     resolve_file,
     sanitize_shell_input,
     timeout_context,

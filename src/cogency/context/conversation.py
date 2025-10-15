@@ -1,7 +1,7 @@
 import json
 
+from ..core.codec import format_result_agent
 from ..core.protocols import ToolResult
-from ..tools.format import format_result_agent
 
 
 def to_messages(events: list[dict]) -> list[dict]:

@@ -1,8 +1,8 @@
 import difflib
 
-from ...core.config import Access
-from ...core.protocols import Tool, ToolResult
-from ..security import resolve_file, safe_execute
+from ..core.config import Access
+from ..core.protocols import Tool, ToolResult
+from ..core.security import resolve_file, safe_execute
 
 
 class Edit(Tool):

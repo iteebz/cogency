@@ -16,7 +16,7 @@ from collections.abc import AsyncGenerator
 
 from ..lib.logger import logger
 from ..lib.resilience import CircuitBreaker
-from ..tools.parse import parse_tool_call
+from .codec import parse_tool_call
 from .config import Execution
 from .executor import execute_tool
 from .protocols import Event, ToolResult, event_content, event_type
@@ -157,7 +157,7 @@ class Accumulator:
             yield {"type": "end", "timestamp": timestamp}
             return
 
-        from ..tools.format import format_result_agent
+        from .codec import format_result_agent
 
         yield {
             "type": "result",

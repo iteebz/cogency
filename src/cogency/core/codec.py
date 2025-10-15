@@ -1,13 +1,51 @@
+"""Codec utilities for tool calls/results.
+
+Provides both serialization (formatting) helpers for model prompts
+and parsing helpers to recover structured objects from LLM output.
+"""
+
+from __future__ import annotations
+
 import json
 import re
+from collections.abc import Iterable
 
-from ..core.protocols import ToolCall, ToolResult
+from .protocols import Tool, ToolCall, ToolResult
 
 
 class ToolParseError(ValueError):
+    """Raised when tool output cannot be parsed safely."""
+
     def __init__(self, message: str, original_json: str | None = None) -> None:
         super().__init__(message)
         self.original_json = original_json
+
+
+def tool_instructions(tools: Iterable[Tool]) -> str:
+    """Generate dynamic tool instructions for LLM context."""
+    lines: list[str] = []
+
+    for tool in tools:
+        params: list[str] = []
+        schema = getattr(tool, "schema", {}) or {}
+        for param, info in schema.items():
+            params.append(param if info.get("required", True) else f"{param}?")
+        param_str = ", ".join(params)
+        lines.append(f"{tool.name}({param_str}) - {tool.description}")
+
+    return "TOOLS:\n" + "\n".join(lines)
+
+
+def format_call_agent(call: ToolCall) -> str:
+    """Serialize a ToolCall for agent consumption."""
+    return json.dumps({"name": call.name, "args": call.args})
+
+
+def format_result_agent(result: ToolResult) -> str:
+    """Serialize a ToolResult for agent consumption."""
+    if result.content:
+        return f"{result.outcome}\n{result.content}"
+    return result.outcome
 
 
 def _auto_escape_content(json_str: str) -> str:
@@ -68,7 +106,6 @@ def parse_tool_call(json_str: str) -> ToolCall:
         return ToolCall(name=data["name"], args=data.get("args", {}))
     except json.JSONDecodeError as e:
         raise ToolParseError(f"JSON parse failed: {e}", original_json=json_str) from e
-
     except KeyError as e:
         raise ToolParseError(f"Missing required field: {e}", original_json=json_str) from e
 

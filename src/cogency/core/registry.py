@@ -1,7 +1,7 @@
 from collections import defaultdict
 
-from ..core.protocols import Tool
 from ..lib.sqlite import Storage
+from .protocols import Tool
 
 
 class ToolRegistry:
@@ -12,21 +12,21 @@ class ToolRegistry:
         self._register_builtins()
 
     def _register_builtins(self):
-        from .code.edit import Edit
-        from .code.grep import Grep
-        from .code.ls import Ls
-        from .code.read import Read
-        from .code.shell import Shell
-        from .code.write import Write
-        from .memory.recall import Recall
-        from .web.scrape import Scrape
-        from .web.search import Search
+        from ..tools.edit import Edit
+        from ..tools.find import Find
+        from ..tools.list import List
+        from ..tools.read import Read
+        from ..tools.recall import Recall
+        from ..tools.scrape import Scrape
+        from ..tools.search import Search
+        from ..tools.shell import Shell
+        from ..tools.write import Write
 
         self.register(Read(), "code")
         self.register(Write(), "code")
         self.register(Edit(), "code")
-        self.register(Ls(), "code")
-        self.register(Grep(), "code")
+        self.register(List(), "code")
+        self.register(Find(), "code")
         self.register(Shell(), "code")
         self.register(Scrape(), "web")
         self.register(Search(), "web")

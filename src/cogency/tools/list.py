@@ -1,9 +1,9 @@
 import fnmatch
 from pathlib import Path
 
-from ...core.config import Access
-from ...core.protocols import Tool, ToolResult
-from ..security import resolve_file, safe_execute
+from ..core.config import Access
+from ..core.protocols import Tool, ToolResult
+from ..core.security import resolve_file, safe_execute
 
 DEFAULT_TREE_DEPTH = 3
 DEFAULT_IGNORED_DIRS = [
@@ -20,10 +20,10 @@ DEFAULT_IGNORED_DIRS = [
 ]
 
 
-class Ls(Tool):
+class List(Tool):
     """List files."""
 
-    name = "ls"
+    name = "list"
     description = "List files. Tree view, depth 3. pattern filters filenames."
     schema = {"path": {"optional": True}, "pattern": {"optional": True}}
 

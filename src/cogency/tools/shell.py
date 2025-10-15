@@ -2,8 +2,8 @@ import glob
 import subprocess
 from pathlib import Path
 
-from ...core.protocols import Tool, ToolResult
-from ..security import safe_execute, sanitize_shell_input
+from ..core.protocols import Tool, ToolResult
+from ..core.security import safe_execute, sanitize_shell_input
 
 
 class Shell(Tool):

@@ -1,16 +1,16 @@
 import re
 from pathlib import Path
 
-from ...core.config import Access
-from ...core.protocols import Tool, ToolResult
-from ..security import resolve_file, safe_execute
+from ..core.config import Access
+from ..core.protocols import Tool, ToolResult
+from ..core.security import resolve_file, safe_execute
 
 
-class Grep(Tool):
-    """Search files."""
+class Find(Tool):
+    """Find files and content."""
 
-    name = "grep"
-    description = "Search files. pattern: filename match. content: text inside. Combinable."
+    name = "find"
+    description = "Find code. pattern filters filenames, content searches file text."
     schema = {
         "pattern": {"optional": True},
         "content": {"optional": True},
@@ -22,7 +22,7 @@ class Grep(Tool):
 
     def describe(self, args: dict) -> str:
         query = args.get("content") or args.get("pattern", "files")
-        return f'Searching files for "{query}"'
+        return f'Finding files for "{query}"'
 
     @safe_execute
     async def execute(
@@ -77,7 +77,7 @@ class Grep(Tool):
                 return "."
 
         def describe_query() -> list[str]:
-            lines = [f"Search root: {describe_root()}"]
+            lines = [f"Root: {describe_root()}"]
             if pattern:
                 lines.append(f"Pattern: {pattern}")
             if content:
@@ -132,7 +132,7 @@ class Grep(Tool):
         pattern: str,
         content: str,
     ) -> list:
-        """Search files and return clean visual results."""
+        """Find files and return clean visual results."""
         results = []
         root = workspace_root
 
@@ -189,7 +189,7 @@ class Grep(Tool):
         return pattern.lower() in filename.lower()
 
     def _search_content(self, file_path: Path, search_term: str) -> list:
-        """Search file content and return (line_num, line_text) tuples."""
+        """Find matches in file content and return (line_num, line_text) tuples."""
         matches = []
 
         try:

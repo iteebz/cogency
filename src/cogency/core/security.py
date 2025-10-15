@@ -15,10 +15,10 @@ from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ..core.protocols import ToolResult
+from .protocols import ToolResult
 
 if TYPE_CHECKING:
-    from ..core.config import Access
+    from .config import Access
 
 
 def _has_unquoted(command: str, targets: set[str]) -> str | None:

@@ -1,6 +1,6 @@
 import pytest
 
-from cogency.tools.parse import _auto_escape_content, parse_tool_call, parse_tool_result
+from cogency.core.codec import _auto_escape_content, parse_tool_call, parse_tool_result
 
 
 def test_valid_json():

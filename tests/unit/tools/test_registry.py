@@ -1,7 +1,7 @@
 import pytest
 
 from cogency.core.protocols import Tool
-from cogency.tools.registry import ToolRegistry
+from cogency.core.registry import ToolRegistry
 
 
 def test_register(mock_tool, mock_storage):

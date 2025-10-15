@@ -103,7 +103,7 @@ async for event in agent(
 
 ### Built-in Tools
 
-- `read`, `write`, `edit`, `list`, `grep`
+- `read`, `write`, `edit`, `list`, `find`
 - `search`, `scrape`
 - `recall`
 - `shell`

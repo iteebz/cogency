@@ -2,7 +2,7 @@ import shlex
 
 import pytest
 
-from cogency.tools import Grep
+from cogency.tools import Find
 
 
 @pytest.mark.asyncio
@@ -12,11 +12,11 @@ async def test_reports_zero_matches(tmp_path, monkeypatch):
     (workspace / "app.py").write_text("print('hello world')\n", encoding="utf-8")
     monkeypatch.chdir(workspace)
 
-    tool = Grep()
+    tool = Find()
     result = await tool.execute(content="missing", path=".", access="project")
 
     assert result.outcome == "Found 0 matches"
-    assert "Search root: ." in result.content
+    assert "Root: ." in result.content
     assert "Content: missing" in result.content
 
 
@@ -30,7 +30,7 @@ async def test_returns_relative_paths_with_counts(tmp_path, monkeypatch):
     (pkg_dir / "beta.py").write_text("def bar():\n    return 'alpha'\n", encoding="utf-8")
     monkeypatch.chdir(workspace)
 
-    tool = Grep()
+    tool = Find()
     result = await tool.execute(content="alpha", path="pkg", access="project")
 
     assert result.outcome == "Found 2 matches"

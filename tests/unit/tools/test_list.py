@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools import Ls
+from cogency.tools import List
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def setup_test_dir(tmp_path):
 
 @pytest.mark.asyncio
 async def test_hides_ignored_directories(setup_test_dir):
-    tool = Ls()
+    tool = List()
     result = await tool.execute(path=str(setup_test_dir), access="system")
 
     assert not result.error
@@ -70,7 +70,7 @@ async def test_hides_ignored_directories_recursive(setup_test_dir):
     (setup_test_dir / "regular_dir" / "node_modules").mkdir()
     (setup_test_dir / "regular_dir" / "node_modules" / "nested_package.json").write_text("{}")
 
-    tool = Ls()
+    tool = List()
     result = await tool.execute(path=str(setup_test_dir), access="system")
 
     assert not result.error
@@ -90,7 +90,7 @@ async def test_empty_directory_with_ignored_dirs(tmp_path):
     (tmp_path / "empty_but_ignored").mkdir()
     (tmp_path / "empty_but_ignored" / "node_modules").mkdir()
 
-    tool = Ls()
+    tool = List()
     result = await tool.execute(path=str(tmp_path / "empty_but_ignored"), access="system")
 
     assert not result.error
@@ -105,7 +105,7 @@ async def test_only_ignored_dirs_in_root(tmp_path):
     (tmp_path / "only_ignored" / "node_modules").mkdir()
     (tmp_path / "only_ignored" / ".venv").mkdir()
 
-    tool = Ls()
+    tool = List()
     result = await tool.execute(path=str(tmp_path / "only_ignored"), access="system")
 
     assert not result.error
@@ -120,7 +120,7 @@ async def test_only_ignored_dirs_in_root(tmp_path):
 @pytest.mark.asyncio
 async def test_simple_pattern_matching(tmp_path: Path):
     """The ls tool should correctly filter files by glob pattern."""
-    tool = Ls()
+    tool = List()
     (tmp_path / "file1.py").write_text("content")
     (tmp_path / "file2.txt").write_text("content")
     sub_dir = tmp_path / "sub"
@@ -143,7 +143,7 @@ async def test_simple_pattern_matching(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_complex_pattern_matching(tmp_path: Path):
     """The ls tool should correctly filter files by glob pattern with multiple asterisks."""
-    tool = Ls()
+    tool = List()
     (tmp_path / "file1.py").write_text("content")
 
     result = await tool.execute(
@@ -160,7 +160,7 @@ async def test_pattern_does_not_override_ignored_dirs(setup_test_dir):
     # Try to list a file within an ignored directory using a pattern
     (setup_test_dir / "node_modules" / "important.js").write_text("console.log('important');")
 
-    tool = Ls()
+    tool = List()
     result = await tool.execute(path=str(setup_test_dir), pattern="*.js", access="system")
 
     assert not result.error
