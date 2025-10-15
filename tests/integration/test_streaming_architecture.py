@@ -158,29 +158,29 @@ async def test_event_taxonomy(mock_llm, mock_tool):
 @pytest.mark.asyncio
 async def test_generate_mode(mock_llm, mock_tool):
     """Parser accepts complete string from LLM.generate()."""
-    
+
     completion = "§think: analyzing request §respond: The answer is 42 §end"
-    
+
     class GenerateMockLLM:
         async def generate(self, messages):
             return completion
-        
+
         async def stream(self, messages):
             for token in completion:
                 yield token
-    
+
     agent = Agent(llm=GenerateMockLLM(), tools=[mock_tool()], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test", chunks=False, generate=True)]
-    
+
     event_types = [e["type"] for e in events]
-    
+
     assert "user" in event_types
     assert "think" in event_types
     assert "respond" in event_types
     assert "end" in event_types
-    
+
     think_event = next(e for e in events if e["type"] == "think")
     assert "analyzing request" in think_event["content"]
-    
+
     respond_event = next(e for e in events if e["type"] == "respond")
     assert "42" in respond_event["content"]

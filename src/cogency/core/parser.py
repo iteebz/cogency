@@ -11,6 +11,7 @@ async def _wrap_string(text: str) -> AsyncGenerator[str, None]:
     """Wrap complete string as single-yield generator."""
     yield text
 
+
 CONTENT_DELIMITERS = ("think", "call", "respond")
 CONTROL_DELIMITERS = ("execute", "end")
 DEFAULT_CONTENT_TYPE = "respond"
@@ -26,27 +27,21 @@ _DELIMITER_TOKENS = ["§think:", "§call:", "§respond:", "§execute", "§end"]
 def _pending_delimiter_start(buffer: str) -> int | None:
     """Return index where a partial delimiter begins, if any."""
     lower = buffer.lower()
-    for index, char in enumerate(lower):
-        if char != "§":
-            continue
-        remainder = lower[index:]
+    idx = lower.find("§")
+    while idx != -1:
+        remainder = lower[idx:]
         if any(token.startswith(remainder) for token in _DELIMITER_TOKENS):
-            return index
+            return idx
+        idx = lower.find("§", idx + 1)
     return None
 
 
-def _emit_content(
-    chunk: str,
-    current_type: str | None,
-    pending_ws: str,
-) -> tuple[Event | None, str, str | None]:
+def _emit_content(chunk: str, current_type: str | None) -> Event | None:
     """Prepare a content event if the chunk carries signal."""
     if not chunk:
-        return None, "", current_type
-
+        return None
     content_type = current_type or DEFAULT_CONTENT_TYPE
-    event: Event = {"type": content_type, "content": chunk}
-    return event, "", current_type
+    return {"type": content_type, "content": chunk}
 
 
 async def parse_tokens(
@@ -59,7 +54,6 @@ async def parse_tokens(
 
     buffer = ""
     current_type: str | None = None
-    pending_ws = ""
 
     async for token in token_stream:
         if not isinstance(token, str):
@@ -76,8 +70,7 @@ async def parse_tokens(
             prefix = buffer[: match.start()]
             buffer = buffer[match.end() :]
 
-            event, pending_ws, current_type = _emit_content(prefix, current_type, pending_ws)
-            if event:
+            if event := _emit_content(prefix, current_type):
                 yield event
 
             control = match.group("control")
@@ -87,14 +80,12 @@ async def parse_tokens(
                 if control_type == "end":
                     return
                 current_type = None
-                pending_ws = ""
                 continue
 
             name = match.group("name")
             if name is None:
                 continue
             current_type = name.lower()
-            pending_ws = ""
 
         if not buffer:
             continue
@@ -105,11 +96,8 @@ async def parse_tokens(
         else:
             chunk, buffer = buffer[:partial_idx], buffer[partial_idx:]
 
-        event, pending_ws, current_type = _emit_content(chunk, current_type, pending_ws)
-        if event:
+        if event := _emit_content(chunk, current_type):
             yield event
 
-    if buffer:
-        event, pending_ws, current_type = _emit_content(buffer, current_type, pending_ws)
-        if event:
-            yield event
+    if buffer and (event := _emit_content(buffer, current_type)):
+        yield event

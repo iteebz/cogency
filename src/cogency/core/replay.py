@@ -30,7 +30,7 @@ async def stream(
     generate: bool = False,
 ):
     """Stateless HTTP iterations with context rebuild per request.
-    
+
     Args:
         generate: If True, use LLM.generate() for complete response.
                  If False, use LLM.stream() for token-by-token streaming.

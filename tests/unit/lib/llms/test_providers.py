@@ -30,9 +30,7 @@ async def test_llm_generate(llm_instance):
         mock_response = MagicMock()  # Make mock_response a MagicMock
 
         if name == "OpenAI":
-            mock_response.choices = [MagicMock()]
-            mock_response.choices[0].message = MagicMock()
-            mock_response.choices[0].message.content = "Generated text."
+            mock_response.output_text = "Generated text."
             mock_client_instance.responses.create = AsyncMock(return_value=mock_response)
         elif name == "Gemini":
             mock_response.text = "Generated text."

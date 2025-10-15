@@ -70,6 +70,8 @@ class DB:
             cls._init_schema(path)
             cls._initialized_paths.add(str(path))
 
+        if not path.exists():
+            path.touch()
         return sqlite3.connect(path)
 
     @classmethod
@@ -118,7 +120,7 @@ class DB:
 
 class SQLite:
     def __init__(self, db_path: str = ".cogency/store.db"):
-        self.db_path = db_path
+        self.db_path = str(Path(db_path).resolve())
 
     @retry(attempts=3, base_delay=0.1)
     async def save_message(

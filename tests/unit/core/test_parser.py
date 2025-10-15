@@ -287,7 +287,7 @@ async def test_parse_complete_string_multiline():
     """Parser handles complete multi-delimiter string."""
     completion = (
         "§respond: I'll help you.\n"
-        '§think: Need to call tool\n'
+        "§think: Need to call tool\n"
         '§call: {"name": "read", "args": {"file": "test.txt"}}\n'
         "§execute"
     )

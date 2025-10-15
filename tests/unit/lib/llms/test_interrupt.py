@@ -23,7 +23,7 @@ class MockLLM:
 
 
 @pytest.mark.asyncio
-async def test_interruptible_re_raises_exception():
+async def test_re_raises_exception():
     mock_llm = MockLLM()
     with patch("cogency.lib.logger.logger.error") as mock_logger_error:
         with pytest.raises(RuntimeError, match="Test Error"):
@@ -33,7 +33,7 @@ async def test_interruptible_re_raises_exception():
 
 
 @pytest.mark.asyncio
-async def test_interruptible_yields_chunks_without_error():
+async def test_yields_chunks_without_error():
     mock_llm = MockLLM()
     collected_chunks = []
     async for chunk in mock_llm.mock_async_generator_no_error():
@@ -42,7 +42,7 @@ async def test_interruptible_yields_chunks_without_error():
 
 
 @pytest.mark.asyncio
-async def test_interruptible_handles_keyboard_interrupt():
+async def test_handles_keyboard_interrupt():
     mock_llm = MockLLM()
 
     @interruptible
@@ -58,7 +58,7 @@ async def test_interruptible_handles_keyboard_interrupt():
 
 
 @pytest.mark.asyncio
-async def test_interruptible_handles_cancelled_error():
+async def test_handles_cancelled_error():
     mock_llm = MockLLM()
 
     @interruptible

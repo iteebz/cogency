@@ -31,7 +31,7 @@ async def stream(
     generate: bool = False,
 ):
     """WebSocket streaming with tool injection and session continuity.
-    
+
     Args:
         generate: Ignored in resume mode (WebSocket is inherently streaming).
     """
