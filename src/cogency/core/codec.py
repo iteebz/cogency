@@ -56,18 +56,24 @@ def _auto_escape_content(json_str: str) -> str:
 
     value_start = content_start + len('"content": "')
     i = value_start
-    bracket_depth = 0
+    escaped = False
 
     while i < len(json_str):
         char = json_str[i]
-        if char == "{":
-            bracket_depth += 1
-        elif char == "}":
-            bracket_depth -= 1
-        elif (
-            char == '"' and i + 1 < len(json_str) and json_str[i + 1] in ",}" and bracket_depth <= 0
-        ):
+
+        if escaped:
+            escaped = False
+            i += 1
+            continue
+
+        if char == "\\":
+            escaped = True
+            i += 1
+            continue
+
+        if char == '"':
             break
+
         i += 1
 
     if i >= len(json_str):

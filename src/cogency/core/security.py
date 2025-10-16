@@ -180,18 +180,19 @@ def resolve_file(file: str, access: "Access", sandbox_dir: str = ".cogency/sandb
 
 @contextmanager
 def timeout_context(seconds: int):
-    """Context manager for operation timeouts."""
+    """Context manager for operation timeouts.
+
+    Note: Unix-only. signal.SIGALRM not available on Windows—timeouts silently disabled.
+    """
 
     def timeout_handler(signum, frame):
         raise TimeoutError(f"Operation timed out after {seconds} seconds")
 
-    # Set up signal handler (Unix only)
     try:
         old_handler = signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(seconds)
         yield
     except AttributeError:
-        # Windows - no signal.SIGALRM, just yield without timeout
         yield
     finally:
         try:

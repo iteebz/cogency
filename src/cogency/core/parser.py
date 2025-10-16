@@ -30,7 +30,7 @@ def _pending_delimiter_start(buffer: str) -> int | None:
     idx = lower.find("§")
     while idx != -1:
         remainder = lower[idx:]
-        if any(token.startswith(remainder) for token in _DELIMITER_TOKENS):
+        if any(remainder.startswith(token[: len(remainder)]) for token in _DELIMITER_TOKENS):
             return idx
         idx = lower.find("§", idx + 1)
     return None

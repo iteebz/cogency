@@ -30,7 +30,7 @@ def test_auto_escape_content():
 
 
 def test_auto_escape_quotes():
-    json_str = '{"name": "w", "args": {"content": "say "hi""}}'
+    json_str = '{"name": "w", "args": {"content": "say \\"hi\\""}}'
     result = parse_tool_call(json_str)
     assert result.args["content"] == 'say "hi"'
 

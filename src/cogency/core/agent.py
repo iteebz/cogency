@@ -165,10 +165,10 @@ class Agent:
                             llm=self.config.llm,
                         )
                     return
-                except Exception as e:
+                except (RuntimeError, ValueError, AttributeError, httpx.RequestError) as e:
                     from ..lib.logger import logger
 
-                    logger.debug(f"Resume failed, falling back to replay: {e}")
+                    logger.debug(f"Resume unavailable, falling back to replay: {e}")
                     mode_stream = replay.stream
             else:
                 mode_stream = replay.stream

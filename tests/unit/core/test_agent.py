@@ -47,17 +47,16 @@ def test_custom_tools(mock_llm, mock_storage):
 async def test_fallback_learns(mock_llm, mock_storage):
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto", profile=True)
 
+    async def mock_replay_stream(*args, **kwargs):
+        yield {"type": "respond", "content": "test"}
+
     with (
         patch("cogency.core.resume.stream") as mock_resume,
         patch("cogency.core.replay.stream") as mock_replay,
         patch("cogency.context.learn") as mock_learn,
     ):
-        mock_resume.side_effect = Exception("WebSocket failed")
-
-        async def mock_replay_stream(*args, **kwargs):
-            yield {"type": "respond", "content": "test"}
-
-        mock_replay.return_value = mock_replay_stream()
+        mock_resume.side_effect = RuntimeError("WebSocket failed")
+        mock_replay.side_effect = mock_replay_stream
 
         events = [
             e async for e in agent("test query", user_id="test_user", conversation_id="test_convo")
