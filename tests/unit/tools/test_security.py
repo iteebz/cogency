@@ -51,7 +51,9 @@ def safe():
 
 def test_shell_blocks_injection(attacks):
     for cmd in attacks["shell"]:
-        with pytest.raises(ValueError, match="Invalid shell command syntax"):
+        with pytest.raises(
+            ValueError, match="Invalid shell command syntax|not supported|not allowed"
+        ):
             sanitize_shell_input(cmd)
 
 

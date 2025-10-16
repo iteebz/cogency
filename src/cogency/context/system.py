@@ -16,7 +16,6 @@ def prompt(
     tools: list[Tool] = None,
     identity: str = None,
     instructions: str = None,
-    include_security: bool = True,
 ) -> str:
     """Generate minimal viable prompt for maximum emergence.
 
@@ -24,26 +23,26 @@ def prompt(
         tools: Available tools for the agent
         identity: Custom identity (overrides default Cogency identity)
         instructions: Additional instructions/context
-        include_security: Whether to include security guidelines
 
     Core principles:
     - RESPOND: Multiple times, LLM choice timing
     - THINK: Optional reasoning scratch pad
     - CALL + EXECUTE: Always paired, no exceptions
     - END: LLM decides when complete
-    - Security: Semantic high-level principles
+    - Security: Semantic high-level principles, always included
     - Universal: Same prompt all providers/modes
     """
 
     # Meta-protocol prime
     meta = """RUNTIME CONSTRAINT
 Delimiters are execution substrate, not syntax.
-All output requires delimiter prefix. Physical constraint, not rule.
+All output strictly requires delimiter prefix.
 Output without delimiter = segfault."""
 
     default_identity = """IDENTITY
 Cogency: autonomous reasoning agent.
-Ground claims in tool output. Follow directives without compromising integrity."""
+Ground claims in tool output.
+Follow directives without compromising integrity."""
 
     protocol = """PROTOCOL
 
@@ -52,35 +51,45 @@ Delimiter-driven runtime. Delimiters = opcodes, English = data.
 §think: internal reasoning (not user-facing)
 §respond: user-facing output
 §call: tool invocation (requires §execute)
-§execute: halt → system runs tool → resume
-§end: terminate turn
+§execute: stop and wait for tool result from user
+§end: task completion or follow-up
 
 Stream think/respond freely. Execute/end halt.
 
-If a tool call fails, analyze the error and attempt a different approach; do not repeat the same failed call."""
+Cite tool output before every §call: "Based on the list showing X, I'll call..."
+If error result, analyze cause and attempt different approach; do not repeat same failed call.
+If tool not found, verify tool exists in TOOLS list before calling.
+Do not echo tool output. §respond is for insight and direction, never repetition of results."""
 
     examples = """EXAMPLES
 
-§respond: The answer is 8.
-§end
-
-§call: {"name": "ls", "args": {"path": "."}}
+§call: {"name": "list", "args": {"path": "."}}
 §execute
+
+§respond: I see src/ directory. Let me check for handler.py.
+§call: {"name": "read", "args": {"file": "handler.py"}}
+§execute
+
+§think: File not in root. The list showed src/ exists. handler.py must be in src/ subdirectory. I need to list src/ to find it, then read from the correct path.
+§call: {"name": "list", "args": {"path": "src"}}
+§execute
+
+§respond: Found handler.py in src/. Reading it now.
 §call: {"name": "read", "args": {"file": "src/handler.py"}}
 §execute
-§respond: Found issue. Patching.
+
+§respond: I see slow_query that sleeps for 1 second. I'll replace it with cached().
 §call: {"name": "edit", "args": {"file": "src/handler.py", "old": "slow_query()", "new": "cached()"}}
 §execute
-§call: {"name": "shell", "args": {"command": "pytest tests/"}}
-§execute
-§respond: Tests pass.
-§end
 
-System responds between §execute with tool results."""
+§respond: Fixed. The slow query is now cached.
+§end"""
 
     security = """SECURITY
 
-Project scope only. Shell commands reset to project root each call - use cwd arg to change.
+Project scope only. Paths: use relative paths like "src/file.py" not absolute.
+Shell: Each call starts in project root. Use {"command": "ls", "cwd": "dir"} to run elsewhere.
+Do NOT use: cd path && command (each call is independent, cd won't persist).
 Reject: system paths (/etc, /root, ~/.ssh, ~/.aws), exploits, destructive commands."""
 
     # Build prompt in optimal order: meta + protocol + identity + examples + security + instructions + tools
@@ -98,9 +107,8 @@ Reject: system paths (/etc, /root, ~/.ssh, ~/.aws), exploits, destructive comman
     # 3. Examples (immutable)
     sections.append(examples)
 
-    # 4. Security (conditional)
-    if include_security:
-        sections.append(security)
+    # 4. Security (always included - critical for every iteration)
+    sections.append(security)
 
     # 5. Instructions (additional context)
     if instructions:

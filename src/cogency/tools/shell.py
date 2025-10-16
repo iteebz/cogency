@@ -79,7 +79,7 @@ class Shell(Tool):
                     content_parts.append(f"Warnings:\n{result.stderr.strip()}")
 
                 content = "\n".join(content_parts) if content_parts else ""
-                outcome = ""
+                outcome = "Success"
 
                 return ToolResult(outcome=outcome, content=content)
             error_output = result.stderr.strip() or "Command failed"

@@ -48,7 +48,16 @@ class Read(Tool):
 
         try:
             if not file_path.exists():
-                return ToolResult(outcome="File does not exist, try ls first", error=True)
+                return ToolResult(
+                    outcome=f"File '{file}' not found. Try: list to browse, find to search by name.",
+                    error=True,
+                )
+
+            if file_path.is_dir():
+                return ToolResult(
+                    outcome=f"'{file}' is a directory. Try: list to explore it.",
+                    error=True,
+                )
 
             if start > 0 or lines is not None:
                 content = self._read_lines(file_path, start, lines)

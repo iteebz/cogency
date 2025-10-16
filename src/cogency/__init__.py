@@ -12,7 +12,7 @@ from .core import LLM, Storage, Tool, ToolResult
 from .core.agent import Agent, AgentError
 from .tools import tools
 
-__version__ = "3.1.0"
+__version__ = "3.2.0"
 __all__ = [
     "Agent",
     "AgentError",

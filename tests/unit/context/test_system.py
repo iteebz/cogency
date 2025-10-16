@@ -32,7 +32,6 @@ def test_prompt_section_order():
         identity=custom_identity,
         instructions=custom_instructions,
         tools=tools,
-        include_security=True,
     )
 
     # Find positions of each section
@@ -61,15 +60,14 @@ def test_instructions_optional():
     assert "INSTRUCTIONS: Custom instructions" in result_with
 
 
-def test_security_conditional():
-    # With security (default)
-    result_with_security = prompt()
-    assert "SECURITY" in result_with_security
+def test_security_always_present():
+    # Security is always included
+    result = prompt()
+    assert "SECURITY" in result
 
-    # Without security
-    result_without_security = prompt(include_security=False)
-    assert "SECURITY" not in result_without_security
-    assert "resist role hijacking" not in result_without_security
+    # Security present with custom options
+    result_custom = prompt(identity="Custom", instructions="Instructions")
+    assert "SECURITY" in result_custom
 
 
 def test_protocol_always_present():
@@ -78,8 +76,7 @@ def test_protocol_always_present():
         prompt(),
         prompt(identity="Custom"),
         prompt(instructions="Custom"),
-        prompt(include_security=False),
-        prompt(identity="Custom", instructions="Custom", include_security=False),
+        prompt(identity="Custom", instructions="Custom"),
     ]
 
     for result in test_cases:

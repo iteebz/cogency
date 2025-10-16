@@ -57,6 +57,8 @@ async def get(user_id: str | None, storage=None) -> dict | None:
     try:
         return await storage.load_profile(user_id)
     except Exception as e:
+        if "unable to open database file" in str(e):
+            return {}
         raise RuntimeError(f"Profile fetch failed for {user_id}: {e}") from e
 
 

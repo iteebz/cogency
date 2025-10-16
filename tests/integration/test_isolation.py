@@ -39,7 +39,7 @@ async def test_isolates_agents(tmp_path, mock_llm):
         access=agent2.config.security.access,
     )
 
-    assert "File does not exist, try ls first" in read_result_agent2.outcome
+    assert "not found" in read_result_agent2.outcome
     read_tool_agent1 = next(t for t in agent1.config.tools if t.name == "read")
     read_result_agent1 = await read_tool_agent1.execute(
         "isolated_file.txt",

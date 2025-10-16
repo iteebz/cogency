@@ -63,4 +63,4 @@ async def test_read_file_not_found():
     result = await read_tool.execute("non_existent_file.txt", access="system")
 
     assert result.error
-    assert "File does not exist" in result.outcome
+    assert "not found" in result.outcome

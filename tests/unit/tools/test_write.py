@@ -78,5 +78,5 @@ async def test_fails_without_overwrite(tmp_path):
     )
 
     assert result.error is True
-    assert "File existing_file.txt already exists" in result.outcome
+    assert "already exists" in result.outcome
     assert target.read_text() == "initial content"

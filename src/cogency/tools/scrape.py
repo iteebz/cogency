@@ -42,7 +42,9 @@ class Scrape(Tool):
 
         extracted = trafilatura.extract(content, include_tables=True)
         if not extracted:
-            return ToolResult(outcome=f"Scraped {domain}", content="No readable content found")
+            return ToolResult(
+                outcome=f"Scraped {domain} (0KB)", content="No readable content found"
+            )
 
         content_formatted = self._format_content(extracted)
         size_kb = len(content_formatted) / 1024

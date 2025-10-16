@@ -7,6 +7,8 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from cogency import __version__
+
 from .generate import coding, continuity, conversation, integrity, reasoning, research, security
 from .runner import run_category
 
@@ -42,7 +44,7 @@ async def _run_single(category, samples, agent_kwargs, judge_llm, llm, mode, see
 
 async def _run_all(samples, agent_kwargs, judge_llm, llm, mode, seed):
     """Execute full evaluation suite."""
-    print("🧠 Cogency Evaluation Suite v3.0.0")
+    print(f"🧠 Cogency Evaluation Suite {__version__}")
     print("=" * 50)
 
     generators = _generators()
@@ -68,7 +70,7 @@ async def _run_all(samples, agent_kwargs, judge_llm, llm, mode, seed):
 
     return {
         "run_id": run_id,
-        "version": "v3.1.0",
+        "version": __version__,
         "total": total,
         "passed": passed,
         "rate": f"{passed / total:.1%}" if total else "0.0%",
@@ -107,7 +109,7 @@ def _persist_run(results, samples, llm, mode, judge_llm, seed):
         passed = sum(r.get("passed", 0) for r in results)
         summary = {
             "run_id": run_id,
-            "version": "v3.1.0",
+            "version": __version__,
             "total": total,
             "passed": passed,
             "rate": f"{passed / total:.1%}" if total else "0.0%",

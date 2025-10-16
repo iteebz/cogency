@@ -27,11 +27,14 @@ async def assemble(
 
     messages = []
 
-    events = await storage.load_messages(conversation_id, user_id)
-    if events:
-        conv_messages = to_messages(events)
-        if history_window is not None:
-            conv_messages = conv_messages[-history_window:]
-        messages.extend(conv_messages)
+    try:
+        events = await storage.load_messages(conversation_id, user_id)
+        if events:
+            conv_messages = to_messages(events)
+            if history_window is not None:
+                conv_messages = conv_messages[-history_window:]
+            messages.extend(conv_messages)
+    except Exception:
+        pass
 
     return [{"role": "system", "content": "\n\n".join(system_content)}] + messages

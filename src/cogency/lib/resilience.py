@@ -3,33 +3,26 @@ from functools import wraps
 
 
 def retry(attempts: int = 3, base_delay: float = 0.1):
-    """Simple retry decorator with exponential backoff - no Result ceremony."""
+    """Retry decorator with exponential backoff. Raises exception on final failure."""
 
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
+            last_exc = None
             for attempt in range(attempts):
                 try:
-                    result = (
+                    return (
                         await func(*args, **kwargs)
                         if asyncio.iscoroutinefunction(func)
                         else func(*args, **kwargs)
                     )
-
-                    # For functions that return False on failure, treat as exception
-                    if result is False:
-                        raise RuntimeError("Operation returned False")
-
-                    return result
-
-                except Exception:
-                    # If this is the last attempt, don't sleep or retry
+                except Exception as e:
+                    last_exc = e
                     if attempt < attempts - 1:
                         delay = base_delay * (2**attempt)
                         await asyncio.sleep(delay)
 
-            # All attempts failed - return False for graceful degradation
-            return False
+            raise last_exc
 
         return wrapper
 

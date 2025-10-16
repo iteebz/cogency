@@ -60,7 +60,7 @@ class List(Tool):
         tree_lines = self._build_tree(target, pattern, depth=DEFAULT_TREE_DEPTH, stats=stats)
 
         if not tree_lines:
-            return ToolResult(outcome="Listed directory", content="No files found")
+            return ToolResult(outcome="Listed 0 items", content="No files found")
 
         content = "\n".join(tree_lines)
         total_items = stats["files"] + stats["dirs"]
@@ -71,7 +71,7 @@ class List(Tool):
         else:
             outcome = f"Listed {stats['files']} {'file' if stats['files'] == 1 else 'files'}"
 
-        return ToolResult(outcome=outcome, content=content)
+        return ToolResult(outcome=outcome, content=f"Contents:\n{content}")
 
     def _build_tree(
         self,

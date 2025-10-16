@@ -37,18 +37,24 @@ class Edit(Tool):
         file_path = resolve_file(file, access, sandbox_dir)
 
         if not file_path.exists():
-            return ToolResult(outcome=f"File '{file}' does not exist", error=True)
+            return ToolResult(
+                outcome=f"File '{file}' not found. Try: list to browse, find to search by name.",
+                error=True,
+            )
 
         with open(file_path, encoding="utf-8") as f:
             content = f.read()
 
         if old not in content:
-            return ToolResult(outcome=f"Text not found: '{old}'", error=True)
+            return ToolResult(
+                outcome=f"Text not found in '{file}'. Verify exact content including whitespace.",
+                error=True,
+            )
 
         matches = content.count(old)
         if matches > 1:
             return ToolResult(
-                outcome=f"Found {matches} matches for '{old}' - be more specific",
+                outcome=f"Found {matches} matches - provide more context to make it unique",
                 error=True,
             )
 

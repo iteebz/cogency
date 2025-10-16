@@ -98,6 +98,10 @@ def sanitize_shell_input(command: str) -> str:
     # - `；`, `｜` are full-width variants.
     # - `$` enables expansion unless wrapped in single quotes.
     if char := _has_unquoted(command, {";", "&", "|", "`", "<", ">", "；", "｜"}):
+        if "&&" in command:
+            raise ValueError(
+                "Chained commands not supported. Each shell call is independent - use cwd argument to run in different directories."
+            )
         raise ValueError(f"Invalid shell command syntax: character '{char}' is not allowed")
 
     # Allow `$` inside single quotes (no expansion), block otherwise.

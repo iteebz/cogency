@@ -29,7 +29,7 @@ class Search(Tool):
         results = DDGS().text(query.strip(), max_results=effective_limit)
 
         if not results:
-            return ToolResult(outcome=f"Searched web for '{query}'", content="No results found")
+            return ToolResult(outcome=f"Found 0 results for '{query}'", content="No results found")
 
         formatted = []
         for result in results:

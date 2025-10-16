@@ -1,6 +1,6 @@
 """Test case types - zero ceremony."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass
@@ -13,18 +13,15 @@ class Case:
 
 
 @dataclass
-class Memory(Case):
-    store: str = ""
-    recall: str = ""
-
-    def __post_init__(self):
-        self.prompt = ""
-        self.profile = True
+class Memory:
+    store: str
+    recall: str
+    criteria: str
+    chunks: bool = False
 
 
 @dataclass
-class Multi(Case):
-    prompts: list[str] = field(default_factory=list)
-
-    def __post_init__(self):
-        self.prompt = ""
+class Multi:
+    prompts: list[str]
+    criteria: str
+    chunks: bool = False

@@ -63,20 +63,33 @@ class DB:
 
     @classmethod
     def connect(cls, db_path: str):
+        import time
+
         path = Path(db_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
 
         if str(path) not in cls._initialized_paths:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            if not path.exists():
+                path.touch(exist_ok=True)
             cls._init_schema(path)
             cls._initialized_paths.add(str(path))
 
-        if not path.exists():
-            path.touch()
-        return sqlite3.connect(path)
+        conn = sqlite3.connect(str(path), timeout=5.0)
+
+        for i in range(3):
+            try:
+                conn.execute("PRAGMA journal_mode=WAL")
+                break
+            except sqlite3.OperationalError:
+                if i == 2:
+                    raise
+                time.sleep(0.1 * (i + 1))
+
+        return conn
 
     @classmethod
     def _init_schema(cls, db_path: Path):
-        with sqlite3.connect(db_path) as db:
+        with sqlite3.connect(str(db_path)) as db:
             db.executescript("""
                 PRAGMA journal_mode=WAL;
 
@@ -160,6 +173,7 @@ class SQLite:
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
         return event_id
 
+    @retry(attempts=3, base_delay=0.1)
     async def load_messages(
         self,
         conversation_id: str,
@@ -218,6 +232,7 @@ class SQLite:
 
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
 
+    @retry(attempts=3, base_delay=0.1)
     async def load_profile(self, user_id: str) -> dict:
         def _sync_load():
             with DB.connect(self.db_path) as db:
@@ -231,6 +246,7 @@ class SQLite:
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
+    @retry(attempts=3, base_delay=0.1)
     async def load_user_messages(
         self, user_id: str, since_timestamp: float = 0, limit: int | None = None
     ) -> list[str]:
@@ -248,6 +264,7 @@ class SQLite:
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
 
+    @retry(attempts=3, base_delay=0.1)
     async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int:
         def _sync_count():
             with DB.connect(self.db_path) as db:
@@ -258,6 +275,7 @@ class SQLite:
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_count)
 
+    @retry(attempts=3, base_delay=0.1)
     async def delete_profile(self, user_id: str) -> int:
         def _sync_delete():
             with DB.connect(self.db_path) as db:
@@ -266,6 +284,7 @@ class SQLite:
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_delete)
 
+    @retry(attempts=3, base_delay=0.1)
     async def load_latest_metric(self, conversation_id: str) -> dict | None:
         def _sync_load():
             with DB.connect(self.db_path) as db:
@@ -327,15 +346,15 @@ class SQLite:
                            (LENGTH(content) - LENGTH(REPLACE(LOWER(content), ?, ''))) as relevance_score
                     FROM messages
                     WHERE type = 'user'
-                    AND user_id LIKE ?
+                    AND user_id = ?
                     {exclude_clause}
                     AND ({like_clause})
                     ORDER BY relevance_score DESC, timestamp DESC
                     LIMIT ?
                 """
-                # Add relevance scoring query and user_id pattern as first parameters
+                # Add relevance scoring query and user_id as first parameters
                 params.insert(0, query.lower())  # For relevance scoring
-                params.insert(1, f"{user_id}%")  # For user scoping - includes exact match
+                params.insert(1, user_id)  # For user scoping
                 params.append(limit)
 
                 rows = db.execute(query_sql, params).fetchall()

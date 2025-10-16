@@ -126,7 +126,7 @@ def websocket_llm_instance(request):
 
 
 @pytest.mark.asyncio
-async def test_websocket_functionality(websocket_llm_instance):
+async def test_websocket_methods(websocket_llm_instance):
     """Tests connect, send, and close methods for WebSocket-capable LLM providers."""
     name, llm_instance = websocket_llm_instance
 

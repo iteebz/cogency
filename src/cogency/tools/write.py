@@ -30,7 +30,7 @@ class Write(Tool):
 
         if file_path.exists() and not overwrite:
             return ToolResult(
-                outcome=(f"File {file} already exists. Use overwrite=True to overwrite."),
+                outcome=f"File '{file}' already exists. Try: overwrite=True to replace, or choose different name.",
                 error=True,
             )
 
@@ -40,4 +40,5 @@ class Write(Tool):
             f.write(content)
 
         lines = content.count("\n") + 1 if content else 0
-        return ToolResult(outcome=f"Wrote {file} (+{lines}/-0)")
+        preview = content[:200] + ("..." if len(content) > 200 else "")
+        return ToolResult(outcome=f"Wrote {file} (+{lines}/-0)", content=preview)

@@ -57,7 +57,7 @@ async def run_category(category: str, cases: list[Case], agent_kwargs: dict, jud
     }
 
 
-async def _execute(i, case: Case, category: str, agent_kwargs: dict):
+async def _execute(i, case, category: str, agent_kwargs: dict):
     """Execute individual test."""
     _clean_sandbox()
     test_id = f"{category}_{i + 1:02d}"
@@ -67,9 +67,9 @@ async def _execute(i, case: Case, category: str, agent_kwargs: dict):
     start_time = time.time()
 
     kwargs = agent_kwargs.copy()
-    if case.empty_tools:
+    if isinstance(case, Case) and case.empty_tools:
         kwargs["tools"] = []
-    if case.profile:
+    if isinstance(case, Memory):
         kwargs["profile"] = True
 
     agent = Agent(**kwargs)

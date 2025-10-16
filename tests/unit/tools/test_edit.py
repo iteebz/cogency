@@ -98,7 +98,7 @@ line 3
     )
 
     assert result.error
-    assert "Text not found: 'non-existent line'" in result.outcome
+    assert "Text not found" in result.outcome
     assert target.read_text() == initial_content
 
 

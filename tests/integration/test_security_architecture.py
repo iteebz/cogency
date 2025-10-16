@@ -27,7 +27,7 @@ async def test_shell_injection(shell_tool):
 
     for attack in injection_attacks:
         result = await tool.execute(attack, base_dir=base_dir)
-        assert "Invalid shell command syntax" in result.outcome
+        assert "Invalid shell command syntax" in result.outcome or "not supported" in result.outcome
 
 
 @pytest.mark.asyncio
