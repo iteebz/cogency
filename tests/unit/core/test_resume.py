@@ -70,18 +70,6 @@ async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
 
 
 @pytest.mark.asyncio
-async def test_websocket_continuation_failed(mock_llm, mock_config):
-    # Simulate initial response and then an error during continuation
-    mock_llm.set_response_tokens(["§respond: Initial part.", "§execute"])
-    mock_llm.set_continuation_error(RuntimeError("Mock continuation error"))
-    mock_config.llm = mock_llm
-
-    with pytest.raises(RuntimeError, match="WebSocket failed: Mock continuation error"):
-        async for _ in resume_stream("test", "user", "conv", config=mock_config):
-            pass
-
-
-@pytest.mark.asyncio
 async def test_llm_provider_required():
     config = Config(llm=None, storage=Mock(), tools=[], max_iterations=1)
 

@@ -12,8 +12,6 @@ async def test_flow(mock_llm, mock_config, mock_tool):
             "§think: I need to call a tool.\n",
             '§call: {"name": "test_tool", "args": {"message": "hello world"}}\n',
             "§execute\n",
-            "§respond: The tool completed successfully.\n",
-            "§end\n",
         ]
     )
 
@@ -32,4 +30,3 @@ async def test_flow(mock_llm, mock_config, mock_tool):
     event_types = [e["type"] for e in events]
     assert "think" in event_types
     assert "result" in event_types
-    assert "end" in event_types

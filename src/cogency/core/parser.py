@@ -77,7 +77,7 @@ async def parse_tokens(
             if control:
                 control_type = control.lower()
                 yield {"type": control_type}
-                if control_type == "end":
+                if control_type in ("execute", "end"):
                     return
                 current_type = None
                 continue

@@ -135,12 +135,10 @@ async def test_single_token_delimiter():
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 5
+    assert len(events) == 3
     assert events[0] == {"type": "think", "content": "analyzing"}
     assert events[1] == {"type": "think", "content": " "}
     assert events[2] == {"type": "execute"}
-    assert events[3] == {"type": "respond", "content": " "}
-    assert events[4] == {"type": "end"}
 
 
 @pytest.mark.asyncio

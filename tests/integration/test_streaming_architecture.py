@@ -118,17 +118,39 @@ async def test_persistence(mock_llm, mock_tool, mock_storage):
 
 @pytest.mark.asyncio
 async def test_event_taxonomy(mock_llm, mock_tool):
-    """Verify complete event taxonomy is emitted correctly."""
-    protocol_tokens = [
-        "§think: reasoning\n",
-        '§call: {"name": "test_tool", "args": {"message": "test"}}\n',
-        "§execute\n",
-        "§respond: done\n",
-        "§end\n",
+    """Verify complete event taxonomy with multi-iteration flow.
+    
+    With parser hardstop on §execute, respond/end come in iteration 2.
+    This tests the full nominal path:
+    - Iter 1: think → call tool → execute (hardstop)
+    - Tool executes with result
+    - Iter 2: (with tool result in context) → respond → end
+    """
+    iteration_tokens = [
+        [
+            "§think: reasoning\n",
+            '§call: {"name": "test_tool", "args": {"message": "test"}}\n',
+            "§execute\n",
+        ],
+        [
+            "§respond: result processed\n",
+            "§end\n",
+        ],
     ]
-
-    llm = mock_llm.set_response_tokens(protocol_tokens)
-    agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
+    
+    iteration_idx = [0]
+    
+    class MultiIterMockLLM:
+        http_model = "test"
+        async def generate(self, messages):
+            return ""
+        async def stream(self, messages):
+            tokens = iteration_tokens[min(iteration_idx[0], len(iteration_tokens) - 1)]
+            iteration_idx[0] += 1
+            for token in tokens:
+                yield token
+    
+    agent = Agent(llm=MultiIterMockLLM(), tools=[mock_tool()], mode="replay", max_iterations=2)
     events = [event async for event in agent("Test", chunks=False)]
 
     event_types = [e["type"] for e in events]
@@ -143,7 +165,7 @@ async def test_event_taxonomy(mock_llm, mock_tool):
     assert "end" in event_types
     assert "metric" in event_types
 
-    # Verify correct order: user → think → call → execute → metric → result → respond → end → metric
+    # Verify order within iteration sequences
     user_idx = event_types.index("user")
     think_idx = event_types.index("think")
     call_idx = event_types.index("call")
@@ -152,7 +174,10 @@ async def test_event_taxonomy(mock_llm, mock_tool):
     respond_idx = event_types.index("respond")
     end_idx = event_types.index("end")
 
-    assert user_idx < think_idx < call_idx < execute_idx < result_idx < respond_idx < end_idx
+    # Iteration 1 sequence: user → think → call → execute → result
+    assert user_idx < think_idx < call_idx < execute_idx < result_idx
+    # Iteration 2 sequence: respond comes after, then end
+    assert result_idx < respond_idx < end_idx
 
 
 @pytest.mark.asyncio
