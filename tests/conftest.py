@@ -45,8 +45,13 @@ class TestStorage:
             }
         )
 
-    async def load_messages(self, conversation_id, include=None, exclude=None):
-        return [msg for msg in self.messages if msg["conversation_id"] == conversation_id]
+    async def load_messages(self, conversation_id, user_id=None, include=None, exclude=None):
+        return [
+            msg
+            for msg in self.messages
+            if msg["conversation_id"] == conversation_id
+            and (user_id is None or msg.get("user_id") == user_id)
+        ]
 
     async def save_profile(self, user_id, profile):
         self.profiles[user_id] = profile
@@ -245,3 +250,36 @@ def mock_tool():
             )
 
     return MockTool
+
+
+class _ResumeSessionMock:
+    def __init__(self, turns: list[list[str]]):
+        self._turns = [list(turn) for turn in turns]
+        self._index = 0
+
+    async def send(self, _content):
+        tokens = self._turns[self._index] if self._index < len(self._turns) else []
+        self._index += 1
+        for token in tokens:
+            yield token
+
+    async def close(self):
+        return True
+
+
+class _ResumeLLMMock:
+    http_model = "seq-llm"
+
+    def __init__(self, turns: list[list[str]]):
+        self._turns = [list(turn) for turn in turns]
+
+    async def connect(self, _messages):
+        return _ResumeSessionMock(self._turns)
+
+
+@pytest.fixture
+def resume_llm():
+    def factory(turns: list[list[str]]):
+        return _ResumeLLMMock(turns)
+
+    return factory

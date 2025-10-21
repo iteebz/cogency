@@ -18,7 +18,7 @@ from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
 from .parser import parse_tokens
-from .protocols import event_content, event_type, is_end
+from .protocols import event_content, event_type
 
 
 async def stream(
@@ -52,8 +52,7 @@ async def stream(
     metrics = Metrics.init(model_name)
 
     session = None
-    iteration = 0  # Initialize iteration counter
-    llm_output_chunks_send_empty = []  # Initialize list
+    turn = 0
     try:
         messages = await context.assemble(
             user_id,
@@ -66,7 +65,6 @@ async def stream(
             instructions=config.instructions,
         )
 
-        # Track this LLM call
         if metrics:
             metrics.start_step()
             metrics.add_input(messages)
@@ -83,106 +81,79 @@ async def stream(
             chunks=chunks,
         )
 
+        payload = ""
+        count_payload_tokens = False
+
         try:
-            # All messages (including current query) loaded in connect()
-            # Send empty string to trigger response generation
-            async for event in accumulator.process(parse_tokens(session.send(""))):
-                iteration += 1  # Increment iteration counter
-                if iteration > config.max_iterations:
-                    # [SEC-005] Prevent runaway agents
+            while True:
+                turn += 1
+                if turn > config.max_iterations:
                     raise RuntimeError(
                         f"Max iterations ({config.max_iterations}) exceeded in resume mode."
                     )
 
-                ev_type = event_type(event)
-                content = event_content(event)
+                if count_payload_tokens and metrics and payload:
+                    metrics.add_input(payload)
 
-                if ev_type in {"think", "call", "respond"} and metrics and content:
-                    metrics.add_output(content)
-                    llm_output_chunks_send_empty.append(content)
+                turn_output: list[str] = []
+                next_payload: str | None = None
 
-                if event:
-                    telemetry.add_event(telemetry_events, event)
+                try:
+                    async for event in accumulator.process(parse_tokens(session.send(payload))):
+                        ev_type = event_type(event)
+                        content = event_content(event)
 
-                match ev_type:
-                    case "end":
-                        complete = True
-                        # Close session on task completion
-                        metric = metrics.event()
-                        telemetry.add_event(telemetry_events, metric)
-                        yield metric
+                        if ev_type in {"think", "call", "respond"} and metrics and content:
+                            metrics.add_output(content)
+                            turn_output.append(content)
 
-                    case "execute":
-                        if metrics:
-                            metric = metrics.event()
-                            telemetry.add_event(telemetry_events, metric)
-                            yield metric
-                            metrics.start_step()
+                        if event:
+                            telemetry.add_event(telemetry_events, event)
 
-                    case "result":
-                        # Yield tool result to user first
-                        yield event
+                        match ev_type:
+                            case "end":
+                                complete = True
+                                if metrics:
+                                    metric = metrics.event()
+                                    telemetry.add_event(telemetry_events, metric)
+                                    yield metric
+                                yield event
+                                break
 
-                        # Then send tool result to session to continue generation
-                        llm_output_chunks_send_content = []
-                        try:
-                            if metrics:
-                                metrics.add_input(content)
+                            case "execute":
+                                if metrics:
+                                    metric = metrics.event()
+                                    telemetry.add_event(telemetry_events, metric)
+                                    yield metric
+                                    metrics.start_step()
+                                yield event
 
-                            # Continue streaming after tool result injection
-                            async for continuation_event in accumulator.process(
-                                parse_tokens(session.send(content))
-                            ):
-                                iteration += (
-                                    1  # Increment iteration counter for continuation events
-                                )
-                                if iteration > config.max_iterations:
-                                    # [SEC-005] Prevent runaway agents
-                                    raise RuntimeError(
-                                        f"Max iterations ({config.max_iterations}) exceeded in resume mode during continuation."
-                                    )
+                            case "result":
+                                yield event
+                                next_payload = content
+                                break
 
-                                if (
-                                    continuation_event["type"] in ["think", "call", "respond"]
-                                    and metrics
-                                    and continuation_event.get("content")
-                                ):
-                                    llm_output_chunks_send_content.append(
-                                        continuation_event["content"]
-                                    )
+                            case _:
+                                yield event
 
-                                yield continuation_event
-                                if is_end(continuation_event):
-                                    complete = True
-                                    break
-                        except Exception as e:
-                            raise RuntimeError(f"WebSocket continuation failed: {e}") from e
-                        finally:
-                            if config.debug:
-                                log_response(
-                                    conversation_id,
-                                    model_name,
-                                    "".join(llm_output_chunks_send_content),
-                                )
-                        if metrics:
-                            metric = metrics.event()
-                            telemetry.add_event(telemetry_events, metric)
-                            yield metric
-                            metrics.start_step()
+                        if complete:
+                            break
+                except Exception as e:
+                    raise RuntimeError(f"WebSocket continuation failed: {e}") from e
+                finally:
+                    if config.debug:
+                        log_response(
+                            conversation_id,
+                            model_name,
+                            "".join(turn_output),
+                        )
 
-                yield event
-
-                if complete:
+                if complete or next_payload is None:
                     break
-        except Exception:
-            raise
+
+                payload = next_payload or ""
+                count_payload_tokens = True
         finally:
-            if config.debug:
-                log_response(
-                    conversation_id,
-                    model_name,
-                    "".join(llm_output_chunks_send_empty),
-                )
             await telemetry.persist_events(conversation_id, telemetry_events)
         # Handle natural WebSocket completion
         if not complete:

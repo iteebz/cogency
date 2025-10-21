@@ -119,7 +119,7 @@ async def test_persistence(mock_llm, mock_tool, mock_storage):
 @pytest.mark.asyncio
 async def test_event_taxonomy(mock_llm, mock_tool):
     """Verify complete event taxonomy with multi-iteration flow.
-    
+
     With parser hardstop on §execute, respond/end come in iteration 2.
     This tests the full nominal path:
     - Iter 1: think → call tool → execute (hardstop)
@@ -137,19 +137,21 @@ async def test_event_taxonomy(mock_llm, mock_tool):
             "§end\n",
         ],
     ]
-    
+
     iteration_idx = [0]
-    
+
     class MultiIterMockLLM:
         http_model = "test"
+
         async def generate(self, messages):
             return ""
+
         async def stream(self, messages):
             tokens = iteration_tokens[min(iteration_idx[0], len(iteration_tokens) - 1)]
             iteration_idx[0] += 1
             for token in tokens:
                 yield token
-    
+
     agent = Agent(llm=MultiIterMockLLM(), tools=[mock_tool()], mode="replay", max_iterations=2)
     events = [event async for event in agent("Test", chunks=False)]
 

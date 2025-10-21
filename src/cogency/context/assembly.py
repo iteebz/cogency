@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 
 from ..core.protocols import Storage, Tool
+from ..lib.logger import logger
 from .conversation import to_messages
 from .profile import format as profile_format
 from .system import prompt as system_prompt
@@ -21,7 +22,13 @@ async def assemble(
     system_content = [system_prompt(tools=tools, identity=identity, instructions=instructions)]
 
     if profile_enabled:
-        profile_content = await profile_format(user_id, storage)
+        try:
+            profile_content = await profile_format(user_id, storage)
+        except Exception as exc:
+            logger.exception(
+                "Context assembly failed to build profile for user=%s: %s", user_id, exc
+            )
+            raise
         if profile_content:
             system_content.append(profile_content)
 
@@ -29,12 +36,18 @@ async def assemble(
 
     try:
         events = await storage.load_messages(conversation_id, user_id)
-        if events:
-            conv_messages = to_messages(events)
-            if history_window is not None:
-                conv_messages = conv_messages[-history_window:]
-            messages.extend(conv_messages)
-    except Exception:
-        pass
+    except Exception as exc:
+        logger.exception(
+            "Context assembly failed loading messages for conversation=%s user=%s: %s",
+            conversation_id,
+            user_id,
+            exc,
+        )
+        raise
+    if events:
+        conv_messages = to_messages(events)
+        if history_window is not None:
+            conv_messages = conv_messages[-history_window:]
+        messages.extend(conv_messages)
 
     return [{"role": "system", "content": "\n\n".join(system_content)}] + messages

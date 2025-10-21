@@ -178,6 +178,14 @@ LLM receives conversational structure
 
 Event stream is unified. Sources are diverse. Consumers see clean JSON events.
 
+---
+
+## Filesystem Guarantees
+
+Tools make **no collision detection** on file operations. If a file changes after `read()` but before `edit()`, the write silently overwrites the new content. This is by design—collision detection belongs in application logic (version control, explicit locking, optimistic retry patterns).
+
+**Implication:** Agents should not assume atomicity across read→compute→write sequences. If concurrent file mutations are a concern, implement versioning at the application layer.
+
 ### Storage → Messages Transformation
 
 Context assembly transforms stored events into proper conversational messages:

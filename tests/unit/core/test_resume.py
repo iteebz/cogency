@@ -18,13 +18,17 @@ async def test_requires_websocket():
 
 @pytest.mark.asyncio
 async def test_max_iterations_exceeded(mock_llm, mock_config):
+    """Multiple events in single turn should not exceed iteration limit."""
     mock_llm.set_response_tokens(["§respond: 1", "§respond: 2", "§end"])
     mock_config.llm = mock_llm
-    mock_config.max_iterations = 1  # Set max iterations to 1
+    mock_config.max_iterations = 1
 
-    with pytest.raises(RuntimeError, match="Max iterations \\(1\\) exceeded in resume mode."):
-        async for _ in resume_stream("test", "user", "conv", config=mock_config):
-            pass
+    events = []
+    async for event in resume_stream("test", "user", "conv", config=mock_config):
+        events.append(event)
+
+    assert any(e["type"] == "respond" for e in events)
+    assert any(e["type"] == "end" for e in events)
 
 
 @pytest.mark.asyncio
