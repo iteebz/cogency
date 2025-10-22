@@ -82,10 +82,17 @@ class OpenAI(LLM):
 
         response_stream = await with_rotation("OPENAI", _stream_with_key)
 
-        async for chunk in response_stream:
-            content = chunk.choices[0].delta.content
-            if content:
-                yield content
+        async for event in response_stream:
+            # Check event type - handles both real ResponseTextDeltaEvent and mocks
+            if (
+                hasattr(event, "type")
+                and event.type == "response.output_text.delta"
+                and hasattr(event, "delta")
+            ):
+                yield event.delta
+            elif hasattr(event, "delta") and not hasattr(event, "type"):
+                # Fallback for direct delta attribute (legacy format)
+                yield event.delta
 
     async def connect(self, messages: list[dict]) -> "OpenAI":
         """Create session with initial context. Returns session-enabled OpenAI instance."""
@@ -113,10 +120,14 @@ class OpenAI(LLM):
                 else:
                     user_messages.append(msg)
 
+            logger.debug(
+                f"OpenAI session instructions ({len(system_content)} chars): {system_content[:200]}..."
+            )
             await connection.session.update(
                 session={
                     "type": "realtime",
                     "instructions": system_content.strip(),
+                    "output_modalities": ["text"],
                 }
             )
 
@@ -153,6 +164,7 @@ class OpenAI(LLM):
     @interruptible
     async def send(self, content: str) -> AsyncGenerator[str, None]:
         """Send message in session and stream response until turn completion."""
+
         if not self._connection:
             raise RuntimeError("send() requires active session. Call connect() first.")
 
@@ -162,13 +174,13 @@ class OpenAI(LLM):
                 await self._connection.conversation.item.create(
                     item={
                         "type": "message",
-                        "message": {
-                            "content": {"content_type": "text/markdown", "parts": [content]}
-                        },
+                        "role": "user",
+                        "content": [{"type": "input_text", "text": content}],
                     }
                 )
         except Exception as e:
             logger.error(f"Error sending message in OpenAI session: {e}")
+            raise
 
         # Always try to create response, but handle active response gracefully
         try:
@@ -181,16 +193,30 @@ class OpenAI(LLM):
                 raise
 
         # Stream response chunks until turn completion
-        async for event in self._connection:
-            if event.type == "response.output_audio_transcript.delta" and event.delta:
-                yield event.delta
-            elif event.type == "response.done":
-                return
-            elif event.type == "error":
-                if "already has an active response" in str(event):
-                    continue
-                logger.warning(f"OpenAI session error: {event}")
-                return
+        chunk_count = 0
+        while True:
+            try:
+                event = await self._connection.recv()
+                logger.debug(f"recv() got event: {event.type}")
+                if event.type == "response.output_text.delta" and hasattr(event, "delta"):
+                    chunk_count += 1
+                    logger.debug(f"Yielding delta {chunk_count}: {event.delta[:50]}")
+                    yield event.delta
+                elif event.type == "response.done":
+                    logger.debug(f"Got response.done after {chunk_count} chunks")
+                    return
+                elif event.type == "response.output_text.done":
+                    # Text generation is done, wait for final response.done
+                    logger.debug("Got response.output_text.done")
+                    pass
+                elif event.type == "error":
+                    if "already has an active response" in str(event):
+                        continue
+                    logger.warning(f"OpenAI session error: {event}")
+                    return
+            except Exception as e:
+                logger.error(f"Error receiving event: {e}")
+                raise
 
     async def close(self) -> None:
         """Close session and cleanup resources."""

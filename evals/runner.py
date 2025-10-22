@@ -12,14 +12,19 @@ from .case import Case, Memory, Multi
 from .judge import judge
 
 
-async def run_category(category: str, cases: list[Case], agent_kwargs: dict, judge_llm) -> dict:
+async def run_category(
+    category: str, cases: list[Case], agent_kwargs: dict, judge_llm, run_id: str = None
+) -> dict:
     """Run evaluation category."""
+    if not run_id:
+        run_id = str(uuid.uuid4())
+
     semaphore = asyncio.Semaphore(agent_kwargs.pop("concurrency", 2))
 
     async def run_test(i, case):
         async with semaphore:
             await asyncio.sleep(i * 0.2)
-            return await _execute(i, case, category, agent_kwargs)
+            return await _execute(i, case, category, agent_kwargs, run_id)
 
     results = await asyncio.gather(
         *[run_test(i, case) for i, case in enumerate(cases)], return_exceptions=True
@@ -34,12 +39,13 @@ async def run_category(category: str, cases: list[Case], agent_kwargs: dict, jud
 
     judged_results = []
     for result in final_results:
-        judgment = await judge(result, judge_llm)
-        result["passed"] = judgment.passed
-        result["judge_reason"] = judgment.reason
+        if judge_llm:
+            judgment = await judge(result, judge_llm)
+            result["passed"] = judgment.passed
+            result["judge_reason"] = judgment.reason
         judged_results.append(result)
 
-    passed_count = len([r for r in judged_results if r.get("passed") is True])
+    passed_count = len([r for r in judged_results if r.get("passed") is True]) if judge_llm else 0
 
     total_tokens = sum(sum(r.get("tokens", [0, 0])) for r in judged_results)
     total_runtime = sum(r.get("seconds", 0) for r in judged_results)
@@ -57,10 +63,10 @@ async def run_category(category: str, cases: list[Case], agent_kwargs: dict, jud
     }
 
 
-async def _execute(i, case, category: str, agent_kwargs: dict):
+async def _execute(i, case, category: str, agent_kwargs: dict, run_id: str):
     """Execute individual test."""
     _clean_sandbox()
-    test_id = f"{category}_{i + 1:02d}"
+    test_id = f"{category}_{i:02d}"
     print(f"🧪 {test_id}")
 
     user_id = str(uuid.uuid4())
@@ -71,6 +77,12 @@ async def _execute(i, case, category: str, agent_kwargs: dict):
         kwargs["tools"] = []
     if isinstance(case, Memory):
         kwargs["profile"] = True
+
+    from cogency.lib.sqlite import default_storage
+
+    test_store_path = Path(f".cogency/evals/runs/{run_id}/store.db")
+    test_store_path.parent.mkdir(parents=True, exist_ok=True)
+    kwargs["storage"] = default_storage(str(test_store_path))
 
     agent = Agent(**kwargs)
 
@@ -85,8 +97,8 @@ async def _execute(i, case, category: str, agent_kwargs: dict):
         tokens = _extract_tokens(events)
         stream = _format_stream(events)
 
-        return {
-            "test_id": f"{category}_{i:02d}",
+        result = {
+            "test_id": test_id,
             "prompt": prompt_used,
             "stream": stream,
             "tokens": tokens,
@@ -94,10 +106,15 @@ async def _execute(i, case, category: str, agent_kwargs: dict):
             "criteria": case.criteria,
         }
 
+        if test_store_path.exists():
+            result["store_db"] = str(test_store_path)
+
+        return result
+
     except asyncio.TimeoutError:
-        return {"test_id": f"{category}_{i:02d}", "error": "Timeout", "passed": False}
+        return {"test_id": test_id, "error": "Timeout", "passed": False}
     except Exception as e:
-        return {"test_id": f"{category}_{i:02d}", "error": str(e), "passed": False}
+        return {"test_id": test_id, "error": str(e), "passed": False}
     finally:
         await _cleanup(agent)
 
@@ -157,7 +174,7 @@ async def _consume(stream):
 
 def _extract_tokens(events):
     """Extract token counts from events."""
-    metrics = [e["total"] for e in events if isinstance(e, dict) and e.get("type") == "metrics"]
+    metrics = [e["total"] for e in events if isinstance(e, dict) and e.get("type") == "metric"]
     return (
         [sum(m["input"] for m in metrics), sum(m["output"] for m in metrics)] if metrics else [0, 0]
     )
@@ -168,7 +185,7 @@ def _format_stream(events):
     return [
         f"{e['type'].upper()}: {e.get('content', '')}"
         for e in events
-        if isinstance(e, dict) and e.get("type") != "metrics"
+        if isinstance(e, dict) and e.get("type") != "metric"
     ]
 
 

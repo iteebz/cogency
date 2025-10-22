@@ -81,7 +81,7 @@ async def stream(
             chunks=chunks,
         )
 
-        payload = ""
+        payload = None
         count_payload_tokens = False
 
         try:
@@ -99,7 +99,11 @@ async def stream(
                 next_payload: str | None = None
 
                 try:
-                    async for event in accumulator.process(parse_tokens(session.send(payload))):
+                    # Send query on first turn, payload on subsequent turns
+                    send_content = query if payload is None else payload
+                    async for event in accumulator.process(
+                        parse_tokens(session.send(send_content))
+                    ):
                         ev_type = event_type(event)
                         content = event_content(event)
 

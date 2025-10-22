@@ -59,9 +59,8 @@ async def test_llm_stream(llm_instance):
         def _create_mock_chunk(provider_name, content):
             if provider_name == "OpenAI":
                 chunk = MagicMock()
-                chunk.choices = [MagicMock()]
-                chunk.choices[0].delta = MagicMock()
-                chunk.choices[0].delta.content = content
+                chunk.type = "response.output_text.delta"
+                chunk.delta = content
                 return chunk
             if provider_name == "Gemini":
                 return MagicMock(text=content)
@@ -72,9 +71,17 @@ async def test_llm_stream(llm_instance):
         if name == "OpenAI":
             mock_chunk_1 = _create_mock_chunk(name, "Chunk 1")
             mock_chunk_2 = _create_mock_chunk(name, "Chunk 2")
+            # Create end event
+            mock_end_event = MagicMock()
+            mock_end_event.type = "response.done"
+
+            async def _async_stream_iter():
+                yield mock_chunk_1
+                yield mock_chunk_2
+                yield mock_end_event
 
             mock_stream_response = AsyncMock()
-            mock_stream_response.__aiter__.return_value = iter([mock_chunk_1, mock_chunk_2])
+            mock_stream_response.__aiter__ = lambda self: _async_stream_iter()
             mock_client_instance.responses.create = AsyncMock(return_value=mock_stream_response)
         elif name == "Gemini":
             mock_chunk_1 = _create_mock_chunk(name, "Chunk 1")

@@ -1,76 +1,27 @@
-# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Distribution / packaging
 build/
 dist/
 *.egg-info/
-.eggs/
 
-# Virtual environments
 .venv/
-.env/
 env/
 venv/
 
-# Hatch / Poetry-specific
-.cache/
-.hatch/
-
-# Testing
-htmlcov/
 .coverage
-coverage.xml
-.tox/
-.nox/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# IDEs / Editors
-.vscode/
-.idea/
-*.swp
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-store/
-dist/
-build/
-.tsbuildinfo
-
-# Development
-.mypy_cache
-.ruff_cache
-
-# Environment
 .env
-
-# Cogency runtime
 .cogency
-
-# Development sandboxes
 .sandbox/
-*/.sandbox/
-
-# Mnemos autonomous investigation system
 .mnemos
 
-
-# Zealot's holy scripture
-CLAUDE.md
-
-
-[user: "Create script"]
-[assistant: "[THINKING] I'll create..."
-[assistant: "[TOOL_CALL] {"file_write": "script.py", "content": "print('Hello World')"}"]
-[assistant: "[TOOL_RESULT] file_write succeeded whatever other metadata"]
-[assistant: "[THINKING] I can now respond..."
-[assistant: "I've created the script successfully"]
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
