@@ -1,11 +1,9 @@
 __pycache__/
 *.py[cod]
-*$py.class
-
 build/
 dist/
-*.egg-info/
 
+.env
 .venv/
 env/
 venv/
@@ -15,13 +13,11 @@ venv/
 .mypy_cache/
 .ruff_cache/
 
-.env
-.cogency
-.sandbox/
-.mnemos
-
 .DS_Store
 Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+repomix-output.*
+.cogency

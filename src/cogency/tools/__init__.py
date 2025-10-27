@@ -5,6 +5,7 @@ from .find import Find
 from .list import List
 from .read import Read
 from .recall import Recall
+from .replace import Replace
 from .scrape import Scrape
 from .search import Search
 from .shell import Shell
@@ -23,5 +24,6 @@ __all__ = [
     "Search",
     "Write",
     "Shell",
+    "Replace",
     "tools",
 ]

@@ -17,6 +17,7 @@ class ToolRegistry:
         from ..tools.list import List
         from ..tools.read import Read
         from ..tools.recall import Recall
+        from ..tools.replace import Replace
         from ..tools.scrape import Scrape
         from ..tools.search import Search
         from ..tools.shell import Shell
@@ -27,6 +28,7 @@ class ToolRegistry:
         self.register(Edit(), "code")
         self.register(List(), "code")
         self.register(Find(), "code")
+        self.register(Replace(), "code")
         self.register(Shell(), "code")
         self.register(Scrape(), "web")
         self.register(Search(), "web")

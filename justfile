@@ -10,17 +10,20 @@ install:
     @poetry lock
     @poetry install
 
-ci: install format fix test build
+ci:
+    @poetry run ruff format .
+    @poetry run ruff check . --fix --unsafe-fixes
+    @poetry run pytest tests -q
+    @poetry build
 
 example name="hello":
     @poetry run python examples/{{name}}.py
 
 test:
-    @poetry run python -m pytest tests -v
+    @poetry run pytest tests
 
 cov:
     @poetry run pytest --cov=src/cogency tests/
-
 
 format:
     @poetry run ruff format .
@@ -36,6 +39,9 @@ build:
 
 publish: ci build
     @poetry publish
+
+repomix:
+    repomix
 
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"

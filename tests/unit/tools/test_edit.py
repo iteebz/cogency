@@ -52,6 +52,12 @@ line 3
 """
     )
 
+    # Verify the diff content contract
+    assert "--- " in result.content
+    assert "+++ " in result.content
+    assert "-line 2 old" in result.content
+    assert "+line 2 new" in result.content
+
 
 @pytest.mark.asyncio
 async def test_no_op_when_same(tmp_path):

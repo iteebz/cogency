@@ -103,7 +103,7 @@ async for event in agent(
 
 ### Built-in Tools
 
-- `read`, `write`, `edit`, `list`, `find`
+- `read`, `write`, `edit`, `list`, `find`, `replace`
 - `search`, `scrape`
 - `recall`
 - `shell`
@@ -228,6 +228,7 @@ See [docs/protocol.md](docs/protocol.md) for complete specification.
 - [architecture.md](docs/architecture.md) - Core pipeline and design decisions
 - [protocol.md](docs/protocol.md) - Delimiter protocol specification
 - [proof.md](docs/proof.md) - Mathematical efficiency analysis
+- [tools.md](docs/tools.md) - Built-in tool reference
 
 ## License
 
