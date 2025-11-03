@@ -9,8 +9,24 @@ class Edit(Tool):
     """Edit file."""
 
     name = "edit"
-    description = "Edit file by replacing text. Match must be unique."
-    schema = {"file": {}, "old": {}, "new": {}}
+    description = "Edit file by replacing text. Exact match (old) must be unique in file."
+    schema = {
+        "file": {
+            "type": "string",
+            "description": "File path to edit (relative to project root)",
+            "required": True,
+        },
+        "old": {
+            "type": "string",
+            "description": "Text to replace (must match exactly, including whitespace)",
+            "required": True,
+        },
+        "new": {
+            "type": "string",
+            "description": "Replacement text",
+            "required": True,
+        },
+    }
 
     def describe(self, args: dict) -> str:
         return f"Editing {args.get('file', 'file')}"

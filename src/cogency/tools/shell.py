@@ -10,8 +10,19 @@ class Shell(Tool):
     """Run shell command."""
 
     name = "shell"
-    description = "Run shell command. 30s timeout. Each call starts in project root - use cwd arg for other dirs."
-    schema = {"command": {}, "cwd": {}}
+    description = "Run shell command (30s timeout). Each call starts in project root."
+    schema = {
+        "command": {
+            "type": "string",
+            "description": "Shell command to execute",
+            "required": True,
+        },
+        "cwd": {
+            "type": "string",
+            "description": "Working directory for command (relative to project root)",
+            "required": False,
+        },
+    }
 
     def describe(self, args: dict) -> str:
         return f"Running {args.get('command', 'command')}"

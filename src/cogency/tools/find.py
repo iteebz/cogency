@@ -10,11 +10,24 @@ class Find(Tool):
     """Find files and content."""
 
     name = "find"
-    description = "Find code. pattern filters filenames, content searches file text."
+    description = "Find files by name pattern or search file contents."
     schema = {
-        "pattern": {"optional": True},
-        "content": {"optional": True},
-        "path": {"optional": True},
+        "pattern": {
+            "type": "string",
+            "description": "Filename pattern to match (e.g., '*.py', 'main*')",
+            "required": False,
+        },
+        "content": {
+            "type": "string",
+            "description": "Text content to search for in files",
+            "required": False,
+        },
+        "path": {
+            "type": "string",
+            "description": "Root search path (relative to project root)",
+            "required": False,
+            "default": ".",
+        },
     }
 
     MAX_RESULTS = 100

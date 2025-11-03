@@ -24,8 +24,20 @@ class List(Tool):
     """List files."""
 
     name = "list"
-    description = "List files. Tree view, depth 3. pattern filters filenames."
-    schema = {"path": {"optional": True}, "pattern": {"optional": True}}
+    description = "List files in tree view (depth 3). Pattern filters filenames."
+    schema = {
+        "path": {
+            "type": "string",
+            "description": "Directory path to list (relative to project root)",
+            "required": False,
+            "default": ".",
+        },
+        "pattern": {
+            "type": "string",
+            "description": "Filter filenames by pattern (e.g., '*.py')",
+            "required": False,
+        },
+    }
 
     def describe(self, args: dict) -> str:
         return f"Listing {args.get('path', '.')}"

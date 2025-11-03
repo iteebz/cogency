@@ -9,11 +9,27 @@ class Read(Tool):
     """Read file."""
 
     name = "read"
-    description = "Read file. start/lines for pagination."
+    description = "Read file. Use start/lines for pagination on large files."
     schema = {
-        "file": {},
-        "start": {"type": "integer", "optional": True},
-        "lines": {"type": "integer", "optional": True},
+        "file": {
+            "type": "string",
+            "description": "File path to read (relative to project root)",
+            "required": True,
+        },
+        "start": {
+            "type": "integer",
+            "description": "Starting line number (0-indexed)",
+            "required": False,
+            "default": 0,
+            "min": 0,
+        },
+        "lines": {
+            "type": "integer",
+            "description": "Number of lines to read",
+            "required": False,
+            "min": 1,
+            "max": 10000,
+        },
     }
 
     def describe(self, args: dict) -> str:

@@ -7,8 +7,25 @@ class Write(Tool):
     """Write file."""
 
     name = "write"
-    description = "Write file. Can be configured to overwrite."
-    schema = {"file": {}, "content": {}, "overwrite": {"type": "boolean", "default": False}}
+    description = "Write file. Fails if file exists unless overwrite=true."
+    schema = {
+        "file": {
+            "type": "string",
+            "description": "File path to write (relative to project root)",
+            "required": True,
+        },
+        "content": {
+            "type": "string",
+            "description": "File content to write",
+            "required": True,
+        },
+        "overwrite": {
+            "type": "boolean",
+            "description": "Overwrite file if exists",
+            "required": False,
+            "default": False,
+        },
+    }
 
     def describe(self, args: dict) -> str:
         return f"Writing {args.get('file', 'file')}"

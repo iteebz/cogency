@@ -12,8 +12,14 @@ class Scrape(Tool):
     """Scrape webpage."""
 
     name = "scrape"
-    description = "Scrape webpage. Extracts readable text, 3KB limit."
-    schema = {"url": {}}
+    description = "Scrape webpage. Extracts readable text (3KB limit)."
+    schema = {
+        "url": {
+            "type": "string",
+            "description": "URL to scrape",
+            "required": True,
+        }
+    }
 
     def describe(self, args: dict) -> str:
         return f"Scraping {args.get('url', 'url')}"

@@ -11,7 +11,7 @@
 - **Strategy**: Detect delimiters across token boundaries, preprocess complex tokens
 
 ```python
-"§call: {"name":"file_read","args":{"file":"test.py"}}" → [("call", '{"name":"file_read","args":{"file":"test.py"}}')]
+"§call: {"name":"read","args":{"file":"test.py"}}" → [("call", '{"name":"read","args":{"file":"test.py"}}')]
 "§think: analyzing data" → [("think", "analyzing"), ("think", "data")]
 ```
 
@@ -55,7 +55,7 @@ for await (const event of agent.stream(query, {chunks: false})) {
 - **Input**: Structured call data from accumulator
 - **Output**: Tool execution results
 - **Strategy**: Single tool execution with error handling
-- **Tools**: file_read, file_write, file_edit, file_list, file_search, web_search, web_scrape, recall, shell
+- **Tools**: read, write, edit, list, find, replace, search, scrape, recall, shell
 
 ## Context Management
 
@@ -82,7 +82,7 @@ traditional_agent.run() → [Messages 1-50] → Tool → [Messages 1-51] → Too
 - `§end` - Stream termination
 
 **Edge case handling:**
-- Compact JSON: `§call:{"name":"file_read","args":{"file":"test.py"}}` (no space after colon)
+- Compact JSON: `§call:{"name":"read","args":{"file":"test.py"}}` (no space after colon)
 - Split delimiters: `§thi` + `nk:` across tokens
 - Invalid delimiters: Treated as regular content
 
@@ -154,7 +154,7 @@ agent = Agent(llm="openai", profile=True)  # Learns user patterns automatically
 # Events stored without delimiter syntax
 {"type": "user", "content": "debug this", "timestamp": ...}
 {"type": "think", "content": "checking logs", "timestamp": ...}
-{"type": "call", "content": '{"name": "file_read", ...}', "timestamp": ...}
+{"type": "call", "content": '{"name": "read", ...}', "timestamp": ...}
 {"type": "result", "content": '{"outcome": "Success", ...}', "timestamp": ...}
 {"type": "respond", "content": "found the bug", "timestamp": ...}
 ```

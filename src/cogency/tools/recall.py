@@ -21,11 +21,13 @@ class Recall(Tool):
     """Search memory."""
 
     name = "recall"
-    description = "Search memory. Fuzzy search past user messages, 3 matches."
+    description = "Search past conversations. Fuzzy keyword search across all user messages."
     schema = {
         "query": {
-            "description": "Keywords to search for in past user messages",
+            "type": "string",
+            "description": "Keywords or phrase to search for in past messages",
             "required": True,
+            "max_length": 200,
         }
     }
 

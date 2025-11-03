@@ -16,10 +16,27 @@ class Replace(Tool):
         "Performs find-and-replace operations across multiple files matching a glob pattern."
     )
     schema = {
-        "pattern": {"type": "string"},
-        "old": {"type": "string"},
-        "new": {"type": "string"},
-        "exact": {"type": "boolean", "optional": True, "default": True},
+        "pattern": {
+            "type": "string",
+            "description": "Glob pattern for files to match (e.g., '*.py')",
+            "required": True,
+        },
+        "old": {
+            "type": "string",
+            "description": "Text to find (exact or regex based on 'exact' flag)",
+            "required": True,
+        },
+        "new": {
+            "type": "string",
+            "description": "Replacement text",
+            "required": True,
+        },
+        "exact": {
+            "type": "boolean",
+            "description": "Exact string match (True) or regex pattern (False)",
+            "required": False,
+            "default": True,
+        },
     }
 
     def describe(self, args: dict) -> str:

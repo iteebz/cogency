@@ -6,8 +6,15 @@ class Search(Tool):
     """Search the web for high-signal summaries."""
 
     name = "search"
-    description = "Search web. Returns up to 5 results with title/body/url."
-    schema = {"query": {}}
+    description = "Search the web. Returns up to 5 results with title, body, and URL."
+    schema = {
+        "query": {
+            "type": "string",
+            "description": "Search query (keywords or phrase)",
+            "required": True,
+            "max_length": 500,
+        }
+    }
 
     def describe(self, args: dict) -> str:
         return f'Web searching "{args.get("query", "query")}"'
