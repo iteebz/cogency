@@ -1,9 +1,11 @@
+import logging
 from collections.abc import AsyncGenerator
 
 from ...core.protocols import LLM
-from ..logger import logger
 from .interrupt import interruptible
 from .rotation import get_api_key, with_rotation
+
+logger = logging.getLogger(__name__)
 
 
 class Gemini(LLM):

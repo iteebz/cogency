@@ -15,9 +15,10 @@ Learning triggers:
 """
 
 import json
+import logging
 from typing import TYPE_CHECKING
 
-from ..lib.logger import logger
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from ..core.protocols import LLM, Storage

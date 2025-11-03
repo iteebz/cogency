@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 import re
 from collections.abc import AsyncGenerator
 
-from ..lib.logger import logger
 from .protocols import Event
+
+logger = logging.getLogger(__name__)
 
 
 async def _wrap_string(text: str) -> AsyncGenerator[str, None]:

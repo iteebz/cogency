@@ -9,12 +9,14 @@ Tradeoffs:
 - No embedding model dependencies or API costs
 """
 
+import logging
 import time
 
 from ..core.protocols import Tool, ToolResult
 from ..core.security import safe_execute
-from ..lib.logger import logger
 from ..lib.sqlite import MessageMatch, Storage
+
+logger = logging.getLogger(__name__)
 
 
 class Recall(Tool):

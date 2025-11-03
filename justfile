@@ -40,8 +40,5 @@ build:
 publish: ci build
     @poetry publish
 
-repomix:
-    repomix --style markdown --output repomix-output.md
-
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"

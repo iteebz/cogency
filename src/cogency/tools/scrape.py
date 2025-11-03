@@ -1,9 +1,11 @@
+import logging
 import re
 from urllib.parse import urlparse
 
 from ..core.protocols import Tool, ToolResult
 from ..core.security import safe_execute
-from ..lib.logger import logger
+
+logger = logging.getLogger(__name__)
 
 SCRAPE_LIMIT = 3000
 

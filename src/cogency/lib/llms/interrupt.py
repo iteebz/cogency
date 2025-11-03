@@ -1,7 +1,8 @@
 import asyncio
+import logging
 from functools import wraps
 
-from ..logger import logger
+logger = logging.getLogger(__name__)
 
 
 def interruptible(func):

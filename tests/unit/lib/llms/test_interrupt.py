@@ -25,7 +25,7 @@ class MockLLM:
 @pytest.mark.asyncio
 async def test_re_raises_exception():
     mock_llm = MockLLM()
-    with patch("cogency.lib.logger.logger.error") as mock_logger_error:
+    with patch("cogency.lib.llms.interrupt.logger.error") as mock_logger_error:
         with pytest.raises(RuntimeError, match="Test Error"):
             async for _ in mock_llm.mock_async_generator():
                 pass
@@ -50,7 +50,7 @@ async def test_handles_keyboard_interrupt():
         yield "chunk1"
         raise KeyboardInterrupt
 
-    with patch("cogency.lib.logger.logger.info") as mock_logger_info:
+    with patch("cogency.lib.llms.interrupt.logger.info") as mock_logger_info:
         with pytest.raises(KeyboardInterrupt):
             async for _ in generator_with_keyboard_interrupt(mock_llm):
                 pass
@@ -66,7 +66,7 @@ async def test_handles_cancelled_error():
         yield "chunk1"
         raise asyncio.CancelledError
 
-    with patch("cogency.lib.logger.logger.debug") as mock_logger_debug:
+    with patch("cogency.lib.llms.interrupt.logger.debug") as mock_logger_debug:
         with pytest.raises(asyncio.CancelledError):
             async for _ in generator_with_cancelled_error(mock_llm):
                 pass

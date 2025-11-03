@@ -1,8 +1,10 @@
 import asyncio
 import json
+import logging
 
-from ..lib.logger import logger
 from ..lib.sqlite import default_storage
+
+logger = logging.getLogger(__name__)
 
 
 def add_event(events_list: list[dict], event: dict):

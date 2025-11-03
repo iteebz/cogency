@@ -11,13 +11,16 @@ Features:
 - No WebSocket dependencies
 """
 
+import logging
+
 from .. import context
 from ..lib import telemetry
-from ..lib.logger import logger
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
 from .parser import parse_tokens
+
+logger = logging.getLogger(__name__)
 
 
 async def stream(

@@ -1,10 +1,12 @@
+import logging
 from collections.abc import Sequence
 
 from ..core.protocols import Storage, Tool
-from ..lib.logger import logger
 from .conversation import to_messages
 from .profile import format as profile_format
 from .system import prompt as system_prompt
+
+logger = logging.getLogger(__name__)
 
 
 async def assemble(

@@ -1,11 +1,12 @@
+import logging
 import time
 
-from ..lib.logger import logger
+logger = logging.getLogger(__name__)
 
-try:  # pragma: no cover - exercised indirectly in tests
+try:
     import tiktoken
-except Exception:  # pragma: no cover - optional dependency failure
-    tiktoken = None  # type: ignore[assignment]
+except Exception:
+    tiktoken = None
 
 # Cache encoder to avoid rebuilding on every call
 _gpt4_encoder = None

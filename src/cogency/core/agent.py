@@ -8,6 +8,7 @@ Usage:
 """
 
 import asyncio
+import logging
 
 import anthropic
 import google.api_core.exceptions
@@ -22,6 +23,8 @@ from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config, Security
 from .protocols import LLM, Storage, Tool
+
+logger = logging.getLogger(__name__)
 
 
 class AgentError(RuntimeError):
@@ -77,9 +80,7 @@ class Agent:
             debug: Enable verbose debug logging.
         """
         if debug:
-            from ..lib.logger import set_debug
-
-            set_debug(True)
+            logging.getLogger("cogency").setLevel(logging.DEBUG)
 
         final_security = security or Security()
         final_storage = storage or default_storage()
@@ -166,8 +167,6 @@ class Agent:
                         )
                     return
                 except (RuntimeError, ValueError, AttributeError, httpx.RequestError) as e:
-                    from ..lib.logger import logger
-
                     logger.debug(f"Resume unavailable, falling back to replay: {e}")
                     mode_stream = replay.stream
             else:
@@ -212,12 +211,8 @@ class Agent:
             ValueError,  # For API key not found
             RuntimeError,  # For send() requires active session
         ) as e:
-            from ..lib.logger import logger
-
             logger.error(f"LLM or network error: {type(e).__name__}: {e}", exc_info=True)
             raise AgentError(f"LLM or network error: {e}", cause=e) from e
         except Exception as e:  # Fallback for any other unexpected errors
-            from ..lib.logger import logger
-
             logger.error(f"Stream execution failed: {type(e).__name__}: {e}", exc_info=True)
             raise AgentError(f"Stream execution failed: {e}", cause=e) from e

@@ -11,15 +11,17 @@ Core algorithm:
 """
 
 import json
+import logging
 import time
 from collections.abc import AsyncGenerator
 
-from ..lib.logger import logger
 from ..lib.resilience import CircuitBreaker
 from .codec import parse_tool_call
 from .config import Execution
 from .executor import execute_tool
 from .protocols import Event, ToolResult, event_content, event_type
+
+logger = logging.getLogger(__name__)
 
 # Conversation events that get persisted to storage
 # "user" omitted - handled by resume/replay before agent stream
