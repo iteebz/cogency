@@ -86,7 +86,10 @@ class Accumulator:
         return None
 
     async def _handle_execute(self, timestamp: float) -> AsyncGenerator[Event, None]:
-        """Execute batch of tool calls sequentially, maintaining order."""
+        """Execute batch of tool calls sequentially, maintaining order.
+
+        Yields single result event with injection-ready <results> JSON array.
+        """
         if not self.pending_calls:
             return
 
@@ -103,46 +106,45 @@ class Accumulator:
                 for _ in self.pending_calls
             ]
 
-        from .codec import format_result_agent
+        from .executor import format_results_for_injection
 
-        for i, result in enumerate(results):
+        for result in results:
             if result.error:
                 self.circuit_breaker.record_failure()
             else:
                 self.circuit_breaker.record_success()
 
-            result_ts = self.call_timestamps[i] if i < len(self.call_timestamps) else timestamp
-
-            await self.storage.save_message(
-                self.conversation_id, self.user_id, "result", json.dumps(result.__dict__), result_ts
-            )
-
-            if self.circuit_breaker.is_open():
-                yield {
-                    "type": "result",
-                    "payload": {
-                        "outcome": "Max failures. Terminating.",
-                        "content": "",
-                        "error": True,
-                    },
-                    "content": "Max failures. Terminating.",
-                    "timestamp": timestamp,
-                }
-                yield {"type": "end", "timestamp": timestamp}
-                self.pending_calls = []
-                self.call_timestamps = []
-                return
-
+        if self.circuit_breaker.is_open():
             yield {
                 "type": "result",
                 "payload": {
-                    "outcome": result.outcome,
-                    "content": result.content,
-                    "error": result.error,
+                    "outcome": "Max failures. Terminating.",
+                    "content": "",
+                    "error": True,
                 },
-                "content": f"{format_result_agent(result)}",
-                "timestamp": result_ts,
+                "content": "Max failures. Terminating.",
+                "timestamp": timestamp,
             }
+            yield {"type": "end", "timestamp": timestamp}
+            self.pending_calls = []
+            self.call_timestamps = []
+            return
+
+        injection_payload = format_results_for_injection(self.pending_calls, results)
+        await self.storage.save_message(
+            self.conversation_id, self.user_id, "result", injection_payload, timestamp
+        )
+
+        yield {
+            "type": "result",
+            "payload": {
+                "tools_executed": len(results),
+                "success_count": sum(1 for r in results if not r.error),
+                "failure_count": sum(1 for r in results if r.error),
+            },
+            "content": injection_payload,
+            "timestamp": timestamp,
+        }
 
         self.pending_calls = []
         self.call_timestamps = []

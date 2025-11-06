@@ -1,3 +1,4 @@
+from .codec import format_results_array
 from .config import Execution
 from .protocols import ToolCall, ToolResult
 
@@ -60,4 +61,21 @@ async def execute_tools(
     return results
 
 
-__all__ = ["execute_tools"]
+def format_results_for_injection(calls: list[ToolCall], results: list[ToolResult]) -> str:
+    """Format results as XML-wrapped JSON array for LLM injection.
+
+    Wraps the results array in <results> tags per XML protocol spec.
+    Ready for injection into next turn's LLM context.
+
+    Args:
+        calls: List of ToolCall objects (for tool names, in order)
+        results: List of ToolResult in same order as calls
+
+    Returns:
+        String: "<results>[...json array...]</results>"
+    """
+    array_json = format_results_array(calls, results)
+    return f"<results>\n{array_json}\n</results>"
+
+
+__all__ = ["execute_tools", "format_results_for_injection"]

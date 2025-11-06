@@ -48,6 +48,33 @@ def format_result_agent(result: ToolResult) -> str:
     return result.outcome
 
 
+def format_results_array(calls: list[ToolCall], results: list[ToolResult]) -> str:
+    """Format results array for XML protocol injection per spec.
+
+    Returns JSON array with tool, status, content fields:
+    [
+      {"tool": "name", "status": "success"/"failure", "content": data},
+      ...
+    ]
+
+    Args:
+        calls: List of ToolCall objects (for tool names, in order)
+        results: List of ToolResult in same order as calls
+
+    Returns:
+        JSON array string for <results> block injection
+    """
+    array = []
+    for call, result in zip(calls, results, strict=False):
+        item = {
+            "tool": call.name,
+            "status": "failure" if result.error else "success",
+            "content": result.outcome if result.error else (result.content or result.outcome),
+        }
+        array.append(item)
+    return json.dumps(array)
+
+
 def _auto_escape_content(json_str: str) -> str:
     """Escape unescaped content in JSON strings."""
     content_start = json_str.find('"content": "')

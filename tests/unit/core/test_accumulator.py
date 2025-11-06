@@ -118,10 +118,17 @@ async def test_storage_format(mock_config, mock_tool):
     result_messages = [m for m in stored_messages if m["type"] == "result"]
     assert len(result_messages) == 1
 
-    parsed = json.loads(result_messages[0]["content"])
-    assert isinstance(parsed, dict)
-    assert "outcome" in parsed
-    assert "content" in parsed
+    content = result_messages[0]["content"]
+    assert content.startswith("<results>")
+    assert content.endswith("</results>")
+
+    json_str = content.replace("<results>\n", "").replace("\n</results>", "")
+    parsed = json.loads(json_str)
+    assert isinstance(parsed, list)
+    assert len(parsed) == 1
+    assert parsed[0]["tool"] == tool_instance.name
+    assert parsed[0]["status"] == "success"
+    assert "content" in parsed[0]
 
 
 @pytest.mark.asyncio
@@ -271,3 +278,72 @@ async def test_chunks_false_yields_semantic_events(mock_config):
     respond_events = [e for e in events if e["type"] == "respond"]
     assert len(respond_events) == 1, "stream='event' should yield single accumulated event"
     assert respond_events[0]["content"] == "Hello world"
+
+
+@pytest.mark.asyncio
+async def test_result_injection_format_spec_compliance(mock_config, mock_tool):
+    """Result injection format matches XML protocol spec exactly."""
+    import json
+
+    tool_instance = mock_tool()
+    mock_config.tools = [tool_instance]
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
+
+    async def parser():
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "test"}}}}',
+        }
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    events = [event async for event in accumulator.process(parser())]
+    result_events = [e for e in events if e["type"] == "result"]
+
+    result_event = result_events[0]
+    content = result_event["content"]
+
+    assert content.startswith("<results>")
+    assert content.endswith("</results>")
+
+    json_str = content.replace("<results>\n", "").replace("\n</results>", "")
+    array = json.loads(json_str)
+
+    assert isinstance(array, list)
+    assert len(array) == 1
+
+    item = array[0]
+    assert "tool" in item
+    assert "status" in item
+    assert "content" in item
+    assert item["status"] in ["success", "failure"]
+    assert item["tool"] == tool_instance.name
+
+
+@pytest.mark.asyncio
+async def test_result_event_metadata(mock_config, mock_tool):
+    """Result event has metadata payload with execution summary."""
+    tool_instance = mock_tool()
+    mock_config.tools = [tool_instance]
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
+
+    async def parser():
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "test"}}}}',
+        }
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    events = [event async for event in accumulator.process(parser())]
+    result_events = [e for e in events if e["type"] == "result"]
+
+    result_event = result_events[0]
+    payload = result_event["payload"]
+
+    assert "tools_executed" in payload
+    assert "success_count" in payload
+    assert "failure_count" in payload
+    assert payload["tools_executed"] == 1
+    assert payload["success_count"] == 1
+    assert payload["failure_count"] == 0

@@ -24,7 +24,12 @@ async def test_no_chunks(mock_llm, mock_tool):
     assert events[3]["type"] == "execute"
     assert events[4]["type"] == "metric"
     assert events[5]["type"] == "result"
-    assert "Tool executed: hello world" in events[5]["payload"]["outcome"]
+
+    result_event = events[5]
+    assert result_event["payload"]["tools_executed"] == 1
+    assert result_event["payload"]["success_count"] == 1
+    assert "<results>" in result_event["content"]
+    assert "test_tool" in result_event["content"]
 
 
 @pytest.mark.asyncio
@@ -66,7 +71,11 @@ async def test_tool_execution(mock_llm, mock_tool):
     assert execute_event["type"] == "execute"
     assert metric_event["type"] == "metric"
     assert result_event["type"] == "result"
-    assert "Tool executed: integration test" in result_event["payload"]["outcome"]
+
+    assert result_event["payload"]["tools_executed"] == 1
+    assert result_event["payload"]["success_count"] == 1
+    assert "<results>" in result_event["content"]
+    assert "test_tool" in result_event["content"]
 
 
 @pytest.mark.asyncio
