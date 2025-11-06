@@ -1,7 +1,7 @@
 """Resume mode iteration accounting.
 
 Contract: max_iterations counts tool execution turns, not streamed events.
-- One turn = LLM response until tool execution boundary (§execute) or completion (§end)
+- One turn = LLM response until tool execution boundary (<execute>) or completion
 - Multiple think/respond/call events in single LLM response = one turn
 - Turn increments only when tool result completes (allowing next LLM request)
 - Boundary: exactly max_iterations should complete; max_iterations+1 should fail
@@ -17,11 +17,10 @@ async def test_single_response_multiple_events_one_turn(mock_llm, mock_config):
     """One LLM response with multiple events = one turn."""
     mock_llm.set_response_tokens(
         [
-            "§think: Analyzing requirement\n",
-            "§think: Planning approach\n",
-            "§respond: Here is the solution\n",
-            "§respond: It works like this\n",
-            "§end\n",
+            "<think>Analyzing requirement</think>",
+            "<think>Planning approach</think>",
+            "Here is the solution",
+            "It works like this",
         ]
     )
     mock_config.max_iterations = 1
@@ -31,7 +30,6 @@ async def test_single_response_multiple_events_one_turn(mock_llm, mock_config):
         events.append(event)
 
     assert any(e["type"] == "respond" for e in events)
-    assert any(e["type"] == "end" for e in events)
 
 
 @pytest.mark.asyncio
@@ -39,7 +37,7 @@ async def test_iteration_boundary_exact_limit(mock_config, resume_llm):
     """Completes exactly at configured iteration limit."""
     mock_config.llm = resume_llm(
         [
-            ["§respond: Response 1\n", "§end\n"],
+            ["Response 1"],
         ]
     )
     mock_config.max_iterations = 1
@@ -48,7 +46,7 @@ async def test_iteration_boundary_exact_limit(mock_config, resume_llm):
     async for event in resume_stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
-    assert any(e["type"] == "end" for e in events)
+    assert any(e["type"] == "respond" for e in events)
 
 
 @pytest.mark.asyncio
@@ -59,13 +57,11 @@ async def test_tool_continuation_hits_iteration_limit(mock_config, mock_tool, re
     mock_config.llm = resume_llm(
         [
             [
-                "§think: need tool\n",
-                '§call: {"name": "test_tool", "args": {"message": "hi"}}\n',
-                "§execute\n",
+                "<think>need tool</think>",
+                "<execute><test_tool><message>hi</message></test_tool></execute>",
             ],
             [
-                "§respond: tool done\n",
-                "§end\n",
+                "tool done",
             ],
         ]
     )
@@ -84,13 +80,11 @@ async def test_tool_continuation_within_limit(mock_config, mock_tool, resume_llm
     mock_config.llm = resume_llm(
         [
             [
-                "§think: need tool\n",
-                '§call: {"name": "test_tool", "args": {"message": "hi"}}\n',
-                "§execute\n",
+                "<think>need tool</think>",
+                "<execute><test_tool><message>hi</message></test_tool></execute>",
             ],
             [
-                "§respond: tool done\n",
-                "§end\n",
+                "tool done",
             ],
         ]
     )
@@ -102,4 +96,3 @@ async def test_tool_continuation_within_limit(mock_config, mock_tool, resume_llm
 
     assert any(e["type"] == "result" for e in events), "Expected tool result event"
     assert any(e["type"] == "respond" for e in events)
-    assert any(e["type"] == "end" for e in events)

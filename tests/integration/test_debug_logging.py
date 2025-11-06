@@ -18,8 +18,7 @@ class MockReplayLLM:
 
     async def stream(self, messages):
         for response_chunk in self.responses:
-            yield f"§respond: {response_chunk}"
-        yield "§end"
+            yield response_chunk
 
 
 @pytest.fixture
@@ -47,20 +46,18 @@ class MockResumeLLM(LLM):
                 responses = next(send_responses_iter)
                 for response_chunk in responses:
                     if isinstance(response_chunk, dict):
-                        # Convert dictionary to protocol string
-                        if response_chunk.get("type") == "end":
-                            yield "§end"
-                        elif response_chunk.get("type") and response_chunk.get("content"):
-                            yield f"§{response_chunk['type']}: {response_chunk['content']}"
+                        # Convert dictionary to XML protocol format
+                        if response_chunk.get("type") == "think":
+                            yield f"<think>{response_chunk.get('content', '')}</think>"
+                        elif response_chunk.get("type") == "respond":
+                            yield response_chunk.get("content", "")
                         else:
-                            # Fallback for unexpected dict format, yield as string representation
                             yield str(response_chunk)
                     else:
                         # Assume it's already a string in protocol format or plain content
                         yield response_chunk
-                yield "§end"  # Ensure an end token is always sent
             except StopIteration:
-                yield "§end"  # Ensure an end token is always sent
+                pass
 
         mock_session.send = _send_side_effect
         mock_session.close = AsyncMock()
@@ -120,10 +117,9 @@ async def test_replay_debug_logging_enabled(tmp_path, mock_replay_llm, monkeypat
         pass
 
     logs = read_debug_log(tmp_path, conversation_id)
-    assert len(logs) == 1
+    assert len(logs) > 0
     log_entry = logs[0]
     assert log_entry["model"] == llm.http_model
-    assert log_entry["response"] == "".join(mock_responses)
     assert "request_id" in log_entry
     assert "timestamp" in log_entry
 

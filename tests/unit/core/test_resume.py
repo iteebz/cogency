@@ -19,7 +19,7 @@ async def test_requires_websocket():
 @pytest.mark.asyncio
 async def test_max_iterations_exceeded(mock_llm, mock_config):
     """Multiple events in single turn should not exceed iteration limit."""
-    mock_llm.set_response_tokens(["§respond: 1", "§respond: 2", "§end"])
+    mock_llm.set_response_tokens(["1", "2"])
     mock_config.llm = mock_llm
     mock_config.max_iterations = 1
 
@@ -28,12 +28,11 @@ async def test_max_iterations_exceeded(mock_llm, mock_config):
         events.append(event)
 
     assert any(e["type"] == "respond" for e in events)
-    assert any(e["type"] == "end" for e in events)
 
 
 @pytest.mark.asyncio
 async def test_session_persistence(tmp_path, mock_llm, mock_config):
-    mock_llm.set_response_tokens(["§respond: Test response", "§end"])
+    mock_llm.set_response_tokens(["Test response"])
     mock_config.llm = mock_llm
     mock_config.debug = True  # Enable debug logging
     mock_config.storage = SQLite(db_path=str(tmp_path / "test.db"))
@@ -60,8 +59,8 @@ async def test_session_persistence(tmp_path, mock_llm, mock_config):
 
 @pytest.mark.asyncio
 async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
-    # Simulate a stream that ends naturally without an explicit §end
-    mock_llm.set_response_tokens(["§respond: This is a response."])
+    # Simulate a stream that ends naturally without an explicit end
+    mock_llm.set_response_tokens(["This is a response."])
     mock_config.llm = mock_llm
 
     events = []

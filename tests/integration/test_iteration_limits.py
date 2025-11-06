@@ -29,7 +29,7 @@ async def test_agent_respects_iteration_limit_with_tools(mock_llm, mock_config, 
     # - Second call + execute (turn 2)
     # - Third call attempt would trigger max_iterations check
 
-    mock_llm.set_response_tokens(["§respond: Will attempt tasks\n", "§end\n"])
+    mock_llm.set_response_tokens(["Will attempt tasks"])
 
     events = []
     async for event in resume_stream("test", "user", "conv", config=mock_config):
@@ -37,7 +37,6 @@ async def test_agent_respects_iteration_limit_with_tools(mock_llm, mock_config, 
 
     # Should complete without hitting iteration limit
     assert any(e["type"] == "respond" for e in events)
-    assert any(e["type"] == "end" for e in events)
 
 
 @pytest.mark.asyncio
@@ -50,7 +49,11 @@ async def test_iteration_counts_after_tool_result(mock_llm, mock_config, mock_to
 
     # Single response with no tool calls
     mock_llm.set_response_tokens(
-        ["§think: Analyzing\n", "§think: More thought\n", "§respond: Direct answer\n", "§end\n"]
+        [
+            "<think>Analyzing</think>",
+            "<think>More thought</think>",
+            "Direct answer",
+        ]
     )
 
     events = []
@@ -63,4 +66,3 @@ async def test_iteration_counts_after_tool_result(mock_llm, mock_config, mock_to
 
     assert len(responds) >= 1
     assert len(thinks) >= 1
-    assert any(e["type"] == "end" for e in events)

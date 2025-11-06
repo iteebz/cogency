@@ -95,7 +95,7 @@ def mock_llm():
         resumable = False
 
         def __init__(self, response_tokens=None):
-            self.response_tokens = response_tokens or ["§respond: Test response\n", "§end\n"]
+            self.response_tokens = response_tokens or ["<respond>Test response</respond>"]
             self._is_session = False
             self.generate = AsyncMock(return_value="Test response")
             self._continuation_error = None

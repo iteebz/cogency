@@ -6,11 +6,9 @@ from cogency import Agent, AgentError
 @pytest.mark.asyncio
 async def test_no_chunks(mock_llm, mock_tool):
     protocol_tokens = [
-        "§think: I need to call a tool.\n",
-        '§call: {"name": "test_tool", "args": {"message": "hello world"}}\n',
-        "§execute\n",
-        "§respond: The tool completed successfully.\n",
-        "§end\n",
+        "<think>I need to call a tool.</think>",
+        "<execute><test_tool><message>hello world</message></test_tool></execute>",
+        "The tool completed successfully.",
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
@@ -32,12 +30,10 @@ async def test_no_chunks(mock_llm, mock_tool):
 @pytest.mark.asyncio
 async def test_chunks(mock_llm, mock_tool):
     protocol_tokens = [
-        "§think: Think",
-        "ing...\n",
-        '§call: {"name": "test_tool", "args": {"message": "test"}}\n',
-        "§execute\n",
-        "§respond: Done!\n",
-        "§end\n",
+        "<think>Think",
+        "ing...</think>",
+        "<execute><test_tool><message>test</message></test_tool></execute>",
+        "Done!",
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
@@ -52,10 +48,8 @@ async def test_chunks(mock_llm, mock_tool):
 @pytest.mark.asyncio
 async def test_tool_execution(mock_llm, mock_tool):
     protocol_tokens = [
-        '§call: {"name": "test_tool", "args": {"message": "integration test"}}\n',
-        "§execute\n",
-        "§respond: Tool call completed.\n",
-        "§end\n",
+        "<execute><test_tool><message>integration test</message></test_tool></execute>",
+        "Tool call completed.",
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
@@ -78,10 +72,8 @@ async def test_tool_execution(mock_llm, mock_tool):
 @pytest.mark.asyncio
 async def test_error_handling(mock_llm, mock_tool):
     protocol_tokens = [
-        '§call: {"name": "failing_tool", "args": {}}\n',
-        "§execute\n",
-        "§respond: Handling error...\n",
-        "§end\n",
+        "<execute><failing_tool></failing_tool></execute>",
+        "Handling error...",
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
@@ -97,11 +89,9 @@ async def test_error_handling(mock_llm, mock_tool):
 @pytest.mark.asyncio
 async def test_persistence(mock_llm, mock_tool, mock_storage):
     protocol_tokens = [
-        "§think: Thinking...\n",
-        '§call: {"name": "test_tool", "args": {"message": "persist_test"}}\n',
-        "§execute\n",
-        "§respond: Response text\n",
-        "§end\n",
+        "<think>Thinking...</think>",
+        "<execute><test_tool><message>persist_test</message></test_tool></execute>",
+        "Response text",
     ]
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
@@ -120,21 +110,19 @@ async def test_persistence(mock_llm, mock_tool, mock_storage):
 async def test_event_taxonomy(mock_llm, mock_tool):
     """Verify complete event taxonomy with multi-iteration flow.
 
-    With parser hardstop on §execute, respond/end come in iteration 2.
+    With parser hardstop on </execute>, respond comes in iteration 2.
     This tests the full nominal path:
     - Iter 1: think → call tool → execute (hardstop)
     - Tool executes with result
-    - Iter 2: (with tool result in context) → respond → end
+    - Iter 2: (with tool result in context) → respond
     """
     iteration_tokens = [
         [
-            "§think: reasoning\n",
-            '§call: {"name": "test_tool", "args": {"message": "test"}}\n',
-            "§execute\n",
+            "<think>reasoning</think>",
+            "<execute><test_tool><message>test</message></test_tool></execute>",
         ],
         [
-            "§respond: result processed\n",
-            "§end\n",
+            "result processed",
         ],
     ]
 
@@ -164,7 +152,6 @@ async def test_event_taxonomy(mock_llm, mock_tool):
     assert "execute" in event_types
     assert "result" in event_types
     assert "respond" in event_types
-    assert "end" in event_types
     assert "metric" in event_types
 
     # Verify order within iteration sequences
@@ -174,19 +161,18 @@ async def test_event_taxonomy(mock_llm, mock_tool):
     execute_idx = event_types.index("execute")
     result_idx = event_types.index("result")
     respond_idx = event_types.index("respond")
-    end_idx = event_types.index("end")
 
     # Iteration 1 sequence: user → think → call → execute → result
     assert user_idx < think_idx < call_idx < execute_idx < result_idx
-    # Iteration 2 sequence: respond comes after, then end
-    assert result_idx < respond_idx < end_idx
+    # Iteration 2 sequence: respond comes after result
+    assert result_idx < respond_idx
 
 
 @pytest.mark.asyncio
 async def test_generate_mode(mock_llm, mock_tool):
     """Parser accepts complete string from LLM.generate()."""
 
-    completion = "§think: analyzing request §respond: The answer is 42 §end"
+    completion = "<think>analyzing request</think>The answer is 42"
 
     class GenerateMockLLM:
         async def generate(self, messages):
@@ -204,7 +190,6 @@ async def test_generate_mode(mock_llm, mock_tool):
     assert "user" in event_types
     assert "think" in event_types
     assert "respond" in event_types
-    assert "end" in event_types
 
     think_event = next(e for e in events if e["type"] == "think")
     assert "analyzing request" in think_event["content"]
