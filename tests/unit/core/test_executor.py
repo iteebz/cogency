@@ -75,6 +75,9 @@ async def test_context_injection(mock_config, mock_tool):
         conversation_id="test_conv",
     )
 
-    mock_tool.execute.assert_called_once_with(
-        explicit_arg="value", sandbox_dir=".cogency/sandbox", access="sandbox", user_id="test_user"
-    )
+    call_kwargs = mock_tool.execute.call_args[1]
+    assert call_kwargs["explicit_arg"] == "value"
+    assert call_kwargs["sandbox_dir"] == ".cogency/sandbox"
+    assert call_kwargs["access"] == "sandbox"
+    assert call_kwargs["user_id"] == "test_user"
+    assert "storage" in call_kwargs

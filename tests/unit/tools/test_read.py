@@ -16,8 +16,7 @@ def temp_file(tmp_path: Path) -> Path:
 @pytest.mark.asyncio
 async def test_read_default(temp_file: Path):
     """Test that reading a file with no pagination args reads the whole file."""
-    read_tool = Read()
-    result = await read_tool.execute(str(temp_file), access="system")
+    result = await Read.execute(file=str(temp_file), access="system")
 
     assert not result.error
     assert f"Read {str(temp_file)} (10 lines)" == result.outcome
@@ -29,8 +28,7 @@ async def test_read_default(temp_file: Path):
 @pytest.mark.asyncio
 async def test_read_with_lines(temp_file: Path):
     """Test that reading with `lines` paginates correctly from the start."""
-    read_tool = Read()
-    result = await read_tool.execute(str(temp_file), lines=5, access="system")
+    result = await Read.execute(file=str(temp_file), lines=5, access="system")
 
     assert not result.error
     assert f"Read {str(temp_file)} (5 lines)" == result.outcome
@@ -44,8 +42,7 @@ async def test_read_with_lines(temp_file: Path):
 @pytest.mark.asyncio
 async def test_read_with_start_and_lines(temp_file: Path):
     """Test that reading with `start` and `lines` paginates correctly."""
-    read_tool = Read()
-    result = await read_tool.execute(str(temp_file), start=5, lines=3, access="system")
+    result = await Read.execute(file=str(temp_file), start=5, lines=3, access="system")
 
     assert not result.error
     assert f"Read {str(temp_file)} (3 lines)" == result.outcome
@@ -59,8 +56,7 @@ async def test_read_with_start_and_lines(temp_file: Path):
 @pytest.mark.asyncio
 async def test_read_file_not_found():
     """Test that reading a non-existent file returns an error."""
-    read_tool = Read()
-    result = await read_tool.execute("non_existent_file.txt", access="system")
+    result = await Read.execute(file="non_existent_file.txt", access="system")
 
     assert result.error
     assert "not found" in result.outcome

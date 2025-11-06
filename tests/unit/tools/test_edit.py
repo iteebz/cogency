@@ -7,11 +7,10 @@ from cogency.tools import Edit
 
 @pytest.mark.asyncio
 async def test_replace(tmp_path):
-    tool = Edit()
     target = tmp_path / "test.txt"
     target.write_text("previous content")
 
-    result = await tool.execute(
+    result = await Edit.execute(
         file=str(target.name),
         old="previous",
         new="next",
@@ -26,7 +25,6 @@ async def test_replace(tmp_path):
 
 @pytest.mark.asyncio
 async def test_diff_report(tmp_path):
-    tool = Edit()
     target = tmp_path / "test.txt"
     initial_content = """line 1
 line 2 old
@@ -34,7 +32,7 @@ line 3
 """
     target.write_text(initial_content)
 
-    result = await tool.execute(
+    result = await Edit.execute(
         file=str(target.name),
         old="line 2 old",
         new="line 2 new",
@@ -61,7 +59,6 @@ line 3
 
 @pytest.mark.asyncio
 async def test_no_op_when_same(tmp_path):
-    tool = Edit()
     target = tmp_path / "test.txt"
     initial_content = """line 1
 line 2
@@ -69,7 +66,7 @@ line 3
 """
     target.write_text(initial_content)
 
-    result = await tool.execute(
+    result = await Edit.execute(
         file=str(target.name),
         old="line 2",
         new="line 2",
@@ -87,7 +84,6 @@ line 3
 
 @pytest.mark.asyncio
 async def test_fail_when_not_found(tmp_path):
-    tool = Edit()
     target = tmp_path / "test.txt"
     initial_content = """line 1
 line 2
@@ -95,7 +91,7 @@ line 3
 """
     target.write_text(initial_content)
 
-    result = await tool.execute(
+    result = await Edit.execute(
         file=str(target.name),
         old="non-existent line",
         new="some new text",
@@ -110,11 +106,10 @@ line 3
 
 @pytest.mark.asyncio
 async def test_fail_blank_on_empty(tmp_path):
-    tool = Edit()
     target = tmp_path / "test.txt"
     target.write_text("")
 
-    result = await tool.execute(
+    result = await Edit.execute(
         file=str(target.name), old="", new="content", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -125,11 +120,10 @@ async def test_fail_blank_on_empty(tmp_path):
 
 @pytest.mark.asyncio
 async def test_fail_blank_on_existing(tmp_path):
-    tool = Edit()
     target = tmp_path / "test.txt"
     target.write_text("previous")
 
-    result = await tool.execute(
+    result = await Edit.execute(
         file=str(target.name), old="", new="next", sandbox_dir=str(tmp_path), access="sandbox"
     )
 

@@ -1,12 +1,109 @@
+"""Cogency XML protocol parser.
+
+Three-phase protocol: THINK → EXECUTE → RESULTS. Sequential, validated, ordered.
+
+Converts raw token stream (or complete string) into semantic events for accumulator.
+- <think> blocks → think events
+- <execute> blocks → call events (one per tool, JSON format)
+- <results> blocks → result events (JSON array format)
+"""
+
 from __future__ import annotations
 
+import json
 import logging
-import re
 from collections.abc import AsyncGenerator
 
-from .protocols import Event
+from .protocols import Event, ToolCall
 
 logger = logging.getLogger(__name__)
+
+TAG_PATTERN = {
+    "think": ("<think>", "</think>"),
+    "execute": ("<execute>", "</execute>"),
+    "results": ("<results>", "</results>"),
+}
+
+VALID_TAGS = {"think", "execute", "results"}
+
+
+class ParseError(ValueError):
+    """Raised when XML parsing fails."""
+
+    def __init__(self, message: str, original_input: str | None = None) -> None:
+        super().__init__(message)
+        self.original_input = original_input
+
+
+def _parse_value(element) -> object:
+    """Parse XML element value, handling nested structures and primitives."""
+    import xml.etree.ElementTree as ET
+
+    if not isinstance(element, ET.Element):
+        return element
+
+    text = element.text or ""
+
+    if text.startswith("[") or text.startswith("{"):
+        try:
+            return json.loads(text)
+        except (ValueError, Exception):
+            return text
+
+    if text.lower() in ("true", "false"):
+        return text.lower() == "true"
+
+    try:
+        if "." in text:
+            return float(text)
+        return int(text)
+    except ValueError:
+        return text
+
+
+def _parse_args(tool_element) -> dict:
+    """Parse tool arguments from XML child elements."""
+    args = {}
+    for child in tool_element:
+        args[child.tag] = _parse_value(child)
+    return args
+
+
+def parse_execute_block(xml_str: str) -> list[ToolCall]:
+    """Parse <execute> block and return list of ToolCall objects in order.
+
+    Args:
+        xml_str: XML string containing <execute> block
+
+    Returns:
+        List of ToolCall objects in execution order
+
+    Raises:
+        ParseError: If XML is malformed or missing <execute> block
+    """
+    import xml.etree.ElementTree as ET
+
+    xml_str = xml_str.strip()
+
+    if "<execute>" not in xml_str or "</execute>" not in xml_str:
+        raise ParseError("No <execute> block found", original_input=xml_str)
+
+    try:
+        start = xml_str.find("<execute>")
+        end = xml_str.find("</execute>") + len("</execute>")
+        execute_xml = xml_str[start:end]
+
+        root = ET.fromstring(execute_xml)
+    except ET.ParseError as e:
+        raise ParseError(f"XML parse failed: {e}", original_input=xml_str) from e
+
+    calls = []
+    for child in root:
+        tool_name = child.tag
+        args = _parse_args(child)
+        calls.append(ToolCall(name=tool_name, args=args))
+
+    return calls
 
 
 async def _wrap_string(text: str) -> AsyncGenerator[str, None]:
@@ -14,48 +111,66 @@ async def _wrap_string(text: str) -> AsyncGenerator[str, None]:
     yield text
 
 
-CONTENT_DELIMITERS = ("think", "call", "respond")
-CONTROL_DELIMITERS = ("execute", "end")
-DEFAULT_CONTENT_TYPE = "respond"
+def _find_next_tag(buffer: str) -> tuple[str, int, int] | None:
+    """Find next opening tag in buffer.
 
-_DELIMITER_PATTERN = re.compile(
-    r"§(?P<name>think|call|respond):\s*|§(?P<control>execute|end)",
-    re.IGNORECASE,
-)
+    Returns (tag_name, start_pos, end_pos) or None.
+    """
+    earliest_pos = len(buffer)
+    earliest_tag = None
 
-_DELIMITER_TOKENS = ["§think:", "§call:", "§respond:", "§execute", "§end"]
+    for tag_name in VALID_TAGS:
+        open_tag = TAG_PATTERN[tag_name][0]
+        pos = buffer.find(open_tag)
+        if pos != -1 and pos < earliest_pos:
+            earliest_pos = pos
+            earliest_tag = tag_name
 
-
-def _pending_delimiter_start(buffer: str) -> int | None:
-    """Return index where a partial delimiter begins, if any."""
-    lower = buffer.lower()
-    idx = lower.find("§")
-    while idx != -1:
-        remainder = lower[idx:]
-        if any(remainder.startswith(token[: len(remainder)]) for token in _DELIMITER_TOKENS):
-            return idx
-        idx = lower.find("§", idx + 1)
-    return None
-
-
-def _emit_content(chunk: str, current_type: str | None) -> Event | None:
-    """Prepare a content event if the chunk carries signal."""
-    if not chunk:
+    if earliest_tag is None:
         return None
-    content_type = current_type or DEFAULT_CONTENT_TYPE
-    return {"type": content_type, "content": chunk}
+
+    open_tag = TAG_PATTERN[earliest_tag][0]
+    return earliest_tag, earliest_pos, earliest_pos + len(open_tag)
+
+
+def _find_closing_tag(buffer: str, tag_name: str) -> int | None:
+    """Find position of closing tag. Returns end position or None if not found."""
+    close_tag = TAG_PATTERN[tag_name][1]
+    pos = buffer.find(close_tag)
+    if pos == -1:
+        return None
+    return pos + len(close_tag)
+
+
+async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event, None]:
+    """Parse execute block and emit call events for each tool."""
+    try:
+        tool_calls = parse_execute_block(xml_block)
+        for call in tool_calls:
+            call_json = json.dumps({"name": call.name, "args": call.args})
+            yield {"type": "call", "content": call_json}
+    except Exception as e:
+        logger.warning(f"Failed to parse execute block: {e}")
+        yield {"type": "call", "content": xml_block}
 
 
 async def parse_tokens(
     token_stream: AsyncGenerator[str, None] | str,
 ) -> AsyncGenerator[Event, None]:
-    """Transform raw token stream or complete string into structured protocol events."""
+    """Transform raw token stream or complete string into semantic events.
+
+    Handles:
+    - <think>...</think> → think events
+    - <execute>...</execute> → call events (parsed to JSON)
+    - <results>...</results> → result events (JSON array)
+
+    Works with token-by-token streaming or complete output strings.
+    """
 
     if isinstance(token_stream, str):
         token_stream = _wrap_string(token_stream)
 
     buffer = ""
-    current_type: str | None = None
 
     async for token in token_stream:
         if not isinstance(token, str):
@@ -65,41 +180,41 @@ async def parse_tokens(
         buffer += token
 
         while True:
-            match = _DELIMITER_PATTERN.search(buffer)
-            if not match:
+            tag_info = _find_next_tag(buffer)
+            if not tag_info:
                 break
 
-            prefix = buffer[: match.start()]
-            buffer = buffer[match.end() :]
+            tag_name, start_pos, open_end = tag_info
+            close_pos = _find_closing_tag(buffer[open_end:], tag_name)
 
-            if event := _emit_content(prefix, current_type):
-                yield event
+            if close_pos is None:
+                break
 
-            control = match.group("control")
-            if control:
-                control_type = control.lower()
-                yield {"type": control_type}
-                if control_type in ("execute", "end"):
-                    return
-                current_type = None
-                continue
+            close_pos += open_end
 
-            name = match.group("name")
-            if name is None:
-                continue
-            current_type = name.lower()
+            prefix = buffer[:start_pos]
+            if prefix.strip():
+                yield {"type": "respond", "content": prefix}
 
-        if not buffer:
-            continue
+            content_start = open_end
+            content_end = close_pos - len(TAG_PATTERN[tag_name][1])
+            content = buffer[content_start:content_end]
 
-        partial_idx = _pending_delimiter_start(buffer)
-        if partial_idx is None:
-            chunk, buffer = buffer, ""
-        else:
-            chunk, buffer = buffer[:partial_idx], buffer[partial_idx:]
+            if tag_name == "execute":
+                async for event in _emit_tool_calls_from_execute(f"<execute>{content}</execute>"):
+                    yield event
+                yield {"type": "execute"}
+            elif tag_name == "think":
+                if content.strip():
+                    yield {"type": "think", "content": content}
+            elif tag_name == "results":
+                if content.strip():
+                    yield {"type": "result", "content": content}
 
-        if event := _emit_content(chunk, current_type):
-            yield event
+            buffer = buffer[close_pos:]
 
-    if buffer and (event := _emit_content(buffer, current_type)):
-        yield event
+    if buffer.strip():
+        yield {"type": "respond", "content": buffer}
+
+
+__all__ = ["parse_tokens"]

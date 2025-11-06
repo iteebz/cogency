@@ -7,9 +7,7 @@ from cogency.tools import Shell
 
 @pytest.mark.asyncio
 async def test_runs_in_sandbox_dir(tmp_path):
-    tool = Shell()
-
-    result = await tool.execute(command="pwd", sandbox_dir=str(tmp_path), access="sandbox")
+    result = await Shell.execute(command="pwd", sandbox_dir=str(tmp_path), access="sandbox")
 
     assert not result.error
     assert str(tmp_path) in result.content
@@ -17,9 +15,7 @@ async def test_runs_in_sandbox_dir(tmp_path):
 
 @pytest.mark.asyncio
 async def test_runs_in_cwd():
-    tool = Shell()
-
-    result = await tool.execute(command="pwd", access="project")
+    result = await Shell.execute(command="pwd", access="project")
 
     assert not result.error
     assert str(Path.cwd()) in result.content
@@ -27,9 +23,7 @@ async def test_runs_in_cwd():
 
 @pytest.mark.asyncio
 async def test_sandbox_ignored_when_not_sandbox(tmp_path):
-    tool = Shell()
-
-    result = await tool.execute(command="pwd", sandbox_dir=str(tmp_path), access="project")
+    result = await Shell.execute(command="pwd", sandbox_dir=str(tmp_path), access="project")
 
     assert not result.error
     assert str(Path.cwd()) in result.content
@@ -38,9 +32,7 @@ async def test_sandbox_ignored_when_not_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_timeout_enforcement():
-    tool = Shell()
-
-    result = await tool.execute(command="/bin/sleep 5", timeout=1, access="sandbox")
+    result = await Shell.execute(command="/bin/sleep 5", timeout=1, access="sandbox")
 
     assert result.error
     assert "timed out" in result.outcome
@@ -53,9 +45,7 @@ async def test_glob_expansion_in_project(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    tool = Shell()
-
-    result = await tool.execute(command="ls -d */", access="project")
+    result = await Shell.execute(command="ls -d */", access="project")
 
     assert not result.error
     assert "alpha/" in result.content
@@ -64,11 +54,10 @@ async def test_glob_expansion_in_project(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_cwd_absolute(tmp_path):
-    tool = Shell()
     subdir = tmp_path / "custom"
     subdir.mkdir()
 
-    result = await tool.execute(command="pwd", cwd=str(subdir), access="sandbox")
+    result = await Shell.execute(command="pwd", cwd=str(subdir), access="sandbox")
 
     assert not result.error
     assert str(subdir) in result.content
@@ -76,9 +65,7 @@ async def test_cwd_absolute(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cwd_relative_sandbox(tmp_path):
-    tool = Shell()
-
-    result = await tool.execute(
+    result = await Shell.execute(
         command="pwd", cwd="subdir", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -88,9 +75,7 @@ async def test_cwd_relative_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cwd_relative_project():
-    tool = Shell()
-
-    result = await tool.execute(command="pwd", cwd="tests", access="project")
+    result = await Shell.execute(command="pwd", cwd="tests", access="project")
 
     assert not result.error
     assert str(Path.cwd() / "tests") in result.content

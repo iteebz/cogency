@@ -34,7 +34,7 @@ async def test_isolates_agents(tmp_path, mock_llm):
 
     read_tool_agent2 = next(t for t in agent2.config.tools if t.name == "read")
     read_result_agent2 = await read_tool_agent2.execute(
-        "isolated_file.txt",
+        file="isolated_file.txt",
         sandbox_dir=agent2.config.security.sandbox_dir,
         access=agent2.config.security.access,
     )
@@ -42,7 +42,7 @@ async def test_isolates_agents(tmp_path, mock_llm):
     assert "not found" in read_result_agent2.outcome
     read_tool_agent1 = next(t for t in agent1.config.tools if t.name == "read")
     read_result_agent1 = await read_tool_agent1.execute(
-        "isolated_file.txt",
+        file="isolated_file.txt",
         sandbox_dir=agent1.config.security.sandbox_dir,
         access=agent1.config.security.access,
     )

@@ -1,61 +1,43 @@
+from dataclasses import dataclass
+from typing import Annotated
+
 from ..core.config import Access
-from ..core.protocols import Tool, ToolResult
+from ..core.protocols import ToolParam, ToolResult
 from ..core.security import resolve_file, safe_execute
+from ..core.tool import tool
 
 
-class Write(Tool):
-    """Write file."""
+@dataclass
+class WriteParams:
+    file: Annotated[str, ToolParam(description="File path to write (relative to project root)")]
+    content: Annotated[str, ToolParam(description="File content to write")]
+    overwrite: Annotated[bool, ToolParam(description="Overwrite file if exists")] = False
 
-    name = "write"
-    description = "Write file. Fails if file exists unless overwrite=true."
-    schema = {
-        "file": {
-            "type": "string",
-            "description": "File path to write (relative to project root)",
-            "required": True,
-        },
-        "content": {
-            "type": "string",
-            "description": "File content to write",
-            "required": True,
-        },
-        "overwrite": {
-            "type": "boolean",
-            "description": "Overwrite file if exists",
-            "required": False,
-            "default": False,
-        },
-    }
 
-    def describe(self, args: dict) -> str:
-        return f"Writing {args.get('file', 'file')}"
+@tool("Write file. Fails if file exists unless overwrite=true.")
+@safe_execute
+async def Write(
+    params: WriteParams,
+    sandbox_dir: str = ".cogency/sandbox",
+    access: Access = "sandbox",
+    **kwargs,
+) -> ToolResult:
+    if not params.file:
+        return ToolResult(outcome="File cannot be empty", error=True)
 
-    @safe_execute
-    async def execute(
-        self,
-        file: str,
-        content: str,
-        overwrite: bool = False,
-        sandbox_dir: str = ".cogency/sandbox",
-        access: Access = "sandbox",
-        **kwargs,
-    ) -> ToolResult:
-        if not file:
-            return ToolResult(outcome="File cannot be empty", error=True)
+    file_path = resolve_file(params.file, access, sandbox_dir)
 
-        file_path = resolve_file(file, access, sandbox_dir)
+    if file_path.exists() and not params.overwrite:
+        return ToolResult(
+            outcome=f"File '{params.file}' already exists. Try: overwrite=True to replace, or choose different name.",
+            error=True,
+        )
 
-        if file_path.exists() and not overwrite:
-            return ToolResult(
-                outcome=f"File '{file}' already exists. Try: overwrite=True to replace, or choose different name.",
-                error=True,
-            )
+    file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        file_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(params.content)
 
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(content)
-
-        lines = content.count("\n") + 1 if content else 0
-        preview = content[:200] + ("..." if len(content) > 200 else "")
-        return ToolResult(outcome=f"Wrote {file} (+{lines}/-0)", content=preview)
+    lines = params.content.count("\n") + 1 if params.content else 0
+    preview = params.content[:200] + ("..." if len(params.content) > 200 else "")
+    return ToolResult(outcome=f"Wrote {params.file} (+{lines}/-0)", content=preview)

@@ -12,8 +12,7 @@ async def test_reports_zero_matches(tmp_path, monkeypatch):
     (workspace / "app.py").write_text("print('hello world')\n", encoding="utf-8")
     monkeypatch.chdir(workspace)
 
-    tool = Find()
-    result = await tool.execute(content="missing", path=".", access="project")
+    result = await Find.execute(content="missing", path=".", access="project")
 
     assert result.outcome == "Found 0 matches"
     assert "Root: ." in result.content
@@ -30,15 +29,14 @@ async def test_returns_relative_paths_with_counts(tmp_path, monkeypatch):
     (pkg_dir / "beta.py").write_text("def bar():\n    return 'alpha'\n", encoding="utf-8")
     monkeypatch.chdir(workspace)
 
-    tool = Find()
-    result = await tool.execute(content="alpha", path="pkg", access="project")
+    result = await Find.execute(content="alpha", path="pkg", access="project")
 
     assert result.outcome == "Found 2 matches"
     lines = [line for line in result.content.splitlines() if line and ":" in line]
     assert any(line.startswith("pkg/alpha.py:2:") for line in lines)
     assert any(line.startswith("pkg/beta.py:2:") for line in lines)
 
-    second = await tool.execute(pattern="alpha.py", path="pkg", access="project")
+    second = await Find.execute(pattern="alpha.py", path="pkg", access="project")
     assert second.outcome == "Found 1 match"
     entries = [
         line

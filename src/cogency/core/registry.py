@@ -12,27 +12,18 @@ class ToolRegistry:
         self._register_builtins()
 
     def _register_builtins(self):
-        from ..tools.edit import Edit
-        from ..tools.find import Find
-        from ..tools.list import List
-        from ..tools.read import Read
-        from ..tools.recall import Recall
-        from ..tools.replace import Replace
-        from ..tools.scrape import Scrape
-        from ..tools.search import Search
-        from ..tools.shell import Shell
-        from ..tools.write import Write
+        from ..tools import Edit, Find, List, Read, Recall, Replace, Scrape, Search, Shell, Write
 
-        self.register(Read(), "code")
-        self.register(Write(), "code")
-        self.register(Edit(), "code")
-        self.register(List(), "code")
-        self.register(Find(), "code")
-        self.register(Replace(), "code")
-        self.register(Shell(), "code")
-        self.register(Scrape(), "web")
-        self.register(Search(), "web")
-        self.register(Recall(storage=self.storage), "memory")
+        self.register(Read, "code")
+        self.register(Write, "code")
+        self.register(Edit, "code")
+        self.register(List, "code")
+        self.register(Find, "code")
+        self.register(Replace, "code")
+        self.register(Shell, "code")
+        self.register(Scrape, "web")
+        self.register(Search, "web")
+        self.register(Recall, "memory")
 
     def register(self, tool_instance: Tool, category: str):
         if not isinstance(tool_instance, Tool):

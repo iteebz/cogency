@@ -26,7 +26,7 @@ def test_identity_override():
 def test_prompt_section_order():
     custom_identity = "CUSTOM IDENTITY SECTION"
     custom_instructions = "CUSTOM INSTRUCTIONS SECTION"
-    tools = [Write()]
+    tools = [Write]
 
     result = prompt(
         identity=custom_identity,
@@ -88,7 +88,7 @@ def test_protocol_always_present():
 
 
 def test_tools_section():
-    tools = [Write()]
+    tools = [Write]
 
     # With tools
     result_with_tools = prompt(tools=tools)

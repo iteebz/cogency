@@ -7,11 +7,10 @@ from cogency.tools import Write
 
 @pytest.mark.asyncio
 async def test_creates_new_file(tmp_path):
-    tool = Write()
     target = tmp_path / "new_file.txt"
     content = "Hello, world!"
 
-    result = await tool.execute(
+    result = await Write.execute(
         file=str(target.name), content=content, sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -22,11 +21,10 @@ async def test_creates_new_file(tmp_path):
 
 @pytest.mark.asyncio
 async def test_creates_parent_directories(tmp_path):
-    tool = Write()
     nested_path = "a/b/c/test.txt"
     content = "data"
 
-    result = await tool.execute(
+    result = await Write.execute(
         file=nested_path, content=content, sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -41,12 +39,11 @@ async def test_creates_parent_directories(tmp_path):
 
 @pytest.mark.asyncio
 async def test_succeeds_on_overwrite(tmp_path):
-    tool = Write()
     target = tmp_path / "existing_file.txt"
     target.write_text("initial content")
     content = "new content"
 
-    result = await tool.execute(
+    result = await Write.execute(
         file=str(target.name),
         content=content,
         sandbox_dir=str(tmp_path),
@@ -64,12 +61,11 @@ async def test_succeeds_on_overwrite(tmp_path):
 
 @pytest.mark.asyncio
 async def test_fails_without_overwrite(tmp_path):
-    tool = Write()
     target = tmp_path / "existing_file.txt"
     target.write_text("initial content")
     content = "new content"
 
-    result = await tool.execute(
+    result = await Write.execute(
         file=str(target.name),
         content=content,
         sandbox_dir=str(tmp_path),

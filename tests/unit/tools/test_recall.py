@@ -16,14 +16,14 @@ def mock_storage():
 
 @pytest.mark.asyncio
 async def test_finds_matches(mock_storage):
-    tool = Recall(storage=mock_storage)
+    tool = Recall
     mock_storage.load_messages_by_conversation_id.return_value = []
     mock_storage.search_messages.return_value = [
         MessageMatch(content="Hello world", timestamp=1678886400.0, conversation_id="conv1"),
         MessageMatch(content="Another message", timestamp=1678886300.0, conversation_id="conv2"),
     ]
 
-    result = await tool.execute(query="hello", user_id="user1")
+    result = await tool.execute(query="hello", user_id="user1", storage=mock_storage)
 
     assert not result.error
     assert result.outcome == "Memory searched for 'hello' (2 matches)"
@@ -39,8 +39,8 @@ async def test_finds_matches(mock_storage):
 
 @pytest.mark.asyncio
 async def test_empty_query(mock_storage):
-    tool = Recall(storage=mock_storage)
-    result = await tool.execute(query="", user_id="user1")
+    tool = Recall
+    result = await tool.execute(query="", user_id="user1", storage=mock_storage)
 
     assert result.error
     assert result.outcome == "Search query cannot be empty"
@@ -48,8 +48,8 @@ async def test_empty_query(mock_storage):
 
 @pytest.mark.asyncio
 async def test_no_user_id(mock_storage):
-    tool = Recall(storage=mock_storage)
-    result = await tool.execute(query="hello")
+    tool = Recall
+    result = await tool.execute(query="hello", storage=mock_storage)
 
     assert result.error
     assert result.outcome == "User ID required for memory recall"
@@ -57,11 +57,11 @@ async def test_no_user_id(mock_storage):
 
 @pytest.mark.asyncio
 async def test_no_matches(mock_storage):
-    tool = Recall(storage=mock_storage)
+    tool = Recall
     mock_storage.load_messages_by_conversation_id.return_value = []
     mock_storage.search_messages.return_value = []
 
-    result = await tool.execute(query="nomatch", user_id="user1")
+    result = await tool.execute(query="nomatch", user_id="user1", storage=mock_storage)
 
     assert not result.error
     assert result.outcome == "Memory searched for 'nomatch' (0 matches)"
@@ -76,7 +76,7 @@ async def test_no_matches(mock_storage):
 
 @pytest.mark.asyncio
 async def test_excludes_current_conversation(mock_storage):
-    tool = Recall(storage=mock_storage)
+    tool = Recall
     mock_storage.load_messages_by_conversation_id.return_value = [
         {"timestamp": 1678886400.0, "content": "test"}
     ]
@@ -84,7 +84,9 @@ async def test_excludes_current_conversation(mock_storage):
         MessageMatch(content="Another message", timestamp=1678886300.0, conversation_id="conv2"),
     ]
 
-    result = await tool.execute(query="hello", user_id="user1", conversation_id="conv1")
+    result = await tool.execute(
+        query="hello", user_id="user1", conversation_id="conv1", storage=mock_storage
+    )
 
     assert not result.error
     assert result.outcome == "Memory searched for 'hello' (1 matches)"
@@ -99,7 +101,7 @@ async def test_excludes_current_conversation(mock_storage):
 
 @pytest.mark.asyncio
 async def test_fuzzy_matching(mock_storage):
-    tool = Recall(storage=mock_storage)
+    tool = Recall
     mock_storage.load_messages_by_conversation_id.return_value = []
     mock_storage.search_messages.return_value = [
         MessageMatch(
@@ -107,7 +109,7 @@ async def test_fuzzy_matching(mock_storage):
         ),
     ]
 
-    result = await tool.execute(query="test message", user_id="user1")
+    result = await tool.execute(query="test message", user_id="user1", storage=mock_storage)
 
     assert not result.error
     assert result.outcome == "Memory searched for 'test message' (1 matches)"

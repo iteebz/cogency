@@ -11,110 +11,104 @@ Tradeoffs:
 
 import logging
 import time
+from dataclasses import dataclass
+from typing import Annotated
 
-from ..core.protocols import Tool, ToolResult
+from ..core.protocols import ToolParam, ToolResult
 from ..core.security import safe_execute
+from ..core.tool import tool
 from ..lib.sqlite import MessageMatch, Storage
 
 logger = logging.getLogger(__name__)
 
 
-class Recall(Tool):
-    """Search memory."""
+@dataclass
+class RecallParams:
+    query: Annotated[
+        str,
+        ToolParam(
+            description="Keywords or phrase to search for in past messages",
+            max_length=200,
+        ),
+    ]
 
-    name = "recall"
-    description = "Search past conversations. Fuzzy keyword search across all user messages."
-    schema = {
-        "query": {
-            "type": "string",
-            "description": "Keywords or phrase to search for in past messages",
-            "required": True,
-            "max_length": 200,
-        }
-    }
 
-    def __init__(self, storage: Storage):
-        self.storage = storage
+@tool("Search past conversations. Fuzzy keyword search across all user messages.")
+@safe_execute
+async def Recall(
+    params: RecallParams,
+    storage: Storage,
+    conversation_id: str = None,
+    user_id: str = None,
+    **kwargs,
+) -> ToolResult:
+    if not params.query or not params.query.strip():
+        return ToolResult(outcome="Search query cannot be empty", error=True)
 
-    def describe(self, args: dict) -> str:
-        return f'Recalling "{args.get("query", "query")}"'
+    if not user_id:
+        return ToolResult(outcome="User ID required for memory recall", error=True)
 
-    @safe_execute
-    async def execute(
-        self, query: str, conversation_id: str = None, user_id: str = None, **kwargs
-    ) -> ToolResult:
-        """Execute fuzzy search on past user messages."""
-        if not query or not query.strip():
-            return ToolResult(outcome="Search query cannot be empty", error=True)
+    query = params.query.strip()
+    current_timestamps = await _get_timestamps(storage, conversation_id)
+    matches = await _search_messages(storage, query, user_id, current_timestamps, limit=3)
 
-        if not user_id:
-            return ToolResult(outcome="User ID required for memory recall", error=True)
-
-        query = query.strip()
-
-        current_timestamps = await self._get_timestamps(conversation_id)
-
-        matches = await self._search_messages(
-            query=query,
-            user_id=user_id,
-            exclude_timestamps=current_timestamps,
-            limit=3,
-        )
-
-        if not matches:
-            outcome = f"Memory searched for '{query}' (0 matches)"
-            content = "No past references found outside current conversation"
-            return ToolResult(outcome=outcome, content=content)
-
-        outcome = f"Memory searched for '{query}' ({len(matches)} matches)"
-        content = self._format_matches(matches, query)
+    if not matches:
+        outcome = f"Memory searched for '{query}' (0 matches)"
+        content = "No past references found outside current conversation"
         return ToolResult(outcome=outcome, content=content)
 
-    async def _get_timestamps(self, conversation_id: str) -> list[float]:
-        """Get timestamps of current context window to exclude from search."""
-        try:
-            messages = await self.storage.load_messages_by_conversation_id(
-                conversation_id=conversation_id, limit=20
-            )
-            return [msg["timestamp"] for msg in messages]
-        except Exception as e:
-            logger.warning(f"Recent messages lookup failed: {e}")
-            return []
+    outcome = f"Memory searched for '{query}' ({len(matches)} matches)"
+    content = _format_matches(matches)
+    return ToolResult(outcome=outcome, content=content)
 
-    async def _search_messages(
-        self, query: str, user_id: str, exclude_timestamps: list[float], limit: int = 3
-    ) -> list[MessageMatch]:
-        """Fuzzy search user messages with SQLite pattern matching.\" """
 
-        try:
-            return await self.storage.search_messages(
-                query=query,
-                user_id=user_id,
-                exclude_timestamps=exclude_timestamps,
-                limit=limit,
-            )
-        except Exception as e:
-            logger.warning(f"Message search failed: {e}")
-            return []
+async def _get_timestamps(storage: Storage, conversation_id: str) -> list[float]:
+    try:
+        messages = await storage.load_messages_by_conversation_id(
+            conversation_id=conversation_id, limit=20
+        )
+        return [msg["timestamp"] for msg in messages]
+    except Exception as e:
+        logger.warning(f"Recent messages lookup failed: {e}")
+        return []
 
-    def _format_matches(self, matches: list[MessageMatch], query: str) -> str:
-        """Format search results for ToolResult content."""
-        results = []
-        for match in matches:
-            time_diff = time.time() - match.timestamp
-            if time_diff < 60:
-                time_ago = "<1min ago"
-            elif time_diff < 3600:
-                time_ago = f"{int(time_diff / 60)}min ago"
-            elif time_diff < 86400:
-                time_ago = f"{int(time_diff / 3600)}h ago"
-            else:
-                time_ago = f"{int(time_diff / 86400)}d ago"
 
-            content = match.content
-            if len(content) > 100:
-                content = content[:100] + "..."
+async def _search_messages(
+    storage: Storage,
+    query: str,
+    user_id: str,
+    exclude_timestamps: list[float],
+    limit: int = 3,
+) -> list[MessageMatch]:
+    try:
+        return await storage.search_messages(
+            query=query,
+            user_id=user_id,
+            exclude_timestamps=exclude_timestamps,
+            limit=limit,
+        )
+    except Exception as e:
+        logger.warning(f"Message search failed: {e}")
+        return []
 
-            results.append(f"{time_ago}: {content}")
 
-        return "\n".join(results)
+def _format_matches(matches: list[MessageMatch]) -> str:
+    results = []
+    for match in matches:
+        time_diff = time.time() - match.timestamp
+        if time_diff < 60:
+            time_ago = "<1min ago"
+        elif time_diff < 3600:
+            time_ago = f"{int(time_diff / 60)}min ago"
+        elif time_diff < 86400:
+            time_ago = f"{int(time_diff / 3600)}h ago"
+        else:
+            time_ago = f"{int(time_diff / 86400)}d ago"
+
+        content = match.content
+        if len(content) > 100:
+            content = content[:100] + "..."
+
+        results.append(f"{time_ago}: {content}")
+
+    return "\n".join(results)

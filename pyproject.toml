@@ -87,6 +87,7 @@ ignore = [
     "SIM117", # combine-multiple-isinstance (sometimes separate is clearer)
     "E501",   # line-too-long (prompts and test data often legitimately long)
     "F841",   # unused-variable (false positive in evals/runner.py)
+    "N802",   # function-name-should-be-lowercase (tools are PascalCase by design)
 ]
 
 # Allow specific patterns that are common in this codebase

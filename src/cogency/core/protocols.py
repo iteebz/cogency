@@ -207,6 +207,17 @@ class Storage(Protocol):
         ...
 
 
+@dataclass
+class ToolParam:
+    """Metadata for tool parameters."""
+
+    description: str
+    ge: int | float | None = None
+    le: int | float | None = None
+    min_length: int | None = None
+    max_length: int | None = None
+
+
 class Tool(ABC):
     """Tool interface - clean attribute access."""
 

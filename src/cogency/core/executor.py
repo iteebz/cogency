@@ -17,6 +17,7 @@ async def execute_tool(
 
     args = dict(call.args)
 
+    args["storage"] = execution.storage
     args["sandbox_dir"] = execution.sandbox_dir
     args["access"] = execution.access
 

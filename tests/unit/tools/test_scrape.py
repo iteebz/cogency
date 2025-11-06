@@ -16,11 +16,10 @@ def mock_trafilatura():
 
 @pytest.mark.asyncio
 async def test_scrapes_content(mock_trafilatura):
-    tool = Scrape()
     mock_trafilatura.fetch_url.return_value = "<html><body><p>Test content</p></body></html>"
     mock_trafilatura.extract.return_value = "Test content"
 
-    result = await tool.execute(url="http://example.com")
+    result = await Scrape.execute(url="http://example.com")
 
     assert not result.error
     assert "Scraped example.com" in result.outcome
@@ -31,8 +30,7 @@ async def test_scrapes_content(mock_trafilatura):
 
 @pytest.mark.asyncio
 async def test_empty_url():
-    tool = Scrape()
-    result = await tool.execute(url="")
+    result = await Scrape.execute(url="")
 
     assert result.error
     assert "URL cannot be empty" in result.outcome
@@ -40,10 +38,9 @@ async def test_empty_url():
 
 @pytest.mark.asyncio
 async def test_fetch_failure(mock_trafilatura):
-    tool = Scrape()
     mock_trafilatura.fetch_url.return_value = None
 
-    result = await tool.execute(url="http://example.com")
+    result = await Scrape.execute(url="http://example.com")
 
     assert result.error
     assert "Failed to fetch content from: http://example.com" in result.outcome
@@ -51,11 +48,10 @@ async def test_fetch_failure(mock_trafilatura):
 
 @pytest.mark.asyncio
 async def test_no_readable_content(mock_trafilatura):
-    tool = Scrape()
     mock_trafilatura.fetch_url.return_value = "<html><body></body></html>"
     mock_trafilatura.extract.return_value = None
 
-    result = await tool.execute(url="http://example.com")
+    result = await Scrape.execute(url="http://example.com")
 
     assert not result.error
     assert "Scraped example.com" in result.outcome
@@ -64,12 +60,11 @@ async def test_no_readable_content(mock_trafilatura):
 
 @pytest.mark.asyncio
 async def test_truncation(mock_trafilatura):
-    tool = Scrape()
     long_content = "a" * 5000  # Exceeds SCRAPE_LIMIT (3000)
     mock_trafilatura.fetch_url.return_value = "<html><body>" + long_content + "</body></html>"
     mock_trafilatura.extract.return_value = long_content
 
-    result = await tool.execute(url="http://example.com")
+    result = await Scrape.execute(url="http://example.com")
 
     assert not result.error
     assert "Scraped example.com" in result.outcome
