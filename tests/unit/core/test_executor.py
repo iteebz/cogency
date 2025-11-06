@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from cogency.core.executor import execute_tool
+from cogency.core.executor import execute_tool, execute_tools
 from cogency.core.protocols import ToolCall, ToolResult
 
 
@@ -81,3 +81,29 @@ async def test_context_injection(mock_config, mock_tool):
     assert call_kwargs["access"] == "sandbox"
     assert call_kwargs["user_id"] == "test_user"
     assert "storage" in call_kwargs
+
+
+@pytest.mark.asyncio
+async def test_sequential_batch_execution(mock_config, mock_tool):
+    """Multiple tools execute sequentially, results preserve order."""
+    mock_tool_instance = mock_tool(name="test_tool")
+    mock_config.tools = [mock_tool_instance]
+
+    calls = [
+        ToolCall(name="test_tool", args={"message": "first"}),
+        ToolCall(name="test_tool", args={"message": "second"}),
+        ToolCall(name="test_tool", args={"message": "third"}),
+    ]
+
+    results = await execute_tools(
+        calls,
+        execution=mock_config.execution,
+        user_id="user1",
+        conversation_id="conv1",
+    )
+
+    assert len(results) == 3
+    assert all(isinstance(r, ToolResult) for r in results)
+    assert "first" in results[0].outcome
+    assert "second" in results[1].outcome
+    assert "third" in results[2].outcome
