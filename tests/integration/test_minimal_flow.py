@@ -23,7 +23,7 @@ async def test_flow(mock_llm, mock_config, mock_tool):
     )
 
     parser_events = parse_tokens(mock_llm.stream([]))
-    accumulator = Accumulator("test_user", "test_conv", execution=config.execution, chunks=False)
+    accumulator = Accumulator("test_user", "test_conv", execution=config.execution, stream="token")
     events = [event async for event in accumulator.process(parser_events)]
 
     assert len(events) > 0

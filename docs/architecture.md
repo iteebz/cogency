@@ -20,30 +20,31 @@
 - **Input**: Parser events stream  
 - **Output**: Complete semantic units + tool results
 - **Streaming Modes**: 
-  - `chunks=True`: Stream individual parser events immediately (real-time)
-  - `chunks=False`: Accumulate and batch complete semantic units (coherent thoughts)
+  - `stream="token"`: Stream individual parser events immediately (real-time)
+  - `stream="event"`: Accumulate and batch complete semantic units (coherent thoughts)
+  - `stream=None`: Non-streaming, use LLM.generate() for complete response
 
 ```python
-# chunks=True: Individual events as generated
+# stream="token": Individual events as generated
 {"type": "think", "content": "I need", "timestamp": 1.0}
 {"type": "think", "content": " to analyze", "timestamp": 1.1} 
 {"type": "think", "content": " this", "timestamp": 1.2}
 
-# chunks=False: Complete accumulated unit
+# stream="event": Complete accumulated unit
 {"type": "think", "content": "I need to analyze this", "timestamp": 1.0}
 ```
 
 **Frontend Integration Patterns:**
 ```javascript
-// Real-time typewriter effect (chunks=true)
-for await (const event of agent.stream(query, {chunks: true})) {
+// Real-time typewriter effect (stream="token")
+for await (const event of agent.stream(query, {stream: "token"})) {
     if (event.type === "respond") {
         appendText(event.content);  // Stream each token
     }
 }
 
-// Complete message blocks (chunks=false) 
-for await (const event of agent.stream(query, {chunks: false})) {
+// Complete message blocks (stream="event") 
+for await (const event of agent.stream(query, {stream: "event"})) {
     if (event.type === "respond") {
         displayMessage(event.content);  // Show complete response
     }

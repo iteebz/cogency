@@ -33,7 +33,7 @@ async def test_stream_hardstops_on_execute(mock_llm, mock_tool):
     llm = mock_llm.set_response_tokens(protocol_tokens)
     agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
 
-    events = [event async for event in agent("Test query", chunks=False)]
+    events = [event async for event in agent("Test query", stream="event")]
 
     call_event = next((e for e in events if e["type"] == "call"), None)
     execute_event = next((e for e in events if e["type"] == "execute"), None)
@@ -64,7 +64,7 @@ async def test_stream_hardstops_on_end(mock_llm, mock_tool):
     llm = mock_llm.set_response_tokens(protocol_tokens)
     agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
 
-    events = [event async for event in agent("Test query", chunks=False)]
+    events = [event async for event in agent("Test query", stream="event")]
 
     end_event = next((e for e in events if e["type"] == "end"), None)
     assert end_event is not None, "Should have end event"
@@ -110,7 +110,7 @@ async def test_token_consumption_boundary_execute(mock_llm, mock_tool):
     llm = InstrumentedMockLLM(protocol_tokens)
     agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
 
-    [event async for event in agent("Test", chunks=False)]
+    [event async for event in agent("Test", stream="event")]
 
     # Should see tokens up through and including §execute\n
     assert "§execute\n" in tokens_seen
@@ -150,7 +150,7 @@ async def test_token_consumption_boundary_end(mock_llm, mock_tool):
     llm = InstrumentedMockLLM(protocol_tokens)
     agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
 
-    [event async for event in agent("Test", chunks=False)]
+    [event async for event in agent("Test", stream="event")]
 
     # Should see tokens up through and including §end\n
     assert "§end\n" in tokens_seen

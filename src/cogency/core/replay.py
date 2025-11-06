@@ -12,6 +12,7 @@ Features:
 """
 
 import logging
+from typing import Literal
 
 from .. import context
 from ..lib import telemetry
@@ -29,14 +30,14 @@ async def stream(
     conversation_id: str,
     *,
     config: Config,
-    chunks: bool = False,
-    generate: bool = False,
+    stream: Literal["event", "token", None] = "event",
 ):
     """Stateless HTTP iterations with context rebuild per request.
 
     Args:
-        generate: If True, use LLM.generate() for complete response.
-                 If False, use LLM.stream() for token-by-token streaming.
+        stream: Streaming strategy. "token" yields chunks as they arrive,
+               "event" accumulates and yields complete semantic units,
+               None uses LLM.generate() for non-streaming response.
     """
 
     llm = config.llm
@@ -77,11 +78,14 @@ async def stream(
                     }
                 )
 
+            # stream=None uses .generate(), stream="token" yields token chunks, stream="event" batches semantically
+            # Only "token" mode does token-level streaming; "event" and None both accumulate complete units
+            token_streaming = stream == "token"
             accumulator = Accumulator(
                 user_id,
                 conversation_id,
                 execution=config.execution,
-                chunks=chunks,
+                stream="token" if token_streaming else "event",
             )
 
             # Track this LLM call
@@ -93,7 +97,7 @@ async def stream(
             llm_output_chunks = []
 
             try:
-                if generate:
+                if stream is None:
                     completion = await llm.generate(messages)
                     token_source = completion
                 else:

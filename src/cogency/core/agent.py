@@ -9,6 +9,7 @@ Usage:
 
 import asyncio
 import logging
+from typing import Literal
 
 import anthropic
 import google.api_core.exceptions
@@ -111,8 +112,7 @@ class Agent:
         query: str,
         user_id: str | None = None,
         conversation_id: str | None = None,
-        chunks: bool = False,
-        generate: bool = False,
+        stream: Literal["event", "token", None] = "event",
     ):
         """Stream events for query.
 
@@ -120,8 +120,10 @@ class Agent:
             query: User query
             user_id: User identifier (None = no profile)
             conversation_id: Conversation identifier (None = stateless/ephemeral)
-            chunks: If True, stream individual tokens. If False, stream semantic events.
-            generate: If True, use LLM.generate() for complete response (replay mode only).
+            stream: Streaming strategy. "token" yields chunks as they arrive,
+                   "event" accumulates and yields complete semantic units,
+                   None uses LLM.generate() for non-streaming response.
+                   Defaults to "event".
         """
         try:
             import time
@@ -153,8 +155,7 @@ class Agent:
                         user_id,
                         conversation_id,
                         config=self.config,
-                        chunks=chunks,
-                        generate=generate,
+                        stream=stream,
                     ):
                         yield event
                     # Trigger profile learning if enabled
@@ -177,8 +178,7 @@ class Agent:
                 user_id,
                 conversation_id,
                 config=self.config,
-                chunks=chunks,
-                generate=generate,
+                stream=stream,
             ):
                 yield event
 

@@ -186,3 +186,61 @@ async def test_cancelled_error_persistence(mock_llm, mock_storage):
         assert cancelled_msgs[0]["conversation_id"] == "test_conv"
         assert cancelled_msgs[0]["user_id"] == "test_user"
         assert cancelled_msgs[0]["content"] == "Task interrupted by user"
+
+
+@pytest.mark.asyncio
+async def test_stream_event_default(mock_llm, mock_storage):
+    """stream='event' is default behavior."""
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_events():
+            yield {"type": "respond", "content": "Test"}
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
+
+        async for _ in agent("Test"):
+            pass
+
+        mock_stream.assert_called_once()
+        call_kwargs = mock_stream.call_args.kwargs
+        assert call_kwargs["stream"] == "event"
+
+
+@pytest.mark.asyncio
+async def test_stream_token_parameter(mock_llm, mock_storage):
+    """stream='token' passes to underlying stream function."""
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_events():
+            yield {"type": "respond", "content": "Test"}
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
+
+        async for _ in agent("Test", stream="token"):
+            pass
+
+        call_kwargs = mock_stream.call_args.kwargs
+        assert call_kwargs["stream"] == "token"
+
+
+@pytest.mark.asyncio
+async def test_stream_none_parameter(mock_llm, mock_storage):
+    """stream=None passes to underlying stream function."""
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_events():
+            yield {"type": "respond", "content": "Test"}
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
+
+        async for _ in agent("Test", stream=None):
+            pass
+
+        call_kwargs = mock_stream.call_args.kwargs
+        assert call_kwargs["stream"] is None

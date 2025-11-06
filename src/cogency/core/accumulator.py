@@ -5,8 +5,8 @@ Core algorithm:
 2. Execute tool calls when §execute encountered
 3. Persist all events via specialized EventPersister
 4. Streaming modes:
-   - chunks=True: Stream respond/think naturally, accumulate call/result/cancelled/metric
-   - chunks=False: Accumulate all, yield complete semantic units on type changes
+   - stream="token": Stream respond/think naturally, accumulate call/result/cancelled/metric
+   - stream="event": Accumulate all, yield complete semantic units on type changes
    Both modes accumulate call content fully (must be complete JSON for execution)
 """
 
@@ -14,6 +14,7 @@ import json
 import logging
 import time
 from collections.abc import AsyncGenerator
+from typing import Literal
 
 from ..lib.resilience import CircuitBreaker
 from .codec import parse_tool_call
@@ -37,12 +38,12 @@ class Accumulator:
         conversation_id: str,
         *,
         execution: Execution,
-        chunks: bool = False,
+        stream: Literal["event", "token"] = "event",
         max_failures: int = 3,
     ):
         self.user_id = user_id
         self.conversation_id = conversation_id
-        self.chunks = chunks
+        self.stream = stream
 
         self._execution = execution
 
@@ -60,7 +61,7 @@ class Accumulator:
             return None
 
         # Persist conversation events only (not control flow or metrics)
-        clean_content = self.content.strip() if not self.chunks else self.content
+        clean_content = self.content.strip() if self.stream != "token" else self.content
 
         if self.current_type in PERSISTABLE_EVENTS:
             await self.storage.save_message(
@@ -72,7 +73,7 @@ class Accumulator:
             )
 
         # Emit event in semantic mode (skip calls - handled by execute)
-        if not self.chunks and self.current_type != "call":
+        if self.stream == "event" and self.current_type != "call":
             return {
                 "type": self.current_type,
                 "content": clean_content,
@@ -220,8 +221,8 @@ class Accumulator:
                 # Continue accumulating same type
                 self.content += content
 
-            # chunks=True: Yield respond/think chunks while accumulating for persistence
-            if self.chunks and ev_type in ("respond", "think"):
+            # stream="token": Yield respond/think chunks while accumulating for persistence
+            if self.stream == "token" and ev_type in ("respond", "think"):
                 yield event
 
         # Stream ended without §end - flush remaining content

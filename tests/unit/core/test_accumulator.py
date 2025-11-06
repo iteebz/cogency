@@ -15,14 +15,14 @@ async def basic_parser():
 
 @pytest.mark.asyncio
 async def test_chunks_true(mock_config):
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=True)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
     events = [event async for event in accumulator.process(basic_parser())]
     assert len(events) > 0
 
 
 @pytest.mark.asyncio
 async def test_call_not_chunked(mock_config):
-    """call/result/cancelled/metric always complete, even when chunks=True"""
+    """call/result/cancelled/metric always complete, even when stream='token'"""
 
     async def chunked_call():
         yield {"type": "call", "content": '{"name"'}
@@ -31,7 +31,7 @@ async def test_call_not_chunked(mock_config):
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=True)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
     events = [event async for event in accumulator.process(chunked_call())]
 
     call_events = [e for e in events if e["type"] == "call"]
@@ -41,14 +41,14 @@ async def test_call_not_chunked(mock_config):
 
 @pytest.mark.asyncio
 async def test_respond_chunked_enabled(mock_config):
-    """respond/think stream naturally when chunks=True but persist only once"""
+    """respond/think stream naturally when stream='token' but persist only once"""
 
     async def chunked_respond():
         yield {"type": "respond", "content": "hello"}
         yield {"type": "respond", "content": " world"}
         yield {"type": "end"}
 
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=True)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
     events = [event async for event in accumulator.process(chunked_respond())]
 
     respond_events = [e for e in events if e["type"] == "respond"]
@@ -67,7 +67,7 @@ async def test_respond_chunked_enabled(mock_config):
 
 @pytest.mark.asyncio
 async def test_chunks_false(mock_config):
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
     events = [event async for event in accumulator.process(basic_parser())]
     assert len(events) == 6
     assert events[0]["type"] == "think"
@@ -87,7 +87,7 @@ async def test_end_flushes(mock_config):
         yield {"type": "respond", "content": " 42"}
         yield {"type": "end"}
 
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
     events = [event async for event in accumulator.process(respond_with_end())]
 
     assert len(events) == 2
@@ -102,7 +102,7 @@ async def test_storage_format(mock_config, mock_tool):
 
     tool_instance = mock_tool()
     mock_config.tools = [tool_instance]
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
 
     async def parser_with_tool():
         yield {
@@ -126,7 +126,7 @@ async def test_storage_format(mock_config, mock_tool):
 
 @pytest.mark.asyncio
 async def test_malformed_call_json(mock_config):
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
 
     async def malformed_parser():
         yield {"type": "call", "content": '{"name":"tool", "invalid": }'}
@@ -138,7 +138,7 @@ async def test_malformed_call_json(mock_config):
 
 @pytest.mark.asyncio
 async def test_contaminated_content(mock_config):
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
 
     async def contaminated_parser():
         yield {"type": "call", "content": '{"name": "file_write", "args": {"file": "test.py"}'}
@@ -152,7 +152,7 @@ async def test_contaminated_content(mock_config):
 @pytest.mark.asyncio
 async def test_storage_failure_propagates(mock_llm, failing_storage):
     config = Config(llm=mock_llm, storage=failing_storage, tools=[], security=Security())
-    accumulator = Accumulator("test", "test", execution=config.execution, chunks=True)
+    accumulator = Accumulator("test", "test", execution=config.execution, stream="token")
 
     async def simple_parser():
         yield {"type": "respond", "content": "test"}
@@ -166,7 +166,7 @@ async def test_storage_failure_propagates(mock_llm, failing_storage):
 async def test_circuit_breaker_terminates(mock_config, mock_tool):
     mock_config.tools = [mock_tool()]
     accumulator = Accumulator(
-        "test", "test", execution=mock_config.execution, chunks=False, max_failures=3
+        "test", "test", execution=mock_config.execution, stream="event", max_failures=3
     )
 
     async def failing_parser():
@@ -190,7 +190,7 @@ async def test_persistence_policy(mock_config, mock_tool):
 
     tool_instance = mock_tool()
     mock_config.tools = [tool_instance]
-    accumulator = Accumulator("user_1", "conv_123", execution=mock_config.execution, chunks=False)
+    accumulator = Accumulator("user_1", "conv_123", execution=mock_config.execution, stream="event")
 
     async def all_event_types():
         yield {"type": "user", "content": "test query"}
@@ -223,7 +223,7 @@ async def test_result_event_has_content(mock_config, mock_tool):
     """Result events must have content field for resume mode websocket injection."""
     tool_instance = mock_tool()
     mock_config.tools = [tool_instance]
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, chunks=False)
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
 
     async def parser():
         yield {
@@ -238,3 +238,36 @@ async def test_result_event_has_content(mock_config, mock_tool):
     assert len(result_events) == 1
     assert "content" in result_events[0]
     assert result_events[0]["content"]
+
+
+@pytest.mark.asyncio
+async def test_chunks_true_yields_token_events(mock_config):
+    """chunks=True yields individual token events (contract for stream='token')."""
+
+    async def chunked_parser():
+        yield {"type": "respond", "content": "Hello"}
+        yield {"type": "respond", "content": " world"}
+        yield {"type": "end"}
+
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
+    events = [event async for event in accumulator.process(chunked_parser())]
+
+    respond_events = [e for e in events if e["type"] == "respond"]
+    assert len(respond_events) == 2, "stream='token' should yield multiple token events"
+
+
+@pytest.mark.asyncio
+async def test_chunks_false_yields_semantic_events(mock_config):
+    """chunks=False yields single accumulated semantic events (contract for stream='event')."""
+
+    async def chunked_parser():
+        yield {"type": "respond", "content": "Hello"}
+        yield {"type": "respond", "content": " world"}
+        yield {"type": "end"}
+
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
+    events = [event async for event in accumulator.process(chunked_parser())]
+
+    respond_events = [e for e in events if e["type"] == "respond"]
+    assert len(respond_events) == 1, "stream='event' should yield single accumulated event"
+    assert respond_events[0]["content"] == "Hello world"

@@ -67,9 +67,9 @@ async for event in agent("What files are in this directory?"):
 
 ### Event Streaming
 
-**Semantic mode (default):** Complete thoughts
+**Event mode (default):** Complete semantic units
 ```python
-async for event in agent("Debug this code", chunks=False):
+async for event in agent("Debug this code", stream="event"):
     if event["type"] == "think":
         print(f"~ {event['content']}")
     elif event["type"] == "respond":
@@ -78,7 +78,7 @@ async for event in agent("Debug this code", chunks=False):
 
 **Token mode:** Real-time streaming
 ```python
-async for event in agent("Debug this code", chunks=True):
+async for event in agent("Debug this code", stream="token"):
     if event["type"] == "respond":
         print(event["content"], end="", flush=True)
 ```

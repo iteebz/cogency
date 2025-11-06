@@ -11,6 +11,8 @@ Enables maximum token efficiency by maintaining conversation state
 in LLM memory rather than resending full context each turn.
 """
 
+from typing import Literal
+
 from .. import context
 from ..lib import telemetry
 from ..lib.debug import log_response
@@ -27,13 +29,14 @@ async def stream(
     conversation_id: str,
     *,
     config: Config,
-    chunks: bool = False,
-    generate: bool = False,
+    stream: Literal["event", "token", None] = "event",
 ):
     """WebSocket streaming with tool injection and session continuity.
 
     Args:
-        generate: Ignored in resume mode (WebSocket is inherently streaming).
+        stream: Streaming strategy. "token" yields chunks as they arrive,
+               "event" accumulates and yields complete semantic units,
+               None uses LLM.generate() for non-streaming response.
     """
 
     llm = config.llm
@@ -74,11 +77,14 @@ async def stream(
 
         complete = False
 
+        # stream=None uses .generate(), stream="token" yields token chunks, stream="event" batches semantically
+        # Only "token" mode does token-level streaming; "event" and None both accumulate complete units
+        token_streaming = stream == "token"
         accumulator = Accumulator(
             user_id,
             conversation_id,
             execution=config.execution,
-            chunks=chunks,
+            stream="token" if token_streaming else "event",
         )
 
         payload = None

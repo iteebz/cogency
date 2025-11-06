@@ -15,7 +15,7 @@ async def test_no_chunks(mock_llm, mock_tool):
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
     agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
-    events = [event async for event in agent("Test query", chunks=False)]
+    events = [event async for event in agent("Test query", stream="event")]
 
     assert len(events) >= 5
     assert events[0]["type"] == "user"
@@ -42,7 +42,7 @@ async def test_chunks(mock_llm, mock_tool):
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
     agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
-    events = [event async for event in agent("Test query", chunks=True)]
+    events = [event async for event in agent("Test query", stream="token")]
 
     assert len(events) >= 5
     content_events = [e["content"] for e in events if e.get("content")]
@@ -60,7 +60,7 @@ async def test_tool_execution(mock_llm, mock_tool):
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
     agent = Agent(llm=llm, tools=[mock_tool()], mode="replay", max_iterations=1)
-    events = [event async for event in agent("Test query", chunks=False)]
+    events = [event async for event in agent("Test query", stream="event")]
 
     assert len(events) >= 5
     assert events[0]["type"] == "user"
@@ -91,7 +91,7 @@ async def test_error_handling(mock_llm, mock_tool):
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=1)
 
     with pytest.raises(AgentError, match=r"Tool execution failed"):
-        [event async for event in agent("Test query", chunks=False)]
+        [event async for event in agent("Test query", stream="event")]
 
 
 @pytest.mark.asyncio
@@ -108,7 +108,7 @@ async def test_persistence(mock_llm, mock_tool, mock_storage):
     agent = Agent(
         llm=llm, tools=[mock_tool()], storage=mock_storage, mode="replay", max_iterations=1
     )
-    events = [event async for event in agent("Test query", chunks=False)]
+    events = [event async for event in agent("Test query", stream="event")]
 
     assert len(events) >= 3
     assert any(e["type"] == "user" for e in events)
@@ -153,7 +153,7 @@ async def test_event_taxonomy(mock_llm, mock_tool):
                 yield token
 
     agent = Agent(llm=MultiIterMockLLM(), tools=[mock_tool()], mode="replay", max_iterations=2)
-    events = [event async for event in agent("Test", chunks=False)]
+    events = [event async for event in agent("Test", stream="event")]
 
     event_types = [e["type"] for e in events]
 
@@ -197,7 +197,7 @@ async def test_generate_mode(mock_llm, mock_tool):
                 yield token
 
     agent = Agent(llm=GenerateMockLLM(), tools=[mock_tool()], mode="replay", max_iterations=1)
-    events = [event async for event in agent("Test", chunks=False, generate=True)]
+    events = [event async for event in agent("Test", stream=None)]
 
     event_types = [e["type"] for e in events]
 
