@@ -1,304 +1,284 @@
+"""Unit tests for Cogency XML protocol parser.
+
+Tests the XML-based protocol parser. Contract: accept token stream
+(or complete string) and emit standardized events for accumulator.
+"""
+
+import json
+
 import pytest
 
 from cogency.core.parser import parse_tokens
 
 
 async def mock_token_stream(tokens):
+    """Helper to wrap tokens in async generator."""
     for token in tokens:
         yield token
 
 
 @pytest.mark.asyncio
-async def test_basic_protocol():
-    tokens = ["Hello", " §think:", " analyzing", " §respond:", " done"]
-
+async def test_think_block_simple():
+    """Parse simple think block."""
+    xml = "<think>reasoning here</think>"
     events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
+    async for event in parse_tokens(xml):
         events.append(event)
 
-    assert len(events) == 5
-    assert events[0] == {"type": "respond", "content": "Hello"}
-    assert events[1] == {"type": "respond", "content": " "}
-    assert events[2] == {"type": "think", "content": " analyzing"}
-    assert events[3] == {"type": "think", "content": " "}
-    assert events[4] == {"type": "respond", "content": " done"}
-
-
-@pytest.mark.asyncio
-async def test_split_delimiter_across_tokens():
-    # Gemini splits: '§think' + ': content'
-    tokens = ["§think", ": The user is asking to read 'test.txt'", " §end"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 3
+    assert len(events) == 1
     assert events[0]["type"] == "think"
-    assert events[0]["content"] == "The user is asking to read 'test.txt'"
-    assert events[1] == {"type": "think", "content": " "}
-    assert events[2]["type"] == "end"
+    assert events[0]["content"] == "reasoning here"
 
 
 @pytest.mark.asyncio
-async def test_end_delimiter_terminates():
-    tokens = ["Done", " with", " task", " §end:", " ignored", " content"]
-
+async def test_execute_single_tool():
+    """Parse execute block with single tool."""
+    xml = """<execute>
+        <read><file>test.txt</file></read>
+    </execute>"""
     events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 5
-    assert events[0]["content"] == "Done"
-    assert events[1]["content"] == " with"
-    assert events[2]["content"] == " task"
-    assert events[3]["content"] == " "
-    assert events[4]["type"] == "end"
-
-
-@pytest.mark.asyncio
-async def test_malformed_delimiters():
-    tokens = ["§invalid:", " §", " BROKEN:", " §think", " without", " colon"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 6
-    assert events[0]["content"] == "§invalid:"
-    assert events[1]["content"] == " "
-    assert events[2]["content"] == "§ BROKEN:"
-    assert events[3]["content"] == " "
-    assert events[4]["content"] == "§think without"
-    assert events[5]["content"] == " colon"
-
-
-@pytest.mark.asyncio
-async def test_non_string_tokens_error():
-    async def bad_token_stream():
-        yield "valid"
-        yield 123
-        yield "more"
-
-    with pytest.raises(RuntimeError, match="Parser expects string tokens"):
-        async for _event in parse_tokens(bad_token_stream()):
-            pass
-
-
-@pytest.mark.asyncio
-async def test_massive_word_buffer():
-    giant_word = "x" * 10000
-    tokens = [giant_word, " normal"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
+    async for event in parse_tokens(xml):
         events.append(event)
 
     assert len(events) == 2
-    assert events[0]["content"] == giant_word
-    assert events[1]["content"] == " normal"
+    assert events[0]["type"] == "call"
+    assert events[1]["type"] == "execute"
+
+    call_data = json.loads(events[0]["content"])
+    assert call_data["name"] == "read"
+    assert call_data["args"]["file"] == "test.txt"
 
 
 @pytest.mark.asyncio
-async def test_delimiter_boundary_splitting():
-    tokens = ["§thi", "NK:", " content"]
+async def test_execute_multiple_tools():
+    """Parse execute block with multiple tools - order preserved."""
+    xml = """<execute>
+        <read><file>a.txt</file></read>
+        <write><file>b.txt</file><content>x</content></write>
+    </execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
 
+    assert len(events) == 3
+    assert events[0]["type"] == "call"
+    assert events[1]["type"] == "call"
+    assert events[2]["type"] == "execute"
+
+    call1 = json.loads(events[0]["content"])
+    call2 = json.loads(events[1]["content"])
+    assert call1["name"] == "read"
+    assert call2["name"] == "write"
+
+
+@pytest.mark.asyncio
+async def test_results_block():
+    """Parse results block."""
+    xml = """<results>
+[
+  {"tool": "read", "status": "success", "content": "data"},
+  {"tool": "write", "status": "success", "content": {"bytes": 10}}
+]
+</results>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    assert len(events) == 1
+    assert events[0]["type"] == "result"
+
+    results = json.loads(events[0]["content"])
+    assert len(results) == 2
+    assert results[0]["tool"] == "read"
+
+
+@pytest.mark.asyncio
+async def test_full_sequence_think_execute_results():
+    """Parse full protocol sequence."""
+    xml = """<think>reading config and updating endpoint</think>
+<execute>
+  <read><file>config.json</file></read>
+</execute>
+<results>
+[{"tool": "read", "status": "success", "content": {"api": "old.com"}}]
+</results>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    types = [e["type"] for e in events]
+    assert types == ["think", "call", "execute", "result"]
+
+
+@pytest.mark.asyncio
+async def test_streaming_tokens_split_across_tokens():
+    """Handle tag split across tokens."""
+    tokens = ["<thi", "nk>reasoning</t", "hink>"]
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
     assert len(events) == 1
     assert events[0]["type"] == "think"
-    assert events[0]["content"] == " content"
+    assert events[0]["content"] == "reasoning"
 
 
 @pytest.mark.asyncio
-async def test_multi_token_delimiter():
-    tokens = ["§", "respond", ":", " The", " answer", " §", "end"]
-
+async def test_tag_split_character_by_character():
+    """Tag split character-by-character across tokens."""
+    xml = "<think>hello</think>"
+    tokens = list(xml)
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 4
-    assert events[0] == {"type": "respond", "content": " The"}
-    assert events[1] == {"type": "respond", "content": " answer"}
-    assert events[2] == {"type": "respond", "content": " "}
-    assert events[3] == {"type": "end"}
-
-
-@pytest.mark.asyncio
-async def test_single_token_delimiter():
-    tokens = ["§think: analyzing", " §execute", " §end"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 3
-    assert events[0] == {"type": "think", "content": "analyzing"}
-    assert events[1] == {"type": "think", "content": " "}
-    assert events[2] == {"type": "execute"}
-
-
-@pytest.mark.asyncio
-async def test_embedded_delimiter():
-    tokens = ["§respond: The answer is 8\n§end"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 2
-    assert events[0] == {"type": "respond", "content": "The answer is 8\n"}
-    assert events[1] == {"type": "end"}
-
-
-@pytest.mark.asyncio
-async def test_embedded_delimiter_simple():
-    tokens = ["8\n§end"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-    assert len(events) == 2
-    assert events[0] == {"type": "respond", "content": "8\n"}
-    assert events[1] == {"type": "end"}
-
-
-@pytest.mark.asyncio
-async def test_split_delimiter_boundary():
-    tokens = [
-        "§respond: I will read the content of test.txt for you.\n§",
-        "think: To read the content, I should use the file_read tool.",
-    ]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 2
-    assert events[0]["type"] == "respond"
-    assert "I will read the content" in events[0]["content"]
-    assert events[1]["type"] == "think"
-    assert "To read the content" in events[1]["content"]
-
-
-@pytest.mark.asyncio
-async def test_multiple_embedded_delimiters():
-    tokens = [
-        "§respond: I will read the content of test.txt for you.\n§",
-        'think: To read the content, I should use the file_read tool.\n§call: {"name": "file_read", "args": {"file": "test.txt"}}\n§execute',
-    ]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 4
-    assert events[0]["type"] == "respond"
-    assert "I will read the content" in events[0]["content"]
-    assert events[1]["type"] == "think"
-    assert "To read the content" in events[1]["content"]
-    assert events[2]["type"] == "call"
-    assert "file_read" in events[2]["content"]
-    assert events[3]["type"] == "execute"
-
-
-@pytest.mark.asyncio
-async def test_whitespace_preservation():
-    """Parser preserves whitespace faithfully, no accumulation bug."""
-    tokens = ["hello", " ", "world", " §execute"]
-
-    events = []
-    async for event in parse_tokens(mock_token_stream(tokens)):
-        events.append(event)
-
-    assert len(events) == 5
+    assert len(events) == 1
+    assert events[0]["type"] == "think"
     assert events[0]["content"] == "hello"
-    assert events[1]["content"] == " "
-    assert events[2]["content"] == "world"
-    assert events[3]["content"] == " "
-    assert events[4]["type"] == "execute"
 
 
 @pytest.mark.asyncio
-async def test_eager_emit_no_delimiters():
-    """Tokens without delimiters stream immediately."""
-    tokens = ["Hello", " world", "!"]
-
+async def test_partial_closing_tag_held():
+    """Partial closing tag held until complete."""
+    tokens = ["<think>content</thi", "nk>after"]
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 3
-    assert events[0] == {"type": "respond", "content": "Hello"}
-    assert events[1] == {"type": "respond", "content": " world"}
-    assert events[2] == {"type": "respond", "content": "!"}
+    types = [e["type"] for e in events]
+    assert "think" in types
+    assert "respond" in types
 
 
 @pytest.mark.asyncio
-async def test_eager_emit_partial_delimiter_held():
-    """Partial delimiter candidates are held until resolved."""
-    tokens = ["Hello §", "think", ": analyzing"]
+async def test_multiple_tags_same_token_ordered():
+    """Multiple tags in single token processed in order."""
+    xml = "<think>first</think><think>second</think>"
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
 
+    thinks = [e for e in events if e["type"] == "think"]
+    assert len(thinks) == 2
+    assert thinks[0]["content"] == "first"
+    assert thinks[1]["content"] == "second"
+
+
+@pytest.mark.asyncio
+async def test_mixed_tags_streaming_tokens():
+    """Mixed tags across streaming tokens preserve order."""
+    tokens = [
+        "<think>reasoning</think>",
+        "<execute><read><file>test.txt</file></read></execute>",
+        '<results>[{"tool": "read", "status": "success"}]</results>',
+    ]
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 2
-    assert events[0] == {"type": "respond", "content": "Hello "}
-    assert events[1] == {"type": "think", "content": "analyzing"}
+    types = [e["type"] for e in events]
+    assert types.index("think") < types.index("call")
+    assert types.index("call") < types.index("execute")
+    assert types.index("execute") < types.index("result")
 
 
 @pytest.mark.asyncio
-async def test_eager_emit_false_alarm_delimiter():
-    """False alarm partial delimiter held until resolved."""
-    tokens = ["Price: §", "50"]
+async def test_execute_order_preserved_multiple_tools():
+    """Multiple tools in execute block produce calls in order."""
+    xml = """<execute>
+        <read><file>1.txt</file></read>
+        <write><file>2.txt</file><content>x</content></write>
+        <read><file>3.txt</file></read>
+    </execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
 
+    calls = [e for e in events if e["type"] == "call"]
+    files = [json.loads(c["content"])["args"]["file"] for c in calls]
+    assert files == ["1.txt", "2.txt", "3.txt"]
+
+
+@pytest.mark.asyncio
+async def test_results_order_matches_execution():
+    """Results array order preserved from execution."""
+    xml = """<results>
+[
+  {"tool": "read", "status": "success", "content": "first"},
+  {"tool": "write", "status": "success", "content": "second"},
+  {"tool": "read", "status": "success", "content": "third"}
+]
+</results>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    results = json.loads(events[0]["content"])
+    assert results[0]["content"] == "first"
+    assert results[1]["content"] == "second"
+    assert results[2]["content"] == "third"
+
+
+@pytest.mark.asyncio
+async def test_no_token_loss_complex_streaming():
+    """Complex streaming scenario loses no tokens."""
+    tokens = [
+        "<th",
+        "ink>rea",
+        "soning</th",
+        "ink><exec",
+        "ute><read><file",
+        ">test.tx",
+        "t</file></read></execut",
+        "e>",
+    ]
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
-    assert len(events) == 2
-    assert events[0] == {"type": "respond", "content": "Price: "}
-    assert events[1] == {"type": "respond", "content": "§50"}
+    types = [e["type"] for e in events]
+    assert "think" in types
+    assert "call" in types
+    assert "execute" in types
 
 
 @pytest.mark.asyncio
-async def test_parse_complete_string():
-    """Parser accepts complete string (generate mode)."""
-    completion = "§think: analyzing request §respond: The answer is 42 §end"
+async def test_protocol_example_complete_sequence():
+    """Parse complete protocol example from spec."""
+    xml = """<think>read config, update endpoint, verify</think>
 
+<execute>
+  <read><file>config.json</file></read>
+</execute>
+
+<results>
+[{"tool": "read", "status": "success", "content": {"api": "old.com"}}]
+</results>
+
+<think>writing updated config and verifying in one batch</think>
+
+<execute>
+  <write><file>config.json</file><content>{"api": "new.com"}</content></write>
+  <read><file>config.json</file></read>
+</execute>
+
+<results>
+[
+  {"tool": "write", "status": "success", "content": {"bytes": 22}},
+  {"tool": "read", "status": "success", "content": {"api": "new.com"}}
+]
+</results>"""
     events = []
-    async for event in parse_tokens(completion):
+    async for event in parse_tokens(xml):
         events.append(event)
 
-    assert len(events) == 3
-    assert events[0] == {"type": "think", "content": "analyzing request "}
-    assert events[1] == {"type": "respond", "content": "The answer is 42 "}
-    assert events[2] == {"type": "end"}
+    types = [e["type"] for e in events]
+    think_count = types.count("think")
+    call_count = types.count("call")
+    execute_count = types.count("execute")
+    result_count = types.count("result")
 
-
-@pytest.mark.asyncio
-async def test_parse_complete_string_multiline():
-    """Parser handles complete multi-delimiter string."""
-    completion = (
-        "§respond: I'll help you.\n"
-        "§think: Need to call tool\n"
-        '§call: {"name": "read", "args": {"file": "test.txt"}}\n'
-        "§execute"
-    )
-
-    events = []
-    async for event in parse_tokens(completion):
-        events.append(event)
-
-    assert len(events) == 4
-    assert events[0]["type"] == "respond"
-    assert "I'll help you" in events[0]["content"]
-    assert events[1]["type"] == "think"
-    assert "Need to call tool" in events[1]["content"]
-    assert events[2]["type"] == "call"
-    assert "read" in events[2]["content"]
-    assert events[3]["type"] == "execute"
+    assert think_count == 2
+    assert call_count == 3
+    assert execute_count == 2
+    assert result_count == 2

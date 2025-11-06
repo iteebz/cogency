@@ -9,9 +9,10 @@ from cogency.core.parser import parse_tokens
 async def test_flow(mock_llm, mock_config, mock_tool):
     mock_llm.set_response_tokens(
         [
-            "§think: I need to call a tool.\n",
-            '§call: {"name": "test_tool", "args": {"message": "hello world"}}\n',
-            "§execute\n",
+            "<think>I need to call a tool.</think>\n",
+            "<execute>\n",
+            "  <test_tool><message>hello world</message></test_tool>\n",
+            "</execute>\n",
         ]
     )
 
