@@ -65,7 +65,7 @@ def format_results_array(calls: list[ToolCall], results: list[ToolResult]) -> st
         JSON array string for <results> block injection
     """
     array = []
-    for call, result in zip(calls, results, strict=False):
+    for call, result in zip(calls, results, strict=True):
         item = {
             "tool": call.name,
             "status": "failure" if result.error else "success",

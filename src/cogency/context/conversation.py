@@ -5,43 +5,55 @@ from ..core.protocols import ToolResult
 
 
 def to_messages(events: list[dict]) -> list[dict]:
-    """Convert event log to conversational messages."""
+    """Convert event log to conversational messages with chronological reconstruction."""
     messages = []
     assistant_turn = []
+    batch_calls = []
 
-    for i, event in enumerate(events):
+    for event in events:
         t = event["type"]
 
         if t == "user":
             if assistant_turn:
                 messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})
                 assistant_turn = []
+            batch_calls = []
             messages.append({"role": "user", "content": event["content"]})
 
-        elif t in ["think", "respond"]:
-            assistant_turn.append(f"§{t}: {event['content']}")
+        elif t == "think":
+            assistant_turn.append(f"<think>{event['content']}</think>")
+
+        elif t == "respond":
+            assistant_turn.append(event["content"])
 
         elif t == "call":
-            assistant_turn.append(f"§call: {event['content']}")
-            if i + 1 < len(events) and events[i + 1]["type"] == "result":
-                assistant_turn.append("§execute")
-                messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})
-                assistant_turn = []
+            call_data = json.loads(event["content"])
+            batch_calls.append({"name": call_data["name"], "args": call_data["args"]})
 
         elif t == "result":
+            if batch_calls:
+                execute_xml = f"<execute>\n{json.dumps(batch_calls, indent=2)}\n</execute>"
+                assistant_turn.append(execute_xml)
+                messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})
+                assistant_turn = []
+                batch_calls = []
+
             content = event.get("content", "")
             try:
-                result_dict = json.loads(content)
-                result = ToolResult(
-                    outcome=result_dict.get("outcome", ""),
-                    content=result_dict.get("content", ""),
-                )
-                result_text = format_result_agent(result)
+                result_data = json.loads(content)
+                if isinstance(result_data, list):
+                    result_text = content
+                else:
+                    result = ToolResult(
+                        outcome=result_data.get("outcome", ""),
+                        content=result_data.get("content", ""),
+                    )
+                    result_text = format_result_agent(result)
             except (json.JSONDecodeError, TypeError):
                 result_text = content
 
             if result_text:
-                messages.append({"role": "user", "content": f"{result_text}"})
+                messages.append({"role": "user", "content": result_text})
 
     if assistant_turn:
         messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})

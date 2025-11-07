@@ -45,7 +45,7 @@ async def test_result_yields_once(mock_config, mock_tool, resume_llm):
         [
             [
                 "<think>need tool</think>",
-                "<execute><test_tool><message>hi</message></test_tool></execute>",
+                f'<execute>[{{"name": "{tool.name}", "args": {{"message": "hi"}}}}]</execute>',
             ],
             [
                 "done",

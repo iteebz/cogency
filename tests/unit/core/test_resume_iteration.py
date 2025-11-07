@@ -58,7 +58,7 @@ async def test_tool_continuation_hits_iteration_limit(mock_config, mock_tool, re
         [
             [
                 "<think>need tool</think>",
-                "<execute><test_tool><message>hi</message></test_tool></execute>",
+                f'<execute>[{{"name": "{tool.name}", "args": {{"message": "hi"}}}}]</execute>',
             ],
             [
                 "tool done",
@@ -81,7 +81,7 @@ async def test_tool_continuation_within_limit(mock_config, mock_tool, resume_llm
         [
             [
                 "<think>need tool</think>",
-                "<execute><test_tool><message>hi</message></test_tool></execute>",
+                f'<execute>[{{"name": "{tool.name}", "args": {{"message": "hi"}}}}]</execute>',
             ],
             [
                 "tool done",

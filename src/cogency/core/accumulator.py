@@ -159,40 +159,34 @@ class Accumulator:
             content = event_content(event)
             timestamp = time.time()
 
-            # Handle control events
-            if ev_type == "execute":
-                # Handle pending call before execute (don't use _flush_accumulated for calls)
-                if self.current_type == "call" and self.content.strip():
-                    yield {
-                        "type": "call",
-                        "content": self.content.strip(),
-                        "timestamp": self.start_time,
-                    }
+            # Handle calls immediately (parser guarantees complete JSON)
+            if ev_type == "call":
+                try:
+                    tool_call = parse_tool_call(content)
+                    call_json = json.dumps({"name": tool_call.name, "args": tool_call.args})
 
-                # Parse pending call batch and collect into pending_calls
-                if self.current_type == "call" and self.content.strip():
-                    try:
-                        tool_call = parse_tool_call(self.content.strip())
-                        call_json = json.dumps({"name": tool_call.name, "args": tool_call.args})
-                        await self.storage.save_message(
-                            self.conversation_id, self.user_id, "call", call_json, self.start_time
-                        )
-                        self.pending_calls.append(tool_call)
-                        self.call_timestamps.append(self.start_time)
-                    except (json.JSONDecodeError, KeyError) as e:
-                        logger.warning(f"Failed to parse tool call: {e}")
-                        await self.storage.save_message(
-                            self.conversation_id,
-                            self.user_id,
-                            "call",
-                            self.content.strip(),
-                            self.start_time,
-                        )
+                    await self.storage.save_message(
+                        self.conversation_id, self.user_id, "call", call_json, timestamp
+                    )
+                    self.pending_calls.append(tool_call)
+                    self.call_timestamps.append(timestamp)
+
+                    yield {"type": "call", "content": call_json, "timestamp": timestamp}
+                except (json.JSONDecodeError, KeyError) as e:
+                    logger.warning(f"Failed to parse tool call: {e}")
+
+                continue
+
+            # Handle execute - flush any non-call accumulation and execute batch
+            if ev_type == "execute":
+                if self.current_type and self.content.strip():
+                    flushed = await self._flush_accumulated()
+                    if flushed:
+                        yield flushed
                     self.current_type = None
                     self.content = ""
                     self.start_time = None
 
-                # Emit execute and process batch
                 yield {"type": "execute", "timestamp": timestamp}
                 async for result_event in self._handle_execute(timestamp):
                     yield result_event
@@ -211,7 +205,7 @@ class Accumulator:
                 yield event
                 return
 
-            # Handle type transitions (including call events)
+            # Handle type transitions (non-call, non-control events)
             if ev_type != self.current_type:
                 # Flush previous accumulation
                 flushed = await self._flush_accumulated()

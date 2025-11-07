@@ -39,7 +39,7 @@ async def test_with_conversation(mock_config):
     assert messages[1]["role"] == "user"
     assert messages[1]["content"] == "hello"
     assert messages[2]["role"] == "assistant"
-    assert "§respond:" in messages[2]["content"]
+    assert "hi there" in messages[2]["content"]
 
 
 @pytest.mark.asyncio
@@ -106,7 +106,7 @@ async def test_preserves_turn_structure(mock_config):
     assert messages[0]["role"] == "system"
     assert messages[1]["role"] == "user"
     assert messages[2]["role"] == "assistant"
-    assert "§execute" in messages[2]["content"]
+    assert "<execute>" in messages[2]["content"]
     assert messages[3]["role"] == "user"
     assert messages[4]["role"] == "assistant"
 

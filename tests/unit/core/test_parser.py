@@ -31,11 +31,13 @@ async def test_think_block_simple():
 
 
 @pytest.mark.asyncio
-async def test_execute_single_tool():
-    """Parse execute block with single tool."""
+async def test_execute_single_tool_json_array():
+    """Parse execute block with single tool in JSON array format."""
     xml = """<execute>
-        <read><file>test.txt</file></read>
-    </execute>"""
+[
+  {"name": "read", "args": {"file": "test.txt"}}
+]
+</execute>"""
     events = []
     async for event in parse_tokens(xml):
         events.append(event)
@@ -50,12 +52,14 @@ async def test_execute_single_tool():
 
 
 @pytest.mark.asyncio
-async def test_execute_multiple_tools():
+async def test_execute_multiple_tools_json_array():
     """Parse execute block with multiple tools - order preserved."""
     xml = """<execute>
-        <read><file>a.txt</file></read>
-        <write><file>b.txt</file><content>x</content></write>
-    </execute>"""
+[
+  {"name": "read", "args": {"file": "a.txt"}},
+  {"name": "write", "args": {"file": "b.txt", "content": "x"}}
+]
+</execute>"""
     events = []
     async for event in parse_tokens(xml):
         events.append(event)
@@ -72,8 +76,95 @@ async def test_execute_multiple_tools():
 
 
 @pytest.mark.asyncio
+async def test_xml_collision_html_content():
+    """XML collision: HTML content containing </tool> safely handled."""
+    xml = """<execute>
+[
+  {"name": "write", "args": {"file": "index.html", "content": "<html><body>Hello </body></html>"}}
+]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    assert len(events) == 2
+    assert events[0]["type"] == "call"
+    call_data = json.loads(events[0]["content"])
+    assert call_data["args"]["content"] == "<html><body>Hello </body></html>"
+
+
+@pytest.mark.asyncio
+async def test_xml_collision_closing_tag_in_content():
+    """XML collision: Content with closing tag like </write> is safe."""
+    xml = """<execute>
+[
+  {"name": "write", "args": {"content": "Hello </write> world"}}
+]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    assert len(events) == 2
+    call_data = json.loads(events[0]["content"])
+    assert call_data["args"]["content"] == "Hello </write> world"
+
+
+@pytest.mark.asyncio
+async def test_xml_collision_nested_xml_in_args():
+    """XML collision: Nested XML tags in args handled safely."""
+    xml = """<execute>
+[
+  {"name": "write", "args": {"content": "<root><child>value</child></root>"}}
+]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    assert len(events) == 2
+    call_data = json.loads(events[0]["content"])
+    assert "<root>" in call_data["args"]["content"]
+    assert "</root>" in call_data["args"]["content"]
+
+
+@pytest.mark.asyncio
+async def test_xml_collision_sql_injection_pattern():
+    """XML collision: SQL injection pattern with quotes and angle brackets."""
+    xml = """<execute>
+[
+  {"name": "shell", "args": {"cmd": "echo \\\"'; DROP TABLE users; --\\\""}}
+]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    assert len(events) == 2
+    call_data = json.loads(events[0]["content"])
+    assert "DROP TABLE" in call_data["args"]["cmd"]
+
+
+@pytest.mark.asyncio
+async def test_xml_collision_mixed_quotes():
+    """XML collision: Mixed quote styles in JSON args."""
+    xml = """<execute>
+[
+  {"name": "write", "args": {"content": "I said \\"hello\\" and <tag>world</tag>"}}
+]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    assert len(events) == 2
+    call_data = json.loads(events[0]["content"])
+    assert "hello" in call_data["args"]["content"]
+
+
+@pytest.mark.asyncio
 async def test_results_block():
-    """Parse results block."""
+    """Parse results block with JSON array."""
     xml = """<results>
 [
   {"tool": "read", "status": "success", "content": "data"},
@@ -94,10 +185,12 @@ async def test_results_block():
 
 @pytest.mark.asyncio
 async def test_full_sequence_think_execute_results():
-    """Parse full protocol sequence."""
+    """Parse full protocol sequence with JSON array format."""
     xml = """<think>reading config and updating endpoint</think>
 <execute>
-  <read><file>config.json</file></read>
+[
+  {"name": "read", "args": {"file": "config.json"}}
+]
 </execute>
 <results>
 [{"tool": "read", "status": "success", "content": {"api": "old.com"}}]
@@ -169,7 +262,7 @@ async def test_mixed_tags_streaming_tokens():
     """Mixed tags across streaming tokens preserve order."""
     tokens = [
         "<think>reasoning</think>",
-        "<execute><read><file>test.txt</file></read></execute>",
+        '<execute>[{"name": "read", "args": {"file": "test.txt"}}]</execute>',
         '<results>[{"tool": "read", "status": "success"}]</results>',
     ]
     events = []
@@ -186,10 +279,12 @@ async def test_mixed_tags_streaming_tokens():
 async def test_execute_order_preserved_multiple_tools():
     """Multiple tools in execute block produce calls in order."""
     xml = """<execute>
-        <read><file>1.txt</file></read>
-        <write><file>2.txt</file><content>x</content></write>
-        <read><file>3.txt</file></read>
-    </execute>"""
+[
+  {"name": "read", "args": {"file": "1.txt"}},
+  {"name": "write", "args": {"file": "2.txt", "content": "x"}},
+  {"name": "read", "args": {"file": "3.txt"}}
+]
+</execute>"""
     events = []
     async for event in parse_tokens(xml):
         events.append(event)
@@ -227,9 +322,9 @@ async def test_no_token_loss_complex_streaming():
         "ink>rea",
         "soning</th",
         "ink><exec",
-        "ute><read><file",
-        ">test.tx",
-        "t</file></read></execut",
+        'ute>[{"name": "read", "args": {"file',
+        '": "test.tx',
+        't"}}]</execut',
         "e>",
     ]
     events = []
@@ -244,11 +339,13 @@ async def test_no_token_loss_complex_streaming():
 
 @pytest.mark.asyncio
 async def test_protocol_example_complete_sequence():
-    """Parse complete protocol example from spec."""
+    """Parse complete protocol example from spec with JSON arrays."""
     xml = """<think>read config, update endpoint, verify</think>
 
 <execute>
-  <read><file>config.json</file></read>
+[
+  {"name": "read", "args": {"file": "config.json"}}
+]
 </execute>
 
 <results>
@@ -258,8 +355,10 @@ async def test_protocol_example_complete_sequence():
 <think>writing updated config and verifying in one batch</think>
 
 <execute>
-  <write><file>config.json</file><content>{"api": "new.com"}</content></write>
-  <read><file>config.json</file></read>
+[
+  {"name": "write", "args": {"file": "config.json", "content": "{\\"api\\": \\"new.com\\"}"}},
+  {"name": "read", "args": {"file": "config.json"}}
+]
 </execute>
 
 <results>
@@ -282,3 +381,76 @@ async def test_protocol_example_complete_sequence():
     assert call_count == 3
     assert execute_count == 2
     assert result_count == 2
+
+
+@pytest.mark.asyncio
+async def test_malformed_json_in_execute():
+    """Malformed JSON in execute block produces error event."""
+    xml = """<execute>
+[{"name": "read", "args": {"file": "test.txt"}}
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    has_error = any(e["type"] == "respond" and "Error" in e.get("content", "") for e in events)
+    assert has_error
+
+
+@pytest.mark.asyncio
+async def test_execute_missing_name_field():
+    """Execute with missing 'name' field produces error."""
+    xml = """<execute>
+[{"args": {"file": "test.txt"}}]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    has_error = any(e["type"] == "respond" and "Error" in e.get("content", "") for e in events)
+    assert has_error
+
+
+@pytest.mark.asyncio
+async def test_execute_missing_args_field():
+    """Execute with missing 'args' field produces error."""
+    xml = """<execute>
+[{"name": "read"}]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    has_error = any(e["type"] == "respond" and "Error" in e.get("content", "") for e in events)
+    assert has_error
+
+
+@pytest.mark.asyncio
+async def test_execute_not_json_array():
+    """Execute with non-array JSON produces error."""
+    xml = """<execute>
+{"name": "read", "args": {}}
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    has_error = any(e["type"] == "respond" and "Error" in e.get("content", "") for e in events)
+    assert has_error
+
+
+@pytest.mark.asyncio
+async def test_execute_array_with_non_object():
+    """Execute array with non-object element produces error."""
+    xml = """<execute>
+[
+  {"name": "read", "args": {}},
+  "not an object"
+]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    has_error = any(e["type"] == "respond" and "Error" in e.get("content", "") for e in events)
+    assert has_error

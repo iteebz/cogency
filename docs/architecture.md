@@ -5,14 +5,23 @@
 **Tokens → Parser → Accumulator → Executor → Results**
 
 ### Parser (Lexical Layer)
-- **Function**: Token-based delimiter detection
+- **Function**: XML marker and JSON extraction from token stream
 - **Input**: Token stream from LLM
 - **Output**: Semantic events with type labels
-- **Strategy**: Detect delimiters across token boundaries, preprocess complex tokens
+- **Strategy**: Detect `<think>`, `<execute>`, `<results>` markers across token boundaries
+
+See **[execution.md](execution.md)** for the complete protocol specification.
 
 ```python
-"§call: {"name":"read","args":{"file":"test.py"}}" → [("call", '{"name":"read","args":{"file":"test.py"}}')]
-"§think: analyzing data" → [("think", "analyzing"), ("think", "data")]
+# Input token stream:
+"<execute>\n[" → buffered
+'{"name":"read"' → buffered
+',"args":{"file":"test.py"}}' → buffered
+"]</execute>" → complete, parse and emit call events
+
+# Output events:
+{"type": "call", "content": '{"name": "read", "args": {"file": "test.py"}}'}
+{"type": "execute"}
 ```
 
 ### Accumulator (Semantic Layer)
@@ -72,20 +81,21 @@ traditional_agent.run() → [Messages 1-50] → Tool → [Messages 1-51] → Too
 # Context grows with conversation
 ```
 
-## Delimiter Protocol
+## Execution Protocol
 
-**Streaming delimiters with token-based parsing:**
+**Tool invocation format:** XML markers with JSON arrays
 
-- `§think:` - Agent reasoning (optional)
-- `§call:` - Tool invocation with JSON
-- `§respond:` - Human communication  
-- `§execute` - Tool execution trigger
-- `§end` - Stream termination
+See **[execution.md](execution.md)** for complete specification.
 
-**Edge case handling:**
-- Compact JSON: `§call:{"name":"read","args":{"file":"test.py"}}` (no space after colon)
-- Split delimiters: `§thi` + `nk:` across tokens
-- Invalid delimiters: Treated as regular content
+**Three-phase execution:**
+- `<think>...</think>` - Agent reasoning (optional)
+- `<execute>[{...}]</execute>` - Tool invocation batch (JSON array)
+- `<results>[{...}]</results>` - Tool execution outcomes (JSON array)
+
+**Safety:**
+- JSON string escaping prevents XML collision
+- Content like `</execute>` in args is safely escaped
+- No special escaping rules needed
 
 ## Stateless Design
 
@@ -137,11 +147,19 @@ async for event in agent(query):  # Rebuilds context from storage
 # Passive memory (automatic)
 agent = Agent(llm="openai", profile=True)  # Learns user patterns automatically
 
-# Active memory (agent-controlled) 
-§call: {"name": "recall", "args": {"query": "previous python debugging"}}
-§execute
-[SYSTEM: Found 3 previous debugging sessions...]
-§respond: Based on your previous Python work, I'll check for similar patterns.
+# Active memory (agent-controlled)
+# Agent generates:
+<execute>
+[{"name": "recall", "args": {"query": "previous python debugging"}}]
+</execute>
+
+# System injects:
+<results>
+[{"tool": "recall", "status": "success", "content": "Found 3 previous debugging sessions..."}]
+</results>
+
+# Agent responds:
+Based on your previous Python work, I'll check for similar patterns.
 ```
 
 ## Context Assembly
@@ -162,20 +180,20 @@ agent = Agent(llm="openai", profile=True)  # Learns user patterns automatically
 
 ### Message Assembly
 ```python
-# Assembled as proper conversational structure
+# Assembled as proper conversational structure with execution protocol
 [
   {"role": "system", "content": "PROTOCOL + TOOLS + PROFILE"},
   {"role": "user", "content": "debug this"},
-  {"role": "assistant", "content": "§think: checking logs\n§call: {...}\n§execute"},
-  {"role": "user", "content": "§result: Success..."},
-  {"role": "assistant", "content": "§respond: found the bug\n§end"}
+  {"role": "assistant", "content": "<think>checking logs</think>\n\n<execute>[{\"name\": \"read\", \"args\": {...}}]</execute>"},
+  {"role": "user", "content": "<results>[{\"tool\": \"read\", \"status\": \"success\", \"content\": \"...\"}]</results>"},
+  {"role": "assistant", "content": "found the bug"}
 ]
 ```
 
 **Context components:**
 - System message: Protocol + tools + profile (if enabled)
 - Conversation messages: User/assistant turns from storage
-- Turn boundaries: `§execute` synthesized at call→result transitions
+- Execution format: XML markers with JSON arrays synthesized during assembly
 - Tool results: Injected as user messages (required by Realtime/Live APIs)
 
 **Cost control:**

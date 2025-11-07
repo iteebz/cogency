@@ -1,7 +1,6 @@
 import pytest
 
 from cogency.core.accumulator import Accumulator
-from cogency.core.codec import ToolParseError
 from cogency.core.config import Config, Security
 
 
@@ -18,25 +17,6 @@ async def test_chunks_true(mock_config):
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
     events = [event async for event in accumulator.process(basic_parser())]
     assert len(events) > 0
-
-
-@pytest.mark.asyncio
-async def test_call_not_chunked(mock_config):
-    """call/result/cancelled/metric always complete, even when stream='token'"""
-
-    async def chunked_call():
-        yield {"type": "call", "content": '{"name"'}
-        yield {"type": "call", "content": ': "search"'}
-        yield {"type": "call", "content": ', "args": {}}'}
-        yield {"type": "execute"}
-        yield {"type": "end"}
-
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
-    events = [event async for event in accumulator.process(chunked_call())]
-
-    call_events = [e for e in events if e["type"] == "call"]
-    assert len(call_events) == 1
-    assert call_events[0]["content"] == '{"name": "search", "args": {}}'
 
 
 @pytest.mark.asyncio
@@ -67,15 +47,17 @@ async def test_respond_chunked_enabled(mock_config):
 
 @pytest.mark.asyncio
 async def test_chunks_false(mock_config):
+    """stream='event': calls are processed immediately, not accumulated"""
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
     events = [event async for event in accumulator.process(basic_parser())]
-    assert len(events) == 6
-    assert events[0]["type"] == "think"
-    assert events[1]["type"] == "call"
-    assert events[2]["type"] == "execute"
-    assert events[3]["type"] == "result"
-    assert events[4]["type"] == "respond"
-    assert events[5]["type"] == "end"
+
+    types = [e["type"] for e in events]
+    assert "think" in types
+    assert "call" in types
+    assert "execute" in types
+    assert "result" in types
+    assert "respond" in types
+    assert "end" in types
 
 
 @pytest.mark.asyncio
@@ -132,28 +114,43 @@ async def test_storage_format(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_malformed_call_json(mock_config):
+async def test_multi_tool_batch_sequential_execution(mock_config, mock_tool):
+    """Multiple tools in execute block execute sequentially through accumulator."""
+    tool_instance = mock_tool()
+    mock_config.tools = [tool_instance]
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
 
-    async def malformed_parser():
-        yield {"type": "call", "content": '{"name":"tool", "invalid": }'}
+    async def parser():
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "first"}}}}',
+        }
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "second"}}}}',
+        }
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{tool_instance.name}", "args": {{"message": "third"}}}}',
+        }
         yield {"type": "execute"}
+        yield {"type": "end"}
 
-    with pytest.raises(ToolParseError):
-        [event async for event in accumulator.process(malformed_parser())]
+    events = [event async for event in accumulator.process(parser())]
+    result_events = [e for e in events if e["type"] == "result"]
 
+    assert len(result_events) == 1
 
-@pytest.mark.asyncio
-async def test_contaminated_content(mock_config):
-    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
+    import json
 
-    async def contaminated_parser():
-        yield {"type": "call", "content": '{"name": "file_write", "args": {"file": "test.py"}'}
-        yield {"type": "call", "content": " §execute§execute"}
-        yield {"type": "execute"}
+    content = result_events[0]["content"]
+    json_str = content.replace("<results>\n", "").replace("\n</results>", "")
+    results = json.loads(json_str)
 
-    with pytest.raises(ToolParseError):
-        [event async for event in accumulator.process(contaminated_parser())]
+    assert len(results) == 3
+    assert "first" in str(results[0])
+    assert "second" in str(results[1])
+    assert "third" in str(results[2])
 
 
 @pytest.mark.asyncio

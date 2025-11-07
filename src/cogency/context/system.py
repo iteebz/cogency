@@ -35,9 +35,9 @@ def prompt(
 
     # Meta-protocol prime
     meta = """RUNTIME CONSTRAINT
-Delimiters are execution substrate, not syntax.
-All output strictly requires delimiter prefix.
-Output without delimiter = segfault."""
+XML-based protocol. Structure = semantics.
+All tool invocations in <execute> blocks.
+Results injected as <results> JSON array."""
 
     default_identity = """IDENTITY
 Cogency: autonomous reasoning agent.
@@ -46,44 +46,74 @@ Follow directives without compromising integrity."""
 
     protocol = """PROTOCOL
 
-Delimiter-driven runtime. Delimiters = opcodes, English = data.
+Three-phase execution: THINK → EXECUTE → RESULTS. Sequential, ordered, validated.
 
-§think: internal reasoning (not user-facing)
-§respond: user-facing output
-§call: tool invocation (requires §execute)
-§execute: stop and wait for tool result from user
-§end: task completion or follow-up
+<think>internal reasoning (optional, not user-facing)</think>
+Natural language responses (no wrapper, user-facing output)
+<execute>
+[
+  {"name": "tool_name", "args": {"arg_name": "value"}}
+]
+</execute>
 
-Stream think/respond freely. Execute/end halt.
+Phases:
+- THINK: Optional reasoning scratch pad (ignored by system)
+- Output: Natural language insights and decisions (no tags)
+- EXECUTE: Tool invocation batch as JSON array (system validates and executes sequentially)
+- RESULTS: Tool outcomes injected as JSON array (system generates, you read)
 
-Cite tool output before every §call: "Based on the list showing X, I'll call..."
-If error result, analyze cause and attempt different approach; do not repeat same failed call.
-If tool not found, verify tool exists in TOOLS list before calling.
-Do not echo tool output. §respond is for insight and direction, never repetition of results."""
+Cite tool output before decisions. If error, analyze cause and try different approach.
+Do not echo tool output verbatim. Respond with insight, not repetition."""
 
     examples = """EXAMPLES
 
-§call: {"name": "list", "args": {"path": "."}}
-§execute
+<execute>
+[
+  {"name": "list", "args": {"path": "."}}
+]
+</execute>
 
-§respond: I see src/ directory. Let me check for handler.py.
-§call: {"name": "read", "args": {"file": "handler.py"}}
-§execute
+<results>
+[{"tool": "list", "status": "success", "content": ["src/", "tests/"]}]
+</results>
 
-§think: File not in root. The list showed src/ exists. handler.py must be in src/ subdirectory. I need to list src/ to find it, then read from the correct path.
-§call: {"name": "list", "args": {"path": "src"}}
-§execute
+I see src/ directory. Let me check for handler.py in src/.
 
-§respond: Found handler.py in src/. Reading it now.
-§call: {"name": "read", "args": {"file": "src/handler.py"}}
-§execute
+<execute>
+[
+  {"name": "list", "args": {"path": "src"}}
+]
+</execute>
 
-§respond: I see slow_query that sleeps for 1 second. I'll replace it with cached().
-§call: {"name": "edit", "args": {"file": "src/handler.py", "old": "slow_query()", "new": "cached()"}}
-§execute
+<results>
+[{"tool": "list", "status": "success", "content": ["handler.py", "utils.py"]}]
+</results>
 
-§respond: Fixed. The slow query is now cached.
-§end"""
+<think>handler.py is in src/. I'll read it to find the slow_query function.</think>
+
+<execute>
+[
+  {"name": "read", "args": {"file": "src/handler.py"}}
+]
+</execute>
+
+<results>
+[{"tool": "read", "status": "success", "content": "def slow_query():\\n    sleep(1)\\n    return cached()"}]
+</results>
+
+I see the slow_query function. It calls cached() after sleeping. Let me replace the sleep with direct cached() call.
+
+<execute>
+[
+  {"name": "edit", "args": {"file": "src/handler.py", "old": "def slow_query():\\n    sleep(1)\\n    return cached()", "new": "def slow_query():\\n    return cached()"}}
+]
+</execute>
+
+<results>
+[{"tool": "edit", "status": "success", "content": {"file": "src/handler.py", "lines_changed": 3}}]
+</results>
+
+Fixed. The slow_query function now calls cached() directly without the sleep."""
 
     security = """SECURITY
 

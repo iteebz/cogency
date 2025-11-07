@@ -71,7 +71,7 @@ def test_security_always_present():
 
 
 def test_protocol_always_present():
-    # Various combinations should all include protocol
+    # Various combinations should all include protocol with JSON array format
     test_cases = [
         prompt(),
         prompt(identity="Custom"),
@@ -81,10 +81,10 @@ def test_protocol_always_present():
 
     for result in test_cases:
         assert "PROTOCOL" in result
-        assert "§respond" in result
-        assert "§call" in result
-        assert "§execute" in result
-        assert "§end" in result
+        assert "<execute>" in result
+        assert "</execute>" in result
+        assert '{"name":' in result
+        assert '"args":' in result
 
 
 def test_tools_section():

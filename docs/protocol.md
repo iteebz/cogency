@@ -12,59 +12,64 @@ Parser transforms wire protocol to events. Framework injects synthetic events (u
 ## LLM Wire Protocol
 
 **Problem:** Frameworks guess when agents need tools  
-**Solution:** LLM explicitly signals execution state with delimiters
+**Solution:** LLM explicitly signals execution state with XML markers and JSON payloads
 
-```
-§think: I need to examine the code structure first
-§call: {"name": "read", "args": {"file": "main.py"}}
-§execute
-§respond: Fixed the missing semicolon. Code runs correctly now.
-§end
-```
+See **[execution.md](execution.md)** for the canonical tool execution format.
 
-LLM controls timing. Parser detects delimiters and emits events. Accumulator handles execution.
+The wire protocol uses three XML markers:
+- `<think>...</think>` Internal reasoning scratchpad
+- `<execute>[...]</execute>` Tool invocation batch (JSON array)
+- `<results>[...]</results>` Tool execution outcomes (JSON array, system-generated)
 
-### Delimiters
-
-- `§think:` Internal reasoning scratchpad
-- `§call:` Single tool call as JSON object
-- `§execute` Pause signal for tool execution
-- `§respond:` Communication with human
-- `§end` Task completion signal
+The LLM generates thinking and execute blocks. The system generates results blocks. Parser transforms wire protocol to structured events.
 
 ### Examples
 
 **Simple response (no tools):**
-```
-§respond: Python is a programming language created by Guido van Rossum.
-§end
+```xml
+<respond>Python is a programming language created by Guido van Rossum.</respond>
 ```
 
 **Single tool call:**
-```
-§think: I should check what files exist first.
-§call: {"name": "list", "args": {"path": "."}}
-§execute
-§respond: I found 3 files: main.py, config.json, README.md
-§end
+```xml
+<think>I should check what files exist first.</think>
+
+<execute>
+[{"name": "list", "args": {"path": "."}}]
+</execute>
+
+<results>
+[{"tool": "list", "status": "success", "content": ["main.py", "config.json", "README.md"]}]
+</results>
+
+I found 3 files: main.py, config.json, README.md
 ```
 
 **Multiple sequential tools:**
-```
-§call: {"name": "list", "args": {"path": "."}}
-§execute
-§call: {"name": "read", "args": {"file": "config.json"}}
-§execute
-§respond: This is a Node.js project with Express configuration.
-§end
+```xml
+<execute>
+[
+  {"name": "list", "args": {"path": "."}},
+  {"name": "read", "args": {"file": "config.json"}}
+]
+</execute>
+
+<results>
+[
+  {"tool": "list", "status": "success", "content": ["main.py", "config.json", "README.md"]},
+  {"tool": "read", "status": "success", "content": "{\"type\": \"module\", \"main\": \"index.js\"}"}
+]
+</results>
+
+This is a Node.js project with Express configuration.
 ```
 
-### Rules
+### Format Requirements
 
-1. **Tool calls must be valid JSON object:** `{"name": "read", "args": {"file": "example.py"}}`
-2. **execute required after call:** Parser waits for tool execution
-3. **Invalid JSON treated as content:** Parser continues with malformed calls as regular content
-4. **end terminates stream:** Final event, no further processing
+1. **Tool calls are JSON objects in array:** `[{"name": "read", "args": {...}}]`
+2. **Arrays are wrapped in XML markers:** `<execute>[...]</execute>`
+3. **Invalid JSON is an error:** Parser rejects and reports error
+4. **All results returned:** No results are skipped regardless of success/failure
 
 ---
 
@@ -188,15 +193,15 @@ Tools make **no collision detection** on file operations. If a file changes afte
 
 ### Storage → Messages Transformation
 
-Context assembly transforms stored events into proper conversational messages:
+Context assembly transforms stored events into proper conversational messages with wire protocol format:
 
 **Input (events from storage):**
 ```python
 [
   {"type": "user", "content": "debug app.py"},
   {"type": "think", "content": "should read file"},
-  {"type": "call", "content": '{"name": "read", ...}'},
-  {"type": "result", "content": '{"outcome": "Success", ...}'},
+  {"type": "call", "content": '{"name": "read", "args": {...}}'},
+  {"type": "result", "content": '{"outcome": "Success", "content": "..."}'},
   {"type": "respond", "content": "fixed the bug"}
 ]
 ```
@@ -206,15 +211,15 @@ Context assembly transforms stored events into proper conversational messages:
 [
   {"role": "system", "content": "PROTOCOL + TOOLS"},
   {"role": "user", "content": "debug app.py"},
-  {"role": "assistant", "content": "§think: should read file\n§call: {...}\n§execute"},
-  {"role": "user", "content": "§result: Success..."},
-  {"role": "assistant", "content": "§respond: fixed the bug\n§end"}
+  {"role": "assistant", "content": "<think>should read file</think>\n\n<execute>\n[{\"name\": \"read\", \"args\": {...}}]\n</execute>"},
+  {"role": "user", "content": "<results>\n[{\"tool\": \"read\", \"status\": \"success\", \"content\": \"...\"}]\n</results>"},
+  {"role": "assistant", "content": "fixed the bug"}
 ]
 ```
 
 **Key points:**
-- Delimiters synthesized during assembly, not stored
+- XML markers and JSON arrays synthesized during assembly, not stored
 - Events grouped by role (user vs assistant turns)
-- `§execute` synthesized at call→result boundaries
 - Tool results become user messages (API constraint)
-- Turn structure matches LLM training distribution
+- Turn structure matches wire protocol (think → execute → results → respond)
+- Chronological reconstruction collects granular call events, batches them in JSON array

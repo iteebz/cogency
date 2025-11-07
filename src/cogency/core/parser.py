@@ -35,72 +35,53 @@ class ParseError(ValueError):
         self.original_input = original_input
 
 
-def _parse_value(element) -> object:
-    """Parse XML element value, handling nested structures and primitives."""
-    import xml.etree.ElementTree as ET
-
-    if not isinstance(element, ET.Element):
-        return element
-
-    text = element.text or ""
-
-    if text.startswith("[") or text.startswith("{"):
-        try:
-            return json.loads(text)
-        except (ValueError, Exception):
-            return text
-
-    if text.lower() in ("true", "false"):
-        return text.lower() == "true"
-
-    try:
-        if "." in text:
-            return float(text)
-        return int(text)
-    except ValueError:
-        return text
-
-
-def _parse_args(tool_element) -> dict:
-    """Parse tool arguments from XML child elements."""
-    args = {}
-    for child in tool_element:
-        args[child.tag] = _parse_value(child)
-    return args
-
-
 def parse_execute_block(xml_str: str) -> list[ToolCall]:
     """Parse <execute> block and return list of ToolCall objects in order.
 
     Args:
-        xml_str: XML string containing <execute> block
+        xml_str: XML string containing <execute> block with JSON array
 
     Returns:
         List of ToolCall objects in execution order
 
     Raises:
-        ParseError: If XML is malformed or missing <execute> block
+        ParseError: If JSON is malformed or missing <execute> block
     """
-    import xml.etree.ElementTree as ET
-
     xml_str = xml_str.strip()
 
     if "<execute>" not in xml_str or "</execute>" not in xml_str:
         raise ParseError("No <execute> block found", original_input=xml_str)
 
     try:
-        start = xml_str.find("<execute>")
-        end = xml_str.find("</execute>") + len("</execute>")
-        execute_xml = xml_str[start:end]
+        start = xml_str.find("<execute>") + len("<execute>")
+        end = xml_str.find("</execute>")
+        content = xml_str[start:end].strip()
 
-        root = ET.fromstring(execute_xml)
-    except ET.ParseError as e:
-        raise ParseError(f"XML parse failed: {e}", original_input=xml_str) from e
+        calls_data = json.loads(content)
+    except json.JSONDecodeError as e:
+        raise ParseError(f"Invalid JSON in <execute> block: {e}", original_input=xml_str) from e
+
+    if not isinstance(calls_data, list):
+        raise ParseError("Expected JSON array in <execute> block", original_input=xml_str)
 
     calls = []
-    for child in root:
-        tool_name = child.tag
-        args = _parse_args(child)
+    for i, call_obj in enumerate(calls_data):
+        if not isinstance(call_obj, dict):
+            raise ParseError(f"Call {i} is not an object: {call_obj}", original_input=xml_str)
+
+        if "name" not in call_obj or "args" not in call_obj:
+            raise ParseError(
+                f"Call {i} missing 'name' or 'args': {call_obj}", original_input=xml_str
+            )
+
+        tool_name = call_obj["name"]
+        args = call_obj["args"]
+
+        if not isinstance(args, dict):
+            raise ParseError(
+                f"Call {i} args must be object, got {type(args).__name__}", original_input=xml_str
+            )
+
         calls.append(ToolCall(name=tool_name, args=args))
 
     return calls
@@ -143,15 +124,15 @@ def _find_closing_tag(buffer: str, tag_name: str) -> int | None:
 
 
 async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event, None]:
-    """Parse execute block and emit call events for each tool."""
-    try:
-        tool_calls = parse_execute_block(xml_block)
-        for call in tool_calls:
-            call_json = json.dumps({"name": call.name, "args": call.args})
-            yield {"type": "call", "content": call_json}
-    except Exception as e:
-        logger.warning(f"Failed to parse execute block: {e}")
-        yield {"type": "call", "content": xml_block}
+    """Parse execute block and emit call events for each tool.
+
+    Raises:
+        ParseError: If XML is malformed - propagates to caller for handling
+    """
+    tool_calls = parse_execute_block(xml_block)
+    for call in tool_calls:
+        call_json = json.dumps({"name": call.name, "args": call.args})
+        yield {"type": "call", "content": call_json}
 
 
 async def parse_tokens(
@@ -201,15 +182,20 @@ async def parse_tokens(
             content = buffer[content_start:content_end]
 
             if tag_name == "execute":
-                async for event in _emit_tool_calls_from_execute(f"<execute>{content}</execute>"):
-                    yield event
-                yield {"type": "execute"}
+                try:
+                    async for event in _emit_tool_calls_from_execute(
+                        f"<execute>{content}</execute>"
+                    ):
+                        yield event
+                    yield {"type": "execute"}
+                except ParseError as e:
+                    logger.error(f"Malformed <execute> block: {e}")
+                    yield {"type": "respond", "content": f"Error: Malformed tool call syntax. {e}"}
             elif tag_name == "think":
                 if content.strip():
                     yield {"type": "think", "content": content}
-            elif tag_name == "results":
-                if content.strip():
-                    yield {"type": "result", "content": content}
+            elif tag_name == "results" and content.strip():
+                yield {"type": "result", "content": content}
 
             buffer = buffer[close_pos:]
 
