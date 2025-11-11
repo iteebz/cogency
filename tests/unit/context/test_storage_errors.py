@@ -21,7 +21,7 @@ async def test_message_load_error_propagates():
     """Conversation history load failure must raise."""
 
     class CorruptedStorage:
-        async def load_messages(self, conv_id, user_id):
+        async def load_messages(self, conv_id, user_id, limit=None):
             raise RuntimeError("Database corrupted: checksum mismatch")
 
     with pytest.raises(RuntimeError, match="corrupted"):
@@ -40,7 +40,7 @@ async def test_message_load_empty_succeeds():
     """Empty message history is valid (new conversation)."""
 
     class EmptyStorage:
-        async def load_messages(self, conv_id, user_id):
+        async def load_messages(self, conv_id, user_id, limit=None):
             return []
 
     result = await assemble(
@@ -62,7 +62,7 @@ async def test_profile_error_propagates_when_enabled():
     """Profile loading errors must raise when profile_enabled=True."""
 
     class NoProfileStorage:
-        async def load_messages(self, conv_id, user_id):
+        async def load_messages(self, conv_id, user_id, limit=None):
             return []
 
     async def broken_profile_format(user_id, storage):
@@ -92,7 +92,7 @@ async def test_profile_disabled_skips_load():
     """Profile loading skipped when profile_enabled=False."""
 
     class BrokenProfileStorage:
-        async def load_messages(self, conv_id, user_id):
+        async def load_messages(self, conv_id, user_id, limit=None):
             return []
 
         async def load_profile(self, user_id):

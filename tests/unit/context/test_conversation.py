@@ -130,7 +130,8 @@ async def test_result_no_calls():
     assert messages[0]["role"] == "user"
     assert messages[0]["content"] == "test"
     assert messages[1]["role"] == "user"
-    assert messages[1]["content"] == "[]"
+    assert "<results>" in messages[1]["content"]
+    assert "[]" in messages[1]["content"]
     assert messages[2]["role"] == "assistant"
     assert "thinking..." in messages[2]["content"]
     assert "<execute>" not in messages[2]["content"]
@@ -150,8 +151,6 @@ async def test_separate_batches():
 
     execute_blocks = [m for m in messages if "<execute>" in m.get("content", "")]
     assert len(execute_blocks) == 2
-
-
 
 
 @pytest.mark.asyncio

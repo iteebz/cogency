@@ -50,15 +50,12 @@ Active agent-initiated memory search across conversation history.
 - Returns top 3 cross-conversation matches
 - Excludes recent messages to avoid repeating current context
 
-**Agent example:**
+**Agent behavior:**
+When solving similar problems, agent calls recall tool to find past interactions:
 ```
-§think: User mentioned debugging multiprocessing before...
-§call: {"name": "recall", "args": {"query": "python multiprocessing debugging"}}
-§execute
-[SYSTEM: Memory searched for 'python multiprocessing debugging' (2 matches)]
-[3h ago: Had issue with subprocess and locks...] 
-[1d ago: Solved GIL problem...]
-§respond: Based on your previous multiprocessing work...
+recall(query="python multiprocessing debugging")
+→ Returns: [3h ago debugging subprocess locks, 1d ago GIL problem]
+Agent responds: "Based on your previous multiprocessing work..."
 ```
 
 **Enable:**

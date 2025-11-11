@@ -414,7 +414,7 @@ async def test_empty_execute_array():
 async def test_whitespace_only_content():
     """Whitespace-only think/results content yields no event."""
     xml = """<think>   </think><results>
-   
+
 </results>"""
     events = []
     async for event in parse_tokens(xml):

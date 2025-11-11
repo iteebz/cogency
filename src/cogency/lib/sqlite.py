@@ -180,6 +180,7 @@ class SQLite:
         user_id: str,
         include: list[str] = None,
         exclude: list[str] = None,
+        limit: int | None = None,
     ) -> list[dict]:
         def _sync_load():
             with DB.connect(self.db_path) as db:
@@ -201,12 +202,16 @@ class SQLite:
                     query += f" AND type NOT IN ({placeholders})"
                     params.extend(exclude)
 
-                query += " ORDER BY timestamp"
+                query += " ORDER BY timestamp DESC"
+
+                if limit is not None:
+                    query += " LIMIT ?"
+                    params.append(limit)
 
                 rows = db.execute(query, params).fetchall()
                 return [
                     {"type": row["type"], "content": row["content"], "timestamp": row["timestamp"]}
-                    for row in rows
+                    for row in reversed(rows)
                 ]
 
         return await asyncio.get_event_loop().run_in_executor(None, _sync_load)

@@ -105,11 +105,10 @@ async def test_storage_format(mock_config, mock_tool):
     assert len(result_messages) == 1
 
     content = result_messages[0]["content"]
-    assert content.startswith("<results>")
-    assert content.endswith("</results>")
+    assert content.startswith("[")
+    assert content.endswith("]")
 
-    json_str = content.replace("<results>\n", "").replace("\n</results>", "")
-    parsed = json.loads(json_str)
+    parsed = json.loads(content)
     assert isinstance(parsed, list)
     assert len(parsed) == 1
     assert parsed[0]["tool"] == tool_instance.name
@@ -304,11 +303,10 @@ async def test_result_format_spec(mock_config, mock_tool):
     result_event = result_events[0]
     content = result_event["content"]
 
-    assert content.startswith("<results>")
-    assert content.endswith("</results>")
+    assert content.startswith("[")
+    assert content.endswith("]")
 
-    json_str = content.replace("<results>\n", "").replace("\n</results>", "")
-    array = json.loads(json_str)
+    array = json.loads(content)
 
     assert isinstance(array, list)
     assert len(array) == 1
@@ -380,6 +378,7 @@ async def test_mixed_success_failure_batch(mock_config, mock_tool):
     assert payload["failure_count"] == 1
 
     import json
+
     content = result_events[0]["content"]
     json_str = content.replace("<results>\n", "").replace("\n</results>", "")
     results = json.loads(json_str)

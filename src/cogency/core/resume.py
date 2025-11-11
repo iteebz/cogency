@@ -140,7 +140,7 @@ async def stream(
 
                             case "result":
                                 yield event
-                                next_payload = content
+                                next_payload = f"<results>\n{content}\n</results>"
                                 break
 
                             case _:

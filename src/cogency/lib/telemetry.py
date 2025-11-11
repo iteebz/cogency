@@ -34,4 +34,4 @@ async def persist_events(conversation_id: str, events_list: list[dict]):
         logger.debug(f"Persisted telemetry for {conversation_id}: {json.dumps(events_list)}")
         events_list.clear()
     except Exception as exc:
-        logger.debug(f"Failed to persist telemetry for {conversation_id}: {exc}")
+        logger.error(f"Failed to persist telemetry for {conversation_id}: {exc}")

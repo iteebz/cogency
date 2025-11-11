@@ -1,16 +1,14 @@
 # Cogency
 
-**Streaming agents with stateless context assembly**
+Streaming agents with stateless context assembly.
 
-## Architecture
+## Core Design
 
-Cogency enables stateful agent execution through:
+1. **Persist-then-rebuild**: Write events to storage immediately, rebuild context from storage on each execution
+2. **Protocol/storage separation**: XML delimiters for LLM I/O, clean events in storage
+3. **Stateless execution**: Agent and context assembly are pure functions, all state externalized to storage
 
-1. **Persist-then-rebuild**: Write every LLM output event to storage immediately, rebuild context from storage on each execution
-2. **Delimiter protocol**: Explicit state signaling (`§think`, `§call`, `§execute`, `§respond`, `§end`)
-3. **Stateless design**: Agent and context assembly are pure functions, all state externalized to storage
-
-This eliminates stale state bugs, enables crash recovery, and provides concurrent safety by treating storage as single source of truth.
+Result: eliminates state corruption bugs, enables crash recovery, provides concurrent safety.
 
 ## Execution Modes
 
@@ -147,81 +145,56 @@ agent = Agent(
 
 ### Context Management
 
-Cogency uses conversational message assembly for natural LLM interaction:
+Events stored in storage layer (clean semantic units). Messages assembled for LLM (with protocol structure).
 
-**Storage:** Events stored as typed records (clean content, no delimiters)
+**Storage format (no delimiters):**
 ```python
 {"type": "user", "content": "debug this"}
 {"type": "think", "content": "checking logs"}
 {"type": "call", "content": '{"name": "read", ...}'}
+{"type": "result", "content": '[...]'}
 ```
 
-**Assembly:** Transforms to proper conversational structure
+**Assembly for LLM (with protocol):**
 ```python
 [
   {"role": "system", "content": "PROTOCOL + TOOLS"},
   {"role": "user", "content": "debug this"},
-  {"role": "assistant", "content": "§think: checking logs\n§call: {...}\n§execute"},
-  {"role": "user", "content": "§result: ..."}
+  {"role": "assistant", "content": "<think>checking logs</think>\n<execute>[...]</execute>"},
+  {"role": "user", "content": "<results>[...]</results>"}
 ]
 ```
 
-**Cost control with `history_window`:**
+**Context window control:**
 - `history_window=None` - Full conversation history (default)
-- `history_window=20` - Last 20 messages (sliding window for cost control)
-- Custom compaction: Query storage directly and implement app-level strategy
+- `history_window=20` - Last 20 messages
 
-**Considerations:**
-- Resume mode: Context sent once at connection, minimal impact
-- Replay mode: Context grows with conversation, windowing recommended for long sessions
-- Frontier models: Handle longer contexts better, can use `None`
-- Weaker models: May benefit from smaller windows (e.g., 10-20 messages)
+Resume mode sends context once at connection. Replay mode rebuilds from storage per iteration.
 
 ## Multi-Provider Support
 
 ```python
-agent = Agent(llm="openai")     # GPT-4o Realtime API (WebSocket)
-agent = Agent(llm="gemini")     # Gemini Live (WebSocket)
-agent = Agent(llm="anthropic")  # Claude (HTTP only)
+agent = Agent(llm="openai")     # Realtime API (WebSocket)
+agent = Agent(llm="gemini")     # Live API (WebSocket)
+agent = Agent(llm="anthropic")  # HTTP only
 ```
-
-
-
 
 
 ## Memory System
 
-**Passive profile:** Automatic user preference learning
+**Profile learning (optional):**
 ```python
 agent = Agent(llm="openai", profile=True)
 # Learns patterns from interactions, embedded in system prompt
 ```
 
-**Active recall:** Cross-conversation search
+**Semantic search (agent-controlled):**
 ```python
-# Agent uses recall tool to query past interactions
-§call: {"name": "recall", "args": {"query": "previous python debugging"}}
-§execute
-[SYSTEM: Found 3 previous debugging sessions...]
-§respond: Based on your previous Python work...
+agent = Agent(llm="openai", tools=[...])
+# Agent can use recall tool to query past conversations
 ```
 
-## Streaming Protocol
-
-Agents signal execution state explicitly:
-
-```
-§think: I need to examine the code structure first
-§call: {"name": "read", "args": {"file": "main.py"}}
-§execute
-[SYSTEM: Found syntax error on line 15]
-§respond: Fixed the missing semicolon. Code runs correctly now.
-§end
-```
-
-Parser detects delimiters, accumulator handles tool execution, persister writes to storage.
-
-See [docs/protocol.md](docs/protocol.md) for complete specification.
+See [docs/protocol.md](docs/protocol.md) for execution protocol details.
 
 ## Documentation
 

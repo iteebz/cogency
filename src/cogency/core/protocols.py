@@ -173,8 +173,9 @@ class Storage(Protocol):
         user_id: str,
         include: list[str] = None,
         exclude: list[str] = None,
+        limit: int | None = None,
     ) -> list[dict]:
-        """Load conversation messages with optional type filtering."""
+        """Load conversation messages with optional type filtering and limit."""
         ...
 
     async def save_event(

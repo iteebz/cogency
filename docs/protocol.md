@@ -92,10 +92,10 @@ Parser transforms LLM wire protocol into structured events. Framework injects ad
 | `end` | LLM | Task completion signal | ✗ |
 | `metric` | Framework | Token/timing observability | ✗ |
 | `error` | Framework | Execution failures | ✗ |
-| `interrupt` | Framework | Cancellation (Ctrl+C, timeout) | ✗ |
+| `interrupt` | Framework | Cancellation signal | ✗ |
 
-**LLM-generated:** Parsed from wire protocol delimiters (§think:, §call:, §execute, §respond:, §end)  
-**Framework-generated:** Synthetic events injected by agent runtime
+**LLM-generated:** Parsed from wire protocol (think, call, execute, respond, end blocks)  
+**Framework-generated:** Synthetic events injected by agent runtime (result, metric, error, interrupt)
 
 ### Event Schema
 

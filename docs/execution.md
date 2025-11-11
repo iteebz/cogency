@@ -298,6 +298,6 @@ All code examples above are tested and guaranteed to work. See test suite:
 
 ---
 
-## Backward Compatibility
+## Canonical Status
 
-**None.** This is the current canonical format. The old delimiter-based format (§think:, §call:, §execute, §respond:) is deprecated. New implementations use JSON arrays exclusively.
+This is the reference specification. All implementations use XML markers with JSON arrays.

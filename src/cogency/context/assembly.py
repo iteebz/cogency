@@ -37,7 +37,10 @@ async def assemble(
     messages = []
 
     try:
-        events = await storage.load_messages(conversation_id, user_id)
+        load_limit = None
+        if history_window is not None:
+            load_limit = history_window * 2
+        events = await storage.load_messages(conversation_id, user_id, limit=load_limit)
     except Exception as exc:
         logger.exception(
             "Context assembly failed loading messages for conversation=%s user=%s: %s",

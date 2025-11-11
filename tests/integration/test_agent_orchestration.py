@@ -1,0 +1,184 @@
+"""Agent orchestration tests: Verify Agent coordinates resume/replay/learn correctly.
+
+These tests verify how Agent.__call__() handles:
+- Fallback from resume (WebSocket) to replay (HTTP)
+- Profile learning triggering
+- Error propagation through streaming
+- User event emission and interruption handling
+"""
+
+import asyncio
+from unittest.mock import patch
+
+import pytest
+
+from cogency import Agent
+
+
+@pytest.mark.asyncio
+async def test_fallback_learns(mock_llm, mock_storage):
+    """Auto mode falls back to replay and triggers learning on resume failure.
+
+    Contract: When resume fails, fallback to replay and trigger profile learning.
+    """
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="auto", profile=True)
+
+    async def mock_replay_stream(*args, **kwargs):
+        yield {"type": "respond", "content": "test"}
+
+    with (
+        patch("cogency.core.resume.stream") as mock_resume,
+        patch("cogency.core.replay.stream") as mock_replay,
+        patch("cogency.context.learn") as mock_learn,
+    ):
+        mock_resume.side_effect = RuntimeError("WebSocket failed")
+        mock_replay.side_effect = mock_replay_stream
+
+        events = [
+            e async for e in agent("test query", user_id="test_user", conversation_id="test_convo")
+        ]
+
+        user_events = [e for e in events if e["type"] == "user"]
+        assert len(user_events) == 1
+        assert user_events[0]["content"] == "test query"
+
+        mock_learn.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_streaming(mock_llm, mock_storage):
+    """Agent streams events through replay mode correctly.
+
+    Contract: Agent passes query and parameters to underlying stream function.
+    """
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_events():
+            yield {"type": "respond", "content": "Test response"}
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
+
+        response = None
+        async for event in agent("Hello", user_id="test_user", conversation_id="test_convo"):
+            if event["type"] == "respond":
+                response = event["content"]
+        assert response == "Test response"
+
+        mock_stream.assert_called_once()
+        call_args = mock_stream.call_args
+        assert call_args.args[:3] == ("Hello", "test_user", "test_convo")
+        assert call_args.kwargs["config"] is agent.config
+
+
+@pytest.mark.asyncio
+async def test_error_propagation(mock_llm, mock_storage):
+    """Errors from stream propagate to caller as AgentError.
+
+    Contract: Stream execution errors bubble up, not swallowed.
+    """
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_failing_events():
+            raise RuntimeError("Stream execution failed")
+            yield
+
+        mock_stream.return_value = mock_failing_events()
+
+        with pytest.raises(RuntimeError, match="Stream execution failed"):
+            async for _ in agent("Test query"):
+                pass
+
+
+@pytest.mark.asyncio
+async def test_user_event_emission(mock_llm, mock_storage):
+    """User event emitted as first event when agent is called.
+
+    Contract: First event is always user event containing the query.
+    """
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_events():
+            yield {"type": "respond", "content": "Response"}
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_events()
+
+        events = [
+            e async for e in agent("Test query", user_id="test_user", conversation_id="conv_123")
+        ]
+
+        user_events = [e for e in events if e["type"] == "user"]
+        assert len(user_events) == 1
+        assert user_events[0]["content"] == "Test query"
+
+
+@pytest.mark.asyncio
+async def test_interrupt_persistence(mock_llm, mock_storage):
+    """KeyboardInterrupt creates cancelled event and persists to storage.
+
+    Contract: User interruption is recorded in storage and emitted as event.
+    """
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_interrupted_events():
+            yield {"type": "think", "content": "Thinking..."}
+            raise KeyboardInterrupt()
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_interrupted_events()
+
+        events = []
+        with pytest.raises(KeyboardInterrupt):
+            async for event in agent(
+                "Test query", user_id="test_user", conversation_id="test_conv"
+            ):
+                events.append(event)
+
+        cancelled_events = [e for e in events if e["type"] == "cancelled"]
+        assert len(cancelled_events) == 1
+        assert cancelled_events[0]["content"] == "Task interrupted by user"
+
+        cancelled_msgs = [m for m in mock_storage.messages if m["type"] == "cancelled"]
+        assert len(cancelled_msgs) == 1
+        assert cancelled_msgs[0]["conversation_id"] == "test_conv"
+        assert cancelled_msgs[0]["user_id"] == "test_user"
+        assert cancelled_msgs[0]["content"] == "Task interrupted by user"
+
+
+@pytest.mark.asyncio
+async def test_cancelled_error_persistence(mock_llm, mock_storage):
+    """asyncio.CancelledError creates cancelled event and persists to storage.
+
+    Contract: Async task cancellation is recorded in storage and emitted as event.
+    """
+    agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
+
+    with patch("cogency.core.replay.stream") as mock_stream:
+
+        async def mock_cancelled_events():
+            yield {"type": "respond", "content": "Response"}
+            raise asyncio.CancelledError()
+
+        mock_stream.side_effect = lambda *args, **kwargs: mock_cancelled_events()
+
+        events = []
+        with pytest.raises(asyncio.CancelledError):
+            async for event in agent(
+                "Test query", user_id="test_user", conversation_id="test_conv"
+            ):
+                events.append(event)
+
+        cancelled_events = [e for e in events if e["type"] == "cancelled"]
+        assert len(cancelled_events) == 1
+
+        cancelled_msgs = [m for m in mock_storage.messages if m["type"] == "cancelled"]
+        assert len(cancelled_msgs) == 1
+        assert cancelled_msgs[0]["conversation_id"] == "test_conv"
+        assert cancelled_msgs[0]["user_id"] == "test_user"
+        assert cancelled_msgs[0]["content"] == "Task interrupted by user"

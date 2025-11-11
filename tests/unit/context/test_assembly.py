@@ -136,3 +136,31 @@ async def test_history_window(mock_config):
     assert "msg3" in messages[1]["content"]
     assert messages[2]["role"] == "assistant"
     assert "resp3" in messages[2]["content"]
+
+
+@pytest.mark.asyncio
+async def test_bounded_memory_loading(mock_config):
+    """Verify that history_window limits database loading to avoid unbounded memory."""
+    storage = mock_config.storage
+
+    for i in range(10):
+        await storage.save_message("conv_123", "user_123", "user", f"msg_{i}")
+        await storage.save_message("conv_123", "user_123", "respond", f"resp_{i}")
+
+    messages = await context.assemble(
+        "user_123",
+        "conv_123",
+        tools=mock_config.tools,
+        storage=storage,
+        history_window=2,
+        profile_enabled=False,
+    )
+
+    assert messages[0]["role"] == "system"
+
+    conversation_content = " ".join(m.get("content", "") for m in messages[1:])
+    assert "msg_9" in conversation_content
+    assert "resp_9" in conversation_content
+    assert "msg_0" not in conversation_content
+    assert "msg_1" not in conversation_content
+    assert "msg_2" not in conversation_content

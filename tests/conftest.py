@@ -45,13 +45,18 @@ class TestStorage:
             }
         )
 
-    async def load_messages(self, conversation_id, user_id=None, include=None, exclude=None):
-        return [
+    async def load_messages(
+        self, conversation_id, user_id=None, include=None, exclude=None, limit=None
+    ):
+        messages = [
             msg
             for msg in self.messages
             if msg["conversation_id"] == conversation_id
             and (user_id is None or msg.get("user_id") == user_id)
         ]
+        if limit is not None:
+            messages = messages[-limit:]
+        return messages
 
     async def save_profile(self, user_id, profile):
         self.profiles[user_id] = profile

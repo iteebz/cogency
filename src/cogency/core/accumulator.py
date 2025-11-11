@@ -88,7 +88,8 @@ class Accumulator:
     async def _handle_execute(self, timestamp: float) -> AsyncGenerator[Event, None]:
         """Execute batch of tool calls sequentially, maintaining order.
 
-        Yields single result event with injection-ready <results> JSON array.
+        Yields single result event with clean JSON array (no XML wrapping).
+        Wrapping for protocol happens at injection time (resume mode).
         """
         if not self.pending_calls:
             return
@@ -106,7 +107,7 @@ class Accumulator:
                 for _ in self.pending_calls
             ]
 
-        from .executor import format_results_for_injection
+        from .codec import format_results_array
 
         for result in results:
             if result.error:
@@ -130,9 +131,9 @@ class Accumulator:
             self.call_timestamps = []
             return
 
-        injection_payload = format_results_for_injection(self.pending_calls, results)
+        clean_results = format_results_array(self.pending_calls, results)
         await self.storage.save_message(
-            self.conversation_id, self.user_id, "result", injection_payload, timestamp
+            self.conversation_id, self.user_id, "result", clean_results, timestamp
         )
 
         yield {
@@ -142,7 +143,7 @@ class Accumulator:
                 "success_count": sum(1 for r in results if not r.error),
                 "failure_count": sum(1 for r in results if r.error),
             },
-            "content": injection_payload,
+            "content": clean_results,
             "timestamp": timestamp,
         }
 

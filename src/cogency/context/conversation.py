@@ -1,8 +1,5 @@
 import json
 
-from ..core.codec import format_result_agent
-from ..core.protocols import ToolResult
-
 
 def to_messages(events: list[dict]) -> list[dict]:
     """Convert event log to conversational messages with chronological reconstruction."""
@@ -39,21 +36,9 @@ def to_messages(events: list[dict]) -> list[dict]:
                 batch_calls = []
 
             content = event.get("content", "")
-            try:
-                result_data = json.loads(content)
-                if isinstance(result_data, list):
-                    result_text = content
-                else:
-                    result = ToolResult(
-                        outcome=result_data.get("outcome", ""),
-                        content=result_data.get("content", ""),
-                    )
-                    result_text = format_result_agent(result)
-            except (json.JSONDecodeError, TypeError):
-                result_text = content
-
-            if result_text:
-                messages.append({"role": "user", "content": result_text})
+            if content:
+                results_xml = f"<results>\n{content}\n</results>"
+                messages.append({"role": "user", "content": results_xml})
 
     if assistant_turn:
         messages.append({"role": "assistant", "content": "\n".join(assistant_turn)})

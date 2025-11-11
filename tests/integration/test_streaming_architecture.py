@@ -1,6 +1,6 @@
 import pytest
 
-from cogency import Agent, AgentError
+from cogency import Agent
 
 
 @pytest.mark.asyncio
@@ -37,7 +37,7 @@ async def test_no_chunks(mock_llm, mock_tool):
     assert result_event is not None
     assert result_event["payload"]["tools_executed"] == 1
     assert result_event["payload"]["success_count"] == 1
-    assert "<results>" in result_event["content"]
+    assert '"tool"' in result_event["content"]
     assert "test_tool" in result_event["content"]
 
 
@@ -85,7 +85,7 @@ async def test_tool_execution(mock_llm, mock_tool):
 
     assert result_event["payload"]["tools_executed"] == 1
     assert result_event["payload"]["success_count"] == 1
-    assert "<results>" in result_event["content"]
+    assert '"tool"' in result_event["content"]
     assert "test_tool" in result_event["content"]
 
 
