@@ -27,7 +27,10 @@ async def execute_tool(
     if user_id:
         args["user_id"] = user_id
 
-    return await tool.execute(**args)
+    try:
+        return await tool.execute(**args)
+    except Exception as e:
+        return ToolResult(outcome=f"Tool execution failed: {str(e)}", error=True)
 
 
 async def execute_tools(

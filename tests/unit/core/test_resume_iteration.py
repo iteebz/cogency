@@ -13,8 +13,8 @@ from cogency.core.resume import stream as resume_stream
 
 
 @pytest.mark.asyncio
-async def test_single_response_multiple_events_one_turn(mock_llm, mock_config):
-    """One LLM response with multiple events = one turn."""
+async def test_one_turn(mock_llm, mock_config):
+    """One LLM response = one turn."""
     mock_llm.set_response_tokens(
         [
             "<think>Analyzing requirement</think>",
@@ -33,8 +33,8 @@ async def test_single_response_multiple_events_one_turn(mock_llm, mock_config):
 
 
 @pytest.mark.asyncio
-async def test_iteration_boundary_exact_limit(mock_config, resume_llm):
-    """Completes exactly at configured iteration limit."""
+async def test_boundary_exact(mock_config, resume_llm):
+    """Completes at exact iteration limit."""
     mock_config.llm = resume_llm(
         [
             ["Response 1"],
@@ -50,8 +50,8 @@ async def test_iteration_boundary_exact_limit(mock_config, resume_llm):
 
 
 @pytest.mark.asyncio
-async def test_tool_continuation_hits_iteration_limit(mock_config, mock_tool, resume_llm):
-    """Second turn (after tool result) trips max_iterations guard."""
+async def test_iteration_limit(mock_config, mock_tool, resume_llm):
+    """Second turn exceeds max_iterations."""
     tool = mock_tool().configure(name="test_tool")
     mock_config.tools = [tool]
     mock_config.llm = resume_llm(
@@ -73,8 +73,8 @@ async def test_tool_continuation_hits_iteration_limit(mock_config, mock_tool, re
 
 
 @pytest.mark.asyncio
-async def test_tool_continuation_within_limit(mock_config, mock_tool, resume_llm):
-    """Two-turn tool flow succeeds when iterations allow it."""
+async def test_continuation_within_limit(mock_config, mock_tool, resume_llm):
+    """Tool continuation succeeds within limits."""
     tool = mock_tool().configure(name="test_tool")
     mock_config.tools = [tool]
     mock_config.llm = resume_llm(

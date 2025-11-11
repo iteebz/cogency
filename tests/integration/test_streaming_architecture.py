@@ -102,8 +102,10 @@ async def test_error_handling(mock_llm, mock_tool):
     llm = mock_llm.set_response_tokens(protocol_tokens)
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=1)
 
-    with pytest.raises(AgentError, match=r"Tool execution failed"):
-        [event async for event in agent("Test query", stream="event")]
+    events = [event async for event in agent("Test query", stream="event")]
+    result_events = [e for e in events if e["type"] == "result"]
+    assert len(result_events) == 1
+    assert result_events[0]["payload"]["failure_count"] == 1
 
 
 @pytest.mark.asyncio

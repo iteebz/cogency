@@ -37,8 +37,8 @@ async def test_respond_yields_once(mock_llm, mock_config):
 
 
 @pytest.mark.asyncio
-async def test_result_yields_once(mock_config, mock_tool, resume_llm):
-    """Tool results surface exactly once before continuation."""
+async def test_result_once(mock_config, mock_tool, resume_llm):
+    """Tool results surface exactly once."""
     tool = mock_tool().configure(name="test_tool")
     mock_config.tools = [tool]
     mock_config.llm = resume_llm(

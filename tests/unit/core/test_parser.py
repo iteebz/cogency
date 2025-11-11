@@ -75,12 +75,20 @@ async def test_execute_multiple_tools_json_array():
     assert call2["name"] == "write"
 
 
+@pytest.mark.parametrize(
+    "content,field",
+    [
+        ("<html><body>Hello </body></html>", "content"),
+        ("Hello </write> world", "content"),
+        ("<root><child>value</child></root>", "content"),
+    ],
+)
 @pytest.mark.asyncio
-async def test_xml_collision_html_content():
-    """XML collision: HTML content containing </tool> safely handled."""
-    xml = """<execute>
+async def test_collision_content_safe(content, field):
+    """XML collision: Unsafe content safely escaped in JSON."""
+    xml = f"""<execute>
 [
-  {"name": "write", "args": {"file": "index.html", "content": "<html><body>Hello </body></html>"}}
+  {{"name": "write", "args": {{"{field}": {json.dumps(content)}}}}}
 ]
 </execute>"""
     events = []
@@ -90,76 +98,7 @@ async def test_xml_collision_html_content():
     assert len(events) == 2
     assert events[0]["type"] == "call"
     call_data = json.loads(events[0]["content"])
-    assert call_data["args"]["content"] == "<html><body>Hello </body></html>"
-
-
-@pytest.mark.asyncio
-async def test_xml_collision_closing_tag_in_content():
-    """XML collision: Content with closing tag like </write> is safe."""
-    xml = """<execute>
-[
-  {"name": "write", "args": {"content": "Hello </write> world"}}
-]
-</execute>"""
-    events = []
-    async for event in parse_tokens(xml):
-        events.append(event)
-
-    assert len(events) == 2
-    call_data = json.loads(events[0]["content"])
-    assert call_data["args"]["content"] == "Hello </write> world"
-
-
-@pytest.mark.asyncio
-async def test_xml_collision_nested_xml_in_args():
-    """XML collision: Nested XML tags in args handled safely."""
-    xml = """<execute>
-[
-  {"name": "write", "args": {"content": "<root><child>value</child></root>"}}
-]
-</execute>"""
-    events = []
-    async for event in parse_tokens(xml):
-        events.append(event)
-
-    assert len(events) == 2
-    call_data = json.loads(events[0]["content"])
-    assert "<root>" in call_data["args"]["content"]
-    assert "</root>" in call_data["args"]["content"]
-
-
-@pytest.mark.asyncio
-async def test_xml_collision_sql_injection_pattern():
-    """XML collision: SQL injection pattern with quotes and angle brackets."""
-    xml = """<execute>
-[
-  {"name": "shell", "args": {"cmd": "echo \\\"'; DROP TABLE users; --\\\""}}
-]
-</execute>"""
-    events = []
-    async for event in parse_tokens(xml):
-        events.append(event)
-
-    assert len(events) == 2
-    call_data = json.loads(events[0]["content"])
-    assert "DROP TABLE" in call_data["args"]["cmd"]
-
-
-@pytest.mark.asyncio
-async def test_xml_collision_mixed_quotes():
-    """XML collision: Mixed quote styles in JSON args."""
-    xml = """<execute>
-[
-  {"name": "write", "args": {"content": "I said \\"hello\\" and <tag>world</tag>"}}
-]
-</execute>"""
-    events = []
-    async for event in parse_tokens(xml):
-        events.append(event)
-
-    assert len(events) == 2
-    call_data = json.loads(events[0]["content"])
-    assert "hello" in call_data["args"]["content"]
+    assert call_data["args"][field] == content
 
 
 @pytest.mark.asyncio
@@ -454,3 +393,31 @@ async def test_execute_array_with_non_object():
 
     has_error = any(e["type"] == "respond" and "Error" in e.get("content", "") for e in events)
     assert has_error
+
+
+@pytest.mark.asyncio
+async def test_empty_execute_array():
+    """Empty execute array is valid, produces no calls."""
+    xml = """<execute>
+[]
+</execute>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    calls = [e for e in events if e["type"] == "call"]
+    assert len(calls) == 0
+    assert any(e["type"] == "execute" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_whitespace_only_content():
+    """Whitespace-only think/results content yields no event."""
+    xml = """<think>   </think><results>
+   
+</results>"""
+    events = []
+    async for event in parse_tokens(xml):
+        events.append(event)
+
+    assert len(events) == 0

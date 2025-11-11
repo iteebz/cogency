@@ -16,12 +16,16 @@ async def basic_parser():
 async def test_chunks_true(mock_config):
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
     events = [event async for event in accumulator.process(basic_parser())]
-    assert len(events) > 0
+    types = [e["type"] for e in events]
+    assert "think" in types
+    assert "call" in types
+    assert "respond" in types
+    assert "end" in types
 
 
 @pytest.mark.asyncio
-async def test_respond_chunked_enabled(mock_config):
-    """respond/think stream naturally when stream='token' but persist only once"""
+async def test_respond_chunked(mock_config):
+    """respond/think chunk in token mode but persist once."""
 
     async def chunked_respond():
         yield {"type": "respond", "content": "hello"}
@@ -114,8 +118,8 @@ async def test_storage_format(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_multi_tool_batch_sequential_execution(mock_config, mock_tool):
-    """Multiple tools in execute block execute sequentially through accumulator."""
+async def test_sequential_batch(mock_config, mock_tool):
+    """Multiple tools execute sequentially in order."""
     tool_instance = mock_tool()
     mock_config.tools = [tool_instance]
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
@@ -148,9 +152,9 @@ async def test_multi_tool_batch_sequential_execution(mock_config, mock_tool):
     results = json.loads(json_str)
 
     assert len(results) == 3
-    assert "first" in str(results[0])
-    assert "second" in str(results[1])
-    assert "third" in str(results[2])
+    assert results[0]["content"] == "Full details: first"
+    assert results[1]["content"] == "Full details: second"
+    assert results[2]["content"] == "Full details: third"
 
 
 @pytest.mark.asyncio
@@ -223,8 +227,8 @@ async def test_persistence_policy(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_result_event_has_content(mock_config, mock_tool):
-    """Result events must have content field for resume mode websocket injection."""
+async def test_result_has_content(mock_config, mock_tool):
+    """Result events have content field."""
     tool_instance = mock_tool()
     mock_config.tools = [tool_instance]
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
@@ -245,8 +249,8 @@ async def test_result_event_has_content(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_chunks_true_yields_token_events(mock_config):
-    """chunks=True yields individual token events (contract for stream='token')."""
+async def test_token_streaming(mock_config):
+    """stream='token' yields individual events."""
 
     async def chunked_parser():
         yield {"type": "respond", "content": "Hello"}
@@ -261,8 +265,8 @@ async def test_chunks_true_yields_token_events(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_chunks_false_yields_semantic_events(mock_config):
-    """chunks=False yields single accumulated semantic events (contract for stream='event')."""
+async def test_semantic_accumulation(mock_config):
+    """stream='event' yields accumulated semantic events."""
 
     async def chunked_parser():
         yield {"type": "respond", "content": "Hello"}
@@ -278,8 +282,8 @@ async def test_chunks_false_yields_semantic_events(mock_config):
 
 
 @pytest.mark.asyncio
-async def test_result_injection_format_spec_compliance(mock_config, mock_tool):
-    """Result injection format matches XML protocol spec exactly."""
+async def test_result_format_spec(mock_config, mock_tool):
+    """Result format matches protocol spec."""
     import json
 
     tool_instance = mock_tool()
@@ -318,8 +322,8 @@ async def test_result_injection_format_spec_compliance(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_result_event_metadata(mock_config, mock_tool):
-    """Result event has metadata payload with execution summary."""
+async def test_result_metadata(mock_config, mock_tool):
+    """Result event has execution metadata."""
     tool_instance = mock_tool()
     mock_config.tools = [tool_instance]
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
@@ -344,3 +348,62 @@ async def test_result_event_metadata(mock_config, mock_tool):
     assert payload["tools_executed"] == 1
     assert payload["success_count"] == 1
     assert payload["failure_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_mixed_success_failure_batch(mock_config, mock_tool):
+    """Batch with mixed success/failure executes all, counts correctly."""
+    success_tool = mock_tool()
+    fail_tool = mock_tool().configure(name="fail_tool", should_fail=True)
+    mock_config.tools = [success_tool, fail_tool]
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
+
+    async def parser():
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{success_tool.name}", "args": {{"message": "ok"}}}}',
+        }
+        yield {
+            "type": "call",
+            "content": f'{{"name": "{fail_tool.name}", "args": {{"message": "bad"}}}}',
+        }
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    events = [event async for event in accumulator.process(parser())]
+    result_events = [e for e in events if e["type"] == "result"]
+
+    assert len(result_events) == 1
+    payload = result_events[0]["payload"]
+    assert payload["tools_executed"] == 2
+    assert payload["success_count"] == 1
+    assert payload["failure_count"] == 1
+
+    import json
+    content = result_events[0]["content"]
+    json_str = content.replace("<results>\n", "").replace("\n</results>", "")
+    results = json.loads(json_str)
+    assert results[0]["status"] == "success"
+    assert results[1]["status"] == "failure"
+
+
+@pytest.mark.asyncio
+async def test_empty_tool_list_skips_execution(mock_config):
+    """No tools available, call event doesn't execute."""
+    mock_config.tools = []
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
+
+    async def parser():
+        yield {
+            "type": "call",
+            "content": '{"name": "missing_tool", "args": {}}',
+        }
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    events = [event async for event in accumulator.process(parser())]
+    result_events = [e for e in events if e["type"] == "result"]
+
+    assert len(result_events) == 1
+    payload = result_events[0]["payload"]
+    assert payload["failure_count"] == 1

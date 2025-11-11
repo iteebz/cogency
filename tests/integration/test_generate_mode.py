@@ -6,8 +6,8 @@ from cogency import Agent
 
 
 @pytest.mark.asyncio
-async def test_generate_mode_decomposes_single_blob_to_events(mock_llm, mock_tool):
-    """stream=None uses .generate() and decomposes single blob into multiple events."""
+async def test_decompose_blob(mock_llm, mock_tool):
+    """stream=None decomposes single blob into multiple events."""
     # Single string blob with multiple semantic units
     complete_response = (
         "<think>reasoning here</think>"
@@ -47,7 +47,7 @@ async def test_generate_mode_decomposes_single_blob_to_events(mock_llm, mock_too
 
 
 @pytest.mark.asyncio
-async def test_generate_mode_multi_tool_batch(mock_llm, mock_tool):
+async def test_batch_multi_tool(mock_llm, mock_tool):
     """stream=None handles multi-tool batches from single blob."""
     complete_response = (
         "<execute>["

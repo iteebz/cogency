@@ -47,14 +47,15 @@ async def test_tool_execution_failure(mock_config, mock_tool):
     mock_config.tools = [mock_tool]
     call = ToolCall(name="failing_tool", args={"message": "fail"})
 
-    # Tool execution fails - should bubble up as system error
-    with pytest.raises(RuntimeError, match="Tool execution failed"):
-        await execute_tool(
-            call,
-            execution=mock_config.execution,
-            user_id="user1",
-            conversation_id="conv1",
-        )
+    result = await execute_tool(
+        call,
+        execution=mock_config.execution,
+        user_id="user1",
+        conversation_id="conv1",
+    )
+
+    assert result.error is True
+    assert "Tool execution failed" in result.outcome
 
 
 # Removed - covered by test_tool_execution_failure

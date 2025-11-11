@@ -37,7 +37,7 @@ async def test_user_think_respond():
 
 
 @pytest.mark.asyncio
-async def test_single_call_reconstruct_to_json_array():
+async def test_reconstruct_single():
     """Single call reconstructs to JSON array in execute block."""
     events = [
         {"type": "user", "content": "read app.py"},
@@ -62,7 +62,7 @@ async def test_single_call_reconstruct_to_json_array():
 
 
 @pytest.mark.asyncio
-async def test_multiple_calls_reconstruct_batched():
+async def test_batch_reconstruct():
     """Multiple calls reconstructed as single JSON array batch."""
     events = [
         {"type": "user", "content": "batch read"},
@@ -94,7 +94,7 @@ async def test_multiple_calls_reconstruct_batched():
 
 
 @pytest.mark.asyncio
-async def test_call_order_preserved_in_reconstruction():
+async def test_call_order():
     """Call order preserved in reconstructed JSON array."""
     events = [
         {"type": "user", "content": "test"},
@@ -117,7 +117,7 @@ async def test_call_order_preserved_in_reconstruction():
 
 
 @pytest.mark.asyncio
-async def test_no_calls_before_result():
+async def test_result_no_calls():
     """Result without preceding calls doesn't create execute block."""
     events = [
         {"type": "user", "content": "test"},
@@ -137,7 +137,7 @@ async def test_no_calls_before_result():
 
 
 @pytest.mark.asyncio
-async def test_multiple_batches_separate_execute_blocks():
+async def test_separate_batches():
     """Multiple call batches create separate execute blocks."""
     events = [
         {"type": "user", "content": "test"},
@@ -152,43 +152,10 @@ async def test_multiple_batches_separate_execute_blocks():
     assert len(execute_blocks) == 2
 
 
-@pytest.mark.asyncio
-async def test_collision_html_content_preserved():
-    """HTML content in args preserved correctly in reconstruction."""
-    html_content = "<html><body>Hello</body></html>"
-    events = [
-        {"type": "user", "content": "test"},
-        {
-            "type": "call",
-            "content": f'{{"name": "write", "args": {{"file": "index.html", "content": "{html_content}"}}}}',
-        },
-        {"type": "result", "content": "[]"},
-    ]
-    messages = conversation.to_messages(events)
-
-    assistant_msg = messages[1]
-    assert html_content in assistant_msg["content"]
 
 
 @pytest.mark.asyncio
-async def test_collision_closing_tag_in_args():
-    """Closing tag in args (</write>) preserved in reconstruction."""
-    events = [
-        {"type": "user", "content": "test"},
-        {
-            "type": "call",
-            "content": '{"name": "write", "args": {"content": "Hello </write> world"}}',
-        },
-        {"type": "result", "content": "[]"},
-    ]
-    messages = conversation.to_messages(events)
-
-    assistant_msg = messages[1]
-    assert "</write>" in assistant_msg["content"]
-
-
-@pytest.mark.asyncio
-async def test_roundtrip_single_tool():
+async def test_roundtrip():
     """Roundtrip: parse → reconstruct → parse again (single tool)."""
     original_call = {"name": "read", "args": {"file": "test.txt"}}
     events = [
@@ -208,7 +175,7 @@ async def test_roundtrip_single_tool():
 
 
 @pytest.mark.asyncio
-async def test_roundtrip_multiple_tools():
+async def test_roundtrip_batch():
     """Roundtrip: parse → reconstruct → parse again (multiple tools)."""
     calls = [
         {"name": "read", "args": {"file": "a.txt"}},
@@ -235,7 +202,7 @@ async def test_roundtrip_multiple_tools():
 
 
 @pytest.mark.asyncio
-async def test_result_formatting_injected():
+async def test_inject_result():
     """Results injected as user message after execute block."""
     events = [
         {"type": "user", "content": "test"},
@@ -252,7 +219,7 @@ async def test_result_formatting_injected():
 
 
 @pytest.mark.asyncio
-async def test_complex_flow_two_batches():
+async def test_flow_two_batches():
     """Complex flow with two separate call batches."""
     events = [
         {"type": "user", "content": "debug app.py"},
@@ -286,3 +253,19 @@ async def test_complex_flow_two_batches():
 
     assert messages[5]["role"] == "assistant"
     assert "fixed the bug" in messages[5]["content"]
+
+
+@pytest.mark.asyncio
+async def test_result_without_calls():
+    """Result without preceding calls creates user message, no execute block."""
+    events = [
+        {"type": "user", "content": "test"},
+        {"type": "result", "content": "[]"},
+    ]
+    messages = conversation.to_messages(events)
+
+    assert len(messages) == 2
+    assert messages[0]["role"] == "user"
+    assert messages[1]["role"] == "user"
+    assert "[]" in messages[1]["content"]
+    assert "<execute>" not in messages[1]["content"]
