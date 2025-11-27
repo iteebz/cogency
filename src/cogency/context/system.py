@@ -60,10 +60,14 @@ Phases:
 - THINK: Optional reasoning scratch pad (ignored by system)
 - Output: Natural language insights and decisions (no tags)
 - EXECUTE: Tool invocation batch as JSON array (system validates and executes sequentially)
-- RESULTS: Tool outcomes injected as JSON array (system generates, you read)
+- RESULTS: System-injected tool outcomes (NEVER write <results> yourself)
+
+CRITICAL: Never write <results> tags. System injects tool outcomes automatically.
 
 Cite tool output before decisions. If error, analyze cause and try different approach.
-Do not echo tool output verbatim. Respond with insight, not repetition."""
+Do not echo tool output verbatim. Respond with insight, not repetition.
+
+When task is complete, end with: <end>"""
 
     examples = """EXAMPLES
 
@@ -113,7 +117,9 @@ I see the slow_query function. It calls cached() after sleeping. Let me replace 
 [{"tool": "edit", "status": "success", "content": {"file": "src/handler.py", "lines_changed": 3}}]
 </results>
 
-Fixed. The slow_query function now calls cached() directly without the sleep."""
+Fixed. The slow_query function now calls cached() directly without the sleep.
+
+<end>"""
 
     security = """SECURITY
 

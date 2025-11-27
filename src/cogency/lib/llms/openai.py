@@ -234,14 +234,9 @@ class OpenAI(LLM):
             with contextlib.suppress(Exception):
                 await self._connection.close()
 
-        try:
-            await asyncio.wait_for(
-                self._connection_manager.__aexit__(None, None, None), timeout=5.0
-            )
-            self._connection = None
-            self._connection_manager = None
-        finally:
-            pass
+        await asyncio.wait_for(self._connection_manager.__aexit__(None, None, None), timeout=5.0)
+        self._connection = None
+        self._connection_manager = None
 
     def _format_messages(self, messages: list[dict]) -> tuple[str, list[dict]]:
         """Converts cogency's message format to OpenAI Responses API's instructions and input format."""

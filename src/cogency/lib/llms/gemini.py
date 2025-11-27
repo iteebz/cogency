@@ -173,11 +173,11 @@ class Gemini(LLM):
 
         message_count = 0
 
-        async for _message in self._session.receive():
+        async for message in self._session.receive():
             message_count += 1
 
-            if hasattr(_message, "server_content") and _message.server_content:
-                sc = _message.server_content
+            if hasattr(message, "server_content") and message.server_content:
+                sc = message.server_content
 
                 # Collect text from model_turn.parts
                 if hasattr(sc, "model_turn") and sc.model_turn and hasattr(sc.model_turn, "parts"):
@@ -212,11 +212,11 @@ class Gemini(LLM):
         seen_generation_complete = False
         message_count = 0
 
-        async for _message in session.receive():
+        async for message in session.receive():
             message_count += 1
 
-            if hasattr(_message, "server_content") and _message.server_content:
-                sc = _message.server_content
+            if hasattr(message, "server_content") and message.server_content:
+                sc = message.server_content
 
                 # Track generation_complete signal
                 if hasattr(sc, "generation_complete") and sc.generation_complete:

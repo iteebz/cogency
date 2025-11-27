@@ -63,7 +63,9 @@ async def test_learn_async(mock_config, tmp_path):
 
     with patch("cogency.context.profile.get", return_value=mock_profile):
         with patch(
-            "cogency.context.profile.should_learn", new_callable=AsyncMock, return_value=True
+            "cogency.context.profile._should_learn_with_profile",
+            new_callable=AsyncMock,
+            return_value=True,
         ):
             mock_save = AsyncMock()
             storage.save_profile = mock_save

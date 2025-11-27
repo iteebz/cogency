@@ -51,7 +51,7 @@ async def Shell(
 
     expanded_parts = [parts[0]]
     for arg in parts[1:]:
-        if any(char in arg for char in "*?["):
+        if any(char in arg for char in "*?[") and not arg.startswith("/"):
             matches = glob.glob(arg, root_dir=str(working_path))
             if matches:
                 expanded_parts.extend(matches)

@@ -1,69 +1,54 @@
-# Built-in Tools
+# Tools
 
-Cogency provides a set of built-in tools for agents, categorized for flexible inclusion in an agent's context.
+## Built-in Tools
 
-## Tool Registration
-
-Tools are registered and selected using the `tools` object, an instance of `ToolRegistry`. The `tools.category()` method allows you to select tools by category.
+| Category | Tools |
+|----------|-------|
+| `code` | `read`, `write`, `edit`, `list`, `find`, `replace`, `shell` |
+| `web` | `scrape`, `search` |
+| `memory` | `recall` |
 
 ```python
 from cogency import Agent, tools
 
-# Include tools from the "code" and "web" categories
-agent = Agent(tools=tools.category(["code", "web"]))
-
-# Include only the "read" and "write" tools
-agent = Agent(tools=tools.name(["read", "write"]))
-
-# Include all tools
-agent = Agent(tools=tools())  # Include all built-in tools
+agent = Agent(tools=tools.category(["code", "web"]))  # By category
+agent = Agent(tools=tools.name(["read", "write"]))    # By name
+agent = Agent(tools=tools())                          # All tools
 ```
-
-## Tool Categories
-
-| Category | Description | Tools |
-|---|---|---|
-| `code` | Tools for interacting with the local filesystem. | `read`, `write`, `edit`, `list`, `find`, `replace`, `shell` |
-| `web` | Tools for accessing web resources. | `scrape`, `search` |
-| `memory` | Tools for recalling past interactions. | `recall` |
 
 ## Tool Reference
 
 ### `read(file: str) -> str`
-Reads the content of a file.
+Read file contents.
 
 ### `write(file: str, content: str) -> str`
-Writes content to a file.
+Write content to file.
 
 ### `edit(file: str, old: str, new: str) -> str`
-Edits a file by replacing an exact block of text (`old`) with new content (`new`).
+Replace exact text block in file.
 
 ### `list(path: str) -> list[str]`
-Lists the files and subdirectories within a specified path.
+List files and subdirectories.
 
-### `find(pattern: str) -> list[str]`
-Finds files matching a glob pattern.
-
-### `shell(command: str) -> str`
-Executes a shell command and returns its output.
+### `find(pattern: str = None, content: str = None, path: str = ".") -> list[str]`
+Find files by name pattern or search contents. At least one of `pattern` or `content` required.
 
 ### `replace(pattern: str, old: str, new: str, exact: bool = True) -> str`
-Performs find-and-replace operations across multiple files matching a glob pattern.
+Find-and-replace across files matching glob pattern.
+
+### `shell(command: str) -> str`
+Execute shell command.
 
 ### `scrape(url: str) -> str`
-Scrapes the content of a URL.
+Scrape URL content.
 
 ### `search(query: str) -> str`
-Performs a web search and returns the results.
+Web search.
 
 ### `recall(query: str) -> str`
-Recalls past interactions based on a query.
+Search past conversations.
 
-## Tool Extension
-
-To create custom tools, subclass `cogency.Tool` and implement `execute()` and `describe()`.
-
-### Minimal Tool
+## Custom Tools
 
 ```python
 from cogency import Tool, ToolResult
@@ -71,85 +56,50 @@ from cogency import Tool, ToolResult
 class DatabaseTool(Tool):
     name = "query_db"
     description = "Execute SQL queries"
-    schema = {}
-
-    def describe(self, args: dict) -> str:
-        return f"Querying database: {args.get('sql', 'SQL query')}"
-
-    async def execute(self, sql: str, **kwargs) -> ToolResult:
-        try:
-            result = db.execute(sql)
-            return ToolResult(outcome="Query successful", content=result)
-        except Exception as e:
-            return ToolResult(outcome=f"Query failed: {e}", error=True)
-
-agent = Agent(llm="openai", tools=[DatabaseTool()])
-```
-
-### Complete Tool with Schema
-
-Document parameter types and constraints in `schema` dict.
-
-```python
-class DatabaseTool(Tool):
-    name = "query_db"
-    description = "Execute SQL queries on the database"
     schema = {
-        "sql": {
-            "type": "string",
-            "description": "SQL SELECT query",
-            "required": True,
-            "max_length": 1000,
-        },
-        "timeout": {
-            "type": "integer",
-            "description": "Query timeout in seconds",
-            "required": False,
-            "default": 30,
-            "min": 1,
-            "max": 300,
-        },
+        "sql": {"type": "string", "description": "SQL query", "required": True},
+        "timeout": {"type": "integer", "default": 30, "min": 1, "max": 300},
     }
 
     def describe(self, args: dict) -> str:
-        sql = args.get("sql", "")[:50]  # Truncate for display
-        return f"Executing query: {sql}..."
+        return f"Querying: {args.get('sql', '')[:50]}..."
 
     async def execute(self, sql: str, timeout: int = 30, **kwargs) -> ToolResult:
         try:
             result = db.execute(sql, timeout=timeout)
-            return ToolResult(outcome="Query executed successfully", content=result)
-        except TimeoutError:
-            return ToolResult(outcome="Query timeout exceeded", error=True)
+            return ToolResult(outcome="Query successful", content=result)
         except Exception as e:
-            return ToolResult(outcome=f"Query failed: {str(e)}", error=True)
+            return ToolResult(outcome=f"Query failed: {e}", error=True)
+
+agent = Agent(tools=[DatabaseTool()])
 ```
 
-### Schema Format
+## Schema Format
 
-Each parameter can have:
-- `type`: `"string"`, `"integer"`, `"float"`, `"boolean"`
-- `description`: Human-readable docs for LLM
-- `required`: Boolean (default: True)
-- `default`: Default value
-- `min`, `max`: Numeric constraints
-- `max_length`: String length constraint
+| Field | Description |
+|-------|-------------|
+| `type` | `"string"`, `"integer"`, `"float"`, `"boolean"` |
+| `description` | Human-readable docs for LLM |
+| `required` | Boolean (default: True) |
+| `default` | Default value |
+| `min`, `max` | Numeric constraints |
+| `max_length` | String length constraint |
 
-Schema is passed to LLM in system prompt via `tool_instructions()`. Helps LLM understand parameter semantics without documentation.
+## Error Handling
 
-### Error Handling
-
-Tools should **not raise exceptions**. Catch all errors and return `ToolResult(error=True)`:
+Tools should **not raise exceptions**. Return `ToolResult(error=True)`:
 
 ```python
 async def execute(self, **kwargs) -> ToolResult:
     try:
         result = perform_operation()
         return ToolResult(outcome="Success", content=result)
-    except ValueError as e:
-        return ToolResult(outcome=f"Invalid input: {e}", error=True)
     except Exception as e:
-        return ToolResult(outcome=f"Execution failed: {e}", error=True)
+        return ToolResult(outcome=f"Failed: {e}", error=True)
 ```
 
-This ensures the agent receives the error as data (via LLM) and can reason about it, rather than crashing the conversation.
+Agent receives error as data and can reason about it.
+
+## Guarantees
+
+**No collision detection.** If a file changes after `read()` but before `edit()`, the write silently overwrites. Collision detection belongs in application logic.

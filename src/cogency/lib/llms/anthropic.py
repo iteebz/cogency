@@ -35,15 +35,30 @@ class Anthropic(LLM):
 
         return anthropic.AsyncAnthropic(api_key=api_key)
 
+    def _format_messages(self, messages: list[dict]) -> tuple[str, list[dict]]:
+        """Extract system message and format remaining messages for Anthropic API."""
+        system_parts = []
+        conversation = []
+
+        for msg in messages:
+            if msg["role"] == "system":
+                system_parts.append(msg["content"])
+            else:
+                conversation.append(msg)
+
+        return "\n".join(system_parts), conversation
+
     async def generate(self, messages: list[dict]) -> str:
         """Generate complete response from conversation messages."""
 
         async def _generate_with_key(api_key: str) -> str:
             try:
                 client = self._create_client(api_key)
+                system, conversation = self._format_messages(messages)
                 response = await client.messages.create(
                     model=self.http_model,
-                    messages=messages,
+                    system=system,
+                    messages=conversation,
                     max_tokens=self.max_tokens,
                     temperature=self.temperature,
                 )
@@ -59,9 +74,11 @@ class Anthropic(LLM):
 
         async def _stream_with_key(api_key: str):
             client = self._create_client(api_key)
+            system, conversation = self._format_messages(messages)
             return await client.messages.stream(
                 model=self.http_model,
-                messages=messages,
+                system=system,
+                messages=conversation,
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )

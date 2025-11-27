@@ -9,7 +9,7 @@ from pathlib import Path
 
 from cogency import __version__
 
-from .generate import coding, continuity, conversation, integrity, reasoning, research, security
+from .generate import coding, continuity, conversation, integrity, research, security
 from .runner import run_category
 
 
@@ -41,7 +41,11 @@ async def _run_single(category, samples, agent_kwargs, judge_llm, llm, mode, see
 
     _persist_run([result], samples, llm, mode, judge_llm, seed, run_id)
 
-    print(f"Results: {result.get('passed', 0)}/{result['total']}")
+    if judge_llm:
+        print(f"Results: {result.get('passed', 0)}/{result['total']}")
+    else:
+        avg_tokens = result.get("tokens", {}).get("avg", 0)
+        print(f"Completed: {result['total']} tests, {avg_tokens:,} avg tokens")
     print(f"Saved: .cogency/evals/runs/{run_id}")
 
     return result
@@ -70,10 +74,16 @@ async def _run_all(samples, agent_kwargs, judge_llm, llm, mode, seed):
 
     _persist_run(results, samples, llm, mode, judge_llm, seed, run_id)
 
-    print(f"Overall: {rate:.1%}")
-    for result in results:
-        rate = f"{result.get('rate', 0):.1%}" if result.get("rate") else "Raw"
-        print(f"{result['category'].capitalize()}: {rate}")
+    if judge_llm:
+        print(f"Overall: {rate:.1%}")
+        for result in results:
+            rate = f"{result.get('rate', 0):.1%}"
+            print(f"{result['category'].capitalize()}: {rate}")
+    else:
+        print(f"Completed: {total} tests (no judge, manual review required)")
+        for result in results:
+            avg_tokens = result.get("tokens", {}).get("avg", 0)
+            print(f"{result['category'].capitalize()}: {avg_tokens:,} avg tokens")
     print(f"Latest: .cogency/evals/runs/{run_id}")
 
     return {
@@ -135,7 +145,6 @@ def _persist_run(results, samples, llm, mode, judge_llm, seed, run_id):
 def _generators():
     """Category generators."""
     return {
-        "reasoning": reasoning,
         "conversation": conversation,
         "continuity": continuity,
         "coding": coding,

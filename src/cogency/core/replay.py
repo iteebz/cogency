@@ -141,8 +141,6 @@ async def stream(
                     telemetry.add_event(telemetry_events, metrics_event)
                     yield metrics_event
 
-            except Exception:
-                raise
             finally:
                 if config.debug:
                     from ..lib.debug import log_response

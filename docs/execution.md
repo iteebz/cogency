@@ -298,6 +298,8 @@ All code examples above are tested and guaranteed to work. See test suite:
 
 ---
 
-## Canonical Status
+## Protocol History
 
-This is the reference specification. All implementations use XML markers with JSON arrays.
+**Current format (v3.2+):** XML markers with JSON arrays inside (`<execute>[...]</execute>`)
+
+**Previous format (deprecated):** Delimiter-based protocol. No longer supported.

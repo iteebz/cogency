@@ -143,7 +143,7 @@ class LLM(Protocol):
             Provider-native chunks until turn complete
 
         Turn completion is dual-channel:
-        1. LLM semantic markers (§execute, §end)
+        1. LLM semantic markers (execute, end events)
         2. Provider infrastructure signals
 
         Provider-specific turn detection:

@@ -39,6 +39,7 @@ async def assemble(
     try:
         load_limit = None
         if history_window is not None:
+            # 2x: ensures complete turns (think+respond pairs)
             load_limit = history_window * 2
         events = await storage.load_messages(conversation_id, user_id, limit=load_limit)
     except Exception as exc:
