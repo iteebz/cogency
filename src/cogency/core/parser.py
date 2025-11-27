@@ -2,10 +2,12 @@
 
 Three-phase protocol: THINK → EXECUTE → RESULTS. Sequential, validated, ordered.
 
+Why JSON arrays inside XML markers (not pure XML)?
+- Content like "</execute>" in tool args is JSON-escaped, never collides with markers
+- LLMs naturally generate JSON, awkward with XML attribute escaping
+- Standard JSON parsing, no custom escape rules
+
 Converts raw token stream (or complete string) into semantic events for accumulator.
-- <think> blocks → think events
-- <execute> blocks → call events (one per tool, JSON format)
-- <results> blocks → result events (JSON array format)
 """
 
 from __future__ import annotations
@@ -22,9 +24,10 @@ TAG_PATTERN = {
     "think": ("<think>", "</think>"),
     "execute": ("<execute>", "</execute>"),
     "results": ("<results>", "</results>"),
+    "end": ("<end>", ""),
 }
 
-VALID_TAGS = {"think", "execute", "results"}
+VALID_TAGS = {"think", "execute", "results", "end"}
 
 
 class ParseError(ValueError):
@@ -196,6 +199,8 @@ async def parse_tokens(
                     yield {"type": "think", "content": content}
             elif tag_name == "results" and content.strip():
                 yield {"type": "result", "content": content}
+            elif tag_name == "end":
+                yield {"type": "end"}
 
             buffer = buffer[close_pos:]
 

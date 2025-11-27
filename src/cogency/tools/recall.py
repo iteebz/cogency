@@ -50,6 +50,7 @@ async def Recall(
 
     query = params.query.strip()
     current_timestamps = await _get_timestamps(storage, conversation_id)
+    # Excludes current conversation to prevent contamination
     matches = await _search_messages(storage, query, user_id, current_timestamps, limit=3)
 
     if not matches:

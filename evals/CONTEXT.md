@@ -8,7 +8,7 @@ poetry run evals --llm openai --mode resume --samples 2  # All categories
 ```
 
 Modes: `replay` (HTTP), `resume` (WebSocket realtime)  
-Categories: `reasoning`, `conversation`, `continuity`, `coding`, `research`, `security`, `integrity`
+Categories: `conversation`, `continuity`, `coding`, `research`, `security`, `integrity`
 
 ## Session 4: Delimiter Protocol Investigation
 

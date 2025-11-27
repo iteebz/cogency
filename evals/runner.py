@@ -73,6 +73,8 @@ async def _execute(i, case, category: str, agent_kwargs: dict, run_id: str):
     start_time = time.time()
 
     kwargs = agent_kwargs.copy()
+    kwargs["max_iterations"] = 3 if isinstance(case, Multi) else 10
+    kwargs["history_window"] = 3 if isinstance(case, Multi) else None
     if isinstance(case, Case) and case.empty_tools:
         kwargs["tools"] = []
     if isinstance(case, Memory):
@@ -121,13 +123,15 @@ async def _execute(i, case, category: str, agent_kwargs: dict, run_id: str):
 
 async def _run_single(case: Case, agent: Agent, user_id: str):
     """Run single prompt test."""
-    stream = agent(case.prompt, user_id=user_id, chunks=case.chunks)
+    stream_mode = "token" if case.chunks else "event"
+    stream = agent(case.prompt, user_id=user_id, stream=stream_mode)
     return [event async for event in stream], case.prompt
 
 
 async def _run_memory(case: Memory, agent: Agent, user_id: str):
     """Run memory test: store -> destroy -> recall."""
-    await _consume(agent(case.store, user_id=user_id, chunks=case.chunks))
+    stream_mode = "token" if case.chunks else "event"
+    await _consume(agent(case.store, user_id=user_id, stream=stream_mode))
 
     agent = Agent(
         llm=agent.config.llm,
@@ -137,7 +141,7 @@ async def _run_memory(case: Memory, agent: Agent, user_id: str):
         profile=True,
     )
 
-    stream = agent(case.recall, user_id=user_id, chunks=case.chunks)
+    stream = agent(case.recall, user_id=user_id, stream=stream_mode)
     return [event async for event in stream], case.recall
 
 
@@ -145,10 +149,10 @@ async def _run_multi(case: Multi, agent: Agent, user_id: str):
     """Run multi-turn conversation."""
     events = []
     conversation_id = str(uuid.uuid4())
+    stream_mode = "token" if case.chunks else "event"
 
     for i, prompt in enumerate(case.prompts):
-        events.append({"type": "user", "content": prompt})
-        stream = agent(prompt, user_id=user_id, conversation_id=conversation_id, chunks=case.chunks)
+        stream = agent(prompt, user_id=user_id, conversation_id=conversation_id, stream=stream_mode)
         async for event in stream:
             events.append(event)
 

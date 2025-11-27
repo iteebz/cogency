@@ -195,14 +195,9 @@ class Agent:
 
             timestamp = time.time()
             await self.config.storage.save_message(
-                conversation_id, user_id, "cancelled", "Task interrupted by user", timestamp
+                conversation_id, user_id, "cancelled", "", timestamp
             )
-            yield {
-                "type": "cancelled",
-                "content": "Task interrupted by user",
-                "timestamp": timestamp,
-            }
-            raise
+            yield {"type": "cancelled", "timestamp": timestamp}
         except (
             anthropic.APIError,
             openai.APIError,

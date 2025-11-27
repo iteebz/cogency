@@ -75,13 +75,13 @@ async def format(user_id: str | None, storage=None) -> str:
         raise RuntimeError(f"Profile format failed for {user_id}: {e}") from e
 
 
-async def should_learn(
+async def _should_learn_with_profile(
     user_id: str,
+    current: dict | None,
     *,
     storage: "Storage",
 ) -> bool:
-    """Check if profile learning needed based on message cadence or size threshold."""
-    current = await get(user_id, storage)
+    """Check if profile learning needed (internal, uses pre-fetched profile)."""
     if not current:
         unlearned = await storage.count_user_messages(user_id, 0)
         if unlearned >= CADENCE:
@@ -104,6 +104,16 @@ async def should_learn(
         return True
 
     return False
+
+
+async def should_learn(
+    user_id: str,
+    *,
+    storage: "Storage",
+) -> bool:
+    """Check if profile learning needed based on message cadence or size threshold."""
+    current = await get(user_id, storage)
+    return await _should_learn_with_profile(user_id, current, storage=storage)
 
 
 def learn(
@@ -146,12 +156,6 @@ async def learn_async(
 ) -> bool:
     """Learn user patterns from recent messages using LLM analysis."""
 
-    if not await should_learn(
-        user_id,
-        storage=storage,
-    ):
-        return False
-
     current = await get(user_id, storage) or {
         "who": "",
         "style": "",
@@ -161,6 +165,9 @@ async def learn_async(
         "_meta": {},
     }
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
+
+    if not await _should_learn_with_profile(user_id, current, storage=storage):
+        return False
 
     # Get unlearned messages across ALL conversations
     import time
@@ -209,9 +216,7 @@ async def update_profile(
         if compact or result.strip().upper() != "SKIP":
             return parsed
     except json.JSONDecodeError as e:
-        raise RuntimeError(
-            f"JSON parse error during profile update: {result[:50]}...", cause=e
-        ) from e
+        raise RuntimeError(f"JSON parse error during profile update: {result[:50]}...") from e
 
     return current if compact else None
 

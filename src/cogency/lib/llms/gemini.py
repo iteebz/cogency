@@ -96,8 +96,11 @@ class Gemini(LLM):
         try:
             from google.genai import types
 
-            # Force rotation to get fresh key for this session
+            used_key = None
+
             async def _create_client_with_key(api_key: str):
+                nonlocal used_key
+                used_key = api_key
                 return self._create_client(api_key)
 
             client = await with_rotation("GEMINI", _create_client_with_key)
@@ -134,10 +137,8 @@ class Gemini(LLM):
                 # Drain any responses to initial context
                 await self._drain_turn_with_dual_signals(session)
 
-            # Create session-enabled instance with fresh rotated key
-            fresh_key = get_api_key("gemini")  # Force fresh rotation
             session_instance = Gemini(
-                api_key=fresh_key,
+                api_key=used_key,
                 http_model=self.http_model,
                 websocket_model=self.websocket_model,
                 temperature=self.temperature,
@@ -173,11 +174,11 @@ class Gemini(LLM):
 
         message_count = 0
 
-        async for _message in self._session.receive():
+        async for message in self._session.receive():
             message_count += 1
 
-            if hasattr(_message, "server_content") and _message.server_content:
-                sc = _message.server_content
+            if hasattr(message, "server_content") and message.server_content:
+                sc = message.server_content
 
                 # Collect text from model_turn.parts
                 if hasattr(sc, "model_turn") and sc.model_turn and hasattr(sc.model_turn, "parts"):
@@ -212,11 +213,11 @@ class Gemini(LLM):
         seen_generation_complete = False
         message_count = 0
 
-        async for _message in session.receive():
+        async for message in session.receive():
             message_count += 1
 
-            if hasattr(_message, "server_content") and _message.server_content:
-                sc = _message.server_content
+            if hasattr(message, "server_content") and message.server_content:
+                sc = message.server_content
 
                 # Track generation_complete signal
                 if hasattr(sc, "generation_complete") and sc.generation_complete:

@@ -119,9 +119,9 @@ async def test_user_event_emission(mock_llm, mock_storage):
 
 @pytest.mark.asyncio
 async def test_interrupt_persistence(mock_llm, mock_storage):
-    """KeyboardInterrupt creates cancelled event and persists to storage.
+    """KeyboardInterrupt yields cancelled event and ends stream cleanly.
 
-    Contract: User interruption is recorded in storage and emitted as event.
+    Contract: Interruption emits cancelled event, persists to storage, stream terminates.
     """
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
@@ -133,29 +133,25 @@ async def test_interrupt_persistence(mock_llm, mock_storage):
 
         mock_stream.side_effect = lambda *args, **kwargs: mock_interrupted_events()
 
-        events = []
-        with pytest.raises(KeyboardInterrupt):
-            async for event in agent(
-                "Test query", user_id="test_user", conversation_id="test_conv"
-            ):
-                events.append(event)
+        events = [
+            e async for e in agent("Test query", user_id="test_user", conversation_id="test_conv")
+        ]
 
         cancelled_events = [e for e in events if e["type"] == "cancelled"]
         assert len(cancelled_events) == 1
-        assert cancelled_events[0]["content"] == "Task interrupted by user"
+        assert "timestamp" in cancelled_events[0]
 
         cancelled_msgs = [m for m in mock_storage.messages if m["type"] == "cancelled"]
         assert len(cancelled_msgs) == 1
         assert cancelled_msgs[0]["conversation_id"] == "test_conv"
         assert cancelled_msgs[0]["user_id"] == "test_user"
-        assert cancelled_msgs[0]["content"] == "Task interrupted by user"
 
 
 @pytest.mark.asyncio
 async def test_cancelled_error_persistence(mock_llm, mock_storage):
-    """asyncio.CancelledError creates cancelled event and persists to storage.
+    """asyncio.CancelledError yields cancelled event and ends stream cleanly.
 
-    Contract: Async task cancellation is recorded in storage and emitted as event.
+    Contract: Task cancellation emits cancelled event, persists to storage, stream terminates.
     """
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
@@ -167,18 +163,15 @@ async def test_cancelled_error_persistence(mock_llm, mock_storage):
 
         mock_stream.side_effect = lambda *args, **kwargs: mock_cancelled_events()
 
-        events = []
-        with pytest.raises(asyncio.CancelledError):
-            async for event in agent(
-                "Test query", user_id="test_user", conversation_id="test_conv"
-            ):
-                events.append(event)
+        events = [
+            e async for e in agent("Test query", user_id="test_user", conversation_id="test_conv")
+        ]
 
         cancelled_events = [e for e in events if e["type"] == "cancelled"]
         assert len(cancelled_events) == 1
+        assert "timestamp" in cancelled_events[0]
 
         cancelled_msgs = [m for m in mock_storage.messages if m["type"] == "cancelled"]
         assert len(cancelled_msgs) == 1
         assert cancelled_msgs[0]["conversation_id"] == "test_conv"
         assert cancelled_msgs[0]["user_id"] == "test_user"
-        assert cancelled_msgs[0]["content"] == "Task interrupted by user"

@@ -59,20 +59,24 @@ class Storage(Protocol):
 
 
 class DB:
-    _initialized_paths = set()
+    _initialized_paths: dict[str, float] = {}
+    _CACHE_TTL = 3600.0
 
     @classmethod
     def connect(cls, db_path: str):
         import time
 
         path = Path(db_path)
+        path_str = str(path)
+        now = time.time()
 
-        if str(path) not in cls._initialized_paths:
+        cached_time = cls._initialized_paths.get(path_str)
+        if cached_time is None or (now - cached_time) > cls._CACHE_TTL:
             path.parent.mkdir(parents=True, exist_ok=True)
             if not path.exists():
                 path.touch(exist_ok=True)
             cls._init_schema(path)
-            cls._initialized_paths.add(str(path))
+            cls._initialized_paths[path_str] = now
 
         conn = sqlite3.connect(str(path), timeout=5.0)
 

@@ -3,9 +3,9 @@
 Algorithm:
 1. Establish WebSocket session with initial context
 2. Stream tokens continuously from LLM
-3. When parser detects §execute → pause stream → execute tool
+3. When parser detects execute event → pause stream → execute tool
 4. Inject tool result back into same session → resume streaming
-5. Repeat until §end or natural completion
+5. Repeat until end event or natural completion
 
 Enables maximum token efficiency by maintaining conversation state
 in LLM memory rather than resending full context each turn.
@@ -167,7 +167,7 @@ async def stream(
             await telemetry.persist_events(conversation_id, telemetry_events)
         # Handle natural WebSocket completion
         if not complete:
-            # Stream ended without §end - provider-driven completion
+            # Stream ended without explicit end event - provider-driven completion
             complete = True
 
     except Exception as e:

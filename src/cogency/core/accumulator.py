@@ -1,9 +1,9 @@
 """Event accumulator with tool execution and persistence.
 
 Core algorithm:
-1. Accumulate content until type changes or control events (§execute, §end)
-2. Execute tool calls when §execute encountered
-3. Persist all events via specialized EventPersister
+1. Accumulate content until type changes or control events (execute, end)
+2. Execute tool calls when execute event encountered
+3. Persist all events to storage
 4. Streaming modes:
    - stream="token": Stream respond/think naturally, accumulate call/result/cancelled/metric
    - stream="event": Accumulate all, yield complete semantic units on type changes
@@ -225,7 +225,7 @@ class Accumulator:
             if self.stream == "token" and ev_type in ("respond", "think"):
                 yield event
 
-        # Stream ended without §end - flush remaining content
+        # Stream ended without explicit end event - flush remaining content
         flushed = await self._flush_accumulated()
         if flushed:
             yield flushed

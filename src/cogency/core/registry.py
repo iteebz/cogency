@@ -39,37 +39,29 @@ class ToolRegistry:
         self.by_name[tool_instance.name] = tool_instance
 
     def __call__(self) -> list[Tool]:
-        seen = set()
-        return [
-            cls
-            for cat_classes in self.by_category.values()
-            for cls in cat_classes
-            if not (cls in seen or seen.add(cls))
-        ]
+        all_tools = [tool for tools in self.by_category.values() for tool in tools]
+        return list(dict.fromkeys(all_tools))
 
     def category(self, categories: str | list[str]) -> list[Tool]:
         if isinstance(categories, str):
             categories = [categories]
 
-        filtered_classes = set()
+        filtered = set()
         for category in categories:
             if category in self.by_category:
-                for cls in self.by_category[category]:
-                    filtered_classes.add(cls)
-        return list(filtered_classes)
+                for tool in self.by_category[category]:
+                    filtered.add(tool)
+        return list(filtered)
 
     def name(self, names: str | list[str]) -> list[Tool]:
         if isinstance(names, str):
             names = [names]
 
-        filtered_classes = set()
+        filtered = set()
         for name in names:
             if name in self.by_name:
-                filtered_classes.add(self.by_name[name])
-        return list(filtered_classes)
+                filtered.add(self.by_name[name])
+        return list(filtered)
 
     def get(self, name: str) -> Tool | None:
-        tool_class = self.by_name.get(name)
-        if tool_class:
-            return tool_class
-        return None
+        return self.by_name.get(name)
