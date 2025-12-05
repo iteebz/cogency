@@ -11,6 +11,7 @@ Enables maximum token efficiency by maintaining conversation state
 in LLM memory rather than resending full context each turn.
 """
 
+import logging
 from typing import Literal
 
 from .. import context
@@ -21,6 +22,8 @@ from .accumulator import Accumulator
 from .config import Config
 from .parser import parse_tokens
 from .protocols import event_content, event_type
+
+logger = logging.getLogger(__name__)
 
 
 async def stream(
@@ -67,6 +70,15 @@ async def stream(
             identity=config.identity,
             instructions=config.instructions,
         )
+
+        # Inject pending notifications
+        if config.notifications:
+            try:
+                pending = await config.notifications()
+                for notification in pending:
+                    messages.append({"role": "system", "content": notification})
+            except Exception as e:
+                logger.warning(f"Notification source failed: {e}")
 
         if metrics:
             metrics.start_step()

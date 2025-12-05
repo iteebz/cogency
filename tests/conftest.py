@@ -181,6 +181,7 @@ def mock_config(mock_llm, mock_storage):
             self.history_window = 20
             self.security = Security()
             self.debug = False
+            self.notifications = None
 
             self._execution_cls = Execution
 

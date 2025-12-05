@@ -23,7 +23,7 @@ from ..lib.sqlite import default_storage
 from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config, Security
-from .protocols import LLM, Storage, Tool
+from .protocols import LLM, NotificationSource, Storage, Tool
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ class Agent:
         profile: bool = False,
         security: Security | None = None,
         debug: bool = False,
+        notifications: NotificationSource | None = None,
     ):
         """Initializes the Agent with an explicit configuration.
 
@@ -79,6 +80,7 @@ class Agent:
             profile: Enable automatic profile learning. Defaults to False.
             security: A Security object defining access levels and timeouts.
             debug: Enable verbose debug logging.
+            notifications: Notification source for mid-execution context injection.
         """
         if debug:
             logging.getLogger("cogency").setLevel(logging.DEBUG)
@@ -100,6 +102,7 @@ class Agent:
             profile=profile,
             security=final_security,
             debug=debug,
+            notifications=notifications,
         )
 
         # Validate mode during construction

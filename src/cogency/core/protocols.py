@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Literal, NotRequired, Protocol, TypedDict, runtime_checkable
 
@@ -236,3 +236,7 @@ class Tool(ABC):
     def describe(self, args: dict) -> str:
         """Human-readable action description for tool call."""
         pass
+
+
+NotificationSource = Callable[[], Awaitable[list[str]]]
+"""Source for system notifications injected between iterations."""

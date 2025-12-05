@@ -69,6 +69,15 @@ async def stream(
                 instructions=config.instructions,
             )
 
+            # Inject pending notifications
+            if config.notifications:
+                try:
+                    pending = await config.notifications()
+                    for notification in pending:
+                        messages.append({"role": "system", "content": notification})
+                except Exception as e:
+                    logger.warning(f"Notification source failed: {e}")
+
             # Add final iteration guidance
             if iteration == config.max_iterations:
                 messages.append(

@@ -66,78 +66,95 @@ class DB:
     def connect(cls, db_path: str):
         import time
 
-        path = Path(db_path)
-        path_str = str(path)
-        now = time.time()
+        is_memory = db_path == ":memory:"
+        
+        if not is_memory:
+            path = Path(db_path)
+            path_str = str(path)
+            now = time.time()
 
-        cached_time = cls._initialized_paths.get(path_str)
-        if cached_time is None or (now - cached_time) > cls._CACHE_TTL:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            if not path.exists():
-                path.touch(exist_ok=True)
-            cls._init_schema(path)
-            cls._initialized_paths[path_str] = now
+            cached_time = cls._initialized_paths.get(path_str)
+            if cached_time is None or (now - cached_time) > cls._CACHE_TTL:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if not path.exists():
+                    path.touch(exist_ok=True)
+                cls._init_schema(path)
+                cls._initialized_paths[path_str] = now
 
-        conn = sqlite3.connect(str(path), timeout=5.0)
+        conn = sqlite3.connect(db_path, timeout=5.0)
 
-        for i in range(3):
-            try:
-                conn.execute("PRAGMA journal_mode=WAL")
-                break
-            except sqlite3.OperationalError:
-                if i == 2:
-                    raise
-                time.sleep(0.1 * (i + 1))
+        if is_memory:
+            cls._init_schema_memory(conn)
+        else:
+            for i in range(3):
+                try:
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    break
+                except sqlite3.OperationalError:
+                    if i == 2:
+                        raise
+                    time.sleep(0.1 * (i + 1))
 
         return conn
 
     @classmethod
+    def _init_schema_memory(cls, conn: sqlite3.Connection):
+        conn.executescript(cls._schema_sql())
+
+    @classmethod
     def _init_schema(cls, db_path: Path):
         with sqlite3.connect(str(db_path)) as db:
-            db.executescript("""
-                PRAGMA journal_mode=WAL;
+            db.execute("PRAGMA journal_mode=WAL")
+            db.executescript(cls._schema_sql())
 
-                CREATE TABLE IF NOT EXISTS messages (
-                    message_id TEXT PRIMARY KEY,
-                    conversation_id TEXT NOT NULL,
-                    user_id TEXT,
-                    type TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    timestamp REAL NOT NULL
-                );
+    @staticmethod
+    def _schema_sql() -> str:
+        return """
+            CREATE TABLE IF NOT EXISTS messages (
+                message_id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                user_id TEXT,
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp REAL NOT NULL
+            );
 
-                CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, timestamp);
-                CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
-                CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
-                CREATE INDEX IF NOT EXISTS idx_messages_user_type ON messages(user_id, type, timestamp);
+            CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id, timestamp);
+            CREATE INDEX IF NOT EXISTS idx_messages_type ON messages(type);
+            CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_id);
+            CREATE INDEX IF NOT EXISTS idx_messages_user_type ON messages(user_id, type, timestamp);
 
-                CREATE TABLE IF NOT EXISTS events (
-                    event_id TEXT PRIMARY KEY,
-                    conversation_id TEXT NOT NULL,
-                    type TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    timestamp REAL NOT NULL
-                );
+            CREATE TABLE IF NOT EXISTS events (
+                event_id TEXT PRIMARY KEY,
+                conversation_id TEXT NOT NULL,
+                type TEXT NOT NULL,
+                content TEXT NOT NULL,
+                timestamp REAL NOT NULL
+            );
 
-                CREATE INDEX IF NOT EXISTS idx_events_conversation ON events(conversation_id, timestamp);
+            CREATE INDEX IF NOT EXISTS idx_events_conversation ON events(conversation_id, timestamp);
 
-                CREATE TABLE IF NOT EXISTS profiles (
-                    user_id TEXT NOT NULL,
-                    version INTEGER NOT NULL,
-                    data TEXT NOT NULL,
-                    created_at REAL NOT NULL,
-                    char_count INTEGER NOT NULL,
-                    PRIMARY KEY (user_id, version)
-                );
+            CREATE TABLE IF NOT EXISTS profiles (
+                user_id TEXT NOT NULL,
+                version INTEGER NOT NULL,
+                data TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                char_count INTEGER NOT NULL,
+                PRIMARY KEY (user_id, version)
+            );
 
-                CREATE INDEX IF NOT EXISTS idx_profiles_user_latest ON profiles(user_id, version DESC);
-                CREATE INDEX IF NOT EXISTS idx_profiles_cleanup ON profiles(created_at);
-            """)
+            CREATE INDEX IF NOT EXISTS idx_profiles_user_latest ON profiles(user_id, version DESC);
+            CREATE INDEX IF NOT EXISTS idx_profiles_cleanup ON profiles(created_at);
+        """
 
 
 class SQLite:
     def __init__(self, db_path: str = ".cogency/store.db"):
-        self.db_path = str(Path(db_path).resolve())
+        # Preserve :memory: as-is without path resolution
+        if db_path == ":memory:":
+            self.db_path = ":memory:"
+        else:
+            self.db_path = str(Path(db_path).resolve())
 
     @retry(attempts=3, base_delay=0.1)
     async def save_message(

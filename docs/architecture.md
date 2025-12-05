@@ -128,6 +128,7 @@ Two-layer architecture separates storage from protocol.
 **Context components:**
 - System message: Protocol + tools + profile (if enabled)
 - Conversation messages: User/assistant turns from storage
+- Notifications: Optional system messages injected between iterations (if notification source provided)
 - Execution format: XML markers with JSON arrays synthesized during assembly
 - Tool results: Injected as user messages (required by Realtime/Live APIs)
 
