@@ -1,12 +1,15 @@
 import logging
 from collections.abc import Sequence
 
+from ..core.errors import StorageError
 from ..core.protocols import HistoryTransform, Storage, Tool
 from .conversation import to_messages
 from .profile import format as profile_format
 from .system import prompt as system_prompt
 
 logger = logging.getLogger(__name__)
+
+MAX_CONVERSATION_LENGTH = 10000
 
 
 async def assemble(
@@ -48,9 +51,15 @@ async def assemble(
     try:
         load_limit = None
         if history_window is not None:
-            # 2x: ensures complete turns (think+respond pairs)
             load_limit = history_window * 2
         events = await storage.load_messages(conversation_id, user_id, limit=load_limit)
+        
+        if history_window is None and len(events) > MAX_CONVERSATION_LENGTH:
+            raise StorageError(
+                f"Conversation exceeds {MAX_CONVERSATION_LENGTH} events. "
+                f"Enable history_window to limit context size.",
+                retryable=False,
+            )
     except Exception as exc:
         logger.exception(
             "Context assembly failed loading messages for conversation=%s user=%s: %s",
