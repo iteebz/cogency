@@ -47,4 +47,5 @@ async def test_isolates_agents(tmp_path, mock_llm):
         access=agent1.config.security.access,
     )
 
+    assert read_result_agent1.content is not None
     assert "content1" in read_result_agent1.content

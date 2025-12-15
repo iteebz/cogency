@@ -1,5 +1,9 @@
+# pyright: reportAttributeAccessIssue=false
+# OpenAI SDK type stubs are incomplete - runtime behavior is correct
+
 import logging
 from collections.abc import AsyncGenerator
+from typing import Any, cast
 
 from ...core.protocols import LLM
 from .interrupt import interruptible
@@ -13,7 +17,7 @@ class OpenAI(LLM):
 
     def __init__(
         self,
-        api_key: str = None,
+        api_key: str | None = None,
         http_model: str = "gpt-4o-mini",
         websocket_model: str = "gpt-4o-mini-realtime-preview",
         temperature: float = 1.0,
@@ -28,8 +32,8 @@ class OpenAI(LLM):
         self.max_tokens = max_tokens
 
         # WebSocket session state
-        self._connection = None
-        self._connection_manager = None
+        self._connection: Any = None
+        self._connection_manager: Any = None
 
     def _create_client(self, api_key: str):
         """Create OpenAI client for given API key."""
@@ -49,7 +53,7 @@ class OpenAI(LLM):
                 response = await client.responses.create(
                     model=self.http_model,
                     instructions=final_instructions,
-                    input=final_input_messages,
+                    input=cast(Any, final_input_messages),
                     temperature=self.temperature,
                     stream=False,
                 )
@@ -77,7 +81,7 @@ class OpenAI(LLM):
             return await client.responses.create(
                 model=self.http_model,
                 instructions=final_instructions,
-                input=final_input_messages,
+                input=cast(Any, final_input_messages),
                 temperature=self.temperature,
                 stream=True,
             )

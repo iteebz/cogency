@@ -17,7 +17,7 @@ class ReadParams:
     ] = None
 
 
-def _read_lines(file_path: Path, start: int, lines: int = None) -> str:
+def _read_lines(file_path: Path, start: int, lines: int | None = None) -> str:
     """Read specific lines from file with line numbers."""
     result_lines = []
     with open(file_path, encoding="utf-8") as f:

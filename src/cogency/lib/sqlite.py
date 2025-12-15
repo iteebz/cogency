@@ -28,19 +28,24 @@ class Storage(Protocol):
     ) -> list[MessageMatch]: ...
 
     async def save_message(
-        self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
+        self,
+        conversation_id: str,
+        user_id: str,
+        type: str,
+        content: str,
+        timestamp: float | None = None,
     ) -> str: ...
 
     async def save_event(
-        self, conversation_id: str, type: str, content: str, timestamp: float = None
+        self, conversation_id: str, type: str, content: str, timestamp: float | None = None
     ) -> str: ...
 
     async def load_messages(
         self,
         conversation_id: str,
         user_id: str,
-        include: list[str] = None,
-        exclude: list[str] = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
     ) -> list[dict]: ...
 
     async def save_profile(self, user_id: str, profile: dict) -> None: ...
@@ -67,7 +72,7 @@ class DB:
         import time
 
         is_memory = db_path == ":memory:"
-        
+
         if not is_memory:
             path = Path(db_path)
             path_str = str(path)
@@ -158,7 +163,12 @@ class SQLite:
 
     @retry(attempts=3, base_delay=0.1)
     async def save_message(
-        self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
+        self,
+        conversation_id: str,
+        user_id: str,
+        type: str,
+        content: str,
+        timestamp: float | None = None,
     ) -> str:
         if timestamp is None:
             timestamp = time.time()
@@ -177,7 +187,7 @@ class SQLite:
 
     @retry(attempts=3, base_delay=0.1)
     async def save_event(
-        self, conversation_id: str, type: str, content: str, timestamp: float = None
+        self, conversation_id: str, type: str, content: str, timestamp: float | None = None
     ) -> str:
         if timestamp is None:
             timestamp = time.time()
@@ -194,13 +204,23 @@ class SQLite:
         await asyncio.get_event_loop().run_in_executor(None, _sync_save)
         return event_id
 
+    async def save_request(
+        self,
+        conversation_id: str,
+        user_id: str,
+        messages: str,
+        response: str | None = None,
+        timestamp: float | None = None,
+    ) -> str:
+        return ""
+
     @retry(attempts=3, base_delay=0.1)
     async def load_messages(
         self,
         conversation_id: str,
         user_id: str,
-        include: list[str] = None,
-        exclude: list[str] = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         limit: int | None = None,
     ) -> list[dict]:
         def _sync_load():
@@ -208,7 +228,7 @@ class SQLite:
                 db.row_factory = sqlite3.Row
 
                 query = "SELECT type, content, timestamp FROM messages WHERE conversation_id = ?"
-                params = [conversation_id]
+                params: list[Any] = [conversation_id]
 
                 if user_id:
                     query += " AND user_id = ?"
@@ -279,7 +299,7 @@ class SQLite:
         def _sync_load():
             with DB.connect(self.db_path) as db:
                 query = "SELECT content FROM messages WHERE user_id = ? AND type = 'user' AND timestamp > ? ORDER BY timestamp ASC"
-                params = [user_id, since_timestamp]
+                params: list[Any] = [user_id, since_timestamp]
 
                 if limit is not None:
                     query += " LIMIT ?"

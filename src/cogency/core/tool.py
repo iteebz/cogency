@@ -3,7 +3,7 @@
 import inspect
 from collections.abc import Callable
 from dataclasses import MISSING, fields, is_dataclass
-from typing import Annotated, get_args, get_origin
+from typing import Annotated, Any, cast, get_args, get_origin
 
 from .protocols import Tool, ToolParam, ToolResult
 
@@ -27,23 +27,22 @@ def _tool_param(field_type) -> ToolParam | None:
     return matches[0] if matches else None
 
 
-def _schema_field(field) -> dict:
+def _schema_field(field) -> dict[str, Any]:
     base = _base_type(field.type)
     param = _tool_param(field.type)
 
-    schema = {"type": _type_name(base)}
+    schema: dict[str, Any] = {"type": _type_name(base)}
 
     if param:
         schema["description"] = param.description
-        schema.update(
-            {
-                "min": param.ge,
-                "max": param.le,
-                "min_length": param.min_length,
-                "max_length": param.max_length,
-            }
-        )
-        schema = {k: v for k, v in schema.items() if v is not None}
+        if param.ge is not None:
+            schema["min"] = param.ge
+        if param.le is not None:
+            schema["max"] = param.le
+        if param.min_length is not None:
+            schema["min_length"] = param.min_length
+        if param.max_length is not None:
+            schema["max_length"] = param.max_length
 
     has_default = field.default is not MISSING or field.default_factory is not MISSING
     schema["required"] = not has_default
@@ -84,7 +83,7 @@ def tool(desc: str):
             async def execute(self, **kwargs) -> ToolResult:
                 tool_params = {k: v for k, v in kwargs.items() if k in param_names}
                 other_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-                params = params_type(**tool_params)
+                params = cast(Callable[..., Any], params_type)(**tool_params)
                 return await func(params, **other_kwargs)
 
             def describe(self, args: dict) -> str:

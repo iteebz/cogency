@@ -22,6 +22,7 @@ async def test_finds_results(mock_ddgs):
 
     assert not result.error
     assert "Found 2 results for 'test query'" in result.outcome
+    assert result.content is not None
     assert "Result 1" in result.content
     assert "http://link2.com" in result.content
     mock_ddgs.return_value.text.assert_called_once_with("test query", max_results=5)
@@ -42,6 +43,7 @@ async def test_no_results(mock_ddgs):
     result = await Search.execute(query="no results")
 
     assert not result.error
+    assert result.content is not None
     assert "No results found" in result.content
 
 

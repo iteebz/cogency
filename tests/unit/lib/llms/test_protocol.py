@@ -8,8 +8,10 @@ from cogency.lib.llms import Gemini, OpenAI
 
 
 def test_protocol_compliance():
-    with patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"), \
-         patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"):
+    with (
+        patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),
+        patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"),
+    ):
         providers = [
             ("OpenAI", OpenAI()),
             ("Gemini", Gemini()),
@@ -25,8 +27,10 @@ def test_protocol_compliance():
 
 
 def test_provider_factory_integration():
-    with patch("cogency.lib.llms.openai.get_api_key", return_value="factory-key"), \
-         patch("cogency.lib.llms.gemini.get_api_key", return_value="factory-key"):
+    with (
+        patch("cogency.lib.llms.openai.get_api_key", return_value="factory-key"),
+        patch("cogency.lib.llms.gemini.get_api_key", return_value="factory-key"),
+    ):
         openai_agent = Agent(llm="openai")
         gemini_agent = Agent(llm="gemini")
 
@@ -42,8 +46,10 @@ def test_invalid_provider_handling():
 
 @pytest.mark.asyncio
 async def test_session_state_requirements():
-    with patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"), \
-         patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"):
+    with (
+        patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),
+        patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"),
+    ):
         providers = [OpenAI(), Gemini()]
 
         for provider in providers:
@@ -60,8 +66,10 @@ async def test_session_state_requirements():
 
 
 def test_no_semantic_interpretation():
-    with patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"), \
-         patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"):
+    with (
+        patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),
+        patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"),
+    ):
         providers = [
             ("OpenAI", OpenAI()),
             ("Gemini", Gemini()),
@@ -81,8 +89,10 @@ def test_no_semantic_interpretation():
 
 
 def test_native_chunking_only():
-    with patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"), \
-         patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"):
+    with (
+        patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),
+        patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"),
+    ):
         providers = [
             ("OpenAI", OpenAI()),
             ("Gemini", Gemini()),
@@ -101,8 +111,10 @@ def test_native_chunking_only():
 
 
 def test_provider_error_handling():
-    with patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"), \
-         patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"):
+    with (
+        patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),
+        patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"),
+    ):
         providers = [
             ("OpenAI", OpenAI()),
             ("Gemini", Gemini()),

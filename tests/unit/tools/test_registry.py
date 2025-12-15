@@ -25,7 +25,7 @@ def test_register_duplicate(mock_tool, mock_storage):
 def test_register_invalid(mock_storage):
     registry = ToolRegistry(mock_storage)
     with pytest.raises(TypeError):
-        registry.register("not a tool", "test")
+        registry.register("not a tool", "test")  # type: ignore[arg-type]
 
 
 def test_category(mock_tool, mock_storage):
@@ -64,6 +64,7 @@ def test_get(mock_tool, mock_storage):
     registry.register(mock_a, "test")
 
     tool = registry.get("mock_a")
+    assert tool is not None
     assert tool.name == "mock_a"
 
     missing = registry.get("nonexistent")

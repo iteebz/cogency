@@ -40,8 +40,8 @@ async def test_timestamp_ordering():
     u1 = uuid.UUID(id1)
     u2 = uuid.UUID(id2)
 
-    ts1_ms = (u1.int >> 80) & 0xFFFFFFFFFFFF
-    ts2_ms = (u2.int >> 80) & 0xFFFFFFFFFFFF
+    ts1_ms = (u1.int >> 80) & 0xFFFFFFFFFFFF  # type: ignore[operator]
+    ts2_ms = (u2.int >> 80) & 0xFFFFFFFFFFFF  # type: ignore[operator]
 
     # Timestamps should be in valid range
     assert before <= ts1_ms <= after

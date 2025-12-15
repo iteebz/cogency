@@ -4,6 +4,7 @@ import asyncio
 import shutil
 import time
 import uuid
+from collections.abc import Sequence
 from pathlib import Path
 
 from cogency import Agent
@@ -13,7 +14,11 @@ from .judge import judge
 
 
 async def run_category(
-    category: str, cases: list[Case], agent_kwargs: dict, judge_llm, run_id: str = None
+    category: str,
+    cases: Sequence[Case | Memory | Multi],
+    agent_kwargs: dict,
+    judge_llm,
+    run_id: str | None = None,
 ) -> dict:
     """Run evaluation category."""
     if not run_id:
@@ -39,7 +44,7 @@ async def run_category(
 
     judged_results = []
     for result in final_results:
-        if judge_llm:
+        if judge_llm and not isinstance(result, BaseException):
             judgment = await judge(result, judge_llm)
             result["passed"] = judgment.passed
             result["judge_reason"] = judgment.reason

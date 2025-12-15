@@ -40,7 +40,10 @@ async def test_fallback_learns(mock_llm, mock_storage):
 
         user_events = [e for e in events if e["type"] == "user"]
         assert len(user_events) == 1
-        assert user_events[0]["content"] == "test query"
+        event = user_events[0]
+        assert event["type"] == "user"
+        content = event.get("content", "")
+        assert content == "test query"
 
         mock_learn.assert_called_once()
 
@@ -63,7 +66,7 @@ async def test_streaming(mock_llm, mock_storage):
         response = None
         async for event in agent("Hello", user_id="test_user", conversation_id="test_convo"):
             if event["type"] == "respond":
-                response = event["content"]
+                response = event.get("content", "")
         assert response == "Test response"
 
         mock_stream.assert_called_once()
@@ -114,7 +117,10 @@ async def test_user_event_emission(mock_llm, mock_storage):
 
         user_events = [e for e in events if e["type"] == "user"]
         assert len(user_events) == 1
-        assert user_events[0]["content"] == "Test query"
+        event = user_events[0]
+        assert event["type"] == "user"
+        content = event.get("content", "")
+        assert content == "Test query"
 
 
 @pytest.mark.asyncio

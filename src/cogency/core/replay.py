@@ -20,13 +20,14 @@ from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
 from .parser import parse_tokens
+from .protocols import event_content
 
 logger = logging.getLogger(__name__)
 
 
 async def stream(
     query: str,
-    user_id: str,
+    user_id: str | None,
     conversation_id: str,
     *,
     config: Config,
@@ -59,7 +60,7 @@ async def stream(
                 break
 
             messages = await context.assemble(
-                user_id,
+                user_id or "",
                 conversation_id,
                 tools=config.tools,
                 storage=config.storage,
@@ -91,7 +92,7 @@ async def stream(
             # Only "token" mode does token-level streaming; "event" and None both accumulate complete units
             token_streaming = stream == "token"
             accumulator = Accumulator(
-                user_id,
+                user_id or "",
                 conversation_id,
                 execution=config.execution,
                 stream="token" if token_streaming else "event",
@@ -112,17 +113,14 @@ async def stream(
                 else:
                     token_source = llm.stream(messages)
 
-                async for event in accumulator.process(parse_tokens(token_source)):
-                    if (
-                        event["type"] in ["think", "call", "respond"]
-                        and metrics
-                        and event.get("content")
-                    ):
-                        metrics.add_output(event["content"])
-                        llm_output_chunks.append(event["content"])
+                async for event in accumulator.process(parse_tokens(token_source)):  # pyright: ignore[reportArgumentType]
+                    content = event_content(event)
+                    if event["type"] in ["think", "call", "respond"] and metrics and content:
+                        metrics.add_output(content)
+                        llm_output_chunks.append(content)
 
                     if event:
-                        telemetry.add_event(telemetry_events, event)
+                        telemetry.add_event(telemetry_events, event)  # type: ignore[arg-type]
 
                     match event["type"]:
                         case "end":

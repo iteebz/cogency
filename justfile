@@ -13,6 +13,7 @@ install:
 ci:
     @poetry run ruff format .
     @poetry run ruff check . --fix --unsafe-fixes
+    @poetry run pyright
     @poetry run pytest tests -q
     @poetry build
 

@@ -1,27 +1,85 @@
 from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Literal, NotRequired, Protocol, TypedDict, runtime_checkable
+from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
 
 
-class Event(TypedDict):
-    type: Literal[
-        "user",
-        "think",
-        "call",
-        "execute",
-        "result",
-        "respond",
-        "end",
-        "metric",
-        "error",
-        "interrupt",
-    ]
-    content: NotRequired[str]
-    payload: NotRequired[dict[str, Any]]
-    audience: NotRequired[Literal["broadcast", "internal", "observability"]]
-    timestamp: NotRequired[float]
+class UserEvent(TypedDict):
+    type: Literal["user"]
+    content: str
+    timestamp: float
 
+
+class ThinkEvent(TypedDict):
+    type: Literal["think"]
+    content: str
+    timestamp: float
+
+
+class CallEvent(TypedDict):
+    type: Literal["call"]
+    content: str
+    timestamp: float
+
+
+class ExecuteEvent(TypedDict):
+    type: Literal["execute"]
+    timestamp: float
+
+
+class ResultEvent(TypedDict):
+    type: Literal["result"]
+    content: str
+    payload: dict[str, Any]
+    timestamp: float
+
+
+class RespondEvent(TypedDict):
+    type: Literal["respond"]
+    content: str
+    timestamp: float
+
+
+class EndEvent(TypedDict):
+    type: Literal["end"]
+    timestamp: float
+
+
+class MetricEvent(TypedDict):
+    type: Literal["metric"]
+    step: dict[str, Any]
+    total: dict[str, Any]
+
+
+class ErrorEvent(TypedDict):
+    type: Literal["error"]
+    content: str
+    timestamp: float
+
+
+class InterruptEvent(TypedDict):
+    type: Literal["interrupt"]
+    timestamp: float
+
+
+class CancelledEvent(TypedDict):
+    type: Literal["cancelled"]
+    timestamp: float
+
+
+Event = (
+    UserEvent
+    | ThinkEvent
+    | CallEvent
+    | ExecuteEvent
+    | ResultEvent
+    | RespondEvent
+    | EndEvent
+    | MetricEvent
+    | ErrorEvent
+    | InterruptEvent
+    | CancelledEvent
+)
 
 EventType = Literal[
     "user",
@@ -34,6 +92,7 @@ EventType = Literal[
     "metric",
     "error",
     "interrupt",
+    "cancelled",
 ]
 
 _CONTROL_EVENT_TYPES: set[EventType] = {"execute", "end", "interrupt"}
@@ -48,7 +107,9 @@ def event_type(event: Event) -> EventType:
 def event_content(event: Event) -> str:
     """Get the human-readable content payload if present."""
 
-    return event.get("content", "") or ""
+    if "content" in event:
+        return event["content"] or ""
+    return ""
 
 
 def is_control_event(event: Event) -> bool:
@@ -97,7 +158,7 @@ class LLM(Protocol):
     """
 
     # HTTP STREAMING - Stateless, full context each time
-    async def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
+    def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
         """HTTP streaming with full conversation context.
 
         Args:
@@ -131,7 +192,7 @@ class LLM(Protocol):
         """
         ...
 
-    async def send(self, content: str) -> AsyncGenerator[str, None]:
+    def send(self, content: str) -> AsyncGenerator[str, None]:
         """Send message in session and stream response until turn completion.
 
         Only works after connect(). Session maintains conversation context.
@@ -162,7 +223,12 @@ class Storage(Protocol):
     """Storage protocol - honest failures, no silent lies."""
 
     async def save_message(
-        self, conversation_id: str, user_id: str, type: str, content: str, timestamp: float = None
+        self,
+        conversation_id: str,
+        user_id: str,
+        type: str,
+        content: str,
+        timestamp: float | None = None,
     ) -> str:
         """Save single message to conversation. Returns message_id. Raises on failure."""
         ...
@@ -171,15 +237,15 @@ class Storage(Protocol):
         self,
         conversation_id: str,
         user_id: str,
-        include: list[str] = None,
-        exclude: list[str] = None,
+        include: list[str] | None = None,
+        exclude: list[str] | None = None,
         limit: int | None = None,
     ) -> list[dict]:
         """Load conversation messages with optional type filtering and limit."""
         ...
 
     async def save_event(
-        self, conversation_id: str, type: str, content: str, timestamp: float = None
+        self, conversation_id: str, type: str, content: str, timestamp: float | None = None
     ) -> str:
         """Save runtime event for telemetry. Returns event_id. Raises on failure."""
         ...
@@ -189,8 +255,8 @@ class Storage(Protocol):
         conversation_id: str,
         user_id: str,
         messages: str,
-        response: str = None,
-        timestamp: float = None,
+        response: str | None = None,
+        timestamp: float | None = None,
     ) -> str:
         """Save LLM request/response for observability. Returns request_id. Raises on failure."""
         ...
@@ -205,6 +271,12 @@ class Storage(Protocol):
 
     async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int:
         """Count user messages since timestamp for learning cadence."""
+        ...
+
+    async def load_user_messages(
+        self, user_id: str, since_timestamp: float = 0, limit: int | None = None
+    ) -> list[str]:
+        """Load user messages since timestamp for profile learning."""
         ...
 
 

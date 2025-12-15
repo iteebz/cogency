@@ -78,8 +78,8 @@ class Metrics:
         self.output_tokens = 0
         self.step_input_tokens = 0
         self.step_output_tokens = 0
-        self.step_start_time = None
-        self.task_start_time = None
+        self.step_start_time: float | None = None
+        self.task_start_time: float | None = None
 
     @classmethod
     def init(cls, model: str):
@@ -118,11 +118,11 @@ class Metrics:
             "step": {
                 "input": self.step_input_tokens,
                 "output": self.step_output_tokens,
-                "duration": now - self.step_start_time,
+                "duration": now - (self.step_start_time or 0),
             },
             "total": {
                 "input": self.input_tokens,
                 "output": self.output_tokens,
-                "duration": now - self.task_start_time,
+                "duration": now - (self.task_start_time or 0),
             },
         }

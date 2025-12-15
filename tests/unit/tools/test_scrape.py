@@ -23,6 +23,7 @@ async def test_scrapes_content(mock_trafilatura):
 
     assert not result.error
     assert "Scraped example.com" in result.outcome
+    assert result.content is not None
     assert "Test content" in result.content
     mock_trafilatura.fetch_url.assert_called_once_with("http://example.com")
     mock_trafilatura.extract.assert_called_once()
@@ -55,6 +56,7 @@ async def test_no_readable_content(mock_trafilatura):
 
     assert not result.error
     assert "Scraped example.com" in result.outcome
+    assert result.content is not None
     assert "No readable content found" in result.content
 
 
@@ -68,5 +70,6 @@ async def test_truncation(mock_trafilatura):
 
     assert not result.error
     assert "Scraped example.com" in result.outcome
+    assert result.content is not None
     assert len(result.content) < len(long_content)
     assert "[Content continues...]" in result.content

@@ -27,7 +27,13 @@ async def test_notifications_called_per_iteration(mock_llm, mock_storage):
         return [f"Notification {call_count}"]
 
     mock_llm.set_response_tokens(["Response\n<end>"])
-    agent = Agent(llm=mock_llm, storage=mock_storage, notifications=notifications, max_iterations=2, mode="replay")
+    agent = Agent(
+        llm=mock_llm,
+        storage=mock_storage,
+        notifications=notifications,
+        max_iterations=2,
+        mode="replay",
+    )
 
     async for event in agent("Hello"):
         if event["type"] == "end":
@@ -44,7 +50,9 @@ async def test_notifications_failure_continues(mock_llm, mock_storage):
         raise RuntimeError("Notification source failed")
 
     mock_llm.set_response_tokens(["Response\n<end>"])
-    agent = Agent(llm=mock_llm, storage=mock_storage, notifications=failing_notifications, mode="replay")
+    agent = Agent(
+        llm=mock_llm, storage=mock_storage, notifications=failing_notifications, mode="replay"
+    )
 
     # Should complete without raising
     async for event in agent("Hello"):
@@ -60,7 +68,9 @@ async def test_notifications_empty_list(mock_llm, mock_storage):
         return []
 
     mock_llm.set_response_tokens(["Response\n<end>"])
-    agent = Agent(llm=mock_llm, storage=mock_storage, notifications=empty_notifications, mode="replay")
+    agent = Agent(
+        llm=mock_llm, storage=mock_storage, notifications=empty_notifications, mode="replay"
+    )
 
     async for event in agent("Hello"):
         if event["type"] == "end":

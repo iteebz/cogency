@@ -1,5 +1,6 @@
 import logging
 from collections.abc import AsyncGenerator
+from typing import Any
 
 from ...core.protocols import LLM
 from .interrupt import interruptible
@@ -19,7 +20,7 @@ class Gemini(LLM):
 
     def __init__(
         self,
-        api_key: str = None,
+        api_key: str | None = None,
         http_model: str = "gemini-2.5-flash",
         websocket_model: str = "gemini-2.5-flash-live-preview",
         temperature: float = 0.7,
@@ -32,8 +33,8 @@ class Gemini(LLM):
         self.temperature = temperature
 
         # WebSocket session state
-        self._session = None
-        self._connection = None
+        self._session: Any = None
+        self._connection: Any = None
 
     def _create_client(self, api_key: str):
         """Create Gemini client for given API key."""
@@ -58,7 +59,7 @@ class Gemini(LLM):
                         max_output_tokens=4096,
                     ),
                 )
-                return response.text
+                return response.text or ""
             except ImportError as e:
                 raise ImportError("Please install google-genai: pip install google-genai") from e
 
@@ -112,7 +113,7 @@ class Gemini(LLM):
                     system_instruction += msg["content"] + "\n"
 
             config = types.LiveConnectConfig(
-                response_modalities=["TEXT"],
+                response_modalities=["TEXT"],  # type: ignore[list-item]
                 system_instruction=system_instruction.strip() if system_instruction else "",
             )
             connection = client.aio.live.connect(model=self.websocket_model, config=config)

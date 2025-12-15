@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 async def stream(
     query: str,
-    user_id: str,
+    user_id: str | None,
     conversation_id: str,
     *,
     config: Config,
@@ -61,7 +61,7 @@ async def stream(
     turn = 0
     try:
         messages = await context.assemble(
-            user_id,
+            user_id or "",
             conversation_id,
             tools=config.tools,
             storage=config.storage,
@@ -93,7 +93,7 @@ async def stream(
         # Only "token" mode does token-level streaming; "event" and None both accumulate complete units
         token_streaming = stream == "token"
         accumulator = Accumulator(
-            user_id,
+            user_id or "",
             conversation_id,
             execution=config.execution,
             stream="token" if token_streaming else "event",
@@ -120,7 +120,7 @@ async def stream(
                     # Send query on first turn, payload on subsequent turns
                     send_content = query if payload is None else payload
                     async for event in accumulator.process(
-                        parse_tokens(session.send(send_content))
+                        parse_tokens(session.send(send_content))  # type: ignore[arg-type]
                     ):
                         ev_type = event_type(event)
                         content = event_content(event)
@@ -130,7 +130,7 @@ async def stream(
                             turn_output.append(content)
 
                         if event:
-                            telemetry.add_event(telemetry_events, event)
+                            telemetry.add_event(telemetry_events, event)  # type: ignore[arg-type]
 
                         match ev_type:
                             case "end":

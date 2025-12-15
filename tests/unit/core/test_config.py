@@ -13,7 +13,7 @@ def test_config(mock_llm):
     # Immutability
     config = Config(llm=mock_llm, storage=mock_storage, tools=[mock_tool])
     with pytest.raises(AttributeError):
-        config.mode = "different"
+        config.mode = "different"  # type: ignore[misc]
 
     # Defaults
     assert config.max_iterations == 10

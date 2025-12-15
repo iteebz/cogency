@@ -15,7 +15,7 @@ async def basic_parser():
 @pytest.mark.asyncio
 async def test_chunks_true(mock_config):
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
-    events = [event async for event in accumulator.process(basic_parser())]
+    events = [event async for event in accumulator.process(basic_parser())]  # type: ignore[arg-type]
     types = [e["type"] for e in events]
     assert "think" in types
     assert "call" in types
@@ -33,7 +33,7 @@ async def test_respond_chunked(mock_config):
         yield {"type": "end"}
 
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
-    events = [event async for event in accumulator.process(chunked_respond())]
+    events = [event async for event in accumulator.process(chunked_respond())]  # type: ignore[arg-type]
 
     respond_events = [e for e in events if e["type"] == "respond"]
     assert len(respond_events) == 2
@@ -53,7 +53,7 @@ async def test_respond_chunked(mock_config):
 async def test_chunks_false(mock_config):
     """stream='event': calls are processed immediately, not accumulated"""
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
-    events = [event async for event in accumulator.process(basic_parser())]
+    events = [event async for event in accumulator.process(basic_parser())]  # type: ignore[arg-type]
 
     types = [e["type"] for e in events]
     assert "think" in types
@@ -74,7 +74,7 @@ async def test_end_flushes(mock_config):
         yield {"type": "end"}
 
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
-    events = [event async for event in accumulator.process(respond_with_end())]
+    events = [event async for event in accumulator.process(respond_with_end())]  # type: ignore[arg-type]
 
     assert len(events) == 2
     assert events[0]["type"] == "respond"
@@ -98,7 +98,7 @@ async def test_storage_format(mock_config, mock_tool):
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    [event async for event in accumulator.process(parser_with_tool())]
+    [event async for event in accumulator.process(parser_with_tool())]  # type: ignore[arg-type]
 
     stored_messages = await mock_config.storage.load_messages("test")
     result_messages = [m for m in stored_messages if m["type"] == "result"]
@@ -139,7 +139,7 @@ async def test_sequential_batch(mock_config, mock_tool):
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    events = [event async for event in accumulator.process(parser())]
+    events = [event async for event in accumulator.process(parser())]  # type: ignore[arg-type]
     result_events = [e for e in events if e["type"] == "result"]
 
     assert len(result_events) == 1
@@ -165,7 +165,7 @@ async def test_storage_failure_propagates(mock_llm, failing_storage):
         yield {"type": "respond", "content": "test"}
 
     with pytest.raises(RuntimeError):
-        async for _event in accumulator.process(simple_parser()):
+        async for _event in accumulator.process(simple_parser()):  # type: ignore[arg-type]
             pass
 
 
@@ -181,7 +181,7 @@ async def test_circuit_breaker_terminates(mock_config, mock_tool):
             yield {"type": "call", "content": '{"name": "invalid_tool", "args": {}}'}
             yield {"type": "execute"}
 
-    events = [event async for event in accumulator.process(failing_parser())]
+    events = [event async for event in accumulator.process(failing_parser())]  # type: ignore[arg-type]
     result_events = [e for e in events if e["type"] == "result"]
     end_events = [e for e in events if e["type"] == "end"]
 
@@ -210,7 +210,7 @@ async def test_persistence_policy(mock_config, mock_tool):
         yield {"type": "respond", "content": "response"}
         yield {"type": "end"}
 
-    [event async for event in accumulator.process(all_event_types())]
+    [event async for event in accumulator.process(all_event_types())]  # type: ignore[arg-type]
 
     stored = await mock_config.storage.load_messages("conv_123")
     stored_types = {m["type"] for m in stored}
@@ -239,7 +239,7 @@ async def test_result_has_content(mock_config, mock_tool):
         }
         yield {"type": "execute"}
 
-    events = [event async for event in accumulator.process(parser())]
+    events = [event async for event in accumulator.process(parser())]  # type: ignore[arg-type]
     result_events = [e for e in events if e["type"] == "result"]
 
     assert len(result_events) == 1
@@ -257,7 +257,7 @@ async def test_token_streaming(mock_config):
         yield {"type": "end"}
 
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="token")
-    events = [event async for event in accumulator.process(chunked_parser())]
+    events = [event async for event in accumulator.process(chunked_parser())]  # type: ignore[arg-type]
 
     respond_events = [e for e in events if e["type"] == "respond"]
     assert len(respond_events) == 2, "stream='token' should yield multiple token events"
@@ -273,7 +273,7 @@ async def test_semantic_accumulation(mock_config):
         yield {"type": "end"}
 
     accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
-    events = [event async for event in accumulator.process(chunked_parser())]
+    events = [event async for event in accumulator.process(chunked_parser())]  # type: ignore[arg-type]
 
     respond_events = [e for e in events if e["type"] == "respond"]
     assert len(respond_events) == 1, "stream='event' should yield single accumulated event"
@@ -297,7 +297,7 @@ async def test_result_format_spec(mock_config, mock_tool):
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    events = [event async for event in accumulator.process(parser())]
+    events = [event async for event in accumulator.process(parser())]  # type: ignore[arg-type]
     result_events = [e for e in events if e["type"] == "result"]
 
     result_event = result_events[0]
@@ -334,7 +334,7 @@ async def test_result_metadata(mock_config, mock_tool):
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    events = [event async for event in accumulator.process(parser())]
+    events = [event async for event in accumulator.process(parser())]  # type: ignore[arg-type]
     result_events = [e for e in events if e["type"] == "result"]
 
     result_event = result_events[0]
@@ -368,7 +368,7 @@ async def test_mixed_success_failure_batch(mock_config, mock_tool):
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    events = [event async for event in accumulator.process(parser())]
+    events = [event async for event in accumulator.process(parser())]  # type: ignore[arg-type]
     result_events = [e for e in events if e["type"] == "result"]
 
     assert len(result_events) == 1
@@ -400,7 +400,7 @@ async def test_empty_tool_list_skips_execution(mock_config):
         yield {"type": "execute"}
         yield {"type": "end"}
 
-    events = [event async for event in accumulator.process(parser())]
+    events = [event async for event in accumulator.process(parser())]  # type: ignore[arg-type]
     result_events = [e for e in events if e["type"] == "result"]
 
     assert len(result_events) == 1

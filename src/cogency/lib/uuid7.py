@@ -27,7 +27,7 @@ _USE_NATIVE = hasattr(uuid, "uuid7")
 def uuid7() -> str:
     """Generate UUID v7 (time-ordered) for distributed-safe IDs."""
     if _USE_NATIVE:
-        return str(uuid.uuid7())
+        return str(uuid.uuid7())  # type: ignore[attr-defined]
 
     global _last_timestamp_ms, _counter
 

@@ -74,7 +74,7 @@ async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
 
 @pytest.mark.asyncio
 async def test_llm_provider_required():
-    config = Config(llm=None, storage=Mock(), tools=[], max_iterations=1)
+    config = Config(llm=None, storage=Mock(), tools=[], max_iterations=1)  # type: ignore[arg-type]
 
     with pytest.raises(ValueError, match="LLM provider required"):
         async for _ in resume_stream("test", "user", "conv", config=config):

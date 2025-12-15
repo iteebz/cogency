@@ -140,7 +140,7 @@ class Agent:
             # Persist user message once at agent entry
             timestamp = time.time()
             await self.config.storage.save_message(
-                conversation_id, user_id, "user", query, timestamp
+                conversation_id, user_id or "", "user", query, timestamp
             )
 
             # Emit user event - first event in conversation turn
@@ -198,7 +198,7 @@ class Agent:
 
             timestamp = time.time()
             await self.config.storage.save_message(
-                conversation_id, user_id, "cancelled", "", timestamp
+                conversation_id or "", user_id or "", "cancelled", "", timestamp
             )
             yield {"type": "cancelled", "timestamp": timestamp}
         except (

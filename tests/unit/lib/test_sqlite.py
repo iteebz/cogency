@@ -51,7 +51,7 @@ async def test_multi_agent_isolation(tmp_path):
     storage = SQLite(db_path=tmp_path / "test.db")
     await storage.save_message("shared-channel", "agent_1", "user", "Agent 1 message")
     await storage.save_message("shared-channel", "agent_2", "user", "Agent 2 message")
-    await storage.save_message("shared-channel", None, "user", "Broadcast message")
+    await storage.save_message("shared-channel", None, "user", "Broadcast message")  # type: ignore[arg-type]
 
     agent1_messages = await storage.load_messages("shared-channel", "agent_1")
     assert len(agent1_messages) == 1
@@ -61,7 +61,7 @@ async def test_multi_agent_isolation(tmp_path):
     assert len(agent2_messages) == 1
     assert agent2_messages[0]["content"] == "Agent 2 message"
 
-    all_messages = await storage.load_messages("shared-channel", None)
+    all_messages = await storage.load_messages("shared-channel", None)  # type: ignore[arg-type]
     assert len(all_messages) == 3
 
 

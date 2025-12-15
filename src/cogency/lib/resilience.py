@@ -8,7 +8,7 @@ def retry(attempts: int = 3, base_delay: float = 0.1):
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            last_exc = None
+            last_exc: Exception | None = None
             for attempt in range(attempts):
                 try:
                     return (
@@ -22,7 +22,9 @@ def retry(attempts: int = 3, base_delay: float = 0.1):
                         delay = base_delay * (2**attempt)
                         await asyncio.sleep(delay)
 
-            raise last_exc
+            if last_exc:
+                raise last_exc
+            return None
 
         return wrapper
 

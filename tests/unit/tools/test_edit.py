@@ -51,6 +51,7 @@ line 3
     )
 
     # Verify the diff content contract
+    assert result.content is not None
     assert "--- " in result.content
     assert "+++ " in result.content
     assert "-line 2 old" in result.content

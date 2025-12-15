@@ -38,8 +38,8 @@ class RecallParams:
 async def Recall(
     params: RecallParams,
     storage: Storage,
-    conversation_id: str = None,
-    user_id: str = None,
+    conversation_id: str | None = None,
+    user_id: str | None = None,
     **kwargs,
 ) -> ToolResult:
     if not params.query or not params.query.strip():
@@ -49,7 +49,7 @@ async def Recall(
         return ToolResult(outcome="User ID required for memory recall", error=True)
 
     query = params.query.strip()
-    current_timestamps = await _get_timestamps(storage, conversation_id)
+    current_timestamps = await _get_timestamps(storage, conversation_id or "")
     # Excludes current conversation to prevent contamination
     matches = await _search_messages(storage, query, user_id, current_timestamps, limit=3)
 

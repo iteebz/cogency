@@ -119,7 +119,7 @@ def sanitize_shell_input(command: str) -> str:
         raise ValueError(f"Invalid shell command syntax: {e}") from None
 
 
-def validate_path(file_path: str, base_dir: Path = None) -> Path:
+def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
     """Validate and resolve file path. [SEC-004]
 
     Blocks:
@@ -190,6 +190,7 @@ def timeout_context(seconds: int):
     def timeout_handler(signum, frame):
         raise TimeoutError(f"Operation timed out after {seconds} seconds")
 
+    old_handler = None
     try:
         old_handler = signal.signal(signal.SIGALRM, timeout_handler)
         signal.alarm(seconds)
@@ -199,7 +200,8 @@ def timeout_context(seconds: int):
     finally:
         try:
             signal.alarm(0)
-            signal.signal(signal.SIGALRM, old_handler)
+            if old_handler is not None:
+                signal.signal(signal.SIGALRM, old_handler)
         except AttributeError:
             pass
 

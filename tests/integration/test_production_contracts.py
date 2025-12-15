@@ -55,17 +55,8 @@ async def test_telemetry_failure_doesnt_crash_agent(mock_config, mock_llm, mock_
         async def load_user_messages(self, *args, **kwargs):
             return await self.base.load_user_messages(*args, **kwargs)
 
-        async def load_messages_by_conversation_id(self, *args, **kwargs):
-            return await self.base.load_messages_by_conversation_id(*args, **kwargs)
-
-        async def search_messages(self, *args, **kwargs):
-            return await self.base.search_messages(*args, **kwargs)
-
-        async def delete_profile(self, *args, **kwargs):
-            return await self.base.delete_profile(*args, **kwargs)
-
-        async def load_latest_metric(self, *args, **kwargs):
-            return await self.base.load_latest_metric(*args, **kwargs)
+        async def save_request(self, *args, **kwargs):
+            return await self.base.save_request(*args, **kwargs)
 
     llm = mock_llm.set_response_tokens(protocol_tokens)
     storage = FailingTelemetryStorage(mock_config.storage)
@@ -80,7 +71,10 @@ async def test_telemetry_failure_doesnt_crash_agent(mock_config, mock_llm, mock_
     # Verify execution succeeded despite telemetry failure
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) > 0
-    assert result_events[0]["payload"]["success_count"] == 1
+    result_event = result_events[0]
+    assert result_event["type"] == "result"
+    payload = result_event.get("payload", {})
+    assert payload.get("success_count") == 1
 
 
 @pytest.mark.asyncio
@@ -134,10 +128,11 @@ async def test_resume_fallback_to_replay_on_missing_provider(mock_tool):
         async def generate(self, messages):
             return f'<execute>[{{"name": "{mock_tool_instance.name}", "args": {{"message": "test"}}}}]</execute>Done'
 
-        # No connect() method - missing WebSocket
+        async def close(self):
+            pass
 
     llm = NoWebSocketLLM()
-    agent = Agent(llm=llm, tools=[mock_tool_instance], mode="auto", max_iterations=1)
+    agent = Agent(llm=llm, tools=[mock_tool_instance], mode="auto", max_iterations=1)  # type: ignore[arg-type]
 
     # Should NOT raise - should fallback to replay
     events = [event async for event in agent("Test query")]
@@ -159,11 +154,29 @@ async def test_storage_load_error_propagates(mock_config):
     class FailingStorage:
         """Storage that fails on load_messages."""
 
+        async def save_message(self, *args, **kwargs):
+            raise NotImplementedError
+
         async def load_messages(self, *args, **kwargs):
             raise RuntimeError("Database checksum mismatch - data corrupted")
 
+        async def save_event(self, *args, **kwargs):
+            raise NotImplementedError
+
+        async def save_request(self, *args, **kwargs):
+            raise NotImplementedError
+
+        async def save_profile(self, *args, **kwargs):
+            raise NotImplementedError
+
         async def load_profile(self, *args, **kwargs):
             return {}
+
+        async def count_user_messages(self, *args, **kwargs):
+            return 0
+
+        async def load_user_messages(self, *args, **kwargs):
+            return []
 
     with pytest.raises(RuntimeError, match="corrupted"):
         await assemble(
@@ -200,9 +213,12 @@ async def test_tool_error_fed_back_to_llm(mock_llm, mock_tool):
     assert len(result_events) > 0
 
     result = result_events[0]
-    results_json = json.loads(result["content"])
+    assert result["type"] == "result"
+    content = result.get("content", "")
+    results_json = json.loads(content)
     assert results_json[0]["status"] == "failure"
-    assert result["payload"]["failure_count"] == 1
+    payload = result.get("payload", {})
+    assert payload.get("failure_count") == 1
 
 
 @pytest.mark.asyncio
@@ -237,7 +253,7 @@ async def test_context_assembly_requires_storage(mock_config):
             user_id="test",
             conversation_id="conv",
             tools=[],
-            storage=None,  # Missing storage
+            storage=None,  # type: ignore[arg-type]  # Missing storage
             history_window=None,
             profile_enabled=False,
         )

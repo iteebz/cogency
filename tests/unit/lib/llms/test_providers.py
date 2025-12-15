@@ -27,9 +27,11 @@ async def test_llm_generate(llm_instance):
     async def mock_rotation(prefix, func, *args, **kwargs):
         return await func("test-key")
 
-    with patch.object(llm_instance, "_create_client") as mock_create_client, \
-         patch("cogency.lib.llms.openai.with_rotation", mock_rotation), \
-         patch("cogency.lib.llms.gemini.with_rotation", mock_rotation):
+    with (
+        patch.object(llm_instance, "_create_client") as mock_create_client,
+        patch("cogency.lib.llms.openai.with_rotation", mock_rotation),
+        patch("cogency.lib.llms.gemini.with_rotation", mock_rotation),
+    ):
         mock_client_instance = mock_create_client.return_value
         mock_response = MagicMock()  # Make mock_response a MagicMock
 
@@ -59,9 +61,11 @@ async def test_llm_stream(llm_instance):
     async def mock_rotation(prefix, func, *args, **kwargs):
         return await func("test-key")
 
-    with patch.object(llm_instance, "_create_client") as mock_create_client, \
-         patch("cogency.lib.llms.openai.with_rotation", mock_rotation), \
-         patch("cogency.lib.llms.gemini.with_rotation", mock_rotation):
+    with (
+        patch.object(llm_instance, "_create_client") as mock_create_client,
+        patch("cogency.lib.llms.openai.with_rotation", mock_rotation),
+        patch("cogency.lib.llms.gemini.with_rotation", mock_rotation),
+    ):
         mock_client_instance = mock_create_client.return_value
         mock_stream_response = AsyncMock()
 

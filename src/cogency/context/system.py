@@ -14,9 +14,9 @@ from ..core.protocols import Tool
 
 
 def prompt(
-    tools: list[Tool] = None,
-    identity: str = None,
-    instructions: str = None,
+    tools: list[Tool] | None = None,
+    identity: str | None = None,
+    instructions: str | None = None,
 ) -> str:
     """Generate minimal viable prompt for maximum emergence.
 

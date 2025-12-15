@@ -21,7 +21,9 @@ async def assemble(
     instructions: str | None = None,
 ) -> list[dict]:
     """Assemble complete context from storage."""
-    system_content = [system_prompt(tools=tools, identity=identity, instructions=instructions)]
+    system_content = [
+        system_prompt(tools=list(tools), identity=identity, instructions=instructions)
+    ]
 
     if profile_enabled:
         try:

@@ -41,6 +41,7 @@ async def test_hides_ignored_directories(setup_test_dir):
 
     assert not result.error
     content = result.content
+    assert content is not None
 
     # Assert that ignored directories are NOT in the output
     assert "node_modules/" not in content
@@ -73,6 +74,7 @@ async def test_hides_ignored_directories_recursive(setup_test_dir):
 
     assert not result.error
     content = result.content
+    assert content is not None
 
     # Assert that the nested ignored directory is NOT in the output
     assert "node_modules/" not in content
@@ -91,7 +93,10 @@ async def test_empty_directory_with_ignored_dirs(tmp_path):
     result = await List.execute(path=str(tmp_path / "empty_but_ignored"), access="system")
 
     assert not result.error
+    assert result.content is not None
+    assert result.content is not None
     assert "No files found" in result.content or not result.content.strip()
+    assert result.content is not None
     assert "node_modules/" not in result.content
 
 
@@ -105,8 +110,12 @@ async def test_only_ignored_dirs_in_root(tmp_path):
     result = await List.execute(path=str(tmp_path / "only_ignored"), access="system")
 
     assert not result.error
+    assert result.content is not None
+    assert result.content is not None
     assert "No files found" in result.content or not result.content.strip()
+    assert result.content is not None
     assert "node_modules/" not in result.content
+    assert result.content is not None
     assert ".venv/" not in result.content
 
 
@@ -129,9 +138,13 @@ async def test_simple_pattern_matching(tmp_path: Path):
     assert not result.error
     assert "files" in result.outcome.lower()
     assert "dirs" in result.outcome.lower()
+    assert result.content is not None
     assert "file1.py" in result.content
+    assert result.content is not None
     assert "file2.txt" not in result.content
+    assert result.content is not None
     assert "sub/" in result.content
+    assert result.content is not None
     assert "file3.py" in result.content
 
 
@@ -146,6 +159,7 @@ async def test_complex_pattern_matching(tmp_path: Path):
 
     assert not result.error
     assert result.outcome.startswith("Listed 1")
+    assert result.content is not None
     assert "file1.py" in result.content
 
 
@@ -158,6 +172,7 @@ async def test_pattern_does_not_override_ignored_dirs(setup_test_dir):
 
     assert not result.error
     content = result.content
+    assert content is not None
 
     # Assert that the file within the ignored directory is NOT in the output
     assert "important.js" not in content

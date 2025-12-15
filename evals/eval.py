@@ -105,7 +105,7 @@ def _persist_run(results, samples, llm, mode, judge_llm, seed, run_id):
     from cogency import Agent
 
     config_data = {
-        "llm": Agent(llm=llm).config.llm.http_model,
+        "llm": getattr(Agent(llm=llm).config.llm, "http_model", llm),
         "mode": mode,
         "sample_size": samples,
         "judge": judge_llm.__class__.__name__ if judge_llm else None,
@@ -207,20 +207,20 @@ def logs(run_id, test_id=None):
 async def cli():
     """CLI entry point."""
 
-    def parse_arg(args, flag, default, cast=str):
+    def parse_arg(args, flag, default, cast=None):
         if flag in args:
             idx = args.index(flag)
-            val = cast(args[idx + 1])
+            val = cast(args[idx + 1]) if cast else args[idx + 1]
             del args[idx : idx + 2]
             return val
         return default
 
     args = sys.argv[1:]
-    samples = parse_arg(args, "--samples", 2, int)
-    seed = parse_arg(args, "--seed", 42, int)
-    mode = parse_arg(args, "--mode", "replay")
-    concurrency = parse_arg(args, "--concurrency", 2, int)
-    llm = parse_arg(args, "--llm", "gemini")
+    samples = int(parse_arg(args, "--samples", 2, int))
+    seed = int(parse_arg(args, "--seed", 42, int))
+    mode = str(parse_arg(args, "--mode", "replay"))
+    concurrency = int(parse_arg(args, "--concurrency", 2, int))
+    llm = str(parse_arg(args, "--llm", "gemini"))
     judge = "--judge" in sys.argv[1:]
 
     category = args[0] if args and not args[0].startswith("--") else None

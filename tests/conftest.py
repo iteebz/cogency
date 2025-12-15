@@ -141,7 +141,6 @@ def mock_llm():
 
         async def close(self):
             self._is_session = False
-            return True
 
     return MockLLM()
 
@@ -210,40 +209,28 @@ def mock_stream_context():
 @pytest.fixture
 def mock_tool():
     class MockTool(Tool):
+        name = "test_tool"
+        description = "Tool for testing"
+        schema = {"message": {}}
+
         def __init__(
             self, name="test_tool", description="Tool for testing", schema=None, should_fail=False
         ):
-            self._name = name
-            self._description = description
-            self._schema = schema or {"message": {}}
+            self.name = name
+            self.description = description
+            self.schema = schema or {"message": {}}
             self._should_fail = should_fail
 
-        @property
-        def name(self) -> str:
-            return self._name
-
-        @property
-        def description(self) -> str:
-            return self._description
-
-        @property
-        def schema(self) -> dict:
-            return self._schema
-
-        def describe(self) -> dict:
-            return {
-                "name": self._name,
-                "description": self._description,
-                "schema": self._schema,
-            }
+        def describe(self, args: dict) -> str:
+            return f"{self.name}({', '.join(f'{k}={v}' for k, v in args.items())})"
 
         def configure(self, name=None, description=None, schema=None, should_fail=None):
             if name is not None:
-                self._name = name
+                self.name = name
             if description is not None:
-                self._description = description
+                self.description = description
             if schema is not None:
-                self._schema = schema
+                self.schema = schema
             if should_fail is not None:
                 self._should_fail = should_fail
             return self
@@ -270,7 +257,7 @@ class _ResumeSessionMock:
             yield token
 
     async def close(self):
-        return True
+        pass
 
 
 class _ResumeLLMMock:

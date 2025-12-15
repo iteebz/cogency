@@ -51,9 +51,9 @@ class Accumulator:
         self.circuit_breaker = CircuitBreaker(max_failures=max_failures)
 
         # Accumulation state
-        self.current_type = None
+        self.current_type: str | None = None
         self.content = ""
-        self.start_time = None
+        self.start_time: float | None = None
 
         # Batch execution state for multi-tool blocks
         self.pending_calls = []  # Accumulated ToolCall objects before execute event
@@ -77,8 +77,8 @@ class Accumulator:
             )
 
         # Emit event in semantic mode (skip calls - handled by execute)
-        if self.stream == "event" and self.current_type != "call":
-            return {
+        if self.stream == "event" and self.current_type != "call" and self.start_time is not None:
+            return {  # type: ignore[return-value]
                 "type": self.current_type,
                 "content": clean_content,
                 "timestamp": self.start_time,

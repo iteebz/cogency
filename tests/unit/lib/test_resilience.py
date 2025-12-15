@@ -88,7 +88,7 @@ async def test_retry_sync_and_async():
     async def async_fn():
         return "async"
 
-    assert await sync_fn() == "sync"
+    assert await sync_fn() == "sync"  # type: ignore[misc]
     assert await async_fn() == "async"
 
 

@@ -21,7 +21,10 @@ async def test_no_chunks(mock_llm, mock_tool):
 
     # Verify user event first
     assert events[0]["type"] == "user"
-    assert events[0]["content"] == "Test query"
+    user_event = events[0]
+    assert user_event["type"] == "user"
+    content = user_event.get("content", "")
+    assert content == "Test query"
 
     # Verify all core events present (order may vary in event mode)
     assert "think" in event_types
@@ -31,14 +34,20 @@ async def test_no_chunks(mock_llm, mock_tool):
 
     # Verify think content
     think_event = next((e for e in events if e["type"] == "think"), None)
-    assert think_event and "need to call a tool" in think_event["content"]
+    assert think_event is not None
+    assert think_event["type"] == "think"
+    think_content = think_event.get("content", "")
+    assert "need to call a tool" in think_content
 
     result_event = next((e for e in events if e["type"] == "result"), None)
     assert result_event is not None
-    assert result_event["payload"]["tools_executed"] == 1
-    assert result_event["payload"]["success_count"] == 1
-    assert '"tool"' in result_event["content"]
-    assert "test_tool" in result_event["content"]
+    assert result_event["type"] == "result"
+    payload = result_event.get("payload", {})
+    assert payload.get("tools_executed") == 1
+    assert payload.get("success_count") == 1
+    result_content = result_event.get("content", "")
+    assert '"tool"' in result_content
+    assert "test_tool" in result_content
 
 
 @pytest.mark.asyncio
@@ -56,7 +65,9 @@ async def test_chunks(mock_llm, mock_tool):
     events = [event async for event in agent("Test query", stream="token")]
 
     assert len(events) >= 5
-    content_events = [e["content"] for e in events if e.get("content")]
+    from cogency.core.protocols import event_content
+
+    content_events = [event_content(e) for e in events if isinstance(e, dict) and event_content(e)]  # type: ignore[arg-type]
     assert len(content_events) >= 3
 
 
@@ -83,10 +94,13 @@ async def test_tool_execution(mock_llm, mock_tool):
     assert metric_event["type"] == "metric"
     assert result_event["type"] == "result"
 
-    assert result_event["payload"]["tools_executed"] == 1
-    assert result_event["payload"]["success_count"] == 1
-    assert '"tool"' in result_event["content"]
-    assert "test_tool" in result_event["content"]
+    assert result_event["type"] == "result"
+    payload = result_event.get("payload", {})
+    assert payload.get("tools_executed") == 1
+    assert payload.get("success_count") == 1
+    result_content = result_event.get("content", "")
+    assert '"tool"' in result_content
+    assert "test_tool" in result_content
 
 
 @pytest.mark.asyncio
@@ -105,7 +119,8 @@ async def test_error_handling(mock_llm, mock_tool):
     events = [event async for event in agent("Test query", stream="event")]
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
-    assert result_events[0]["payload"]["failure_count"] == 1
+    payload = result_events[0].get("payload", {})
+    assert payload.get("failure_count") == 1
 
 
 @pytest.mark.asyncio
@@ -155,14 +170,23 @@ async def test_event_taxonomy(mock_llm, mock_tool):
     class MultiIterMockLLM:
         http_model = "test"
 
-        async def generate(self, messages):
-            return ""
-
         async def stream(self, messages):
             tokens = iteration_tokens[min(iteration_idx[0], len(iteration_tokens) - 1)]
             iteration_idx[0] += 1
             for token in tokens:
                 yield token
+
+        async def generate(self, messages):
+            raise NotImplementedError
+
+        async def connect(self, messages):
+            raise NotImplementedError
+
+        def send(self, content):
+            raise NotImplementedError
+
+        async def close(self):
+            pass
 
     agent = Agent(
         llm=MultiIterMockLLM(), tools=[mock_tool_instance], mode="replay", max_iterations=2
@@ -206,6 +230,15 @@ async def test_generate_mode(mock_llm, mock_tool):
             for token in completion:
                 yield token
 
+        async def connect(self, messages):
+            raise NotImplementedError
+
+        def send(self, content):
+            raise NotImplementedError
+
+        async def close(self):
+            pass
+
     agent = Agent(llm=GenerateMockLLM(), tools=[mock_tool()], mode="replay", max_iterations=1)
     events = [event async for event in agent("Test", stream=None)]
 
@@ -216,7 +249,9 @@ async def test_generate_mode(mock_llm, mock_tool):
     assert "respond" in event_types
 
     think_event = next(e for e in events if e["type"] == "think")
-    assert "analyzing request" in think_event["content"]
+    think_content = think_event.get("content", "")
+    assert "analyzing request" in think_content
 
     respond_event = next(e for e in events if e["type"] == "respond")
-    assert "42" in respond_event["content"]
+    respond_content = respond_event.get("content", "")
+    assert "42" in respond_content

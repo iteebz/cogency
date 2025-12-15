@@ -33,7 +33,7 @@ pytest = "pytest:main"
 
 
 [tool.poetry.dependencies]
-python = ">=3.11,<4.0"
+python = ">=3.11,<3.13"
 
 # Core dependencies
 python-dotenv = "^1.0.0"
@@ -55,6 +55,7 @@ pytest = "^8.4.1"
 pytest-asyncio = "^1.1.0"
 pytest-timeout = "^2.4.0"
 pytest-cov = "^7.0.0"
+pyright = "^1.1.407"
 
 
 
@@ -118,6 +119,10 @@ markers = [
 
 [tool.pytest_asyncio]
 asyncio_mode = "auto"
+
+[tool.pyright]
+pythonVersion = "3.12"
+include = ["src", "evals", "tests"]
 
 [tool.coverage.run]
 source = ["src/cogency"]
