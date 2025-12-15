@@ -8,6 +8,8 @@ from .rotation import get_api_key, with_rotation
 
 logger = logging.getLogger(__name__)
 
+MAX_SESSION_MESSAGES = 1000
+
 
 class Gemini(LLM):
     """Gemini provider with HTTP streaming and WebSocket (Live API) support.
@@ -193,11 +195,13 @@ class Gemini(LLM):
 
                 # Wait for both Gemini stream completion signals
                 if seen_generation_complete and hasattr(sc, "turn_complete") and sc.turn_complete:
-                    return  # Provider infrastructure turn completion
+                    return
 
-            # Safety limit
-            if message_count > 100:
-                logger.warning("Gemini session hit message limit")
+            if message_count > MAX_SESSION_MESSAGES:
+                logger.error(
+                    f"Gemini session exceeded {MAX_SESSION_MESSAGES} messages without completion signals. "
+                    "This indicates a protocol violation or infinite loop."
+                )
                 return
 
     async def close(self) -> None:
@@ -228,8 +232,7 @@ class Gemini(LLM):
                 if seen_generation_complete and hasattr(sc, "turn_complete") and sc.turn_complete:
                     return
 
-            # Safety limit
-            if message_count > 100:
+            if message_count > MAX_SESSION_MESSAGES:
                 return
 
     def _convert_messages_to_gemini_format(self, messages: list[dict]) -> list:

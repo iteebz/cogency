@@ -188,12 +188,13 @@ class OpenAI(LLM):
             logger.error(f"Error sending message in OpenAI session: {e}")
             raise
 
-        # Always try to create response, but handle active response gracefully
         try:
             await self._connection.response.create()
         except Exception as e:
-            if "already has an active response" in str(e):
-                # Continue with existing response stream
+            if hasattr(e, "code") and e.code == "active_response_exists":
+                pass
+            elif "already has an active response" in str(e).lower():
+                logger.debug("Active response detected via string match (fragile)")
                 pass
             else:
                 raise
@@ -216,7 +217,11 @@ class OpenAI(LLM):
                     logger.debug("Got response.output_text.done")
                     pass
                 elif event.type == "error":
-                    if "already has an active response" in str(event):
+                    error_code = getattr(event, "code", None)
+                    if error_code == "active_response_exists":
+                        continue
+                    if "already has an active response" in str(event).lower():
+                        logger.debug("Active response error via string match (fragile)")
                         continue
                     logger.warning(f"OpenAI session error: {event}")
                     return

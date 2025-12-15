@@ -53,7 +53,7 @@ async def assemble(
         if history_window is not None:
             load_limit = history_window * 2
         events = await storage.load_messages(conversation_id, user_id, limit=load_limit)
-        
+
         if history_window is None and len(events) > MAX_CONVERSATION_LENGTH:
             raise StorageError(
                 f"Conversation exceeds {MAX_CONVERSATION_LENGTH} events. "

@@ -1,6 +1,15 @@
+import json
+
 import pytest
 
-from cogency.core.codec import _auto_escape_content, parse_tool_call, parse_tool_result
+from cogency.core.codec import (
+    format_call_agent,
+    format_result_agent,
+    parse_tool_call,
+    parse_tool_result,
+    tool_instructions,
+)
+from cogency.core.protocols import ToolCall, ToolResult
 
 
 def test_valid_json():
@@ -22,23 +31,6 @@ def test_unquoted_keys():
 def test_missing_colon():
     with pytest.raises(ValueError):
         parse_tool_call('{"name": "tool", "args" {"key": "val"}}')
-
-
-def test_auto_escape_content():
-    escaped = _auto_escape_content('{"name": "w", "args": {"content": "a\nb"}}')
-    assert escaped == '{"name": "w", "args": {"content": "a\\nb"}}'
-
-
-def test_auto_escape_quotes():
-    json_str = '{"name": "w", "args": {"content": "say \\"hi\\""}}'
-    result = parse_tool_call(json_str)
-    assert result.args["content"] == 'say "hi"'
-
-
-def test_auto_escape_backslashes():
-    json_str = '{"name": "w", "args": {"content": "path\\to\\file"}}'
-    result = parse_tool_call(json_str)
-    assert result.args["content"] == "path\to\file"
 
 
 def test_complex_fails():
@@ -70,3 +62,31 @@ def test_result_malformed_json():
     results = parse_tool_result("{bad json}")
     assert len(results) == 1
     assert results[0].outcome == "{bad json}"
+
+
+def test_tool_instructions(mock_tool):
+    tool_instance = mock_tool()
+    tool_instance.configure(
+        name="mock",
+        description="Mock tool",
+        schema={"arg1": {"required": True}, "arg2": {"required": False}},
+    )
+    tools = [tool_instance]
+    result = tool_instructions(tools)
+    assert "mock(arg1, arg2?) - Mock tool" in result
+
+
+def test_format_call_agent():
+    call = ToolCall(name="write", args={"file": "test.txt", "content": "data"})
+    result = format_call_agent(call)
+    parsed = json.loads(result)
+    assert parsed["name"] == "write"
+    assert parsed["args"]["file"] == "test.txt"
+
+
+def test_format_result_agent():
+    result_with_content = ToolResult(outcome="Success", content="file written")
+    assert format_result_agent(result_with_content) == "Success\nfile written"
+
+    result_no_content = ToolResult(outcome="Done", content="")
+    assert format_result_agent(result_no_content) == "Done"

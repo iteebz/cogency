@@ -75,51 +75,12 @@ def format_results_array(calls: list[ToolCall], results: list[ToolResult]) -> st
     return json.dumps(array)
 
 
-def _auto_escape_content(json_str: str) -> str:
-    """Escape unescaped content in JSON strings."""
-    content_start = json_str.find('"content": "')
-    if content_start == -1:
-        return json_str
-
-    value_start = content_start + len('"content": "')
-    i = value_start
-    escaped = False
-
-    while i < len(json_str):
-        char = json_str[i]
-
-        if escaped:
-            escaped = False
-            i += 1
-            continue
-
-        if char == "\\":
-            escaped = True
-            i += 1
-            continue
-
-        if char == '"':
-            break
-
-        i += 1
-
-    if i >= len(json_str):
-        return json_str
-
-    content = json_str[value_start:i]
-    escaped = (
-        content.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-    )
-
-    return json_str[:value_start] + escaped + json_str[i:]
-
-
 def parse_tool_call(json_str: str) -> ToolCall:
-    """Parse ToolCall from JSON with minimal error recovery."""
+    """Parse ToolCall from JSON.
+
+    Minimal error recovery: extracts JSON object bounds and handles triple-quote strings.
+    Invalid JSON raises ToolParseError immediately - no heuristic patching.
+    """
     json_str = json_str.strip()
     if "{" in json_str and "}" in json_str:
         start = json_str.find("{")
@@ -128,11 +89,6 @@ def parse_tool_call(json_str: str) -> ToolCall:
 
     if '"""' in json_str:
         json_str = re.sub(r'"""([^"]*?)"""', r'"\1"', json_str, flags=re.DOTALL)
-
-    try:
-        json.loads(json_str)
-    except json.JSONDecodeError:
-        json_str = _auto_escape_content(json_str)
 
     try:
         data = json.loads(json_str)
