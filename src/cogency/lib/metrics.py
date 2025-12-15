@@ -1,6 +1,8 @@
 import logging
 import time
 
+from ..core.protocols import MetricEvent
+
 logger = logging.getLogger(__name__)
 
 try:
@@ -110,7 +112,7 @@ class Metrics:
     def total_tokens(self):
         return self.input_tokens + self.output_tokens
 
-    def event(self) -> dict:
+    def event(self) -> MetricEvent:
         """Create clean metric event."""
         now = time.time()
         return {
@@ -125,4 +127,5 @@ class Metrics:
                 "output": self.output_tokens,
                 "duration": now - (self.task_start_time or 0),
             },
+            "timestamp": now,
         }

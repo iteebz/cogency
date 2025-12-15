@@ -187,7 +187,9 @@ async def test_circuit_breaker_terminates(mock_config, mock_tool):
 
     assert len(end_events) == 1
     assert len(result_events) <= 4
-    assert "Max failures" in result_events[-1]["payload"]["outcome"]
+    payload = result_events[-1]["payload"]
+    assert payload is not None
+    assert "Max failures" in payload["outcome"]
 
 
 @pytest.mark.asyncio
@@ -339,6 +341,7 @@ async def test_result_metadata(mock_config, mock_tool):
 
     result_event = result_events[0]
     payload = result_event["payload"]
+    assert payload is not None
 
     assert "tools_executed" in payload
     assert "success_count" in payload
@@ -373,6 +376,7 @@ async def test_mixed_success_failure_batch(mock_config, mock_tool):
 
     assert len(result_events) == 1
     payload = result_events[0]["payload"]
+    assert payload is not None
     assert payload["tools_executed"] == 2
     assert payload["success_count"] == 1
     assert payload["failure_count"] == 1
@@ -405,4 +409,5 @@ async def test_empty_tool_list_skips_execution(mock_config):
 
     assert len(result_events) == 1
     payload = result_events[0]["payload"]
+    assert payload is not None
     assert payload["failure_count"] == 1

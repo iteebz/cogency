@@ -30,8 +30,8 @@ class ExecuteEvent(TypedDict):
 class ResultEvent(TypedDict):
     type: Literal["result"]
     content: str
-    payload: dict[str, Any]
     timestamp: float
+    payload: dict[str, Any] | None
 
 
 class RespondEvent(TypedDict):
@@ -49,6 +49,7 @@ class MetricEvent(TypedDict):
     type: Literal["metric"]
     step: dict[str, Any]
     total: dict[str, Any]
+    timestamp: float
 
 
 class ErrorEvent(TypedDict):
@@ -105,8 +106,11 @@ def event_type(event: Event) -> EventType:
 
 
 def event_content(event: Event) -> str:
-    """Get the human-readable content payload if present."""
+    """Extract content from events that have it, empty string otherwise.
 
+    Events with content: user, think, call, result, respond, error.
+    Events without: execute, end, metric, interrupt, cancelled.
+    """
     if "content" in event:
         return event["content"] or ""
     return ""

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from collections.abc import AsyncGenerator
 
 from .protocols import Event, ToolCall
@@ -135,7 +136,7 @@ async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event,
     tool_calls = parse_execute_block(xml_block)
     for call in tool_calls:
         call_json = json.dumps({"name": call.name, "args": call.args})
-        yield {"type": "call", "content": call_json}  # type: ignore[misc]
+        yield {"type": "call", "content": call_json, "timestamp": time.time()}
 
 
 async def parse_tokens(
@@ -178,7 +179,7 @@ async def parse_tokens(
 
             prefix = buffer[:start_pos]
             if prefix.strip():
-                yield {"type": "respond", "content": prefix}  # type: ignore[misc]
+                yield {"type": "respond", "content": prefix, "timestamp": time.time()}
 
             content_start = open_end
             content_end = close_pos - len(TAG_PATTERN[tag_name][1])
@@ -190,22 +191,31 @@ async def parse_tokens(
                         f"<execute>{content}</execute>"
                     ):
                         yield event
-                    yield {"type": "execute"}  # type: ignore[misc]
+                    yield {"type": "execute", "timestamp": time.time()}
                 except ParseError as e:
                     logger.error(f"Malformed <execute> block: {e}")
-                    yield {"type": "respond", "content": f"Error: Malformed tool call syntax. {e}"}  # type: ignore[misc]
+                    yield {
+                        "type": "respond",
+                        "content": f"Error: Malformed tool call syntax. {e}",
+                        "timestamp": time.time(),
+                    }
             elif tag_name == "think":
                 if content.strip():
-                    yield {"type": "think", "content": content}  # type: ignore[misc]
+                    yield {"type": "think", "content": content, "timestamp": time.time()}
             elif tag_name == "results" and content.strip():
-                yield {"type": "result", "content": content}  # type: ignore[misc]
+                yield {
+                    "type": "result",
+                    "content": content,
+                    "timestamp": time.time(),
+                    "payload": None,
+                }
             elif tag_name == "end":
-                yield {"type": "end"}  # type: ignore[misc]
+                yield {"type": "end", "timestamp": time.time()}
 
             buffer = buffer[close_pos:]
 
     if buffer.strip():
-        yield {"type": "respond", "content": buffer}  # type: ignore[misc]
+        yield {"type": "respond", "content": buffer, "timestamp": time.time()}
 
 
 __all__ = ["parse_tokens"]

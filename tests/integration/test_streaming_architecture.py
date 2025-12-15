@@ -1,6 +1,9 @@
+from typing import cast
+
 import pytest
 
 from cogency import Agent
+from cogency.core.protocols import ResultEvent
 
 
 @pytest.mark.asyncio
@@ -39,12 +42,14 @@ async def test_no_chunks(mock_llm, mock_tool):
     think_content = think_event.get("content", "")
     assert "need to call a tool" in think_content
 
-    result_event = next((e for e in events if e["type"] == "result"), None)
-    assert result_event is not None
+    result_event_raw = next((e for e in events if e["type"] == "result"), None)
+    assert result_event_raw is not None
+    result_event = cast(ResultEvent, result_event_raw)
     assert result_event["type"] == "result"
-    payload = result_event.get("payload", {})
-    assert payload.get("tools_executed") == 1
-    assert payload.get("success_count") == 1
+    payload = result_event["payload"]
+    assert payload is not None
+    assert payload["tools_executed"] == 1
+    assert payload["success_count"] == 1
     result_content = result_event.get("content", "")
     assert '"tool"' in result_content
     assert "test_tool" in result_content
@@ -92,12 +97,14 @@ async def test_tool_execution(mock_llm, mock_tool):
     assert call_event["type"] == "call"
     assert execute_event["type"] == "execute"
     assert metric_event["type"] == "metric"
-    assert result_event["type"] == "result"
+    result_event_typed = cast(ResultEvent, result_event)
+    assert result_event_typed["type"] == "result"
 
-    assert result_event["type"] == "result"
-    payload = result_event.get("payload", {})
-    assert payload.get("tools_executed") == 1
-    assert payload.get("success_count") == 1
+    assert result_event_typed["type"] == "result"
+    payload = result_event_typed["payload"]
+    assert payload is not None
+    assert payload["tools_executed"] == 1
+    assert payload["success_count"] == 1
     result_content = result_event.get("content", "")
     assert '"tool"' in result_content
     assert "test_tool" in result_content
@@ -119,8 +126,10 @@ async def test_error_handling(mock_llm, mock_tool):
     events = [event async for event in agent("Test query", stream="event")]
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
-    payload = result_events[0].get("payload", {})
-    assert payload.get("failure_count") == 1
+    result_event = cast(ResultEvent, result_events[0])
+    payload = result_event["payload"]
+    assert payload is not None
+    assert payload["failure_count"] == 1
 
 
 @pytest.mark.asyncio

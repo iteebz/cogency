@@ -21,7 +21,7 @@ from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
 from .parser import parse_tokens
-from .protocols import event_content, event_type
+from .protocols import Event, event_content, event_type
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ async def stream(
             metrics.start_step()
             metrics.add_input(messages)
 
-        telemetry_events: list[dict] = []
+        telemetry_events: list[Event] = []
         session = await llm.connect(messages)
 
         complete = False

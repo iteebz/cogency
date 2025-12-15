@@ -10,10 +10,12 @@ production failures:
 """
 
 import json
+from typing import cast
 
 import pytest
 
 from cogency import Agent
+from cogency.core.protocols import ResultEvent
 
 
 @pytest.mark.asyncio
@@ -71,10 +73,11 @@ async def test_telemetry_failure_doesnt_crash_agent(mock_config, mock_llm, mock_
     # Verify execution succeeded despite telemetry failure
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) > 0
-    result_event = result_events[0]
+    result_event = cast(ResultEvent, result_events[0])
     assert result_event["type"] == "result"
-    payload = result_event.get("payload", {})
-    assert payload.get("success_count") == 1
+    payload = result_event["payload"]
+    assert payload is not None
+    assert payload["success_count"] == 1
 
 
 @pytest.mark.asyncio
@@ -213,12 +216,14 @@ async def test_tool_error_fed_back_to_llm(mock_llm, mock_tool):
     assert len(result_events) > 0
 
     result = result_events[0]
-    assert result["type"] == "result"
-    content = result.get("content", "")
+    result_typed = cast(ResultEvent, result)
+    assert result_typed["type"] == "result"
+    content = result_typed.get("content", "")
     results_json = json.loads(content)
     assert results_json[0]["status"] == "failure"
-    payload = result.get("payload", {})
-    assert payload.get("failure_count") == 1
+    payload = result_typed["payload"]
+    assert payload is not None
+    assert payload["failure_count"] == 1
 
 
 @pytest.mark.asyncio

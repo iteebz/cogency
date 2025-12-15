@@ -1,8 +1,11 @@
 """Integration test for stream=None (.generate() mode) decomposition."""
 
+from typing import cast
+
 import pytest
 
 from cogency import Agent
+from cogency.core.protocols import ResultEvent
 
 
 @pytest.mark.asyncio
@@ -72,7 +75,9 @@ async def test_batch_multi_tool(mock_llm, mock_tool):
     # Single batched result
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
-    result_event = result_events[0]
+
+    result_event = cast(ResultEvent, result_events[0])
     assert result_event["type"] == "result"
-    payload = result_event.get("payload", {})
-    assert payload.get("tools_executed") == 3
+    payload = result_event["payload"]
+    assert payload is not None
+    assert payload["tools_executed"] == 3
