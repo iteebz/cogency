@@ -23,7 +23,7 @@ from ..lib.sqlite import default_storage
 from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config, Security
-from .protocols import LLM, NotificationSource, Storage, Tool
+from .protocols import LLM, HistoryTransform, NotificationSource, Storage, Tool
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ class Agent:
         mode: str = "auto",
         max_iterations: int = 10,
         history_window: int | None = None,
+        history_transform: HistoryTransform | None = None,
         profile: bool = False,
         security: Security | None = None,
         debug: bool = False,
@@ -77,6 +78,7 @@ class Agent:
             mode: Coordination mode ("auto", "resume", "replay"). Defaults to "auto".
             max_iterations: Maximum number of execution iterations.
             history_window: Number of historical events to include in context (None = full history).
+            history_transform: Optional callable to transform/compress conversation history.
             profile: Enable automatic profile learning. Defaults to False.
             security: A Security object defining access levels and timeouts.
             debug: Enable verbose debug logging.
@@ -99,6 +101,7 @@ class Agent:
             mode=mode,
             max_iterations=max_iterations,
             history_window=history_window,
+            history_transform=history_transform,
             profile=profile,
             security=final_security,
             debug=debug,

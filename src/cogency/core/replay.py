@@ -65,6 +65,7 @@ async def stream(
                 tools=config.tools,
                 storage=config.storage,
                 history_window=config.history_window,
+                history_transform=config.history_transform,
                 profile_enabled=config.profile,
                 identity=config.identity,
                 instructions=config.instructions,

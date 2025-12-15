@@ -130,23 +130,6 @@ def is_end(event: Event) -> bool:
     return event_type(event) == "end"
 
 
-@dataclass
-class ToolCall:
-    """Tool call - structured input."""
-
-    name: str
-    args: dict[str, Any]
-
-
-@dataclass
-class ToolResult:
-    """Tool execution result - pure data."""
-
-    outcome: str  # Natural language completion: "Found 12 search results"
-    content: str | None = None  # Optional detailed data for LLM context
-    error: bool = False  # True if tool execution failed
-
-
 @runtime_checkable
 class LLM(Protocol):
     """Unified LLM interface supporting both HTTP streaming and WebSocket sessions.
@@ -285,6 +268,23 @@ class Storage(Protocol):
 
 
 @dataclass
+class ToolCall:
+    """Tool call - structured input."""
+
+    name: str
+    args: dict[str, Any]
+
+
+@dataclass
+class ToolResult:
+    """Tool execution result - pure data."""
+
+    outcome: str  # Natural language completion: "Found 12 search results"
+    content: str | None = None  # Optional detailed data for LLM context
+    error: bool = False  # True if tool execution failed
+
+
+@dataclass
 class ToolParam:
     """Metadata for tool parameters."""
 
@@ -316,3 +316,12 @@ class Tool(ABC):
 
 NotificationSource = Callable[[], Awaitable[list[str]]]
 """Source for system notifications injected between iterations."""
+
+HistoryTransform = Callable[[list[dict]], Awaitable[list[dict]]]
+"""Transform conversation history before context assembly.
+
+Used for compression strategies (e.g. rolling summaries, semantic chunking).
+Receives conversation messages after retrieval, returns transformed messages.
+
+Cogency provides no default implementation - users must supply their own strategy.
+"""

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Literal
 
-from .protocols import LLM, NotificationSource, Storage, Tool
+from .protocols import LLM, HistoryTransform, NotificationSource, Storage, Tool
 
 # Security access levels for file and shell operations
 Access = Literal["sandbox", "project", "system"]
@@ -51,6 +51,7 @@ class Config:
     mode: str = "auto"  # Execution mode
     max_iterations: int = 10  # Execution bounds
     history_window: int | None = None  # Context scope (None = full history)
+    history_transform: HistoryTransform | None = None  # Optional history compression
     profile: bool = False  # Learning enabled
     debug: bool = False  # Debug logging to .cogency/debug/
     notifications: NotificationSource | None = None

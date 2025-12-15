@@ -188,6 +188,7 @@ async def test_storage_load_error_propagates(mock_config):
             tools=[],
             storage=FailingStorage(),
             history_window=None,
+            history_transform=None,
             profile_enabled=False,
         )
 
@@ -260,5 +261,6 @@ async def test_context_assembly_requires_storage(mock_config):
             tools=[],
             storage=None,  # type: ignore[arg-type]  # Missing storage
             history_window=None,
+            history_transform=None,
             profile_enabled=False,
         )

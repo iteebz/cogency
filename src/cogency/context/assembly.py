@@ -1,7 +1,7 @@
 import logging
 from collections.abc import Sequence
 
-from ..core.protocols import Storage, Tool
+from ..core.protocols import HistoryTransform, Storage, Tool
 from .conversation import to_messages
 from .profile import format as profile_format
 from .system import prompt as system_prompt
@@ -16,11 +16,18 @@ async def assemble(
     tools: Sequence[Tool],
     storage: Storage,
     history_window: int | None,
+    history_transform: HistoryTransform | None,
     profile_enabled: bool,
     identity: str | None = None,
     instructions: str | None = None,
 ) -> list[dict]:
-    """Assemble complete context from storage."""
+    """Assemble complete context from storage.
+
+    Args:
+        history_transform: Optional callable to transform conversation history.
+            Applied after retrieval and truncation, before final assembly.
+            Use for compression strategies (rolling summaries, semantic chunking).
+    """
     system_content = [
         system_prompt(tools=list(tools), identity=identity, instructions=instructions)
     ]
@@ -56,6 +63,8 @@ async def assemble(
         conv_messages = to_messages(events)
         if history_window is not None:
             conv_messages = conv_messages[-history_window:]
+        if history_transform:
+            conv_messages = await history_transform(conv_messages)
         messages.extend(conv_messages)
 
     return [{"role": "system", "content": "\n\n".join(system_content)}] + messages

@@ -178,6 +178,7 @@ def mock_config(mock_llm, mock_storage):
             self.mode = "auto"
             self.profile = False
             self.history_window = 20
+            self.history_transform = None
             self.security = Security()
             self.debug = False
             self.notifications = None

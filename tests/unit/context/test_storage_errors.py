@@ -52,6 +52,7 @@ async def test_message_load_error_propagates():
             tools=[],
             storage=CorruptedStorage(),  # type: ignore[arg-type]
             history_window=None,
+            history_transform=None,
             profile_enabled=False,
         )
 
@@ -91,6 +92,7 @@ async def test_message_load_empty_succeeds():
         tools=[],
         storage=EmptyStorage(),  # type: ignore[arg-type]
         history_window=None,
+        history_transform=None,
         profile_enabled=False,
     )
 
@@ -144,6 +146,7 @@ async def test_profile_error_propagates_when_enabled():
                 tools=[],
                 storage=NoProfileStorage(),  # type: ignore[arg-type]
                 history_window=None,
+                history_transform=None,
                 profile_enabled=True,
             )
     finally:
@@ -186,6 +189,7 @@ async def test_profile_disabled_skips_load():
         tools=[],
         storage=BrokenProfileStorage(),  # type: ignore[arg-type]
         history_window=None,
+        history_transform=None,
         profile_enabled=False,
     )
 

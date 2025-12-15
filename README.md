@@ -122,10 +122,21 @@ agent = Agent(
     instructions="Additional context",
     tools=[CustomTool()],
     max_iterations=10,
-    history_window=None,             # None = full history (default), int = sliding window
+    history_window=None,             # None = full history, int = sliding window
     profile=True,                    # Enable automatic user learning
     debug=False
 )
+```
+
+**History compression:** For long conversations, pass `history_transform` to compress context:
+
+```python
+async def compress(messages: list[dict]) -> list[dict]:
+    if len(messages) <= 20:
+        return messages
+    return [{"role": "system", "content": f"[{len(messages)-10} earlier messages]"}] + messages[-10:]
+
+agent = Agent(llm="openai", history_transform=compress)
 ```
 
 ## Documentation

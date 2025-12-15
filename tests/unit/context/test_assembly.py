@@ -12,6 +12,7 @@ async def test_empty_conversation(mock_config):
         storage=mock_config.storage,
         history_window=mock_config.history_window,
         profile_enabled=False,
+        history_transform=None,
     )
 
     assert len(messages) == 1
@@ -32,6 +33,7 @@ async def test_with_conversation(mock_config):
         storage=storage,
         history_window=mock_config.history_window,
         profile_enabled=False,
+        history_transform=None,
     )
 
     assert len(messages) == 3
@@ -53,6 +55,7 @@ async def test_with_profile(mock_config):
         tools=mock_config.tools,
         storage=storage,
         history_window=mock_config.history_window,
+        history_transform=None,
         profile_enabled=True,
     )
 
@@ -71,6 +74,7 @@ async def test_system_message_structure(mock_config):
         storage=mock_config.storage,
         history_window=mock_config.history_window,
         profile_enabled=False,
+        history_transform=None,
         identity="Test Agent",
         instructions="Do the thing",
     )
@@ -101,6 +105,7 @@ async def test_preserves_turn_structure(mock_config):
         storage=storage,
         history_window=None,
         profile_enabled=False,
+        history_transform=None,
     )
 
     assert messages[0]["role"] == "system"
@@ -128,6 +133,7 @@ async def test_history_window(mock_config):
         storage=storage,
         history_window=2,
         profile_enabled=False,
+        history_transform=None,
     )
 
     assert len(messages) == 3
@@ -154,6 +160,7 @@ async def test_bounded_memory_loading(mock_config):
         storage=storage,
         history_window=2,
         profile_enabled=False,
+        history_transform=None,
     )
 
     assert messages[0]["role"] == "system"
