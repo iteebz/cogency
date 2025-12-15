@@ -35,6 +35,8 @@ class Config:
 
     Frozen dataclass ensures configuration cannot be modified after creation.
     Runtime parameters (query, user_id, conversation_id) are passed per call.
+
+    Immutability guarantees thread-safety for shared agent instances.
     """
 
     # Core capabilities

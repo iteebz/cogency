@@ -40,6 +40,11 @@ class Agent:
       agent = Agent(llm="openai", storage=default_storage())
       async for event in agent("What is the capital of France?"):
           print(event)
+
+    Concurrency:
+      - Agent instances are immutable (safe to share across calls/threads)
+      - Multiple calls to same agent instance: safe
+      - Same conversation_id from multiple processes: undefined (SQLite WAL single-writer limit)
     """
 
     def __init__(

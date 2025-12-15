@@ -154,6 +154,13 @@ class DB:
 
 
 class SQLite:
+    """SQLite storage with WAL mode for concurrent reads.
+
+    Thread safety: Each operation creates new connection (safe).
+    Process safety: WAL supports multiple readers + one writer. Concurrent writes
+                    to same conversation_id from different processes = race conditions.
+    """
+
     def __init__(self, db_path: str = ".cogency/store.db"):
         # Preserve :memory: as-is without path resolution
         if db_path == ":memory:":
