@@ -20,6 +20,7 @@ from ..lib.debug import log_response
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
+from .errors import ConfigError, LLMError
 from .parser import parse_tokens
 from .protocols import Event, event_content, event_type
 
@@ -44,11 +45,10 @@ async def stream(
 
     llm = config.llm
     if llm is None:
-        raise ValueError("LLM provider required")
+        raise ConfigError("LLM provider required")
 
-    # Verify WebSocket capability
     if not hasattr(llm, "connect"):
-        raise RuntimeError(
+        raise LLMError(
             f"Resume mode requires WebSocket support. Provider {type(llm).__name__} missing connect() method. "
             f"Use mode='auto' for fallback behavior or mode='replay' for HTTP-only."
         )
@@ -107,7 +107,7 @@ async def stream(
             while True:
                 turn += 1
                 if turn > config.max_iterations:
-                    raise RuntimeError(
+                    raise LLMError(
                         f"Max iterations ({config.max_iterations}) exceeded in resume mode."
                     )
 
@@ -162,7 +162,7 @@ async def stream(
                         if complete:
                             break
                 except Exception as e:
-                    raise RuntimeError(f"WebSocket continuation failed: {e}") from e
+                    raise LLMError(f"WebSocket continuation failed: {e}", cause=e) from e
                 finally:
                     if config.debug:
                         log_response(
@@ -184,7 +184,7 @@ async def stream(
             complete = True
 
     except Exception as e:
-        raise RuntimeError(f"WebSocket failed: {str(e)}") from e
+        raise LLMError(f"WebSocket failed: {str(e)}", cause=e) from e
     finally:
         # Always cleanup WebSocket session
         if session:

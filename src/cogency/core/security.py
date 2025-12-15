@@ -16,6 +16,7 @@ from functools import wraps
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .errors import ToolError
 from .protocols import ToolResult
 
 if TYPE_CHECKING:
@@ -85,14 +86,14 @@ def _has_dollar_outside_single_quotes(command: str) -> str | None:
 def sanitize_shell_input(command: str) -> str:
     """Validate shell input and reject dangerous patterns. [SEC-002]"""
     if not command or not command.strip():
-        raise ValueError("Command cannot be empty")
+        raise ToolError("Command cannot be empty", validation_failed=True)
 
     command = command.strip()
 
     # Characters that must never appear, even inside quotes.
     hard_blocked = {"\n", "\r", "\x00"}
     if any(char in command for char in hard_blocked):
-        raise ValueError("Invalid shell command syntax")
+        raise ToolError("Invalid shell command syntax", validation_failed=True)
 
     # Reject metacharacters if they appear outside of quotes.
     # - `;`, `&`, `|`, `` ` ``, `<`, `>` perform command chaining/redirection.
@@ -100,23 +101,30 @@ def sanitize_shell_input(command: str) -> str:
     # - `$` enables expansion unless wrapped in single quotes.
     if char := _has_unquoted(command, {";", "&", "|", "`", "<", ">", "；", "｜"}):
         if "&&" in command:
-            raise ValueError(
-                "Chained commands not supported. Each shell call is independent - use cwd argument to run in different directories."
+            raise ToolError(
+                "Chained commands not supported. Each shell call is independent - use cwd argument to run in different directories.",
+                validation_failed=True,
             )
-        raise ValueError(f"Invalid shell command syntax: character '{char}' is not allowed")
+        raise ToolError(
+            f"Invalid shell command syntax: character '{char}' is not allowed",
+            validation_failed=True,
+        )
 
     # Allow `$` inside single quotes (no expansion), block otherwise.
     if char := _has_dollar_outside_single_quotes(command):
-        raise ValueError(f"Invalid shell command syntax: character '{char}' is not allowed")
+        raise ToolError(
+            f"Invalid shell command syntax: character '{char}' is not allowed",
+            validation_failed=True,
+        )
 
     # Validate shell syntax
     try:
         tokens = shlex.split(command)
         if not tokens:
-            raise ValueError("Command cannot be empty")
+            raise ToolError("Command cannot be empty", validation_failed=True)
         return shlex.join(tokens)
     except ValueError as e:
-        raise ValueError(f"Invalid shell command syntax: {e}") from None
+        raise ToolError(f"Invalid shell command syntax: {e}", validation_failed=True) from None
 
 
 def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
@@ -129,7 +137,7 @@ def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
     - Absolute paths in sandbox mode
     """
     if not file_path or not file_path.strip():
-        raise ValueError("Path cannot be empty")
+        raise ToolError("Path cannot be empty", validation_failed=True)
 
     file_path = file_path.strip()
 
@@ -146,23 +154,23 @@ def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
         "C:\\",
     ]
     if any(pattern in file_path for pattern in dangerous_patterns):
-        raise ValueError("Invalid path")
+        raise ToolError("Invalid path", validation_failed=True)
 
     if base_dir:
         # Sandbox mode: relative paths only
         if Path(file_path).is_absolute():
-            raise ValueError("Path outside sandbox")
+            raise ToolError("Path outside sandbox", validation_failed=True)
 
         try:
             return (base_dir / file_path).resolve()
         except (OSError, ValueError):
-            raise ValueError("Invalid path") from None
+            raise ToolError("Invalid path", validation_failed=True) from None
     else:
         # System mode: allow absolute paths
         try:
             return Path(file_path).resolve()
         except (OSError, ValueError):
-            raise ValueError("Invalid path") from None
+            raise ToolError("Invalid path", validation_failed=True) from None
 
 
 def resolve_file(file: str, access: "Access", sandbox_dir: str = ".cogency/sandbox") -> Path:
@@ -177,7 +185,7 @@ def resolve_file(file: str, access: "Access", sandbox_dir: str = ".cogency/sandb
         return validate_path(file, Path.cwd())
     if access == "system":
         return validate_path(file)
-    raise ValueError(f"Invalid access level: {access}")
+    raise ToolError(f"Invalid access level: {access}", validation_failed=True)
 
 
 @contextmanager
@@ -207,16 +215,15 @@ def timeout_context(seconds: int):
 
 
 def safe_execute(func):
-    """Decorator for safe tool execution - handles input validation errors only."""
+    """Decorator for safe tool execution - handles validation errors only."""
 
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
-        except ValueError as e:
-            # Input validation error - return as tool result
-            return ToolResult(outcome=f"Invalid input: {str(e)}", error=True)
-        # Let system errors (OSError, PermissionError, etc) bubble up
-        # These should halt processing, not become tool results
+        except ToolError as e:
+            if e.validation_failed:
+                return ToolResult(outcome=str(e), error=True)
+            raise
 
     return wrapper

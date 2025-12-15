@@ -19,6 +19,7 @@ from ..lib import telemetry
 from ..lib.metrics import Metrics
 from .accumulator import Accumulator
 from .config import Config
+from .errors import ConfigError, LLMError
 from .parser import parse_tokens
 from .protocols import Event, event_content
 
@@ -43,7 +44,7 @@ async def stream(
 
     llm = config.llm
     if llm is None:
-        raise ValueError("LLM provider required")
+        raise ConfigError("LLM provider required")
 
     storage = config.storage
 
@@ -161,4 +162,4 @@ async def stream(
                 break
 
     except Exception as e:
-        raise RuntimeError(f"HTTP error: {str(e)}") from e
+        raise LLMError(f"HTTP error: {str(e)}", cause=e) from e

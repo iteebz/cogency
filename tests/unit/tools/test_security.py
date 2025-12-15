@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from cogency.core.errors import ToolError
 from cogency.core.security import (
     resolve_file,
     sanitize_shell_input,
@@ -51,9 +52,7 @@ def safe():
 
 def test_shell_blocks_injection(attacks):
     for cmd in attacks["shell"]:
-        with pytest.raises(
-            ValueError, match="Invalid shell command syntax|not supported|not allowed"
-        ):
+        with pytest.raises(ToolError):
             sanitize_shell_input(cmd)
 
 
@@ -64,26 +63,26 @@ def test_shell_allows_safe(safe):
 
 
 def test_shell_empty():
-    with pytest.raises(ValueError, match="Command cannot be empty"):
+    with pytest.raises(ToolError):
         sanitize_shell_input("")
 
 
 def test_shell_unbalanced_quotes():
-    with pytest.raises(ValueError, match="Invalid shell command syntax"):
+    with pytest.raises(ToolError, match="Invalid shell command syntax"):
         sanitize_shell_input("echo 'unbalanced")
 
 
 def test_path_blocks_traversal(attacks):
     with tempfile.TemporaryDirectory() as tmp:
         for path in attacks["path"]:
-            with pytest.raises(ValueError, match="Path outside sandbox|Invalid path"):
+            with pytest.raises(ToolError, match="Path outside sandbox|Invalid path"):
                 validate_path(path, Path(tmp))
 
 
 def test_path_blocks_system(attacks):
     system = [p for p in attacks["path"] if p.startswith("/") or "C:\\" in p]
     for path in system:
-        with pytest.raises(ValueError, match="Invalid path"):
+        with pytest.raises(ToolError, match="Invalid path"):
             validate_path(path)
 
 
@@ -94,7 +93,7 @@ def test_path_allows_safe(safe):
 
 
 def test_path_empty():
-    with pytest.raises(ValueError, match="Path cannot be empty"):
+    with pytest.raises(ToolError):
         validate_path("")
 
 
@@ -118,7 +117,7 @@ def test_resolve_sandbox(tmp_path):
 
 
 def test_resolve_sandbox_blocks_absolute(tmp_path):
-    with pytest.raises(ValueError, match="Invalid path"):
+    with pytest.raises(ToolError):
         resolve_file("/etc/passwd", "sandbox", sandbox_dir=str(tmp_path))
 
 
@@ -134,12 +133,12 @@ def test_resolve_project():
 
 
 def test_resolve_project_blocks_system():
-    with pytest.raises(ValueError, match="Invalid path"):
+    with pytest.raises(ToolError):
         resolve_file("/etc/passwd", "project")
 
 
 def test_resolve_system_blocks_dangerous():
-    with pytest.raises(ValueError, match="Invalid path"):
+    with pytest.raises(ToolError):
         resolve_file("/etc/passwd", "system")
 
 

@@ -91,7 +91,9 @@ async def test_error_propagation(mock_llm, mock_storage):
 
         mock_stream.return_value = mock_failing_events()
 
-        with pytest.raises(RuntimeError, match="Stream execution failed"):
+        from cogency.core.errors import LLMError
+
+        with pytest.raises(LLMError, match="Stream execution failed"):
             async for _ in agent("Test query"):
                 pass
 

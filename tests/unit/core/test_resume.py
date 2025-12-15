@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 import pytest
 
 from cogency.core.config import Config
+from cogency.core.errors import ConfigError, LLMError
 from cogency.core.resume import stream as resume_stream
 from cogency.lib.sqlite import SQLite
 
@@ -12,7 +13,7 @@ async def test_requires_websocket():
     mock_llm = Mock(spec=[])
     config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=1)
 
-    with pytest.raises(RuntimeError, match="Resume mode requires WebSocket support"):
+    with pytest.raises(LLMError, match="Resume mode requires WebSocket support"):
         await resume_stream("test", "user", "conv", config=config).__anext__()
 
 
@@ -76,6 +77,6 @@ async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
 async def test_llm_provider_required():
     config = Config(llm=None, storage=Mock(), tools=[], max_iterations=1)  # type: ignore[arg-type]
 
-    with pytest.raises(ValueError, match="LLM provider required"):
+    with pytest.raises(ConfigError, match="LLM provider required"):
         async for _ in resume_stream("test", "user", "conv", config=config):
             pass

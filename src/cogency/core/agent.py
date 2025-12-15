@@ -23,18 +23,10 @@ from ..lib.sqlite import default_storage
 from ..tools import tools as default_tools
 from . import replay, resume
 from .config import Config, Security
+from .errors import ConfigError, LLMError
 from .protocols import LLM, HistoryTransform, NotificationSource, Storage, Tool
 
 logger = logging.getLogger(__name__)
-
-
-class AgentError(RuntimeError):
-    def __init__(
-        self, message: str, *, cause: Exception | None = None, original_json: str | None = None
-    ) -> None:
-        super().__init__(message)
-        self.cause = cause
-        self.original_json = original_json
 
 
 class Agent:
@@ -108,10 +100,9 @@ class Agent:
             notifications=notifications,
         )
 
-        # Validate mode during construction
         valid_modes = ["auto", "resume", "replay"]
         if self.config.mode not in valid_modes:
-            raise ValueError(f"mode must be one of {valid_modes}, got: {self.config.mode}")
+            raise ConfigError(f"mode must be one of {valid_modes}, got: {self.config.mode}")
 
     async def __call__(
         self,
@@ -173,7 +164,13 @@ class Agent:
                             llm=self.config.llm,
                         )
                     return
-                except (RuntimeError, ValueError, AttributeError, httpx.RequestError) as e:
+                except (
+                    LLMError,
+                    RuntimeError,
+                    ValueError,
+                    AttributeError,
+                    httpx.RequestError,
+                ) as e:
                     logger.debug(f"Resume unavailable, falling back to replay: {e}")
                     mode_stream = replay.stream
             else:
@@ -210,10 +207,7 @@ class Agent:
             google.api_core.exceptions.GoogleAPIError,
             httpx.RequestError,
             ValueError,  # For API key not found
-            RuntimeError,  # For send() requires active session
+            RuntimeError,
         ) as e:
-            logger.error(f"LLM or network error: {type(e).__name__}: {e}", exc_info=True)
-            raise AgentError(f"LLM or network error: {e}", cause=e) from e
-        except Exception as e:  # Fallback for any other unexpected errors
-            logger.error(f"Stream execution failed: {type(e).__name__}: {e}", exc_info=True)
-            raise AgentError(f"Stream execution failed: {e}", cause=e) from e
+            logger.error(f"LLM error: {type(e).__name__}: {e}", exc_info=True)
+            raise LLMError(f"LLM error: {e}", cause=e) from e

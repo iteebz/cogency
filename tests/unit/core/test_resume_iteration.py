@@ -9,6 +9,7 @@ Contract: max_iterations counts tool execution turns, not streamed events.
 
 import pytest
 
+from cogency.core.errors import LLMError
 from cogency.core.resume import stream as resume_stream
 
 
@@ -67,7 +68,7 @@ async def test_iteration_limit(mock_config, mock_tool, resume_llm):
     )
     mock_config.max_iterations = 1
 
-    with pytest.raises(RuntimeError, match="Max iterations"):
+    with pytest.raises(LLMError, match="Max iterations"):
         async for _ in resume_stream("test", "user", "conv", config=mock_config):
             pass
 

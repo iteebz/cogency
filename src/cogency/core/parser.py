@@ -17,6 +17,7 @@ import logging
 import time
 from collections.abc import AsyncGenerator
 
+from .errors import ProtocolError
 from .protocols import Event, ToolCall
 
 logger = logging.getLogger(__name__)
@@ -29,14 +30,6 @@ TAG_PATTERN = {
 }
 
 VALID_TAGS = {"think", "execute", "results", "end"}
-
-
-class ParseError(ValueError):
-    """Raised when XML parsing fails."""
-
-    def __init__(self, message: str, original_input: str | None = None) -> None:
-        super().__init__(message)
-        self.original_input = original_input
 
 
 def parse_execute_block(xml_str: str) -> list[ToolCall]:
@@ -54,7 +47,7 @@ def parse_execute_block(xml_str: str) -> list[ToolCall]:
     xml_str = xml_str.strip()
 
     if "<execute>" not in xml_str or "</execute>" not in xml_str:
-        raise ParseError("No <execute> block found", original_input=xml_str)
+        raise ProtocolError("No <execute> block found", original_input=xml_str)
 
     try:
         start = xml_str.find("<execute>") + len("<execute>")
@@ -63,18 +56,18 @@ def parse_execute_block(xml_str: str) -> list[ToolCall]:
 
         calls_data = json.loads(content)
     except json.JSONDecodeError as e:
-        raise ParseError(f"Invalid JSON in <execute> block: {e}", original_input=xml_str) from e
+        raise ProtocolError(f"Invalid JSON in <execute> block: {e}", original_input=xml_str) from e
 
     if not isinstance(calls_data, list):
-        raise ParseError("Expected JSON array in <execute> block", original_input=xml_str)
+        raise ProtocolError("Expected JSON array in <execute> block", original_input=xml_str)
 
     calls = []
     for i, call_obj in enumerate(calls_data):
         if not isinstance(call_obj, dict):
-            raise ParseError(f"Call {i} is not an object: {call_obj}", original_input=xml_str)
+            raise ProtocolError(f"Call {i} is not an object: {call_obj}", original_input=xml_str)
 
         if "name" not in call_obj or "args" not in call_obj:
-            raise ParseError(
+            raise ProtocolError(
                 f"Call {i} missing 'name' or 'args': {call_obj}", original_input=xml_str
             )
 
@@ -82,7 +75,7 @@ def parse_execute_block(xml_str: str) -> list[ToolCall]:
         args = call_obj["args"]
 
         if not isinstance(args, dict):
-            raise ParseError(
+            raise ProtocolError(
                 f"Call {i} args must be object, got {type(args).__name__}", original_input=xml_str
             )
 
@@ -131,7 +124,7 @@ async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event,
     """Parse execute block and emit call events for each tool.
 
     Raises:
-        ParseError: If XML is malformed - propagates to caller for handling
+        ProtocolError: If XML is malformed - propagates to caller for handling
     """
     tool_calls = parse_execute_block(xml_block)
     for call in tool_calls:
@@ -192,7 +185,7 @@ async def parse_tokens(
                     ):
                         yield event
                     yield {"type": "execute", "timestamp": time.time()}
-                except ParseError as e:
+                except ProtocolError as e:
                     logger.error(f"Malformed <execute> block: {e}")
                     yield {
                         "type": "respond",
