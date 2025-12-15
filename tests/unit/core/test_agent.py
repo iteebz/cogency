@@ -16,7 +16,7 @@ from cogency.core.config import Security
 def test_config(mock_llm, mock_storage):
     """Agent accepts custom configuration and stores it."""
     agent = Agent(
-        llm="gemini",
+        llm=mock_llm,
         storage=mock_storage,
         tools=[],
         profile=False,

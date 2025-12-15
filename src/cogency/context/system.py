@@ -1,11 +1,12 @@
 """System prompt generation.
 
-Semantic Security Architecture:
-LLM reasoning provides the first line of defense against sophisticated attacks.
-Unlike pattern-based validation, semantic security understands context, intent,
-and novel attack vectors through natural language understanding.
+Defense in depth:
+1. LLM instruction - tells model to reject dangerous requests (probabilistic)
+2. Pattern validation - blocks known-bad paths/commands (deterministic)
+3. Sandbox containment - limits blast radius (deterministic)
 
-Defense layers: Semantic reasoning → Pattern validation → Sandbox containment
+Layer 1 filters most bad requests but can be bypassed via jailbreaking.
+Layers 2-3 provide hard guarantees regardless of LLM behavior.
 """
 
 from ..core.codec import tool_instructions
@@ -58,7 +59,7 @@ Natural language responses (no wrapper, user-facing output)
 Phases:
 - THINK: Optional reasoning scratch pad (ignored by system)
 - Output: Natural language insights and decisions (no tags)
-- EXECUTE: Tool invocation batch as JSON array (system validates and executes sequentially)
+- EXECUTE: Tool invocation batch as JSON array (system executes in parallel, results in order)
 - RESULTS: System-injected (never write <results> tags)
 
 Cite tool output before decisions. Synthesize, don't echo.

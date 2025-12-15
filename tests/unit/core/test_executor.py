@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -85,8 +86,8 @@ async def test_context_injection(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_sequential_batch_execution(mock_config, mock_tool):
-    """Multiple tools execute sequentially, results preserve order."""
+async def test_parallel_batch_execution_preserves_order(mock_config, mock_tool):
+    """Multiple tools execute in parallel, results preserve input order."""
     mock_tool_instance = mock_tool(name="test_tool")
     mock_config.tools = [mock_tool_instance]
 
@@ -108,3 +109,49 @@ async def test_sequential_batch_execution(mock_config, mock_tool):
     assert "first" in results[0].outcome
     assert "second" in results[1].outcome
     assert "third" in results[2].outcome
+
+
+@pytest.mark.asyncio
+async def test_parallel_execution_is_concurrent(mock_config):
+    """Verify tools actually run in parallel, not sequentially."""
+    execution_order = []
+
+    class SlowTool:
+        name = "slow_tool"
+        description = "A slow tool"
+        schema = {}
+
+        async def execute(self, delay=0.1, **kwargs):
+            execution_order.append(f"start_{delay}")
+            await asyncio.sleep(delay)
+            execution_order.append(f"end_{delay}")
+            return ToolResult(outcome=f"done_{delay}")
+
+        def describe(self, args):
+            return "slow"
+
+    mock_config.tools = [SlowTool()]
+
+    calls = [
+        ToolCall(name="slow_tool", args={"delay": 0.1}),
+        ToolCall(name="slow_tool", args={"delay": 0.05}),
+    ]
+
+    results = await execute_tools(
+        calls,
+        execution=mock_config.execution,
+        user_id="user1",
+        conversation_id="conv1",
+    )
+
+    assert len(results) == 2
+    # If parallel: both start before either ends
+    # execution_order should be: start_0.1, start_0.05, end_0.05, end_0.1
+    assert execution_order[0] == "start_0.1"
+    assert execution_order[1] == "start_0.05"
+    # The shorter one finishes first
+    assert execution_order[2] == "end_0.05"
+    assert execution_order[3] == "end_0.1"
+    # But results preserve input order
+    assert results[0].outcome == "done_0.1"
+    assert results[1].outcome == "done_0.05"

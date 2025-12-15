@@ -3,18 +3,13 @@
 import pytest
 
 from cogency import Agent
-from cogency.lib.sqlite import default_storage
-
-
-@pytest.fixture
-def storage():
-    return default_storage(":memory:")
 
 
 @pytest.mark.asyncio
-async def test_notifications_none_backward_compat(storage):
+async def test_notifications_none_backward_compat(mock_llm, mock_storage):
     """Default notifications=None preserves existing behavior."""
-    agent = Agent(llm="openai", storage=storage, notifications=None)
+    mock_llm.set_response_tokens(["Response\n<end>"])
+    agent = Agent(llm=mock_llm, storage=mock_storage, notifications=None, mode="replay")
 
     async for event in agent("Hello"):
         if event["type"] == "end":
@@ -22,7 +17,7 @@ async def test_notifications_none_backward_compat(storage):
 
 
 @pytest.mark.asyncio
-async def test_notifications_called_per_iteration(storage):
+async def test_notifications_called_per_iteration(mock_llm, mock_storage):
     """Notifications polled once per iteration."""
     call_count = 0
 
@@ -31,7 +26,8 @@ async def test_notifications_called_per_iteration(storage):
         call_count += 1
         return [f"Notification {call_count}"]
 
-    agent = Agent(llm="openai", storage=storage, notifications=notifications, max_iterations=2)
+    mock_llm.set_response_tokens(["Response\n<end>"])
+    agent = Agent(llm=mock_llm, storage=mock_storage, notifications=notifications, max_iterations=2, mode="replay")
 
     async for event in agent("Hello"):
         if event["type"] == "end":
@@ -41,13 +37,14 @@ async def test_notifications_called_per_iteration(storage):
 
 
 @pytest.mark.asyncio
-async def test_notifications_failure_continues(storage):
+async def test_notifications_failure_continues(mock_llm, mock_storage):
     """Notification source failure doesn't break agent loop."""
 
     async def failing_notifications():
         raise RuntimeError("Notification source failed")
 
-    agent = Agent(llm="openai", storage=storage, notifications=failing_notifications)
+    mock_llm.set_response_tokens(["Response\n<end>"])
+    agent = Agent(llm=mock_llm, storage=mock_storage, notifications=failing_notifications, mode="replay")
 
     # Should complete without raising
     async for event in agent("Hello"):
@@ -56,13 +53,14 @@ async def test_notifications_failure_continues(storage):
 
 
 @pytest.mark.asyncio
-async def test_notifications_empty_list(storage):
+async def test_notifications_empty_list(mock_llm, mock_storage):
     """Empty notification list is valid."""
 
     async def empty_notifications():
         return []
 
-    agent = Agent(llm="openai", storage=storage, notifications=empty_notifications)
+    mock_llm.set_response_tokens(["Response\n<end>"])
+    agent = Agent(llm=mock_llm, storage=mock_storage, notifications=empty_notifications, mode="replay")
 
     async for event in agent("Hello"):
         if event["type"] == "end":

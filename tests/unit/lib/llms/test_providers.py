@@ -7,15 +7,14 @@ from cogency.lib.llms import Gemini, OpenAI
 
 @pytest.fixture(
     params=[
-        pytest.param(("OpenAI", OpenAI), id="openai"),
-        pytest.param(("Gemini", Gemini), id="gemini"),
-        # pytest.param(("Anthropic", Anthropic), id="anthropic"),
+        pytest.param(("OpenAI", OpenAI, "cogency.lib.llms.openai.get_api_key"), id="openai"),
+        pytest.param(("Gemini", Gemini, "cogency.lib.llms.gemini.get_api_key"), id="gemini"),
     ]
 )
 def llm_instance(request):
     """Provides an instance of each LLM provider with a mocked API key."""
-    name, cls = request.param
-    with patch("cogency.lib.llms.rotation.get_api_key", return_value="test-key"):
+    name, cls, patch_path = request.param
+    with patch(patch_path, return_value="test-key"):
         instance = cls()
         yield name, instance
 
@@ -25,7 +24,12 @@ async def test_llm_generate(llm_instance):
     """Tests the generate method of each LLM provider."""
     name, llm_instance = llm_instance
 
-    with patch.object(llm_instance, "_create_client") as mock_create_client:
+    async def mock_rotation(prefix, func, *args, **kwargs):
+        return await func("test-key")
+
+    with patch.object(llm_instance, "_create_client") as mock_create_client, \
+         patch("cogency.lib.llms.openai.with_rotation", mock_rotation), \
+         patch("cogency.lib.llms.gemini.with_rotation", mock_rotation):
         mock_client_instance = mock_create_client.return_value
         mock_response = MagicMock()  # Make mock_response a MagicMock
 
@@ -52,7 +56,12 @@ async def test_llm_stream(llm_instance):
     """Tests the stream method of each LLM provider."""
     name, llm_instance = llm_instance
 
-    with patch.object(llm_instance, "_create_client") as mock_create_client:
+    async def mock_rotation(prefix, func, *args, **kwargs):
+        return await func("test-key")
+
+    with patch.object(llm_instance, "_create_client") as mock_create_client, \
+         patch("cogency.lib.llms.openai.with_rotation", mock_rotation), \
+         patch("cogency.lib.llms.gemini.with_rotation", mock_rotation):
         mock_client_instance = mock_create_client.return_value
         mock_stream_response = AsyncMock()
 
@@ -120,14 +129,14 @@ async def test_llm_stream(llm_instance):
 
 @pytest.fixture(
     params=[
-        pytest.param(("OpenAI", OpenAI), id="openai"),
-        pytest.param(("Gemini", Gemini), id="gemini"),
+        pytest.param(("OpenAI", OpenAI, "cogency.lib.llms.openai.get_api_key"), id="openai"),
+        pytest.param(("Gemini", Gemini, "cogency.lib.llms.gemini.get_api_key"), id="gemini"),
     ]
 )
 def websocket_llm_instance(request):
     """Provides an instance of WebSocket-capable LLM providers with a mocked API key."""
-    name, cls = request.param
-    with patch("cogency.lib.llms.rotation.get_api_key", return_value="test-key"):
+    name, cls, patch_path = request.param
+    with patch(patch_path, return_value="test-key"):
         instance = cls()
         yield name, instance
 

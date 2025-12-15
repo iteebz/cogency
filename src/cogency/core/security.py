@@ -1,11 +1,12 @@
-"""Tool security with semantic and pattern-based validation.
+"""Tool security with defense in depth.
 
-Security architecture combines two approaches:
-1. Pattern-based validation - catches common attacks (path traversal, shell injection)
-2. Semantic security - LLM reasoning detects sophisticated/novel attacks
+Three layers:
+1. LLM instruction - system prompt tells model to reject dangerous requests
+2. Pattern validation - blocks path traversal, shell injection, system paths
+3. Sandbox containment - restricts file access to project/sandbox directory
 
-Pattern validation handles known attack vectors efficiently.
-Semantic security (system prompt) provides adaptive defense against novel attacks.
+Layer 1 is probabilistic (LLM compliance varies, jailbreaking possible).
+Layers 2-3 are deterministic and provide hard guarantees.
 """
 
 import shlex
@@ -119,16 +120,13 @@ def sanitize_shell_input(command: str) -> str:
 
 
 def validate_path(file_path: str, base_dir: Path = None) -> Path:
-    """Prevent common path attacks. Semantic security handles sophisticated ones. [SEC-004]
+    """Validate and resolve file path. [SEC-004]
 
     Blocks:
     - Path traversal (../)
     - System directories (/etc, /bin, etc.)
     - Null bytes and empty paths
     - Absolute paths in sandbox mode
-
-    Does not block every exotic Unicode/encoding variant - relies on
-    semantic security (LLM reasoning) for sophisticated attacks. [SEC-001]
     """
     if not file_path or not file_path.strip():
         raise ValueError("Path cannot be empty")

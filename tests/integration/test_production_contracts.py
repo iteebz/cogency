@@ -220,7 +220,7 @@ async def test_semantic_security_in_system_prompt(mock_config):
     assert "SECURITY" in system_msg
     assert "Project scope only" in system_msg or "system paths" in system_msg.lower()
     assert (
-        "/etc/" in system_msg or "/root" in system_msg or "system directories" in system_msg.lower()
+        "/etc" in system_msg or "/root" in system_msg or "system directories" in system_msg.lower()
     )
 
 

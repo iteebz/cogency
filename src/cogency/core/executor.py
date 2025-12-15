@@ -1,3 +1,5 @@
+import asyncio
+
 from .config import Execution
 from .protocols import ToolCall, ToolResult
 
@@ -39,28 +41,31 @@ async def execute_tools(
     user_id: str,
     conversation_id: str,
 ) -> list[ToolResult]:
-    """Execute multiple tool calls sequentially, maintaining order.
+    """Execute multiple tool calls in parallel, preserving result order.
 
     Args:
-        calls: List of tool calls to execute in order
+        calls: List of tool calls to execute
         execution: Execution context with tools and configuration
         user_id: User identifier for tool execution context
         conversation_id: Conversation identifier for tool execution context
 
     Returns:
         List of ToolResult in same order as input calls.
-        Failures don't block subsequent calls - all execute regardless.
+        Failures don't block other calls - all execute regardless.
     """
-    results = []
-    for call in calls:
-        result = await execute_tool(
+    if not calls:
+        return []
+
+    tasks = [
+        execute_tool(
             call,
             execution=execution,
             user_id=user_id,
             conversation_id=conversation_id,
         )
-        results.append(result)
-    return results
+        for call in calls
+    ]
+    return list(await asyncio.gather(*tasks))
 
 
 __all__ = ["execute_tools"]
