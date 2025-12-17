@@ -18,60 +18,59 @@ agent = Agent(tools=tools())                          # All tools
 
 ## Tool Reference
 
-### `read(file: str) -> str`
-Read file contents.
+### `read(file, start=0, lines=None)`
+Read file contents. Use `start`/`lines` for pagination on large files.
 
-### `write(file: str, content: str) -> str`
-Write content to file.
+### `write(file, content, overwrite=False)`
+Write content to file. Fails if exists unless `overwrite=True`.
 
-### `edit(file: str, old: str, new: str) -> str`
+### `edit(file, old, new)`
 Replace exact text block in file.
 
-### `list(path: str) -> list[str]`
-List files and subdirectories.
+### `list(path=".", pattern=None)`
+List files in tree view (depth 3). Optional `pattern` filters filenames.
 
-### `find(pattern: str = None, content: str = None, path: str = ".") -> list[str]`
+### `find(pattern=None, content=None, path=".")`
 Find files by name pattern or search contents. At least one of `pattern` or `content` required.
 
-### `replace(pattern: str, old: str, new: str, exact: bool = True) -> str`
+### `replace(pattern, old, new, exact=True)`
 Find-and-replace across files matching glob pattern.
 
-### `shell(command: str) -> str`
-Execute shell command.
+### `shell(command, cwd=None)`
+Execute shell command (30s timeout). Optional `cwd` for working directory.
 
-### `scrape(url: str) -> str`
-Scrape URL content.
+### `scrape(url)`
+Scrape webpage text (3KB limit).
 
-### `search(query: str) -> str`
-Web search.
+### `search(query)`
+Web search (5 results).
 
-### `recall(query: str) -> str`
-Search past conversations.
+### `recall(query)`
+Search past conversations (fuzzy keyword match).
 
 ## Custom Tools
 
 ```python
-from cogency import Tool, ToolResult
+from dataclasses import dataclass
+from typing import Annotated
+from cogency import ToolResult
+from cogency.core.tool import tool
+from cogency.core.protocols import ToolParam
 
-class DatabaseTool(Tool):
-    name = "query_db"
-    description = "Execute SQL queries"
-    schema = {
-        "sql": {"type": "string", "description": "SQL query", "required": True},
-        "timeout": {"type": "integer", "default": 30, "min": 1, "max": 300},
-    }
+@dataclass
+class QueryParams:
+    sql: Annotated[str, ToolParam(description="SQL query to execute")]
+    timeout: Annotated[int, ToolParam(description="Query timeout", ge=1, le=300)] = 30
 
-    def describe(self, args: dict) -> str:
-        return f"Querying: {args.get('sql', '')[:50]}..."
+@tool("Execute SQL queries against the database")
+async def query_db(params: QueryParams, **kwargs) -> ToolResult:
+    try:
+        result = db.execute(params.sql, timeout=params.timeout)
+        return ToolResult(outcome="Query successful", content=result)
+    except Exception as e:
+        return ToolResult(outcome=f"Query failed: {e}", error=True)
 
-    async def execute(self, sql: str, timeout: int = 30, **kwargs) -> ToolResult:
-        try:
-            result = db.execute(sql, timeout=timeout)
-            return ToolResult(outcome="Query successful", content=result)
-        except Exception as e:
-            return ToolResult(outcome=f"Query failed: {e}", error=True)
-
-agent = Agent(tools=[DatabaseTool()])
+agent = Agent(tools=[query_db])
 ```
 
 ## Schema Format
@@ -82,8 +81,8 @@ agent = Agent(tools=[DatabaseTool()])
 | `description` | Human-readable docs for LLM |
 | `required` | Boolean (default: True) |
 | `default` | Default value |
-| `min`, `max` | Numeric constraints |
-| `max_length` | String length constraint |
+| `ge`, `le` | Numeric constraints (greater/less than or equal) |
+| `min_length`, `max_length` | String length constraints |
 
 ## Error Handling
 

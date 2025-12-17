@@ -7,7 +7,9 @@ Three independent systems: **Profile** (passive learning), **Recall** (active se
 Passive user preference learning triggered every N messages.
 
 ```python
-agent = Agent(llm="openai", profile=True, user_id="alice")
+agent = Agent(llm="openai", profile=True)
+async for event in agent("query", user_id="alice"):
+    ...
 ```
 
 **How it works:**
@@ -23,7 +25,8 @@ agent = Agent(llm="openai", profile=True, user_id="alice")
   "style": "direct, technical",
   "focus": "distributed systems",
   "interests": "Rust, Go, performance",
-  "_meta": {"last_learned_at": 1699564800.0}
+  "misc": "likes cats, morning person",
+  "_meta": {"last_learned_at": 1699564800.0, "messages_processed": 10}
 }
 ```
 
@@ -80,9 +83,9 @@ agent = Agent(
     llm="openai",
     mode="resume",
     profile=True,
-    user_id="alice",
     tools=tools(),
 )
+# user_id passed per-call: agent("query", user_id="alice")
 
 # Cost-optimized
 agent = Agent(

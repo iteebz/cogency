@@ -10,7 +10,7 @@
 - **Output**: Semantic events with type labels
 - **Strategy**: Detect `<think>`, `<execute>`, `<results>` markers across token boundaries
 
-See **[execution.md](execution.md)** for the complete protocol specification.
+See [execution.md](execution.md) for the complete protocol specification.
 
 ```python
 # Input token stream:
@@ -47,7 +47,7 @@ See **[execution.md](execution.md)** for the complete protocol specification.
 - **Function**: Tool invocation and result handling
 - **Input**: Structured call data from accumulator
 - **Output**: Tool execution results
-- **Strategy**: Single tool execution with error handling
+- **Strategy**: Parallel batch execution via asyncio.gather
 - **Tools**: read, write, edit, list, find, replace, search, scrape, recall, shell
 
 ## Execution Modes
@@ -165,7 +165,7 @@ async def close(self) -> None
 **Token usage:**
 - Resume: Constant per iteration (session state maintained)
 - Replay: Grows with conversation (context rebuilt each time)
-- Mathematical analysis in proof.md
+- Mathematical analysis in [proof.md](proof.md)
 
 **Latency:**
 - Resume: Sub-second tool injection

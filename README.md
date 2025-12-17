@@ -87,28 +87,38 @@ async for event in agent(
 
 ## Built-in Tools
 
-- `read`, `write`, `edit`, `list`, `find`, `replace`
-- `search`, `scrape`
-- `recall`
-- `shell`
+| Tool | Description |
+|------|-------------|
+| `read` | Read file (with optional pagination) |
+| `write` | Write file (overwrite protection) |
+| `edit` | Replace exact text in file |
+| `list` | Tree view of directory |
+| `find` | Find files by pattern or content |
+| `replace` | Find-and-replace across files |
+| `shell` | Execute shell command |
+| `search` | Web search |
+| `scrape` | Extract webpage text |
+| `recall` | Search past conversations |
 
 ## Custom Tools
 
 ```python
-from cogency import Tool, ToolResult
+from dataclasses import dataclass
+from typing import Annotated
+from cogency import ToolResult
+from cogency.core.tool import tool
+from cogency.core.protocols import ToolParam
 
-class DatabaseTool(Tool):
-    name = "query_db"
-    description = "Execute SQL queries"
-    
-    async def execute(self, sql: str, user_id: str):
-        # Your implementation
-        return ToolResult(
-            outcome="Query executed",
-            content="Results..."
-        )
+@dataclass
+class QueryParams:
+    sql: Annotated[str, ToolParam(description="SQL query")]
 
-agent = Agent(llm="openai", tools=[DatabaseTool()])
+@tool("Execute SQL queries")
+async def query_db(params: QueryParams, **kwargs) -> ToolResult:
+    result = db.execute(params.sql)
+    return ToolResult(outcome="Query executed", content=result)
+
+agent = Agent(llm="openai", tools=[query_db])
 ```
 
 ## Configuration
@@ -123,7 +133,10 @@ agent = Agent(
     tools=[CustomTool()],
     max_iterations=10,
     history_window=None,             # None = full history, int = sliding window
+    history_transform=compress,      # Optional history compression callable
     profile=True,                    # Enable automatic user learning
+    security=Security(access="project", shell_timeout=60),  # Security policies
+    notifications=notification_source,  # Mid-execution context injection
     debug=False
 )
 ```

@@ -10,7 +10,7 @@ Single source of truth. Reference grade. Sufficient but not verbose.
 
 Three-phase execution: **THINK** → **EXECUTE** → **RESULTS**
 
-The LLM generates thinking, optionally batches tool calls, system executes sequentially, returns results.
+The LLM generates thinking, optionally batches tool calls, system executes in parallel, returns results in order.
 
 **Key constraint:** Tool invocations use JSON arrays inside XML markers to avoid content collisions.
 
@@ -64,9 +64,9 @@ Tool invocation batch as JSON array.
 - Arg values are valid (wrong type → error)
 
 **System Executes:**
-- Sequential: One tool completes before next starts
-- Ordered: Execution order matches array order
-- Fault-tolerant: Failed tool doesn't block subsequent tools
+- Parallel: All tools in batch execute concurrently via `asyncio.gather()`
+- Ordered: Results array order matches call array order (by position)
+- Fault-tolerant: Failed tool doesn't block other tools
 - Complete: All tool results returned regardless of errors
 
 ### Single Tool
@@ -91,7 +91,7 @@ Tool invocation batch as JSON array.
 </execute>
 ```
 
-All three execute sequentially. Read completes, write completes, read completes.
+All three execute in parallel. Results returned in array order regardless of completion order.
 
 ### Edge Cases Handled Safely
 
@@ -150,7 +150,7 @@ Tool execution outcomes. System generates JSON array, LLM reads.
 - Order: Results array order matches execution order exactly (by position)
 
 **Guarantees:**
-- Sequential order preserved
+- Array order preserved (results[i] corresponds to calls[i])
 - All results returned (none skipped)
 - Status indicates success/failure
 - Content is the tool output or error
@@ -256,11 +256,11 @@ Configuration updated successfully. API endpoint changed from old.com to new.com
 2. **Clarity:** Explicit which tools run together
 3. **Optional:** LLM can use single-tool batches for safety if preferred
 
-**Why sequential execution?**
+**Why parallel execution?**
 
-1. **Deterministic:** Order guaranteed, no race conditions
-2. **Simple:** Easier for LLM to reason about dependencies
-3. **Safe:** Later tools can depend on earlier tools' results
+1. **Fast:** All tools run concurrently, total time = slowest tool
+2. **Ordered results:** Array position preserved regardless of completion order
+3. **Caution:** Tools with dependencies should be in separate `<execute>` blocks
 
 ---
 
@@ -274,7 +274,7 @@ Configuration updated successfully. API endpoint changed from old.com to new.com
 **Accumulator:** `src/cogency/core/accumulator.py`
 - Receives call events from parser
 - Batches them until `execute` event arrives
-- Executes sequentially using `execute_tools()`
+- Executes in parallel using `execute_tools()` (asyncio.gather)
 - Formats results as JSON array
 
 **Conversation:** `src/cogency/context/conversation.py`

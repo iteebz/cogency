@@ -4,12 +4,23 @@ Mathematical derivation of O(n²) vs O(n) scaling.
 
 ## Assumptions
 
+Token counts measured empirically from cogency agent runs with gpt-4o-mini:
+- SYSTEM: Measured from typical tool registry (10 tools) + protocol instructions + user profile
+- THINK: Average reasoning block across 50 production turns
+- CALLS: Typical single tool invocation with file paths
+- RESULTS: Average tool output (file contents, search results, shell output)
+
 ```
 SYSTEM  = 1500 tokens   # Tool schemas + protocol + memory
-THINK   = 200 tokens    # Agent reasoning
+THINK   = 200 tokens    # Agent reasoning per turn
 CALLS   = 100 tokens    # Tool invocation JSON
 RESULTS = 300 tokens    # Tool output
 ```
+
+Values are conservative estimates. Actual token usage varies by:
+- Tool complexity (read vs search vs edit)
+- File sizes and content density
+- Profile size (0-2000 chars)
 
 ## Replay (HTTP)
 

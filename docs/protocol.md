@@ -13,7 +13,7 @@ Parser transforms wire protocol to events. Framework injects synthetic events (u
 
 Three-phase execution: **THINK** → **EXECUTE** → **RESULTS**
 
-See **[execution.md](execution.md)** for the complete canonical specification with edge cases.
+See [execution.md](execution.md) for the complete canonical specification with edge cases.
 
 ```xml
 <think>reasoning about the problem</think>
@@ -52,7 +52,7 @@ Tool invocation as JSON array inside XML markers.
 
 **Format:**
 - JSON array of `{"name": str, "args": dict}` objects
-- Sequential execution in array order
+- Parallel execution, results in array order
 - Fault-tolerant: failed tool doesn't block subsequent tools
 
 **Why JSON in XML?** Content like `</execute>` inside args is JSON-escaped, no collision with markers.
@@ -72,7 +72,7 @@ Tool outcomes. System generates, LLM reads.
 
 Results array order matches execution order by position.
 
-See **[execution.md](execution.md)** for edge cases (HTML in args, closing tags, mixed quotes).
+See [execution.md](execution.md) for edge cases (HTML in args, closing tags, mixed quotes).
 
 ---
 
@@ -94,6 +94,7 @@ Parser transforms wire protocol into typed events.
 | `metric` | Framework | Observability | ✗ |
 | `error` | Framework | Failures | ✗ |
 | `interrupt` | Framework | Cancellation | ✗ |
+| `cancelled` | Framework | User cancellation | ✓ |
 
 ### Event Schema
 
@@ -102,7 +103,7 @@ Parser transforms wire protocol into typed events.
 {"type": "think", "content": "reasoning text", "timestamp": 1234567890.0}
 {"type": "call", "content": '{"name": "read", "args": {"file": "main.py"}}', "timestamp": 1234567890.0}
 {"type": "execute", "timestamp": 1234567890.0}
-{"type": "result", "payload": {"outcome": "Found file", "content": "...", "error": false}, "timestamp": 1234567890.0}
+{"type": "result", "content": "[...]", "payload": {"tools_executed": 1, "success_count": 1, "failure_count": 0}, "timestamp": 1234567890.0}
 {"type": "respond", "content": "final response", "timestamp": 1234567890.0}
 {"type": "end", "timestamp": 1234567890.0}
 {"type": "metric", "step": {"input": 50, "output": 30}, "total": {"input": 100, "output": 50}, "timestamp": 1234567890.0}
