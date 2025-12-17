@@ -1,14 +1,8 @@
 """Evals CLI entry point."""
 
-import asyncio
+import sys
 
-from .eval import cli
-
-
-def main():
-    """Entry point for poetry script."""
-    asyncio.run(cli())
-
+from .run import main
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
