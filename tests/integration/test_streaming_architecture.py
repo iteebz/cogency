@@ -1,9 +1,11 @@
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from cogency import Agent
-from cogency.core.protocols import ResultEvent
+
+if TYPE_CHECKING:
+    from cogency.core.protocols import ResultEvent
 
 
 @pytest.mark.asyncio
@@ -44,7 +46,7 @@ async def test_no_chunks(mock_llm, mock_tool):
 
     result_event_raw = next((e for e in events if e["type"] == "result"), None)
     assert result_event_raw is not None
-    result_event = cast(ResultEvent, result_event_raw)
+    result_event = cast("ResultEvent", result_event_raw)
     assert result_event["type"] == "result"
     payload = result_event["payload"]
     assert payload is not None
@@ -97,7 +99,7 @@ async def test_tool_execution(mock_llm, mock_tool):
     assert call_event["type"] == "call"
     assert execute_event["type"] == "execute"
     assert metric_event["type"] == "metric"
-    result_event_typed = cast(ResultEvent, result_event)
+    result_event_typed = cast("ResultEvent", result_event)
     assert result_event_typed["type"] == "result"
 
     assert result_event_typed["type"] == "result"
@@ -126,7 +128,7 @@ async def test_error_handling(mock_llm, mock_tool):
     events = [event async for event in agent("Test query", stream="event")]
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) == 1
-    result_event = cast(ResultEvent, result_events[0])
+    result_event = cast("ResultEvent", result_events[0])
     payload = result_event["payload"]
     assert payload is not None
     assert payload["failure_count"] == 1

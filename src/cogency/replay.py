@@ -14,14 +14,15 @@ Features:
 import logging
 from typing import Literal
 
-from .. import context
-from ..lib import telemetry
-from ..lib.metrics import Metrics
-from .accumulator import Accumulator
-from .config import Config
-from .errors import ConfigError, LLMError
-from .parser import parse_tokens
-from .protocols import Event, event_content
+from . import context
+from .core.accumulator import Accumulator
+from .core.config import Config
+from .core.errors import ConfigError, LLMError
+from .core.parser import parse_tokens
+from .core.protocols import Event, event_content
+from .lib import telemetry
+from .lib.debug import log_response
+from .lib.metrics import Metrics
 
 logger = logging.getLogger(__name__)
 
@@ -34,19 +35,9 @@ async def stream(
     config: Config,
     stream: Literal["event", "token", None] = "event",
 ):
-    """Stateless HTTP iterations with context rebuild per request.
-
-    Args:
-        stream: Streaming strategy. "token" yields chunks as they arrive,
-               "event" accumulates and yields complete semantic units,
-               None uses LLM.generate() for non-streaming response.
-    """
-
     llm = config.llm
     if llm is None:
         raise ConfigError("LLM provider required")
-
-    storage = config.storage
 
     # Initialize metrics tracking
     model_name = getattr(llm, "http_model", "unknown")
@@ -115,14 +106,14 @@ async def stream(
                 else:
                     token_source = llm.stream(messages)
 
-                async for event in accumulator.process(parse_tokens(token_source)):  # pyright: ignore[reportArgumentType]
+                async for event in accumulator.process(parse_tokens(token_source)):
                     content = event_content(event)
                     if event["type"] in ["think", "call", "respond"] and metrics and content:
                         metrics.add_output(content)
                         llm_output_chunks.append(content)
 
                     if event:
-                        telemetry.add_event(telemetry_events, event)  # type: ignore[arg-type]
+                        telemetry.add_event(telemetry_events, event)
 
                     match event["type"]:
                         case "end":
@@ -152,14 +143,12 @@ async def stream(
 
             finally:
                 if config.debug:
-                    from ..lib.debug import log_response
-
                     log_response(conversation_id, model_name, "".join(llm_output_chunks))
-                await telemetry.persist_events(conversation_id, telemetry_events)
+                await telemetry.persist_events(conversation_id, telemetry_events, config.storage)
 
             # Exit iteration loop if complete
             if complete:
                 break
 
     except Exception as e:
-        raise LLMError(f"HTTP error: {str(e)}", cause=e) from e
+        raise LLMError(f"HTTP error: {e!s}", cause=e) from e

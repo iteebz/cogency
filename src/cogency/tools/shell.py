@@ -1,13 +1,12 @@
-import glob
 import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import safe_execute, sanitize_shell_input
-from ..core.tool import tool
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import safe_execute, sanitize_shell_input
+from cogency.core.tool import tool
 
 
 @dataclass
@@ -49,18 +48,9 @@ async def Shell(
 
     working_path.mkdir(parents=True, exist_ok=True)
 
-    expanded_parts = [parts[0]]
-    for arg in parts[1:]:
-        if any(char in arg for char in "*?[") and not arg.startswith("/"):
-            matches = glob.glob(arg, root_dir=str(working_path))
-            if matches:
-                expanded_parts.extend(matches)
-                continue
-        expanded_parts.append(arg)
-
     try:
         result = subprocess.run(
-            expanded_parts,
+            parts,
             cwd=str(working_path),
             capture_output=True,
             text=True,

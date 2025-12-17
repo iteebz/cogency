@@ -8,12 +8,16 @@ Implements RFC 9562 UUID v7 spec with monotonic counter:
 - 62-bit random
 
 Provides chronological ordering + global uniqueness without coordination.
+
+DEPRECATION: Python 3.13+ includes native uuid.uuid7(). This fallback implementation
+supports 3.11-3.12 but will be removed when cogency requires Python 3.13+.
 """
 
 import secrets
 import threading
 import time
 import uuid
+import warnings
 
 # Monotonic state for same-millisecond IDs (RFC 9562 Method 2)
 _state_lock = threading.Lock()
@@ -22,6 +26,16 @@ _counter = 0
 
 # Check for native uuid7 support once at module load
 _USE_NATIVE = hasattr(uuid, "uuid7")
+
+# Warn once if using fallback implementation
+if not _USE_NATIVE:
+    warnings.warn(
+        "Using fallback UUID7 implementation. "
+        "Python 3.13+ includes native uuid.uuid7() with better performance. "
+        "This fallback will be removed when cogency requires Python 3.13+.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
 
 def uuid7() -> str:

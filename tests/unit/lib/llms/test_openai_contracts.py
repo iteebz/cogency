@@ -1,11 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from cogency.lib.llms import OpenAI
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 def _rotation_calls_inner():

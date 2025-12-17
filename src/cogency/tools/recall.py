@@ -14,10 +14,9 @@ import time
 from dataclasses import dataclass
 from typing import Annotated
 
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import safe_execute
-from ..core.tool import tool
-from ..lib.sqlite import MessageMatch, Storage
+from cogency.core.protocols import MessageMatch, Storage, ToolParam, ToolResult
+from cogency.core.security import safe_execute
+from cogency.core.tool import tool
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,7 @@ class RecallParams:
     ]
 
 
-@tool("Search past conversations. Fuzzy keyword search across all user messages.")
+@tool("Search past conversations (excludes current). Use when user references prior context.")
 @safe_execute
 async def Recall(
     params: RecallParams,
@@ -49,9 +48,12 @@ async def Recall(
         return ToolResult(outcome="User ID required for memory recall", error=True)
 
     query = params.query.strip()
-    current_timestamps = await _get_timestamps(storage, conversation_id or "")
-    # Excludes current conversation to prevent contamination
-    matches = await _search_messages(storage, query, user_id, current_timestamps, limit=3)
+    matches = await storage.search_messages(
+        query=query,
+        user_id=user_id,
+        exclude_conversation_id=conversation_id,
+        limit=3,
+    )
 
     if not matches:
         outcome = f"Memory searched for '{query}' (0 matches)"
@@ -61,36 +63,6 @@ async def Recall(
     outcome = f"Memory searched for '{query}' ({len(matches)} matches)"
     content = _format_matches(matches)
     return ToolResult(outcome=outcome, content=content)
-
-
-async def _get_timestamps(storage: Storage, conversation_id: str) -> list[float]:
-    try:
-        messages = await storage.load_messages_by_conversation_id(
-            conversation_id=conversation_id, limit=20
-        )
-        return [msg["timestamp"] for msg in messages]
-    except Exception as e:
-        logger.warning(f"Recent messages lookup failed: {e}")
-        return []
-
-
-async def _search_messages(
-    storage: Storage,
-    query: str,
-    user_id: str,
-    exclude_timestamps: list[float],
-    limit: int = 3,
-) -> list[MessageMatch]:
-    try:
-        return await storage.search_messages(
-            query=query,
-            user_id=user_id,
-            exclude_timestamps=exclude_timestamps,
-            limit=limit,
-        )
-    except Exception as e:
-        logger.warning(f"Message search failed: {e}")
-        return []
 
 
 def _format_matches(matches: list[MessageMatch]) -> str:

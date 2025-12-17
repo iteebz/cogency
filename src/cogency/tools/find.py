@@ -3,10 +3,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from ..core.config import Access
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import resolve_file, safe_execute
-from ..core.tool import tool
+from cogency.core.config import Access
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import resolve_file, safe_execute
+from cogency.core.tool import tool
 
 MAX_RESULTS = 100
 SKIP_DIRS = {
@@ -41,7 +41,6 @@ class FindParams:
 
 
 def _matches_pattern(filename: str, pattern: str) -> bool:
-    """Pattern matching with wildcards."""
     if pattern == "*":
         return True
 
@@ -53,11 +52,10 @@ def _matches_pattern(filename: str, pattern: str) -> bool:
 
 
 def _search_content(file_path: Path, search_term: str) -> list:
-    """Find matches in file content and return (line_num, line_text) tuples."""
     matches = []
 
     try:
-        with open(file_path, encoding="utf-8") as f:
+        with file_path.open(encoding="utf-8") as f:
             for line_num, line in enumerate(f, 1):
                 if search_term.lower() in line.lower():
                     matches.append((line_num, line))
@@ -73,7 +71,6 @@ def _search_files(
     pattern: str | None,
     content: str | None,
 ) -> list:
-    """Find files and return clean visual results."""
     results = []
     root = workspace_root
 

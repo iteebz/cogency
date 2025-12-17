@@ -55,6 +55,7 @@ class Config:
     history_window: int | None = None  # Context scope (None = full history)
     history_transform: HistoryTransform | None = None  # Optional history compression
     profile: bool = False  # Learning enabled
+    profile_cadence: int = 5  # Messages between profile learning
     debug: bool = False  # Debug logging to .cogency/debug/
     notifications: NotificationSource | None = None
 

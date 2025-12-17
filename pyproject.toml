@@ -24,7 +24,8 @@ classifiers = [
 ]
 packages = [
     { include = "cogency", from = "src" },
-    { include = "evals" }
+    { include = "tests" },
+    { include = "evals" },
 ]
 
 [tool.poetry.scripts]
@@ -61,10 +62,8 @@ pyright = "^1.1.407"
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
-exclude = [
-    "evonotes",
-]
+target-version = "py311"
+exclude = ["evonotes"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -72,26 +71,45 @@ indent-style = "space"
 
 [tool.ruff.lint]
 select = [
-    "E",    # pycodestyle errors
-    "W",    # pycodestyle warnings
-    "F",    # pyflakes
-    "I",    # isort
-    "N",    # pep8-naming
-    "UP",   # pyupgrade
-    "B",    # flake8-bugbear (common bugs)
-    "C4",   # flake8-comprehensions
-    "SIM",  # flake8-simplify
-    "RET",  # flake8-return (cleaner returns)
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "S",      # flake8-bandit (security)
+    "PTH",    # flake8-use-pathlib
+    "PERF",   # perflint
+    "RUF",    # ruff-specific
+    "TCH",    # type-checking imports
+    "TID",    # tidy imports
+    "PIE",    # misc lints
+    "T20",    # flake8-print
+    "FLY",    # flynt (f-strings)
+    "FURB",   # refurb (modern python)
 ]
 ignore = [
-    "SIM108", # if-else-block-instead-of-if-exp (ternary not always clearer)
-    "SIM117", # combine-multiple-isinstance (sometimes separate is clearer)
-    "E501",   # line-too-long (prompts and test data often legitimately long)
-    "F841",   # unused-variable (false positive in evals/runner.py)
-    "N802",   # function-name-should-be-lowercase (tools are PascalCase by design)
+    "SIM108",   # ternary not always clearer
+    "E501",     # line length (formatter handles)
+    "N802",     # tools are PascalCase by design
+    "N812",     # A alias for assertions is intentional
+    "RET505",   # unnecessary else after return
+    "RET506",   # unnecessary else after raise
+    "PERF401",  # async list comprehensions are less readable
+    "S311",     # random for load balancing doesn't need crypto
+    "S603",     # subprocess calls are validated via security module
 ]
 
-# Allow specific patterns that are common in this codebase
+[tool.ruff.lint.per-file-ignores]
+"src/**/*.py" = []
+"src/cogency/core/security.py" = ["RUF001", "RUF003"]
+"src/cogency/lib/sqlite.py" = ["S608"]
+"evals/**/*.py" = ["S101", "T20", "E402"]
+"tests/**/*.py" = ["S101", "T20", "S108", "RUF012", "RUF043", "SIM117", "PTH123"]
 
 
 [tool.pytest.ini_options]
@@ -100,7 +118,8 @@ python_files = ["test_*.py", "*_test.py"]
 pythonpath = ["src"]
 filterwarnings = [
     "ignore::DeprecationWarning:starlette.*",
-    "ignore::PendingDeprecationWarning:starlette.*"
+    "ignore::PendingDeprecationWarning:starlette.*",
+    "ignore:Using fallback UUID7:DeprecationWarning",
 ]
 addopts = [
     "--strict-markers",
@@ -122,7 +141,15 @@ asyncio_mode = "auto"
 
 [tool.pyright]
 pythonVersion = "3.12"
-include = ["src", "evals", "tests"]
+include = ["src", "tests", "evals"]
+typeCheckingMode = "basic"
+reportUnnecessaryTypeIgnoreComment = true
+reportDeprecated = true
+reportPrivateUsage = false
+reportConstantRedefinition = true
+reportIncompatibleMethodOverride = true
+reportIncompatibleVariableOverride = true
+reportDuplicateImport = true
 
 [tool.coverage.run]
 source = ["src/cogency"]

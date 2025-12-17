@@ -2,10 +2,10 @@ import difflib
 from dataclasses import dataclass
 from typing import Annotated
 
-from ..core.config import Access
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import resolve_file, safe_execute
-from ..core.tool import tool
+from cogency.core.config import Access
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import resolve_file, safe_execute
+from cogency.core.tool import tool
 
 
 @dataclass
@@ -49,7 +49,7 @@ async def Edit(
             error=True,
         )
 
-    with open(file_path, encoding="utf-8") as f:
+    with file_path.open(encoding="utf-8") as f:
         content = f.read()
 
     if params.old not in content:
@@ -67,7 +67,7 @@ async def Edit(
 
     new_content = content.replace(params.old, params.new, 1)
 
-    with open(file_path, "w", encoding="utf-8") as f:
+    with file_path.open("w", encoding="utf-8") as f:
         f.write(new_content)
 
     diff = _compute_diff(params.file, content, new_content)

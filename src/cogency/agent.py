@@ -1,14 +1,9 @@
-"""Streaming agent with stateless context assembly.
-
-Usage:
-  agent = Agent(llm="openai")
-  async for event in agent(query):
-      if event["type"] == "respond":
-          result = event["content"]
-"""
+"""Streaming agent. Usage: async for event in Agent(llm="openai")(query): ..."""
 
 import asyncio
 import logging
+import time
+import uuid
 from typing import Literal
 
 import anthropic
@@ -17,34 +12,23 @@ import google.genai
 import httpx
 import openai
 
-from .. import context
-from ..lib import llms
-from ..lib.sqlite import default_storage
-from ..tools import tools as default_tools
-from . import replay, resume
-from .config import Config, Security
-from .errors import ConfigError, LLMError
-from .protocols import LLM, HistoryTransform, NotificationSource, Storage, Tool
+from . import context, replay, resume
+from .core.config import Config, Security
+from .core.errors import ConfigError, LLMError
+from .core.protocols import LLM, HistoryTransform, NotificationSource, Storage, Tool
+from .lib import llms
+from .lib.sqlite import default_storage
+from .tools import tools as builtin_tools
 
 logger = logging.getLogger(__name__)
 
 
 class Agent:
-    """Agent with a clear, explicit, and immutable configuration.
-
-    The Agent is the primary interface for interacting with the Cogency framework.
-    Its constructor is the single point of configuration, providing a self-documenting
-    and type-safe way to set up agent behavior.
-
-    Usage:
-      agent = Agent(llm="openai", storage=default_storage())
-      async for event in agent("What is the capital of France?"):
-          print(event)
+    """Immutable agent configuration.
 
     Concurrency:
-      - Agent instances are immutable (safe to share across calls/threads)
-      - Multiple calls to same agent instance: safe
-      - Same conversation_id from multiple processes: undefined (SQLite WAL single-writer limit)
+    - Thread-safe: instances immutable, safe to share
+    - Process-safe: multiple readers OK, concurrent writes to same conversation_id undefined
     """
 
     def __init__(
@@ -60,33 +44,17 @@ class Agent:
         history_window: int | None = None,
         history_transform: HistoryTransform | None = None,
         profile: bool = False,
+        profile_cadence: int = 5,
         security: Security | None = None,
         debug: bool = False,
         notifications: NotificationSource | None = None,
     ):
-        """Initializes the Agent with an explicit configuration.
-
-        Args:
-            llm: An LLM instance or a string identifier (e.g., "openai", "gemini").
-            storage: A Storage implementation. Defaults to local file-based storage.
-            identity: Core agent identity (who you are). Overrides default Cogency identity.
-            instructions: Additional instructions to steer the agent's behavior.
-            tools: A list of Tool instances. Defaults to a standard set.
-            mode: Coordination mode ("auto", "resume", "replay"). Defaults to "auto".
-            max_iterations: Maximum number of execution iterations.
-            history_window: Number of historical events to include in context (None = full history).
-            history_transform: Optional callable to transform/compress conversation history.
-            profile: Enable automatic profile learning. Defaults to False.
-            security: A Security object defining access levels and timeouts.
-            debug: Enable verbose debug logging.
-            notifications: Notification source for mid-execution context injection.
-        """
         if debug:
             logging.getLogger("cogency").setLevel(logging.DEBUG)
 
         final_security = security or Security()
         final_storage = storage or default_storage()
-        final_tools = default_tools() if tools is None else tools
+        final_tools = builtin_tools() if tools is None else tools
         final_llm = llms.create(llm) if isinstance(llm, str) else llm
 
         self.config = Config(
@@ -100,6 +68,7 @@ class Agent:
             history_window=history_window,
             history_transform=history_transform,
             profile=profile,
+            profile_cadence=profile_cadence,
             security=final_security,
             debug=debug,
             notifications=notifications,
@@ -116,24 +85,9 @@ class Agent:
         conversation_id: str | None = None,
         stream: Literal["event", "token", None] = "event",
     ):
-        """Stream events for query.
-
-        Args:
-            query: User query
-            user_id: User identifier (None = no profile)
-            conversation_id: Conversation identifier (None = stateless/ephemeral)
-            stream: Streaming strategy. "token" yields chunks as they arrive,
-                   "event" accumulates and yields complete semantic units,
-                   None uses LLM.generate() for non-streaming response.
-                   Defaults to "event".
-        """
         try:
-            import time
-
             # Generate ephemeral ID for iteration continuity if none provided
             if conversation_id is None:
-                import uuid
-
                 conversation_id = str(uuid.uuid4())
 
             # Persist user message once at agent entry
@@ -160,22 +114,16 @@ class Agent:
                         stream=stream,
                     ):
                         yield event
-                    # Trigger profile learning if enabled
                     if self.config.profile:
                         context.learn(
                             user_id,
                             profile_enabled=self.config.profile,
                             storage=storage,
                             llm=self.config.llm,
+                            cadence=self.config.profile_cadence,
                         )
                     return
-                except (
-                    LLMError,
-                    RuntimeError,
-                    ValueError,
-                    AttributeError,
-                    httpx.RequestError,
-                ) as e:
+                except (LLMError, RuntimeError, ValueError, httpx.RequestError) as e:
                     logger.debug(f"Resume unavailable, falling back to replay: {e}")
                     mode_stream = replay.stream
             else:
@@ -190,17 +138,15 @@ class Agent:
             ):
                 yield event
 
-            # Trigger profile learning if enabled
             if self.config.profile:
                 context.learn(
                     user_id,
                     profile_enabled=self.config.profile,
                     storage=storage,
                     llm=self.config.llm,
+                    cadence=self.config.profile_cadence,
                 )
         except (KeyboardInterrupt, asyncio.CancelledError):
-            import time
-
             timestamp = time.time()
             await self.config.storage.save_message(
                 conversation_id or "", user_id or "", "cancelled", "", timestamp

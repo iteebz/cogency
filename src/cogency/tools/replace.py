@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from ..core.config import Access
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import resolve_file, safe_execute
-from ..core.tool import tool
+from cogency.core.config import Access
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import resolve_file, safe_execute
+from cogency.core.tool import tool
 
 
 @dataclass
@@ -24,7 +24,6 @@ class ReplaceParams:
 
 
 def _prepare_glob_pattern(pattern: str, access: Access) -> str:
-    """Normalize sandbox-prefixed patterns so they align with other tools."""
     if access != "sandbox":
         return pattern
 
@@ -32,8 +31,7 @@ def _prepare_glob_pattern(pattern: str, access: Access) -> str:
     while sanitized.startswith("./"):
         sanitized = sanitized[2:]
 
-    if sanitized.startswith("sandbox/"):
-        sanitized = sanitized[len("sandbox/") :]
+    sanitized = sanitized.removeprefix("sandbox/")
 
     return sanitized or "*"
 
@@ -46,7 +44,6 @@ def _compute_diff(file: str, old: str, new: str) -> str:
 
 
 def _rollback_backups(backups: list[Path]):
-    """Restores files from backups and cleans up backup files."""
     for backup_path in backups:
         if backup_path.exists():
             original_path = backup_path.with_suffix("")

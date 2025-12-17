@@ -61,30 +61,32 @@ async def test_learn_async(mock_config, tmp_path):
     # Update config to use temporary storage
     mock_config.storage = storage
 
-    with patch("cogency.context.profile.get", return_value=mock_profile):
-        with patch(
+    with (
+        patch("cogency.context.profile.get", return_value=mock_profile),
+        patch(
             "cogency.context.profile._should_learn_with_profile",
             new_callable=AsyncMock,
             return_value=True,
-        ):
-            mock_save = AsyncMock()
-            storage.save_profile = mock_save
+        ),
+    ):
+        mock_save = AsyncMock()
+        storage.save_profile = mock_save
 
-            result = await profile.learn_async(
-                "user1",
-                storage=mock_config.storage,
-                llm=mock_config.llm,
-            )
+        result = await profile.learn_async(
+            "user1",
+            storage=mock_config.storage,
+            llm=mock_config.llm,
+        )
 
-            assert result is True
-            mock_config.llm.generate.assert_called_once()
-            mock_save.assert_called_once()
+        assert result is True
+        mock_config.llm.generate.assert_called_once()
+        mock_save.assert_called_once()
 
-            # Check learning prompt contained user messages
-            call_args = mock_config.llm.generate.call_args[0][0]
-            prompt_text = str(call_args)
-            assert "I love coding Python" in prompt_text
-            assert "Can you help with algorithms?" in prompt_text
+        # Check learning prompt contained user messages
+        call_args = mock_config.llm.generate.call_args[0][0]
+        prompt_text = str(call_args)
+        assert "I love coding Python" in prompt_text
+        assert "Can you help with algorithms?" in prompt_text
 
 
 def test_learn_disabled(mock_config):

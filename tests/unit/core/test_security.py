@@ -106,9 +106,8 @@ def test_timeout_completes():
 def test_timeout_enforces():
     import time
 
-    with pytest.raises(TimeoutError):
-        with timeout_context(1):
-            time.sleep(2)
+    with pytest.raises(TimeoutError), timeout_context(1):
+        time.sleep(2)
 
 
 def test_resolve_sandbox(tmp_path):

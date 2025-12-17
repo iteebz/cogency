@@ -1,7 +1,6 @@
 from collections import defaultdict
 
-from ..lib.sqlite import Storage
-from .protocols import Tool
+from .protocols import Storage, Tool
 
 
 class ToolRegistry:
@@ -12,7 +11,18 @@ class ToolRegistry:
         self._register_builtins()
 
     def _register_builtins(self):
-        from ..tools import Edit, Find, List, Read, Recall, Replace, Scrape, Search, Shell, Write
+        from cogency.tools import (
+            Edit,
+            Find,
+            List,
+            Read,
+            Recall,
+            Replace,
+            Scrape,
+            Search,
+            Shell,
+            Write,
+        )
 
         self.register(Read, "code")
         self.register(Write, "code")

@@ -2,7 +2,7 @@
 
 import pytest
 
-from cogency.lib.resilience import CircuitBreaker, retry
+from cogency.lib.resilience import retry
 
 
 @pytest.mark.asyncio
@@ -88,34 +88,5 @@ async def test_retry_sync_and_async():
     async def async_fn():
         return "async"
 
-    assert await sync_fn() == "sync"  # type: ignore[misc]
+    assert sync_fn() == "sync"
     assert await async_fn() == "async"
-
-
-def test_circuit_breaker_init():
-    """Initializes closed with 0 failures."""
-    cb = CircuitBreaker(max_failures=3)
-    assert not cb.is_open()
-    assert cb.consecutive_failures == 0
-
-
-def test_circuit_breaker_opens_at_threshold():
-    """Opens after max_failures consecutive failures."""
-    cb = CircuitBreaker(max_failures=3)
-
-    assert not cb.record_failure()
-    assert not cb.record_failure()
-    assert cb.record_failure()
-    assert cb.is_open()
-
-
-def test_circuit_breaker_resets_on_success():
-    """Success resets failure counter."""
-    cb = CircuitBreaker(max_failures=3)
-
-    cb.record_failure()
-    cb.record_failure()
-    cb.record_success()
-
-    assert cb.consecutive_failures == 0
-    assert not cb.is_open()

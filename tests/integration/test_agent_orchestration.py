@@ -27,8 +27,8 @@ async def test_fallback_learns(mock_llm, mock_storage):
         yield {"type": "respond", "content": "test"}
 
     with (
-        patch("cogency.core.resume.stream") as mock_resume,
-        patch("cogency.core.replay.stream") as mock_replay,
+        patch("cogency.resume.stream") as mock_resume,
+        patch("cogency.replay.stream") as mock_replay,
         patch("cogency.context.learn") as mock_learn,
     ):
         mock_resume.side_effect = RuntimeError("WebSocket failed")
@@ -56,7 +56,7 @@ async def test_streaming(mock_llm, mock_storage):
     """
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_events():
             yield {"type": "respond", "content": "Test response"}
@@ -83,7 +83,7 @@ async def test_error_propagation(mock_llm, mock_storage):
     """
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_failing_events():
             raise RuntimeError("Stream execution failed")
@@ -106,7 +106,7 @@ async def test_user_event_emission(mock_llm, mock_storage):
     """
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_events():
             yield {"type": "respond", "content": "Response"}
@@ -133,7 +133,7 @@ async def test_interrupt_persistence(mock_llm, mock_storage):
     """
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_interrupted_events():
             yield {"type": "think", "content": "Thinking..."}
@@ -163,7 +163,7 @@ async def test_cancelled_error_persistence(mock_llm, mock_storage):
     """
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_cancelled_events():
             yield {"type": "respond", "content": "Response"}

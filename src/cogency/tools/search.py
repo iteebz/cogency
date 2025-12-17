@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from typing import Annotated
 
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import safe_execute
-from ..core.tool import tool
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import safe_execute
+from cogency.core.tool import tool
 
 
 @dataclass

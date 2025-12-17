@@ -22,6 +22,7 @@ async def execute_tool(
     args["storage"] = execution.storage
     args["sandbox_dir"] = execution.sandbox_dir
     args["access"] = execution.access
+    args["conversation_id"] = conversation_id
 
     if tool_name == "shell":
         args["timeout"] = execution.shell_timeout
@@ -31,7 +32,7 @@ async def execute_tool(
     try:
         return await tool.execute(**args)
     except Exception as e:
-        return ToolResult(outcome=f"Tool execution failed: {str(e)}", error=True)
+        return ToolResult(outcome=f"Tool execution failed: {e!s}", error=True)
 
 
 async def execute_tools(
@@ -41,18 +42,7 @@ async def execute_tools(
     user_id: str,
     conversation_id: str,
 ) -> list[ToolResult]:
-    """Execute multiple tool calls in parallel, preserving result order.
-
-    Args:
-        calls: List of tool calls to execute
-        execution: Execution context with tools and configuration
-        user_id: User identifier for tool execution context
-        conversation_id: Conversation identifier for tool execution context
-
-    Returns:
-        List of ToolResult in same order as input calls.
-        Failures don't block other calls - all execute regardless.
-    """
+    """Parallel execution, order preserved. Failures don't block siblings."""
     if not calls:
         return []
 

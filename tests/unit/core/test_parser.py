@@ -123,23 +123,23 @@ async def test_results_block():
 
 
 @pytest.mark.asyncio
-async def test_full_sequence_think_execute_results():
-    """Parse full protocol sequence with JSON array format."""
+async def test_full_sequence_think_execute():
+    """Parse think + execute sequence — parser stops after execute.
+
+    Results are system-injected in a new iteration, not parsed from same stream.
+    """
     xml = """<think>reading config and updating endpoint</think>
 <execute>
 [
   {"name": "read", "args": {"file": "config.json"}}
 ]
-</execute>
-<results>
-[{"tool": "read", "status": "success", "content": {"api": "old.com"}}]
-</results>"""
+</execute>"""
     events = []
     async for event in parse_tokens(xml):
         events.append(event)
 
     types = [e["type"] for e in events]
-    assert types == ["think", "call", "execute", "result"]
+    assert types == ["think", "call", "execute"]
 
 
 @pytest.mark.asyncio
@@ -198,20 +198,20 @@ async def test_multiple_tags_same_token_ordered():
 
 @pytest.mark.asyncio
 async def test_mixed_tags_streaming_tokens():
-    """Mixed tags across streaming tokens preserve order."""
+    """Mixed tags across streaming tokens preserve order until execute.
+
+    Parser terminates after execute — results come from system in next iteration.
+    """
     tokens = [
         "<think>reasoning</think>",
         '<execute>[{"name": "read", "args": {"file": "test.txt"}}]</execute>',
-        '<results>[{"tool": "read", "status": "success"}]</results>',
     ]
     events = []
     async for event in parse_tokens(mock_token_stream(tokens)):
         events.append(event)
 
     types = [e["type"] for e in events]
-    assert types.index("think") < types.index("call")
-    assert types.index("call") < types.index("execute")
-    assert types.index("execute") < types.index("result")
+    assert types == ["think", "call", "execute"]
 
 
 @pytest.mark.asyncio
@@ -277,49 +277,25 @@ async def test_no_token_loss_complex_streaming():
 
 
 @pytest.mark.asyncio
-async def test_protocol_example_complete_sequence():
-    """Parse complete protocol example from spec with JSON arrays."""
+async def test_protocol_example_single_iteration():
+    """Parse single iteration — think + execute, then parser stops.
+
+    Complete protocol spans multiple iterations. Each parse pass handles
+    one LLM output up to execute. Results are system-injected between iterations.
+    """
     xml = """<think>read config, update endpoint, verify</think>
 
 <execute>
 [
   {"name": "read", "args": {"file": "config.json"}}
 ]
-</execute>
-
-<results>
-[{"tool": "read", "status": "success", "content": {"api": "old.com"}}]
-</results>
-
-<think>writing updated config and verifying in one batch</think>
-
-<execute>
-[
-  {"name": "write", "args": {"file": "config.json", "content": "{\\"api\\": \\"new.com\\"}"}},
-  {"name": "read", "args": {"file": "config.json"}}
-]
-</execute>
-
-<results>
-[
-  {"tool": "write", "status": "success", "content": {"bytes": 22}},
-  {"tool": "read", "status": "success", "content": {"api": "new.com"}}
-]
-</results>"""
+</execute>"""
     events = []
     async for event in parse_tokens(xml):
         events.append(event)
 
     types = [e["type"] for e in events]
-    think_count = types.count("think")
-    call_count = types.count("call")
-    execute_count = types.count("execute")
-    result_count = types.count("result")
-
-    assert think_count == 2
-    assert call_count == 3
-    assert execute_count == 2
-    assert result_count == 2
+    assert types == ["think", "call", "execute"]
 
 
 @pytest.mark.asyncio
@@ -421,3 +397,24 @@ async def test_whitespace_only_content():
         events.append(event)
 
     assert len(events) == 0
+
+
+@pytest.mark.asyncio
+async def test_parser_terminates_after_execute():
+    """Parser MUST stop after <execute> — model cannot bypass tool results.
+
+    This is a critical invariant. Some models (e.g., gpt-5.1) emit their response
+    and <end> in the same HTTP call as <execute>, before seeing tool results.
+    The parser must terminate after execute to force a new iteration where the
+    model sees <results> in context.
+    """
+    malformed_stream = (
+        '<execute>[{"name": "read", "args": {"file": "x"}}]</execute>I already know the answer<end>'
+    )
+
+    events = [e async for e in parse_tokens(malformed_stream)]
+    event_types = [e["type"] for e in events]
+
+    assert event_types == ["call", "execute"]
+    assert "respond" not in event_types
+    assert "end" not in event_types

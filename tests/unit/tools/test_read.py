@@ -19,7 +19,7 @@ async def test_read_default(temp_file: Path):
     result = await Read.execute(file=str(temp_file), access="system")
 
     assert not result.error
-    assert f"Read {str(temp_file)} (10 lines)" == result.outcome
+    assert f"Read {temp_file!s} (10 lines)" == result.outcome
     assert result.content is not None
     assert len(result.content.splitlines()) == 10
     assert "Line 0" in result.content
@@ -32,7 +32,7 @@ async def test_read_with_lines(temp_file: Path):
     result = await Read.execute(file=str(temp_file), lines=5, access="system")
 
     assert not result.error
-    assert f"Read {str(temp_file)} (5 lines)" == result.outcome
+    assert f"Read {temp_file!s} (5 lines)" == result.outcome
     assert result.content is not None
     assert len(result.content.splitlines()) == 5
     assert "0: Line 0" in result.content
@@ -46,7 +46,7 @@ async def test_read_with_start_and_lines(temp_file: Path):
     result = await Read.execute(file=str(temp_file), start=5, lines=3, access="system")
 
     assert not result.error
-    assert f"Read {str(temp_file)} (3 lines)" == result.outcome
+    assert f"Read {temp_file!s} (3 lines)" == result.outcome
     assert result.content is not None
     assert len(result.content.splitlines()) == 3
     assert "5: Line 5" in result.content

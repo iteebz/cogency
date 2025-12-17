@@ -1,13 +1,11 @@
-"""Event accumulator with tool execution and persistence.
+"""Event accumulator: accumulate → execute → persist.
 
-Core algorithm:
-1. Accumulate content until type changes or control events (execute, end)
-2. Execute tool calls when execute event encountered
+Algorithm:
+1. Accumulate content until type changes or control event (execute/end)
+2. On execute: run pending tool calls, emit results
 3. Persist all events to storage
-4. Streaming modes:
-   - stream="token": Stream respond/think naturally, accumulate call/result/cancelled/metric
-   - stream="event": Accumulate all, yield complete semantic units on type changes
-   Both modes accumulate call content fully (must be complete JSON for execution)
+
+Modes: token (stream respond/think chunks), event (complete semantic units).
 """
 
 import json
@@ -16,8 +14,8 @@ import time
 from collections.abc import AsyncGenerator
 from typing import Literal
 
-from ..lib.resilience import CircuitBreaker
-from .codec import parse_tool_call
+from .circuit import CircuitBreaker
+from .codec import format_results_array, parse_tool_call
 from .config import Execution
 from .executor import execute_tools
 from .protocols import Event, ToolResult, event_content, event_type
@@ -30,8 +28,6 @@ PERSISTABLE_EVENTS = {"think", "call", "result", "respond"}
 
 
 class Accumulator:
-    """Stream processor focused on event accumulation and tool execution."""
-
     def __init__(
         self,
         user_id: str,
@@ -60,7 +56,6 @@ class Accumulator:
         self.call_timestamps = []  # Preserve timestamps for each call
 
     async def _flush_accumulated(self) -> Event | None:
-        """Flush accumulated content, persist and return event if needed."""
         if not self.current_type or not self.content.strip():
             return None
 
@@ -81,16 +76,11 @@ class Accumulator:
             return {  # type: ignore[return-value]
                 "type": self.current_type,
                 "content": clean_content,
-                "timestamp": self.start_time,
+                "timestamp": time.time(),
             }
         return None
 
     async def _handle_execute(self, timestamp: float) -> AsyncGenerator[Event, None]:
-        """Execute batch of tool calls sequentially, maintaining order.
-
-        Yields single result event with clean JSON array (no XML wrapping).
-        Wrapping for protocol happens at injection time (resume mode).
-        """
         if not self.pending_calls:
             return
 
@@ -103,11 +93,9 @@ class Accumulator:
             )
         except (ValueError, TypeError, KeyError) as e:
             results = [
-                ToolResult(outcome=f"Tool execution failed: {str(e)}", content="", error=True)
+                ToolResult(outcome=f"Tool execution failed: {e!s}", content="", error=True)
                 for _ in self.pending_calls
             ]
-
-        from .codec import format_results_array
 
         for result in results:
             if result.error:
@@ -153,8 +141,6 @@ class Accumulator:
     async def process(
         self, parser_events: AsyncGenerator[Event, None]
     ) -> AsyncGenerator[Event, None]:
-        """Process events with batched tool execution."""
-
         async for event in parser_events:
             ev_type = event_type(event)
             content = event_content(event)
@@ -202,8 +188,8 @@ class Accumulator:
                     logger.debug(f"EVENT: {flushed}")
                     yield flushed
 
-                # Emit end and terminate
-                yield event
+                # Emit end and terminate with fresh timestamp
+                yield {"type": "end", "timestamp": time.time()}
                 return
 
             # Handle type transitions (non-call, non-control events)

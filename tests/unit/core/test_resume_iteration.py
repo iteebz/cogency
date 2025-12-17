@@ -10,7 +10,7 @@ Contract: max_iterations counts tool execution turns, not streamed events.
 import pytest
 
 from cogency.core.errors import LLMError
-from cogency.core.resume import stream as resume_stream
+from cogency.resume import stream as resume_stream
 
 
 @pytest.mark.asyncio

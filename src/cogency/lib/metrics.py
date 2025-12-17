@@ -1,13 +1,13 @@
 import logging
 import time
 
-from ..core.protocols import MetricEvent
+from cogency.core.protocols import MetricEvent
 
 logger = logging.getLogger(__name__)
 
 try:
     import tiktoken
-except Exception:
+except ImportError:
     tiktoken = None
 
 # Cache encoder to avoid rebuilding on every call
@@ -16,8 +16,6 @@ _encoder_load_failed = False
 
 
 def count_tokens(content) -> int:
-    """Count tokens using tiktoken when available, otherwise fall back to word count."""
-
     if not content:
         return 0
 
@@ -34,16 +32,12 @@ def count_tokens(content) -> int:
 
 
 def _normalize(content) -> str:
-    """Normalize arbitrary message structures into a single string."""
-
     if isinstance(content, list):
         return "\n".join(f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in content)
     return str(content)
 
 
 def _encoder():
-    """Lazy-load the GPT-4 encoder, caching failures for offline environments."""
-
     global _gpt4_encoder, _encoder_load_failed
 
     if _encoder_load_failed or tiktoken is None:
@@ -61,7 +55,7 @@ def _encoder():
 
 
 def _approx_tokens(text: str) -> int:
-    """Heuristic token approximation when tiktoken is unavailable."""
+    """~0.75 tokens per word heuristic."""
 
     stripped = text.strip()
     if not stripped:
@@ -72,8 +66,6 @@ def _approx_tokens(text: str) -> int:
 
 
 class Metrics:
-    """Track comprehensive metrics for streaming agents."""
-
     def __init__(self, model: str):
         self.model = model
         self.input_tokens = 0
@@ -85,13 +77,11 @@ class Metrics:
 
     @classmethod
     def init(cls, model: str):
-        """Initialize metrics tracking."""
         metrics = cls(model)
         metrics.task_start_time = time.time()
         return metrics
 
     def start_step(self):
-        """Start timing a new step and reset step counters."""
         self.step_start_time = time.time()
         self.step_input_tokens = 0
         self.step_output_tokens = 0
@@ -113,7 +103,6 @@ class Metrics:
         return self.input_tokens + self.output_tokens
 
     def event(self) -> MetricEvent:
-        """Create clean metric event."""
         now = time.time()
         return {
             "type": "metric",

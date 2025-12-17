@@ -4,9 +4,9 @@ from dataclasses import dataclass
 from typing import Annotated
 from urllib.parse import urlparse
 
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import safe_execute
-from ..core.tool import tool
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import safe_execute
+from cogency.core.tool import tool
 
 logger = logging.getLogger(__name__)
 
@@ -38,9 +38,7 @@ def _format_content(content: str) -> str:
 def _extract_domain(url: str) -> str:
     try:
         domain = urlparse(url).netloc.lower()
-        if domain.startswith("www."):
-            domain = domain[4:]
-        return domain
+        return domain.removeprefix("www.")
     except Exception as e:
         logger.warning(f"Domain extraction failed for {url}: {e}")
         return "unknown-domain"

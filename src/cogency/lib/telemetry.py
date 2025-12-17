@@ -2,8 +2,7 @@ import asyncio
 import json
 import logging
 
-from ..core.protocols import Event
-from ..lib.sqlite import default_storage
+from cogency.core.protocols import Event, Storage
 
 logger = logging.getLogger(__name__)
 
@@ -12,12 +11,11 @@ def add_event(events_list: list[Event], event: Event):
     events_list.append(event)
 
 
-async def persist_events(conversation_id: str, events_list: list[Event]):
+async def persist_events(conversation_id: str, events_list: list[Event], storage: Storage):
     if not events_list:
         return
 
     try:
-        storage = default_storage()
         tasks = []
         for event in events_list:
             content = event.get("content", "")

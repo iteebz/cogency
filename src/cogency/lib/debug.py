@@ -19,5 +19,5 @@ def log_response(conversation_id: str, model: str, response: str):
         "response": response,
     }
 
-    with open(debug_path, "a") as f:
+    with debug_path.open("a") as f:
         f.write(json.dumps(entry) + "\n")

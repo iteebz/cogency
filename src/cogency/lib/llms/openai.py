@@ -5,11 +5,19 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
-from ...core.protocols import LLM
+from cogency.core.protocols import LLM
+
 from .interrupt import interruptible
 from .rotation import get_api_key, with_rotation
 
 logger = logging.getLogger(__name__)
+
+# WebSocket connection cleanup timeout. Based on:
+# - Typical close handshake: 100-500ms
+# - Network latency buffer: 1-2s
+# - Stuck connections (server unresponsive): force close after 5s
+# Prevents indefinite hangs during cleanup while allowing graceful shutdown
+WS_CLOSE_TIMEOUT_SECONDS = 5.0
 
 
 class OpenAI(LLM):
@@ -18,8 +26,8 @@ class OpenAI(LLM):
     def __init__(
         self,
         api_key: str | None = None,
-        http_model: str = "gpt-4o-mini",
-        websocket_model: str = "gpt-4o-mini-realtime-preview",
+        http_model: str = "gpt-5.2",
+        websocket_model: str = "gpt-realtime",
         temperature: float = 1.0,
         max_tokens: int = 4096,
     ):
@@ -53,7 +61,7 @@ class OpenAI(LLM):
                 response = await client.responses.create(
                     model=self.http_model,
                     instructions=final_instructions,
-                    input=cast(Any, final_input_messages),
+                    input=cast("Any", final_input_messages),
                     temperature=self.temperature,
                     stream=False,
                 )
@@ -81,7 +89,7 @@ class OpenAI(LLM):
             return await client.responses.create(
                 model=self.http_model,
                 instructions=final_instructions,
-                input=cast(Any, final_input_messages),
+                input=cast("Any", final_input_messages),
                 temperature=self.temperature,
                 stream=True,
             )
@@ -195,7 +203,6 @@ class OpenAI(LLM):
                 pass
             elif "already has an active response" in str(e).lower():
                 logger.debug("Active response detected via string match (fragile)")
-                pass
             else:
                 raise
 
@@ -215,7 +222,6 @@ class OpenAI(LLM):
                 elif event.type == "response.output_text.done":
                     # Text generation is done, wait for final response.done
                     logger.debug("Got response.output_text.done")
-                    pass
                 elif event.type == "error":
                     error_code = getattr(event, "code", None)
                     if error_code == "active_response_exists":
@@ -243,7 +249,9 @@ class OpenAI(LLM):
             with contextlib.suppress(Exception):
                 await self._connection.close()
 
-        await asyncio.wait_for(self._connection_manager.__aexit__(None, None, None), timeout=5.0)
+        await asyncio.wait_for(
+            self._connection_manager.__aexit__(None, None, None), timeout=WS_CLOSE_TIMEOUT_SECONDS
+        )
         self._connection = None
         self._connection_manager = None
 

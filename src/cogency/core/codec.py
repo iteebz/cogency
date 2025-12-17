@@ -1,28 +1,24 @@
-"""Codec utilities for tool calls/results.
-
-Provides both serialization (formatting) helpers for model prompts
-and parsing helpers to recover structured objects from LLM output.
-"""
+"""Tool call/result serialization and parsing."""
 
 from __future__ import annotations
 
 import json
 import re
-from collections.abc import Iterable
+from typing import TYPE_CHECKING
 
 from .protocols import Tool, ToolCall, ToolResult
 
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+
 
 class ToolParseError(ValueError):
-    """Raised when tool output cannot be parsed safely."""
-
     def __init__(self, message: str, original_json: str | None = None) -> None:
         super().__init__(message)
         self.original_json = original_json
 
 
 def tool_instructions(tools: Iterable[Tool]) -> str:
-    """Generate dynamic tool instructions for LLM context."""
     lines: list[str] = []
 
     for tool in tools:
@@ -37,33 +33,16 @@ def tool_instructions(tools: Iterable[Tool]) -> str:
 
 
 def format_call_agent(call: ToolCall) -> str:
-    """Serialize a ToolCall for agent consumption."""
     return json.dumps({"name": call.name, "args": call.args})
 
 
 def format_result_agent(result: ToolResult) -> str:
-    """Serialize a ToolResult for agent consumption."""
     if result.content:
         return f"{result.outcome}\n{result.content}"
     return result.outcome
 
 
 def format_results_array(calls: list[ToolCall], results: list[ToolResult]) -> str:
-    """Format results array for XML protocol injection per spec.
-
-    Returns JSON array with tool, status, content fields:
-    [
-      {"tool": "name", "status": "success"/"failure", "content": data},
-      ...
-    ]
-
-    Args:
-        calls: List of ToolCall objects (for tool names, in order)
-        results: List of ToolResult in same order as calls
-
-    Returns:
-        JSON array string for <results> block injection
-    """
     array = []
     for call, result in zip(calls, results, strict=True):
         item = {
@@ -76,11 +55,6 @@ def format_results_array(calls: list[ToolCall], results: list[ToolResult]) -> st
 
 
 def parse_tool_call(json_str: str) -> ToolCall:
-    """Parse ToolCall from JSON.
-
-    Minimal error recovery: extracts JSON object bounds and handles triple-quote strings.
-    Invalid JSON raises ToolParseError immediately - no heuristic patching.
-    """
     json_str = json_str.strip()
     if "{" in json_str and "}" in json_str:
         start = json_str.find("{")
@@ -100,7 +74,6 @@ def parse_tool_call(json_str: str) -> ToolCall:
 
 
 def parse_tool_result(content: str) -> list[ToolResult]:
-    """Parse tool result from JSON string."""
     try:
         data = json.loads(content)
         if isinstance(data, dict):

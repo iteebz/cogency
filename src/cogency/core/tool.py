@@ -1,4 +1,4 @@
-"""Tool decorator: function → Tool instance via dataclass schema extraction."""
+"""@tool decorator: async function → Tool instance."""
 
 import inspect
 from collections.abc import Callable
@@ -57,15 +57,9 @@ def _build_schema(params_type) -> dict:
 
 
 def tool(desc: str):
-    """Decorator: @tool("description") async def name(params: ParamsClass, ...) -> ToolResult.
-
-    Creates a Tool instance from an async function. First parameter must be a dataclass
-    with Annotated fields. Additional parameters (sandbox_dir, access, etc.) pass through.
-    """
-
     def decorator(func: Callable) -> Tool:
         sig = inspect.signature(func)
-        params_arg = list(sig.parameters.values())[0]
+        params_arg = next(iter(sig.parameters.values()))
         params_type = params_arg.annotation
 
         if not is_dataclass(params_type):
@@ -83,7 +77,7 @@ def tool(desc: str):
             async def execute(self, **kwargs) -> ToolResult:
                 tool_params = {k: v for k, v in kwargs.items() if k in param_names}
                 other_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-                params = cast(Callable[..., Any], params_type)(**tool_params)
+                params = cast("Callable[..., Any]", params_type)(**tool_params)
                 return await func(params, **other_kwargs)
 
             def describe(self, args: dict) -> str:

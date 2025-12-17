@@ -2,7 +2,8 @@ import logging
 from collections.abc import AsyncGenerator
 from typing import Any
 
-from ...core.protocols import LLM
+from cogency.core.protocols import LLM
+
 from .interrupt import interruptible
 from .rotation import get_api_key, with_rotation
 

@@ -135,7 +135,7 @@ async def test_history_transform_compression_example(mock_storage):
         summary_content = f"[Summary of {len(older)} earlier messages]"
         summary = {"role": "system", "content": summary_content}
 
-        return [summary] + recent
+        return [summary, *recent]
 
     result = await assemble(
         user_id,

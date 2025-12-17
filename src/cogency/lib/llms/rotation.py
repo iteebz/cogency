@@ -6,8 +6,12 @@ from typing import Any
 
 from dotenv import load_dotenv
 
-# Load .env with override to replace empty environment variables
 load_dotenv(override=True)
+
+# Base delay between key rotation attempts. Accounts for typical API rate limit
+# reset windows (1-2s) and network round-trip time. Additional random jitter (0-1s)
+# is added during rotation to prevent thundering herd when multiple processes retry.
+KEY_ROTATION_DELAY = 1.0
 
 
 def load_keys(prefix: str) -> list[str]:
@@ -75,9 +79,8 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
             if not is_rate_limit_error(str(e)):
                 raise e
 
-            # Simple backoff: wait before trying next key
-            if offset < len(keys) - 1:  # Not last key
-                await asyncio.sleep(1.0 + random.uniform(0, 1))  # 1-2s jitter
-            else:  # Last key
-                raise e  # All keys exhausted
+            if offset < len(keys) - 1:
+                await asyncio.sleep(KEY_ROTATION_DELAY + random.uniform(0, 1))
+            else:
+                raise e
     return None

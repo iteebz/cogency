@@ -1,14 +1,17 @@
 import logging
 from collections.abc import Sequence
 
-from ..core.errors import StorageError
-from ..core.protocols import HistoryTransform, Storage, Tool
+from cogency.core.errors import StorageError
+from cogency.core.protocols import HistoryTransform, Storage, Tool
+
 from .conversation import to_messages
 from .profile import format as profile_format
 from .system import prompt as system_prompt
 
 logger = logging.getLogger(__name__)
 
+# 10k events ~2-5MB context, 50-200ms SQLite query, rarely exceeds 128k token limits.
+# Conversations beyond this require history_window for bounded memory.
 MAX_CONVERSATION_LENGTH = 10000
 
 
@@ -24,13 +27,6 @@ async def assemble(
     identity: str | None = None,
     instructions: str | None = None,
 ) -> list[dict]:
-    """Assemble complete context from storage.
-
-    Args:
-        history_transform: Optional callable to transform conversation history.
-            Applied after retrieval and truncation, before final assembly.
-            Use for compression strategies (rolling summaries, semantic chunking).
-    """
     system_content = [
         system_prompt(tools=list(tools), identity=identity, instructions=instructions)
     ]
@@ -76,4 +72,4 @@ async def assemble(
             conv_messages = await history_transform(conv_messages)
         messages.extend(conv_messages)
 
-    return [{"role": "system", "content": "\n\n".join(system_content)}] + messages
+    return [{"role": "system", "content": "\n\n".join(system_content)}, *messages]

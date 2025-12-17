@@ -2,10 +2,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from ..core.config import Access
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import resolve_file, safe_execute
-from ..core.tool import tool
+from cogency.core.config import Access
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import resolve_file, safe_execute
+from cogency.core.tool import tool
 
 
 @dataclass
@@ -18,9 +18,8 @@ class ReadParams:
 
 
 def _read_lines(file_path: Path, start: int, lines: int | None = None) -> str:
-    """Read specific lines from file with line numbers."""
     result_lines = []
-    with open(file_path, encoding="utf-8") as f:
+    with file_path.open(encoding="utf-8") as f:
         for line_num, line in enumerate(f, 0):
             if line_num < start:
                 continue
@@ -62,7 +61,7 @@ async def Read(
             line_count = len(content.splitlines())
             outcome = f"Read {params.file} ({line_count} lines)"
         else:
-            with open(file_path, encoding="utf-8") as f:
+            with file_path.open(encoding="utf-8") as f:
                 content = f.read()
             line_count = len(content.splitlines())
             outcome = f"Read {params.file} ({line_count} lines)"

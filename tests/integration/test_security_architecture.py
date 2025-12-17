@@ -93,14 +93,17 @@ async def test_legitimate_ops(shell_tool, file_tool):
     assert shell_result.content == "hello"
 
     file, file_base, access = file_tool
-    try:
-        file_result = await file.execute(file="test.txt", sandbox_dir=file_base, access=access)
-        assert (
-            "Invalid path" not in file_result.outcome
-            and "Security violation" not in file_result.outcome
-        )
-    except FileNotFoundError:
-        pass
+
+    # Create test file first to ensure legitimate operation succeeds
+    from pathlib import Path
+
+    test_file = Path(file_base) / "test.txt"
+    test_file.write_text("test content")
+
+    file_result = await file.execute(file="test.txt", sandbox_dir=file_base, access=access)
+    assert not file_result.error
+    assert "Invalid path" not in file_result.outcome
+    assert "Security violation" not in file_result.outcome
 
 
 @pytest.mark.asyncio

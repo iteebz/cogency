@@ -5,7 +5,7 @@ All events yielded exactly once. No duplicates on retry paths.
 
 import pytest
 
-from cogency.core.resume import stream as resume_stream
+from cogency.resume import stream as resume_stream
 
 
 @pytest.mark.asyncio

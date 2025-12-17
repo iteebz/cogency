@@ -14,15 +14,15 @@ in LLM memory rather than resending full context each turn.
 import logging
 from typing import Literal
 
-from .. import context
-from ..lib import telemetry
-from ..lib.debug import log_response
-from ..lib.metrics import Metrics
-from .accumulator import Accumulator
-from .config import Config
-from .errors import ConfigError, LLMError
-from .parser import parse_tokens
-from .protocols import Event, event_content, event_type
+from . import context
+from .core.accumulator import Accumulator
+from .core.config import Config
+from .core.errors import ConfigError, LLMError
+from .core.parser import parse_tokens
+from .core.protocols import Event, event_content, event_type
+from .lib import telemetry
+from .lib.debug import log_response
+from .lib.metrics import Metrics
 
 logger = logging.getLogger(__name__)
 
@@ -35,14 +35,6 @@ async def stream(
     config: Config,
     stream: Literal["event", "token", None] = "event",
 ):
-    """WebSocket streaming with tool injection and session continuity.
-
-    Args:
-        stream: Streaming strategy. "token" yields chunks as they arrive,
-               "event" accumulates and yields complete semantic units,
-               None uses LLM.generate() for non-streaming response.
-    """
-
     llm = config.llm
     if llm is None:
         raise ConfigError("LLM provider required")
@@ -121,7 +113,7 @@ async def stream(
                     # Send query on first turn, payload on subsequent turns
                     send_content = query if payload is None else payload
                     async for event in accumulator.process(
-                        parse_tokens(session.send(send_content))  # type: ignore[arg-type]
+                        parse_tokens(session.send(send_content))
                     ):
                         ev_type = event_type(event)
                         content = event_content(event)
@@ -131,7 +123,7 @@ async def stream(
                             turn_output.append(content)
 
                         if event:
-                            telemetry.add_event(telemetry_events, event)  # type: ignore[arg-type]
+                            telemetry.add_event(telemetry_events, event)
 
                         match ev_type:
                             case "end":
@@ -177,14 +169,10 @@ async def stream(
                 payload = next_payload or ""
                 count_payload_tokens = True
         finally:
-            await telemetry.persist_events(conversation_id, telemetry_events)
-        # Handle natural WebSocket completion
-        if not complete:
-            # Stream ended without explicit end event - provider-driven completion
-            complete = True
+            await telemetry.persist_events(conversation_id, telemetry_events, config.storage)
 
     except Exception as e:
-        raise LLMError(f"WebSocket failed: {str(e)}", cause=e) from e
+        raise LLMError(f"WebSocket failed: {e!s}", cause=e) from e
     finally:
         # Always cleanup WebSocket session
         if session:

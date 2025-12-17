@@ -10,12 +10,14 @@ production failures:
 """
 
 import json
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import pytest
 
 from cogency import Agent
-from cogency.core.protocols import ResultEvent
+
+if TYPE_CHECKING:
+    from cogency.core.protocols import ResultEvent
 
 
 @pytest.mark.asyncio
@@ -64,7 +66,11 @@ async def test_telemetry_failure_doesnt_crash_agent(mock_config, mock_llm, mock_
     storage = FailingTelemetryStorage(mock_config.storage)
 
     agent = Agent(
-        llm=llm, tools=[mock_tool_instance], storage=storage, mode="replay", max_iterations=1
+        llm=llm,
+        tools=[mock_tool_instance],
+        storage=storage,  # type: ignore[arg-type]
+        mode="replay",
+        max_iterations=1,
     )
 
     # Should NOT raise - telemetry failure is non-critical
@@ -73,7 +79,7 @@ async def test_telemetry_failure_doesnt_crash_agent(mock_config, mock_llm, mock_
     # Verify execution succeeded despite telemetry failure
     result_events = [e for e in events if e["type"] == "result"]
     assert len(result_events) > 0
-    result_event = cast(ResultEvent, result_events[0])
+    result_event = cast("ResultEvent", result_events[0])
     assert result_event["type"] == "result"
     payload = result_event["payload"]
     assert payload is not None
@@ -91,24 +97,24 @@ async def test_circuit_breaker_stops_runaway_agent(mock_llm, mock_tool):
         name="failing_tool", description="Always fails", should_fail=True
     )
 
-    protocol_tokens = [
-        f'<execute>[{{"name": "{failing_tool.name}", "args": {{}}}}]</execute>',
-        f'<execute>[{{"name": "{failing_tool.name}", "args": {{}}}}]</execute>',
-        f'<execute>[{{"name": "{failing_tool.name}", "args": {{}}}}]</execute>',
-    ]
+    batched_execute = (
+        f"<execute>["
+        f'{{"name": "{failing_tool.name}", "args": {{}}}},'
+        f'{{"name": "{failing_tool.name}", "args": {{}}}},'
+        f'{{"name": "{failing_tool.name}", "args": {{}}}}'
+        f"]</execute>"
+    )
 
-    llm = mock_llm.set_response_tokens(protocol_tokens)
+    llm = mock_llm.set_response_tokens([batched_execute])
     agent = Agent(llm=llm, tools=[failing_tool], mode="replay", max_iterations=10)
 
     events = [event async for event in agent("Test query")]
 
-    # Should have 'end' event due to circuit breaker
     event_types = [e["type"] for e in events]
     assert "end" in event_types
 
-    # Should NOT have 4+ tool executions - circuit breaker should fire at 3
-    execute_count = event_types.count("execute")
-    assert execute_count <= 3
+    call_count = event_types.count("call")
+    assert call_count == 3
 
 
 @pytest.mark.asyncio
@@ -186,7 +192,7 @@ async def test_storage_load_error_propagates(mock_config):
             user_id="test",
             conversation_id="conv",
             tools=[],
-            storage=FailingStorage(),
+            storage=FailingStorage(),  # type: ignore[arg-type]
             history_window=None,
             history_transform=None,
             profile_enabled=False,
@@ -217,7 +223,7 @@ async def test_tool_error_fed_back_to_llm(mock_llm, mock_tool):
     assert len(result_events) > 0
 
     result = result_events[0]
-    result_typed = cast(ResultEvent, result)
+    result_typed = cast("ResultEvent", result)
     assert result_typed["type"] == "result"
     content = result_typed.get("content", "")
     results_json = json.loads(content)

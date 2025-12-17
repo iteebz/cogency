@@ -1,50 +1,26 @@
 """System prompt generation.
 
 Defense in depth:
-1. LLM instruction - tells model to reject dangerous requests (probabilistic)
-2. Pattern validation - blocks known-bad paths/commands (deterministic)
-3. Sandbox containment - limits blast radius (deterministic)
+1. LLM instruction - reject dangerous requests (probabilistic, bypassable)
+2. Pattern validation - block known-bad paths/commands (deterministic)
+3. Sandbox containment - limit blast radius (deterministic)
 
-Layer 1 filters most bad requests but can be bypassed via jailbreaking.
 Layers 2-3 provide hard guarantees regardless of LLM behavior.
 """
 
-from ..core.codec import tool_instructions
-from ..core.protocols import Tool
+from cogency.core.codec import tool_instructions
+from cogency.core.protocols import Tool
 
-
-def prompt(
-    tools: list[Tool] | None = None,
-    identity: str | None = None,
-    instructions: str | None = None,
-) -> str:
-    """Generate minimal viable prompt for maximum emergence.
-
-    Args:
-        tools: Available tools for the agent
-        identity: Custom identity (overrides default Cogency identity)
-        instructions: Additional instructions/context
-
-    Core principles:
-    - RESPOND: Multiple times, LLM choice timing
-    - THINK: Optional reasoning scratch pad
-    - CALL + EXECUTE: Always paired, no exceptions
-    - END: LLM decides when complete
-    - Security: Semantic high-level principles, always included
-    - Universal: Same prompt all providers/modes
-    """
-
-    # Meta-protocol prime
-    meta = """RUNTIME CONSTRAINT
+META = """RUNTIME CONSTRAINT
 XML-based protocol. Structure = semantics.
 All tool invocations in <execute> blocks.
 Results injected as <results> JSON array."""
 
-    default_identity = """IDENTITY
+DEFAULT_IDENTITY = """IDENTITY
 Cogency: autonomous reasoning agent.
 Ground claims in tool output. Act on directives."""
 
-    protocol = """PROTOCOL
+PROTOCOL = """PROTOCOL
 
 Three-phase execution: THINK → EXECUTE → RESULTS. Sequential, ordered, validated.
 
@@ -67,7 +43,7 @@ On error, analyze cause and retry with different approach.
 
 End each turn with <end>."""
 
-    examples = """EXAMPLES
+EXAMPLES = """EXAMPLES
 
 <execute>
 [
@@ -127,38 +103,36 @@ Good question. For async error handling, wrap await calls in try/except blocks. 
 
 <end>"""
 
-    security = """SECURITY
+SECURITY = """SECURITY
 
 Project scope only. Relative paths only (e.g. "src/file.py").
 Shell: Starts fresh in project root each call. Use cwd arg, not cd.
 Reject: system paths (/etc, ~/.ssh, ~/.aws), exploits, destructive ops."""
 
-    # Build prompt in optimal order: meta + protocol + identity + examples + security + instructions + tools
-    sections = []
+MEMORY = """MEMORY
+You have access to the user's past conversations via the recall tool. Use it when they reference prior context."""
 
-    # 0. Meta-protocol (immutable, primes everything)
-    sections.append(meta)
 
-    # 1. Protocol (immutable, before identity)
-    sections.append(protocol)
+def _has_recall(tools: list[Tool]) -> bool:
+    return any(t.name == "recall" for t in tools)
 
-    # 2. Identity (custom or default)
-    sections.append(identity or default_identity)
 
-    # 3. Examples (immutable)
-    sections.append(examples)
+def prompt(
+    tools: list[Tool] | None = None,
+    identity: str | None = None,
+    instructions: str | None = None,
+) -> str:
+    """Minimal prompt, maximum emergence. Same prompt all providers/modes."""
+    sections = [META, PROTOCOL, identity or DEFAULT_IDENTITY]
 
-    # 4. Security (always included - critical for every iteration)
-    sections.append(security)
+    if tools and _has_recall(tools):
+        sections.append(MEMORY)
 
-    # 5. Instructions (additional context)
+    sections.extend([EXAMPLES, SECURITY])
+
     if instructions:
         sections.append(f"INSTRUCTIONS: {instructions}")
 
-    # 6. Tools (capabilities)
-    if tools:
-        sections.append(tool_instructions(tools))
-    else:
-        sections.append("No tools available.")
+    sections.append(tool_instructions(tools) if tools else "No tools available.")
 
     return "\n\n".join(sections)

@@ -201,3 +201,57 @@ async def test_multiple_conversations_isolated(tmp_path):
         ).fetchall()
         assert len(conv1_messages) == 1
         assert conv1_messages[0]["content"] == "conv1_msg"
+
+
+@pytest.mark.asyncio
+async def test_search_messages_excludes_current_conversation(tmp_path):
+    """search_messages excludes messages from the specified conversation_id."""
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv_current", "user1", "user", "secret code ZEBRA123", 100.0)
+    await storage.save_message("conv_past", "user1", "user", "old message about zebras", 200.0)
+    await storage.save_message("conv_other", "user1", "user", "another zebra reference", 300.0)
+
+    results = await storage.search_messages(
+        query="zebra", user_id="user1", exclude_conversation_id="conv_current", limit=10
+    )
+
+    assert len(results) == 2
+    conv_ids = [r.conversation_id for r in results]
+    assert "conv_current" not in conv_ids
+    assert "conv_past" in conv_ids
+    assert "conv_other" in conv_ids
+
+
+@pytest.mark.asyncio
+async def test_search_messages_without_exclusion(tmp_path):
+    """search_messages returns all matching messages when no exclusion specified."""
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv1", "user1", "user", "hello world", 100.0)
+    await storage.save_message("conv2", "user1", "user", "hello there", 200.0)
+
+    results = await storage.search_messages(
+        query="hello", user_id="user1", exclude_conversation_id=None, limit=10
+    )
+
+    assert len(results) == 2
+
+
+@pytest.mark.asyncio
+async def test_search_messages_user_isolation(tmp_path):
+    """search_messages only returns messages for the specified user."""
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv1", "user1", "user", "user1 secret", 100.0)
+    await storage.save_message("conv2", "user2", "user", "user2 secret", 200.0)
+
+    results = await storage.search_messages(
+        query="secret", user_id="user1", exclude_conversation_id=None, limit=10
+    )
+
+    assert len(results) == 1
+    assert results[0].content == "user1 secret"

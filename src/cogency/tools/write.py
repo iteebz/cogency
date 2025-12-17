@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 from typing import Annotated
 
-from ..core.config import Access
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import resolve_file, safe_execute
-from ..core.tool import tool
+from cogency.core.config import Access
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import resolve_file, safe_execute
+from cogency.core.tool import tool
 
 
 @dataclass
@@ -35,7 +35,7 @@ async def Write(
 
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(file_path, "w", encoding="utf-8") as f:
+    with file_path.open("w", encoding="utf-8") as f:
         f.write(params.content)
 
     lines = params.content.count("\n") + 1 if params.content else 0

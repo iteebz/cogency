@@ -39,7 +39,7 @@ def setup_files(tmp_path: Path):
 @pytest.mark.asyncio
 async def test_replace_exact_single_file_single_occurrence(setup_files):
     file_path = setup_files["file1"]
-    old_content = file_path.read_text()
+    file_path.read_text()
 
     result = await Replace.execute(
         pattern="simple_file.txt",
@@ -319,7 +319,7 @@ async def test_replace_describe_method():
 
 @pytest.mark.asyncio
 async def test_replace_returns_diff_content(setup_files):
-    file_path = setup_files["file2"]
+    setup_files["file2"]
 
     result = await Replace.execute(
         pattern="src/code.py",

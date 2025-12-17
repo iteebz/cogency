@@ -3,9 +3,9 @@ from .gemini import Gemini
 from .openai import OpenAI
 
 __all__ = [
-    "OpenAI",
     "Anthropic",
     "Gemini",
+    "OpenAI",
     "create",
 ]
 

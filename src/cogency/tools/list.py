@@ -3,11 +3,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated
 
-from ..core.config import Access
-from ..core.protocols import ToolParam, ToolResult
-from ..core.security import resolve_file, safe_execute
-from ..core.tool import tool
+from cogency.core.config import Access
+from cogency.core.protocols import ToolParam, ToolResult
+from cogency.core.security import resolve_file, safe_execute
+from cogency.core.tool import tool
 
+# Default directory traversal depth for tree listings. Based on:
+# - Depth 2: Too shallow, misses nested src/lib/components structure
+# - Depth 3: Covers typical project layouts (src/module/submodule)
+# - Depth 4+: Excessive output, usually includes generated/vendor dirs
+# Trade-off: Readability vs completeness for typical project navigation
 DEFAULT_TREE_DEPTH = 3
 DEFAULT_IGNORED_DIRS = [
     "node_modules",
@@ -42,7 +47,6 @@ def _build_tree(
     current_depth: int = 0,
     prefix: str = "",
 ) -> list:
-    """Build tree lines."""
     lines = []
 
     if current_depth >= depth:

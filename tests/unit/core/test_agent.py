@@ -57,7 +57,7 @@ async def test_stream_event_default(mock_llm, mock_storage):
     """stream='event' is default behavior."""
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_events():
             yield {"type": "respond", "content": "Test"}
@@ -77,7 +77,7 @@ async def test_stream_token_parameter(mock_llm, mock_storage):
     """stream='token' passes to underlying stream function."""
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_events():
             yield {"type": "respond", "content": "Test"}
@@ -96,7 +96,7 @@ async def test_stream_none_parameter(mock_llm, mock_storage):
     """stream=None passes to underlying stream function."""
     agent = Agent(llm=mock_llm, storage=mock_storage, mode="replay")
 
-    with patch("cogency.core.replay.stream") as mock_stream:
+    with patch("cogency.replay.stream") as mock_stream:
 
         async def mock_events():
             yield {"type": "respond", "content": "Test"}

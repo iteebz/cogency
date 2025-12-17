@@ -43,18 +43,18 @@ async def test_timeout_enforcement():
 
 
 @pytest.mark.asyncio
-async def test_glob_expansion_in_project(tmp_path, monkeypatch):
+async def test_lists_directories_in_project(tmp_path, monkeypatch):
     (tmp_path / "alpha").mkdir()
     (tmp_path / "beta").mkdir()
 
     monkeypatch.chdir(tmp_path)
 
-    result = await Shell.execute(command="ls -d */", access="project")
+    result = await Shell.execute(command="ls", access="project")
 
     assert not result.error
     assert result.content is not None
-    assert "alpha/" in result.content
-    assert "beta/" in result.content
+    assert "alpha" in result.content
+    assert "beta" in result.content
 
 
 @pytest.mark.asyncio

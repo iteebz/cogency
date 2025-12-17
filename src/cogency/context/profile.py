@@ -1,29 +1,25 @@
-"""User profile management with LLM-based learning.
+"""User profiles: LLM-learned JSON, not embeddings.
 
-Profiles are learned through direct LLM analysis of conversation patterns,
-stored as human-readable JSON, and assembled contextually.
+Why no embeddings?
+- Transparency: readable JSON, not opaque vectors
+- Simplicity: no vector DB infrastructure
+- Privacy: deletable, auditable format
 
-Why no embeddings for profiles?
-1. Transparency - profiles are readable JSON, not opaque vectors
-2. Simplicity - no vector database infrastructure required
-3. Privacy - user data stays in readable, deletable format
-4. Direct learning - LLM analyzes patterns directly from text
-
-Learning triggers:
-- Every 5 user messages
-- Profile size exceeds threshold (triggers compaction)
+Triggers: every 5 messages or size > 2000 chars (compaction).
 """
 
+import asyncio
 import json
 import logging
+import time
 from typing import TYPE_CHECKING
 
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
-    from ..core.protocols import LLM, Storage
+    from cogency.core.protocols import LLM, Storage
 
-CADENCE = 5
+DEFAULT_CADENCE = 5
 COMPACT_THRESHOLD = 2000
 
 PROFILE_TEMPLATE = """Current: {profile}
@@ -48,11 +44,10 @@ def prompt(profile: dict, user_messages: list, compact: bool = False) -> str:
 
 
 async def get(user_id: str | None, storage=None) -> dict | None:
-    """Get latest user profile."""
     if not user_id:
         return None
     if storage is None:
-        from ..lib.sqlite import SQLite
+        from cogency.lib.sqlite import SQLite
 
         storage = SQLite()
     try:
@@ -64,7 +59,6 @@ async def get(user_id: str | None, storage=None) -> dict | None:
 
 
 async def format(user_id: str | None, storage=None) -> str:
-    """Format user profile for context display."""
     try:
         profile_data = await get(user_id, storage)
         if not profile_data:
@@ -80,26 +74,24 @@ async def _should_learn_with_profile(
     current: dict | None,
     *,
     storage: "Storage",
+    cadence: int = DEFAULT_CADENCE,
 ) -> bool:
-    """Check if profile learning needed (internal, uses pre-fetched profile)."""
     if not current:
         unlearned = await storage.count_user_messages(user_id, 0)
-        if unlearned >= CADENCE:
+        if unlearned >= cadence:
             logger.debug(f"📊 INITIAL LEARNING: {unlearned} messages for {user_id}")
             return True
         return False
 
-    # Size-based compaction check
     current_chars = len(json.dumps(current))
     if current_chars > COMPACT_THRESHOLD:
         logger.debug(f"🚨 COMPACT: {current_chars} chars")
         return True
 
-    # Message cadence check
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
     unlearned = await storage.count_user_messages(user_id, last_learned)
 
-    if unlearned >= CADENCE:
+    if unlearned >= cadence:
         logger.debug(f"📊 LEARNING: {unlearned} new messages")
         return True
 
@@ -110,10 +102,32 @@ async def should_learn(
     user_id: str,
     *,
     storage: "Storage",
+    cadence: int = DEFAULT_CADENCE,
 ) -> bool:
-    """Check if profile learning needed based on message cadence or size threshold."""
     current = await get(user_id, storage)
-    return await _should_learn_with_profile(user_id, current, storage=storage)
+    return await _should_learn_with_profile(user_id, current, storage=storage, cadence=cadence)
+
+
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _task_done_callback(task):
+    _background_tasks.discard(task)
+    if task.cancelled():
+        return
+    if exc := task.exception():
+        logger.warning(f"Background profile learning failed: {exc}")
+
+
+async def wait_for_background_tasks(timeout: float = 10.0) -> None:
+    """Wait for pending profile learning tasks to complete."""
+    if not _background_tasks:
+        return
+    tasks = list(_background_tasks)
+    try:
+        await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=timeout)
+    except TimeoutError:
+        logger.warning(f"Timeout waiting for {len(tasks)} background profile tasks")
 
 
 def learn(
@@ -122,28 +136,23 @@ def learn(
     profile_enabled: bool,
     storage: "Storage",
     llm: "LLM",
+    cadence: int = DEFAULT_CADENCE,
 ):
-    """Trigger profile learning in background (fire and forget)."""
     if not profile_enabled or not user_id or not llm:
         return
 
-    # Skip in test environments
-    import os
-
-    if "pytest" in os.environ.get("_", "") or "PYTEST_CURRENT_TEST" in os.environ:
-        return
-
-    import asyncio
-
     try:
         loop = asyncio.get_running_loop()
-        loop.create_task(
+        task = loop.create_task(
             learn_async(
                 user_id,
                 storage=storage,
                 llm=llm,
+                cadence=cadence,
             )
         )
+        _background_tasks.add(task)
+        task.add_done_callback(_task_done_callback)
     except RuntimeError:
         pass
 
@@ -153,9 +162,8 @@ async def learn_async(
     *,
     storage: "Storage",
     llm: "LLM",
+    cadence: int = DEFAULT_CADENCE,
 ) -> bool:
-    """Learn user patterns from recent messages using LLM analysis."""
-
     current = await get(user_id, storage) or {
         "who": "",
         "style": "",
@@ -166,14 +174,10 @@ async def learn_async(
     }
     last_learned = current.get("_meta", {}).get("last_learned_at", 0)
 
-    if not await _should_learn_with_profile(user_id, current, storage=storage):
+    if not await _should_learn_with_profile(user_id, current, storage=storage, cadence=cadence):
         return False
 
-    # Get unlearned messages across ALL conversations
-    import time
-
-    # Get 2x learning cadence for better pattern detection
-    limit = CADENCE * 2
+    limit = cadence * 2
 
     message_texts = await storage.load_user_messages(user_id, last_learned, limit)
 
@@ -221,4 +225,4 @@ async def update_profile(
     return current if compact else None
 
 
-__all__ = ["get", "format", "learn"]
+__all__ = ["format", "get", "learn"]

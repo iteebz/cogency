@@ -8,6 +8,7 @@ try:
 except ImportError:
     pass
 
+from .agent import Agent
 from .core import (
     LLM,
     CogencyError,
@@ -20,15 +21,14 @@ from .core import (
     ToolError,
     ToolResult,
 )
-from .core.agent import Agent
 from .tools import tools
 
 __version__ = "3.3.0"
 __all__ = [
+    "LLM",
     "Agent",
     "CogencyError",
     "ConfigError",
-    "LLM",
     "LLMError",
     "ProtocolError",
     "Storage",

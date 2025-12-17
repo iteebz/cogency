@@ -1,7 +1,14 @@
-from abc import ABC, abstractmethod
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Literal, Protocol, TypedDict, runtime_checkable
+from typing import Any, Literal, NamedTuple, Protocol, TypedDict, runtime_checkable
+
+
+class MessageMatch(NamedTuple):
+    """Past message match result."""
+
+    content: str
+    timestamp: float
+    conversation_id: str
 
 
 class UserEvent(TypedDict):
@@ -100,25 +107,17 @@ _CONTROL_EVENT_TYPES: set[EventType] = {"execute", "end", "interrupt"}
 
 
 def event_type(event: Event) -> EventType:
-    """Return the canonical type for an event."""
-
     return event["type"]
 
 
 def event_content(event: Event) -> str:
-    """Extract content from events that have it, empty string otherwise.
-
-    Events with content: user, think, call, result, respond, error.
-    Events without: execute, end, metric, interrupt, cancelled.
-    """
+    """Extract content or empty string. Content events: user, think, call, result, respond, error."""
     if "content" in event:
         return event["content"] or ""
     return ""
 
 
 def is_control_event(event: Event) -> bool:
-    """True when the event should stay inside parser/accumulator (execute/end)."""
-
     return event_type(event) in _CONTROL_EVENT_TYPES
 
 
@@ -132,82 +131,18 @@ def is_end(event: Event) -> bool:
 
 @runtime_checkable
 class LLM(Protocol):
-    """Unified LLM interface supporting both HTTP streaming and WebSocket sessions.
+    """LLM interface: HTTP (stream/generate) and WebSocket (connect/send/close)."""
 
-    HTTP Pattern (stateless):
-    - stream(messages) - Full conversation context each call
-    - generate(messages) - One-shot completion
-
-    WebSocket Pattern (stateful):
-    - connect(messages) -> session LLM - Create session with initial context
-    - send(content) - Send turn content, stream response (session only)
-    - close() - Close session
-    """
-
-    # HTTP STREAMING - Stateless, full context each time
-    def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
-        """HTTP streaming with full conversation context.
-
-        Args:
-            messages: Complete conversation history
-
-        Yields:
-            Provider-native chunks until response complete
-        """
-        ...
-
-    async def generate(self, messages: list[dict]) -> str:
-        """One-shot completion with full conversation context.
-
-        Args:
-            messages: Complete conversation history
-
-        Returns:
-            Complete response string
-        """
-        ...
-
-    # WEBSOCKET SESSIONS - Stateful, context preserved
-    async def connect(self, messages: list[dict]) -> "LLM":
-        """Create session with initial context. Returns session-enabled LLM.
-
-        Args:
-            messages: Initial conversation history for context
-
-        Returns:
-            Session-enabled LLM instance with preserved context
-        """
-        ...
-
-    def send(self, content: str) -> AsyncGenerator[str, None]:
-        """Send message in session and stream response until turn completion.
-
-        Only works after connect(). Session maintains conversation context.
-
-        Args:
-            content: User message for this turn
-
-        Yields:
-            Provider-native chunks until turn complete
-
-        Turn completion is dual-channel:
-        1. LLM semantic markers (execute, end events)
-        2. Provider infrastructure signals
-
-        Provider-specific turn detection:
-        - Gemini: requires both generation_complete AND turn_complete signals
-        - OpenAI: response.done event
-        """
-        ...
-
-    async def close(self) -> None:
-        """Close session and cleanup resources. No-op for HTTP-only providers."""
-        ...
+    def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]: ...
+    async def generate(self, messages: list[dict]) -> str: ...
+    async def connect(self, messages: list[dict]) -> "LLM": ...
+    def send(self, content: str) -> AsyncGenerator[str, None]: ...
+    async def close(self) -> None: ...
 
 
 @runtime_checkable
 class Storage(Protocol):
-    """Storage protocol - honest failures, no silent lies."""
+    """Storage protocol. All methods raise on failure."""
 
     async def save_message(
         self,
@@ -216,10 +151,7 @@ class Storage(Protocol):
         type: str,
         content: str,
         timestamp: float | None = None,
-    ) -> str:
-        """Save single message to conversation. Returns message_id. Raises on failure."""
-        ...
-
+    ) -> str: ...
     async def load_messages(
         self,
         conversation_id: str,
@@ -227,16 +159,10 @@ class Storage(Protocol):
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         limit: int | None = None,
-    ) -> list[dict]:
-        """Load conversation messages with optional type filtering and limit."""
-        ...
-
+    ) -> list[dict]: ...
     async def save_event(
         self, conversation_id: str, type: str, content: str, timestamp: float | None = None
-    ) -> str:
-        """Save runtime event for telemetry. Returns event_id. Raises on failure."""
-        ...
-
+    ) -> str: ...
     async def save_request(
         self,
         conversation_id: str,
@@ -244,50 +170,38 @@ class Storage(Protocol):
         messages: str,
         response: str | None = None,
         timestamp: float | None = None,
-    ) -> str:
-        """Save LLM request/response for observability. Returns request_id. Raises on failure."""
-        ...
-
-    async def save_profile(self, user_id: str, profile: dict) -> None:
-        """Save user profile. Raises on failure."""
-        ...
-
-    async def load_profile(self, user_id: str) -> dict:
-        """Load latest user profile."""
-        ...
-
-    async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int:
-        """Count user messages since timestamp for learning cadence."""
-        ...
-
+    ) -> str: ...
+    async def save_profile(self, user_id: str, profile: dict) -> None: ...
+    async def load_profile(self, user_id: str) -> dict: ...
+    async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int: ...
     async def load_user_messages(
         self, user_id: str, since_timestamp: float = 0, limit: int | None = None
-    ) -> list[str]:
-        """Load user messages since timestamp for profile learning."""
-        ...
+    ) -> list[str]: ...
+    async def delete_profile(self, user_id: str) -> int: ...
+    async def load_latest_metric(self, conversation_id: str) -> dict | None: ...
+    async def load_messages_by_conversation_id(
+        self, conversation_id: str, limit: int
+    ) -> list[dict[str, Any]]: ...
+    async def search_messages(
+        self, query: str, user_id: str, exclude_conversation_id: str | None, limit: int
+    ) -> list[MessageMatch]: ...
 
 
 @dataclass
 class ToolCall:
-    """Tool call - structured input."""
-
     name: str
     args: dict[str, Any]
 
 
 @dataclass
 class ToolResult:
-    """Tool execution result - pure data."""
-
-    outcome: str  # Natural language completion: "Found 12 search results"
-    content: str | None = None  # Optional detailed data for LLM context
-    error: bool = False  # True if tool execution failed
+    outcome: str
+    content: str | None = None
+    error: bool = False
 
 
 @dataclass
 class ToolParam:
-    """Metadata for tool parameters."""
-
     description: str
     ge: int | float | None = None
     le: int | float | None = None
@@ -295,33 +209,15 @@ class ToolParam:
     max_length: int | None = None
 
 
-class Tool(ABC):
-    """Tool interface - clean attribute access."""
-
-    # Class attributes - required
+@runtime_checkable
+class Tool(Protocol):
     name: str
     description: str
-    schema: dict = {}
+    schema: dict
 
-    @abstractmethod
-    async def execute(self, **kwargs) -> ToolResult:
-        """Execute tool and return result. Handle errors internally."""
-        pass
-
-    @abstractmethod
-    def describe(self, args: dict) -> str:
-        """Human-readable action description for tool call."""
-        pass
+    async def execute(self, **kwargs) -> ToolResult: ...
+    def describe(self, args: dict) -> str: ...
 
 
 NotificationSource = Callable[[], Awaitable[list[str]]]
-"""Source for system notifications injected between iterations."""
-
 HistoryTransform = Callable[[list[dict]], Awaitable[list[dict]]]
-"""Transform conversation history before context assembly.
-
-Used for compression strategies (e.g. rolling summaries, semantic chunking).
-Receives conversation messages after retrieval, returns transformed messages.
-
-Cogency provides no default implementation - users must supply their own strategy.
-"""

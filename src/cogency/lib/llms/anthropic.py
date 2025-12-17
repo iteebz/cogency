@@ -8,7 +8,8 @@ HTTP-only provider. WebSocket sessions not supported by Anthropic API.
 from collections.abc import AsyncGenerator
 from typing import Any, cast
 
-from ...core.protocols import LLM
+from cogency.core.protocols import LLM
+
 from .interrupt import interruptible
 from .rotation import with_rotation
 
@@ -61,13 +62,13 @@ class Anthropic(LLM):
                 response = await client.messages.create(
                     model=self.http_model,
                     system=system,
-                    messages=cast(Any, conversation),
+                    messages=cast("Any", conversation),
                     max_tokens=self.max_tokens,
                     temperature=self.temperature,
                 )
                 first_block = response.content[0]
                 if hasattr(first_block, "text"):
-                    return cast(Any, first_block).text
+                    return cast("Any", first_block).text
                 return ""
             except ImportError as e:
                 raise ImportError("Please install anthropic: pip install anthropic") from e
@@ -84,7 +85,7 @@ class Anthropic(LLM):
             return client.messages.stream(
                 model=self.http_model,
                 system=system,
-                messages=cast(Any, conversation),
+                messages=cast("Any", conversation),
                 max_tokens=self.max_tokens,
                 temperature=self.temperature,
             )
@@ -109,4 +110,3 @@ class Anthropic(LLM):
 
     async def close(self) -> None:
         """No-op for HTTP-only provider."""
-        pass

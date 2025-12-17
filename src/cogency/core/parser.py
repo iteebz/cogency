@@ -1,13 +1,9 @@
-"""Cogency XML protocol parser.
+"""XML protocol parser. THINK → EXECUTE → RESULTS.
 
-Three-phase protocol: THINK → EXECUTE → RESULTS. Sequential, validated, ordered.
-
-Why JSON arrays inside XML markers (not pure XML)?
-- Content like "</execute>" in tool args is JSON-escaped, never collides with markers
-- LLMs naturally generate JSON, awkward with XML attribute escaping
+Why JSON inside XML markers (not pure XML)?
+- Content like "</execute>" in tool args is JSON-escaped, never collides
+- LLMs generate JSON naturally, XML attribute escaping is awkward
 - Standard JSON parsing, no custom escape rules
-
-Converts raw token stream (or complete string) into semantic events for accumulator.
 """
 
 from __future__ import annotations
@@ -15,10 +11,13 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections.abc import AsyncGenerator
+from typing import TYPE_CHECKING
 
 from .errors import ProtocolError
 from .protocols import Event, ToolCall
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -33,17 +32,6 @@ VALID_TAGS = {"think", "execute", "results", "end"}
 
 
 def parse_execute_block(xml_str: str) -> list[ToolCall]:
-    """Parse <execute> block and return list of ToolCall objects in order.
-
-    Args:
-        xml_str: XML string containing <execute> block with JSON array
-
-    Returns:
-        List of ToolCall objects in execution order
-
-    Raises:
-        ParseError: If JSON is malformed or missing <execute> block
-    """
     xml_str = xml_str.strip()
 
     if "<execute>" not in xml_str or "</execute>" not in xml_str:
@@ -85,15 +73,10 @@ def parse_execute_block(xml_str: str) -> list[ToolCall]:
 
 
 async def _wrap_string(text: str) -> AsyncGenerator[str, None]:
-    """Wrap complete string as single-yield generator."""
     yield text
 
 
 def _find_next_tag(buffer: str) -> tuple[str, int, int] | None:
-    """Find next opening tag in buffer.
-
-    Returns (tag_name, start_pos, end_pos) or None.
-    """
     earliest_pos = len(buffer)
     earliest_tag = None
 
@@ -112,7 +95,6 @@ def _find_next_tag(buffer: str) -> tuple[str, int, int] | None:
 
 
 def _find_closing_tag(buffer: str, tag_name: str) -> int | None:
-    """Find position of closing tag. Returns end position or None if not found."""
     close_tag = TAG_PATTERN[tag_name][1]
     pos = buffer.find(close_tag)
     if pos == -1:
@@ -121,11 +103,6 @@ def _find_closing_tag(buffer: str, tag_name: str) -> int | None:
 
 
 async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event, None]:
-    """Parse execute block and emit call events for each tool.
-
-    Raises:
-        ProtocolError: If XML is malformed - propagates to caller for handling
-    """
     tool_calls = parse_execute_block(xml_block)
     for call in tool_calls:
         call_json = json.dumps({"name": call.name, "args": call.args})
@@ -135,16 +112,6 @@ async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event,
 async def parse_tokens(
     token_stream: AsyncGenerator[str, None] | str,
 ) -> AsyncGenerator[Event, None]:
-    """Transform raw token stream or complete string into semantic events.
-
-    Handles:
-    - <think>...</think> → think events
-    - <execute>...</execute> → call events (parsed to JSON)
-    - <results>...</results> → result events (JSON array)
-
-    Works with token-by-token streaming or complete output strings.
-    """
-
     if isinstance(token_stream, str):
         token_stream = _wrap_string(token_stream)
 
@@ -154,7 +121,7 @@ async def parse_tokens(
         if not isinstance(token, str):
             raise RuntimeError(f"Parser expects string tokens, got {type(token)}")
 
-        logger.debug(f"TOKEN: {repr(token)}")
+        logger.debug(f"TOKEN: {token!r}")
         buffer += token
 
         while True:
@@ -185,6 +152,7 @@ async def parse_tokens(
                     ):
                         yield event
                     yield {"type": "execute", "timestamp": time.time()}
+                    return
                 except ProtocolError as e:
                     logger.error(f"Malformed <execute> block: {e}")
                     yield {
@@ -207,7 +175,7 @@ async def parse_tokens(
 
             buffer = buffer[close_pos:]
 
-    if buffer.strip():
+    if buffer:
         yield {"type": "respond", "content": buffer, "timestamp": time.time()}
 
 

@@ -3,74 +3,26 @@ import json
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, NamedTuple, Protocol, runtime_checkable
+from typing import Any, ClassVar
+
+from cogency.core.protocols import MessageMatch
 
 from .resilience import retry
 from .uuid7 import uuid7
 
-
-class MessageMatch(NamedTuple):
-    """Past message match result."""
-
-    content: str
-    timestamp: float
-    conversation_id: str
+DB_TIMEOUT_SECONDS = 5.0
 
 
-@runtime_checkable
-class Storage(Protocol):
-    async def load_messages_by_conversation_id(
-        self, conversation_id: str, limit: int
-    ) -> list[dict[str, Any]]: ...
-
-    async def search_messages(
-        self, query: str, user_id: str, exclude_timestamps: list[float], limit: int
-    ) -> list[MessageMatch]: ...
-
-    async def save_message(
-        self,
-        conversation_id: str,
-        user_id: str,
-        type: str,
-        content: str,
-        timestamp: float | None = None,
-    ) -> str: ...
-
-    async def save_event(
-        self, conversation_id: str, type: str, content: str, timestamp: float | None = None
-    ) -> str: ...
-
-    async def load_messages(
-        self,
-        conversation_id: str,
-        user_id: str,
-        include: list[str] | None = None,
-        exclude: list[str] | None = None,
-    ) -> list[dict]: ...
-
-    async def save_profile(self, user_id: str, profile: dict) -> None: ...
-
-    async def load_profile(self, user_id: str) -> dict: ...
-
-    async def load_user_messages(
-        self, user_id: str, since_timestamp: float = 0, limit: int | None = None
-    ) -> list[str]: ...
-
-    async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int: ...
-
-    async def delete_profile(self, user_id: str) -> int: ...
-
-    async def load_latest_metric(self, conversation_id: str) -> dict | None: ...
+async def _run_sync(fn):
+    return await asyncio.to_thread(fn)
 
 
 class DB:
-    _initialized_paths: dict[str, float] = {}
-    _CACHE_TTL = 3600.0
+    _initialized_paths: ClassVar[dict[str, float]] = {}
+    _CACHE_TTL: ClassVar[float] = 3600.0
 
     @classmethod
     def connect(cls, db_path: str):
-        import time
-
         is_memory = db_path == ":memory:"
 
         if not is_memory:
@@ -86,7 +38,7 @@ class DB:
                 cls._init_schema(path)
                 cls._initialized_paths[path_str] = now
 
-        conn = sqlite3.connect(db_path, timeout=5.0)
+        conn = sqlite3.connect(db_path, timeout=DB_TIMEOUT_SECONDS)
 
         if is_memory:
             cls._init_schema_memory(conn)
@@ -154,12 +106,7 @@ class DB:
 
 
 class SQLite:
-    """SQLite storage with WAL mode for concurrent reads.
-
-    Thread safety: Each operation creates new connection (safe).
-    Process safety: WAL supports multiple readers + one writer. Concurrent writes
-                    to same conversation_id from different processes = race conditions.
-    """
+    """SQLite storage. WAL mode, thread-safe (new connection per op)."""
 
     def __init__(self, db_path: str = ".cogency/store.db"):
         # Preserve :memory: as-is without path resolution
@@ -189,7 +136,7 @@ class SQLite:
                     (message_id, conversation_id, user_id, type, content, timestamp),
                 )
 
-        await asyncio.get_event_loop().run_in_executor(None, _sync_save)
+        await _run_sync(_sync_save)
         return message_id
 
     @retry(attempts=3, base_delay=0.1)
@@ -208,9 +155,10 @@ class SQLite:
                     (event_id, conversation_id, type, content, timestamp),
                 )
 
-        await asyncio.get_event_loop().run_in_executor(None, _sync_save)
+        await _run_sync(_sync_save)
         return event_id
 
+    @retry(attempts=3, base_delay=0.1)
     async def save_request(
         self,
         conversation_id: str,
@@ -219,7 +167,21 @@ class SQLite:
         response: str | None = None,
         timestamp: float | None = None,
     ) -> str:
-        return ""
+        if timestamp is None:
+            timestamp = time.time()
+
+        event_id = uuid7()
+
+        def _sync_save():
+            content = json.dumps({"messages": messages, "response": response})
+            with DB.connect(self.db_path) as db:
+                db.execute(
+                    "INSERT INTO events (event_id, conversation_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
+                    (event_id, conversation_id, "request", content, timestamp),
+                )
+
+        await _run_sync(_sync_save)
+        return event_id
 
     @retry(attempts=3, base_delay=0.1)
     async def load_messages(
@@ -262,7 +224,7 @@ class SQLite:
                     for row in reversed(rows)
                 ]
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+        return await _run_sync(_sync_load)
 
     async def save_profile(self, user_id: str, profile: dict) -> None:
         def _sync_save():
@@ -283,7 +245,7 @@ class SQLite:
                     (user_id, next_version, profile_json, time.time(), char_count),
                 )
 
-        await asyncio.get_event_loop().run_in_executor(None, _sync_save)
+        await _run_sync(_sync_save)
 
     @retry(attempts=3, base_delay=0.1)
     async def load_profile(self, user_id: str) -> dict:
@@ -297,7 +259,7 @@ class SQLite:
                     return json.loads(row[0])
                 return {}
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+        return await _run_sync(_sync_load)
 
     @retry(attempts=3, base_delay=0.1)
     async def load_user_messages(
@@ -315,7 +277,7 @@ class SQLite:
                 rows = db.execute(query, params).fetchall()
                 return [row[0] for row in rows]
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+        return await _run_sync(_sync_load)
 
     @retry(attempts=3, base_delay=0.1)
     async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int:
@@ -326,7 +288,7 @@ class SQLite:
                     (user_id, since_timestamp),
                 ).fetchone()[0]
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_count)
+        return await _run_sync(_sync_count)
 
     @retry(attempts=3, base_delay=0.1)
     async def delete_profile(self, user_id: str) -> int:
@@ -335,7 +297,7 @@ class SQLite:
                 cursor = db.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
                 return cursor.rowcount
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_delete)
+        return await _run_sync(_sync_delete)
 
     @retry(attempts=3, base_delay=0.1)
     async def load_latest_metric(self, conversation_id: str) -> dict | None:
@@ -349,7 +311,7 @@ class SQLite:
                     return json.loads(row[0])
                 return None
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+        return await _run_sync(_sync_load)
 
     @retry(attempts=3, base_delay=0.1)
     async def load_messages_by_conversation_id(
@@ -369,34 +331,40 @@ class SQLite:
                 ).fetchall()
                 return [{"timestamp": row["timestamp"], "content": row["content"]} for row in rows]
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_load)
+        return await _run_sync(_sync_load)
 
     @retry(attempts=3, base_delay=0.1)
     async def search_messages(
-        self, query: str, user_id: str, exclude_timestamps: list[float], limit: int = 3
+        self, query: str, user_id: str, exclude_conversation_id: str | None, limit: int = 3
     ) -> list[MessageMatch]:
         def _sync_search():
             with DB.connect(self.db_path) as db:
-                # Build fuzzy search patterns
                 keywords = query.lower().split()
                 like_patterns = [f"%{keyword}%" for keyword in keywords]
 
-                # Build exclusion clause
                 exclude_clause = ""
                 params = []
 
-                if exclude_timestamps:
-                    placeholders = ",".join("?" for _ in exclude_timestamps)
-                    exclude_clause = f"AND timestamp NOT IN ({placeholders})"
-                    params.extend(exclude_timestamps)
+                if exclude_conversation_id:
+                    exclude_clause = "AND conversation_id != ?"
+                    params.append(exclude_conversation_id)
 
-                # Build LIKE clause for fuzzy matching
                 like_clause = " OR ".join("LOWER(content) LIKE ?" for _ in like_patterns)
                 params.extend(like_patterns)
 
+                relevance_parts = []
+                score_params = []
+                for keyword in keywords:
+                    relevance_parts.append(
+                        "(LENGTH(content) - LENGTH(REPLACE(LOWER(content), ?, '')))"
+                    )
+                    score_params.append(keyword)
+
+                relevance_score = " + ".join(relevance_parts)
+
                 query_sql = f"""
                     SELECT content, timestamp, conversation_id,
-                           (LENGTH(content) - LENGTH(REPLACE(LOWER(content), ?, ''))) as relevance_score
+                           ({relevance_score}) as relevance_score
                     FROM messages
                     WHERE type = 'user'
                     AND user_id = ?
@@ -405,12 +373,10 @@ class SQLite:
                     ORDER BY relevance_score DESC, timestamp DESC
                     LIMIT ?
                 """
-                # Add relevance scoring query and user_id as first parameters
-                params.insert(0, query.lower())  # For relevance scoring
-                params.insert(1, user_id)  # For user scoping
-                params.append(limit)
+                final_params = [*score_params, user_id, *params]
+                final_params.append(limit)
 
-                rows = db.execute(query_sql, params).fetchall()
+                rows = db.execute(query_sql, final_params).fetchall()
 
                 return [
                     MessageMatch(
@@ -421,7 +387,7 @@ class SQLite:
                     for row in rows
                 ]
 
-        return await asyncio.get_event_loop().run_in_executor(None, _sync_search)
+        return await _run_sync(_sync_search)
 
 
 def clear_messages(conversation_id: str, db_path: str = ".cogency/store.db") -> None:

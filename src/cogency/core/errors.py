@@ -64,14 +64,12 @@ class ProtocolError(CogencyError):
 class ConfigError(CogencyError):
     """Invalid configuration. Raised at initialization."""
 
-    pass
-
 
 __all__ = [
     "CogencyError",
-    "StorageError",
-    "LLMError",
-    "ToolError",
-    "ProtocolError",
     "ConfigError",
+    "LLMError",
+    "ProtocolError",
+    "StorageError",
+    "ToolError",
 ]

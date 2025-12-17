@@ -4,8 +4,8 @@ import pytest
 
 from cogency.core.config import Config
 from cogency.core.errors import ConfigError, LLMError
-from cogency.core.resume import stream as resume_stream
 from cogency.lib.sqlite import SQLite
+from cogency.resume import stream as resume_stream
 
 
 @pytest.mark.asyncio
@@ -48,7 +48,7 @@ async def test_session_persistence(tmp_path, mock_llm, mock_config):
     mock_llm.connect = track_connect
 
     events = []
-    with patch("cogency.core.resume.log_response") as mock_log_response:
+    with patch("cogency.resume.log_response") as mock_log_response:
         async for event in resume_stream("test query", "user", "conv", config=mock_config):
             events.append(event)
 

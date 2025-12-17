@@ -1,13 +1,4 @@
-"""Tool security with defense in depth.
-
-Three layers:
-1. LLM instruction - system prompt tells model to reject dangerous requests
-2. Pattern validation - blocks path traversal, shell injection, system paths
-3. Sandbox containment - restricts file access to project/sandbox directory
-
-Layer 1 is probabilistic (LLM compliance varies, jailbreaking possible).
-Layers 2-3 are deterministic and provide hard guarantees.
-"""
+"""Defense in depth: LLM instruction (probabilistic) + pattern validation + sandbox (deterministic)."""
 
 import shlex
 import signal
@@ -24,7 +15,6 @@ if TYPE_CHECKING:
 
 
 def _has_unquoted(command: str, targets: set[str]) -> str | None:
-    """Return the first char in `targets` that appears outside of quotes."""
     single = double = False
     escaped = False
 
@@ -55,7 +45,6 @@ def _has_unquoted(command: str, targets: set[str]) -> str | None:
 
 
 def _has_dollar_outside_single_quotes(command: str) -> str | None:
-    """Detect $ that could trigger expansion (outside single quotes)."""
     single = double = False
     escaped = False
 
@@ -84,7 +73,6 @@ def _has_dollar_outside_single_quotes(command: str) -> str | None:
 
 
 def sanitize_shell_input(command: str) -> str:
-    """Validate shell input and reject dangerous patterns. [SEC-002]"""
     if not command or not command.strip():
         raise ToolError("Command cannot be empty", validation_failed=True)
 
@@ -128,14 +116,6 @@ def sanitize_shell_input(command: str) -> str:
 
 
 def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
-    """Validate and resolve file path. [SEC-004]
-
-    Blocks:
-    - Path traversal (../)
-    - System directories (/etc, /bin, etc.)
-    - Null bytes and empty paths
-    - Absolute paths in sandbox mode
-    """
     if not file_path or not file_path.strip():
         raise ToolError("Path cannot be empty", validation_failed=True)
 
@@ -190,11 +170,6 @@ def resolve_file(file: str, access: "Access", sandbox_dir: str = ".cogency/sandb
 
 @contextmanager
 def timeout_context(seconds: int):
-    """Context manager for operation timeouts.
-
-    Note: Unix-only. signal.SIGALRM not available on Windows—timeouts silently disabled.
-    """
-
     def timeout_handler(signum, frame):
         raise TimeoutError(f"Operation timed out after {seconds} seconds")
 
@@ -215,8 +190,6 @@ def timeout_context(seconds: int):
 
 
 def safe_execute(func):
-    """Decorator for safe tool execution - handles validation errors only."""
-
     @wraps(func)
     async def wrapper(*args, **kwargs):
         try:
