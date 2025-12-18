@@ -109,7 +109,7 @@ async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event,
         yield {"type": "call", "content": call_json, "timestamp": time.time()}
 
 
-async def parse_tokens(
+async def parse_tokens(  # noqa: C901  # streaming XML tag parser state machine
     token_stream: AsyncGenerator[str, None] | str,
 ) -> AsyncGenerator[Event, None]:
     if isinstance(token_stream, str):

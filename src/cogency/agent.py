@@ -23,6 +23,39 @@ from .tools import tools as builtin_tools
 logger = logging.getLogger(__name__)
 
 
+async def _select_mode_stream(
+    mode: str,
+    config: Config,
+    query: str,
+    user_id: str | None,
+    conversation_id: str,
+    stream: Literal["event", "token", None],
+):
+    """Select and attempt streaming mode with auto-fallback."""
+    if mode == "resume":
+        async for event in resume.stream(
+            query, user_id, conversation_id, config=config, stream=stream
+        ):
+            yield event
+    elif mode == "auto":
+        try:
+            async for event in resume.stream(
+                query, user_id, conversation_id, config=config, stream=stream
+            ):
+                yield event
+        except (LLMError, RuntimeError, ValueError, httpx.RequestError) as e:
+            logger.debug(f"Resume unavailable, falling back to replay: {e}")
+            async for event in replay.stream(
+                query, user_id, conversation_id, config=config, stream=stream
+            ):
+                yield event
+    else:
+        async for event in replay.stream(
+            query, user_id, conversation_id, config=config, stream=stream
+        ):
+            yield event
+
+
 class Agent:
     """Immutable agent configuration.
 
@@ -99,42 +132,8 @@ class Agent:
             # Emit user event - first event in conversation turn
             yield {"type": "user", "content": query, "timestamp": timestamp}
 
-            storage = self.config.storage
-
-            if self.config.mode == "resume":
-                mode_stream = resume.stream
-            elif self.config.mode == "auto":
-                # Try resume first, fall back to replay on failure
-                try:
-                    async for event in resume.stream(
-                        query,
-                        user_id,
-                        conversation_id,
-                        config=self.config,
-                        stream=stream,
-                    ):
-                        yield event
-                    if self.config.profile:
-                        context.learn(
-                            user_id,
-                            profile_enabled=self.config.profile,
-                            storage=storage,
-                            llm=self.config.llm,
-                            cadence=self.config.profile_cadence,
-                        )
-                    return
-                except (LLMError, RuntimeError, ValueError, httpx.RequestError) as e:
-                    logger.debug(f"Resume unavailable, falling back to replay: {e}")
-                    mode_stream = replay.stream
-            else:
-                mode_stream = replay.stream
-
-            async for event in mode_stream(
-                query,
-                user_id,
-                conversation_id,
-                config=self.config,
-                stream=stream,
+            async for event in _select_mode_stream(
+                self.config.mode, self.config, query, user_id, conversation_id, stream
             ):
                 yield event
 
@@ -142,7 +141,7 @@ class Agent:
                 context.learn(
                     user_id,
                     profile_enabled=self.config.profile,
-                    storage=storage,
+                    storage=self.config.storage,
                     llm=self.config.llm,
                     cadence=self.config.profile_cadence,
                 )

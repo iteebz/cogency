@@ -138,7 +138,7 @@ class Accumulator:
         self.pending_calls = []
         self.call_timestamps = []
 
-    async def process(
+    async def process(  # noqa: C901  # event accumulator state machine with tool execution
         self, parser_events: AsyncGenerator[Event, None]
     ) -> AsyncGenerator[Event, None]:
         async for event in parser_events:

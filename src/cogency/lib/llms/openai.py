@@ -176,7 +176,7 @@ class OpenAI(LLM):
             raise RuntimeError("OpenAI connection failed") from e
 
     @interruptible
-    async def send(self, content: str) -> AsyncGenerator[str, None]:
+    async def send(self, content: str) -> AsyncGenerator[str, None]:  # noqa: C901  # OpenAI protocol adapter with error recovery
         """Send message in session and stream response until turn completion."""
 
         if not self._connection:

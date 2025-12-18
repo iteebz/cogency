@@ -3,10 +3,10 @@ import inspect
 from functools import wraps
 
 
-def retry(attempts: int = 3, base_delay: float = 0.1):
+def retry(attempts: int = 3, base_delay: float = 0.1):  # noqa: C901  # dual sync/async decorator
     """Retry decorator with exponential backoff. Works with sync and async functions."""
 
-    def decorator(func):
+    def decorator(func):  # noqa: C901  # handles both coroutine and regular functions
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)

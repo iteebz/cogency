@@ -155,7 +155,7 @@ class Gemini(LLM):
             logger.warning(f"Gemini connection failed: {e}")
             raise RuntimeError("Gemini connection failed") from e
 
-    async def send(self, content: str) -> AsyncGenerator[str, None]:
+    async def send(self, content: str) -> AsyncGenerator[str, None]:  # noqa: C901  # Gemini protocol adapter with dual-signal streaming
         """Send message in session and stream response until turn completion."""
 
         if not self._session:
