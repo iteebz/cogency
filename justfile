@@ -7,39 +7,39 @@ clean:
     @find . -type d -name "__pycache__" -exec rm -rf {} +
 
 install:
-    @poetry lock
-    @poetry install
+    @uv sync
 
 ci:
-    @poetry run ruff format .
-    @poetry run ruff check . --fix --unsafe-fixes
-    @poetry run pyright
-    @poetry run pytest tests -q
-    @poetry build
+    @uv run ruff format .
+    @uv run ruff check . --fix --unsafe-fixes
+    @uv run ruff check .
+    @uv run pyright
+    @uv run pytest tests -q
+    @uv build
 
 example name="hello":
-    @poetry run python examples/{{name}}.py
+    @uv run python examples/{{name}}.py
 
 test:
-    @poetry run pytest tests
+    @uv run pytest tests
 
 cov:
-    @poetry run pytest --cov=src/cogency tests/
+    @uv run pytest --cov=src/cogency tests/
 
 format:
-    @poetry run ruff format .
+    @uv run ruff format .
 
 lint:
-    @poetry run ruff check . --ignore F841
+    @uv run ruff check . --ignore F841
 
 fix:
-    @poetry run ruff check . --fix --unsafe-fixes
+    @uv run ruff check . --fix --unsafe-fixes
 
 build:
-    @poetry build
+    @uv build
 
 publish: ci build
-    @poetry publish
+    @uv publish
 
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"
