@@ -2,16 +2,20 @@
 
 import shlex
 import signal
+import types
+from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, TypeVar
 
 from .errors import ToolError
 from .protocols import ToolResult
 
 if TYPE_CHECKING:
     from .config import Access
+
+F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
 
 
 def _has_unquoted(command: str, targets: set[str]) -> str | None:
@@ -170,7 +174,7 @@ def resolve_file(file: str, access: "Access", sandbox_dir: str = ".cogency/sandb
 
 @contextmanager
 def timeout_context(seconds: int):
-    def timeout_handler(signum, frame):
+    def timeout_handler(signum: int, frame: types.FrameType | None) -> None:
         raise TimeoutError(f"Operation timed out after {seconds} seconds")
 
     old_handler = None
@@ -189,9 +193,9 @@ def timeout_context(seconds: int):
             pass
 
 
-def safe_execute(func):
+def safe_execute(func: F) -> F:
     @wraps(func)
-    async def wrapper(*args, **kwargs):
+    async def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return await func(*args, **kwargs)
         except ToolError as e:
@@ -199,4 +203,4 @@ def safe_execute(func):
                 return ToolResult(outcome=str(e), error=True)
             raise
 
-    return wrapper
+    return wrapper  # type: ignore[return-value]

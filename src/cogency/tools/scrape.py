@@ -1,7 +1,7 @@
 import logging
 import re
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import urlparse
 
 from cogency.core.protocols import ToolParam, ToolResult
@@ -48,7 +48,7 @@ def _extract_domain(url: str) -> str:
 @safe_execute
 async def Scrape(
     params: ScrapeParams,
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     if not params.url or not params.url.strip():
         return ToolResult(outcome="URL cannot be empty", error=True)

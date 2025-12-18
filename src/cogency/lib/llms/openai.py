@@ -1,4 +1,5 @@
 # pyright: reportAttributeAccessIssue=false
+# pyright: reportUnknownMemberType=false
 # OpenAI SDK type stubs are incomplete - runtime behavior is correct
 
 import logging
@@ -49,7 +50,7 @@ class OpenAI(LLM):
 
         return openai.AsyncOpenAI(api_key=api_key)
 
-    async def generate(self, messages: list[dict]) -> str:
+    async def generate(self, messages: list[dict[str, Any]]) -> str:
         """One-shot completion with full conversation context."""
 
         async def _generate_with_key(api_key: str) -> str:
@@ -68,9 +69,9 @@ class OpenAI(LLM):
                 if response.output_text:
                     return response.output_text
                 if response.output and len(response.output) > 0:
-                    output_msg = response.output[0]
+                    output_msg: Any = response.output[0]
                     if output_msg.content and len(output_msg.content) > 0:
-                        return output_msg.content[0].text or ""
+                        return str(output_msg.content[0].text or "")
                 return ""
             except ImportError as e:
                 raise ImportError("Please install openai: pip install openai") from e
@@ -78,7 +79,7 @@ class OpenAI(LLM):
         return await with_rotation("OPENAI", _generate_with_key)
 
     @interruptible
-    async def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
+    async def stream(self, messages: list[dict[str, Any]]) -> AsyncGenerator[str, None]:
         """HTTP streaming with full conversation context."""
 
         async def _stream_with_key(api_key: str):
@@ -108,7 +109,7 @@ class OpenAI(LLM):
                 # Fallback for direct delta attribute (legacy format)
                 yield event.delta
 
-    async def connect(self, messages: list[dict]) -> "OpenAI":
+    async def connect(self, messages: list[dict[str, Any]]) -> "OpenAI":
         """Create session with initial context. Returns session-enabled OpenAI instance."""
 
         # Close any existing session first
@@ -147,15 +148,15 @@ class OpenAI(LLM):
 
             # Add ALL history messages including last user message
             # WebSocket needs full conversation loaded before response.create()
-            for msg in user_messages:
+            for msg in cast(list[dict[str, Any]], user_messages):
                 # Assistant messages use "output_text" type, user messages use "input_text"
                 content_type = "output_text" if msg["role"] == "assistant" else "input_text"
                 await connection.conversation.item.create(
-                    item={
+                    item=cast(Any, {
                         "type": "message",
                         "role": msg["role"],
                         "content": [{"type": content_type, "text": msg["content"]}],
-                    }
+                    })
                 )
 
             # Create session-enabled instance with fresh key
@@ -255,10 +256,10 @@ class OpenAI(LLM):
         self._connection = None
         self._connection_manager = None
 
-    def _format_messages(self, messages: list[dict]) -> tuple[str, list[dict]]:
+    def _format_messages(self, messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, str]]]:
         """Converts cogency's message format to OpenAI Responses API's instructions and input format."""
-        openai_input_messages = []
-        system_instructions_parts = []
+        openai_input_messages: list[dict[str, str]] = []
+        system_instructions_parts: list[str] = []
 
         for msg in messages:
             if msg["role"] == "system":
@@ -266,7 +267,7 @@ class OpenAI(LLM):
             else:
                 # OpenAI's Responses API expects 'user' and 'assistant' roles in 'input'.
                 # For minimal change, we'll map 'tool' role to 'user' role.
-                role = msg["role"]
+                role: str = msg["role"]
                 if role == "tool":
                     role = "user"
                 openai_input_messages.append({"role": role, "content": msg["content"]})

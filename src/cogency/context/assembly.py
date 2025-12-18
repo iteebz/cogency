@@ -1,5 +1,6 @@
 import logging
 from collections.abc import Sequence
+from typing import Any
 
 from cogency.core.errors import StorageError
 from cogency.core.protocols import HistoryTransform, Storage, Tool
@@ -26,7 +27,7 @@ async def assemble(
     profile_enabled: bool,
     identity: str | None = None,
     instructions: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     system_content = [
         system_prompt(tools=list(tools), identity=identity, instructions=instructions)
     ]
@@ -42,7 +43,7 @@ async def assemble(
         if profile_content:
             system_content.append(profile_content)
 
-    messages = []
+    messages: list[dict[str, Any]] = []
 
     try:
         load_limit = None

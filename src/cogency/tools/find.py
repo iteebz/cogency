@@ -1,7 +1,7 @@
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.config import Access
 from cogency.core.protocols import ToolParam, ToolResult
@@ -51,8 +51,8 @@ def _matches_pattern(filename: str, pattern: str) -> bool:
     return pattern.lower() in filename.lower()
 
 
-def _search_content(file_path: Path, search_term: str) -> list:
-    matches = []
+def _search_content(file_path: Path, search_term: str) -> list[tuple[int, str]]:
+    matches: list[tuple[int, str]] = []
 
     try:
         with file_path.open(encoding="utf-8") as f:
@@ -89,8 +89,8 @@ def _search_files(
     workspace_root: Path,
     pattern: str | None,
     content: str | None,
-) -> list:
-    results = []
+) -> list[str]:
+    results: list[str] = []
 
     if search_path.is_file():
         return _process_match(search_path, workspace_root, pattern, content)
@@ -151,7 +151,7 @@ async def Find(
     params: FindParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     if error := _validate_search_params(params):
         return error

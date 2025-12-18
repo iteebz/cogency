@@ -1,15 +1,22 @@
 import asyncio
 import logging
+from collections.abc import AsyncGenerator, Callable
 from functools import wraps
+from typing import Any, ParamSpec, TypeVar, cast
 
 logger = logging.getLogger(__name__)
 
+P = ParamSpec("P")
+T = TypeVar("T")
 
-def interruptible(func):
+
+def interruptible(
+    func: Callable[..., AsyncGenerator[T, None]]
+) -> Callable[..., AsyncGenerator[T, None]]:
     """Make async generator interruptible with clean EXECUTE emission."""
 
     @wraps(func)
-    async def wrapper(self, *args, **kwargs):
+    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> AsyncGenerator[T, None]:
         provider_name = self.__class__.__name__
         try:
             async for chunk in func(self, *args, **kwargs):
@@ -25,6 +32,6 @@ def interruptible(func):
         except Exception as e:
             if str(e):
                 logger.error(f"{provider_name} error: {e!s}")
-            raise  # Re-raise the exception
+            raise
 
-    return wrapper
+    return cast(Callable[..., AsyncGenerator[T, None]], wrapper)

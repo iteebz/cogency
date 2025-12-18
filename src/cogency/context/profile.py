@@ -12,7 +12,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ Messages: {user_messages}
 Example: {{"who":"developer","style":"direct","focus":"AI projects","interests":"tech","misc":"likes cats, morning person"}}"""
 
 
-def prompt(profile: dict, user_messages: list, compact: bool = False) -> str:
+def prompt(profile: dict[str, Any], user_messages: list[str], compact: bool = False) -> str:
     """Generate profile learning prompt."""
     if compact:
         return PROFILE_TEMPLATE.format(
@@ -43,13 +43,13 @@ def prompt(profile: dict, user_messages: list, compact: bool = False) -> str:
     )
 
 
-async def get(user_id: str | None, storage=None) -> dict | None:
+async def get(user_id: str | None, storage: "Storage | None" = None) -> dict[str, Any] | None:
     if not user_id:
         return None
     if storage is None:
-        from cogency.lib.sqlite import SQLite
+        from cogency.lib.sqlite import default_storage
 
-        storage = SQLite()
+        storage = default_storage()
     try:
         return await storage.load_profile(user_id)
     except Exception as e:
@@ -58,7 +58,7 @@ async def get(user_id: str | None, storage=None) -> dict | None:
         raise RuntimeError(f"Profile fetch failed for {user_id}: {e}") from e
 
 
-async def format(user_id: str | None, storage=None) -> str:
+async def format(user_id: str | None, storage: "Storage | None" = None) -> str:
     try:
         profile_data = await get(user_id, storage)
         if not profile_data:
@@ -71,7 +71,7 @@ async def format(user_id: str | None, storage=None) -> str:
 
 async def _should_learn_with_profile(
     user_id: str,
-    current: dict | None,
+    current: dict[str, Any] | None,
     *,
     storage: "Storage",
     cadence: int = DEFAULT_CADENCE,
@@ -108,10 +108,10 @@ async def should_learn(
     return await _should_learn_with_profile(user_id, current, storage=storage, cadence=cadence)
 
 
-_background_tasks: set[asyncio.Task] = set()
+_background_tasks: set[asyncio.Task[Any]] = set()
 
 
-def _task_done_callback(task):
+def _task_done_callback(task: asyncio.Task[Any]) -> None:
     _background_tasks.discard(task)
     if task.cancelled():
         return
@@ -203,8 +203,8 @@ async def learn_async(
 
 
 async def update_profile(
-    current: dict, user_messages: list, llm, compact: bool = False
-) -> dict | None:
+    current: dict[str, Any], user_messages: list[str], llm: "LLM", compact: bool = False
+) -> dict[str, Any] | None:
     """Update or compact profile."""
     prompt_text = prompt(current, user_messages, compact=compact)
     result = await llm.generate([{"role": "user", "content": prompt_text}])
@@ -216,7 +216,10 @@ async def update_profile(
     clean = result.strip().removeprefix("```json").removeprefix("```").removesuffix("```")
 
     try:
-        parsed = json.loads(clean)
+        raw: object = json.loads(clean)
+        if not isinstance(raw, dict):
+            raise RuntimeError(f"Profile must be JSON object, got {type(raw).__name__}")
+        parsed = cast(dict[str, Any], raw)
         if compact or result.strip().upper() != "SKIP":
             return parsed
     except json.JSONDecodeError as e:

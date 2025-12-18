@@ -2,8 +2,9 @@ import asyncio
 import json
 import sqlite3
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeVar, cast
 
 from cogency.core.protocols import MessageMatch
 
@@ -12,8 +13,10 @@ from .uuid7 import uuid7
 
 DB_TIMEOUT_SECONDS = 5.0
 
+T = TypeVar("T")
 
-async def _run_sync(fn):
+
+async def _run_sync(fn: Callable[[], T]) -> T:
     return await asyncio.to_thread(fn)
 
 
@@ -129,7 +132,7 @@ class SQLite:
 
         message_id = uuid7()
 
-        def _sync_save():
+        def _sync_save() -> None:
             with DB.connect(self.db_path) as db:
                 db.execute(
                     "INSERT INTO messages (message_id, conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
@@ -148,7 +151,7 @@ class SQLite:
 
         event_id = uuid7()
 
-        def _sync_save():
+        def _sync_save() -> None:
             with DB.connect(self.db_path) as db:
                 db.execute(
                     "INSERT INTO events (event_id, conversation_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?)",
@@ -172,7 +175,7 @@ class SQLite:
 
         event_id = uuid7()
 
-        def _sync_save():
+        def _sync_save() -> None:
             content = json.dumps({"messages": messages, "response": response})
             with DB.connect(self.db_path) as db:
                 db.execute(
@@ -191,8 +194,8 @@ class SQLite:
         include: list[str] | None = None,
         exclude: list[str] | None = None,
         limit: int | None = None,
-    ) -> list[dict]:
-        def _sync_load():
+    ) -> list[dict[str, Any]]:
+        def _sync_load() -> list[dict[str, Any]]:
             with DB.connect(self.db_path) as db:
                 db.row_factory = sqlite3.Row
 
@@ -226,8 +229,8 @@ class SQLite:
 
         return await _run_sync(_sync_load)
 
-    async def save_profile(self, user_id: str, profile: dict) -> None:
-        def _sync_save():
+    async def save_profile(self, user_id: str, profile: dict[str, Any]) -> None:
+        def _sync_save() -> None:
             with DB.connect(self.db_path) as db:
                 current_version = (
                     db.execute(
@@ -248,15 +251,18 @@ class SQLite:
         await _run_sync(_sync_save)
 
     @retry(attempts=3, base_delay=0.1)
-    async def load_profile(self, user_id: str) -> dict:
-        def _sync_load():
+    async def load_profile(self, user_id: str) -> dict[str, Any]:
+        def _sync_load() -> dict[str, Any]:
             with DB.connect(self.db_path) as db:
                 row = db.execute(
                     "SELECT data FROM profiles WHERE user_id = ? ORDER BY version DESC LIMIT 1",
                     (user_id,),
                 ).fetchone()
                 if row:
-                    return json.loads(row[0])
+                    raw: object = json.loads(row[0])
+                    if not isinstance(raw, dict):
+                        raise ValueError(f"Profile data must be dict, got {type(raw).__name__}")
+                    return cast(dict[str, Any], raw)
                 return {}
 
         return await _run_sync(_sync_load)
@@ -265,7 +271,7 @@ class SQLite:
     async def load_user_messages(
         self, user_id: str, since_timestamp: float = 0, limit: int | None = None
     ) -> list[str]:
-        def _sync_load():
+        def _sync_load() -> list[str]:
             with DB.connect(self.db_path) as db:
                 query = "SELECT content FROM messages WHERE user_id = ? AND type = 'user' AND timestamp > ? ORDER BY timestamp ASC"
                 params: list[Any] = [user_id, since_timestamp]
@@ -281,7 +287,7 @@ class SQLite:
 
     @retry(attempts=3, base_delay=0.1)
     async def count_user_messages(self, user_id: str, since_timestamp: float = 0) -> int:
-        def _sync_count():
+        def _sync_count() -> int:
             with DB.connect(self.db_path) as db:
                 return db.execute(
                     "SELECT COUNT(*) FROM messages WHERE user_id = ? AND type = 'user' AND timestamp > ?",
@@ -292,7 +298,7 @@ class SQLite:
 
     @retry(attempts=3, base_delay=0.1)
     async def delete_profile(self, user_id: str) -> int:
-        def _sync_delete():
+        def _sync_delete() -> int:
             with DB.connect(self.db_path) as db:
                 cursor = db.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
                 return cursor.rowcount
@@ -300,15 +306,18 @@ class SQLite:
         return await _run_sync(_sync_delete)
 
     @retry(attempts=3, base_delay=0.1)
-    async def load_latest_metric(self, conversation_id: str) -> dict | None:
-        def _sync_load():
+    async def load_latest_metric(self, conversation_id: str) -> dict[str, Any] | None:
+        def _sync_load() -> dict[str, Any] | None:
             with DB.connect(self.db_path) as db:
                 row = db.execute(
                     "SELECT content FROM events WHERE conversation_id = ? AND type = 'metric' ORDER BY timestamp DESC LIMIT 1",
                     (conversation_id,),
                 ).fetchone()
                 if row and row[0]:
-                    return json.loads(row[0])
+                    raw: object = json.loads(row[0])
+                    if not isinstance(raw, dict):
+                        raise ValueError(f"Metric data must be dict, got {type(raw).__name__}")
+                    return cast(dict[str, Any], raw)
                 return None
 
         return await _run_sync(_sync_load)
@@ -317,7 +326,7 @@ class SQLite:
     async def load_messages_by_conversation_id(
         self, conversation_id: str, limit: int
     ) -> list[dict[str, Any]]:
-        def _sync_load():
+        def _sync_load() -> list[dict[str, Any]]:
             with DB.connect(self.db_path) as db:
                 db.row_factory = sqlite3.Row
                 rows = db.execute(
@@ -337,13 +346,13 @@ class SQLite:
     async def search_messages(
         self, query: str, user_id: str, exclude_conversation_id: str | None, limit: int = 3
     ) -> list[MessageMatch]:
-        def _sync_search():
+        def _sync_search() -> list[MessageMatch]:
             with DB.connect(self.db_path) as db:
                 keywords = query.lower().split()
                 like_patterns = [f"%{keyword}%" for keyword in keywords]
 
                 exclude_clause = ""
-                params = []
+                params: list[str] = []
 
                 if exclude_conversation_id:
                     exclude_clause = "AND conversation_id != ?"
@@ -352,8 +361,8 @@ class SQLite:
                 like_clause = " OR ".join("LOWER(content) LIKE ?" for _ in like_patterns)
                 params.extend(like_patterns)
 
-                relevance_parts = []
-                score_params = []
+                relevance_parts: list[str] = []
+                score_params: list[str] = []
                 for keyword in keywords:
                     relevance_parts.append(
                         "(LENGTH(content) - LENGTH(REPLACE(LOWER(content), ?, '')))"
@@ -373,7 +382,7 @@ class SQLite:
                     ORDER BY relevance_score DESC, timestamp DESC
                     LIMIT ?
                 """
-                final_params = [*score_params, user_id, *params]
+                final_params: list[str | int] = [*score_params, user_id, *params]
                 final_params.append(limit)
 
                 rows = db.execute(query_sql, final_params).fetchall()
@@ -395,5 +404,5 @@ def clear_messages(conversation_id: str, db_path: str = ".cogency/store.db") -> 
         db.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
 
 
-def default_storage(db_path: str = ".cogency/store.db"):
+def default_storage(db_path: str = ".cogency/store.db") -> SQLite:
     return SQLite(db_path=db_path)

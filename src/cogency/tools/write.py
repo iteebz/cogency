@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.config import Access
 from cogency.core.protocols import ToolParam, ToolResult
@@ -20,7 +20,7 @@ async def Write(
     params: WriteParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     if not params.file:
         return ToolResult(outcome="File cannot be empty", error=True)

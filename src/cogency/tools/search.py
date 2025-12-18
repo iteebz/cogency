@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.protocols import ToolParam, ToolResult
 from cogency.core.security import safe_execute
@@ -17,13 +17,13 @@ class SearchParams:
 @safe_execute
 async def Search(
     params: SearchParams,
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     if not params.query or not params.query.strip():
         return ToolResult(outcome="Search query cannot be empty", error=True)
 
     try:
-        from ddgs import DDGS
+        from ddgs import DDGS  # type: ignore[reportUnknownVariableType]
     except ImportError:
         return ToolResult(
             outcome="DDGS metasearch not available. Install with: pip install ddgs", error=True
@@ -31,14 +31,14 @@ async def Search(
 
     effective_limit = 5
 
-    results = DDGS().text(params.query.strip(), max_results=effective_limit)
+    results: list[dict[str, str]] = DDGS().text(params.query.strip(), max_results=effective_limit)
 
     if not results:
         return ToolResult(
             outcome=f"Found 0 results for '{params.query}'", content="No results found"
         )
 
-    formatted = []
+    formatted: list[str] = []
     for result in results:
         title = result.get("title", "No title")
         body = result.get("body", "No description")

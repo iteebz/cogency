@@ -18,7 +18,7 @@ from .circuit import CircuitBreaker
 from .codec import format_results_array, parse_tool_call
 from .config import Execution
 from .executor import execute_tools
-from .protocols import Event, ToolResult, event_content, event_type
+from .protocols import Event, ToolCall, ToolResult, event_content, event_type
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +52,8 @@ class Accumulator:
         self.start_time: float | None = None
 
         # Batch execution state for multi-tool blocks
-        self.pending_calls = []  # Accumulated ToolCall objects before execute event
-        self.call_timestamps = []  # Preserve timestamps for each call
+        self.pending_calls: list[ToolCall] = []
+        self.call_timestamps: list[float] = []
 
     async def _flush_accumulated(self) -> Event | None:
         if not self.current_type or not self.content.strip():

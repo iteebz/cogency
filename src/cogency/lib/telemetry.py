@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+from typing import Any
 
 from cogency.core.protocols import Event, Storage
 
@@ -16,7 +17,7 @@ async def persist_events(conversation_id: str, events_list: list[Event], storage
         return
 
     try:
-        tasks = []
+        tasks: list[Any] = []
         for event in events_list:
             content = event.get("content", "")
             if isinstance(content, dict):
@@ -25,8 +26,8 @@ async def persist_events(conversation_id: str, events_list: list[Event], storage
             tasks.append(
                 storage.save_event(
                     conversation_id=conversation_id,
-                    type=event["type"],
-                    content=content,
+                    type=str(event["type"]),
+                    content=str(content),
                 )
             )
         await asyncio.gather(*tasks)

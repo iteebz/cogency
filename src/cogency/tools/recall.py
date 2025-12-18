@@ -12,7 +12,7 @@ Tradeoffs:
 import logging
 import time
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.protocols import MessageMatch, Storage, ToolParam, ToolResult
 from cogency.core.security import safe_execute
@@ -39,7 +39,7 @@ async def Recall(
     storage: Storage,
     conversation_id: str | None = None,
     user_id: str | None = None,
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     if not params.query or not params.query.strip():
         return ToolResult(outcome="Search query cannot be empty", error=True)
@@ -66,7 +66,7 @@ async def Recall(
 
 
 def _format_matches(matches: list[MessageMatch]) -> str:
-    results = []
+    results: list[str] = []
     for match in matches:
         time_diff = time.time() - match.timestamp
         if time_diff < 60:

@@ -8,7 +8,6 @@ from typing import Literal
 
 import anthropic
 import google.api_core.exceptions
-import google.genai
 import httpx
 import openai
 

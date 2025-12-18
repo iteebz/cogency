@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from .errors import ProtocolError
 from .protocols import Event, ToolCall
@@ -42,32 +42,40 @@ def parse_execute_block(xml_str: str) -> list[ToolCall]:
         end = xml_str.find("</execute>")
         content = xml_str[start:end].strip()
 
-        calls_data = json.loads(content)
+        raw: object = json.loads(content)
     except json.JSONDecodeError as e:
         raise ProtocolError(f"Invalid JSON in <execute> block: {e}", original_input=xml_str) from e
 
-    if not isinstance(calls_data, list):
+    if not isinstance(raw, list):
         raise ProtocolError("Expected JSON array in <execute> block", original_input=xml_str)
 
-    calls = []
-    for i, call_obj in enumerate(calls_data):
+    raw_list = cast(list[object], raw)
+    calls: list[ToolCall] = []
+    for i, call_obj in enumerate(raw_list):
         if not isinstance(call_obj, dict):
             raise ProtocolError(f"Call {i} is not an object: {call_obj}", original_input=xml_str)
 
-        if "name" not in call_obj or "args" not in call_obj:
+        call_dict = cast(dict[str, Any], call_obj)
+        if "name" not in call_dict or "args" not in call_dict:
             raise ProtocolError(
-                f"Call {i} missing 'name' or 'args': {call_obj}", original_input=xml_str
+                f"Call {i} missing 'name' or 'args': {call_dict}", original_input=xml_str
             )
 
-        tool_name = call_obj["name"]
-        args = call_obj["args"]
+        name = call_dict["name"]
+        args = call_dict["args"]
+
+        if not isinstance(name, str):
+            raise ProtocolError(
+                f"Call {i} name must be string, got {type(name).__name__}",
+                original_input=xml_str,
+            )
 
         if not isinstance(args, dict):
             raise ProtocolError(
                 f"Call {i} args must be object, got {type(args).__name__}", original_input=xml_str
             )
 
-        calls.append(ToolCall(name=tool_name, args=args))
+        calls.append(ToolCall(name=name, args=cast(dict[str, Any], args)))
 
     return calls
 
@@ -118,9 +126,6 @@ async def parse_tokens(  # noqa: C901  # streaming XML tag parser state machine
     buffer = ""
 
     async for token in token_stream:
-        if not isinstance(token, str):
-            raise RuntimeError(f"Parser expects string tokens, got {type(token)}")
-
         logger.debug(f"TOKEN: {token!r}")
         buffer += token
 

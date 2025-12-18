@@ -3,7 +3,7 @@ import re
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.config import Access
 from cogency.core.protocols import ToolParam, ToolResult
@@ -67,7 +67,7 @@ def _validate_and_resolve_files(
 
     normalized_pattern = _prepare_glob_pattern(params.pattern, access)
 
-    matched_files = []
+    matched_files: list[Path] = []
     for p in effective_root_for_glob.glob(normalized_pattern):
         if p.is_file():
             try:
@@ -90,7 +90,7 @@ def _validate_and_resolve_files(
     return matched_files
 
 
-def _format_result(matched_count: int, changed_files: dict, total: int, diffs: list[str]) -> str:
+def _format_result(matched_count: int, changed_files: dict[str, int], total: int, diffs: list[str]) -> str:
     msg = f"Matched {matched_count} files\n"
     msg += f"Changed {len(changed_files)} files\n"
     msg += f"Made {total} replacements\n\n"
@@ -133,17 +133,17 @@ async def Replace(
     params: ReplaceParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     files_or_error = _validate_and_resolve_files(params, access, sandbox_dir)
     if isinstance(files_or_error, ToolResult):
         return files_or_error
     matched_files = files_or_error
 
-    changed_files = {}
-    all_backups = []
+    changed_files: dict[str, int] = {}
+    all_backups: list[Path] = []
     total_replacements = 0
-    all_diffs = []
+    all_diffs: list[str] = []
 
     try:
         for file_path in matched_files:

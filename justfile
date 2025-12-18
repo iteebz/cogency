@@ -14,6 +14,8 @@ ci:
     @uv run ruff check . --fix --unsafe-fixes
     @uv run ruff check .
     @uv run pyright
+    @uv run pyright -p pyright.evals.json
+    @uv run pyright -p pyright.tests.json
     @uv run pytest tests -q
     @uv build
 

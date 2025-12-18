@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.config import Access
 from cogency.core.protocols import ToolParam, ToolResult
@@ -18,7 +18,7 @@ class ReadParams:
 
 
 def _read_lines(file_path: Path, start: int, lines: int | None = None) -> str:
-    result_lines = []
+    result_lines: list[str] = []
     with file_path.open(encoding="utf-8") as f:
         for line_num, line in enumerate(f, 0):
             if line_num < start:
@@ -36,7 +36,7 @@ async def Read(
     params: ReadParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     if not params.file:
         return ToolResult(outcome="File cannot be empty", error=True)

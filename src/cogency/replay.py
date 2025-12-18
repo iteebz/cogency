@@ -17,7 +17,7 @@ from typing import Literal
 from . import context
 from .core.accumulator import Accumulator
 from .core.config import Config
-from .core.errors import ConfigError, LLMError
+from .core.errors import LLMError
 from .core.parser import parse_tokens
 from .core.protocols import Event, event_content
 from .lib import telemetry
@@ -36,8 +36,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
     stream: Literal["event", "token", None] = "event",
 ):
     llm = config.llm
-    if llm is None:
-        raise ConfigError("LLM provider required")
 
     # Initialize metrics tracking
     model_name = getattr(llm, "http_model", "unknown")
@@ -97,7 +95,7 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
                 metrics.add_input(messages)
 
             telemetry_events: list[Event] = []
-            llm_output_chunks = []
+            llm_output_chunks: list[str] = []
 
             try:
                 if stream is None:

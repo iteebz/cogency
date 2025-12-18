@@ -2,7 +2,7 @@ import shlex
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.protocols import ToolParam, ToolResult
 from cogency.core.security import safe_execute, sanitize_shell_input
@@ -33,14 +33,14 @@ def _resolve_working_dir(cwd: str | None, access: str, sandbox_dir: str) -> Path
     return working_path
 
 
-def _format_result(result: subprocess.CompletedProcess) -> ToolResult:
+def _format_result(result: subprocess.CompletedProcess[str]) -> ToolResult:
     if result.returncode != 0:
         error_output = result.stderr.strip() or "Command failed"
         return ToolResult(
             outcome=f"Command failed (exit {result.returncode}): {error_output}", error=True
         )
 
-    content_parts = []
+    content_parts: list[str] = []
     if result.stdout.strip():
         content_parts.append(result.stdout.strip())
     if result.stderr.strip():
@@ -56,7 +56,7 @@ async def Shell(
     timeout: int = 30,
     sandbox_dir: str = ".cogency/sandbox",
     access: str = "sandbox",
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     if not params.command or not params.command.strip():
         return ToolResult(outcome="Command cannot be empty", error=True)

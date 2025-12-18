@@ -39,10 +39,10 @@ class Anthropic(LLM):
 
         return anthropic.AsyncAnthropic(api_key=api_key)
 
-    def _format_messages(self, messages: list[dict]) -> tuple[str, list[dict]]:
+    def _format_messages(self, messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
         """Extract system message and format remaining messages for Anthropic API."""
-        system_parts = []
-        conversation = []
+        system_parts: list[str] = []
+        conversation: list[dict[str, Any]] = []
 
         for msg in messages:
             if msg["role"] == "system":
@@ -52,7 +52,7 @@ class Anthropic(LLM):
 
         return "\n".join(system_parts), conversation
 
-    async def generate(self, messages: list[dict]) -> str:
+    async def generate(self, messages: list[dict[str, Any]]) -> str:
         """Generate complete response from conversation messages."""
 
         async def _generate_with_key(api_key: str) -> str:
@@ -76,7 +76,7 @@ class Anthropic(LLM):
         return await with_rotation("ANTHROPIC", _generate_with_key)
 
     @interruptible
-    async def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
+    async def stream(self, messages: list[dict[str, Any]]) -> AsyncGenerator[str, None]:
         """Generate streaming tokens from conversation messages."""
 
         async def _stream_with_key(api_key: str):
@@ -99,7 +99,7 @@ class Anthropic(LLM):
                 yield text
 
     # WebSocket methods - not supported by Anthropic
-    async def connect(self, messages: list[dict]) -> "LLM":
+    async def connect(self, messages: list[dict[str, Any]]) -> "LLM":
         """WebSocket sessions not supported by Anthropic API."""
         raise NotImplementedError("Anthropic does not support WebSocket sessions")
 

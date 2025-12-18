@@ -1,7 +1,7 @@
 import fnmatch
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 from cogency.core.config import Access
 from cogency.core.protocols import ToolParam, ToolResult
@@ -46,8 +46,8 @@ def _build_tree(
     stats: dict[str, int],
     current_depth: int = 0,
     prefix: str = "",
-) -> list:
-    lines = []
+) -> list[str]:
+    lines: list[str] = []
 
     if current_depth >= depth:
         return lines
@@ -88,7 +88,7 @@ async def List(
     params: ListParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",
-    **kwargs,
+    **kwargs: Any,
 ) -> ToolResult:
     pattern = params.pattern if params.pattern is not None else "*"
 

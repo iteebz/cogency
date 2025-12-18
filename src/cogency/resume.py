@@ -17,7 +17,7 @@ from typing import Literal
 from . import context
 from .core.accumulator import Accumulator
 from .core.config import Config
-from .core.errors import ConfigError, LLMError
+from .core.errors import LLMError
 from .core.parser import parse_tokens
 from .core.protocols import Event, event_content, event_type
 from .lib import telemetry
@@ -36,8 +36,6 @@ async def stream(  # noqa: C901  # WebSocket orchestrator with tool injection mi
     stream: Literal["event", "token", None] = "event",
 ):
     llm = config.llm
-    if llm is None:
-        raise ConfigError("LLM provider required")
 
     if not hasattr(llm, "connect"):
         raise LLMError(

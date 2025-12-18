@@ -140,8 +140,8 @@ asyncio_mode = "auto"
 
 [tool.pyright]
 pythonVersion = "3.12"
-include = ["src", "tests", "evals"]
-typeCheckingMode = "standard"
+include = ["src"]
+typeCheckingMode = "strict"
 reportUnnecessaryTypeIgnoreComment = true
 reportDeprecated = true
 reportPrivateUsage = false

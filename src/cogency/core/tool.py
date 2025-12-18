@@ -10,16 +10,16 @@ from .protocols import Tool, ToolParam, ToolResult
 TYPE_MAP = {str: "string", int: "integer", float: "float", bool: "boolean"}
 
 
-def _type_name(t) -> str:
+def _type_name(t: Any) -> str:
     return TYPE_MAP.get(t, "string")
 
 
-def _base_type(field_type) -> type:
+def _base_type(field_type: Any) -> type:
     origin = get_origin(field_type)
     return get_args(field_type)[0] if origin is Annotated else field_type
 
 
-def _tool_param(field_type) -> ToolParam | None:
+def _tool_param(field_type: Any) -> ToolParam | None:
     if get_origin(field_type) is not Annotated:
         return None
     args = get_args(field_type)
@@ -27,7 +27,7 @@ def _tool_param(field_type) -> ToolParam | None:
     return matches[0] if matches else None
 
 
-def _schema_field(field) -> dict[str, Any]:
+def _schema_field(field: Any) -> dict[str, Any]:
     base = _base_type(field.type)
     param = _tool_param(field.type)
 
@@ -52,12 +52,12 @@ def _schema_field(field) -> dict[str, Any]:
     return schema
 
 
-def _build_schema(params_type) -> dict:
+def _build_schema(params_type: Any) -> dict[str, Any]:
     return {field.name: _schema_field(field) for field in fields(params_type)}
 
 
 def tool(desc: str):
-    def decorator(func: Callable) -> Tool:
+    def decorator(func: Callable[..., Any]) -> Tool:
         sig = inspect.signature(func)
         params_arg = next(iter(sig.parameters.values()))
         params_type = params_arg.annotation
@@ -74,13 +74,15 @@ def tool(desc: str):
             description = desc
             schema = tool_schema
 
-            async def execute(self, **kwargs) -> ToolResult:
-                tool_params = {k: v for k, v in kwargs.items() if k in param_names}
-                other_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
+            async def execute(self, **kwargs: Any) -> ToolResult:
+                tool_params: dict[str, Any] = {k: v for k, v in kwargs.items() if k in param_names}
+                other_kwargs: dict[str, Any] = {
+                    k: v for k, v in kwargs.items() if k not in param_names
+                }
                 params = cast("Callable[..., Any]", params_type)(**tool_params)
                 return await func(params, **other_kwargs)
 
-            def describe(self, args: dict) -> str:
+            def describe(self, args: dict[str, Any]) -> str:
                 items = [f"{k}={v}" for k, v in args.items() if v is not None]
                 return f"{tool_name}({', '.join(items)})" if items else f"{tool_name}()"
 

@@ -45,7 +45,7 @@ class Gemini(LLM):
 
         return genai.Client(api_key=api_key)
 
-    async def generate(self, messages: list[dict]) -> str:
+    async def generate(self, messages: list[dict[str, Any]]) -> str:
         """One-shot completion with full conversation context."""
 
         async def _generate_with_key(api_key: str) -> str:
@@ -54,7 +54,7 @@ class Gemini(LLM):
 
                 client = self._create_client(api_key)
                 aclient = client.aio
-                response = await aclient.models.generate_content(
+                response = await aclient.models.generate_content(  # type: ignore[reportUnknownMemberType]
                     model=self.http_model,
                     contents=self._convert_messages_to_gemini_format(messages),
                     config=genai.types.GenerateContentConfig(
@@ -69,7 +69,7 @@ class Gemini(LLM):
         return await with_rotation("GEMINI", _generate_with_key)
 
     @interruptible
-    async def stream(self, messages: list[dict]) -> AsyncGenerator[str, None]:
+    async def stream(self, messages: list[dict[str, Any]]) -> AsyncGenerator[str, None]:
         """HTTP streaming with full conversation context."""
 
         async def _stream_with_key(api_key: str):
@@ -77,7 +77,7 @@ class Gemini(LLM):
 
             client = self._create_client(api_key)
             aclient = client.aio
-            return await aclient.models.generate_content_stream(
+            return await aclient.models.generate_content_stream(  # type: ignore[reportUnknownMemberType]
                 model=self.http_model,
                 contents=self._convert_messages_to_gemini_format(messages),
                 config=genai.types.GenerateContentConfig(
@@ -94,7 +94,7 @@ class Gemini(LLM):
             if chunk.text:
                 yield chunk.text
 
-    async def connect(self, messages: list[dict]) -> "Gemini":
+    async def connect(self, messages: list[dict[str, Any]]) -> "Gemini":
         """Create session with initial context. Returns session-enabled Gemini instance."""
 
         try:
@@ -214,7 +214,7 @@ class Gemini(LLM):
         self._session = None
         self._connection = None
 
-    async def _drain_turn_with_dual_signals(self, session):
+    async def _drain_turn_with_dual_signals(self, session: Any) -> None:
         """Drain turn using dual signal pattern without yielding content."""
         seen_generation_complete = False
         message_count = 0
@@ -236,11 +236,11 @@ class Gemini(LLM):
             if message_count > MAX_SESSION_MESSAGES:
                 return
 
-    def _convert_messages_to_gemini_format(self, messages: list[dict]) -> list:
+    def _convert_messages_to_gemini_format(self, messages: list[dict[str, Any]]) -> list[Any]:
         """Convert standard message format to Gemini's expected format."""
         from google.genai import types
 
-        contents = []
+        contents: list[Any] = []
         for msg in messages:
             if msg["role"] == "assistant":
                 role = "model"

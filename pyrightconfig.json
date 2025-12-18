@@ -1,0 +1,11 @@
+{
+  "include": ["src"],
+  "typeCheckingMode": "strict",
+  "reportUnnecessaryTypeIgnoreComment": true,
+  "reportDeprecated": true,
+  "reportPrivateUsage": false,
+  "reportConstantRedefinition": true,
+  "reportIncompatibleMethodOverride": true,
+  "reportIncompatibleVariableOverride": true,
+  "reportDuplicateImport": true
+}

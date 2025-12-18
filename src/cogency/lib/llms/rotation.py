@@ -1,10 +1,12 @@
 import asyncio
 import os
 import random
-from collections.abc import Callable
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import TypeVar
 
 from dotenv import load_dotenv
+
+T = TypeVar("T")
 
 load_dotenv(override=True)
 
@@ -16,7 +18,7 @@ KEY_ROTATION_DELAY = 1.0
 
 def load_keys(prefix: str) -> list[str]:
     """Load API keys supporting numbered keys and service aliases (e.g., GEMINI→GOOGLE)."""
-    keys = []
+    keys: list[str] = []
     patterns = [
         f"{prefix}_API_KEY",
         f"{prefix}_KEY",
@@ -60,7 +62,7 @@ def is_rate_limit_error(error: str) -> bool:
     return any(signal in error.lower() for signal in rate_signals)
 
 
-async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
+async def with_rotation(prefix: str, func: Callable[[str], Awaitable[T]], *args: object, **kwargs: object) -> T:
     """Execute function with random start + cycle on rate limits."""
     keys = load_keys(prefix.upper())
     if not keys:
@@ -83,4 +85,4 @@ async def with_rotation(prefix: str, func: Callable, *args, **kwargs) -> Any:
                 await asyncio.sleep(KEY_ROTATION_DELAY + random.uniform(0, 1))
             else:
                 raise e
-    return None
+    raise RuntimeError(f"No {prefix} API keys available")

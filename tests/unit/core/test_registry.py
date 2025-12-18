@@ -24,7 +24,7 @@ def test_register_duplicate(mock_tool, mock_storage):
 
 def test_register_invalid(mock_storage):
     registry = ToolRegistry(mock_storage)
-    with pytest.raises(TypeError):
+    with pytest.raises(ValueError):
         registry.register("not a tool", "test")  # type: ignore[arg-type]
 
 
