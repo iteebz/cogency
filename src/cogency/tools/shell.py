@@ -18,6 +18,37 @@ class ShellParams:
     ] = None
 
 
+def _resolve_working_dir(cwd: str | None, access: str, sandbox_dir: str) -> Path:
+    if cwd:
+        working_path = Path(cwd)
+        if not working_path.is_absolute():
+            base = Path(sandbox_dir) if access == "sandbox" else Path.cwd()
+            working_path = (base / working_path).resolve()
+    elif access == "sandbox":
+        working_path = Path(sandbox_dir)
+    else:
+        working_path = Path.cwd()
+
+    working_path.mkdir(parents=True, exist_ok=True)
+    return working_path
+
+
+def _format_result(result: subprocess.CompletedProcess) -> ToolResult:
+    if result.returncode != 0:
+        error_output = result.stderr.strip() or "Command failed"
+        return ToolResult(
+            outcome=f"Command failed (exit {result.returncode}): {error_output}", error=True
+        )
+
+    content_parts = []
+    if result.stdout.strip():
+        content_parts.append(result.stdout.strip())
+    if result.stderr.strip():
+        content_parts.append(f"Warnings:\n{result.stderr.strip()}")
+
+    return ToolResult(outcome="Success", content="\n".join(content_parts) if content_parts else "")
+
+
 @tool("Run shell command (30s timeout). Each call starts in project root.")
 @safe_execute
 async def Shell(
@@ -36,17 +67,7 @@ async def Shell(
     if not parts:
         return ToolResult(outcome="Empty command after parsing", error=True)
 
-    if params.cwd:
-        working_path = Path(params.cwd)
-        if not working_path.is_absolute():
-            base = Path(sandbox_dir) if access == "sandbox" else Path.cwd()
-            working_path = (base / working_path).resolve()
-    elif access == "sandbox":
-        working_path = Path(sandbox_dir)
-    else:
-        working_path = Path.cwd()
-
-    working_path.mkdir(parents=True, exist_ok=True)
+    working_path = _resolve_working_dir(params.cwd, access, sandbox_dir)
 
     try:
         result = subprocess.run(
@@ -56,24 +77,7 @@ async def Shell(
             text=True,
             timeout=timeout,
         )
-
-        if result.returncode == 0:
-            content_parts = []
-
-            if result.stdout.strip():
-                content_parts.append(result.stdout.strip())
-
-            if result.stderr.strip():
-                content_parts.append(f"Warnings:\n{result.stderr.strip()}")
-
-            content = "\n".join(content_parts) if content_parts else ""
-            outcome = "Success"
-
-            return ToolResult(outcome=outcome, content=content)
-        error_output = result.stderr.strip() or "Command failed"
-        return ToolResult(
-            outcome=f"Command failed (exit {result.returncode}): {error_output}", error=True
-        )
+        return _format_result(result)
 
     except subprocess.TimeoutExpired:
         return ToolResult(outcome=f"Command timed out after {timeout} seconds", error=True)

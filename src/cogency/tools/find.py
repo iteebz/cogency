@@ -65,6 +65,25 @@ def _search_content(file_path: Path, search_term: str) -> list:
     return matches
 
 
+def _should_skip(item: Path) -> bool:
+    return item.name.startswith(".") or item.name in SKIP_DIRS or item.name.endswith(".egg-info")
+
+
+def _process_match(item: Path, root: Path, pattern: str | None, content: str | None) -> list[str]:
+    if pattern and not _matches_pattern(item.name, pattern):
+        return []
+    try:
+        relative_path = item.relative_to(root)
+    except ValueError:
+        return []
+    path_str = str(relative_path)
+
+    if content:
+        matches = _search_content(item, content)
+        return [f"{path_str}:{line_num}: {line_text.strip()}" for line_num, line_text in matches]
+    return [path_str]
+
+
 def _search_files(
     search_path: Path,
     workspace_root: Path,
@@ -72,42 +91,19 @@ def _search_files(
     content: str | None,
 ) -> list:
     results = []
-    root = workspace_root
-
-    def process_file(item: Path):
-        if pattern and not _matches_pattern(item.name, pattern):
-            return
-        try:
-            relative_path = item.relative_to(root)
-        except ValueError:
-            return
-        path_str = str(relative_path)
-
-        if content:
-            matches = _search_content(item, content)
-            for line_num, line_text in matches:
-                results.append(f"{path_str}:{line_num}: {line_text.strip()}")
-        else:
-            results.append(path_str)
 
     if search_path.is_file():
-        process_file(search_path)
-        return results
+        return _process_match(search_path, workspace_root, pattern, content)
 
     def walk(p: Path):
         try:
             for item in p.iterdir():
-                if (
-                    item.name.startswith(".")
-                    or item.name in SKIP_DIRS
-                    or item.name.endswith(".egg-info")
-                ):
+                if _should_skip(item):
                     continue
-
                 if item.is_dir():
                     walk(item)
                 elif item.is_file():
-                    process_file(item)
+                    results.extend(_process_match(item, workspace_root, pattern, content))
         except PermissionError:
             pass
 
@@ -115,24 +111,21 @@ def _search_files(
     return results
 
 
-@tool("Find files by name pattern or search file contents.")
-@safe_execute
-async def Find(
-    params: FindParams,
-    sandbox_dir: str = ".cogency/sandbox",
-    access: Access = "sandbox",
-    **kwargs,
-) -> ToolResult:
+def _validate_search_params(params: FindParams) -> ToolResult | None:
     if not params.pattern and not params.content:
         return ToolResult(outcome="Must specify pattern or content to search", error=True)
-
     if params.pattern == "*" and not params.content:
         return ToolResult(
             outcome="Pattern too broad",
             content="Specify: content='...' OR pattern='*.py' OR path='subdir'",
             error=True,
         )
+    return None
 
+
+def _resolve_search_paths(
+    params: FindParams, access: Access, sandbox_dir: str
+) -> tuple[Path, Path] | ToolResult:
     if params.path == ".":
         if access == "sandbox":
             search_path = Path(sandbox_dir).resolve()
@@ -145,13 +138,28 @@ async def Find(
     workspace_root = search_path if access == "sandbox" else Path.cwd().resolve()
 
     if not search_path.is_relative_to(workspace_root):
-        return ToolResult(
-            outcome="Directory outside workspace scope",
-            error=True,
-        )
-
+        return ToolResult(outcome="Directory outside workspace scope", error=True)
     if not search_path.exists():
         return ToolResult(outcome=f"Directory '{params.path}' does not exist", error=True)
+
+    return search_path, workspace_root
+
+
+@tool("Find files by name pattern or search file contents.")
+@safe_execute
+async def Find(
+    params: FindParams,
+    sandbox_dir: str = ".cogency/sandbox",
+    access: Access = "sandbox",
+    **kwargs,
+) -> ToolResult:
+    if error := _validate_search_params(params):
+        return error
+
+    paths_or_error = _resolve_search_paths(params, access, sandbox_dir)
+    if isinstance(paths_or_error, ToolResult):
+        return paths_or_error
+    search_path, workspace_root = paths_or_error
 
     results = _search_files(search_path, workspace_root, params.pattern, params.content)
     total = len(results)

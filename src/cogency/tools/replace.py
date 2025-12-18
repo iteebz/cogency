@@ -51,14 +51,9 @@ def _rollback_backups(backups: list[Path]):
             backup_path.unlink()
 
 
-@tool("Performs find-and-replace operations across multiple files matching a glob pattern.")
-@safe_execute
-async def Replace(
-    params: ReplaceParams,
-    sandbox_dir: str = ".cogency/sandbox",
-    access: Access = "sandbox",
-    **kwargs,
-) -> ToolResult:
+def _validate_and_resolve_files(
+    params: ReplaceParams, access: Access, sandbox_dir: str
+) -> ToolResult | list[Path]:
     if not params.old:
         return ToolResult(outcome="The 'old' string cannot be empty.", error=True)
 
@@ -92,6 +87,59 @@ async def Replace(
             error=True,
         )
 
+    return matched_files
+
+
+def _format_result(matched_count: int, changed_files: dict, total: int, diffs: list[str]) -> str:
+    msg = f"Matched {matched_count} files\n"
+    msg += f"Changed {len(changed_files)} files\n"
+    msg += f"Made {total} replacements\n\n"
+    for file, count in changed_files.items():
+        msg += f"{file}: {count} replacements\n"
+    return msg
+
+
+def _process_replacement(file_path: Path, params: ReplaceParams) -> tuple[str, int] | ToolResult:
+    try:
+        original_content = file_path.read_text(encoding="utf-8")
+    except UnicodeDecodeError:
+        return "", 0
+
+    if params.exact:
+        occurrences = original_content.count(params.old)
+        if occurrences > 1:
+            return ToolResult(
+                outcome=f"Error: Exact string '{params.old}' found multiple times in '{file_path}'. Use exact=False for regex mode or refine 'old' string.",
+                error=True,
+            )
+        if occurrences == 1:
+            return original_content.replace(params.old, params.new, 1), 1
+        return original_content, 0
+    else:
+        try:
+            compiled_regex = re.compile(params.old)
+            new_content, count = compiled_regex.subn(params.new, original_content)
+            return new_content, count
+        except re.error as e:
+            return ToolResult(
+                outcome=f"Error: Invalid regex pattern '{params.old}': {e}",
+                error=True,
+            )
+
+
+@tool("Performs find-and-replace operations across multiple files matching a glob pattern.")
+@safe_execute
+async def Replace(
+    params: ReplaceParams,
+    sandbox_dir: str = ".cogency/sandbox",
+    access: Access = "sandbox",
+    **kwargs,
+) -> ToolResult:
+    files_or_error = _validate_and_resolve_files(params, access, sandbox_dir)
+    if isinstance(files_or_error, ToolResult):
+        return files_or_error
+    matched_files = files_or_error
+
     changed_files = {}
     all_backups = []
     total_replacements = 0
@@ -99,41 +147,21 @@ async def Replace(
 
     try:
         for file_path in matched_files:
+            backup_path = file_path.with_suffix(file_path.suffix + ".bak")
             try:
                 original_content = file_path.read_text(encoding="utf-8")
             except UnicodeDecodeError:
                 continue
 
-            backup_path = file_path.with_suffix(file_path.suffix + ".bak")
             shutil.copy(file_path, backup_path)
             all_backups.append(backup_path)
 
-            replacements_in_file = 0
-            new_content = original_content
+            result = _process_replacement(file_path, params)
+            if isinstance(result, ToolResult):
+                _rollback_backups(all_backups)
+                return result
 
-            if params.exact:
-                occurrences = original_content.count(params.old)
-                if occurrences > 1:
-                    _rollback_backups(all_backups)
-                    return ToolResult(
-                        outcome=f"Error: Exact string '{params.old}' found multiple times in '{file_path}'. Use exact=False for regex mode or refine 'old' string.",
-                        error=True,
-                    )
-                if occurrences == 1:
-                    new_content = original_content.replace(params.old, params.new, 1)
-                    replacements_in_file = 1
-            else:
-                try:
-                    compiled_regex = re.compile(params.old)
-                    new_content, replacements_in_file = compiled_regex.subn(
-                        params.new, original_content
-                    )
-                except re.error as e:
-                    _rollback_backups(all_backups)
-                    return ToolResult(
-                        outcome=f"Error: Invalid regex pattern '{params.old}': {e}",
-                        error=True,
-                    )
+            new_content, replacements_in_file = result
 
             if replacements_in_file > 0:
                 file_path.write_text(new_content, encoding="utf-8")
@@ -145,16 +173,10 @@ async def Replace(
                 backup_path.unlink()
                 all_backups.remove(backup_path)
 
-        outcome_message = f"Matched {len(matched_files)} files\n"
-        outcome_message += f"Changed {len(changed_files)} files\n"
-        outcome_message += f"Made {total_replacements} replacements\n\n"
-
-        for file, count in changed_files.items():
-            outcome_message += f"{file}: {count} replacements\n"
-
-        final_diff_content = "\n".join(all_diffs)
-
-        return ToolResult(outcome=outcome_message, content=final_diff_content)
+        outcome_msg = _format_result(
+            len(matched_files), changed_files, total_replacements, all_diffs
+        )
+        return ToolResult(outcome=outcome_msg, content="\n".join(all_diffs))
 
     except Exception as e:
         _rollback_backups(all_backups)
