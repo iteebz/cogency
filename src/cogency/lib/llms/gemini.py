@@ -90,31 +90,31 @@ class Gemini(LLM):
                 yield chunk.text
 
     async def connect(self, messages: list[dict[str, Any]]) -> "Gemini":
+        from google.genai import types
+
+        used_key = None
+
+        async def _create_client_with_key(api_key: str):
+            nonlocal used_key
+            used_key = api_key
+            return self._create_client(api_key)
+
+        client = await with_rotation("GEMINI", _create_client_with_key)
+
+        # Extract system instructions for Live API
+        system_instruction = ""
+        for msg in messages:
+            if msg["role"] == "system":
+                system_instruction += msg["content"] + "\n"
+
+        config = types.LiveConnectConfig(
+            response_modalities=["TEXT"],  # type: ignore[list-item]
+            system_instruction=system_instruction.strip() if system_instruction else "",
+        )
+        connection = client.aio.live.connect(model=self.websocket_model, config=config)
+        session = await connection.__aenter__()
+
         try:
-            from google.genai import types
-
-            used_key = None
-
-            async def _create_client_with_key(api_key: str):
-                nonlocal used_key
-                used_key = api_key
-                return self._create_client(api_key)
-
-            client = await with_rotation("GEMINI", _create_client_with_key)
-
-            # Extract system instructions for Live API
-            system_instruction = ""
-            for msg in messages:
-                if msg["role"] == "system":
-                    system_instruction += msg["content"] + "\n"
-
-            config = types.LiveConnectConfig(
-                response_modalities=["TEXT"],  # type: ignore[list-item]
-                system_instruction=system_instruction.strip() if system_instruction else "",
-            )
-            connection = client.aio.live.connect(model=self.websocket_model, config=config)
-            session = await connection.__aenter__()
-
             # Load conversation history (skip system and last user message)
             # Last user message will be sent via send() to trigger generation
             non_system_msgs = [m for m in messages if m["role"] != "system"]
@@ -145,7 +145,8 @@ class Gemini(LLM):
 
             return session_instance
         except Exception as e:
-            logger.warning(f"Gemini connection failed: {e}")
+            logger.warning(f"Gemini connection setup failed: {e}")
+            await connection.__aexit__(type(e), e, e.__traceback__)
             raise RuntimeError("Gemini connection failed") from e
 
     async def send(self, content: str) -> AsyncGenerator[str, None]:  # noqa: C901  # Gemini protocol adapter with dual-signal streaming
@@ -190,11 +191,9 @@ class Gemini(LLM):
                     return
 
             if message_count > MAX_SESSION_MESSAGES:
-                logger.error(
-                    f"Gemini session exceeded {MAX_SESSION_MESSAGES} messages without completion signals. "
-                    "This indicates a protocol violation or infinite loop."
+                raise RuntimeError(
+                    f"Gemini session exceeded {MAX_SESSION_MESSAGES} messages without completion signals"
                 )
-                return
 
     async def close(self) -> None:
         if not self._connection:

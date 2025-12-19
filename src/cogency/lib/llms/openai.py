@@ -116,11 +116,11 @@ class OpenAI(LLM):
         async def _create_client_with_key(api_key: str):
             return self._create_client(api_key)
 
-        try:
-            client = await with_rotation("OPENAI", _create_client_with_key)
-            connection_manager = client.realtime.connect(model=self.websocket_model)
-            connection = await connection_manager.__aenter__()
+        client = await with_rotation("OPENAI", _create_client_with_key)
+        connection_manager = client.realtime.connect(model=self.websocket_model)
+        connection = await connection_manager.__aenter__()
 
+        try:
             # Configure for text responses with proper system instructions
             system_content = ""
             user_messages = []
@@ -172,7 +172,8 @@ class OpenAI(LLM):
 
             return session_instance
         except Exception as e:
-            logger.warning(f"OpenAI connection failed: {e}")
+            logger.warning(f"OpenAI connection setup failed: {e}")
+            await connection_manager.__aexit__(type(e), e, e.__traceback__)
             raise RuntimeError("OpenAI connection failed") from e
 
     @interruptible
@@ -229,10 +230,10 @@ class OpenAI(LLM):
                         logger.debug("Active response error via string match (fragile)")
                         continue
                     logger.warning(f"OpenAI session error: {event}")
-                    return
-            except TimeoutError:
+                    raise RuntimeError(f"OpenAI session error: {event}")
+            except TimeoutError as e:
                 logger.warning("OpenAI recv timeout after 60s")
-                return
+                raise RuntimeError("OpenAI recv timeout") from e
             except Exception as e:
                 logger.error(f"Error receiving event: {e}")
                 raise

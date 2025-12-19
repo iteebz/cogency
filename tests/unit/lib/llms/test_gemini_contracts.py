@@ -50,7 +50,7 @@ async def test_send_requires_dual_signals_to_terminate():
 
 
 @pytest.mark.asyncio
-async def test_send_stops_at_safety_limit():
+async def test_send_raises_at_safety_limit():
     with patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"):
         llm = Gemini()
 
@@ -63,11 +63,9 @@ async def test_send_stops_at_safety_limit():
 
     llm._session.receive = _receive
 
-    got = []
-    async for chunk in llm.send("hi"):
-        got.append(chunk)
-
-    assert got == []
+    with pytest.raises(RuntimeError, match="exceeded.*messages"):
+        async for _ in llm.send("hi"):
+            pass
 
 
 @pytest.mark.asyncio
@@ -87,7 +85,8 @@ async def test_send_enforces_max_session_messages_constant():
     llm._session.receive = _receive
 
     chunks = []
-    async for chunk in llm.send("test"):
-        chunks.append(chunk)
+    with pytest.raises(RuntimeError, match="exceeded.*messages"):
+        async for chunk in llm.send("test"):
+            chunks.append(chunk)
 
-    assert MAX_SESSION_MESSAGES < len(chunks) < MAX_SESSION_MESSAGES + 5
+    assert len(chunks) <= MAX_SESSION_MESSAGES + 1
