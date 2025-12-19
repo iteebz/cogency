@@ -110,6 +110,18 @@ async def run_evals(args: dict) -> int:
     else:
         cases = all_cases()
 
+    behavioral = [c for c in cases if c.rubric]
+    if args["behavioral_only"] and not args["judge"]:
+        print("Behavioral suite requires --judge")
+        return 1
+    if not args["judge"]:
+        if args["cases"] or args["tag"]:
+            if behavioral:
+                print("Behavioral cases require --judge")
+                return 1
+        else:
+            cases = mechanical_cases()
+
     print("\nCogency Evals")
     print("=" * 50)
     print(f"Cases: {len(cases)}")
