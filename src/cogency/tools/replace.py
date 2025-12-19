@@ -91,9 +91,7 @@ def _validate_and_resolve_files(
     return matched_files
 
 
-def _format_result(
-    matched_count: int, changed_files: dict[str, int], total: int, diffs: list[str]
-) -> str:
+def _format_result(matched_count: int, changed_files: dict[str, int], total: int) -> str:
     msg = f"Matched {matched_count} files\n"
     msg += f"Changed {len(changed_files)} files\n"
     msg += f"Made {total} replacements\n\n"
@@ -176,9 +174,7 @@ async def Replace(
                 backup_path.unlink()
                 all_backups.remove(backup_path)
 
-        outcome_msg = _format_result(
-            len(matched_files), changed_files, total_replacements, all_diffs
-        )
+        outcome_msg = _format_result(len(matched_files), changed_files, total_replacements)
         return ToolResult(outcome=outcome_msg, content="\n".join(all_diffs))
 
     except Exception as e:

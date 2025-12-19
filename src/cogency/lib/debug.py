@@ -1,3 +1,9 @@
+"""Debug logging utilities.
+
+Note: When enabled, log_response() writes to .cogency/debug/ at runtime.
+This is an intentional side effect gated by the debug=True config flag.
+"""
+
 import json
 import time
 from pathlib import Path

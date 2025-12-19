@@ -53,22 +53,22 @@ class ToolRegistry:
         if isinstance(categories, str):
             categories = [categories]
 
-        filtered: set[Tool] = set()
+        filtered: dict[str, Tool] = {}
         for category in categories:
             if category in self.by_category:
                 for tool in self.by_category[category]:
-                    filtered.add(tool)
-        return list(filtered)
+                    filtered[tool.name] = tool
+        return list(filtered.values())
 
     def name(self, names: str | list[str]) -> list[Tool]:
         if isinstance(names, str):
             names = [names]
 
-        filtered: set[Tool] = set()
+        filtered: dict[str, Tool] = {}
         for name in names:
             if name in self.by_name:
-                filtered.add(self.by_name[name])
-        return list(filtered)
+                filtered[name] = self.by_name[name]
+        return list(filtered.values())
 
     def get(self, name: str) -> Tool | None:
         return self.by_name.get(name)

@@ -1,6 +1,3 @@
-from cogency.core.registry import ToolRegistry
-from cogency.lib.sqlite import default_storage
-
 from .edit import Edit
 from .find import Find
 from .list import List
@@ -12,7 +9,18 @@ from .search import Search
 from .shell import Shell
 from .write import Write
 
-tools = ToolRegistry(default_storage())
+_tools_instance = None
+
+
+def tools():
+    global _tools_instance
+    if _tools_instance is None:
+        from cogency.core.registry import ToolRegistry
+        from cogency.lib.sqlite import default_storage
+
+        _tools_instance = ToolRegistry(default_storage())
+    return _tools_instance()
+
 
 __all__ = [
     "Edit",
