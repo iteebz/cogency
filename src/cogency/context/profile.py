@@ -41,7 +41,7 @@ def prompt(profile: dict[str, Any], user_messages: list[str], compact: bool = Fa
     return PROFILE_TEMPLATE.format(
         profile=json.dumps(profile),
         user_messages="\n".join(user_messages),
-        instruction="Update profile keeping it concise. Return SKIP if no changes needed. JSON only.",
+        instruction="Update profile keeping it concise. Return {} if no changes needed. JSON only.",
     )
 
 
@@ -220,7 +220,7 @@ async def update_profile(
     try:
         raw: object = json.loads(clean)
         parsed = parse_profile_dict(raw)
-        if compact or result.strip().upper() != "SKIP":
+        if compact or parsed:
             return dict(parsed)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"JSON parse error during profile update: {result[:50]}...") from e
