@@ -55,6 +55,8 @@ Tool invocation as JSON array inside XML markers.
 - Parallel execution, results in array order
 - Fault-tolerant: failed tool doesn't block subsequent tools
 
+**Parser Hard-Stop:** The parser returns immediately after emitting an `execute` event. Any content after `</execute>` in the same LLM turn is discarded. This segments the stream by tool calls — the LLM resumes after receiving results.
+
 **Why JSON in XML?** Content like `</execute>` inside args is JSON-escaped, no collision with markers.
 
 ### RESULTS (System-Generated)

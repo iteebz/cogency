@@ -99,6 +99,17 @@ async def execute(self, **kwargs) -> ToolResult:
 
 Agent receives error as data and can reason about it.
 
+## Security Errors
+
+Path validation errors use distinct messages for different failure modes:
+
+| Error | Cause |
+|-------|-------|
+| `Invalid path` | Absolute path when relative expected, or path resolution failed |
+| `Path outside sandbox` | Resolved path escapes allowed directory |
+
+Both indicate security boundary enforcement. The distinction helps debugging.
+
 ## Guarantees
 
 **No collision detection.** If a file changes after `read()` but before `edit()`, the write silently overwrites. Collision detection belongs in application logic.
