@@ -15,7 +15,7 @@ from collections.abc import AsyncGenerator
 from typing import Literal
 
 from .circuit import CircuitBreaker
-from .codec import format_results_array, parse_tool_call
+from .codec import ToolParseError, format_results_array, parse_tool_call
 from .config import Execution
 from .executor import execute_tools
 from .protocols import (
@@ -177,7 +177,7 @@ class Accumulator:
                     self.call_timestamps.append(timestamp)
 
                     yield CallEvent(type="call", content=call_json, timestamp=timestamp)
-                except (json.JSONDecodeError, KeyError) as e:
+                except (json.JSONDecodeError, KeyError, ToolParseError) as e:
                     logger.warning(f"Failed to parse tool call: {e}")
 
                 continue
