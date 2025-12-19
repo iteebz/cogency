@@ -21,6 +21,7 @@ def make_run(events: list[dict] | None = None, **kwargs) -> Run:
         "duration": 1.0,
         "error": None,
         "config": {},
+        "storage_path": Path("/tmp/nonexistent.db"),
         "user_id": "eval",
     }
     defaults.update(kwargs)

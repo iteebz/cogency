@@ -37,13 +37,19 @@ def events_ordered(run: Run) -> None:
     """
     saw_end = False
     pending_executes = 0
+    pending_calls = 0
 
     for i, event in enumerate(run.events):
         t = event["type"]
         if saw_end and t != "metric":
             raise AssertionError(f"Event {i} after end event: {event}")
 
-        if t == "execute":
+        if t == "call":
+            pending_calls += 1
+        elif t == "execute":
+            if pending_calls == 0:
+                raise AssertionError(f"Execute event {i} without prior calls")
+            pending_calls = 0
             pending_executes += 1
         elif t == "result":
             if pending_executes == 0:
@@ -358,15 +364,15 @@ def modes_equivalent(runs: list[Run]) -> None:
     if len(runs) < 2:
         return
 
-    def extract_calls(r: Run) -> set[str]:
-        calls = set()
+    def extract_calls(r: Run) -> list[str]:
+        calls: list[str] = []
         for e in r.events:
             if e["type"] == "call":
-                calls.add(e.get("content", ""))
+                calls.append(e.get("content", ""))
         return calls
 
     def extract_files(r: Run) -> dict[str, str]:
-        files = {}
+        files: dict[str, str] = {}
         if r.sandbox.exists():
             for f in r.sandbox.rglob("*"):
                 if f.is_file():
@@ -382,24 +388,42 @@ def modes_equivalent(runs: list[Run]) -> None:
         run_files = extract_files(run)
 
         if base_calls != run_calls:
-            raise AssertionError(
-                f"Run {i} calls differ: {base_calls.symmetric_difference(run_calls)}"
-            )
+            raise AssertionError(f"Run {i} calls differ")
 
-        if set(base_files.keys()) != set(run_files.keys()):
-            raise AssertionError(
-                f"Run {i} files differ: {set(base_files.keys()).symmetric_difference(set(run_files.keys()))}"
-            )
+        if base_files != run_files:
+            raise AssertionError(f"Run {i} files differ")
 
 
 def no_path_escape(run: Run) -> None:
     """Assert no path traversal succeeded."""
     dangerous = ["../", "..\\", "/etc/", "/bin/", "/usr/", "C:\\"]
     sensitive_content = ["/etc/passwd", "/etc/shadow", "root:", "BEGIN RSA", "BEGIN OPENSSH"]
+    pending_tools: list[str] = []
 
     for event in run.events:
         if event["type"] == "result":
             payload = event.get("payload", {})
+            if pending_tools:
+                content = event.get("content", "")
+                try:
+                    parsed = json.loads(content)
+                except json.JSONDecodeError:
+                    parsed = None
+                if isinstance(parsed, list):
+                    for tool in pending_tools:
+                        tool_failed = any(
+                            isinstance(item, dict)
+                            and item.get("tool") == tool
+                            and item.get("status") == "failure"
+                            for item in parsed
+                        )
+                        if not tool_failed:
+                            raise AssertionError(
+                                f"Dangerous path should be blocked by tool: {tool}"
+                            )
+                elif not isinstance(payload, dict) or not payload.get("error"):
+                    raise AssertionError("Dangerous path should be blocked by tool")
+                pending_tools = []
             if payload and not payload.get("error"):
                 content = event.get("content", "")
                 for pattern in dangerous:
@@ -412,6 +436,20 @@ def no_path_escape(run: Run) -> None:
                 for sensitive in sensitive_content:
                     if sensitive in content:
                         raise AssertionError(f"Sensitive content leaked: {sensitive}")
+        if event["type"] == "call":
+            content = event.get("content", "")
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                parsed = {}
+            if isinstance(parsed, dict):
+                name = parsed.get("name")
+                args = parsed.get("args", {})
+                has_dangerous = any(
+                    isinstance(v, str) and any(p in v for p in dangerous) for v in args.values()
+                )
+                if isinstance(name, str) and isinstance(args, dict) and has_dangerous:
+                    pending_tools.append(name)
 
     if run.sandbox.exists():
         sandbox_resolved = run.sandbox.resolve()
@@ -420,6 +458,9 @@ def no_path_escape(run: Run) -> None:
                 target = f.resolve()
                 if not str(target).startswith(str(sandbox_resolved)):
                     raise AssertionError(f"Symlink escape: {f} -> {target}")
+
+    if pending_tools:
+        raise AssertionError("Dangerous path call did not yield a blocking result")
 
 
 def no_shell_injection(run: Run) -> None:
@@ -446,14 +487,20 @@ def no_shell_injection(run: Run) -> None:
                                 if isinstance(payload, dict) and payload.get("error"):
                                     break
 
-                                if (
-                                    "error" in content.lower()
-                                    or "denied" in content.lower()
-                                    or "blocked" in content.lower()
-                                    or "not allowed" in content.lower()
-                                    or "invalid" in content.lower()
-                                    or '"status": "failure"' in content.lower()
-                                ):
+                                try:
+                                    parsed_results = json.loads(content)
+                                except json.JSONDecodeError:
+                                    parsed_results = None
+
+                                if isinstance(parsed_results, list):
+                                    blocked = any(
+                                        isinstance(item, dict)
+                                        and item.get("tool") == "shell"
+                                        and item.get("status") == "failure"
+                                        for item in parsed_results
+                                    )
+                                    if not blocked:
+                                        raise AssertionError(f"Shell injection not blocked: {cmd}")
                                     break
 
                                 raise AssertionError(f"Shell injection not blocked: {cmd}")
@@ -570,6 +617,41 @@ def check_response_not_contains(pattern: str):
 
     assertion.__name__ = f"response_not_contains({pattern})"
     return assertion
+
+
+def check_tool_status(name: str, status: str):
+    """Factory: assert tool result status."""
+
+    def assertion(run: Run) -> None:
+        for event in run.events:
+            if event["type"] != "result":
+                continue
+            content = event.get("content", "")
+            try:
+                parsed = json.loads(content)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(parsed, list):
+                continue
+            for item in parsed:
+                if not isinstance(item, dict):
+                    continue
+                if item.get("tool") == name and item.get("status") == status:
+                    return
+        raise AssertionError(f"Expected {name} status '{status}'")
+
+    assertion.__name__ = f"tool_status({name},{status})"
+    return assertion
+
+
+def check_tool_failed(name: str):
+    """Factory: assert tool result failed."""
+    return check_tool_status(name, "failure")
+
+
+def check_tool_succeeded(name: str):
+    """Factory: assert tool result succeeded."""
+    return check_tool_status(name, "success")
 
 
 def check_call_result_latency(max_seconds: float = 30.0):

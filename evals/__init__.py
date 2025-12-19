@@ -1,7 +1,6 @@
 """Cogency evals. Reference-grade test harness."""
 
 from .cases import (
-    EXPECTED_CASE_COUNT,
     Case,
     all_cases,
     behavioral_cases,
@@ -13,7 +12,6 @@ from .harness import Run, Verdict, execute, get_sandbox, run_case, run_suite
 from .judge import Score, judge
 
 __all__ = [
-    "EXPECTED_CASE_COUNT",
     "Case",
     "Run",
     "Score",

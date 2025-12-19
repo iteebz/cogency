@@ -1,11 +1,20 @@
 # Evals
 
-88 cases covering all Cogency invariants. 84 mechanical, 4 behavioral.
+Cases covering all Cogency invariants. Mechanical and behavioral.
 
 ## Contract
 
 **Assertions** = invariants (must hold for all valid executions)
 **Rubrics** = acceptability (LLM judge grades quality)
+
+### Tiers
+
+**Mechanical suite is the reference gate. Behavioral suite is advisory.**
+
+- Mechanical: deterministic assertions on events/artifacts. No LLM judge. Hard pass/fail.
+- Behavioral: LLM-judged quality signals. Probabilistic. Track drift, don't gate on it.
+
+For security boundary cases: either correct refusal citing the boundary OR tool attempt blocked = pass. Both prove "no breach."
 
 ### Rules
 
@@ -74,6 +83,5 @@ Case(
 ## Adding Cases
 
 1. Add to `_*_cases()` in `cases.py`
-2. Update `EXPECTED_CASE_COUNT`
-3. Run `poetry run python -m evals --validate`
-4. Mechanical assertions only. If behavior needs judgment, add rubric.
+2. Run `uv run python -m evals --validate`
+3. Mechanical assertions only. If behavior needs judgment, add rubric.

@@ -211,14 +211,14 @@ Examples:
 
 def validate() -> int:
     """Validate case inventory."""
-    from .cases import EXPECTED_CASE_COUNT, all_cases, validate_cases
+    from .cases import all_cases, validate_cases
 
     print("\nValidating case inventory...")
 
     try:
         validate_cases()
         cases = all_cases()
-        print(f"✓ Case count: {len(cases)} (expected {EXPECTED_CASE_COUNT})")
+        print(f"✓ Case count: {len(cases)}")
         print("✓ No duplicate names")
         print("✓ All required tags present")
         print("✓ All cases have assertions or rubrics")

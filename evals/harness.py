@@ -43,6 +43,7 @@ class Run:
     duration: float
     error: str | None
     config: dict[str, Any]
+    storage_path: Path
     user_id: str = DEFAULT_USER_ID
 
     _storage: Storage | None = field(default=None, repr=False)
@@ -135,7 +136,12 @@ async def execute(
     max_iterations = config.get("max_iterations", 10)
     history_window = config.get("history_window", None)
 
-    security = Security(sandbox_dir=str(sandbox))
+    access = config.get("access")
+    security = (
+        Security(access=access, sandbox_dir=str(sandbox))
+        if access is not None
+        else Security(sandbox_dir=str(sandbox))
+    )
 
     agent_kwargs = {
         "llm": llm,
@@ -189,6 +195,7 @@ async def execute(
         duration=duration,
         error=error,
         config=config,
+        storage_path=store_path,
         user_id=user_id,
         _storage=storage,
     )
@@ -202,10 +209,9 @@ def write_artifacts(run: Run, artifacts_dir: Path) -> None:
     with events_path.open("w") as f:
         f.writelines(json.dumps(event) + "\n" for event in run.events)
 
-    if run.sandbox.exists():
-        state_db = run.sandbox / f".store_{run.id}.db"
-        if state_db.exists():
-            shutil.copy(state_db, artifacts_dir / "state.db")
+    state_db = run.storage_path
+    if state_db.exists():
+        shutil.copy(state_db, artifacts_dir / "state.db")
 
     run.artifacts_dir = artifacts_dir
 

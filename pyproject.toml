@@ -49,6 +49,7 @@ dev = [
     "pytest-timeout>=2.4.0",
     "pytest-cov>=7.0.0",
     "pyright>=1.1.407",
+    "pre-commit>=4.5.1",
 ]
 
 [tool.hatch.build.targets.wheel]
