@@ -1,6 +1,6 @@
 from collections.abc import AsyncGenerator, Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Literal, NamedTuple, Protocol, TypedDict, runtime_checkable
+from typing import Any, Literal, NamedTuple, Protocol, TypedDict, cast, runtime_checkable
 
 
 class MessageMatch(NamedTuple):
@@ -198,6 +198,122 @@ class ToolResult:
     outcome: str
     content: str | None = None
     error: bool = False
+
+
+class ToolCallDict(TypedDict):
+    """Wire format for tool calls at JSON boundaries."""
+
+    name: str
+    args: dict[str, Any]
+
+
+class ToolResultDict(TypedDict, total=False):
+    """Wire format for tool results at JSON boundaries."""
+
+    outcome: str
+    content: str
+
+
+class ProfileDict(TypedDict, total=False):
+    """Wire format for user profiles at JSON boundaries."""
+
+    who: str
+    style: str
+    focus: str
+    interests: str
+    misc: str
+    _meta: dict[str, Any]
+
+
+class MetricDataDict(TypedDict, total=False):
+    """Wire format for metric data at JSON boundaries."""
+
+    step: dict[str, Any]
+    total: dict[str, Any]
+
+
+class ParseError(ValueError):
+    """Raised when JSON parsing fails at a boundary."""
+
+    def __init__(self, message: str, raw: object = None) -> None:
+        super().__init__(message)
+        self.raw = raw
+
+
+def parse_tool_call_dict(raw: object, *, require_args: bool = False) -> ToolCallDict:
+    """Parse raw JSON into ToolCallDict. Raises ParseError on invalid shape."""
+    if not isinstance(raw, dict):
+        raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
+    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    name = data.get("name")
+    if not isinstance(name, str):
+        raise ParseError(f"Field 'name' must be str, got {type(name).__name__}", data)
+    
+    if require_args and "args" not in data:
+        raise ParseError("Field 'args' is required", data)
+    
+    args = data.get("args", {})
+    if not isinstance(args, dict):
+        raise ParseError(f"Field 'args' must be dict, got {type(args).__name__}", data)
+    return {"name": name, "args": args}
+
+
+def parse_tool_result_dict(raw: object) -> ToolResultDict:
+    """Parse raw JSON into ToolResultDict. Raises ParseError on invalid shape."""
+    if not isinstance(raw, dict):
+        raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
+    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    result: ToolResultDict = {}
+    outcome = data.get("outcome")
+    if outcome is not None:
+        if not isinstance(outcome, str):
+            raise ParseError(f"Field 'outcome' must be str, got {type(outcome).__name__}", data)
+        result["outcome"] = outcome
+    content = data.get("content")
+    if content is not None:
+        if not isinstance(content, str):
+            raise ParseError(f"Field 'content' must be str, got {type(content).__name__}", data)
+        result["content"] = content
+    return result
+
+
+def parse_profile_dict(raw: object) -> ProfileDict:
+    """Parse raw JSON into ProfileDict. Raises ParseError on invalid shape."""
+    if not isinstance(raw, dict):
+        raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
+    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    result: ProfileDict = {}
+    for key in ("who", "style", "focus", "interests", "misc"):
+        val = data.get(key)
+        if val is not None:
+            if not isinstance(val, str):
+                raise ParseError(f"Field '{key}' must be str, got {type(val).__name__}", data)
+            result[key] = val
+    meta = data.get("_meta")
+    if meta is not None:
+        if not isinstance(meta, dict):
+            raise ParseError(f"Field '_meta' must be dict, got {type(meta).__name__}", data)
+        result["_meta"] = meta
+    return result
+
+
+def parse_metric_data_dict(raw: object) -> MetricDataDict:
+    """Parse raw JSON into MetricDataDict. Raises ParseError on invalid shape."""
+    if not isinstance(raw, dict):
+        raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
+    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    result: MetricDataDict = {}
+    step = data.get("step")
+    if step is not None:
+        if not isinstance(step, dict):
+            raise ParseError(f"Field 'step' must be dict, got {type(step).__name__}", data)
+        result["step"] = step
+    total = data.get("total")
+    if total is not None:
+        if not isinstance(total, dict):
+            raise ParseError(f"Field 'total' must be dict, got {type(total).__name__}", data)
+        result["total"] = total
+    return result
 
 
 @dataclass

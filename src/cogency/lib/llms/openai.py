@@ -40,9 +40,9 @@ class OpenAI(LLM):
         self.temperature = temperature
         self.max_tokens = max_tokens
 
-        # WebSocket session state
-        self._connection: Any = None
-        self._connection_manager: Any = None
+        # WebSocket session state (SDK types)
+        self._connection: Any = None  # openai.AsyncSession - incomplete stubs
+        self._connection_manager: Any = None  # AsyncContextManager - runtime protocol
 
     def _create_client(self, api_key: str):
         """Create OpenAI client for given API key."""
@@ -62,14 +62,14 @@ class OpenAI(LLM):
                 response = await client.responses.create(
                     model=self.http_model,
                     instructions=final_instructions,
-                    input=cast("Any", final_input_messages),
+                    input=cast("Any", final_input_messages),  # SDK expects strict type
                     temperature=self.temperature,
                     stream=False,
                 )
                 if response.output_text:
                     return response.output_text
                 if response.output and len(response.output) > 0:
-                    output_msg: Any = response.output[0]
+                    output_msg: Any = response.output[0]  # SDK dynamic response type
                     if output_msg.content and len(output_msg.content) > 0:
                         return str(output_msg.content[0].text or "")
                 return ""

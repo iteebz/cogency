@@ -6,7 +6,7 @@ import json
 import re
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
-from .protocols import Tool, ToolCall, ToolResult
+from .protocols import Tool, ToolCall, ToolResult, parse_tool_call_dict, parse_tool_result_dict
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -76,21 +76,12 @@ def parse_tool_call(json_str: str) -> ToolCall:
 
     try:
         raw: object = json.loads(json_str)
-        if not isinstance(raw, dict):
-            raise ToolParseError("Expected JSON object", original_json=json_str)
-        data = cast(dict[str, Any], raw)
-        
-        name = data.get("name")
-        if not isinstance(name, str):
-            raise ToolParseError("Field 'name' must be string", original_json=json_str)
-        
-        args = data.get("args", {})
-        if not isinstance(args, dict):
-            raise ToolParseError("Field 'args' must be object", original_json=json_str)
-        
-        return ToolCall(name=name, args=cast(dict[str, Any], args))
+        call_dict = parse_tool_call_dict(raw)
+        return ToolCall(name=call_dict["name"], args=call_dict["args"])
     except json.JSONDecodeError as e:
         raise ToolParseError(f"JSON parse failed: {e}", original_json=json_str) from e
+    except Exception as e:
+        raise ToolParseError(str(e), original_json=json_str) from e
 
 
 def parse_tool_result(content: str) -> list[ToolResult]:
@@ -98,24 +89,18 @@ def parse_tool_result(content: str) -> list[ToolResult]:
         raw: object = json.loads(content)
         if isinstance(raw, dict):
             data = cast(dict[str, Any], raw)
-            outcome = data.get("outcome", "")
-            result_content = data.get("content", "")
-            if not isinstance(outcome, str):
-                outcome = ""
-            if not isinstance(result_content, str):
-                result_content = ""
+            result_dict = parse_tool_result_dict(data)
+            outcome = result_dict.get("outcome", "")
+            result_content = result_dict.get("content", "")
             return [ToolResult(outcome=outcome, content=result_content)]
         if isinstance(raw, list):
             results: list[ToolResult] = []
             for item in cast(list[object], raw):
                 if isinstance(item, dict):
                     item_data = cast(dict[str, Any], item)
-                    outcome = item_data.get("outcome", "")
-                    result_content = item_data.get("content", "")
-                    if not isinstance(outcome, str):
-                        outcome = ""
-                    if not isinstance(result_content, str):
-                        result_content = ""
+                    result_dict = parse_tool_result_dict(item_data)
+                    outcome = result_dict.get("outcome", "")
+                    result_content = result_dict.get("content", "")
                     results.append(ToolResult(outcome=outcome, content=result_content))
             return results
     except (json.JSONDecodeError, TypeError):

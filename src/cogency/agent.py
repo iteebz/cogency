@@ -14,7 +14,15 @@ import openai
 from . import context, replay, resume
 from .core.config import Config, Security
 from .core.errors import ConfigError, LLMError
-from .core.protocols import LLM, HistoryTransform, NotificationSource, Storage, Tool
+from .core.protocols import (
+    LLM,
+    CancelledEvent,
+    HistoryTransform,
+    NotificationSource,
+    Storage,
+    Tool,
+    UserEvent,
+)
 from .lib import llms
 from .lib.sqlite import default_storage
 from .tools import tools as builtin_tools
@@ -129,7 +137,7 @@ class Agent:
             )
 
             # Emit user event - first event in conversation turn
-            yield {"type": "user", "content": query, "timestamp": timestamp}
+            yield UserEvent(type="user", content=query, timestamp=timestamp)
 
             async for event in _select_mode_stream(
                 self.config.mode, self.config, query, user_id, conversation_id, stream
@@ -149,7 +157,7 @@ class Agent:
             await self.config.storage.save_message(
                 conversation_id or "", user_id or "", "cancelled", "", timestamp
             )
-            yield {"type": "cancelled", "timestamp": timestamp}
+            yield CancelledEvent(type="cancelled", timestamp=timestamp)
         except (
             anthropic.APIError,
             openai.APIError,

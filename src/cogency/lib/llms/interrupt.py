@@ -2,24 +2,26 @@ import asyncio
 import logging
 from collections.abc import AsyncGenerator, Callable
 from functools import wraps
-from typing import Any, ParamSpec, TypeVar, cast
+from typing import ParamSpec, TypeVar
 
 logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 T = TypeVar("T")
+SelfT = TypeVar("SelfT")
 
 
 def interruptible(
-    func: Callable[..., AsyncGenerator[T, None]]
-) -> Callable[..., AsyncGenerator[T, None]]:
-    """Make async generator interruptible with clean EXECUTE emission."""
+    func: Callable[P, AsyncGenerator[T, None]],
+) -> Callable[P, AsyncGenerator[T, None]]:
+    """Make async generator interruptible. Preserves exact signature."""
 
     @wraps(func)
-    async def wrapper(self: Any, *args: Any, **kwargs: Any) -> AsyncGenerator[T, None]:
-        provider_name = self.__class__.__name__
+    async def wrapper(*args: P.args, **kwargs: P.kwargs) -> AsyncGenerator[T, None]:
+        # Extract self from args for logging (first arg is always self for methods)
+        provider_name = args[0].__class__.__name__ if args else "Unknown"
         try:
-            async for chunk in func(self, *args, **kwargs):
+            async for chunk in func(*args, **kwargs):
                 yield chunk
         except KeyboardInterrupt:
             logger.info(f"{provider_name} interrupted by user (Ctrl+C)")
@@ -34,4 +36,4 @@ def interruptible(
                 logger.error(f"{provider_name} error: {e!s}")
             raise
 
-    return cast(Callable[..., AsyncGenerator[T, None]], wrapper)
+    return wrapper

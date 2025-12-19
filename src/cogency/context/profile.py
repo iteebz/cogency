@@ -12,7 +12,9 @@ import asyncio
 import json
 import logging
 import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
+
+from cogency.core.protocols import parse_profile_dict
 
 logger = logging.getLogger(__name__)
 
@@ -217,13 +219,13 @@ async def update_profile(
 
     try:
         raw: object = json.loads(clean)
-        if not isinstance(raw, dict):
-            raise RuntimeError(f"Profile must be JSON object, got {type(raw).__name__}")
-        parsed = cast(dict[str, Any], raw)
+        parsed = parse_profile_dict(raw)
         if compact or result.strip().upper() != "SKIP":
-            return parsed
+            return dict(parsed)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"JSON parse error during profile update: {result[:50]}...") from e
+    except Exception as e:
+        raise RuntimeError(f"Invalid profile format: {e}") from e
 
     return current if compact else None
 

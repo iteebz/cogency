@@ -18,13 +18,29 @@ from .circuit import CircuitBreaker
 from .codec import format_results_array, parse_tool_call
 from .config import Execution
 from .executor import execute_tools
-from .protocols import Event, ToolCall, ToolResult, event_content, event_type
+from .protocols import (
+    CallEvent,
+    EndEvent,
+    Event,
+    ExecuteEvent,
+    RespondEvent,
+    ResultEvent,
+    ThinkEvent,
+    ToolCall,
+    ToolResult,
+    event_content,
+    event_type,
+)
 
 logger = logging.getLogger(__name__)
 
 # Conversation events that get persisted to storage
 # "user" omitted - handled by resume/replay before agent stream
 PERSISTABLE_EVENTS = {"think", "call", "result", "respond"}
+
+# Events with content that can be accumulated over multiple parser chunks
+AccumulatableEvent = ThinkEvent | CallEvent | RespondEvent | ResultEvent
+AccumulatableType = Literal["think", "call", "respond", "result"]
 
 
 class Accumulator:
@@ -47,7 +63,7 @@ class Accumulator:
         self.circuit_breaker = CircuitBreaker(max_failures=max_failures)
 
         # Accumulation state
-        self.current_type: str | None = None
+        self.current_type: AccumulatableType | None = None
         self.content = ""
         self.start_time: float | None = None
 
@@ -55,7 +71,7 @@ class Accumulator:
         self.pending_calls: list[ToolCall] = []
         self.call_timestamps: list[float] = []
 
-    async def _flush_accumulated(self) -> Event | None:
+    async def _flush_accumulated(self) -> AccumulatableEvent | None:
         if not self.current_type or not self.content.strip():
             return None
 
@@ -73,11 +89,13 @@ class Accumulator:
 
         # Emit event in semantic mode (skip calls - handled by execute)
         if self.stream == "event" and self.current_type != "call" and self.start_time is not None:
-            return {  # type: ignore[return-value]
-                "type": self.current_type,
-                "content": clean_content,
-                "timestamp": time.time(),
-            }
+            ts = time.time()
+            if self.current_type == "think":
+                return ThinkEvent(type="think", content=clean_content, timestamp=ts)
+            elif self.current_type == "respond":
+                return RespondEvent(type="respond", content=clean_content, timestamp=ts)
+            elif self.current_type == "result":
+                return ResultEvent(type="result", content=clean_content, timestamp=ts, payload=None)
         return None
 
     async def _handle_execute(self, timestamp: float) -> AsyncGenerator[Event, None]:
@@ -104,17 +122,17 @@ class Accumulator:
                 self.circuit_breaker.record_success()
 
         if self.circuit_breaker.is_open():
-            yield {
-                "type": "result",
-                "payload": {
+            yield ResultEvent(
+                type="result",
+                payload={
                     "outcome": "Max failures. Terminating.",
                     "content": "",
                     "error": True,
                 },
-                "content": "Max failures. Terminating.",
-                "timestamp": timestamp,
-            }
-            yield {"type": "end", "timestamp": timestamp}
+                content="Max failures. Terminating.",
+                timestamp=timestamp,
+            )
+            yield EndEvent(type="end", timestamp=timestamp)
             self.pending_calls = []
             self.call_timestamps = []
             return
@@ -124,16 +142,16 @@ class Accumulator:
             self.conversation_id, self.user_id, "result", clean_results, timestamp
         )
 
-        yield {
-            "type": "result",
-            "payload": {
+        yield ResultEvent(
+            type="result",
+            payload={
                 "tools_executed": len(results),
                 "success_count": sum(1 for r in results if not r.error),
                 "failure_count": sum(1 for r in results if r.error),
             },
-            "content": clean_results,
-            "timestamp": timestamp,
-        }
+            content=clean_results,
+            timestamp=timestamp,
+        )
 
         self.pending_calls = []
         self.call_timestamps = []
@@ -158,7 +176,7 @@ class Accumulator:
                     self.pending_calls.append(tool_call)
                     self.call_timestamps.append(timestamp)
 
-                    yield {"type": "call", "content": call_json, "timestamp": timestamp}
+                    yield CallEvent(type="call", content=call_json, timestamp=timestamp)
                 except (json.JSONDecodeError, KeyError) as e:
                     logger.warning(f"Failed to parse tool call: {e}")
 
@@ -174,7 +192,7 @@ class Accumulator:
                     self.content = ""
                     self.start_time = None
 
-                yield {"type": "execute", "timestamp": timestamp}
+                yield ExecuteEvent(type="execute", timestamp=timestamp)
                 async for result_event in self._handle_execute(timestamp):
                     yield result_event
                     if event_type(result_event) == "end":
@@ -189,7 +207,7 @@ class Accumulator:
                     yield flushed
 
                 # Emit end and terminate with fresh timestamp
-                yield {"type": "end", "timestamp": time.time()}
+                yield EndEvent(type="end", timestamp=time.time())
                 return
 
             # Handle type transitions (non-call, non-control events)
@@ -199,10 +217,11 @@ class Accumulator:
                 if flushed:
                     yield flushed
 
-                # Start new accumulation
-                self.current_type = ev_type
-                self.content = content
-                self.start_time = timestamp
+                # Start new accumulation (only for accumulatable types)
+                if ev_type in ("think", "call", "respond", "result"):
+                    self.current_type = ev_type
+                    self.content = content
+                    self.start_time = timestamp
             else:
                 # Continue accumulating same type
                 self.content += content

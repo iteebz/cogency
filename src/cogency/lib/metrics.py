@@ -1,6 +1,6 @@
 import logging
 import time
-from typing import Any, cast
+from typing import Any
 
 from cogency.core.protocols import MetricEvent
 
@@ -16,7 +16,7 @@ _gpt4_encoder = None
 _encoder_load_failed = False
 
 
-def count_tokens(content: Any) -> int:
+def count_tokens(content: str | list[dict[str, Any]]) -> int:
     if not content:
         return 0
 
@@ -32,11 +32,10 @@ def count_tokens(content: Any) -> int:
     return _approx_tokens(normalized)
 
 
-def _normalize(content: Any) -> str:
+def _normalize(content: str | list[dict[str, Any]]) -> str:
     if isinstance(content, list):
-        msgs = cast(list[dict[str, Any]], content)
-        return "\n".join(f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in msgs)
-    return str(content)
+        return "\n".join(f"{msg.get('role', '')}: {msg.get('content', '')}" for msg in content)
+    return content
 
 
 def _encoder():
@@ -89,7 +88,7 @@ class Metrics:
         self.step_output_tokens = 0
         return self.step_start_time
 
-    def add_input(self, text: Any) -> int:
+    def add_input(self, text: str | list[dict[str, Any]]) -> int:
         tokens = count_tokens(text)
         self.input_tokens += tokens
         self.step_input_tokens += tokens
@@ -106,17 +105,17 @@ class Metrics:
 
     def event(self) -> MetricEvent:
         now = time.time()
-        return {
-            "type": "metric",
-            "step": {
+        return MetricEvent(
+            type="metric",
+            step={
                 "input": self.step_input_tokens,
                 "output": self.step_output_tokens,
                 "duration": now - (self.step_start_time or 0),
             },
-            "total": {
+            total={
                 "input": self.input_tokens,
                 "output": self.output_tokens,
                 "duration": now - (self.task_start_time or 0),
             },
-            "timestamp": now,
-        }
+            timestamp=now,
+        )

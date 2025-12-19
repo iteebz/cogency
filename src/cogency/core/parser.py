@@ -11,10 +11,20 @@ from __future__ import annotations
 import json
 import logging
 import time
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, cast
 
 from .errors import ProtocolError
-from .protocols import Event, ToolCall
+from .protocols import (
+    CallEvent,
+    EndEvent,
+    Event,
+    ExecuteEvent,
+    RespondEvent,
+    ResultEvent,
+    ThinkEvent,
+    ToolCall,
+    parse_tool_call_dict,
+)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -52,30 +62,11 @@ def parse_execute_block(xml_str: str) -> list[ToolCall]:
     raw_list = cast(list[object], raw)
     calls: list[ToolCall] = []
     for i, call_obj in enumerate(raw_list):
-        if not isinstance(call_obj, dict):
-            raise ProtocolError(f"Call {i} is not an object: {call_obj}", original_input=xml_str)
-
-        call_dict = cast(dict[str, Any], call_obj)
-        if "name" not in call_dict or "args" not in call_dict:
-            raise ProtocolError(
-                f"Call {i} missing 'name' or 'args': {call_dict}", original_input=xml_str
-            )
-
-        name = call_dict["name"]
-        args = call_dict["args"]
-
-        if not isinstance(name, str):
-            raise ProtocolError(
-                f"Call {i} name must be string, got {type(name).__name__}",
-                original_input=xml_str,
-            )
-
-        if not isinstance(args, dict):
-            raise ProtocolError(
-                f"Call {i} args must be object, got {type(args).__name__}", original_input=xml_str
-            )
-
-        calls.append(ToolCall(name=name, args=cast(dict[str, Any], args)))
+        try:
+            call_dict = parse_tool_call_dict(call_obj, require_args=True)
+            calls.append(ToolCall(name=call_dict["name"], args=call_dict["args"]))
+        except Exception as e:
+            raise ProtocolError(f"Call {i} invalid: {e}", original_input=xml_str) from e
 
     return calls
 
@@ -114,7 +105,7 @@ async def _emit_tool_calls_from_execute(xml_block: str) -> AsyncGenerator[Event,
     tool_calls = parse_execute_block(xml_block)
     for call in tool_calls:
         call_json = json.dumps({"name": call.name, "args": call.args})
-        yield {"type": "call", "content": call_json, "timestamp": time.time()}
+        yield CallEvent(type="call", content=call_json, timestamp=time.time())
 
 
 async def parse_tokens(  # noqa: C901  # streaming XML tag parser state machine
@@ -144,7 +135,7 @@ async def parse_tokens(  # noqa: C901  # streaming XML tag parser state machine
 
             prefix = buffer[:start_pos]
             if prefix.strip():
-                yield {"type": "respond", "content": prefix, "timestamp": time.time()}
+                yield RespondEvent(type="respond", content=prefix, timestamp=time.time())
 
             content_start = open_end
             content_end = close_pos - len(TAG_PATTERN[tag_name][1])
@@ -156,32 +147,32 @@ async def parse_tokens(  # noqa: C901  # streaming XML tag parser state machine
                         f"<execute>{content}</execute>"
                     ):
                         yield event
-                    yield {"type": "execute", "timestamp": time.time()}
+                    yield ExecuteEvent(type="execute", timestamp=time.time())
                     return
                 except ProtocolError as e:
                     logger.error(f"Malformed <execute> block: {e}")
-                    yield {
-                        "type": "respond",
-                        "content": f"Error: Malformed tool call syntax. {e}",
-                        "timestamp": time.time(),
-                    }
+                    yield RespondEvent(
+                        type="respond",
+                        content=f"Error: Malformed tool call syntax. {e}",
+                        timestamp=time.time(),
+                    )
             elif tag_name == "think":
                 if content.strip():
-                    yield {"type": "think", "content": content, "timestamp": time.time()}
+                    yield ThinkEvent(type="think", content=content, timestamp=time.time())
             elif tag_name == "results" and content.strip():
-                yield {
-                    "type": "result",
-                    "content": content,
-                    "timestamp": time.time(),
-                    "payload": None,
-                }
+                yield ResultEvent(
+                    type="result",
+                    content=content,
+                    timestamp=time.time(),
+                    payload=None,
+                )
             elif tag_name == "end":
-                yield {"type": "end", "timestamp": time.time()}
+                yield EndEvent(type="end", timestamp=time.time())
 
             buffer = buffer[close_pos:]
 
     if buffer:
-        yield {"type": "respond", "content": buffer, "timestamp": time.time()}
+        yield RespondEvent(type="respond", content=buffer, timestamp=time.time())
 
 
 __all__ = ["parse_tokens"]

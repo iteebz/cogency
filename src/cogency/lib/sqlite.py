@@ -4,9 +4,9 @@ import sqlite3
 import time
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any, ClassVar, TypeVar, cast
+from typing import Any, ClassVar, TypeVar
 
-from cogency.core.protocols import MessageMatch
+from cogency.core.protocols import MessageMatch, parse_metric_data_dict, parse_profile_dict
 
 from .resilience import retry
 from .uuid7 import uuid7
@@ -260,9 +260,8 @@ class SQLite:
                 ).fetchone()
                 if row:
                     raw: object = json.loads(row[0])
-                    if not isinstance(raw, dict):
-                        raise ValueError(f"Profile data must be dict, got {type(raw).__name__}")
-                    return cast(dict[str, Any], raw)
+                    parsed = parse_profile_dict(raw)
+                    return dict(parsed)
                 return {}
 
         return await _run_sync(_sync_load)
@@ -315,9 +314,8 @@ class SQLite:
                 ).fetchone()
                 if row and row[0]:
                     raw: object = json.loads(row[0])
-                    if not isinstance(raw, dict):
-                        raise ValueError(f"Metric data must be dict, got {type(raw).__name__}")
-                    return cast(dict[str, Any], raw)
+                    parsed = parse_metric_data_dict(raw)
+                    return dict(parsed)
                 return None
 
         return await _run_sync(_sync_load)

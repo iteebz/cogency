@@ -1,5 +1,7 @@
 import json
-from typing import Any, cast
+from typing import Any
+
+from cogency.core.protocols import parse_tool_call_dict
 
 
 def _flush_assistant_turn(messages: list[dict[str, Any]], assistant_turn: list[str]) -> None:
@@ -47,13 +49,11 @@ def to_messages(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
             assistant_turn.append(event["content"])
         elif t == "call":
             raw: object = json.loads(event["content"])
-            if not isinstance(raw, dict):
+            try:
+                call_dict = parse_tool_call_dict(raw)
+                batch_calls.append({"name": call_dict["name"], "args": call_dict["args"]})
+            except Exception:
                 continue
-            data = cast(dict[str, Any], raw)
-            name = data.get("name")
-            args = data.get("args")
-            if isinstance(name, str) and isinstance(args, dict):
-                batch_calls.append({"name": name, "args": cast(dict[str, Any], args)})
         elif t == "result":
             assistant_turn, batch_calls = _handle_result(
                 messages, assistant_turn, batch_calls, event

@@ -15,7 +15,7 @@ from .protocols import ToolResult
 if TYPE_CHECKING:
     from .config import Access
 
-F = TypeVar("F", bound=Callable[..., Awaitable[Any]])
+F = TypeVar("F", bound=Callable[..., Awaitable[ToolResult]])
 
 
 def _has_unquoted(command: str, targets: set[str]) -> str | None:
@@ -195,7 +195,7 @@ def timeout_context(seconds: int):
 
 def safe_execute(func: F) -> F:
     @wraps(func)
-    async def wrapper(*args: Any, **kwargs: Any) -> Any:
+    async def wrapper(*args: Any, **kwargs: Any) -> ToolResult:
         try:
             return await func(*args, **kwargs)
         except ToolError as e:
@@ -203,4 +203,4 @@ def safe_execute(func: F) -> F:
                 return ToolResult(outcome=str(e), error=True)
             raise
 
-    return wrapper  # type: ignore[return-value]
+    return wrapper  # type: ignore[return-value]  # decorator variance limitation
