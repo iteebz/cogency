@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any
 
+from cogency.core.config import Access
+from cogency.core.errors import ToolError
 from cogency.core.protocols import ToolParam, ToolResult
-from cogency.core.security import safe_execute, sanitize_shell_input
+from cogency.core.security import resolve_file, safe_execute, sanitize_shell_input
 from cogency.core.tool import tool
 
 
@@ -18,16 +20,13 @@ class ShellParams:
     ] = None
 
 
-def _resolve_working_dir(cwd: str | None, access: str, sandbox_dir: str) -> Path:
+def _resolve_working_dir(cwd: str | None, access: Access, sandbox_dir: str) -> Path:
     if cwd:
-        working_path = Path(cwd)
-        if not working_path.is_absolute():
-            base = Path(sandbox_dir) if access == "sandbox" else Path.cwd()
-            working_path = (base / working_path).resolve()
+        working_path = resolve_file(cwd, access, sandbox_dir)
     elif access == "sandbox":
-        working_path = Path(sandbox_dir)
+        working_path = Path(sandbox_dir).resolve()
     else:
-        working_path = Path.cwd()
+        working_path = Path.cwd().resolve()
 
     working_path.mkdir(parents=True, exist_ok=True)
     return working_path
@@ -55,7 +54,7 @@ async def Shell(
     params: ShellParams,
     timeout: int = 30,
     sandbox_dir: str = ".cogency/sandbox",
-    access: str = "sandbox",
+    access: Access = "sandbox",
     **kwargs: Any,
 ) -> ToolResult:
     if not params.command or not params.command.strip():
@@ -67,7 +66,10 @@ async def Shell(
     if not parts:
         return ToolResult(outcome="Empty command after parsing", error=True)
 
-    working_path = _resolve_working_dir(params.cwd, access, sandbox_dir)
+    try:
+        working_path = _resolve_working_dir(params.cwd, access, sandbox_dir)
+    except ToolError as e:
+        return ToolResult(outcome=str(e), error=True)
 
     try:
         result = subprocess.run(

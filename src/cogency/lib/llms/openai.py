@@ -2,6 +2,7 @@
 # pyright: reportUnknownMemberType=false
 # OpenAI SDK type stubs are incomplete - runtime behavior is correct
 
+import asyncio
 import logging
 from collections.abc import AsyncGenerator
 from typing import Any, cast
@@ -12,6 +13,8 @@ from .interrupt import interruptible
 from .rotation import get_api_key, with_rotation
 
 logger = logging.getLogger(__name__)
+
+MAX_RECV_EVENTS = 10000
 
 # WebSocket connection cleanup timeout. Based on:
 # - Typical close handshake: 100-500ms
@@ -145,11 +148,14 @@ class OpenAI(LLM):
                 # Assistant messages use "output_text" type, user messages use "input_text"
                 content_type = "output_text" if msg["role"] == "assistant" else "input_text"
                 await connection.conversation.item.create(
-                    item=cast("Any", {
-                        "type": "message",
-                        "role": msg["role"],
-                        "content": [{"type": content_type, "text": msg["content"]}],
-                    })
+                    item=cast(
+                        "Any",
+                        {
+                            "type": "message",
+                            "role": msg["role"],
+                            "content": [{"type": content_type, "text": msg["content"]}],
+                        },
+                    )
                 )
 
             # Create session-enabled instance with fresh key
@@ -198,11 +204,12 @@ class OpenAI(LLM):
             else:
                 raise
 
-        # Stream response chunks until turn completion
         chunk_count = 0
-        while True:
+        recv_count = 0
+        while recv_count < MAX_RECV_EVENTS:
+            recv_count += 1
             try:
-                event = await self._connection.recv()
+                event = await asyncio.wait_for(self._connection.recv(), timeout=60.0)
                 logger.debug(f"recv() got event: {event.type}")
                 if event.type == "response.output_text.delta" and hasattr(event, "delta"):
                     chunk_count += 1
@@ -223,9 +230,14 @@ class OpenAI(LLM):
                         continue
                     logger.warning(f"OpenAI session error: {event}")
                     return
+            except TimeoutError:
+                logger.warning("OpenAI recv timeout after 60s")
+                return
             except Exception as e:
                 logger.error(f"Error receiving event: {e}")
                 raise
+
+        logger.warning(f"OpenAI recv ceiling reached ({MAX_RECV_EVENTS} events)")
 
     async def close(self) -> None:
         if not self._connection_manager:

@@ -58,11 +58,22 @@ async def test_lists_directories_in_project(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_cwd_absolute(tmp_path):
+async def test_cwd_absolute_blocked_in_sandbox(tmp_path):
     subdir = tmp_path / "custom"
     subdir.mkdir()
 
     result = await Shell.execute(command="pwd", cwd=str(subdir), access="sandbox")
+
+    assert result.error
+    assert "Path outside sandbox" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_cwd_absolute_allowed_in_system(tmp_path):
+    subdir = tmp_path / "custom"
+    subdir.mkdir()
+
+    result = await Shell.execute(command="pwd", cwd=str(subdir), access="system")
 
     assert not result.error
     assert result.content is not None
@@ -87,3 +98,23 @@ async def test_cwd_relative_project():
     assert not result.error
     assert result.content is not None
     assert str(Path.cwd() / "tests") in result.content
+
+
+@pytest.mark.asyncio
+async def test_cwd_escape_blocked_in_sandbox(tmp_path):
+    result = await Shell.execute(
+        command="pwd", cwd="../..", sandbox_dir=str(tmp_path), access="sandbox"
+    )
+
+    assert result.error
+    assert "Invalid path" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_cwd_escape_blocked_in_project(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+
+    result = await Shell.execute(command="pwd", cwd="../..", access="project")
+
+    assert result.error
+    assert "Invalid path" in result.outcome

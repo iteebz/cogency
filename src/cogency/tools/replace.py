@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 from cogency.core.config import Access
+from cogency.core.errors import ToolError
 from cogency.core.protocols import ToolParam, ToolResult
 from cogency.core.security import resolve_file, safe_execute
 from cogency.core.tool import tool
@@ -62,7 +63,7 @@ def _validate_and_resolve_files(
 
     try:
         effective_root_for_glob = resolve_file(".", access, sandbox_dir)
-    except ValueError as e:
+    except ToolError as e:
         return ToolResult(outcome=f"Invalid access configuration: {e}", error=True)
 
     normalized_pattern = _prepare_glob_pattern(params.pattern, access)
@@ -75,7 +76,7 @@ def _validate_and_resolve_files(
                     str(p.relative_to(effective_root_for_glob)), access, sandbox_dir
                 )
                 matched_files.append(resolved_path)
-            except ValueError:
+            except ToolError:
                 continue
 
     if not matched_files:
@@ -90,7 +91,9 @@ def _validate_and_resolve_files(
     return matched_files
 
 
-def _format_result(matched_count: int, changed_files: dict[str, int], total: int, diffs: list[str]) -> str:
+def _format_result(
+    matched_count: int, changed_files: dict[str, int], total: int, diffs: list[str]
+) -> str:
     msg = f"Matched {matched_count} files\n"
     msg += f"Changed {len(changed_files)} files\n"
     msg += f"Made {total} replacements\n\n"

@@ -11,7 +11,9 @@ T = TypeVar("T")
 def retry(attempts: int = 3, base_delay: float = 0.1) -> Callable[[Callable[P, T]], Callable[P, T]]:  # noqa: C901  # dual sync/async decorator
     """Retry decorator with exponential backoff. Works with sync and async functions."""
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T]:  # handles both coroutine and regular functions
+    def decorator(
+        func: Callable[P, T],
+    ) -> Callable[P, T]:  # handles both coroutine and regular functions
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)
@@ -51,7 +53,9 @@ def retry(attempts: int = 3, base_delay: float = 0.1) -> Callable[[Callable[P, T
     return decorator
 
 
-def timeout(seconds: float = 30) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
+def timeout(
+    seconds: float = 30,
+) -> Callable[[Callable[P, Awaitable[T]]], Callable[P, Awaitable[T]]]:
     def decorator(func: Callable[P, Awaitable[T]]) -> Callable[P, Awaitable[T]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:

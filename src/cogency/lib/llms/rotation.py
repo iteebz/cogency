@@ -60,7 +60,9 @@ def is_rate_limit_error(error: str) -> bool:
     return any(signal in error.lower() for signal in rate_signals)
 
 
-async def with_rotation(prefix: str, func: Callable[[str], Awaitable[T]], *args: object, **kwargs: object) -> T:
+async def with_rotation(
+    prefix: str, func: Callable[[str], Awaitable[T]], *args: object, **kwargs: object
+) -> T:
     keys = load_keys(prefix.upper())
     if not keys:
         raise RuntimeError(f"No {prefix} API keys found")

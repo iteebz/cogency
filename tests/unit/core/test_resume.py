@@ -71,5 +71,3 @@ async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
     assert any(e["type"] == "respond" for e in events)
     # The 'complete' flag should be set to True even without an explicit 'end' event
     # This is implicitly tested by the stream finishing without error.
-
-
