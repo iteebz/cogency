@@ -149,20 +149,18 @@ class Gemini(LLM):
             await connection.__aexit__(type(e), e, e.__traceback__)
             raise RuntimeError("Gemini connection failed") from e
 
-    async def send(self, content: str) -> AsyncGenerator[str, None]:  # noqa: C901  # Gemini protocol adapter with dual-signal streaming
+    async def send(
+        self, content: str
+    ) -> AsyncGenerator[str, None]:  # Gemini protocol adapter with dual-signal streaming
         if not self._session:
             raise RuntimeError("send() requires active session. Call connect() first.")
 
-        try:
-            from google.genai import types
+        from google.genai import types
 
-            # Send user message
-            await self._session.send_client_content(
-                turns=types.Content(role="user", parts=[types.Part(text=content)]),
-                turn_complete=True,
-            )
-        except Exception as e:
-            logger.error(f"Error sending message in Gemini session: {e}")
+        await self._session.send_client_content(
+            turns=types.Content(role="user", parts=[types.Part(text=content)]),
+            turn_complete=True,
+        )
 
         # Stream response with DUAL SIGNAL fix - the critical empirical discovery
 
