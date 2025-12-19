@@ -41,7 +41,7 @@ def prompt(profile: dict[str, Any], user_messages: list[str], compact: bool = Fa
     return PROFILE_TEMPLATE.format(
         profile=json.dumps(profile),
         user_messages="\n".join(user_messages),
-        instruction="Update profile keeping it concise. Return {} if no changes needed. JSON only.",
+        instruction="Update profile keeping it concise. Return {} when no changes are needed ({} means no update). JSON only.",
     )
 
 
