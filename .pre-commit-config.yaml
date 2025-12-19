@@ -17,7 +17,7 @@ repos:
       
       - id: pyright
         name: pyright
-        entry: uv run pyright
+        entry: bash -c 'uv run pyright && uv run pyright -p pyright.tests.json && uv run pyright -p pyright.evals.json'
         language: system
         types: [python]
         pass_filenames: false

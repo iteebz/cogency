@@ -16,7 +16,7 @@ _gpt4_encoder = None
 _encoder_load_failed = False
 
 
-def count_tokens(content: str | list[dict[str, Any]]) -> int:
+def count_tokens(content: str | list[dict[str, Any]] | None) -> int:
     if not content:
         return 0
 
