@@ -3,6 +3,7 @@ from typing import Annotated
 
 import pytest
 
+from cogency.core.errors import ToolError
 from cogency.core.protocols import ToolParam, ToolResult
 from cogency.core.tool import tool
 
@@ -108,3 +109,88 @@ def test_decorator_rejects_non_dataclass():
         @tool("Test")
         async def test_func(params: str) -> ToolResult:
             return ToolResult(outcome="ok")
+
+
+# --- Schema Validation Tests ---
+
+
+@pytest.mark.asyncio
+async def test_validation_rejects_missing_required():
+    @tool("Test")
+    async def test_func(params: MinimalParams) -> ToolResult:
+        return ToolResult(outcome="ok")
+
+    with pytest.raises(ToolError, match="Missing required field: message"):
+        await test_func.execute()
+
+
+@pytest.mark.asyncio
+async def test_validation_rejects_wrong_type():
+    @tool("Test")
+    async def test_func(params: AnnotatedParams) -> ToolResult:
+        return ToolResult(outcome="ok")
+
+    with pytest.raises(ToolError, match="expected string"):
+        await test_func.execute(required=123)
+
+
+@pytest.mark.asyncio
+async def test_validation_rejects_below_min():
+    @tool("Test")
+    async def test_func(params: BoundedParams) -> ToolResult:
+        return ToolResult(outcome="ok")
+
+    with pytest.raises(ToolError, match="value 0 < min 1"):
+        await test_func.execute(count=0, text="valid")
+
+
+@pytest.mark.asyncio
+async def test_validation_rejects_above_max():
+    @tool("Test")
+    async def test_func(params: BoundedParams) -> ToolResult:
+        return ToolResult(outcome="ok")
+
+    with pytest.raises(ToolError, match="value 101 > max 100"):
+        await test_func.execute(count=101, text="valid")
+
+
+@pytest.mark.asyncio
+async def test_validation_rejects_below_min_length():
+    @tool("Test")
+    async def test_func(params: BoundedParams) -> ToolResult:
+        return ToolResult(outcome="ok")
+
+    with pytest.raises(ToolError, match="length 0 < min_length 1"):
+        await test_func.execute(count=50, text="")
+
+
+@pytest.mark.asyncio
+async def test_validation_rejects_above_max_length():
+    @tool("Test")
+    async def test_func(params: BoundedParams) -> ToolResult:
+        return ToolResult(outcome="ok")
+
+    with pytest.raises(ToolError, match="max_length 200"):
+        await test_func.execute(count=50, text="x" * 201)
+
+
+@pytest.mark.asyncio
+async def test_validation_accepts_valid_args():
+    @tool("Test")
+    async def test_func(params: BoundedParams) -> ToolResult:
+        return ToolResult(outcome=f"{params.count}:{params.text}")
+
+    result = await test_func.execute(count=50, text="valid")
+    assert result.outcome == "50:valid"
+
+
+@pytest.mark.asyncio
+async def test_validation_error_has_flag():
+    @tool("Test")
+    async def test_func(params: MinimalParams) -> ToolResult:
+        return ToolResult(outcome="ok")
+
+    try:
+        await test_func.execute()
+    except ToolError as e:
+        assert e.validation_failed is True
