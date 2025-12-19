@@ -107,6 +107,7 @@ ignore = [
 "src/**/*.py" = []
 "src/cogency/core/security.py" = ["RUF001", "RUF003"]
 "src/cogency/lib/sqlite.py" = ["S608"]
+"src/cogency/context/conversation.py" = ["S112"]
 "evals/**/*.py" = ["S101", "T20", "E402", "C901"]
 "tests/**/*.py" = ["S101", "T20", "S108", "RUF012", "RUF043", "SIM117", "PTH123", "C901"]
 

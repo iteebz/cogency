@@ -45,14 +45,11 @@ class OpenAI(LLM):
         self._connection_manager: Any = None  # AsyncContextManager - runtime protocol
 
     def _create_client(self, api_key: str):
-        """Create OpenAI client for given API key."""
         import openai
 
         return openai.AsyncOpenAI(api_key=api_key)
 
     async def generate(self, messages: list[dict[str, Any]]) -> str:
-        """One-shot completion with full conversation context."""
-
         async def _generate_with_key(api_key: str) -> str:
             try:
                 client = self._create_client(api_key)
@@ -80,8 +77,6 @@ class OpenAI(LLM):
 
     @interruptible
     async def stream(self, messages: list[dict[str, Any]]) -> AsyncGenerator[str, None]:
-        """HTTP streaming with full conversation context."""
-
         async def _stream_with_key(api_key: str):
             client = self._create_client(api_key)
 
@@ -110,8 +105,6 @@ class OpenAI(LLM):
                 yield event.delta
 
     async def connect(self, messages: list[dict[str, Any]]) -> "OpenAI":
-        """Create session with initial context. Returns session-enabled OpenAI instance."""
-
         # Close any existing session first
         if self._connection_manager:
             await self.close()
@@ -148,11 +141,11 @@ class OpenAI(LLM):
 
             # Add ALL history messages including last user message
             # WebSocket needs full conversation loaded before response.create()
-            for msg in cast(list[dict[str, Any]], user_messages):
+            for msg in cast("list[dict[str, Any]]", user_messages):
                 # Assistant messages use "output_text" type, user messages use "input_text"
                 content_type = "output_text" if msg["role"] == "assistant" else "input_text"
                 await connection.conversation.item.create(
-                    item=cast(Any, {
+                    item=cast("Any", {
                         "type": "message",
                         "role": msg["role"],
                         "content": [{"type": content_type, "text": msg["content"]}],
@@ -178,8 +171,6 @@ class OpenAI(LLM):
 
     @interruptible
     async def send(self, content: str) -> AsyncGenerator[str, None]:  # noqa: C901  # OpenAI protocol adapter with error recovery
-        """Send message in session and stream response until turn completion."""
-
         if not self._connection:
             raise RuntimeError("send() requires active session. Call connect() first.")
 
@@ -237,7 +228,6 @@ class OpenAI(LLM):
                 raise
 
     async def close(self) -> None:
-        """Close session and cleanup resources."""
         if not self._connection_manager:
             return  # No-op for HTTP-only instances
 

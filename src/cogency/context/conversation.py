@@ -53,7 +53,7 @@ def to_messages(events: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 call_dict = parse_tool_call_dict(raw)
                 batch_calls.append({"name": call_dict["name"], "args": call_dict["args"]})
             except Exception:
-                continue
+                continue  # Skip malformed calls in history reconstruction
         elif t == "result":
             assistant_turn, batch_calls = _handle_result(
                 messages, assistant_turn, batch_calls, event

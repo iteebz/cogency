@@ -88,16 +88,16 @@ def parse_tool_result(content: str) -> list[ToolResult]:
     try:
         raw: object = json.loads(content)
         if isinstance(raw, dict):
-            data = cast(dict[str, Any], raw)
+            data = cast("dict[str, Any]", raw)
             result_dict = parse_tool_result_dict(data)
             outcome = result_dict.get("outcome", "")
             result_content = result_dict.get("content", "")
             return [ToolResult(outcome=outcome, content=result_content)]
         if isinstance(raw, list):
             results: list[ToolResult] = []
-            for item in cast(list[object], raw):
+            for item in cast("list[object]", raw):
                 if isinstance(item, dict):
-                    item_data = cast(dict[str, Any], item)
+                    item_data = cast("dict[str, Any]", item)
                     result_dict = parse_tool_result_dict(item_data)
                     outcome = result_dict.get("outcome", "")
                     result_content = result_dict.get("content", "")

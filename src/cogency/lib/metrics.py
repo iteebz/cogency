@@ -56,8 +56,6 @@ def _encoder():
 
 
 def _approx_tokens(text: str) -> int:
-    """~0.75 tokens per word heuristic."""
-
     stripped = text.strip()
     if not stripped:
         return 0

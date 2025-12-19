@@ -41,13 +41,11 @@ def load_keys(prefix: str) -> list[str]:
 
 
 def get_api_key(service: str) -> str | None:
-    """Get API key for service."""
     keys = load_keys(service.upper())
     return keys[0] if keys else None
 
 
 def is_rate_limit_error(error: str) -> bool:
-    """Detect rate limit errors."""
     rate_signals = [
         "quota",
         "rate limit",
@@ -63,7 +61,6 @@ def is_rate_limit_error(error: str) -> bool:
 
 
 async def with_rotation(prefix: str, func: Callable[[str], Awaitable[T]], *args: object, **kwargs: object) -> T:
-    """Execute function with random start + cycle on rate limits."""
     keys = load_keys(prefix.upper())
     if not keys:
         raise RuntimeError(f"No {prefix} API keys found")

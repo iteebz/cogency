@@ -40,14 +40,11 @@ class Gemini(LLM):
         self._connection: Any = None
 
     def _create_client(self, api_key: str):
-        """Create Gemini client for given API key."""
         import google.genai as genai
 
         return genai.Client(api_key=api_key)
 
     async def generate(self, messages: list[dict[str, Any]]) -> str:
-        """One-shot completion with full conversation context."""
-
         async def _generate_with_key(api_key: str) -> str:
             try:
                 import google.genai as genai
@@ -70,8 +67,6 @@ class Gemini(LLM):
 
     @interruptible
     async def stream(self, messages: list[dict[str, Any]]) -> AsyncGenerator[str, None]:
-        """HTTP streaming with full conversation context."""
-
         async def _stream_with_key(api_key: str):
             import google.genai as genai
 
@@ -95,8 +90,6 @@ class Gemini(LLM):
                 yield chunk.text
 
     async def connect(self, messages: list[dict[str, Any]]) -> "Gemini":
-        """Create session with initial context. Returns session-enabled Gemini instance."""
-
         try:
             from google.genai import types
 
@@ -156,8 +149,6 @@ class Gemini(LLM):
             raise RuntimeError("Gemini connection failed") from e
 
     async def send(self, content: str) -> AsyncGenerator[str, None]:  # noqa: C901  # Gemini protocol adapter with dual-signal streaming
-        """Send message in session and stream response until turn completion."""
-
         if not self._session:
             raise RuntimeError("send() requires active session. Call connect() first.")
 
@@ -206,7 +197,6 @@ class Gemini(LLM):
                 return
 
     async def close(self) -> None:
-        """Close session and cleanup resources."""
         if not self._connection:
             return  # No-op for HTTP-only instances
 
@@ -215,7 +205,6 @@ class Gemini(LLM):
         self._connection = None
 
     async def _drain_turn_with_dual_signals(self, session: Any) -> None:
-        """Drain turn using dual signal pattern without yielding content."""
         seen_generation_complete = False
         message_count = 0
 
@@ -237,7 +226,6 @@ class Gemini(LLM):
                 return
 
     def _convert_messages_to_gemini_format(self, messages: list[dict[str, Any]]) -> list[Any]:
-        """Convert standard message format to Gemini's expected format."""
         from google.genai import types
 
         contents: list[Any] = []

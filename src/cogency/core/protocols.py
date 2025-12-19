@@ -244,14 +244,14 @@ def parse_tool_call_dict(raw: object, *, require_args: bool = False) -> ToolCall
     """Parse raw JSON into ToolCallDict. Raises ParseError on invalid shape."""
     if not isinstance(raw, dict):
         raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
-    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    data = cast("dict[str, Any]", raw)  # JSON boundary cast
     name = data.get("name")
     if not isinstance(name, str):
         raise ParseError(f"Field 'name' must be str, got {type(name).__name__}", data)
-    
+
     if require_args and "args" not in data:
         raise ParseError("Field 'args' is required", data)
-    
+
     args = data.get("args", {})
     if not isinstance(args, dict):
         raise ParseError(f"Field 'args' must be dict, got {type(args).__name__}", data)
@@ -262,7 +262,7 @@ def parse_tool_result_dict(raw: object) -> ToolResultDict:
     """Parse raw JSON into ToolResultDict. Raises ParseError on invalid shape."""
     if not isinstance(raw, dict):
         raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
-    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    data = cast("dict[str, Any]", raw)  # JSON boundary cast
     result: ToolResultDict = {}
     outcome = data.get("outcome")
     if outcome is not None:
@@ -281,7 +281,7 @@ def parse_profile_dict(raw: object) -> ProfileDict:
     """Parse raw JSON into ProfileDict. Raises ParseError on invalid shape."""
     if not isinstance(raw, dict):
         raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
-    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    data = cast("dict[str, Any]", raw)  # JSON boundary cast
     result: ProfileDict = {}
     for key in ("who", "style", "focus", "interests", "misc"):
         val = data.get(key)
@@ -301,7 +301,7 @@ def parse_metric_data_dict(raw: object) -> MetricDataDict:
     """Parse raw JSON into MetricDataDict. Raises ParseError on invalid shape."""
     if not isinstance(raw, dict):
         raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
-    data = cast(dict[str, Any], raw)  # JSON boundary cast
+    data = cast("dict[str, Any]", raw)  # JSON boundary cast
     result: MetricDataDict = {}
     step = data.get("step")
     if step is not None:

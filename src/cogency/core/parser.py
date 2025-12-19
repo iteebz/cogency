@@ -59,7 +59,7 @@ def parse_execute_block(xml_str: str) -> list[ToolCall]:
     if not isinstance(raw, list):
         raise ProtocolError("Expected JSON array in <execute> block", original_input=xml_str)
 
-    raw_list = cast(list[object], raw)
+    raw_list = cast("list[object]", raw)
     calls: list[ToolCall] = []
     for i, call_obj in enumerate(raw_list):
         try:

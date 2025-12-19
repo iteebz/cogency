@@ -136,7 +136,7 @@ Two-layer architecture separates storage from protocol.
 - `history_window=None` - Full conversation history (default). Database loads all events.
 - `history_window=20` - Last 20 messages. Database loads only last 40 events (multiplied by 2 to account for granular call batching).
 
-**Database loading constraint:** When `history_window` is set, storage layer loads only that bounded set from disk. This prevents memory spikes in long conversations. Load is O(history_window), not O(total_conversation_length).
+When `history_window` is set, storage loads only that bounded set. Prevents token cost and context overflow in long conversations. Load is O(history_window), not O(total_conversation_length).
 
 **Resume mode:** Context sent once at connection, no replay
 **Replay mode:** Context rebuilt from storage each iteration (bounded by history_window)

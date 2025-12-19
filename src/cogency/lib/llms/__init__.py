@@ -11,7 +11,6 @@ __all__ = [
 
 
 def create(name: str):
-    """Create LLM instance from string identifier."""
     factories = {
         "gemini": Gemini,
         "openai": OpenAI,

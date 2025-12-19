@@ -34,13 +34,11 @@ class Anthropic(LLM):
         self.max_tokens = max_tokens
 
     def _create_client(self, api_key: str):
-        """Create Anthropic client for given API key."""
         import anthropic
 
         return anthropic.AsyncAnthropic(api_key=api_key)
 
     def _format_messages(self, messages: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]]]:
-        """Extract system message and format remaining messages for Anthropic API."""
         system_parts: list[str] = []
         conversation: list[dict[str, Any]] = []
 
@@ -53,8 +51,6 @@ class Anthropic(LLM):
         return "\n".join(system_parts), conversation
 
     async def generate(self, messages: list[dict[str, Any]]) -> str:
-        """Generate complete response from conversation messages."""
-
         async def _generate_with_key(api_key: str) -> str:
             try:
                 client = self._create_client(api_key)
@@ -77,8 +73,6 @@ class Anthropic(LLM):
 
     @interruptible
     async def stream(self, messages: list[dict[str, Any]]) -> AsyncGenerator[str, None]:
-        """Generate streaming tokens from conversation messages."""
-
         async def _stream_with_key(api_key: str):
             client = self._create_client(api_key)
             system, conversation = self._format_messages(messages)
@@ -98,15 +92,12 @@ class Anthropic(LLM):
             async for text in stream_object.text_stream:
                 yield text
 
-    # WebSocket methods - not supported by Anthropic
     async def connect(self, messages: list[dict[str, Any]]) -> "LLM":
-        """WebSocket sessions not supported by Anthropic API."""
         raise NotImplementedError("Anthropic does not support WebSocket sessions")
 
     async def send(self, content: str) -> AsyncGenerator[str, None]:
-        """WebSocket sessions not supported by Anthropic API."""
         raise NotImplementedError("Anthropic does not support WebSocket sessions")
         yield  # unreachable, makes this an async generator
 
     async def close(self) -> None:
-        """No-op for HTTP-only provider."""
+        pass
