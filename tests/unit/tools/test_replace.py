@@ -336,3 +336,58 @@ async def test_replace_returns_diff_content(setup_files):
     assert "+++ " in result.content
     assert "-import os" in result.content
     assert "+import sys" in result.content
+
+
+# --- Access Scope Denial ---
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_sandbox(tmp_path):
+    result = await Replace.execute(
+        pattern="test.conf", old="x", new="y", exact=True, sandbox_dir="/etc", access="sandbox"
+    )
+    assert result.error is True
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_sandbox(tmp_path):
+    result = await Replace.execute(
+        pattern="../../../etc/*.conf",
+        old="x",
+        new="y",
+        exact=True,
+        sandbox_dir=str(tmp_path),
+        access="sandbox",
+    )
+    assert result.error is True
+    assert (
+        "Invalid path" in result.outcome
+        or "No files matched" in result.outcome
+        or "outside sandbox" in result.outcome
+    )
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_project(tmp_path):
+    result = await Replace.execute(
+        pattern="test.conf", old="x", new="y", exact=True, sandbox_dir="/etc", access="project"
+    )
+    assert result.error is True
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_project(tmp_path):
+    result = await Replace.execute(
+        pattern="../../../etc/*.conf",
+        old="x",
+        new="y",
+        exact=True,
+        sandbox_dir=str(tmp_path),
+        access="project",
+    )
+    assert result.error is True
+    assert (
+        "Invalid path" in result.outcome
+        or "No files matched" in result.outcome
+        or "outside sandbox" in result.outcome
+    )

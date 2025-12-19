@@ -13,22 +13,22 @@ class TestStorage:
         self.profiles = {}
         self.base_dir = None
 
-    async def save_message(self, conversation_id, user_id, msg_type, content, timestamp=None):
+    async def save_message(self, conversation_id, user_id, type, content, timestamp=None, **_):
         self.messages.append(
             {
                 "conversation_id": conversation_id,
                 "user_id": user_id,
-                "type": msg_type,
+                "type": type,
                 "content": content,
                 "timestamp": timestamp,
             }
         )
 
-    async def save_event(self, conversation_id, msg_type, content, timestamp=None):
+    async def save_event(self, conversation_id, type, content, timestamp=None, **_):
         self.events.append(
             {
                 "conversation_id": conversation_id,
-                "type": msg_type,
+                "type": type,
                 "content": content,
                 "timestamp": timestamp,
             }
@@ -70,6 +70,21 @@ class TestStorage:
             if msg["user_id"] == user_id and msg.get("timestamp", 0) > since_timestamp:
                 count += 1
         return count
+
+    async def load_user_messages(self, *args, **kwargs):
+        raise NotImplementedError
+
+    async def delete_profile(self, *args, **kwargs):
+        raise NotImplementedError
+
+    async def load_latest_metric(self, *args, **kwargs):
+        raise NotImplementedError
+
+    async def load_messages_by_conversation_id(self, *args, **kwargs):
+        raise NotImplementedError
+
+    async def search_messages(self, *args, **kwargs):
+        raise NotImplementedError
 
 
 async def get_agent_response(agent, query, **kwargs):

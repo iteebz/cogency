@@ -76,3 +76,42 @@ async def test_fails_without_overwrite(tmp_path):
     assert result.error is True
     assert "already exists" in result.outcome
     assert target.read_text() == "initial content"
+
+
+# --- Access Scope Denial ---
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_sandbox(tmp_path):
+    result = await Write.execute(
+        file="/etc/passwd", content="x", sandbox_dir=str(tmp_path), access="sandbox"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_sandbox(tmp_path):
+    result = await Write.execute(
+        file="../../../etc/passwd", content="x", sandbox_dir=str(tmp_path), access="sandbox"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_project(tmp_path):
+    result = await Write.execute(
+        file="/etc/passwd", content="x", sandbox_dir=str(tmp_path), access="project"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_project(tmp_path):
+    result = await Write.execute(
+        file="../../../etc/passwd", content="x", sandbox_dir=str(tmp_path), access="project"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome

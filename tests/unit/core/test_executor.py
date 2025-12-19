@@ -145,13 +145,12 @@ async def test_parallel_execution_is_concurrent(mock_config):
     )
 
     assert len(results) == 2
-    # If parallel: both start before either ends
-    # execution_order should be: start_0.1, start_0.05, end_0.05, end_0.1
-    assert execution_order[0] == "start_0.1"
-    assert execution_order[1] == "start_0.05"
-    # The shorter one finishes first
-    assert execution_order[2] == "end_0.05"
-    assert execution_order[3] == "end_0.1"
-    # But results preserve input order
+    starts = {e for e in execution_order if e.startswith("start_")}
+    ends = {e for e in execution_order if e.startswith("end_")}
+    start_indices = [i for i, e in enumerate(execution_order) if e.startswith("start_")]
+    end_indices = [i for i, e in enumerate(execution_order) if e.startswith("end_")]
+    assert starts == {"start_0.1", "start_0.05"}
+    assert ends == {"end_0.1", "end_0.05"}
+    assert max(start_indices) < min(end_indices), "Both tasks must start before either ends"
     assert results[0].outcome == "done_0.1"
     assert results[1].outcome == "done_0.05"

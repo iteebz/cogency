@@ -176,3 +176,34 @@ async def test_pattern_does_not_override_ignored_dirs(setup_test_dir):
 
     # Assert that the file within the ignored directory is NOT in the output
     assert "important.js" not in content
+
+
+# --- Access Scope Denial ---
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_sandbox(tmp_path):
+    result = await List.execute(path="/etc", sandbox_dir=str(tmp_path), access="sandbox")
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_sandbox(tmp_path):
+    result = await List.execute(path="../../../etc", sandbox_dir=str(tmp_path), access="sandbox")
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_project(tmp_path):
+    result = await List.execute(path="/etc", sandbox_dir=str(tmp_path), access="project")
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_project(tmp_path):
+    result = await List.execute(path="../../../etc", sandbox_dir=str(tmp_path), access="project")
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome

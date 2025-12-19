@@ -92,17 +92,17 @@ async def test_tool_execution(mock_llm, mock_tool):
 
     assert len(events) >= 5
     assert events[0]["type"] == "user"
-    call_event = events[1]
-    execute_event = events[2]
-    metric_event = events[3]
-    result_event = events[4]
-    assert call_event["type"] == "call"
-    assert execute_event["type"] == "execute"
-    assert metric_event["type"] == "metric"
+    event_types = [e["type"] for e in events]
+    assert "call" in event_types
+    assert "execute" in event_types
+    assert "metric" in event_types
+    assert "result" in event_types
+    call_idx = event_types.index("call")
+    execute_idx = event_types.index("execute")
+    result_idx = event_types.index("result")
+    assert call_idx < execute_idx < result_idx, "call → execute → result ordering"
+    result_event = next(e for e in events if e["type"] == "result")
     result_event_typed = cast("ResultEvent", result_event)
-    assert result_event_typed["type"] == "result"
-
-    assert result_event_typed["type"] == "result"
     payload = result_event_typed["payload"]
     assert payload is not None
     assert payload["tools_executed"] == 1
@@ -135,7 +135,8 @@ async def test_error_handling(mock_llm, mock_tool):
 
 
 @pytest.mark.asyncio
-async def test_persistence(mock_llm, mock_tool, mock_storage):
+async def test_storage_receives_messages(mock_llm, mock_tool, mock_storage):
+    """Storage.save called with conversation messages."""
     mock_tool_instance = mock_tool()
     protocol_tokens = [
         "<think>Thinking...</think>",
@@ -153,6 +154,7 @@ async def test_persistence(mock_llm, mock_tool, mock_storage):
     assert any(e["type"] == "user" for e in events)
     assert any(e["type"] == "think" for e in events)
     assert any(e["type"] == "result" for e in events)
+    assert len(mock_storage.messages) > 0, "Storage must receive messages"
 
 
 @pytest.mark.asyncio

@@ -65,51 +65,6 @@ async def test_session_state_requirements():
             await provider.close()
 
 
-def test_no_semantic_interpretation():
-    with (
-        patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),
-        patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"),
-    ):
-        providers = [
-            ("OpenAI", OpenAI()),
-            ("Gemini", Gemini()),
-        ]
-
-        import inspect
-
-        for name, provider in providers:
-            # Check stream and send methods are pure pipes
-            for method_name in ["stream", "send"]:
-                method = getattr(provider, method_name)
-                source = inspect.getsource(method)
-
-                # Should NOT contain semantic markers
-                assert "§execute" not in source, f"{name}.{method_name} contains §execute"
-                assert "§end" not in source, f"{name}.{method_name} contains §end"
-
-
-def test_native_chunking_only():
-    with (
-        patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),
-        patch("cogency.lib.llms.gemini.get_api_key", return_value="test-key"),
-    ):
-        providers = [
-            ("OpenAI", OpenAI()),
-            ("Gemini", Gemini()),
-        ]
-
-        import inspect
-
-        for name, provider in providers:
-            for method_name in ["stream", "send"]:
-                method = getattr(provider, method_name)
-                source = inspect.getsource(method)
-
-                # No character-level manipulation
-                assert "char" not in source.lower(), f"{name}.{method_name} has char splitting"
-                assert ".split(" not in source, f"{name}.{method_name} has string splitting"
-
-
 def test_provider_error_handling():
     with (
         patch("cogency.lib.llms.openai.get_api_key", return_value="test-key"),

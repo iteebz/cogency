@@ -49,3 +49,42 @@ async def test_returns_relative_paths_with_counts(tmp_path, monkeypatch):
     assert entries == ["pkg/alpha.py"]
     # Ensure sanitised output preserves shell-friendly quoting if used downstream
     shlex.split(entries[0])
+
+
+# --- Access Scope Denial ---
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_sandbox(tmp_path):
+    result = await Find.execute(
+        path="/etc", content="x", sandbox_dir=str(tmp_path), access="sandbox"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_sandbox(tmp_path):
+    result = await Find.execute(
+        path="../../../etc", content="x", sandbox_dir=str(tmp_path), access="sandbox"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_absolute_path_in_project(tmp_path):
+    result = await Find.execute(
+        path="/etc", content="x", sandbox_dir=str(tmp_path), access="project"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_rejects_traversal_in_project(tmp_path):
+    result = await Find.execute(
+        path="../../../etc", content="x", sandbox_dir=str(tmp_path), access="project"
+    )
+    assert result.error is True
+    assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
