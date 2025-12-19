@@ -135,10 +135,13 @@ def _resolve_search_paths(
     else:
         search_path = resolve_file(params.path, access, sandbox_dir).resolve()
 
-    workspace_root = search_path if access == "sandbox" else Path.cwd().resolve()
+    if access == "system" or access == "sandbox":
+        workspace_root = search_path
+    else:
+        workspace_root = Path.cwd().resolve()
+        if not search_path.is_relative_to(workspace_root):
+            return ToolResult(outcome="Directory outside workspace scope", error=True)
 
-    if not search_path.is_relative_to(workspace_root):
-        return ToolResult(outcome="Directory outside workspace scope", error=True)
     if not search_path.exists():
         return ToolResult(outcome=f"Directory '{params.path}' does not exist", error=True)
 

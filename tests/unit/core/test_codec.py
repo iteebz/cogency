@@ -18,9 +18,9 @@ def test_valid_json():
     assert result.args["file"] == "test.txt"
 
 
-def test_extra_data():
-    result = parse_tool_call('prefix{"name": "tool", "args": {}}suffix')
-    assert result.name == "tool"
+def test_extra_data_rejected():
+    with pytest.raises(ValueError):
+        parse_tool_call('prefix{"name": "tool", "args": {}}suffix')
 
 
 def test_unquoted_keys():

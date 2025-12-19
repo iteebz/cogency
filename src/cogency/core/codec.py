@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import re
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from .protocols import Tool, ToolCall, ToolResult, parse_tool_call_dict, parse_tool_result_dict
@@ -66,14 +65,6 @@ def format_results_array(calls: list[ToolCall], results: list[ToolResult]) -> st
 
 def parse_tool_call(json_str: str) -> ToolCall:
     json_str = json_str.strip()
-    if "{" in json_str and "}" in json_str:
-        start = json_str.find("{")
-        end = json_str.rfind("}") + 1
-        json_str = json_str[start:end]
-
-    if '"""' in json_str:
-        json_str = re.sub(r'"""([^"]*?)"""', r'"\1"', json_str, flags=re.DOTALL)
-
     try:
         raw: object = json.loads(json_str)
         call_dict = parse_tool_call_dict(raw)
