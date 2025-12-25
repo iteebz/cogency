@@ -5,7 +5,7 @@ All events yielded exactly once. No duplicates on retry paths.
 
 import pytest
 
-from cogency.resume import stream as resume_stream
+from cogency import resume
 
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_no_duplicate_end_events(mock_llm, mock_config):
     mock_llm.set_response_tokens(["Result"])
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     respond_events = [e for e in events if e["type"] == "respond"]
@@ -27,7 +27,7 @@ async def test_respond_yields_once(mock_llm, mock_config):
     mock_llm.set_response_tokens(["Part 1", "Part 2"])
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     respond_events = [e for e in events if e["type"] == "respond"]
@@ -54,7 +54,7 @@ async def test_result_once(mock_config, mock_tool, resume_llm):
     )
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     result_events = [e for e in events if e["type"] == "result"]

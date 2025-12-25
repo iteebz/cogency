@@ -372,10 +372,10 @@ async def run_case(
             logger.debug(f"Sandbox cleanup failed: {e}")
 
     if len(runs) > 1 and not failures:
-        from . import assertions as A
+        from . import assertions
 
         try:
-            A.modes_equivalent(runs)
+            assertions.modes_equivalent(runs)
         except AssertionError as e:
             failures.append(
                 Failure(
@@ -387,9 +387,9 @@ async def run_case(
 
     score: Score | None = None
     if not failures and case.rubric and judge:
-        from .judge import judge as judge_fn
+        from .judge import judge as judge_func
 
-        score = await judge_fn(runs[0], case.rubric)
+        score = await judge_func(runs[0], case.rubric)
 
     duration = time.time() - start_time
 

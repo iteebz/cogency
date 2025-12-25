@@ -9,8 +9,8 @@ Contract: max_iterations counts tool execution turns, not streamed events.
 
 import pytest
 
+from cogency import resume
 from cogency.core.errors import LLMError
-from cogency.resume import stream as resume_stream
 
 
 @pytest.mark.asyncio
@@ -27,7 +27,7 @@ async def test_one_turn(mock_llm, mock_config):
     mock_config.max_iterations = 1
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     assert any(e["type"] == "respond" for e in events)
@@ -44,7 +44,7 @@ async def test_boundary_exact(mock_config, resume_llm):
     mock_config.max_iterations = 1
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     assert any(e["type"] == "respond" for e in events)
@@ -69,7 +69,7 @@ async def test_iteration_limit(mock_config, mock_tool, resume_llm):
     mock_config.max_iterations = 1
 
     with pytest.raises(LLMError, match="Max iterations"):
-        async for _ in resume_stream("test", "user", "conv", config=mock_config):
+        async for _ in resume.stream("test", "user", "conv", config=mock_config):
             pass
 
 
@@ -92,7 +92,7 @@ async def test_continuation_within_limit(mock_config, mock_tool, resume_llm):
     mock_config.max_iterations = 2
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     assert any(e["type"] == "result" for e in events), "Expected tool result event"

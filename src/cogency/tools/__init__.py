@@ -12,11 +12,11 @@ from .write import write
 code = [read, write, edit, ls, find, replace, shell]
 web = [scrape, search]
 memory = [recall]
-all = code + web + memory
+defaults = code + web + memory
 
 __all__ = [
-    "all",
     "code",
+    "defaults",
     "edit",
     "find",
     "ls",

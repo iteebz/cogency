@@ -25,7 +25,7 @@ from .core.protocols import (
 )
 from .lib import llms
 from .lib.sqlite import default_storage
-from .tools import all as defaults
+from .tools import defaults
 
 logger = logging.getLogger(__name__)
 

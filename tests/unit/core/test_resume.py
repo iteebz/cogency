@@ -2,10 +2,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from cogency import resume
 from cogency.core.config import Config
 from cogency.core.errors import LLMError
 from cogency.lib.sqlite import SQLite
-from cogency.resume import stream as resume_stream
 
 
 @pytest.mark.asyncio
@@ -14,7 +14,7 @@ async def test_requires_websocket():
     config = Config(llm=mock_llm, storage=Mock(), tools=[], max_iterations=1)
 
     with pytest.raises(LLMError, match="Resume mode requires WebSocket support"):
-        await resume_stream("test", "user", "conv", config=config).__anext__()
+        await resume.stream("test", "user", "conv", config=config).__anext__()
 
 
 @pytest.mark.asyncio
@@ -25,7 +25,7 @@ async def test_max_iterations_exceeded(mock_llm, mock_config):
     mock_config.max_iterations = 1
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     assert any(e["type"] == "respond" for e in events)
@@ -49,7 +49,7 @@ async def test_session_persistence(tmp_path, mock_llm, mock_config):
 
     events = []
     with patch("cogency.resume.log_response") as mock_log_response:
-        async for event in resume_stream("test query", "user", "conv", config=mock_config):
+        async for event in resume.stream("test query", "user", "conv", config=mock_config):
             events.append(event)
 
         assert mock_log_response.called  # Assert log_response was called
@@ -65,7 +65,7 @@ async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
     mock_config.llm = mock_llm
 
     events = []
-    async for event in resume_stream("test", "user", "conv", config=mock_config):
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
         events.append(event)
 
     assert any(e["type"] == "respond" for e in events)
