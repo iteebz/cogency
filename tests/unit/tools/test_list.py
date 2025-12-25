@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools import List
+from cogency.tools import ls
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def setup_test_dir(tmp_path):
 
 @pytest.mark.asyncio
 async def test_hides_ignored_directories(setup_test_dir):
-    result = await List.execute(path=str(setup_test_dir), access="system")
+    result = await ls.execute(path=str(setup_test_dir), access="system")
 
     assert not result.error
     content = result.content
@@ -70,7 +70,7 @@ async def test_hides_ignored_directories_recursive(setup_test_dir):
     (setup_test_dir / "regular_dir" / "node_modules").mkdir()
     (setup_test_dir / "regular_dir" / "node_modules" / "nested_package.json").write_text("{}")
 
-    result = await List.execute(path=str(setup_test_dir), access="system")
+    result = await ls.execute(path=str(setup_test_dir), access="system")
 
     assert not result.error
     content = result.content
@@ -90,7 +90,7 @@ async def test_empty_directory_with_ignored_dirs(tmp_path):
     (tmp_path / "empty_but_ignored").mkdir()
     (tmp_path / "empty_but_ignored" / "node_modules").mkdir()
 
-    result = await List.execute(path=str(tmp_path / "empty_but_ignored"), access="system")
+    result = await ls.execute(path=str(tmp_path / "empty_but_ignored"), access="system")
 
     assert not result.error
     assert result.content is not None
@@ -107,7 +107,7 @@ async def test_only_ignored_dirs_in_root(tmp_path):
     (tmp_path / "only_ignored" / "node_modules").mkdir()
     (tmp_path / "only_ignored" / ".venv").mkdir()
 
-    result = await List.execute(path=str(tmp_path / "only_ignored"), access="system")
+    result = await ls.execute(path=str(tmp_path / "only_ignored"), access="system")
 
     assert not result.error
     assert result.content is not None
@@ -131,9 +131,7 @@ async def test_simple_pattern_matching(tmp_path: Path):
     sub_dir.mkdir()
     (sub_dir / "file3.py").write_text("content")
 
-    result = await List.execute(
-        path=".", pattern="*.py", access="sandbox", sandbox_dir=str(tmp_path)
-    )
+    result = await ls.execute(path=".", pattern="*.py", access="sandbox", sandbox_dir=str(tmp_path))
 
     assert not result.error
     assert "files" in result.outcome.lower()
@@ -153,7 +151,7 @@ async def test_complex_pattern_matching(tmp_path: Path):
     """The ls tool should correctly filter files by glob pattern with multiple asterisks."""
     (tmp_path / "file1.py").write_text("content")
 
-    result = await List.execute(
+    result = await ls.execute(
         path=".", pattern="f*1*.py", access="sandbox", sandbox_dir=str(tmp_path)
     )
 
@@ -168,7 +166,7 @@ async def test_pattern_does_not_override_ignored_dirs(setup_test_dir):
     # Try to list a file within an ignored directory using a pattern
     (setup_test_dir / "node_modules" / "important.js").write_text("console.log('important');")
 
-    result = await List.execute(path=str(setup_test_dir), pattern="*.js", access="system")
+    result = await ls.execute(path=str(setup_test_dir), pattern="*.js", access="system")
 
     assert not result.error
     content = result.content
@@ -183,27 +181,27 @@ async def test_pattern_does_not_override_ignored_dirs(setup_test_dir):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_sandbox(tmp_path):
-    result = await List.execute(path="/etc", sandbox_dir=str(tmp_path), access="sandbox")
+    result = await ls.execute(path="/etc", sandbox_dir=str(tmp_path), access="sandbox")
     assert result.error is True
     assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
 
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_sandbox(tmp_path):
-    result = await List.execute(path="../../../etc", sandbox_dir=str(tmp_path), access="sandbox")
+    result = await ls.execute(path="../../../etc", sandbox_dir=str(tmp_path), access="sandbox")
     assert result.error is True
     assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
 
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_project(tmp_path):
-    result = await List.execute(path="/etc", sandbox_dir=str(tmp_path), access="project")
+    result = await ls.execute(path="/etc", sandbox_dir=str(tmp_path), access="project")
     assert result.error is True
     assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome
 
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_project(tmp_path):
-    result = await List.execute(path="../../../etc", sandbox_dir=str(tmp_path), access="project")
+    result = await ls.execute(path="../../../etc", sandbox_dir=str(tmp_path), access="project")
     assert result.error is True
     assert "Invalid path" in result.outcome or "outside sandbox" in result.outcome

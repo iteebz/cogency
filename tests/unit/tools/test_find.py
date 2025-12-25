@@ -2,7 +2,7 @@ import shlex
 
 import pytest
 
-from cogency.tools import Find
+from cogency.tools import find
 
 
 @pytest.mark.asyncio
@@ -12,7 +12,7 @@ async def test_reports_zero_matches(tmp_path, monkeypatch):
     (workspace / "app.py").write_text("print('hello world')\n", encoding="utf-8")
     monkeypatch.chdir(workspace)
 
-    result = await Find.execute(content="missing", path=".", access="project")
+    result = await find.execute(content="missing", path=".", access="project")
 
     assert result.outcome == "Found 0 matches"
     assert result.content is not None
@@ -30,7 +30,7 @@ async def test_returns_relative_paths_with_counts(tmp_path, monkeypatch):
     (pkg_dir / "beta.py").write_text("def bar():\n    return 'alpha'\n", encoding="utf-8")
     monkeypatch.chdir(workspace)
 
-    result = await Find.execute(content="alpha", path="pkg", access="project")
+    result = await find.execute(content="alpha", path="pkg", access="project")
 
     assert result.outcome == "Found 2 matches"
     assert result.content is not None
@@ -38,7 +38,7 @@ async def test_returns_relative_paths_with_counts(tmp_path, monkeypatch):
     assert any(line.startswith("pkg/alpha.py:2:") for line in lines)
     assert any(line.startswith("pkg/beta.py:2:") for line in lines)
 
-    second = await Find.execute(pattern="alpha.py", path="pkg", access="project")
+    second = await find.execute(pattern="alpha.py", path="pkg", access="project")
     assert second.outcome == "Found 1 match"
     assert second.content is not None
     entries = [
@@ -56,7 +56,7 @@ async def test_returns_relative_paths_with_counts(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_sandbox(tmp_path):
-    result = await Find.execute(
+    result = await find.execute(
         path="/etc", content="x", sandbox_dir=str(tmp_path), access="sandbox"
     )
     assert result.error is True
@@ -65,7 +65,7 @@ async def test_rejects_absolute_path_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_sandbox(tmp_path):
-    result = await Find.execute(
+    result = await find.execute(
         path="../../../etc", content="x", sandbox_dir=str(tmp_path), access="sandbox"
     )
     assert result.error is True
@@ -74,7 +74,7 @@ async def test_rejects_traversal_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_project(tmp_path):
-    result = await Find.execute(
+    result = await find.execute(
         path="/etc", content="x", sandbox_dir=str(tmp_path), access="project"
     )
     assert result.error is True
@@ -83,7 +83,7 @@ async def test_rejects_absolute_path_in_project(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_project(tmp_path):
-    result = await Find.execute(
+    result = await find.execute(
         path="../../../etc", content="x", sandbox_dir=str(tmp_path), access="project"
     )
     assert result.error is True

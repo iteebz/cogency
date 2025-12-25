@@ -15,7 +15,7 @@ class SearchParams:
 
 @tool("Search the web. Returns up to 5 results with title, body, and URL.")
 @safe_execute
-async def Search(
+async def search(
     params: SearchParams,
     **kwargs: Any,
 ) -> ToolResult:

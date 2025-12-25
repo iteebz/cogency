@@ -2,12 +2,12 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools import Shell
+from cogency.tools import shell
 
 
 @pytest.mark.asyncio
 async def test_runs_in_sandbox_dir(tmp_path):
-    result = await Shell.execute(command="pwd", sandbox_dir=str(tmp_path), access="sandbox")
+    result = await shell.execute(command="pwd", sandbox_dir=str(tmp_path), access="sandbox")
 
     assert not result.error
     assert result.content is not None
@@ -16,7 +16,7 @@ async def test_runs_in_sandbox_dir(tmp_path):
 
 @pytest.mark.asyncio
 async def test_runs_in_cwd():
-    result = await Shell.execute(command="pwd", access="project")
+    result = await shell.execute(command="pwd", access="project")
 
     assert not result.error
     assert result.content is not None
@@ -25,7 +25,7 @@ async def test_runs_in_cwd():
 
 @pytest.mark.asyncio
 async def test_sandbox_ignored_when_not_sandbox(tmp_path):
-    result = await Shell.execute(command="pwd", sandbox_dir=str(tmp_path), access="project")
+    result = await shell.execute(command="pwd", sandbox_dir=str(tmp_path), access="project")
 
     assert not result.error
     assert result.content is not None
@@ -35,7 +35,7 @@ async def test_sandbox_ignored_when_not_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_timeout_enforcement():
-    result = await Shell.execute(command="/bin/sleep 5", timeout=1, access="sandbox")
+    result = await shell.execute(command="/bin/sleep 5", timeout=1, access="sandbox")
 
     assert result.error
     assert result.outcome is not None
@@ -49,7 +49,7 @@ async def test_lists_directories_in_project(tmp_path, monkeypatch):
 
     monkeypatch.chdir(tmp_path)
 
-    result = await Shell.execute(command="ls", access="project")
+    result = await shell.execute(command="ls", access="project")
 
     assert not result.error
     assert result.content is not None
@@ -62,7 +62,7 @@ async def test_cwd_absolute_blocked_in_sandbox(tmp_path):
     subdir = tmp_path / "custom"
     subdir.mkdir()
 
-    result = await Shell.execute(command="pwd", cwd=str(subdir), access="sandbox")
+    result = await shell.execute(command="pwd", cwd=str(subdir), access="sandbox")
 
     assert result.error
     assert "Path outside sandbox" in result.outcome
@@ -73,7 +73,7 @@ async def test_cwd_absolute_allowed_in_system(tmp_path):
     subdir = tmp_path / "custom"
     subdir.mkdir()
 
-    result = await Shell.execute(command="pwd", cwd=str(subdir), access="system")
+    result = await shell.execute(command="pwd", cwd=str(subdir), access="system")
 
     assert not result.error
     assert result.content is not None
@@ -82,7 +82,7 @@ async def test_cwd_absolute_allowed_in_system(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cwd_relative_sandbox(tmp_path):
-    result = await Shell.execute(
+    result = await shell.execute(
         command="pwd", cwd="subdir", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -93,7 +93,7 @@ async def test_cwd_relative_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_cwd_relative_project():
-    result = await Shell.execute(command="pwd", cwd="tests", access="project")
+    result = await shell.execute(command="pwd", cwd="tests", access="project")
 
     assert not result.error
     assert result.content is not None
@@ -102,7 +102,7 @@ async def test_cwd_relative_project():
 
 @pytest.mark.asyncio
 async def test_cwd_escape_blocked_in_sandbox(tmp_path):
-    result = await Shell.execute(
+    result = await shell.execute(
         command="pwd", cwd="../..", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -114,7 +114,7 @@ async def test_cwd_escape_blocked_in_sandbox(tmp_path):
 async def test_cwd_escape_blocked_in_project(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
 
-    result = await Shell.execute(command="pwd", cwd="../..", access="project")
+    result = await shell.execute(command="pwd", cwd="../..", access="project")
 
     assert result.error
     assert "Invalid path" in result.outcome

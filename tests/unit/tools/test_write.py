@@ -1,6 +1,6 @@
 import pytest
 
-from cogency.tools import Write
+from cogency.tools import write
 
 # --- Success Cases (Creation) ---
 
@@ -10,7 +10,7 @@ async def test_creates_new_file(tmp_path):
     target = tmp_path / "new_file.txt"
     content = "Hello, world!"
 
-    result = await Write.execute(
+    result = await write.execute(
         file=str(target.name), content=content, sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -24,7 +24,7 @@ async def test_creates_parent_directories(tmp_path):
     nested_path = "a/b/c/test.txt"
     content = "data"
 
-    result = await Write.execute(
+    result = await write.execute(
         file=nested_path, content=content, sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -43,7 +43,7 @@ async def test_succeeds_on_overwrite(tmp_path):
     target.write_text("initial content")
     content = "new content"
 
-    result = await Write.execute(
+    result = await write.execute(
         file=str(target.name),
         content=content,
         sandbox_dir=str(tmp_path),
@@ -65,7 +65,7 @@ async def test_fails_without_overwrite(tmp_path):
     target.write_text("initial content")
     content = "new content"
 
-    result = await Write.execute(
+    result = await write.execute(
         file=str(target.name),
         content=content,
         sandbox_dir=str(tmp_path),
@@ -83,7 +83,7 @@ async def test_fails_without_overwrite(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_sandbox(tmp_path):
-    result = await Write.execute(
+    result = await write.execute(
         file="/etc/passwd", content="x", sandbox_dir=str(tmp_path), access="sandbox"
     )
     assert result.error is True
@@ -92,7 +92,7 @@ async def test_rejects_absolute_path_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_sandbox(tmp_path):
-    result = await Write.execute(
+    result = await write.execute(
         file="../../../etc/passwd", content="x", sandbox_dir=str(tmp_path), access="sandbox"
     )
     assert result.error is True
@@ -101,7 +101,7 @@ async def test_rejects_traversal_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_project(tmp_path):
-    result = await Write.execute(
+    result = await write.execute(
         file="/etc/passwd", content="x", sandbox_dir=str(tmp_path), access="project"
     )
     assert result.error is True
@@ -110,7 +110,7 @@ async def test_rejects_absolute_path_in_project(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_project(tmp_path):
-    result = await Write.execute(
+    result = await write.execute(
         file="../../../etc/passwd", content="x", sandbox_dir=str(tmp_path), access="project"
     )
     assert result.error is True

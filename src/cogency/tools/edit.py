@@ -26,7 +26,7 @@ def _compute_diff(file: str, old: str, new: str) -> str:
 
 @tool("Edit file by replacing text. Exact match (old) must be unique in file.")
 @safe_execute
-async def Edit(
+async def edit(
     params: EditParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",

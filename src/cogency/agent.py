@@ -25,7 +25,7 @@ from .core.protocols import (
 )
 from .lib import llms
 from .lib.sqlite import default_storage
-from .tools import tools as builtin_tools
+from .tools import all as defaults
 
 logger = logging.getLogger(__name__)
 
@@ -94,7 +94,7 @@ class Agent:
 
         final_security = security or Security()
         final_storage = storage or default_storage()
-        final_tools = builtin_tools() if tools is None else tools
+        final_tools = defaults if tools is None else tools
         final_llm = llms.create(llm) if isinstance(llm, str) else llm
 
         self.config = Config(

@@ -16,7 +16,7 @@ class WriteParams:
 
 @tool("Write file. Fails if file exists unless overwrite=true.")
 @safe_execute
-async def Write(
+async def write(
     params: WriteParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",

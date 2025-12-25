@@ -84,7 +84,7 @@ def _build_tree(
 
 @tool("List files in tree view (depth 3). Pattern filters filenames.")
 @safe_execute
-async def List(
+async def ls(
     params: ListParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",

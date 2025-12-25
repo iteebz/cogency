@@ -1,16 +1,16 @@
 import pytest
 
-from cogency.tools import Read, Shell
+from cogency.tools import read, shell
 
 
 @pytest.fixture
 def shell_tool(tmp_path):
-    return Shell, str(tmp_path)
+    return shell, str(tmp_path)
 
 
 @pytest.fixture
 def file_tool(tmp_path):
-    return Read, str(tmp_path), "sandbox"
+    return read, str(tmp_path), "sandbox"
 
 
 @pytest.mark.asyncio
@@ -110,14 +110,14 @@ async def test_legitimate_ops(shell_tool, file_tool):
 async def test_project_access(tmp_path):
     base_dir = str(tmp_path)
 
-    result1 = await Read.execute(file="/etc/passwd", sandbox_dir=base_dir, access="project")
+    result1 = await read.execute(file="/etc/passwd", sandbox_dir=base_dir, access="project")
     assert "Invalid path" in result1.outcome
 
-    result2 = await Read.execute(file="../../../etc/passwd", sandbox_dir=base_dir, access="project")
+    result2 = await read.execute(file="../../../etc/passwd", sandbox_dir=base_dir, access="project")
     assert "Invalid path" in result2.outcome
 
     try:
-        result3 = await Read.execute(file="README.md", sandbox_dir=base_dir, access="project")
+        result3 = await read.execute(file="README.md", sandbox_dir=base_dir, access="project")
         assert "Invalid path" not in result3.outcome
     except FileNotFoundError:
         pass
@@ -127,8 +127,8 @@ async def test_project_access(tmp_path):
 async def test_system_access(tmp_path):
     base_dir = str(tmp_path)
 
-    result1 = await Read.execute(file="/etc/passwd", sandbox_dir=base_dir, access="system")
+    result1 = await read.execute(file="/etc/passwd", sandbox_dir=base_dir, access="system")
     assert "Invalid path" in result1.outcome
 
-    result2 = await Read.execute(file="../../../etc/passwd", sandbox_dir=base_dir, access="system")
+    result2 = await read.execute(file="../../../etc/passwd", sandbox_dir=base_dir, access="system")
     assert "Invalid path" in result2.outcome

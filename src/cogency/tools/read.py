@@ -32,7 +32,7 @@ def _read_lines(file_path: Path, start: int, lines: int | None = None) -> str:
 
 @tool("Read file. Use start/lines for pagination on large files.")
 @safe_execute
-async def Read(
+async def read(
     params: ReadParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",

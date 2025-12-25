@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from cogency.tools.replace import Replace
+from cogency.tools.replace import replace
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ async def test_replace_exact_single_file_single_occurrence(setup_files):
     file_path = setup_files["file1"]
     file_path.read_text()
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="simple_file.txt",
         old="Hello Python",
         new="Hello Cogency",
@@ -63,7 +63,7 @@ async def test_replace_exact_multiple_files(setup_files):
     file1_path = setup_files["file1"]
     file2_path = setup_files["file2"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="**/*.py",
         old="import os",
         new="import sys",
@@ -84,7 +84,7 @@ async def test_replace_exact_multiple_files(setup_files):
 async def test_replace_sandbox_prefix(setup_files):
     file2_path = setup_files["file2"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="sandbox/**/*.py",
         old="import os",
         new="import sys",
@@ -104,7 +104,7 @@ async def test_replace_sandbox_prefix(setup_files):
 async def test_replace_exact_multiple_occurrences_fails(setup_files):
     file_path = setup_files["file1"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="simple_file.txt",
         old="Hello World",
         new="Hi World",
@@ -122,7 +122,7 @@ async def test_replace_exact_multiple_occurrences_fails(setup_files):
 async def test_replace_exact_not_found(setup_files):
     file_path = setup_files["file1"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="simple_file.txt",
         old="NonExistent",
         new="Found",
@@ -141,7 +141,7 @@ async def test_replace_exact_not_found(setup_files):
 async def test_replace_regex_single_file_multiple_occurrences(setup_files):
     file_path = setup_files["file1"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="simple_file.txt",
         old=r"Hello (World|Python)",
         new=r"Hi \1",
@@ -163,7 +163,7 @@ async def test_replace_regex_single_file_multiple_occurrences(setup_files):
 async def test_replace_regex_version_update(setup_files):
     file_path = setup_files["file3"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="src/sub/another.py",
         old=r"VERSION = \"(\d+\.\d+\.\d+)\"",
         new='VERSION = "2.0.0"',
@@ -183,7 +183,7 @@ async def test_replace_regex_version_update(setup_files):
 async def test_replace_invalid_regex(setup_files):
     file_path = setup_files["file1"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="simple_file.txt",
         old="[",  # Invalid regex
         new="test",
@@ -199,7 +199,7 @@ async def test_replace_invalid_regex(setup_files):
 
 @pytest.mark.asyncio
 async def test_replace_no_files_matched(setup_files):
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="non_existent_file.txt",
         old="test",
         new="test",
@@ -217,7 +217,7 @@ async def test_replace_binary_file_skipped(setup_files):
     file_path = setup_files["file4"]
     original_content = file_path.read_bytes()
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="binary_file.bin",
         old="\x00",
         new="\xff",
@@ -238,7 +238,7 @@ async def test_replace_file_count_limit(setup_files):
     for i in range(1001):
         (setup_files["root"] / f"file_{i}.txt").write_text("test")
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="file_*.txt",
         old="test",
         new="new_test",
@@ -259,7 +259,7 @@ async def test_replace_rollback_on_error(setup_files):
     original_content_file2 = file2_path.read_text()
 
     # This will cause an error due to multiple occurrences in file1
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="**/*.txt",
         old="Hello World",
         new="Hi World",
@@ -277,7 +277,7 @@ async def test_replace_rollback_on_error(setup_files):
 
 @pytest.mark.asyncio
 async def test_replace_empty_old_string(setup_files):
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="simple_file.txt",
         old="",
         new="new",
@@ -291,7 +291,7 @@ async def test_replace_empty_old_string(setup_files):
 
 @pytest.mark.asyncio
 async def test_replace_empty_pattern(setup_files):
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="",
         old="old",
         new="new",
@@ -305,12 +305,12 @@ async def test_replace_empty_pattern(setup_files):
 
 @pytest.mark.asyncio
 async def test_replace_describe_method():
-    description = Replace.describe({"pattern": "*.txt", "old": "foo", "new": "bar", "exact": True})
+    description = replace.describe({"pattern": "*.txt", "old": "foo", "new": "bar", "exact": True})
     assert "replace(" in description
     assert "pattern=*.txt" in description
     assert "old=foo" in description
 
-    description = Replace.describe(
+    description = replace.describe(
         {"pattern": "*.py", "old": "func", "new": "method", "exact": False}
     )
     assert "replace(" in description
@@ -321,7 +321,7 @@ async def test_replace_describe_method():
 async def test_replace_returns_diff_content(setup_files):
     setup_files["file2"]
 
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="src/code.py",
         old="import os",
         new="import sys",
@@ -343,7 +343,7 @@ async def test_replace_returns_diff_content(setup_files):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_sandbox(tmp_path):
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="test.conf", old="x", new="y", exact=True, sandbox_dir="/etc", access="sandbox"
     )
     assert result.error is True
@@ -351,7 +351,7 @@ async def test_rejects_absolute_path_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_sandbox(tmp_path):
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="../../../etc/*.conf",
         old="x",
         new="y",
@@ -369,7 +369,7 @@ async def test_rejects_traversal_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_project(tmp_path):
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="test.conf", old="x", new="y", exact=True, sandbox_dir="/etc", access="project"
     )
     assert result.error is True
@@ -377,7 +377,7 @@ async def test_rejects_absolute_path_in_project(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_project(tmp_path):
-    result = await Replace.execute(
+    result = await replace.execute(
         pattern="../../../etc/*.conf",
         old="x",
         new="y",

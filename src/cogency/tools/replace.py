@@ -130,7 +130,7 @@ def _process_replacement(file_path: Path, params: ReplaceParams) -> tuple[str, i
 
 @tool("Performs find-and-replace operations across multiple files matching a glob pattern.")
 @safe_execute
-async def Replace(
+async def replace(
     params: ReplaceParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",

@@ -8,6 +8,7 @@ try:
 except ImportError:
     pass
 
+from . import tools
 from .agent import Agent
 from .core import (
     LLM,
@@ -21,7 +22,6 @@ from .core import (
     ToolError,
     ToolResult,
 )
-from .tools import tools
 
 __version__ = "3.3.0"
 __all__ = [

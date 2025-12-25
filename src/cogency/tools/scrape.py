@@ -46,7 +46,7 @@ def _extract_domain(url: str) -> str:
 
 @tool("Scrape webpage. Extracts readable text (3KB limit).")
 @safe_execute
-async def Scrape(
+async def scrape(
     params: ScrapeParams,
     **kwargs: Any,
 ) -> ToolResult:

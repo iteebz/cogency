@@ -1,5 +1,5 @@
 from cogency.context.system import prompt
-from cogency.tools import Write
+from cogency.tools import write
 
 
 def test_default_identity():
@@ -26,7 +26,7 @@ def test_identity_override():
 def test_prompt_section_order():
     custom_identity = "CUSTOM IDENTITY SECTION"
     custom_instructions = "CUSTOM INSTRUCTIONS SECTION"
-    tools = [Write]
+    tools = [write]
 
     result = prompt(
         identity=custom_identity,
@@ -88,7 +88,7 @@ def test_protocol_always_present():
 
 
 def test_tools_section():
-    tools = [Write]
+    tools = [write]
 
     # With tools
     result_with_tools = prompt(tools=tools)

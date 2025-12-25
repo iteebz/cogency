@@ -150,7 +150,7 @@ def _resolve_search_paths(
 
 @tool("Find files by name pattern or search file contents.")
 @safe_execute
-async def Find(
+async def find(
     params: FindParams,
     sandbox_dir: str = ".cogency/sandbox",
     access: Access = "sandbox",

@@ -1,6 +1,6 @@
 import pytest
 
-from cogency.tools import Edit
+from cogency.tools import edit
 
 # --- Success Cases ---
 
@@ -10,7 +10,7 @@ async def test_replace(tmp_path):
     target = tmp_path / "test.txt"
     target.write_text("previous content")
 
-    result = await Edit.execute(
+    result = await edit.execute(
         file=str(target.name),
         old="previous",
         new="next",
@@ -32,7 +32,7 @@ line 3
 """
     target.write_text(initial_content)
 
-    result = await Edit.execute(
+    result = await edit.execute(
         file=str(target.name),
         old="line 2 old",
         new="line 2 new",
@@ -67,7 +67,7 @@ line 3
 """
     target.write_text(initial_content)
 
-    result = await Edit.execute(
+    result = await edit.execute(
         file=str(target.name),
         old="line 2",
         new="line 2",
@@ -92,7 +92,7 @@ line 3
 """
     target.write_text(initial_content)
 
-    result = await Edit.execute(
+    result = await edit.execute(
         file=str(target.name),
         old="non-existent line",
         new="some new text",
@@ -110,7 +110,7 @@ async def test_fail_blank_on_empty(tmp_path):
     target = tmp_path / "test.txt"
     target.write_text("")
 
-    result = await Edit.execute(
+    result = await edit.execute(
         file=str(target.name), old="", new="content", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -124,7 +124,7 @@ async def test_fail_blank_on_existing(tmp_path):
     target = tmp_path / "test.txt"
     target.write_text("previous")
 
-    result = await Edit.execute(
+    result = await edit.execute(
         file=str(target.name), old="", new="next", sandbox_dir=str(tmp_path), access="sandbox"
     )
 
@@ -138,7 +138,7 @@ async def test_fail_blank_on_existing(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_sandbox(tmp_path):
-    result = await Edit.execute(
+    result = await edit.execute(
         file="/etc/passwd", old="x", new="y", sandbox_dir=str(tmp_path), access="sandbox"
     )
     assert result.error is True
@@ -147,7 +147,7 @@ async def test_rejects_absolute_path_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_sandbox(tmp_path):
-    result = await Edit.execute(
+    result = await edit.execute(
         file="../../../etc/passwd", old="x", new="y", sandbox_dir=str(tmp_path), access="sandbox"
     )
     assert result.error is True
@@ -156,7 +156,7 @@ async def test_rejects_traversal_in_sandbox(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_absolute_path_in_project(tmp_path):
-    result = await Edit.execute(
+    result = await edit.execute(
         file="/etc/passwd", old="x", new="y", sandbox_dir=str(tmp_path), access="project"
     )
     assert result.error is True
@@ -165,7 +165,7 @@ async def test_rejects_absolute_path_in_project(tmp_path):
 
 @pytest.mark.asyncio
 async def test_rejects_traversal_in_project(tmp_path):
-    result = await Edit.execute(
+    result = await edit.execute(
         file="../../../etc/passwd", old="x", new="y", sandbox_dir=str(tmp_path), access="project"
     )
     assert result.error is True

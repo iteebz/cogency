@@ -57,8 +57,13 @@ def format_results_array(calls: list[ToolCall], results: list[ToolResult]) -> st
         item: dict[str, Any] = {
             "tool": call.name,
             "status": "failure" if result.error else "success",
-            "content": result.outcome if result.error else (result.content or result.outcome),
         }
+        if result.error:
+            item["content"] = result.outcome
+        else:
+            item["outcome"] = result.outcome
+            if result.content:
+                item["content"] = result.content
         array.append(item)
     return json.dumps(array)
 

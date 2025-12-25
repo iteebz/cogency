@@ -50,7 +50,7 @@ def _format_result(result: subprocess.CompletedProcess[str]) -> ToolResult:
 
 @tool("Run shell command (30s timeout). Each call starts in project root.")
 @safe_execute
-async def Shell(
+async def shell(
     params: ShellParams,
     timeout: int = 30,
     sandbox_dir: str = ".cogency/sandbox",

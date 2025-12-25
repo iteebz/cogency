@@ -2,7 +2,7 @@ from unittest.mock import patch
 
 import pytest
 
-from cogency.tools import Search
+from cogency.tools import search
 
 
 @pytest.fixture
@@ -18,7 +18,7 @@ async def test_finds_results(mock_ddgs):
         {"title": "Result 2", "body": "Body 2", "href": "http://link2.com"},
     ]
 
-    result = await Search.execute(query="test query")
+    result = await search.execute(query="test query")
 
     assert not result.error
     assert "Found 2 results for 'test query'" in result.outcome
@@ -30,7 +30,7 @@ async def test_finds_results(mock_ddgs):
 
 @pytest.mark.asyncio
 async def test_empty_query():
-    result = await Search.execute(query="")
+    result = await search.execute(query="")
 
     assert result.error
     assert "Search query cannot be empty" in result.outcome
@@ -40,7 +40,7 @@ async def test_empty_query():
 async def test_no_results(mock_ddgs):
     mock_ddgs.return_value.text.return_value = []
 
-    result = await Search.execute(query="no results")
+    result = await search.execute(query="no results")
 
     assert not result.error
     assert result.content is not None
@@ -50,7 +50,7 @@ async def test_no_results(mock_ddgs):
 @pytest.mark.asyncio
 async def test_ddgs_import_error():
     with patch.dict("sys.modules", {"ddgs": None}):
-        result = await Search.execute(query="test")
+        result = await search.execute(query="test")
 
         assert result.error
         assert "DDGS metasearch not available" in result.outcome

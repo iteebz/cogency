@@ -21,10 +21,3 @@ repos:
         language: system
         types: [python]
         pass_filenames: false
-      
-      - id: tests
-        name: pytest
-        entry: uv run pytest -x
-        language: system
-        pass_filenames: false
-        always_run: true

@@ -34,7 +34,7 @@ class RecallParams:
 
 @tool("Search past conversations (excludes current). Use when user references prior context.")
 @safe_execute
-async def Recall(
+async def recall(
     params: RecallParams,
     storage: Storage,
     conversation_id: str | None = None,
