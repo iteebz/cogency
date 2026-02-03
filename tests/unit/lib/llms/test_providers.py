@@ -2,13 +2,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from cogency.lib.llms import Gemini, OpenAI
+from cogency.lib.llms import Anthropic, Gemini, OpenAI
 
 
 @pytest.fixture(
     params=[
         pytest.param(("OpenAI", OpenAI, "cogency.lib.llms.openai.get_api_key"), id="openai"),
         pytest.param(("Gemini", Gemini, "cogency.lib.llms.gemini.get_api_key"), id="gemini"),
+        pytest.param(
+            ("Anthropic", Anthropic, "cogency.lib.llms.rotation.get_api_key"), id="anthropic"
+        ),
     ]
 )
 def llm_instance(request):
@@ -31,6 +34,7 @@ async def test_llm_generate(llm_instance):
         patch.object(llm_instance, "_create_client") as mock_create_client,
         patch("cogency.lib.llms.openai.with_rotation", mock_rotation),
         patch("cogency.lib.llms.gemini.with_rotation", mock_rotation),
+        patch("cogency.lib.llms.anthropic.with_rotation", mock_rotation),
     ):
         mock_client_instance = mock_create_client.return_value
         mock_response = MagicMock()  # Make mock_response a MagicMock
@@ -65,6 +69,7 @@ async def test_llm_stream(llm_instance):
         patch.object(llm_instance, "_create_client") as mock_create_client,
         patch("cogency.lib.llms.openai.with_rotation", mock_rotation),
         patch("cogency.lib.llms.gemini.with_rotation", mock_rotation),
+        patch("cogency.lib.llms.anthropic.with_rotation", mock_rotation),
     ):
         mock_client_instance = mock_create_client.return_value
         mock_stream_response = AsyncMock()
@@ -109,7 +114,7 @@ async def test_llm_stream(llm_instance):
             mock_chunk_1 = _create_mock_chunk(name, "Chunk 1")
             mock_chunk_2 = _create_mock_chunk(name, "Chunk 2")
 
-            mock_stream_response_inner = AsyncMock()  # This is the actual async context manager
+            mock_stream_response_inner = AsyncMock()
             mock_stream_response_inner.text_stream = AsyncMock()
             mock_stream_response_inner.text_stream.__aiter__.return_value = iter(
                 [mock_chunk_1, mock_chunk_2]
@@ -117,7 +122,7 @@ async def test_llm_stream(llm_instance):
             mock_stream_response_inner.__aenter__.return_value = mock_stream_response_inner
             mock_stream_response_inner.__aexit__.return_value = None
 
-            mock_client_instance.messages.stream = AsyncMock(
+            mock_client_instance.messages.stream = MagicMock(
                 return_value=mock_stream_response_inner
             )
         else:
@@ -169,3 +174,17 @@ async def test_websocket_methods(websocket_llm_instance):
     # Test close
     await session.close()
     mock_session.close.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_anthropic_websocket_not_supported():
+    """Tests that Anthropic raises NotImplementedError for WebSocket methods."""
+    with patch("cogency.lib.llms.rotation.get_api_key", return_value="test-key"):
+        llm = Anthropic()
+
+    with pytest.raises(NotImplementedError, match="WebSocket"):
+        await llm.connect([{"role": "user", "content": "test"}])
+
+    with pytest.raises(NotImplementedError, match="WebSocket"):
+        async for _ in llm.send("test"):
+            pass
