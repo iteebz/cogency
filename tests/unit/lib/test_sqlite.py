@@ -255,3 +255,247 @@ async def test_search_messages_user_isolation(tmp_path):
 
     assert len(results) == 1
     assert results[0].content == "user1 secret"
+
+
+@pytest.mark.asyncio
+async def test_memory_db():
+    storage = SQLite(db_path=":memory:")
+    msg_id = await storage.save_message("conv1", "user1", "user", "test")
+    assert uuid.UUID(msg_id).version == 7
+    with DB.connect(":memory:") as conn:
+        rows = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        assert any("messages" in r[0] for r in rows)
+
+
+@pytest.mark.asyncio
+async def test_save_request(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    event_id = await storage.save_request(
+        conversation_id="conv1",
+        user_id="user1",
+        messages='[{"role": "user", "content": "hi"}]',
+        response="hello",
+        timestamp=1234.56,
+    )
+
+    assert uuid.UUID(event_id).version == 7
+
+    with DB.connect(db_path) as db:
+        db.row_factory = sqlite3.Row
+        row = db.execute("SELECT * FROM events WHERE event_id = ?", (event_id,)).fetchone()
+        assert row["type"] == "request"
+        import json
+
+        content = json.loads(row["content"])
+        assert content["response"] == "hello"
+
+
+@pytest.mark.asyncio
+async def test_save_request_default_timestamp(tmp_path):
+    import time
+
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+    before = time.time()
+
+    event_id = await storage.save_request(
+        conversation_id="conv1",
+        user_id="user1",
+        messages="[]",
+    )
+
+    after = time.time()
+
+    with DB.connect(db_path) as db:
+        row = db.execute("SELECT timestamp FROM events WHERE event_id = ?", (event_id,)).fetchone()
+        assert before <= row[0] <= after
+
+
+@pytest.mark.asyncio
+async def test_load_messages_include_filter(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv1", "user1", "user", "user msg", 100.0)
+    await storage.save_message("conv1", "user1", "assistant", "assistant msg", 200.0)
+    await storage.save_message("conv1", "user1", "system", "system msg", 300.0)
+
+    messages = await storage.load_messages("conv1", "user1", include=["user", "assistant"])
+    assert len(messages) == 2
+    types = {m["type"] for m in messages}
+    assert types == {"user", "assistant"}
+
+
+@pytest.mark.asyncio
+async def test_load_messages_exclude_filter(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv1", "user1", "user", "user msg", 100.0)
+    await storage.save_message("conv1", "user1", "assistant", "assistant msg", 200.0)
+    await storage.save_message("conv1", "user1", "system", "system msg", 300.0)
+
+    messages = await storage.load_messages("conv1", "user1", exclude=["system"])
+    assert len(messages) == 2
+    types = {m["type"] for m in messages}
+    assert "system" not in types
+
+
+@pytest.mark.asyncio
+async def test_load_messages_limit(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    for i in range(10):
+        await storage.save_message("conv1", "user1", "user", f"msg {i}", float(i * 100))
+
+    messages = await storage.load_messages("conv1", "user1", limit=3)
+    assert len(messages) == 3
+
+
+@pytest.mark.asyncio
+async def test_save_and_load_profile(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    profile = {"who": "test user", "style": "casual", "focus": "coding"}
+    await storage.save_profile("user1", profile)
+
+    loaded = await storage.load_profile("user1")
+    assert loaded["who"] == "test user"
+    assert loaded["style"] == "casual"
+
+
+@pytest.mark.asyncio
+async def test_load_profile_empty(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    loaded = await storage.load_profile("nonexistent")
+    assert loaded == {}
+
+
+@pytest.mark.asyncio
+async def test_delete_profile(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_profile("user1", {"name": "test"})
+    await storage.save_profile("user1", {"name": "test2"})
+
+    deleted = await storage.delete_profile("user1")
+    assert deleted == 2
+
+    loaded = await storage.load_profile("user1")
+    assert loaded == {}
+
+
+@pytest.mark.asyncio
+async def test_load_latest_metric_empty(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    result = await storage.load_latest_metric("nonexistent")
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_load_messages_by_conversation_id(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv1", "user1", "user", "msg1", 100.0)
+    await storage.save_message("conv1", "user1", "assistant", "msg2", 200.0)
+    await storage.save_message("conv1", "user1", "user", "msg3", 300.0)
+
+    messages = await storage.load_messages_by_conversation_id("conv1", limit=2)
+    assert len(messages) == 2
+    assert messages[0]["content"] == "msg3"
+    assert messages[1]["content"] == "msg1"
+
+
+@pytest.mark.asyncio
+async def test_load_user_messages(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv1", "user1", "user", "msg1", 100.0)
+    await storage.save_message("conv1", "user1", "assistant", "msg2", 200.0)
+    await storage.save_message("conv2", "user1", "user", "msg3", 300.0)
+
+    messages = await storage.load_user_messages("user1", since_timestamp=0)
+    assert len(messages) == 2
+    assert messages == ["msg1", "msg3"]
+
+    messages_limited = await storage.load_user_messages("user1", since_timestamp=0, limit=1)
+    assert len(messages_limited) == 1
+
+
+@pytest.mark.asyncio
+async def test_count_user_messages(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    storage = SQLite(db_path)
+
+    await storage.save_message("conv1", "user1", "user", "msg1", 100.0)
+    await storage.save_message("conv1", "user1", "assistant", "msg2", 200.0)
+    await storage.save_message("conv2", "user1", "user", "msg3", 300.0)
+
+    count = await storage.count_user_messages("user1", since_timestamp=0)
+    assert count == 2
+
+    count_since = await storage.count_user_messages("user1", since_timestamp=150.0)
+    assert count_since == 1
+
+
+def test_clear_messages(tmp_path):
+    from cogency.lib.sqlite import clear_messages
+
+    db_path = str(tmp_path / "test.db")
+    conn = DB.connect(db_path)
+    conn.execute(
+        "INSERT INTO messages (message_id, conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+        ("id1", "conv1", "user1", "user", "msg1", 100.0),
+    )
+    conn.execute(
+        "INSERT INTO messages (message_id, conversation_id, user_id, type, content, timestamp) VALUES (?, ?, ?, ?, ?, ?)",
+        ("id2", "conv2", "user1", "user", "msg2", 200.0),
+    )
+    conn.commit()
+    conn.close()
+
+    clear_messages("conv1", db_path)
+
+    conn = DB.connect(db_path)
+    rows = conn.execute("SELECT * FROM messages").fetchall()
+    conn.close()
+    assert len(rows) == 1
+    assert rows[0][1] == "conv2"
+
+
+def test_db_connect_existing_file(tmp_path):
+    db_path = str(tmp_path / "test.db")
+    DB._initialized_paths.clear()
+
+    conn1 = DB.connect(db_path)
+    conn1.close()
+    assert db_path in DB._initialized_paths
+
+    conn2 = DB.connect(db_path)
+    conn2.close()
+
+
+def test_db_cache_expiry(tmp_path):
+    import time
+
+    db_path = str(tmp_path / "test.db")
+    DB._initialized_paths.clear()
+
+    DB.connect(db_path).close()
+    assert str(tmp_path / "test.db") in DB._initialized_paths
+
+    DB._initialized_paths[str(tmp_path / "test.db")] = time.time() - DB._CACHE_TTL - 1
+
+    DB.connect(db_path).close()
+    assert time.time() - DB._initialized_paths[str(tmp_path / "test.db")] < 1
