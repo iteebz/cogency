@@ -1,16 +1,23 @@
 import os
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
 from cogency.core.errors import ToolError
 from cogency.core.security import (
+    _has_dollar_outside_single_quotes,
+    _has_unquoted,
     resolve_file,
+    safe_execute,
     sanitize_shell_input,
     timeout_context,
     validate_path,
 )
+
+if TYPE_CHECKING:
+    from cogency.core.config import Access
 
 
 @pytest.fixture
@@ -145,3 +152,82 @@ def test_resolve_system_allows_safe():
     with tempfile.NamedTemporaryFile() as tmp:
         result = resolve_file(tmp.name, "system")
         assert isinstance(result, Path)
+
+
+def test_resolve_invalid_access():
+    from typing import cast
+
+    with pytest.raises(ToolError, match="Invalid access level"):
+        resolve_file("test.txt", cast("Access", "invalid"))
+
+
+def test_has_unquoted_escaped_metachar():
+    """Backslash escapes metacharacters outside quotes."""
+    assert _has_unquoted(r"ls \; echo", {";"}) is None
+    assert _has_unquoted("ls ; echo", {";"}) == ";"
+
+
+def test_has_unquoted_double_quotes():
+    """Metacharacters inside double quotes are safe."""
+    assert _has_unquoted('ls ";foo" bar', {";"}) is None
+    assert _has_unquoted('ls "a;b" ;', {";"}) == ";"
+
+
+def test_has_unquoted_backslash_in_single():
+    """Backslash is literal inside single quotes."""
+    assert _has_unquoted(r"echo '\;'", {";"}) is None
+
+
+def test_has_dollar_escaped():
+    """Backslash escapes dollar outside quotes."""
+    assert _has_dollar_outside_single_quotes(r"\$HOME") is None
+    assert _has_dollar_outside_single_quotes("$HOME") == "$"
+
+
+def test_has_dollar_in_double_quotes():
+    """Dollar in double quotes still expands (not safe)."""
+    assert _has_dollar_outside_single_quotes('"$HOME"') == "$"
+
+
+def test_has_dollar_in_single_quotes():
+    """Dollar inside single quotes is safe."""
+    assert _has_dollar_outside_single_quotes("'$HOME'") is None
+
+
+@pytest.mark.asyncio
+async def test_safe_execute_returns_error_on_validation():
+    """safe_execute converts validation ToolError to error result."""
+
+    @safe_execute
+    async def failing_tool():
+        raise ToolError("bad input", validation_failed=True)
+
+    result = await failing_tool()
+    assert result.error is True
+    assert "bad input" in result.outcome
+
+
+@pytest.mark.asyncio
+async def test_safe_execute_propagates_non_validation():
+    """safe_execute re-raises ToolError without validation_failed."""
+
+    @safe_execute
+    async def failing_tool():
+        raise ToolError("system error", validation_failed=False)
+
+    with pytest.raises(ToolError, match="system error"):
+        await failing_tool()
+
+
+@pytest.mark.asyncio
+async def test_safe_execute_passes_through():
+    """safe_execute passes through normal results."""
+    from cogency.core.protocols import ToolResult
+
+    @safe_execute
+    async def good_tool():
+        return ToolResult(outcome="success")
+
+    result = await good_tool()
+    assert result.outcome == "success"
+    assert result.error is False
