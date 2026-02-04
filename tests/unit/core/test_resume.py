@@ -60,7 +60,6 @@ async def test_session_persistence(tmp_path, mock_llm, mock_config):
 
 @pytest.mark.asyncio
 async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
-    # Simulate a stream that ends naturally without an explicit end
     mock_llm.set_response_tokens(["This is a response."])
     mock_config.llm = mock_llm
 
@@ -69,5 +68,24 @@ async def test_stream_ends_without_explicit_end(mock_llm, mock_config):
         events.append(event)
 
     assert any(e["type"] == "respond" for e in events)
-    # The 'complete' flag should be set to True even without an explicit 'end' event
-    # This is implicitly tested by the stream finishing without error.
+
+
+@pytest.mark.asyncio
+async def test_notification_failure_logged(mock_llm, mock_config):
+    mock_llm.set_response_tokens(["response"])
+    mock_config.llm = mock_llm
+
+    async def failing_notifications():
+        raise RuntimeError("Notification source unavailable")
+
+    mock_config.notifications = failing_notifications
+
+    events = []
+    with patch("cogency.resume.logger.warning") as mock_warning:
+        async for event in resume.stream("test", "user", "conv", config=mock_config):
+            events.append(event)
+
+        mock_warning.assert_called_once()
+        assert "Notification source failed" in str(mock_warning.call_args)
+
+    assert any(e["type"] == "respond" for e in events)
