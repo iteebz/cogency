@@ -89,3 +89,60 @@ async def test_notification_failure_logged(mock_llm, mock_config):
         assert "Notification source failed" in str(mock_warning.call_args)
 
     assert any(e["type"] == "respond" for e in events)
+
+
+@pytest.mark.asyncio
+async def test_notifications_appended_to_messages(mock_llm, mock_config):
+    mock_llm.set_response_tokens(["response"])
+    mock_config.llm = mock_llm
+
+    notifications_called = []
+
+    async def working_notifications():
+        notifications_called.append(True)
+        return ["Alert: system update", "Reminder: check logs"]
+
+    mock_config.notifications = working_notifications
+
+    connect_messages = []
+    original_connect = mock_llm.connect
+
+    async def track_connect(messages):
+        connect_messages.extend(messages)
+        return await original_connect(messages)
+
+    mock_llm.connect = track_connect
+
+    events = []
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
+        events.append(event)
+
+    assert notifications_called
+    system_contents = [m["content"] for m in connect_messages if m.get("role") == "system"]
+    assert "Alert: system update" in system_contents
+    assert "Reminder: check logs" in system_contents
+
+
+@pytest.mark.asyncio
+async def test_end_event_emits_metrics(mock_config, resume_llm):
+    mock_config.llm = resume_llm([["<end>"]])
+
+    events = []
+    async for event in resume.stream("test", "user", "conv", config=mock_config):
+        events.append(event)
+
+    event_types = [e["type"] for e in events]
+    assert "metric" in event_types
+    assert "end" in event_types
+    assert event_types.index("metric") < event_types.index("end")
+
+
+@pytest.mark.asyncio
+async def test_websocket_continuation_error(mock_llm, mock_config):
+    mock_llm.set_response_tokens(["partial"])
+    mock_llm.set_continuation_error(RuntimeError("Connection lost"))
+    mock_config.llm = mock_llm
+
+    with pytest.raises(LLMError, match="WebSocket continuation failed"):
+        async for _ in resume.stream("test", "user", "conv", config=mock_config):
+            pass

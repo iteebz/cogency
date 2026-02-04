@@ -148,9 +148,6 @@ async def stream(  # noqa: C901  # WebSocket orchestrator with tool injection mi
 
                             case _:
                                 yield event
-
-                        if complete:
-                            break
                 except Exception as e:
                     raise LLMError(f"WebSocket continuation failed: {e}", cause=e) from e
                 finally:
