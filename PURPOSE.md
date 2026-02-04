@@ -37,4 +37,4 @@ Current technical differentiators:
 
 ---
 
-*Distribution machinery (PyPI promotion, docs site, landing page) is blocked until this document is complete. See decision 607dc014.*
+*All cogency work blocked until this document is complete. See decision 6090cf85.*
