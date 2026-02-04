@@ -1,4 +1,7 @@
-from cogency.lib.metrics import Metrics, count_tokens
+from unittest import mock
+
+from cogency.lib import metrics
+from cogency.lib.metrics import Metrics, _approx_tokens, count_tokens
 
 
 def test_word_count_approximation():
@@ -166,3 +169,52 @@ def test_llm_content_tracking():
     expected_total = think_tokens + call_tokens + respond_tokens
     assert metrics.output_tokens == expected_total
     assert metrics.step_output_tokens == expected_total
+
+
+def test_total_tokens():
+    m = Metrics.init("gpt-4")
+    m.add_input("input text")
+    m.add_output("output text")
+    assert m.total_tokens() == m.input_tokens + m.output_tokens
+
+
+def test_approx_tokens_empty():
+    assert _approx_tokens("") == 0
+    assert _approx_tokens("   ") == 0
+
+
+def test_approx_tokens_single_word():
+    assert _approx_tokens("hello") >= 1
+
+
+def test_approx_tokens_multiple_words():
+    result = _approx_tokens("hello world this is a test")
+    assert result > 0
+    # Formula: (words * 3 + 3) // 4, min 1
+    # 6 words -> (6 * 3 + 3) // 4 = 21 // 4 = 5
+    assert result == 5
+
+
+def test_count_tokens_without_tiktoken():
+    """count_tokens falls back to _approx_tokens when tiktoken unavailable."""
+    with mock.patch.object(metrics, "tiktoken", None):
+        tokens = count_tokens("hello world")
+        # Word-based approximation
+        assert tokens > 0
+
+
+def test_count_tokens_tiktoken_none_check():
+    """Encoder returns None when tiktoken is None."""
+    original = metrics.tiktoken
+    original_encoder = metrics._gpt4_encoder
+    original_failed = metrics._encoder_load_failed
+    try:
+        metrics.tiktoken = None
+        metrics._gpt4_encoder = None
+        metrics._encoder_load_failed = False
+        result = count_tokens("test")
+        assert result > 0
+    finally:
+        metrics.tiktoken = original
+        metrics._gpt4_encoder = original_encoder
+        metrics._encoder_load_failed = original_failed
