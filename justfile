@@ -45,3 +45,6 @@ publish: ci build
 
 commits:
     @git --no-pager log --pretty=format:"%h | %ar | %s"
+
+health:
+    @uv run python -m cogency.health
