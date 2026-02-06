@@ -11,7 +11,7 @@ install:
 
 ci:
     @uv run ruff format .
-    @uv run ruff check . --fix --unsafe-fixes
+    @uv run ruff check . --fix
     @uv run ruff check .
     @uv run pyright
     @uv run pyright -p pyright.evals.json
@@ -35,7 +35,7 @@ lint:
     @uv run ruff check . --ignore F841
 
 fix:
-    @uv run ruff check . --fix --unsafe-fixes
+    @uv run ruff check . --fix
 
 build:
     @uv build
