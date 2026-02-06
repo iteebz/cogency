@@ -84,8 +84,10 @@ def score() -> dict[str, Any]:
 
 def cli() -> None:
     result = score()
-    for check in result["checks"].values():
-        "✓" if check["ok"] else "✗"
+    print(f"health: {result['score']}/100 {'✓' if result['ok'] else '✗'}")
+    for name, check in result["checks"].items():
+        status = "✓" if check["ok"] else "✗"
+        print(f"  {name}: {status} {check['detail']}")
     if not result["ok"]:
         raise SystemExit(1)
 
