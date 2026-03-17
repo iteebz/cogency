@@ -3,22 +3,12 @@
 from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, TypedDict, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from .protocols import Tool, ToolCall, ToolResult, parse_tool_call_dict, parse_tool_result_dict
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
-
-
-class ToolCallDict(TypedDict):
-    name: str
-    args: dict[str, Any]
-
-
-class ToolResultDict(TypedDict, total=False):
-    outcome: str
-    content: str
 
 
 class ToolParseError(ValueError):
