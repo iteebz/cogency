@@ -4,7 +4,6 @@ from typing import Literal
 
 from .protocols import LLM, HistoryTransform, NotificationSource, Storage, Tool
 
-# Security access levels for file and shell operations
 Access = Literal["sandbox", "project", "system"]
 
 
