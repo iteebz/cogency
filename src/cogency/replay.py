@@ -37,7 +37,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
 ):
     llm = config.llm
 
-    # Initialize metrics tracking
     model_name = getattr(llm, "http_model", "unknown")
     metrics = Metrics.init(model_name)
 
@@ -45,7 +44,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
         complete = False
 
         for iteration in range(1, config.max_iterations + 1):  # [SEC-005] Prevent runaway agents
-            # Exit early if previous iteration completed
             if complete:
                 break
 
@@ -61,7 +59,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
                 instructions=config.instructions,
             )
 
-            # Inject pending notifications
             if config.notifications:
                 try:
                     pending = await config.notifications()
@@ -70,7 +67,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
                 except Exception as e:
                     logger.warning(f"Notification source failed: {e}")
 
-            # Add final iteration guidance
             if iteration == config.max_iterations:
                 messages.append(
                     {
@@ -79,8 +75,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
                     }
                 )
 
-            # stream=None uses .generate(), stream="token" yields token chunks, stream="event" batches semantically
-            # Only "token" mode does token-level streaming; "event" and None both accumulate complete units
             token_streaming = stream == "token"
             accumulator = Accumulator(
                 user_id or "",
@@ -89,7 +83,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
                 stream="token" if token_streaming else "event",
             )
 
-            # Track this LLM call
             if metrics:
                 metrics.start_step()
                 metrics.add_input(messages)
@@ -133,7 +126,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
                         case _:
                             yield event
 
-                # Emit metrics after LLM call completes
                 if metrics:
                     metrics_event = metrics.event()
                     telemetry.add_event(telemetry_events, metrics_event)
@@ -144,7 +136,6 @@ async def stream(  # noqa: C901  # HTTP ReAct orchestrator with iteration contro
                     log_response(conversation_id, model_name, "".join(llm_output_chunks))
                 await telemetry.persist_events(conversation_id, telemetry_events, config.storage)
 
-            # Exit iteration loop if complete
             if complete:
                 break
 

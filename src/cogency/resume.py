@@ -43,7 +43,6 @@ async def stream(  # noqa: C901  # WebSocket orchestrator with tool injection mi
             f"Use mode='auto' for fallback behavior or mode='replay' for HTTP-only."
         )
 
-    # Initialize metrics tracking
     model_name = getattr(llm, "http_model", "unknown")
     metrics = Metrics.init(model_name)
 

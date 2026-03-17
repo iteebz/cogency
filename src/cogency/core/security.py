@@ -109,7 +109,6 @@ def sanitize_shell_input(command: str) -> str:
             validation_failed=True,
         )
 
-    # Validate shell syntax
     try:
         tokens = shlex.split(command)
         if not tokens:
@@ -141,7 +140,6 @@ def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
         raise ToolError("Invalid path", validation_failed=True)
 
     if base_dir:
-        # Sandbox mode: relative paths only
         if Path(file_path).is_absolute():
             raise ToolError("Path outside sandbox", validation_failed=True)
 
@@ -150,7 +148,6 @@ def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
         except (OSError, ValueError):
             raise ToolError("Invalid path", validation_failed=True) from None
     else:
-        # System mode: allow absolute paths
         try:
             return Path(file_path).resolve()
         except (OSError, ValueError):

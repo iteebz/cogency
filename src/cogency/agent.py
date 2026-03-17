@@ -126,17 +126,14 @@ class Agent:
         stream: Literal["event", "token", None] = "event",
     ):
         try:
-            # Generate ephemeral ID for iteration continuity if none provided
             if conversation_id is None:
                 conversation_id = str(uuid.uuid4())
 
-            # Persist user message once at agent entry
             timestamp = time.time()
             await self.config.storage.save_message(
                 conversation_id, user_id or "", "user", query, timestamp
             )
 
-            # Emit user event - first event in conversation turn
             yield UserEvent(type="user", content=query, timestamp=timestamp)
 
             async for event in _select_mode_stream(

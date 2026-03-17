@@ -34,11 +34,9 @@ from .protocols import (
 
 logger = logging.getLogger(__name__)
 
-# Conversation events that get persisted to storage
 # "user" omitted - handled by resume/replay before agent stream
 PERSISTABLE_EVENTS = {"think", "call", "result", "respond"}
 
-# Events with content that can be accumulated over multiple parser chunks
 AccumulatableEvent = ThinkEvent | CallEvent | RespondEvent | ResultEvent
 AccumulatableType = Literal["think", "call", "respond", "result"]
 
@@ -62,12 +60,9 @@ class Accumulator:
         self.storage = execution.storage
         self.circuit_breaker = CircuitBreaker(max_failures=max_failures)
 
-        # Accumulation state
         self.current_type: AccumulatableType | None = None
         self.content = ""
         self.start_time: float | None = None
-
-        # Batch execution state for multi-tool blocks
         self.pending_calls: list[ToolCall] = []
         self.call_timestamps: list[float] = []
 
@@ -75,7 +70,6 @@ class Accumulator:
         if not self.current_type or not self.content.strip():
             return None
 
-        # Persist conversation events only (not control flow or metrics)
         clean_content = self.content.strip() if self.stream != "token" else self.content
 
         if self.current_type in PERSISTABLE_EVENTS:
@@ -182,7 +176,6 @@ class Accumulator:
 
                 continue
 
-            # Handle execute - flush any non-call accumulation and execute batch
             if ev_type == "execute":
                 if self.current_type and self.content.strip():
                     flushed = await self._flush_accumulated()
@@ -200,37 +193,29 @@ class Accumulator:
                 continue
 
             if ev_type == "end":
-                # Flush accumulated content before terminating
                 flushed = await self._flush_accumulated()
                 if flushed:
                     logger.debug(f"EVENT: {flushed}")
                     yield flushed
 
-                # Emit end and terminate with fresh timestamp
                 yield EndEvent(type="end", timestamp=time.time())
                 return
 
-            # Handle type transitions (non-call, non-control events)
             if ev_type != self.current_type:
-                # Flush previous accumulation
                 flushed = await self._flush_accumulated()
                 if flushed:
                     yield flushed
 
-                # Start new accumulation (only for accumulatable types)
                 if ev_type in ("think", "call", "respond", "result"):
                     self.current_type = ev_type
                     self.content = content
                     self.start_time = timestamp
             else:
-                # Continue accumulating same type
                 self.content += content
 
-            # stream="token": Yield respond/think chunks while accumulating for persistence
             if self.stream == "token" and ev_type in ("respond", "think"):
                 yield event
 
-        # Stream ended without explicit end event - flush remaining content
         flushed = await self._flush_accumulated()
         if flushed:
             yield flushed

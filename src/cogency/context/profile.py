@@ -188,7 +188,6 @@ async def learn_async(
 
     logger.debug(f"🧠 LEARNING: {len(message_texts)} new messages for {user_id}")
 
-    # Check size and update
     compact = len(json.dumps(current)) > COMPACT_THRESHOLD
     updated = await update_profile(current, message_texts, llm, compact=compact)
 
@@ -214,7 +213,6 @@ async def update_profile(
     if not result:
         return current if compact else None
 
-    # Parse JSON (strip common markdown)
     clean = result.strip().removeprefix("```json").removeprefix("```").removesuffix("```")
 
     try:
