@@ -108,7 +108,6 @@ class OpenAI(LLM):
                 yield event.delta
 
     async def connect(self, messages: list[dict[str, Any]]) -> "OpenAI":
-        # Close any existing session first
         if self._connection_manager:
             await self.close()
 
@@ -182,7 +181,6 @@ class OpenAI(LLM):
             raise RuntimeError("send() requires active session. Call connect() first.")
 
         try:
-            # Add message if content is provided
             if content.strip():
                 await self._connection.conversation.item.create(
                     item={

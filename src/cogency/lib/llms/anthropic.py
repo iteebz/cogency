@@ -84,10 +84,8 @@ class Anthropic(LLM):
                 temperature=self.temperature,
             )
 
-        # Get streaming context manager with rotation
         stream_context_manager = await with_rotation("ANTHROPIC", _stream_with_key)
 
-        # Enter the context manager to get the stream object
         async with stream_context_manager as stream_object:
             async for text in stream_object.text_stream:
                 yield text
