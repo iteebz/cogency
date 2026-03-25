@@ -103,8 +103,6 @@ EventType = Literal[
     "cancelled",
 ]
 
-_CONTROL_EVENT_TYPES: set[EventType] = {"execute", "end", "interrupt"}
-
 
 def event_type(event: Event) -> EventType:
     return event["type"]
@@ -115,18 +113,6 @@ def event_content(event: Event) -> str:
     if "content" in event:
         return event["content"] or ""
     return ""
-
-
-def is_control_event(event: Event) -> bool:
-    return event_type(event) in _CONTROL_EVENT_TYPES
-
-
-def is_execute(event: Event) -> bool:
-    return event_type(event) == "execute"
-
-
-def is_end(event: Event) -> bool:
-    return event_type(event) == "end"
 
 
 @runtime_checkable
