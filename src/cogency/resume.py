@@ -61,7 +61,6 @@ async def stream(  # noqa: C901
             instructions=config.instructions,
         )
 
-        # Inject pending notifications
         if config.notifications:
             try:
                 pending = await config.notifications()

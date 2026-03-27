@@ -244,8 +244,6 @@ class OpenAI(LLM):
         if not self._connection_manager:
             return  # No-op for HTTP-only instances
 
-        import asyncio
-
         # Force close connection first
         if self._connection:
             import contextlib
