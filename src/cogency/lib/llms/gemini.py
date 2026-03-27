@@ -147,9 +147,7 @@ class Gemini(LLM):
             await connection.__aexit__(type(e), e, e.__traceback__)
             raise RuntimeError("Gemini connection failed") from e
 
-    async def send(
-        self, content: str
-    ) -> AsyncGenerator[str, None]:  # Gemini protocol adapter with dual-signal streaming
+    async def send(self, content: str) -> AsyncGenerator[str, None]:
         if not self._session:
             raise RuntimeError("send() requires active session. Call connect() first.")
 
@@ -180,7 +178,6 @@ class Gemini(LLM):
                 if hasattr(sc, "generation_complete") and sc.generation_complete:
                     seen_generation_complete = True
 
-                # Wait for both Gemini stream completion signals
                 if seen_generation_complete and hasattr(sc, "turn_complete") and sc.turn_complete:
                     return
 
@@ -210,7 +207,6 @@ class Gemini(LLM):
                 if hasattr(sc, "generation_complete") and sc.generation_complete:
                     seen_generation_complete = True
 
-                # Break only when we've seen BOTH signals
                 if seen_generation_complete and hasattr(sc, "turn_complete") and sc.turn_complete:
                     return
 
