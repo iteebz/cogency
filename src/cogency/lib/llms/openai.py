@@ -68,9 +68,9 @@ class OpenAI(LLM):
                 )
                 if response.output_text:
                     return response.output_text
-                if response.output and len(response.output) > 0:
+                if response.output:
                     output_msg: Any = response.output[0]  # SDK dynamic response type
-                    if output_msg.content and len(output_msg.content) > 0:
+                    if output_msg.content:
                         return str(output_msg.content[0].text or "")
                 return ""
             except ImportError as e:
