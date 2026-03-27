@@ -81,10 +81,8 @@ class Gemini(LLM):
                 ),
             )
 
-        # Get streaming response with rotation
         response = await with_rotation("GEMINI", _stream_with_key)
 
-        # Stream provider-native chunks - pure pipe
         async for chunk in response:
             if chunk.text:
                 yield chunk.text
@@ -174,13 +172,11 @@ class Gemini(LLM):
             if hasattr(message, "server_content") and message.server_content:
                 sc = message.server_content
 
-                # Collect text from model_turn.parts
                 if hasattr(sc, "model_turn") and sc.model_turn and hasattr(sc.model_turn, "parts"):
                     for part in sc.model_turn.parts:
                         if hasattr(part, "text") and part.text:
                             yield part.text
 
-                # Track generation_complete signal
                 if hasattr(sc, "generation_complete") and sc.generation_complete:
                     seen_generation_complete = True
 
@@ -211,7 +207,6 @@ class Gemini(LLM):
             if hasattr(message, "server_content") and message.server_content:
                 sc = message.server_content
 
-                # Track generation_complete signal
                 if hasattr(sc, "generation_complete") and sc.generation_complete:
                     seen_generation_complete = True
 
