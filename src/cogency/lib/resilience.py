@@ -15,7 +15,7 @@ def retry(  # noqa: C901
 
     def decorator(
         func: Callable[P, T],
-    ) -> Callable[P, T]:  # handles both coroutine and regular functions
+    ) -> Callable[P, T]:
         if inspect.iscoroutinefunction(func):
 
             @wraps(func)
