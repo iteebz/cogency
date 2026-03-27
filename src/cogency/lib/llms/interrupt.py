@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 
 P = ParamSpec("P")
 T = TypeVar("T")
-SelfT = TypeVar("SelfT")
 
 
 def interruptible(
