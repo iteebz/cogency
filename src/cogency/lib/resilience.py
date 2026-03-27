@@ -8,7 +8,9 @@ P = ParamSpec("P")
 T = TypeVar("T")
 
 
-def retry(attempts: int = 3, base_delay: float = 0.1) -> Callable[[Callable[P, T]], Callable[P, T]]:  # noqa: C901  # dual sync/async decorator
+def retry(  # noqa: C901
+    attempts: int = 3, base_delay: float = 0.1
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Retry decorator with exponential backoff. Works with sync and async functions."""
 
     def decorator(
