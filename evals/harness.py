@@ -454,7 +454,7 @@ def _extract_evidence(run: Run, assertion) -> dict[str, Any] | None:
         full = "".join(e.get("content", "") for e in responds)
         evidence["response_preview"] = full[:500]
 
-    return evidence if evidence else None
+    return evidence or None
 
 
 _sandbox_context: ContextVar[Path | None] = ContextVar("sandbox_context", default=None)
