@@ -27,7 +27,7 @@ from .lib.metrics import Metrics
 logger = logging.getLogger(__name__)
 
 
-async def stream(  # noqa: C901  # WebSocket orchestrator with tool injection mid-stream
+async def stream(  # noqa: C901
     query: str,
     user_id: str | None,
     conversation_id: str,
