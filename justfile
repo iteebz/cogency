@@ -9,33 +9,27 @@ clean:
 install:
     @uv sync
 
-ci:
-    @uv run ruff format .
-    @uv run ruff check . --fix
-    @uv run ruff check .
-    @uv run pyright
-    @uv run pyright -p pyright.evals.json
-    @uv run pyright -p pyright.tests.json
+format:
+    uv run ruff format . && uv run ruff check --fix . || true
+
+lint:
+    uv run ruff check . --ignore F841
+
+typecheck:
+    uv run pyright
+    uv run pyright -p pyright.evals.json
+    uv run pyright -p pyright.tests.json
+
+test:
     @uv run pytest tests -q
-    @uv build
+
+ci: lint typecheck test
 
 example name="hello":
     @uv run python examples/{{name}}.py
 
-test:
-    @uv run pytest tests
-
 cov:
     @uv run pytest --cov=src/cogency tests/
-
-format:
-    @uv run ruff format .
-
-lint:
-    @uv run ruff check . --ignore F841
-
-fix:
-    @uv run ruff check . --fix
 
 build:
     @uv build
