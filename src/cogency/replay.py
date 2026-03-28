@@ -44,9 +44,6 @@ async def stream(  # noqa: C901
         complete = False
 
         for iteration in range(1, config.max_iterations + 1):  # [SEC-005] Prevent runaway agents
-            if complete:
-                break
-
             messages = await context.assemble(
                 user_id or "",
                 conversation_id,
