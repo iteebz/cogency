@@ -167,6 +167,5 @@ async def stream(  # noqa: C901
     except Exception as e:
         raise LLMError(f"WebSocket failed: {e!s}", cause=e) from e
     finally:
-        # Always cleanup WebSocket session
         if session:
             await session.close()
