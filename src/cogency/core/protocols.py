@@ -226,80 +226,59 @@ class ParseError(ValueError):
         self.raw = raw
 
 
-def parse_tool_call_dict(raw: object, *, require_args: bool = False) -> ToolCallDict:
-    """Parse raw JSON into ToolCallDict. Raises ParseError on invalid shape."""
+def _parse_fields(raw: object, fields: dict[str, tuple[type, bool]]) -> dict[str, Any]:
+    """Parse raw JSON dict, type-checking each field. Raises ParseError on invalid shape.
+
+    fields: {name: (expected_type, required)}. When required=False, missing keys are skipped.
+    """
     if not isinstance(raw, dict):
         raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
     data = cast("dict[str, Any]", raw)  # JSON boundary cast
-    name = data.get("name")
-    if not isinstance(name, str):
-        raise ParseError(f"Field 'name' must be str, got {type(name).__name__}", data)
+    result: dict[str, Any] = {}
+    for key, (expected, required) in fields.items():
+        val = data.get(key)
+        if val is None:
+            if required:
+                raise ParseError(f"Field '{key}' is required", data)
+            continue
+        if not isinstance(val, expected):
+            raise ParseError(
+                f"Field '{key}' must be {expected.__name__}, got {type(val).__name__}", data
+            )
+        result[key] = val
+    return result
 
-    if require_args and "args" not in data:
-        raise ParseError("Field 'args' is required", data)
 
-    args = data.get("args", {})
-    if not isinstance(args, dict):
-        raise ParseError(f"Field 'args' must be dict, got {type(args).__name__}", data)
-    return {"name": name, "args": args}
+def parse_tool_call_dict(raw: object, *, require_args: bool = False) -> ToolCallDict:
+    """Parse raw JSON into ToolCallDict. Raises ParseError on invalid shape."""
+    fields: dict[str, tuple[type, bool]] = {
+        "name": (str, True),
+        "args": (dict, require_args),
+    }
+    data = _parse_fields(raw, fields)
+    return {"name": data["name"], "args": data.get("args", {})}
 
 
 def parse_tool_result_dict(raw: object) -> ToolResultDict:
     """Parse raw JSON into ToolResultDict. Raises ParseError on invalid shape."""
-    if not isinstance(raw, dict):
-        raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
-    data = cast("dict[str, Any]", raw)  # JSON boundary cast
-    result: ToolResultDict = {}
-    outcome = data.get("outcome")
-    if outcome is not None:
-        if not isinstance(outcome, str):
-            raise ParseError(f"Field 'outcome' must be str, got {type(outcome).__name__}", data)
-        result["outcome"] = outcome
-    content = data.get("content")
-    if content is not None:
-        if not isinstance(content, str):
-            raise ParseError(f"Field 'content' must be str, got {type(content).__name__}", data)
-        result["content"] = content
-    return result
+    data = _parse_fields(raw, {"outcome": (str, False), "content": (str, False)})
+    return cast("ToolResultDict", data)
 
 
 def parse_profile_dict(raw: object) -> ProfileDict:
     """Parse raw JSON into ProfileDict. Raises ParseError on invalid shape."""
-    if not isinstance(raw, dict):
-        raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
-    data = cast("dict[str, Any]", raw)  # JSON boundary cast
-    result: ProfileDict = {}
-    for key in ("who", "style", "focus", "interests", "misc"):
-        val = data.get(key)
-        if val is not None:
-            if not isinstance(val, str):
-                raise ParseError(f"Field '{key}' must be str, got {type(val).__name__}", data)
-            result[key] = val
-    meta = data.get("_meta")
-    if meta is not None:
-        if not isinstance(meta, dict):
-            raise ParseError(f"Field '_meta' must be dict, got {type(meta).__name__}", data)
-        result["_meta"] = meta
-    return result
+    fields: dict[str, tuple[type, bool]] = dict.fromkeys(
+        ("who", "style", "focus", "interests", "misc"), (str, False)
+    )
+    fields["_meta"] = (dict, False)
+    data = _parse_fields(raw, fields)
+    return cast("ProfileDict", data)
 
 
 def parse_metric_data_dict(raw: object) -> MetricDataDict:
     """Parse raw JSON into MetricDataDict. Raises ParseError on invalid shape."""
-    if not isinstance(raw, dict):
-        raise ParseError(f"Expected dict, got {type(raw).__name__}", raw)
-    data = cast("dict[str, Any]", raw)  # JSON boundary cast
-    result: MetricDataDict = {}
-    step = data.get("step")
-    if step is not None:
-        if not isinstance(step, dict):
-            raise ParseError(f"Field 'step' must be dict, got {type(step).__name__}", data)
-        result["step"] = step
-    total = data.get("total")
-    if total is not None:
-        if not isinstance(total, dict):
-            raise ParseError(f"Field 'total' must be dict, got {type(total).__name__}", data)
-        result["total"] = total
-    return result
+    data = _parse_fields(raw, {"step": (dict, False), "total": (dict, False)})
+    return cast("MetricDataDict", data)
 
 
 @dataclass

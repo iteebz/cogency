@@ -3,7 +3,7 @@
 import shlex
 import signal
 import types
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from functools import wraps
 from pathlib import Path
@@ -18,61 +18,38 @@ if TYPE_CHECKING:
 F = TypeVar("F", bound=Callable[..., Awaitable[ToolResult]])
 
 
-def _has_unquoted(command: str, targets: set[str]) -> str | None:
+def _walk_unquoted(command: str) -> "Iterator[tuple[str, bool, bool]]":
+    """Yield (char, in_single, in_double) for each unescaped character outside quote transitions."""
     single = double = False
     escaped = False
-
     for ch in command:
         if escaped:
             escaped = False
             continue
-
         if ch == "\\":
-            # Outside single quotes, backslash escapes the next character.
             if not single:
                 escaped = True
             continue
-
         if ch == "'" and not double:
             single = not single
             continue
-
         if ch == '"' and not single:
             double = not double
             continue
+        yield ch, single, double
 
+
+def _has_unquoted(command: str, targets: set[str]) -> str | None:
+    for ch, single, double in _walk_unquoted(command):
         if ch in targets and not single and not double:
             return ch
-
-    # Unbalanced quotes - leave detection to shlex which will error.
     return None
 
 
 def _has_dollar_outside_single_quotes(command: str) -> str | None:
-    single = double = False
-    escaped = False
-
-    for ch in command:
-        if escaped:
-            escaped = False
-            continue
-
-        if ch == "\\":
-            if not single:
-                escaped = True
-            continue
-
-        if ch == "'" and not double:
-            single = not single
-            continue
-
-        if ch == '"' and not single:
-            double = not double
-            continue
-
+    for ch, single, _double in _walk_unquoted(command):
         if ch == "$" and not single:
             return ch
-
     return None
 
 
