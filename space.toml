@@ -1,0 +1,5 @@
+[ci]
+command = "just ci"
+auto = true
+background = true
+timeout = 60
