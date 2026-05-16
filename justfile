@@ -23,7 +23,7 @@ typecheck:
 test:
     @uv run pytest tests -q
 
-ci: lint typecheck test
+ci: install lint typecheck test
 
 example name="hello":
     @uv run python examples/{{name}}.py
