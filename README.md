@@ -92,7 +92,7 @@ async for event in agent(
 | `read` | Read file (with optional pagination) |
 | `write` | Write file (overwrite protection) |
 | `edit` | Replace exact text in file |
-| `list` | Tree view of directory |
+| `ls` | Tree view of directory |
 | `find` | Find files by pattern or content |
 | `replace` | Find-and-replace across files |
 | `shell` | Execute shell command |

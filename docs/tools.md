@@ -4,16 +4,16 @@
 
 | Category | Tools |
 |----------|-------|
-| `code` | `read`, `write`, `edit`, `list`, `find`, `replace`, `shell` |
+| `code` | `read`, `write`, `edit`, `ls`, `find`, `replace`, `shell` |
 | `web` | `scrape`, `search` |
 | `memory` | `recall` |
 
 ```python
 from cogency import Agent, tools
 
-agent = Agent(tools=tools.category(["code", "web"]))  # By category
-agent = Agent(tools=tools.name(["read", "write"]))    # By name
-agent = Agent(tools=tools())                          # All tools
+agent = Agent(tools=tools.defaults)   # All tools (code + web + memory)
+agent = Agent(tools=tools.code)       # Code tools only
+agent = Agent(tools=tools.web)        # Web tools only
 ```
 
 ## Tool Reference
@@ -27,7 +27,7 @@ Write content to file. Fails if exists unless `overwrite=True`.
 ### `edit(file, old, new)`
 Replace exact text block in file.
 
-### `list(path=".", pattern=None)`
+### `ls(path=".", pattern=None)`
 List files in tree view (depth 3). Optional `pattern` filters filenames.
 
 ### `find(pattern=None, content=None, path=".")`
