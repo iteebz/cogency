@@ -81,7 +81,7 @@ async def test_notification_failure_logged(mock_llm, mock_config):
     mock_config.notifications = failing_notifications
 
     events = []
-    with patch("cogency.core.session.logger.warning") as mock_warning:
+    with patch("cogency.session.logger.warning") as mock_warning:
         async for event in resume.stream("test", "user", "conv", config=mock_config):
             events.append(event)
 

@@ -18,9 +18,9 @@ from .core.config import Config
 from .core.errors import LLMError
 from .core.parser import parse_tokens
 from .core.protocols import event_content, event_type
-from .core.session import setup
 from .lib import telemetry
 from .lib.debug import log_response
+from .session import setup
 
 logger = logging.getLogger(__name__)
 
