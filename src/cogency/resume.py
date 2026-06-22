@@ -14,15 +14,13 @@ in LLM memory rather than resending full context each turn.
 import logging
 from typing import Literal
 
-from . import context
-from .core.accumulator import Accumulator
 from .core.config import Config
 from .core.errors import LLMError
 from .core.parser import parse_tokens
-from .core.protocols import Event, event_content, event_type
+from .core.protocols import event_content, event_type
+from .core.session import setup
 from .lib import telemetry
 from .lib.debug import log_response
-from .lib.metrics import Metrics
 
 logger = logging.getLogger(__name__)
 
@@ -44,52 +42,18 @@ async def stream(  # noqa: C901
         )
 
     model_name = getattr(llm, "http_model", "unknown")
-    metrics = Metrics.init(model_name)
+
+    sess = await setup(query, user_id, conversation_id, config=config, stream=stream)
 
     session = None
     turn = 0
     try:
-        messages = await context.assemble(
-            user_id or "",
-            conversation_id,
-            tools=config.tools,
-            storage=config.storage,
-            history_window=config.history_window,
-            history_transform=config.history_transform,
-            profile_enabled=config.profile,
-            identity=config.identity,
-            instructions=config.instructions,
-        )
-
-        if config.notifications:
-            try:
-                pending = await config.notifications()
-                for notification in pending:
-                    messages.append({"role": "system", "content": notification})
-            except Exception as e:
-                logger.warning(f"Notification source failed: {e}")
-
-        if metrics:
-            metrics.start_step()
-            metrics.add_input(messages)
-
-        telemetry_events: list[Event] = []
-        session = await llm.connect(messages)
+        session = await llm.connect(sess.messages)
 
         complete = False
-
-        # stream=None uses .generate(), stream="token" yields token chunks, stream="event" batches semantically
-        # Only "token" mode does token-level streaming; "event" and None both accumulate complete units
-        token_streaming = stream == "token"
-        accumulator = Accumulator(
-            user_id or "",
-            conversation_id,
-            execution=config.execution,
-            stream="token" if token_streaming else "event",
-        )
-
         payload = None
         count_payload_tokens = False
+        telemetry_events = []
 
         try:
             while True:
@@ -99,23 +63,22 @@ async def stream(  # noqa: C901
                         f"Max iterations ({config.max_iterations}) exceeded in resume mode."
                     )
 
-                if count_payload_tokens and metrics and payload:
-                    metrics.add_input(payload)
+                if count_payload_tokens and sess.metrics and payload:
+                    sess.metrics.add_input(payload)
 
                 turn_output: list[str] = []
                 next_payload: str | None = None
 
                 try:
-                    # Send query on first turn, payload on subsequent turns
                     send_content = query if payload is None else payload
-                    async for event in accumulator.process(
+                    async for event in sess.accumulator.process(
                         parse_tokens(session.send(send_content))
                     ):
                         ev_type = event_type(event)
                         content = event_content(event)
 
-                        if ev_type in {"think", "call", "respond"} and metrics and content:
-                            metrics.add_output(content)
+                        if ev_type in {"think", "call", "respond"} and sess.metrics and content:
+                            sess.metrics.add_output(content)
                             turn_output.append(content)
 
                         if event:
@@ -124,19 +87,19 @@ async def stream(  # noqa: C901
                         match ev_type:
                             case "end":
                                 complete = True
-                                if metrics:
-                                    metric = metrics.event()
+                                if sess.metrics:
+                                    metric = sess.metrics.event()
                                     telemetry.add_event(telemetry_events, metric)
                                     yield metric
                                 yield event
                                 break
 
                             case "execute":
-                                if metrics:
-                                    metric = metrics.event()
+                                if sess.metrics:
+                                    metric = sess.metrics.event()
                                     telemetry.add_event(telemetry_events, metric)
                                     yield metric
-                                    metrics.start_step()
+                                    sess.metrics.start_step()
                                 yield event
 
                             case "result":

@@ -14,15 +14,13 @@ Features:
 import logging
 from typing import Literal
 
-from . import context
-from .core.accumulator import Accumulator
 from .core.config import Config
 from .core.errors import LLMError
 from .core.parser import parse_tokens
-from .core.protocols import Event, event_content
+from .core.protocols import event_content
+from .core.session import setup
 from .lib import telemetry
 from .lib.debug import log_response
-from .lib.metrics import Metrics
 
 logger = logging.getLogger(__name__)
 
@@ -36,68 +34,36 @@ async def stream(  # noqa: C901
     stream: Literal["event", "token", None] = "event",
 ):
     llm = config.llm
-
     model_name = getattr(llm, "http_model", "unknown")
-    metrics = Metrics.init(model_name)
 
     try:
         complete = False
 
         for iteration in range(1, config.max_iterations + 1):  # [SEC-005] Prevent runaway agents
-            messages = await context.assemble(
-                user_id or "",
-                conversation_id,
-                tools=config.tools,
-                storage=config.storage,
-                history_window=config.history_window,
-                history_transform=config.history_transform,
-                profile_enabled=config.profile,
-                identity=config.identity,
-                instructions=config.instructions,
-            )
-
-            if config.notifications:
-                try:
-                    pending = await config.notifications()
-                    for notification in pending:
-                        messages.append({"role": "system", "content": notification})
-                except Exception as e:
-                    logger.warning(f"Notification source failed: {e}")
+            sess = await setup(query, user_id, conversation_id, config=config, stream=stream)
 
             if iteration == config.max_iterations:
-                messages.append(
+                sess.messages.append(
                     {
                         "role": "system",
                         "content": "Final iteration: Please conclude naturally with what you've accomplished.",
                     }
                 )
 
-            token_streaming = stream == "token"
-            accumulator = Accumulator(
-                user_id or "",
-                conversation_id,
-                execution=config.execution,
-                stream="token" if token_streaming else "event",
-            )
-
-            if metrics:
-                metrics.start_step()
-                metrics.add_input(messages)
-
-            telemetry_events: list[Event] = []
+            telemetry_events = []
             llm_output_chunks: list[str] = []
 
             try:
                 if stream is None:
-                    completion = await llm.generate(messages)
+                    completion = await llm.generate(sess.messages)
                     token_source = completion
                 else:
-                    token_source = llm.stream(messages)
+                    token_source = llm.stream(sess.messages)
 
-                async for event in accumulator.process(parse_tokens(token_source)):
+                async for event in sess.accumulator.process(parse_tokens(token_source)):
                     content = event_content(event)
-                    if event["type"] in ["think", "call", "respond"] and metrics and content:
-                        metrics.add_output(content)
+                    if event["type"] in ["think", "call", "respond"] and sess.metrics and content:
+                        sess.metrics.add_output(content)
                         llm_output_chunks.append(content)
 
                     if event:
@@ -111,11 +77,11 @@ async def stream(  # noqa: C901
 
                         case "execute":
                             yield event
-                            if metrics:
-                                metrics_event = metrics.event()
+                            if sess.metrics:
+                                metrics_event = sess.metrics.event()
                                 telemetry.add_event(telemetry_events, metrics_event)
                                 yield metrics_event
-                                metrics.start_step()
+                                sess.metrics.start_step()
 
                         case "result":
                             yield event
@@ -123,8 +89,8 @@ async def stream(  # noqa: C901
                         case _:
                             yield event
 
-                if metrics:
-                    metrics_event = metrics.event()
+                if sess.metrics:
+                    metrics_event = sess.metrics.event()
                     telemetry.add_event(telemetry_events, metrics_event)
                     yield metrics_event
 
