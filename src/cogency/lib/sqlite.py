@@ -54,6 +54,11 @@ class DB:
                     if i == 2:
                         raise
                     time.sleep(0.1 * (i + 1))
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA temp_store=MEMORY")
+            conn.execute("PRAGMA cache_size=-8192")
+            conn.execute("PRAGMA mmap_size=268435456")
+            conn.execute("PRAGMA busy_timeout=5000")
 
         return conn
 
