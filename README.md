@@ -2,6 +2,8 @@
 
 Streaming agents with stateless context assembly.
 
+**Status: reference-tier.** Not actively developed — the problem this solved (streaming agent orchestration, stateless context assembly) is now handled natively by Claude Code. Kept installable and readable for the pattern (persist-then-rebuild, O(n²)→O(n) context scaling), not run as a product. No roadmap, no CI gate. Issues/PRs unlikely to be triaged.
+
 ## Install
 
 ```bash
