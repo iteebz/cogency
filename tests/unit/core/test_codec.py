@@ -5,6 +5,7 @@ import pytest
 from cogency.core.codec import (
     format_call_agent,
     format_result_agent,
+    format_results_array,
     parse_tool_call,
     parse_tool_result,
     tool_instructions,
@@ -90,3 +91,27 @@ def test_format_result_agent():
 
     result_no_content = ToolResult(outcome="Done", content="")
     assert format_result_agent(result_no_content) == "Done"
+
+
+def test_format_results_array_success_includes_outcome_and_content():
+    calls = [ToolCall(name="read", args={"file": "a.txt"})]
+    results = [ToolResult(outcome="Read ok", content="file data")]
+    array = json.loads(format_results_array(calls, results))
+    assert array == [
+        {"tool": "read", "status": "success", "outcome": "Read ok", "content": "file data"}
+    ]
+
+
+def test_format_results_array_success_no_content_omits_content_key():
+    calls = [ToolCall(name="read", args={"file": "a.txt"})]
+    results = [ToolResult(outcome="Read ok", content="")]
+    array = json.loads(format_results_array(calls, results))
+    assert array == [{"tool": "read", "status": "success", "outcome": "Read ok"}]
+
+
+def test_format_results_array_failure_uses_content_not_outcome_key():
+    calls = [ToolCall(name="write", args={"file": "a.txt"})]
+    results = [ToolResult(outcome="Write failed", content="", error="disk full")]
+    array = json.loads(format_results_array(calls, results))
+    assert array == [{"tool": "write", "status": "failure", "content": "Write failed"}]
+    assert "outcome" not in array[0]
