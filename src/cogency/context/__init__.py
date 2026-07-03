@@ -20,6 +20,6 @@ Agent flow:
 """
 
 from .assembly import assemble
-from .profile import learn
+from .profile import learn, wait_for_background_tasks
 
-__all__ = ["assemble", "learn"]
+__all__ = ["assemble", "learn", "wait_for_background_tasks"]

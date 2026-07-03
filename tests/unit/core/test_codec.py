@@ -111,7 +111,7 @@ def test_format_results_array_success_no_content_omits_content_key():
 
 def test_format_results_array_failure_uses_content_not_outcome_key():
     calls = [ToolCall(name="write", args={"file": "a.txt"})]
-    results = [ToolResult(outcome="Write failed", content="", error="disk full")]
+    results = [ToolResult(outcome="Write failed", content="", error=True)]
     array = json.loads(format_results_array(calls, results))
     assert array == [{"tool": "write", "status": "failure", "content": "Write failed"}]
     assert "outcome" not in array[0]

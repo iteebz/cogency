@@ -17,7 +17,7 @@ from typing import Literal
 from .core.config import Config
 from .core.errors import LLMError
 from .core.parser import parse_tokens
-from .core.protocols import event_content, event_type
+from .core.protocols import Event, event_content, event_type
 from .lib import telemetry
 from .lib.debug import log_response
 from .session import setup
@@ -53,7 +53,7 @@ async def stream(  # noqa: C901
         complete = False
         payload = None
         count_payload_tokens = False
-        telemetry_events = []
+        telemetry_events: list[Event] = []
 
         try:
             while True:

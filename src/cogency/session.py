@@ -18,7 +18,7 @@ class Session:
 
     def __init__(
         self,
-        messages: list[dict],
+        messages: list[dict[str, str]],
         metrics: Metrics | None,
         accumulator: Accumulator,
         config: Config,
@@ -63,7 +63,7 @@ async def setup(
             for notification in pending:
                 messages.append({"role": "system", "content": notification})
         except Exception as e:
-            logger.warning(f"Notification source failed: {e}")
+            logger.warning("Notification source failed: %s", e)
 
     if metrics:
         metrics.start_step()

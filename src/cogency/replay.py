@@ -17,7 +17,7 @@ from typing import Literal
 from .core.config import Config
 from .core.errors import LLMError
 from .core.parser import parse_tokens
-from .core.protocols import event_content
+from .core.protocols import Event, event_content
 from .lib import telemetry
 from .lib.debug import log_response
 from .session import setup
@@ -50,7 +50,7 @@ async def stream(  # noqa: C901
                     }
                 )
 
-            telemetry_events = []
+            telemetry_events: list[Event] = []
             llm_output_chunks: list[str] = []
 
             try:
