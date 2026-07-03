@@ -86,6 +86,14 @@ def test_path_blocks_traversal(attacks):
                 validate_path(path, Path(tmp))
 
 
+def test_path_blocks_null_byte_via_pattern_check(monkeypatch):
+    """Null-byte guard must trip in dangerous_patterns itself, not rely on
+    Path.resolve()'s incidental ValueError as a safety net."""
+    monkeypatch.setattr(Path, "resolve", lambda self, *a, **k: self)
+    with pytest.raises(ToolError, match="Invalid path"):
+        validate_path("file\x00.txt")
+
+
 def test_path_blocks_system(attacks):
     system = [p for p in attacks["path"] if p.startswith("/") or "C:\\" in p]
     for path in system:

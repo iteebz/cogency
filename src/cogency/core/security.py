@@ -103,7 +103,7 @@ def validate_path(file_path: str, base_dir: Path | None = None) -> Path:
 
     # Block dangerous patterns in one check [SEC-002, SEC-004]
     dangerous_patterns = [
-        "\\x00",
+        "\x00",
         "..",
         "\\",
         "/etc/",
