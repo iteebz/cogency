@@ -193,6 +193,32 @@ async def test_circuit_breaker_terminates(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
+async def test_execute_tools_raise_synthesizes_error_results(mock_config, mock_tool, monkeypatch):
+    """If execute_tools raises instead of returning ToolResults, accumulator
+    synthesizes an error ToolResult per pending call rather than propagating."""
+    mock_config.tools = [mock_tool()]
+    accumulator = Accumulator("test", "test", execution=mock_config.execution, stream="event")
+
+    async def boom(*_args, **_kwargs):
+        raise ValueError("executor exploded")
+
+    monkeypatch.setattr("cogency.core.accumulator.execute_tools", boom)
+
+    async def parser():
+        yield {"type": "call", "content": '{"name": "test_tool", "args": {"message": "hi"}}'}
+        yield {"type": "execute"}
+        yield {"type": "end"}
+
+    events = [event async for event in accumulator.process(parser())]  # type: ignore[arg-type]
+    result_events = [e for e in events if e["type"] == "result"]
+
+    assert len(result_events) == 1
+    assert "executor exploded" in result_events[0]["content"]
+    # circuit breaker recorded the synthesized failure
+    assert accumulator.circuit_breaker.consecutive_failures == 1
+
+
+@pytest.mark.asyncio
 async def test_persistence_policy(mock_config, mock_tool):
     """Verify only conversation events are persisted (not control flow or metrics)."""
     from cogency.core.accumulator import PERSISTABLE_EVENTS
