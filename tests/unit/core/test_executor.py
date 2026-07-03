@@ -86,6 +86,49 @@ async def test_context_injection(mock_config, mock_tool):
 
 
 @pytest.mark.asyncio
+async def test_shell_timeout_injected_for_shell_tool_only(mock_config, mock_tool):
+    """timeout kwarg only injected when tool_name == 'shell', never otherwise."""
+    shell_tool = mock_tool(name="shell")
+    shell_tool.execute = AsyncMock(return_value=ToolResult(outcome="ok"))
+    other_tool = mock_tool(name="other")
+    other_tool.execute = AsyncMock(return_value=ToolResult(outcome="ok"))
+    mock_config.tools = [shell_tool, other_tool]
+
+    await execute_tool(
+        ToolCall(name="shell", args={}),
+        execution=mock_config.execution,
+        user_id="user1",
+        conversation_id="conv1",
+    )
+    await execute_tool(
+        ToolCall(name="other", args={}),
+        execution=mock_config.execution,
+        user_id="user1",
+        conversation_id="conv1",
+    )
+
+    assert "timeout" in shell_tool.execute.call_args[1]
+    assert "timeout" not in other_tool.execute.call_args[1]
+
+
+@pytest.mark.asyncio
+async def test_empty_user_id_not_injected(mock_config, mock_tool):
+    """Falsy user_id (e.g. anonymous caller) must not appear in tool kwargs at all."""
+    tool = mock_tool(name="context_tool")
+    tool.execute = AsyncMock(return_value=ToolResult(outcome="ok"))
+    mock_config.tools = [tool]
+
+    await execute_tool(
+        ToolCall(name="context_tool", args={}),
+        execution=mock_config.execution,
+        user_id="",
+        conversation_id="conv1",
+    )
+
+    assert "user_id" not in tool.execute.call_args[1]
+
+
+@pytest.mark.asyncio
 async def test_parallel_batch_execution_preserves_order(mock_config, mock_tool):
     """Multiple tools execute in parallel, results preserve input order."""
     mock_tool_instance = mock_tool(name="test_tool")
