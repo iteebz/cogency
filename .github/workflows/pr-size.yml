@@ -1,0 +1,15 @@
+name: PR Size
+
+on:
+  pull_request:
+
+jobs:
+  pr-size:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: iteebz/pr-size@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
