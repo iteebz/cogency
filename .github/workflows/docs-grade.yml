@@ -1,0 +1,16 @@
+name: Docs Coverage Grade
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  docs-grade:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: iteebz/docs-coverage-grade@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
