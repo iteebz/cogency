@@ -1,0 +1,9 @@
+name: Docs Coverage
+on: [pull_request]
+
+jobs:
+  grade:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: iteebz/docs-coverage-grade@v1
